@@ -1,6 +1,8 @@
-//! Fixed, read-only Git queries for the project console. Shortcut names never
-//! cross this boundary; the renderer may select only one catalogue ID.
+//! Fixed, read-only Git queries for the console's catalogue shortcuts.
+//! Shortcut names never cross this boundary; the renderer may select only one
+//! catalogue ID, and each maps to a reviewed argument template.
 
+use super::{plain_text, CONSOLE_ENV};
 use crate::application;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::run_git_bounded_with_env;
@@ -112,61 +114,6 @@ pub(crate) struct ConsoleQueryResult {
     pub(crate) truncated: bool,
 }
 
-/// Explicit bidirectional embeddings, overrides and isolates. A path or a
-/// commit subject carrying them can display as different text from what it
-/// holds (the "Trojan Source" trick), so the console shows them as U+FFFD.
-fn is_bidi_control(ch: char) -> bool {
-    matches!(ch, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}')
-}
-
-/// Strip terminal controls before the renderer sees them. React renders the
-/// result as text, but escape sequences and cursor controls would still make
-/// copied output misleading or unreadable.
-fn plain_text(bytes: &[u8]) -> String {
-    let decoded = String::from_utf8_lossy(bytes);
-    let mut chars = decoded.chars().peekable();
-    let mut clean = String::with_capacity(decoded.len());
-    while let Some(ch) = chars.next() {
-        if ch == '\u{1b}' {
-            match chars.peek() {
-                Some('[') => {
-                    chars.next();
-                    for next in chars.by_ref() {
-                        if ('@'..='~').contains(&next) {
-                            break;
-                        }
-                    }
-                }
-                Some(']') => {
-                    chars.next();
-                    while let Some(next) = chars.next() {
-                        if next == '\u{7}' {
-                            break;
-                        }
-                        if next == '\u{1b}' && chars.peek() == Some(&'\\') {
-                            chars.next();
-                            break;
-                        }
-                    }
-                }
-                _ => {
-                    chars.next();
-                }
-            }
-        } else if ch == '\r' {
-            if chars.peek() == Some(&'\n') {
-                chars.next();
-            }
-            clean.push('\n');
-        } else if ch == '\n' || ch == '\t' || !(ch.is_control() || is_bidi_control(ch)) {
-            clean.push(ch);
-        } else {
-            clean.push('\u{fffd}');
-        }
-    }
-    clean
-}
-
 pub(crate) fn run_console_query(
     path: String,
     operation_id: String,
@@ -176,18 +123,7 @@ pub(crate) fn run_console_query(
     let (_repository, _access) =
         application::authorize_repository(&path, "run_console_query", None)?;
     let args = query.args();
-    let output = run_git_bounded_with_env(
-        &path,
-        args,
-        &[
-            ("GIT_PAGER", ""),
-            ("GIT_TERMINAL_PROMPT", "0"),
-            ("GIT_OPTIONAL_LOCKS", "0"),
-            ("GIT_CONFIG_COUNT", "1"),
-            ("GIT_CONFIG_KEY_0", "core.fsmonitor"),
-            ("GIT_CONFIG_VALUE_0", "false"),
-        ],
-    )?;
+    let output = run_git_bounded_with_env(&path, args, CONSOLE_ENV)?;
     Ok(ConsoleQueryResult {
         operation_id,
         command: format!("git {}", args.join(" ")),
@@ -268,21 +204,6 @@ mod tests {
                 AppErrorCode::InvalidSelection
             );
         }
-    }
-
-    #[test]
-    fn output_is_inert_and_lossy_text() {
-        assert_eq!(
-            plain_text(b"one\x1b[31m red\x1b[0m\x00\r\xff"),
-            "one red�\n�"
-        );
-        assert_eq!(plain_text(b"x\x1b]0;title\x07y"), "xy");
-        assert_eq!(plain_text(b"one\r\ntwo\rthree"), "one\ntwo\nthree");
-        assert_eq!(
-            plain_text("a\u{202e}txt.exe\u{2066}b".as_bytes()),
-            "a\u{fffd}txt.exe\u{fffd}b"
-        );
-        assert_eq!(plain_text("señal ✓".as_bytes()), "señal ✓");
     }
 
     #[test]

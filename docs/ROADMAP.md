@@ -106,6 +106,8 @@ references and therefore do not change when priorities move.
 | Q22 | 130 | Add project identity icons |
 | Q23 | 131 | Replace the app icon with the mascot |
 | Q24 | 132 | Return to Projects while projects are open |
+| Q25 | 138-1 | Type read-only Git commands in the console |
+| Q26 | 138-2 | Advanced console mode with previewed local and remote changes |
 
 ### Preview distribution — delivered
 
@@ -191,6 +193,15 @@ restored safely.
    project-scoped screen for fixed read-only Git queries and custom shortcut
    names. It uses the existing bounded Rust runner and does not replace the
    guided workflows or expose a system shell; see [task 134](../work/done/134-project-git-console.md).
+- **Q25–Q26 / 138: Git commands in the console.** Typed Git commands, parsed
+   and classified in Rust into permission tiers
+   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read-only
+   commands for everyone, then an advanced mode, off by default, for local and
+   remote changes that are previewed and, unless the person turns that off,
+   confirmed; see [epic 138](../work/done/138-console-git-commands.md).
+   138-1 is independent. History and destructive commands moved to
+   [task 139](../work/blocked/139-console-history-and-destructive-commands.md),
+   blocked on the Recovery Center (065-5).
 - **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;

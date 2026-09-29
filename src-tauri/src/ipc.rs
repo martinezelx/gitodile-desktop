@@ -12,10 +12,12 @@ use crate::{
     application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
+    console::{
+        self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
+    },
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
-    git_console::{self, ConsoleQueryResult},
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
@@ -324,8 +326,98 @@ pub(crate) fn run_console_query(
         "run_console_query",
         (|| {
             validate_session(&path, &session_epoch)?;
-            git_console::run_console_query(path, operation_id)
+            console::run_console_query(path, operation_id)
         })(),
+    )
+}
+
+/// The typed line crosses IPC only here, to be parsed and classified in Rust;
+/// what may run comes back as a plan, never as arguments the renderer chose.
+///
+/// `run_hooks` is the Settings switch the guided flows receive the same way;
+/// advanced mode is never a parameter, since Rust holds it.
+#[tauri::command(async)]
+pub(crate) fn plan_console_command(
+    settings: tauri::State<'_, ConsoleSettings>,
+    path: String,
+    session_epoch: String,
+    line: String,
+    run_hooks: bool,
+) -> Result<ConsolePlan, AppError> {
+    report_result(
+        "plan_console_command",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::plan_console_command(&settings, path, session_epoch, line, run_hooks)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn run_console_plan(
+    path: String,
+    session_epoch: String,
+    plan_id: String,
+) -> Result<ConsoleRunResult, AppError> {
+    report_result(
+        "run_console_plan",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_plan(path, session_epoch, plan_id)
+        })(),
+    )
+}
+
+/// Runs a change plan once the person answered its `[s/N]`; Rust checks the
+/// answer, advanced mode and the repository against the plan again.
+#[tauri::command(async)]
+pub(crate) fn run_console_change(
+    settings: tauri::State<'_, ConsoleSettings>,
+    path: String,
+    session_epoch: String,
+    plan_id: String,
+    answer: String,
+) -> Result<ConsoleRunResult, AppError> {
+    report_result(
+        "run_console_change",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_change(&settings, path, session_epoch, plan_id, answer)
+        })(),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn get_console_settings(settings: tauri::State<'_, ConsoleSettings>) -> ConsoleModes {
+    report_value("get_console_settings", settings.modes())
+}
+
+/// Turning advanced mode on needs `confirmed`, the renderer's word that the
+/// person accepted the dialog explaining it; turning it off does not.
+#[tauri::command]
+pub(crate) fn set_console_advanced_mode(
+    settings: tauri::State<'_, ConsoleSettings>,
+    enabled: bool,
+    confirmed: bool,
+) -> Result<ConsoleModes, AppError> {
+    report_result(
+        "set_console_advanced_mode",
+        settings.set_advanced_mode(enabled, confirmed),
+    )
+}
+
+/// Turning change confirmations off needs `confirmed`, the renderer's word
+/// that the person accepted the dialog explaining it; turning them back on
+/// does not.
+#[tauri::command]
+pub(crate) fn set_console_confirm_changes(
+    settings: tauri::State<'_, ConsoleSettings>,
+    enabled: bool,
+    confirmed: bool,
+) -> Result<ConsoleModes, AppError> {
+    report_result(
+        "set_console_confirm_changes",
+        settings.set_confirm_changes(enabled, confirmed),
     )
 }
 

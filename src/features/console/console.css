@@ -158,12 +158,19 @@
   padding: 0 calc(var(--workspace-inset-right) - 6px) 0 var(--workspace-inset-left);
   color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono);
 }
-.console-statusline__state { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-primary); font-weight: var(--weight-strong); }
+/* The mode leads the line as a chip: tinted for read-only and advanced, solid
+   only for root, so the most permissive mode is the one that stands out. */
+.console-statusline__state {
+  display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; height: 20px; padding: 0 9px;
+  border-radius: var(--radius-pill); font-weight: var(--weight-strong);
+}
+.console-statusline__state--read-only { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
 .console-statusline__dot { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--status-success); }
 .console-statusline__added { color: var(--diff-added); }
 .console-statusline__removed { color: var(--diff-removed); }
 .console-statusline__incoming { color: var(--status-warning); }
-.console-statusline__hint { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The hint takes the free space, which sets the project facts to the right. */
+.console-statusline__hint { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .console-statusline__button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
 .console-statusline__button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .console-statusline__button:disabled { opacity: .45; cursor: default; }
@@ -189,16 +196,21 @@
   display: grid; grid-template-columns: repeat(auto-fill, minmax(min(58ch, 100%), 1fr)); column-gap: var(--space-6);
   margin: 0; padding: 0; list-style: none;
 }
+/* Each shortcut takes two lines: its name and what it shows, then the Git
+   command with the column's whole width, so neither is cut short by the other. */
 .console-shortcuts__row {
-  display: grid; grid-template-columns: 2ch 12ch 1fr auto; align-items: center; column-gap: var(--space-2);
-  min-height: 32px; border-bottom: 1px dashed var(--border-subtle);
+  display: grid; grid-template-columns: 2ch minmax(0, 1fr) auto;
+  grid-template-areas: "mark line actions" "mark command actions";
+  align-items: center; column-gap: var(--space-2); padding: 5px 0;
+  border-bottom: 1px dashed var(--border-subtle);
 }
-.console-shortcuts__row::before { content: ""; }
+.console-shortcuts__row::before { content: ""; grid-area: mark; }
+.console-shortcuts__line { grid-area: line; display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
 .console-shortcuts__row--editing::before { content: "~"; color: var(--accent-primary); font-weight: var(--weight-title); }
 .console-shortcuts__row--editing { background: var(--surface-active); }
-.console-shortcuts__name { color: var(--accent-primary); font-weight: var(--weight-strong); overflow-wrap: anywhere; }
-.console-shortcuts__target { min-width: 0; overflow: hidden; color: var(--text-secondary-color); text-overflow: ellipsis; white-space: nowrap; }
-.console-shortcuts__actions { display: inline-flex; align-items: center; gap: 2px; opacity: .55; transition: opacity var(--duration-fast); }
+.console-shortcuts__name { flex: 0 0 auto; color: var(--accent-primary); font-weight: var(--weight-strong); }
+.console-shortcuts__target { min-width: 0; overflow: hidden; color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
+.console-shortcuts__actions { grid-area: actions; display: inline-flex; align-items: center; gap: 2px; opacity: .55; transition: opacity var(--duration-fast); }
 .console-shortcuts__row:hover .console-shortcuts__actions, .console-shortcuts__row:focus-within .console-shortcuts__actions { opacity: 1; }
 .console-shortcuts__action {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 0; border-radius: var(--radius-pill);
@@ -208,7 +220,11 @@
 .console-shortcuts__action svg { width: 14px; height: 14px; }
 .console-shortcuts__action--remove { width: 26px; padding: 0; justify-content: center; }
 .console-shortcuts__action--remove:hover { color: var(--status-danger); }
-.console-shortcuts__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+/* The line that adds or renames sits right under the header, above the list. */
+.console-shortcuts__form {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin-bottom: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border-subtle);
+}
 .console-shortcuts__form .console-shortcuts__glyph { width: auto; }
 .console-shortcuts__field { display: flex; flex: 0 1 24ch; min-width: 12ch; }
 .console-shortcuts__field input {
@@ -233,7 +249,60 @@
 .console-shortcuts__arrow { color: var(--text-secondary-color); }
 .console-shortcuts__submit { height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-pill); background: var(--accent-primary-fill); color: var(--accent-primary-contrast); font: var(--weight-strong) var(--text-label) var(--font-mono); }
 .console-shortcuts__submit:hover { filter: brightness(.96); }
-.console-shortcuts__error { margin: var(--space-2) 0 0 2ch; color: var(--status-danger); font-size: var(--text-label); }
+.console-shortcuts__error { margin: 0 0 var(--space-2) 2ch; color: var(--status-danger); font-size: var(--text-label); }
 .console-panel button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .console-block--running .console-block__state, .console-prompt__cursor { animation: none; } }
 @media (max-width: 700px) { .console-panel__transcript { padding: var(--space-3) 0; } .console-statusline__hint { display: none; } .console-statusline > span:not(.console-statusline__state) { display: none; } .console-statusline__button:first-of-type { margin-left: auto; } }
+.console-shortcuts__field--line { flex: 1 1 40ch; }
+.console-shortcuts__status { margin: 0 0 var(--space-2) 2ch; color: var(--text-secondary-color); font-size: var(--text-label); }
+.console-help__line { color: var(--text-primary-color); overflow-wrap: anywhere; }
+/* A change plan: what it does, then the question the prompt answers. */
+.console-plan { display: grid; gap: 2px; }
+.console-plan p { margin: 0; }
+.console-plan__effect { color: var(--status-warning); }
+.console-plan__facts { margin: 0; padding-left: 2ch; list-style: "• "; }
+.console-plan__answer { color: var(--text-secondary-color); }
+.console-plan__answer span { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.console-prompt__question { color: var(--status-warning); font-weight: var(--weight-strong); white-space: nowrap; }
+/* The three modes. Root, where changes run without asking, wears
+   `--console-root`, a colour no status tone uses. */
+.console-statusline__state--advanced { background: color-mix(in srgb, var(--status-warning) 16%, transparent); color: var(--status-warning); }
+.console-statusline__state--advanced .console-statusline__dot { background: var(--status-warning); }
+.console-statusline__state--root { background: var(--console-root); color: var(--console-root-contrast); }
+.console-statusline__state--root .console-statusline__dot { background: var(--console-root-contrast); }
+.console-welcome__mode { font-weight: var(--weight-strong); }
+.console-welcome__mode--advanced { color: var(--status-warning); }
+.console-welcome__mode--root { color: var(--console-root); }
+/* Settings › Console mode: one card per mode. The chosen card takes its mode's
+   colour on the border and a check; root chosen is the one solid card. */
+.console-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-3); }
+.console-mode {
+  --mode-colour: var(--status-success);
+  display: grid; align-content: start; gap: var(--space-1); min-width: 0; padding: var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--surface-raised); color: var(--text-primary-color); font: inherit; text-align: left;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.console-mode--advanced { --mode-colour: var(--status-warning); }
+.console-mode--root { --mode-colour: var(--console-root); }
+.console-mode:hover { background: var(--surface-hover); }
+.console-mode:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.console-mode__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.console-mode__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: var(--radius-round); background: var(--mode-colour); }
+.console-mode__name { min-width: 0; font-weight: var(--weight-strong); }
+.console-mode__check { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--mode-colour); }
+.console-mode__text { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+.console-mode[aria-checked="true"] {
+  border-color: var(--mode-colour); box-shadow: inset 0 0 0 1px var(--mode-colour);
+  background: color-mix(in srgb, var(--mode-colour) 8%, var(--surface-raised));
+}
+.console-mode--root[aria-checked="true"] { background: var(--console-root); color: var(--console-root-contrast); }
+.console-mode--root[aria-checked="true"] .console-mode__dot { background: var(--console-root-contrast); }
+.console-mode--root[aria-checked="true"] .console-mode__check { color: var(--console-root-contrast); }
+.console-mode--root[aria-checked="true"] .console-mode__text { color: var(--console-root-contrast); opacity: .85; }
+/* The Git command a shortcut runs, beside what it shows. */
+.console-shortcuts__command {
+  grid-area: command; min-width: 0; overflow: hidden; color: var(--text-primary-color); font: inherit;
+  font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap;
+}
+.console-shortcuts__command--preview { flex: 1 1 24ch; color: var(--text-secondary-color); }

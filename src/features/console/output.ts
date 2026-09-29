@@ -1,4 +1,5 @@
 import type { ConsoleOperationId } from "./domain";
+import type { OutputShape } from "./port";
 
 export type OutputTone =
   | "plain" | "added" | "removed" | "hunk" | "meta" | "hash"
@@ -60,18 +61,37 @@ function leadingLine(pattern: RegExp): (line: string) => OutputSegment[] {
   };
 }
 
-const LINE_TONES: Record<Exclude<ConsoleOperationId, "status">, (line: string) => OutputSegment[]> = {
-  diff: diffLine,
-  staged: diffLine,
-  log: logLine,
+/**
+ * Commits, patches and their summaries in one reader: `log`, `show`, `diff`,
+ * `blame` and `reflog` all mix these lines, and none of the patterns can be
+ * mistaken for another, since patch lines start with a marker and message
+ * lines are indented.
+ */
+function commitsLine(line: string): OutputSegment[] {
+  if (DIFF_META.test(line) || /^[@+\-\\]/.test(line)) return diffLine(line);
+  const shown = showLine(line);
+  return shown.length === 1 && shown[0].tone === "plain" ? logLine(line) : shown;
+}
+
+const LINE_TONES: Record<Exclude<OutputShape, "status">, (line: string) => OutputSegment[]> = {
+  commits: commitsLine,
   graph: graphLine,
-  last: showLine,
   branches: branchLine,
-  tags: (line) => [{ text: line, tone: "plain" }],
   remotes: leadingLine(/^(\S+)(\s.*)$/),
   stashes: leadingLine(/^(stash@\{\d+\})(.*)$/),
   authors: leadingLine(/^(\s*\d+)(\t.*)$/),
+  plain: (line) => [{ text: line, tone: "plain" }],
 };
+
+/** The shape each catalogue query's output has. */
+const QUERY_SHAPES: Record<ConsoleOperationId, OutputShape> = {
+  status: "status", diff: "commits", staged: "commits", log: "commits", graph: "graph", last: "commits",
+  branches: "branches", tags: "plain", remotes: "remotes", stashes: "stashes", authors: "authors",
+};
+
+export function queryShape(operationId: ConsoleOperationId): OutputShape {
+  return QUERY_SHAPES[operationId];
+}
 
 function statusLines(lines: readonly string[]): OutputSegment[][] {
   let section: OutputTone = "plain";
@@ -86,14 +106,14 @@ function statusLines(lines: readonly string[]): OutputSegment[][] {
 }
 
 /**
- * Colour a fixed query's known output shape. Each result is plain text; the
+ * Colour output whose shape is known. Each result is plain text; the
  * tones only choose a class for a text run, so nothing in the output can act
  * as markup or a terminal control. Returns null when there is too much to
  * colour cheaply, and the caller shows the text as it is.
  */
-export function highlightOutput(operationId: ConsoleOperationId, text: string): OutputSegment[] | null {
+export function highlightOutput(shape: OutputShape, text: string): OutputSegment[] | null {
   const lines = text.split("\n");
-  const perLine = operationId === "status" ? statusLines(lines) : lines.map(LINE_TONES[operationId]);
+  const perLine = shape === "status" ? statusLines(lines) : lines.map(LINE_TONES[shape]);
   const segments: OutputSegment[] = [];
   perLine.forEach((line, index) => {
     const withBreak = index < perLine.length - 1 ? [...line.slice(0, -1), { ...line[line.length - 1], text: `${line[line.length - 1].text}\n` }] : line;

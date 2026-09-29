@@ -86,12 +86,25 @@ const fn read(command: &'static str) -> ExecutionPolicy {
     ExecutionPolicy::repository_read(command)
 }
 
-const fn console_read() -> ExecutionPolicy {
+/// The console's small output budget: enough to read, bounded so a long log
+/// or diff never floods the renderer.
+const fn console_read(command: &'static str) -> ExecutionPolicy {
     ExecutionPolicy {
         stdout_cap: 64 * 1024,
         stderr_cap: 8 * 1024,
         timeout: Duration::from_secs(15),
-        ..read("run_console_query")
+        ..read(command)
+    }
+}
+
+/// Typed console changes: local changes and remote transfers, exclusive
+/// like every mutation, on the console's output budget. Remote is the widest
+/// class one can have until history and destructive commands arrive.
+const fn console_change() -> ExecutionPolicy {
+    ExecutionPolicy {
+        stdout_cap: 64 * 1024,
+        stderr_cap: 8 * 1024,
+        ..ExecutionPolicy::repository_write("run_console_change", OperationClass::RemoteMutation)
     }
 }
 
@@ -120,7 +133,15 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     global_process("initialize_project", OperationClass::LocalMutation, 120),
     no_process_with_class("cleanup_initialize_project", OperationClass::Destructive),
     read("read_working_tree_status"),
-    console_read(),
+    console_read("run_console_query"),
+    // Planning a read only parses and classifies the line; a change plan
+    // also reads the repository for its preview and fingerprint.
+    console_read("plan_console_command"),
+    console_read("run_console_plan"),
+    console_change(),
+    no_process("get_console_settings"),
+    no_process_with_class("set_console_advanced_mode", OperationClass::LocalMutation),
+    no_process_with_class("set_console_confirm_changes", OperationClass::LocalMutation),
     read("read_file_diff"),
     read("read_file_image_preview"),
     read("read_file_lines"),
@@ -741,6 +762,12 @@ mod tests {
         "cleanup_initialize_project",
         "read_working_tree_status",
         "run_console_query",
+        "plan_console_command",
+        "run_console_plan",
+        "run_console_change",
+        "get_console_settings",
+        "set_console_advanced_mode",
+        "set_console_confirm_changes",
         "read_file_diff",
         "read_file_image_preview",
         "read_file_lines",

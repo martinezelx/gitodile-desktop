@@ -17,8 +17,8 @@
     {
       "id": "gitConsole",
       "icon": "terminal",
-      "en": "The new Console runs read-only Git queries, such as status, log or branches, by short names you can change.",
-      "es": "La nueva Consola ejecuta consultas de Git de solo lectura, como status, log o branches, con nombres cortos que puedes cambiar."
+      "en": "The new Console runs Git commands you type, read-only unless you choose an advanced mode where every change is shown first.",
+      "es": "La nueva Consola ejecuta los comandos Git que escribes, en solo lectura salvo que elijas un modo avanzado que muestra cada cambio antes."
     },
     {
       "id": "newLookAndThemes",

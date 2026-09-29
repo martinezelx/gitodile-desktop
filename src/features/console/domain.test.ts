@@ -1,16 +1,43 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   completionsFor, CONSOLE_SHORTCUTS_STORAGE_KEY, DEFAULT_SHORTCUTS, namesByOperation, parseConsoleInput,
-  OPERATION_IDS, readShortcuts, shortcutNameIssue, writeShortcuts,
+  defaultLineName, OPERATION_IDS, QUERY_COMMANDS, readShortcuts, SHORTCUT_CATALOGUE, shortcutCommand, shortcutNameIssue, widensTier, writeShortcuts,
 } from "./domain";
 
 describe("console shortcuts", () => {
-  it("accepts one exact name and never treats a Git or shell line as input", () => {
+  it("accepts one exact name, or hands a whole git line to Rust untouched", () => {
     expect(parseConsoleInput(" look ", DEFAULT_SHORTCUTS)).toEqual({ kind: "query", shortcut: DEFAULT_SHORTCUTS[0] });
     expect(parseConsoleInput("help", DEFAULT_SHORTCUTS)).toEqual({ kind: "help" });
-    for (const input of ["git status", "stat && push", "stat; rm -rf", "STAT", "diff --cached", "$(echo stat)"]) {
+    expect(parseConsoleInput("help  git", DEFAULT_SHORTCUTS)).toEqual({ kind: "help-git" });
+    expect(parseConsoleInput("git", DEFAULT_SHORTCUTS)).toEqual({ kind: "help-git" });
+    expect(parseConsoleInput("  git log  --format='%h %s'; rm ", DEFAULT_SHORTCUTS)).toEqual({ kind: "git", line: "git log  --format='%h %s'; rm" });
+    for (const input of ["stat && push", "stat; rm -rf", "STAT", "diff --cached", "$(echo stat)", "gitk", "git-lfs"]) {
       expect(parseConsoleInput(input, DEFAULT_SHORTCUTS).kind).toBe("unknown");
     }
+  });
+
+  it("keeps command-line shortcuts with their tier, and drops malformed ones", () => {
+    const stored = (shortcuts: unknown[]) => ({ getItem: () => JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts }) });
+    const lg = { name: "lg", line: "git log --oneline -20", tier: "read" };
+    expect(readShortcuts(stored([lg]))).toEqual([lg]);
+    expect(parseConsoleInput("lg", [lg as never])).toEqual({ kind: "query", shortcut: lg });
+    for (const broken of [
+      { name: "lg", line: "rm -rf /", tier: "read" },
+      { name: "lg", line: "git log", tier: "never" },
+      { name: "lg", line: "git log", tier: "admin" },
+      { name: "lg", line: `git log ${"x".repeat(5000)}`, tier: "read" },
+      { name: "git", line: "git log", tier: "read" },
+    ]) {
+      expect(readShortcuts(stored([broken]))).toEqual(DEFAULT_SHORTCUTS);
+    }
+    expect(shortcutNameIssue("git", DEFAULT_SHORTCUTS)).toBe("reserved");
+  });
+
+  it("never lets a later plan widen the tier a shortcut was saved with", () => {
+    expect(widensTier("read", "read")).toBe(false);
+    expect(widensTier("read", "local_change")).toBe(true);
+    expect(widensTier("read", "destructive")).toBe(true);
+    expect(widensTier("destructive", "read")).toBe(false);
   });
 
   it("validates custom names and restores defaults for malformed stored data", () => {
@@ -20,7 +47,7 @@ describe("console shortcuts", () => {
     expect(shortcutNameIssue("look", DEFAULT_SHORTCUTS, "look")).toBeNull();
     const storage = { getItem: vi.fn(() => JSON.stringify([{ name: "danger", operationId: "push" }])) };
     expect(readShortcuts(storage)).toEqual(DEFAULT_SHORTCUTS);
-    storage.getItem.mockReturnValue(JSON.stringify({ catalogue: [...OPERATION_IDS], shortcuts: [{ name: "st", operationId: "status" }] }));
+    storage.getItem.mockReturnValue(JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "st", operationId: "status" }] }));
     expect(readShortcuts(storage)).toEqual([{ name: "st", operationId: "status" }]);
     expect(readShortcuts({ getItem: () => { throw new Error("storage unavailable"); } })).toEqual(DEFAULT_SHORTCUTS);
   });
@@ -30,15 +57,40 @@ describe("console shortcuts", () => {
     const names = readShortcuts({ getItem: () => firstFormat });
     expect(names.slice(0, 3).map((item) => item.name)).toEqual(["stat", "look", "graph"]);
     // "diff" and "branches" were known and removed; "graph" is taken, so the graph query gets no name.
-    expect(names.slice(3).map((item) => item.name)).toEqual(["staged", "last", "tags", "remotes", "stashes", "authors"]);
-    const current = JSON.stringify({ catalogue: [...OPERATION_IDS], shortcuts: [{ name: "look", operationId: "status" }] });
+    // Their own "stat" keeps the built-in line of that name out as well.
+    expect(names.slice(3).map((item) => item.name)).toEqual([
+      "staged", "last", "tags", "remotes", "stashes", "authors",
+      "short", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size",
+    ]);
+    const current = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => current })).toEqual([{ name: "look", operationId: "status" }]);
+  });
+
+  it("brings the built-in command lines to lists saved before them, not back to those who removed them", () => {
+    const beforeLines = JSON.stringify({ catalogue: [...OPERATION_IDS], shortcuts: [{ name: "look", operationId: "status" }] });
+    expect(readShortcuts({ getItem: () => beforeLines }).map((item) => item.name))
+      .toEqual(["look", "short", "stat", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size"]);
+    const removedToday = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
+    expect(readShortcuts({ getItem: () => removedToday })).toEqual([{ name: "look", operationId: "status" }]);
+  });
+
+  it("recognises a renamed built-in line by its command", () => {
+    expect(defaultLineName({ name: "hoy", line: "git log --oneline --since=midnight", tier: "read" })).toBe("today");
+    expect(defaultLineName({ name: "today", line: "git log -1", tier: "read" })).toBeNull();
+    expect(defaultLineName({ name: "look", operationId: "status" })).toBeNull();
+  });
+
+  it("names the Git command every shortcut runs", () => {
+    for (const shortcut of DEFAULT_SHORTCUTS) expect(shortcutCommand(shortcut)).toMatch(/^git [a-z]/);
+    expect(shortcutCommand({ name: "look", operationId: "status" })).toBe("git status");
+    expect(shortcutCommand({ name: "lg", line: "git log --oneline -20", tier: "read" })).toBe("git log --oneline -20");
+    expect(Object.keys(QUERY_COMMANDS)).toEqual([...OPERATION_IDS]);
   });
 
   it("writes a versioned app preference, never Git config", () => {
     const storage = { setItem: vi.fn() };
     expect(writeShortcuts(DEFAULT_SHORTCUTS, storage)).toBe(true);
-    expect(storage.setItem).toHaveBeenCalledWith(CONSOLE_SHORTCUTS_STORAGE_KEY, JSON.stringify({ catalogue: OPERATION_IDS, shortcuts: DEFAULT_SHORTCUTS }));
+    expect(storage.setItem).toHaveBeenCalledWith(CONSOLE_SHORTCUTS_STORAGE_KEY, JSON.stringify({ catalogue: SHORTCUT_CATALOGUE, shortcuts: DEFAULT_SHORTCUTS }));
     expect(writeShortcuts(DEFAULT_SHORTCUTS, { setItem: () => { throw new Error("storage unavailable"); } })).toBe(false);
   });
 });
@@ -46,7 +98,12 @@ describe("console shortcuts", () => {
 describe("console completion", () => {
   it("extends what was typed, shortcuts before console actions", () => {
     const shortcuts = [{ name: "stat", operationId: "status" as const }, { name: "sh", operationId: "log" as const }];
-    expect(completionsFor("s", shortcuts).map((item) => item.name)).toEqual(["stat", "sh", "shortcuts"]);
+    expect(completionsFor("s", shortcuts).map((item) => item.name)).toEqual(["stat", "sh", "shortcuts", "settings"]);
+    expect(completionsFor("git ", shortcuts).map((item) => item.name)).toEqual(["git status", "git log", "git show", "git diff", "git blame", "git grep"]);
+    expect(completionsFor("git  lo", shortcuts).map((item) => item.name)).toEqual(["git  log"]);
+    expect(completionsFor("git stash ", shortcuts).map((item) => item.name)).toEqual(["git stash list", "git stash show"]);
+    expect(completionsFor("git log", shortcuts)).toEqual([]);
+    expect(completionsFor("git log -", shortcuts)).toEqual([]);
     expect(completionsFor("stat", shortcuts)).toEqual([]);
     expect(completionsFor("s t", shortcuts)).toEqual([]);
     expect(completionsFor("", shortcuts)).toEqual([]);

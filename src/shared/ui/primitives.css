@@ -595,6 +595,7 @@
 }
 .toggle-switch--on { background: var(--accent-primary-fill); border-color: transparent; }
 .toggle-switch--on .toggle-switch__knob { background: var(--surface-panel); transform: translateX(16px); }
+.toggle-switch:disabled { opacity: .45; cursor: not-allowed; }
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 

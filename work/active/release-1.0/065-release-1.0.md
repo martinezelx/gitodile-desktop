@@ -64,8 +64,11 @@ is the authoritative release sequence and capability cut.
       validation recorded. Updater epic 065-9 was closed on 2026-09-16; the
       evidence it still owes is tracked by
       [065-9-13](../app-updates/065-9-13-updater-evidence-and-os-signing.md).
-- [ ] Task 134's console is validated on the supported platforms without
-      widening command execution beyond its read-only catalogue.
+- [ ] The project console (task 134 and epic 138) is validated on the
+      supported platforms: read-only by default, with advanced mode off until
+      the person turns it on and covered by the release qualification matrix.
+      History and destructive console commands (task 139) are not part of
+      `1.0.0`.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
 - [ ] The actual Windows and Linux release artifacts pass their defined smoke,

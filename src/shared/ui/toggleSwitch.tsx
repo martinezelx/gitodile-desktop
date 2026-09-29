@@ -16,10 +16,13 @@ export function ToggleSwitch({
   label,
   checked,
   onChange,
+  disabled = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
+  /** For a switch that only means something while another one is on. */
+  disabled?: boolean;
 }): React.JSX.Element {
   return (
     <button
@@ -28,6 +31,7 @@ export function ToggleSwitch({
       aria-checked={checked}
       aria-label={label}
       className={`toggle-switch${checked ? " toggle-switch--on" : ""}`}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
     >
       <span className="toggle-switch__knob" />

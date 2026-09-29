@@ -224,10 +224,18 @@
   --avatar-color-6: #c639aa; /* fuchsia— cw 4.60:1, cd 3.78:1 */
   --avatar-color-7: #c94573; /* pink   — cw 4.58:1, cd 3.80:1 */
   --avatar-foreground: #fff;
+  /* The console's root mode: changes run without asking. A violet no status
+     tone uses, so it cannot be read as a warning that passes. */
+  --console-root: #6a3fd4;
+  --console-root-contrast: #fff;
   --avatar-ring: 0 0 0 2px rgba(0, 0, 0, 0.9);
 }
 
 @supports (color: light-dark(#000, #fff)) {
-  :root { --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9)); }
+  :root {
+    --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9));
+    --console-root: light-dark(#6a3fd4, #b79cff);
+    --console-root-contrast: light-dark(#ffffff, #1c1233);
+  }
 }
 
