@@ -1840,6 +1840,63 @@ returns. A sentence built in Rust arrives in English whatever the reader's
 language, so the native side sends codes and data, and the updater only shows
 its English safe detail to an English reader.
 
+## Account and sign-in
+
+A GitOdile account is optional and only unlocks Pro or connected services
+([`BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md)); the mechanism is
+[ADR 0016](docs/adr/0016-sign-in-through-the-system-browser.md). The design
+consequence is one rule: **the app never shows a credential field.** Email,
+code and provider sign-in all happen on GitOdile's web page in the system
+browser, so every surface below either explains, waits, or confirms.
+
+The flow has four steps, and a new entry point (a Pro feature, Settings) joins
+it at step 2 rather than inventing its own:
+
+1. **Account popover.** The rail's account control opens a popover anchored to
+   it (`--radius-surface`, `--shadow-lg`), never a modal: signing in is
+   optional, so asking about it must not interrupt anything. It carries a
+   title, one line saying local work is unaffected without an account, at most
+   three concrete things the account adds, and one accent-filled "Sign in"
+   button. The line under the button says the sign-in continues in the
+   browser; that sentence replaces a separate "Open browser" screen, because
+   the consequence is stated before the click.
+2. **Waiting dialog.** The click opens the browser immediately and the app
+   shows a size `s` dialog: "Waiting for the browser…", the request code in
+   `--font-mono` on `--surface-code` (the web page shows the same code, so the
+   user can match the tab to the request), and three steps — browser opened,
+   sign in, back in GitOdile — with the current one marked by the ring and a
+   spinner that stops under reduced motion. Actions: "Cancel" (quiet) and
+   "Open again" (secondary), for a browser that opened behind the window or in
+   another profile. Nothing in the dialog is accent-filled; the only thing to
+   do happens elsewhere.
+3. **Web sign-in page.** Outside the app, but it uses the same tokens, shapes
+   and mark so the hand-off does not feel like a different product. One card:
+   the request row (platform and code), "Continue with GitHub" and "Continue
+   with Google" as secondary pills, then email with "Send me a code" as the one
+   filled button, because it is the only method that asks for typing. There is
+   no separate sign-up — a first sign-in creates the account, and the card says
+   so. The code step uses six single-digit boxes (`--radius-item`), a resend
+   countdown and "Change email". The finish page says the user can return to
+   GitOdile and close the tab; it offers no "Open GitOdile" button, because the
+   app receives the session by itself.
+4. **Back in the app.** The waiting dialog closes by itself, the window comes
+   forward, and a brief notice confirms "Signed in" with the plan in one line.
+   The rail control becomes the person's avatar (round, with
+   `--avatar-ring`), and from then on opens a popover with name, email, a
+   `PRO` capsule when entitled, and menu rows: plan and billing, what the
+   account stores, sign out.
+
+**Failure never implies lost work.** Every account error is a sentence of what
+happened and what to do, followed by the reassurance that projects and saved
+versions are unaffected: no connection ("Try again when you're online"), the
+browser closed before finishing ("Nothing changed in your account or your
+projects"), a sign-in that expired. None of them is `--status-danger`-filled;
+they use the notice treatment, and "Not now" is always an equal way out.
+
+Wording: "account", "sign in", "sign out" — never "log in", "register" or
+"create an account", since creation is implicit. Name the browser step
+honestly ("continues in your browser") and never say "securely" or "seamless".
+
 ## Content design
 
 The interface should explain Git in plain language while preserving technical truth.
