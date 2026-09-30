@@ -260,9 +260,17 @@ The main desktop window should broadly support:
      notes and not to the product description. The changelog shares the About
      dialog's shell and lists each release with its version (and the preview glyph), publication date
      when known, notes, and a
-     marker for the build being run. Each version is a keyboard-accessible
-     disclosure: its identity stays visible while its notes remain collapsed
-     until requested, keeping current and historical releases equally scannable.
+     marker for the build being run. Its header is the glyph mark beside the
+     title and, under the title, an update line that follows the state —
+     a state asking for action (a new version, ready to install, can't install
+     yet) is itself the link, a running check or download has no link, and
+     only "Up to date" or "Updates unavailable" adds "Check for updates" — so
+     the notes start high and no click is described twice. The build being run leads, with its
+     notes already open on the one tinted panel in the dialog — it is what the
+     reader opened the dialog to learn. Every earlier version follows under
+     "Earlier versions" as a one-line keyboard-accessible disclosure — bare
+     chevron, version, preview glyph, how many notes it carries, date — whose
+     notes stay collapsed until requested, so a long history still scans.
      Each release's lines come from its own `docs/release/highlights/v<version>.json`
      — bilingual, one glyph per line, scaffolded by `release:prepare`, validated
      by `check:docs` and required by the merge coordinator — and the changelog
@@ -319,7 +327,7 @@ The main desktop window should broadly support:
      follows the active project session, skips states without a usable upstream,
      and shares the same deduplicated check path as the status-bar action;
    - application-update checks are a separate global concern. What's new (as
-     a footer action under the local notes, never among them), More actions,
+     the link in the update line under its title, above the local notes and never among them), More actions,
      the command palette and the Updates section of Settings all enter one
      eager dialog backed by one feature-owned controller, including when no
      project is open. Updates is its own settings section — it has state,

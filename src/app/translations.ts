@@ -210,11 +210,11 @@ export interface AppTranslations {
   aboutFooterMadeWith: string;
   aboutFooterByAuthor: string;
   aboutHeartLabel: string;
-  changelogEyebrow: string;
   changelogTitle: string;
-  changelogDescription: string;
   changelogVersionHeading: (version: string) => string;
   changelogCurrentRelease: string;
+  changelogEarlierHeading: string;
+  changelogHighlightCount: (count: number) => string;
   changelogNoHighlights: string;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
@@ -419,11 +419,11 @@ const en: AppTranslations = {
   aboutFooterMadeWith: "Made with",
   aboutFooterByAuthor: "by Luis M. Martínez.",
   aboutHeartLabel: "love",
-  changelogEyebrow: "Release notes",
   changelogTitle: "What's new",
-  changelogDescription: "Notes for every release, included in this build, so no internet is needed.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Your version",
+  changelogEarlierHeading: "Earlier versions",
+  changelogHighlightCount: (count) => (count === 1 ? "1 change" : `${count} changes`),
   changelogNoHighlights: "Nothing new to show for this version.",
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "Nothing on disk changes, and you can reopen it anytime.",
@@ -628,11 +628,11 @@ const es: AppTranslations = {
   aboutFooterMadeWith: "Hecho con",
   aboutFooterByAuthor: "por Luis M. Martínez.",
   aboutHeartLabel: "amor",
-  changelogEyebrow: "Notas de versión",
   changelogTitle: "Novedades",
-  changelogDescription: "Las notas de cada versión vienen incluidas en esta build, así que no hace falta conexión.",
   changelogVersionHeading: (version) => `v${version}`,
   changelogCurrentRelease: "Tu versión",
+  changelogEarlierHeading: "Versiones anteriores",
+  changelogHighlightCount: (count) => (count === 1 ? "1 novedad" : `${count} novedades`),
   changelogNoHighlights: "Esta versión no tiene novedades que mostrar.",
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "No cambia nada en el disco y puedes volver a abrirlo cuando quieras.",

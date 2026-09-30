@@ -37,7 +37,7 @@ import {
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { modifierKeyLabels } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
-import { ChangelogDialog } from "./ChangelogDialog";
+import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
 import type { AppUpdatesController, AppUpdatesSnapshot, UpdateState } from "../features/app-updates";
@@ -60,7 +60,7 @@ function aboutUpdateStatus(
   t: ReturnType<typeof appUpdateTranslations>,
   upToDateLabel: string,
   unavailableLabel: string,
-): { tone: "ok" | "attention" | "busy" | "muted"; label: string } | null {
+): AppUpdateStatusLine | null {
   if (state === undefined) {
     return null;
   }
@@ -645,6 +645,11 @@ export function AppOverlays({
           appUpdate.setOpen(true);
           void settings.appUpdatesController?.check();
         } : undefined}
+        onOpenUpdates={appUpdate && settings.appUpdatesController ? () => {
+          changelog.setOpen(false);
+          appUpdate.setOpen(true);
+        } : undefined}
+        updateStatus={aboutUpdate}
       />
       {appUpdate && settings.appUpdates && settings.appUpdatesController && (
         <AppUpdateDialog isOpen={appUpdate.isOpen} setOpen={appUpdate.setOpen} snapshot={settings.appUpdates} controller={settings.appUpdatesController} installed={CURRENT_APP_RELEASE} />
