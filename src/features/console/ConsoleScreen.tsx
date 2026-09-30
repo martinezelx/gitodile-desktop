@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, CloudUpload, Copy, Diff, Eye, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Settings, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
@@ -28,7 +28,7 @@ import {
   type ConsoleProjectStatus,
   type ConsoleShortcut,
 } from "./domain";
-import { MASCOT_PIXELS, mascotRects } from "./mascotArt";
+import { mascotLines, mascotRain, type MascotRun } from "./mascotArt";
 import { highlightOutput, queryShape, type OutputSegment } from "./output";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "./preferences";
 import type { ConsolePlan, ConsoleRunResult, ConsoleTier, OutputShape } from "./port";
@@ -305,15 +305,41 @@ function Output({ text, segments }: { text: string; segments: OutputSegment[] | 
   );
 }
 
-const MASCOT_RECTS = mascotRects();
+const MASCOT_LINES = mascotLines();
+const MASCOT_RAIN = mascotRain();
 
-function MascotArt(): React.JSX.Element {
-  return (
-    <svg className="console-art" viewBox={`0 0 ${MASCOT_PIXELS[0].length} ${MASCOT_PIXELS.length}`} style={{ width: `${MASCOT_PIXELS[0].length}ch` }} shapeRendering="crispEdges" aria-hidden="true" focusable="false">
-      {MASCOT_RECTS.map((rect) => <rect key={`${rect.x}-${rect.y}`} className={`console-art__px${rect.pixel}`} x={rect.x} y={rect.y} width={rect.width} height={1} />)}
-    </svg>
-  );
+function mascotRunClass(run: MascotRun): string | undefined {
+  const names = [run.tone ? `console-art__tone${run.tone}` : "", run.solid ? "console-art__solid" : ""].filter(Boolean);
+  return names.length ? names.join(" ") : undefined;
 }
+
+/**
+ * The ASCII mascot, with hex digits raining behind it (CSS only; none under
+ * reduced motion). Memoised: it takes no props, and the welcome re-renders on
+ * every keystroke in the prompt, which would rebuild a few hundred spans.
+ */
+const MascotArt = memo(function MascotArt(): React.JSX.Element {
+  return (
+    <div className="console-art" aria-hidden="true" style={{ "--console-art-rows": MASCOT_LINES.length } as React.CSSProperties}>
+      <div className="console-art__rain">
+        {MASCOT_RAIN.map((drop) => (
+          <span key={drop.column} className="console-art__drop" style={{ "--column": drop.column, "--duration": `${drop.duration}s`, "--delay": `${drop.delay}s` } as React.CSSProperties}>
+            {drop.glyphs.slice(0, -1)}<b className="console-art__drop-head">{drop.glyphs.slice(-1)}</b>
+          </span>
+        ))}
+      </div>
+      <pre className="console-art__mascot">
+        {MASCOT_LINES.map((runs, y) => <Fragment key={y}>
+          {runs.map((run, x) => {
+            const className = mascotRunClass(run);
+            return className ? <span key={x} className={className}>{run.text}</span> : run.text;
+          })}
+          {"\n"}
+        </Fragment>)}
+      </pre>
+    </div>
+  );
+});
 
 type WelcomeRow = [icon: React.JSX.Element, key: string, value: React.ReactNode] | null;
 

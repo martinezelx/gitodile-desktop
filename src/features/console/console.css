@@ -20,19 +20,81 @@
 .console-panel__log { display: flex; flex-direction: column; gap: var(--space-4); }
 .console-panel__log:empty { display: none; }
 
-/* Welcome: the head mark in half blocks beside a fetch-style summary. */
-.console-welcome { padding: var(--space-2) 0 var(--space-3); }
+/* Welcome: the whole mascot in ASCII beside a fetch-style summary. */
+.console-welcome { padding: var(--space-2) 0 0; }
 .console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
 .console-art {
-  /* An illustration in the mark's own colours: forced colours would flatten it.
-     One pixel is one character wide and square; the width is set from the grid. */
-  forced-color-adjust: none; --console-art-skin: var(--accent-primary-fill);
-  flex: 0 1 auto; max-width: 100%; height: auto; overflow: visible;
+  /* ASCII art in the mark's colours: forced colours would flatten it. Printed
+     small and at line-height 1, as fetch tools print their logos, so the
+     64-column mascot stands about as tall as the summary beside it. */
+  forced-color-adjust: none; --console-art-body: var(--accent-primary-fill);
+  position: relative; flex: 0 1 auto; max-width: 100%; margin: 0; overflow: hidden;
+  font-family: var(--font-mono); font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-bold);
+  color: var(--text-primary-color); white-space: pre;
 }
-:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-skin: var(--mascot-brand-fill); }
-.console-art__px1 { fill: var(--console-art-skin); }
-.console-art__px2 { fill: black; }
-.console-art__px3 { fill: white; }
+.console-art__mascot { position: relative; margin: 0; font: inherit; }
+/* A cell on the silhouette, holes included: an exact 1em-tall block of the
+   console's background, so the rain passes behind the mascot, not through it. */
+.console-art__solid { display: inline-block; height: 1em; vertical-align: top; background: var(--surface-app); }
+:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--mascot-brand-fill); }
+/* The art's tones, per colour scheme (light-dark() follows the scheme each
+   theme declares). The outline prints in the text colour so it holds on any
+   console. The sunglasses are black in the mark: on a light console they
+   print in the text colour, and on a dark one, where the text colour would
+   draw them white, in a smoked grey between the text and the background, so
+   they stay darker than the outline and still show. Their glints print white
+   on a dark console and as near-holes on a light one. The amber is the
+   mascot's, pulled toward the text colour: deeper on a light console. The
+   body is the mark's green (or the theme's accent fill), deepened toward the
+   text on a light console, where thin glyphs in a pale fill fade out. */
+.console-art {
+  --console-art-skin: var(--console-art-body);
+  --console-art-ink: var(--text-primary-color);
+  --console-art-amber: color-mix(in srgb, #e7b448 80%, var(--text-primary-color));
+  --console-art-glasses: var(--text-primary-color);
+  --console-art-glint: var(--surface-app);
+  --console-art-rain: color-mix(in srgb, var(--console-art-skin) 50%, transparent);
+}
+@supports (color: light-dark(#000, #fff)) {
+  .console-art {
+    --console-art-skin: light-dark(color-mix(in srgb, var(--console-art-body) 45%, var(--text-primary-color)), var(--console-art-body));
+    --console-art-glasses: light-dark(var(--text-primary-color), color-mix(in srgb, var(--text-primary-color) 38%, var(--surface-app)));
+    /* Thin digits fade faster on a light console, so the rain is a little stronger there. */
+    --console-art-rain: light-dark(color-mix(in srgb, var(--console-art-skin) 75%, transparent), color-mix(in srgb, var(--console-art-skin) 50%, transparent));
+    --console-art-glint: light-dark(color-mix(in srgb, var(--text-primary-color) 12%, var(--surface-app)), #ffffff);
+  }
+}
+.console-art__tone1 { color: var(--console-art-skin); }
+.console-art__tone2 { color: var(--console-art-ink); }
+.console-art__tone3 { color: var(--console-art-amber); }
+.console-art__tone4 { color: var(--console-art-glasses); }
+.console-art__tone5 { color: var(--console-art-glint); }
+/* The rain behind the mascot (DESIGN.md § Motion): short columns of hex
+   digits, like commit hashes, each falling through the art's box at its own
+   pace and fading out toward its top, with a brighter leading digit. Dim, in
+   the body's colour, so it reads as depth behind the character rather than
+   as text. Each column wraps to one glyph per line at 1ch wide. */
+.console-art__rain {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  /* Faded at all four edges, so the rain dissolves into the console instead
+     of stopping at the art's box, which has no frame to justify an edge. */
+  --console-art-rain-edge: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: var(--console-art-rain-edge); -webkit-mask-composite: source-in;
+  mask-image: var(--console-art-rain-edge); mask-composite: intersect;
+}
+.console-art__drop {
+  position: absolute; top: 0; left: calc(var(--column) * 1ch); width: 1ch; word-break: break-all; white-space: normal;
+  color: var(--console-art-rain);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 85%); mask-image: linear-gradient(to bottom, transparent, #000 85%);
+  animation: console-art-rain var(--duration) linear var(--delay) infinite;
+}
+.console-art__drop-head { font-weight: inherit; color: color-mix(in srgb, var(--console-art-skin) 55%, var(--text-primary-color)); }
+@keyframes console-art-rain {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(calc(var(--console-art-rows) * 1em)); }
+}
+@media (prefers-reduced-motion: reduce) { .console-art__rain { display: none; } }
+:root[data-reduced-motion="true"] .console-art__rain { display: none; }
 /* Fetch-style summary, as Omarchy's fastfetch draws it: framed groups with
    a title in the frame, each in its own theme colour, an icon per row, and the
    theme's palette underneath. Frames are borders, not box-drawing glyphs, so
@@ -56,7 +118,9 @@
 .console-welcome__added { color: var(--diff-added); }
 .console-welcome__removed { color: var(--diff-removed); }
 .console-welcome__incoming { color: var(--status-warning); }
-.console-welcome__palette { display: inline-flex; gap: 6px; vertical-align: middle; }
+/* Loose under the frames, as fetch tools leave their palette, but starting
+   where the frames' rows start (border plus padding), under the icons. */
+.console-welcome__palette { display: inline-flex; gap: 6px; vertical-align: middle; padding-inline-start: calc(var(--space-4) + 1px); }
 .console-welcome__dot { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); }
 .console-welcome__dot--accent { background: var(--accent-primary); }
 .console-welcome__dot--danger { background: var(--status-danger); }
@@ -127,6 +191,9 @@
 /* The prompt is the transcript's last line, with a block cursor. */
 .console-prompt { position: relative; margin-top: var(--space-4); }
 .console-panel__log:empty + .console-prompt { margin-top: 0; }
+/* The welcome's tip says what to type, so the prompt sits right under it as
+   one group; the full step returns once commands fill the transcript. */
+.console-panel__log:has(> .console-welcome) + .console-prompt { margin-top: var(--space-2); }
 .console-prompt--busy { opacity: .45; }
 .console-prompt__field { display: flex; align-items: center; gap: var(--space-2); min-height: 26px; }
 .console-prompt__line { position: relative; display: flex; flex: 1; min-width: 12ch; }

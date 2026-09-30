@@ -754,22 +754,23 @@ claims.
 
 ### Application icon and Windows shortcuts
 
-`scripts/icons/mascot.mjs` is the only hand-maintained icon source. It draws
-the mascot once from shared parts and assembles two variants: the full body
-and the head. `pnpm icons` writes the standalone SVGs and the element tree the
-in-app mark renders inline (`src/shared/ui/mascotArtwork.ts`, so its fill can follow
-the theme) and the console welcome's pixel grid (`src/features/console/mascotPixels.ts`,
-sampled by the dependency-free `scripts/icons/pixel-grid.mjs`) from it, then runs
-`tauri icon` on four 1024×1024 sources (body and head, each transparent and
-on the macOS emerald tile), so every PNG, the macOS `.icns`, the Windows
-`.ico` and the Store logos are rendered from SVG at their native sizes. Sizes
-under 48px take the head (`32x32.png`, the 30 and 44px Store logos, the
-16/24/32px ICO layers and the 16/32px ICNS entries); 48px and up take the
-body. The `.icns` holds only the tiled renders; every other file is
-transparent. The Android/iOS sets `tauri icon` also emits are discarded
-because GitOdile does not ship them. Edit `mascot.mjs` and regenerate; never
-touch a generated SVG, module or PNG by hand. `check:icons` fails when those
-generated files drift from `mascot.mjs`.
+`scripts/icons/mascot.mjs` is the only hand-maintained icon source. It holds
+the mascot as one element tree and crops it three ways (ADR 0018): the body,
+the head and the portrait the application icon uses. `pnpm icons` writes the
+standalone SVGs, the element tree the in-app mark renders inline
+(`src/shared/ui/mascotArtwork.ts`, so its fill can follow the theme) and the
+console welcome's ASCII art (`src/features/console/mascotAscii.ts`, sampled by
+the dependency-free `scripts/icons/ascii-art.mjs`) from it, then runs `tauri
+icon` on two 1024×1024 sources: the portrait on the amber tile filling the
+canvas, and the identical icon on Apple's 824px macOS grid. Every PNG, the
+Windows `.ico` and the Store logos come from the first; the macOS `.icns` comes
+from the second. There is one icon at every size, with no head variant spliced
+into the small layers. The same run renders the brand PNGs under
+`src/assets/brand/png` with `tauri icon --png` (the icon at 16–1024px, the macOS
+icon, and the mascot and head on transparent squares). The Android/iOS sets
+`tauri icon` also emits are discarded because GitOdile does not ship them. Edit
+`mascot.mjs` and regenerate; never touch a generated SVG, module or PNG by hand.
+`check:icons` fails when the generated text files drift from `mascot.mjs`.
 
 `tauri icon` writes every ICO layer PNG-compressed. Windows guarantees PNG only
 for the 256px layer and expects the 16–64px layers as 32-bit DIBs; some shell
@@ -782,8 +783,8 @@ fails the gate when the committed `icon.ico` drifts from that shape.
 The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
-draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px mascot on
-the macOS tile's emerald, shown on the Welcome and Finish pages) and
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px icon on
+the light theme's warm white, shown on the Welcome and Finish pages) and
 `installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
 header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
 step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and

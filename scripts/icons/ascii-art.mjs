@@ -1,6 +1,6 @@
 // A small point-sampling rasteriser for the mascot's own element tree, so the
-// console's pixel-art welcome is generated from the same drawing as the icons
-// and cannot drift from them. It understands exactly what mascot.mjs draws:
+// console's ASCII welcome is generated from the same drawing as the icons and
+// cannot drift from them. It understands exactly what mascot.mjs draws:
 // groups with inherited paint, absolute M/L/H/V/C/Q/Z paths, circles and
 // rects, filled with the nonzero rule and stroked with round joins and caps.
 
@@ -126,46 +126,84 @@ export function shapesOf(nodes, inherited = {}) {
   return shapes;
 }
 
-/**
- * Sample the drawing into square cells `cellSize` units wide. Each cell takes
- * the majority of `samples`² points (ties go to the earlier palette entry, and
- * 0 is empty); edge rows and columns left empty are trimmed. Returns one
- * string of palette indices per row.
- */
-export function pixelGrid(nodes, box, { columns, palette, samples = 4 }) {
-  const shapes = shapesOf(nodes);
-  const cell = box.width / columns;
-  const rows = Math.ceil(box.height / cell);
-  const index = (colour) => {
-    const at = palette.indexOf(colour);
-    if (at < 0) throw new Error(`${colour} is not in the pixel palette`);
-    return at + 1;
-  };
-  const colourAt = (px, py) => {
-    let colour = 0;
+/** The colour painted at a point (the last shape to cover it wins), or null. */
+function colourSampler(nodes, strokeScale) {
+  const shapes = shapesOf(nodes).map((shape) => ({ ...shape, strokeWidth: shape.strokeWidth * strokeScale }));
+  return (px, py) => {
+    let colour = null;
     for (const shape of shapes) {
-      if (shape.fill !== "none" && inside(shape.subpaths, px, py)) colour = index(shape.fill);
-      if (shape.stroke !== "none" && nearLine(shape.subpaths, px, py, shape.strokeWidth / 2)) colour = index(shape.stroke);
+      if (shape.fill !== "none" && inside(shape.subpaths, px, py)) colour = shape.fill;
+      if (shape.stroke !== "none" && nearLine(shape.subpaths, px, py, shape.strokeWidth / 2)) colour = shape.stroke;
     }
     return colour;
   };
-  const grid = [];
+}
+
+/** Drops the empty rows and columns around a grid of equal-length rows. */
+function trim(rows, isEmpty) {
+  const painted = (line) => [...line].some((ch) => !isEmpty(ch));
+  const top = rows.findIndex(painted);
+  const bottom = rows.findLastIndex(painted) + 1;
+  const kept = rows.slice(top, bottom);
+  const first = (line) => [...line].findIndex((ch) => !isEmpty(ch));
+  const last = (line) => [...line].findLastIndex((ch) => !isEmpty(ch));
+  const left = Math.min(...kept.filter(painted).map(first));
+  const right = Math.max(...kept.filter(painted).map(last)) + 1;
+  return { top, bottom, left, right };
+}
+
+/**
+ * ASCII art of the drawing: one character per cell, `columns` across the box,
+ * each cell `cellAspect` times as wide as it is tall (a monospace glyph at
+ * line-height 1 is about 0.6). A cell's ink is the coverage of each colour
+ * times its `tones` weight; the total picks a glyph from `ramp` (light to
+ * dense) and the heaviest colour gives the cell its tone. A colour weighted 0
+ * (the white belly) reads as a hole, as in hand-made ASCII art. `strokeScale`
+ * widens every stroke so an outline thinner than a cell still registers.
+ *
+ * `tones` maps each colour to `{ tone, weight }`; returns `{ text, tones,
+ * cover }`, one string per row each: the tone digits aligned to the glyphs
+ * (0 for a space), and 1 wherever the drawing covers at least half the cell,
+ * holes included, so a layer behind the art can hide under the silhouette.
+ * Empty edge rows and columns are trimmed.
+ */
+export function asciiArt(nodes, box, { columns, tones, ramp, cellAspect = 0.6, samples = 6, strokeScale = 1 }) {
+  const colourAt = colourSampler(nodes, strokeScale);
+  const cellWidth = box.width / columns;
+  const cellHeight = cellWidth / cellAspect;
+  const rows = Math.ceil(box.height / cellHeight);
+  const toneCount = Math.max(...Object.values(tones).map((entry) => entry.tone));
+  const text = [];
+  const toneRows = [];
+  const coverRows = [];
   for (let row = 0; row < rows; row += 1) {
     let line = "";
+    let toneLine = "";
+    let coverLine = "";
     for (let column = 0; column < columns; column += 1) {
-      const votes = new Array(palette.length + 1).fill(0);
+      const ink = new Array(toneCount + 1).fill(0);
+      let covered = 0;
       for (let sy = 0; sy < samples; sy += 1) {
         for (let sx = 0; sx < samples; sx += 1) {
-          votes[colourAt(box.x + (column + (sx + 0.5) / samples) * cell, box.y + (row + (sy + 0.5) / samples) * cell)] += 1;
+          const colour = colourAt(box.x + (column + (sx + 0.5) / samples) * cellWidth, box.y + (row + (sy + 0.5) / samples) * cellHeight);
+          if (colour === null) continue;
+          covered += 1;
+          const entry = tones[colour];
+          if (!entry) throw new Error(`${colour} has no ASCII tone`);
+          ink[entry.tone] += entry.weight / (samples * samples);
         }
       }
-      line += votes.indexOf(Math.max(...votes));
+      const total = ink.reduce((sum, value) => sum + value, 0);
+      const glyph = ramp[Math.min(ramp.length - 1, Math.floor(total * ramp.length))];
+      line += glyph;
+      toneLine += glyph === " " ? "0" : String(ink.indexOf(Math.max(...ink)));
+      coverLine += covered * 2 >= samples * samples ? "1" : "0";
     }
-    grid.push(line);
+    text.push(line);
+    toneRows.push(toneLine);
+    coverRows.push(coverLine);
   }
-  const painted = (line) => /[^0]/.test(line);
-  const kept = grid.slice(grid.findIndex(painted), grid.findLastIndex(painted) + 1);
-  const left = Math.min(...kept.map((line) => line.search(/[^0]/)));
-  const right = Math.max(...kept.map((line) => line.length - [...line].reverse().join("").search(/[^0]/)));
-  return kept.map((line) => line.slice(left, right));
+  const { top, bottom, left, right } = trim(text, (ch) => ch === " ");
+  const cut = (lines) => lines.slice(top, bottom).map((line) => line.slice(left, right));
+  return { text: cut(text), tones: cut(toneRows), cover: cut(coverRows) };
 }

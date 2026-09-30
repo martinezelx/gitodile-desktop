@@ -752,8 +752,8 @@ describe("App project restoration", () => {
     // The mascot greets here, not in the titlebar, and stays decorative.
     const welcomeMascot = document.querySelector(".empty-state--welcome .gitodile-mascot");
     expect(welcomeMascot).toHaveAttribute("aria-hidden", "true");
-    expect(welcomeMascot).toHaveClass("gitodile-mascot--greet");
-    expect(welcomeMascot?.querySelector(".gitodile-mascot__star")).not.toBeNull();
+    expect(welcomeMascot).toHaveClass("gitodile-mascot--commits", "gitodile-mascot--enter", "welcome-mascot");
+    expect(welcomeMascot?.querySelectorAll(".gitodile-mascot__commits circle")).toHaveLength(6);
     expect(document.querySelector(".window-titlebar .gitodile-mascot")).toBeNull();
 
     // Each hint has to stay a *description*: folded into the name instead, it
@@ -2010,7 +2010,8 @@ describe("App project restoration", () => {
     expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Go forward" })[0]);
     expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
-    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).toHaveClass("gitodile-mascot--glint");
+    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).toHaveClass("gitodile-mascot--commits");
+    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
     await user.click(screen.getByRole("button", { name: "Open projects" }));
     const switcher = screen.getByRole("dialog", { name: "Open projects" });
     expect(within(switcher).getByRole("button", { name: restoredProject.name })).not.toHaveAttribute("aria-current");

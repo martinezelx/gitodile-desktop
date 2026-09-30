@@ -195,6 +195,10 @@ None. The user approved the redrawn SVGs, the threshold and the macOS tile.
 
 # Decisions
 
+- The v3 drawing, icon pipeline and welcome motion recorded below were
+  replaced by the v4 mascot and one amber icon in task
+  [141](../done/141-v4-mascot-amber-icon-and-console-art.md) (ADR 0018). The
+  open native-rendering criterion now applies to the v4 icon.
 - The PNGs are references, not production sources. They are redrawn as SVG
   by hand rather than auto-traced, so curves and outline weight are clean.
 - Full body for most uses, head-only mini variant for small sizes (user

@@ -843,20 +843,27 @@ transcript's last line, with a blinking block cursor (still under reduced motion
 completion, and a listbox of matching names below it drawn like the shortcut
 pane's rows — terminal type, dashed rules, the chosen name marked `❯` on a soft
 wash, no card or shadow; there is no send
-button. An empty transcript shows a fetch-style welcome: the small head mark
-drawn as square character-sized pixels generated from the icon source (vector cells, as terminals render
-block glyphs, in the mark's own lime and ink under the GitOdile themes and the
-accent fill elsewhere) beside a summary drawn as Omarchy's fastfetch draws one: two framed groups,
+button. An empty transcript shows a fetch-style welcome: the whole mascot
+as ASCII art generated from the icon source (64 columns printed small at
+line-height 1, as fetch tools print their logos; the outline and crest in the
+text colour, the plates and HEAD in the mascot's amber, the body in the brand
+green under the GitOdile themes and the accent fill elsewhere, deepened toward
+the text on light schemes so thin glyphs stay visible, and the white belly left
+as a hole; the sunglasses have their own tones, in the text colour on a light
+console and a smoked grey with white glints on a dark one, where the text
+colour would draw them white) and, behind it, a dim rain of hex digits like
+commit hashes, falling in the body's colour and passing behind the silhouette
+(see Motion), beside a summary drawn as Omarchy's fastfetch draws one: two framed groups,
 each titled in its frame and drawn in its own theme colour — "project" in the
 accent (name, line, unsaved changes with added and removed lines, versions to
 publish and newer ones available) and "environment" in the keyword colour
 (GitOdile version, Git version, the theme actually drawn and the read-only
 mode) — with a Lucide icon on every row, then a row of round dots in the
 theme's accent, status and syntax colours, as a terminal's welcome shows its
-ANSI palette. The frames are borders rather than box-drawing glyphs, so no font
-leaves gaps in them. The smile in that grid starts a little later
-along the icon's curve, because at one pixel per character its first stretch
-meets the glasses. The transcript scrolls with the app's shared auto-hiding scrollbar (thin, no
+ANSI palette. The dots stay loose rather than framed, since they are
+decoration next to two groups of facts, but start where the frames' rows
+start, under the icons. The mascot has no frame either. The frames are borders rather than box-drawing glyphs, so no font
+leaves gaps in them. The transcript scrolls with the app's shared auto-hiding scrollbar (thin, no
 arrows), never the platform's default one, and as terminals do it shows only
 while the output is scrolled or the pointer moves over it, fading 1.2s after
 and at once when the pointer leaves — the always-focused prompt does not keep
@@ -1213,7 +1220,7 @@ per-project choice is stored per machine, keyed by the project, never in the
 
 Brand identity is not window furniture. Neither the titlebar nor the rail carries a mark or a wordmark: a 40px lockup at the top of the rail once spent that column's most valuable real estate on something that never changes, and a mark in the titlebar corner later did the same to the toolbar. The mascot appears where the app is being introduced or described: the no-project welcome screen and About. The compact layout below 800px adds no wordmark either; the window title and the operating system name the app.
 
-The welcome screen shows the full mascot above its heading (168px wide): it hops in, lifts its glasses once and a star glints on them now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's fill follows the theme (ADR 0013) while the black outline, glasses and white glints stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand lime `#a8f442`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. The black outline carries the silhouette on light surfaces and the fill carries it on dark ones.
+The welcome screen shows the full mascot above its heading (144px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body follows the theme (ADR 0013) while the ink outline, crest, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
 
 About leads with the mascot at hero scale, then the name, then the promise, all
 centred. The mascot is the full body with its theme fill, never a tile; the name
@@ -1244,7 +1251,7 @@ Colour is two layers, and a theme is a record that fills only the second one
 
 **Brand identity (never themed).** `--accent-brand` and
 `--accent-brand-contrast` — the fixed brand lime and its contrast — plus
-`--mascot-brand-fill` (the mascot's lime in the GitOdile themes),
+`--mascot-brand-fill` (the mascot's green in the GitOdile themes),
 `--avatar-color-*`, `--avatar-foreground`, `--avatar-ring` and `--tooltip-*`,
 are declared once in `src/styles/tokens.css`. No theme may set them.
 `--avatar-ring` is a neutral dark edge the project chip carries so it stays
@@ -1389,16 +1396,22 @@ story.
 Working brand: **GitOdile**.
 
 Mascot: a stylized crocodile that feels clever, calm, and trustworthy, with
-dark sunglasses that give it a relaxed, confident personality.
+dark sunglasses that give it a relaxed, confident personality — a bodyguard
+for your work, which is the product's promise (ADR 0018).
 
 Visual traits:
 
-- rounded silhouette with a ridged back, short legs and a long snout;
-- lime fill `#a8f442`, one even black outline, white glints on the glasses;
-- a calm, closed smile and no teeth; the glasses hide the eyes, so the smile
-  carries the friendliness at every size;
-- recognizable at 16–32px through the head-only variant;
-- not overly detailed or child-oriented.
+- a seated crocodile with a long snout, a rounded crest, a white belly, short
+  arms and green feet;
+- green body `#86b640`, one even ink outline `#13251f`, wayfarer sunglasses
+  with two white glints that hide the eyes;
+- the crest is a commit graph: rounded dark-green humps `#0f4a43` threaded by
+  an amber line `#e7b448`, white commits on each hump and a larger amber HEAD
+  at the neck;
+- no mouth line: four white teeth, growing toward the tip, hang from the jaw;
+- three amber plates on the belly;
+- not overly detailed or child-oriented: the eyes, outline and colours were
+  pulled back from the rounder, brighter first drafts on purpose.
 
 The mascot may appear in:
 
@@ -1410,29 +1423,34 @@ The mascot may appear in:
 
 Do not place the mascot in every panel or use it to trivialize serious errors.
 
-**Application mark:** the mascot has two drawings built from the same parts,
-so the glasses, smile and snout always match:
+**Application mark:** there is one drawing, and every surface crops it:
 
-| Variant | Where | File |
+| Crop | Where | File |
 | --- | --- | --- |
-| Full body | icons at 48px and up, welcome screen, About dialog | `src/assets/gitodile-mascot.svg` |
-| Head | square icons under 48px (taskbar, Start, file lists) | `src/assets/gitodile-mascot-head.svg` |
+| Body | welcome screen, About dialog, the console welcome's ASCII mascot, brand material | `src/assets/gitodile-mascot.svg` |
+| Head | brand material | `src/assets/gitodile-mascot-head.svg` |
+| Portrait | the application icon, at every size and on every platform | `src/assets/brand/gitodile-icon.svg` |
 
-Packaged icons are always lime. Inside the app the fill follows the theme
-(see the welcome screen under "Icons" above). Windows and Linux icons are the transparent mascot. macOS icons sit on
-a rounded tile with a vertical emerald gradient, `#3f7c58` at the top to
-`#1b4631` at the bottom: dark enough for the lime to stand out, light enough
-for the black outline to stay visible. A near-black tile would swallow the
-outline and a light one would wash out the lime. The tile carries no drawn
-glow, highlight or shadow; macOS adds its own. The Windows installer's side
-panel uses the same emerald behind the mascot.
+The application icon is the same everywhere: the portrait (crest to snout tip
+across, the body running off the bottom edge) on a rounded tile with a vertical
+amber gradient, `#fbe3a0` at the top to `#e0a032` at the bottom. Amber is the
+mascot's own accent, so the tile makes it the brand colour, and it stands out
+on light and dark desktops alike. Windows and Linux take the icon filling the
+canvas; macOS takes the identical icon on Apple's 824px grid
+(`src/assets/brand/gitodile-icon-macos.svg`) and adds its own shadow. The tile
+carries no drawn glow, highlight or shadow. The 16–32px sizes are the same
+portrait, downsampled: the sunglasses carry recognition there. The Windows
+installer's side panel shows the tiled icon on the warm white of the light
+theme. Inside the app the body's green follows the theme (see the welcome
+screen under "Icons" above).
 
 `scripts/icons/mascot.mjs` is the single source for the drawing: it writes
-both SVGs, the element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`),
-the head's pixel grid for the console welcome (`src/features/console/mascotPixels.ts`)
-and the icon sources, and `pnpm icons` regenerates every
-packaged icon from it (see "Application icon and Windows shortcuts" in
-`docs/ARCHITECTURE.md`). Never edit a generated SVG or PNG by hand.
+the SVGs, the element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`),
+the mascot's ASCII art for the console welcome (`src/features/console/mascotAscii.ts`)
+and the icon sources, and `pnpm icons` regenerates every packaged icon and the
+brand PNGs under `src/assets/brand/png` (the icon at 16–1024px, the macOS icon,
+the mascot and the head) from it (see "Application icon and Windows shortcuts"
+in `docs/ARCHITECTURE.md`). Never edit a generated SVG or PNG by hand.
 
 ## Typography
 
@@ -1502,13 +1520,14 @@ without looking either one up. Every step here is named for what the text *is*
 `--text-micro` is a floor, not a step to reach for. Below it the app was running
 8.5px and 9px secondary text, which the Accessibility section already forbids.
 
-Two things sit below the floor, and both are named in the guard rather than
+Three things sit below the floor, and all are named in the guard rather than
 left to judgement. `.sidebar-project__badge-count` is a numeral inside a 14px
-status dot, which leaves a 10px box once the ring and padding are out; and
+status dot, which leaves a 10px box once the ring and padding are out;
 `.navigation-display__preview small` is a label inside a miniature *drawing* of
 the navigation rail, where the text is part of the picture rather than something
-anyone reads. Neither is prose. Adding a third is a deliberate edit to the
-guard, not a quiet override.
+anyone reads; and `.console-art` is the console welcome's ASCII mascot, whose
+characters are the picture's shading at 7px, not words. None is prose. Adding
+another is a deliberate edit to the guard, not a quiet override.
 
 ### Weight
 
@@ -1667,17 +1686,34 @@ Rules:
   a second keyframe only because it must carry the dot's surface ring in the
   same `box-shadow`; it is not a second idea, and it follows the same rule —
   started in the component only when reduced motion is off.
-- **The mascot's glasses move, differently in each brand moment**
+- **The mascot moves differently in each brand moment**
   (`Mascot`'s `motion`, primitives.css). About uses `sweep`: two slanted
   white bands, clipped to the lenses, cross them in under a second and rest
   for about six — calm, for a card someone reads. The no-project welcome
-  uses `greet`: the mascot hops in once (`welcome-mascot-in`, about 0.6s),
-  lifts its glasses — strap included — and lets them settle once, then a
-  four-point star glints on the right lens every 5.5s while the glints
-  brighten. A first contact gets more character, and neither place moves
-  constantly. These are the only decorative animations GitOdile allows,
-  and only in these two places, never in the workbench. The system and app
-  reduced-motion settings remove them; the mascot then shows still.
+  uses `commits`, opened once per session by `entrance`: the mascot draws
+  itself and builds its history. Its outline traces in 0.7s, in the text
+  colour because its own ink would vanish on a dark theme; the colours fade
+  in over it while the outline turns ink; then the commits pop in from the
+  tail to the neck and the HEAD last, about 1.6s in all. The entrance used to
+  be a hop inherited from v3, which read as cheap on the v4 drawing; drawing
+  and filling suit a mark that is a history of commits. After it, and on
+  every later visit without it, the six white commits on its crest turn amber one after another, from
+  the tail to the amber HEAD at the neck, each swelling as it lights and
+  breathing back to size; the HEAD answers with one breath and the commits
+  fade back to white, every 6s. It shows
+  what GitOdile keeps — your history, up to where you are now — and neither
+  place moves constantly. The console welcome is the third brand moment:
+  behind its ASCII mascot, short columns of hex digits, like commit hashes,
+  fall through the art's box at 3–7s each (a terminal's digital rain), dim,
+  in the body's colour, fading toward their top and passing behind the
+  silhouette, belly included. The rain dissolves at all four edges of the
+  art's box rather than stopping at them: the mascot has no frame, as a
+  fetch tool's logo has none, so nothing would justify a hard edge. It runs while the welcome shows, so it stays
+  sparse and faint, is CSS only, and stops with the console when the screen
+  is hidden. These are the only decorative animations GitOdile allows, and
+  only in these three places; the rest of the workbench never decorates. The
+  system and app reduced-motion settings remove them; the mascot then shows
+  still.
 
 ## Transparency and native effects
 
@@ -2025,7 +2061,7 @@ project screen that led here; Forward can revisit Projects until another navigat
 The status bar continues to show the active project's name, working-tree and
 remote state, and available project actions. With no project open, it shows
 the no-project state. The mascot's entrance plays once per application session; later
-visits retain the periodic glint without another entrance.
+visits keep the periodic wave of commits without another entrance.
 
 Progress lives on the card that is working — opening a project reports in the
 Open card — not in a spinner at the top of the screen. This screen also owns

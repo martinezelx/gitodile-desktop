@@ -475,12 +475,14 @@ describe("production style composition", () => {
   // 14.5, 16, 18, 20 and 21 among them, each reasonable where it was written
   // and none of them agreeing with the next sheet over.
   it("keeps font size on the scale", () => {
-    // DESIGN.md § Typography names both: a numeral inside a 14px status dot,
-    // and the label inside a miniature drawing of the navigation rail. Neither
-    // is text anyone reads, and neither fits the floor.
+    // DESIGN.md § Typography names all three: a numeral inside a 14px status
+    // dot, the label inside a miniature drawing of the navigation rail, and the
+    // console's ASCII mascot, whose characters are shading. None is text anyone
+    // reads, and none fits the floor.
     const documentedExceptions = new Set([
       ".sidebar-project__badge-count",
       ".navigation-display__preview small",
+      ".console-art",
     ]);
     const offenders: string[] = [];
 

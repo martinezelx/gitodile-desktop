@@ -706,12 +706,10 @@ export function WelcomeScreen({
   return (
     <div className="empty-state empty-state--welcome" aria-busy={isOpening}>
       {/* The front door is a brand moment, so the mascot greets here rather
-          than in the titlebar: it hops in, lifts its glasses once, then a
-          star glints on them now and then. Decorative; the h1 names the screen. */}
-      <Mascot
-        motion={playGreeting ? "greet" : "glint"}
-        className={playGreeting ? "welcome-mascot" : "welcome-mascot welcome-mascot--settled"}
-      />
+          than in the titlebar: once a session it draws itself and builds its
+          history, then the commits on its crest light amber up to the HEAD now
+          and then. Decorative; the h1 names the screen. */}
+      <Mascot motion="commits" entrance={playGreeting} className="welcome-mascot" />
       <h1>{hasOpenProjects ? t.overviewHomeTitle : t.overviewEmptyTitle}</h1>
       <p>{t.overviewEmptyDescription}</p>
       <div className="welcome-actions">

@@ -6,7 +6,7 @@
 // so each one is composed here by painting an icon layer over a solid
 // background:
 //
-//   installer-sidebar.bmp   the 128px mascot centred on the macOS tile's emerald
+//   installer-sidebar.bmp   the 128px icon, amber tile included, centred on warm white
 //   installer-header.bmp    the 48px layer of icon.ico on the header's white
 //
 // The pixels come from `src-tauri/icons` (rendered from the mascot by
@@ -28,11 +28,11 @@ const iconsDir = path.join(root, "src-tauri", "icons");
 export const windowsDir = path.join(root, "src-tauri", "windows");
 
 /**
- * Background behind the mascot on the Welcome/Finish panel: the middle of the
- * macOS tile's emerald gradient. A near-black panel would swallow the black
- * outline, as it would on the tile.
+ * Background behind the icon on the Welcome/Finish panel: the warm white of the
+ * GitOdile light theme (`--surface-app`, `#faf8f5`). The icon brings its own amber tile, so the panel only
+ * has to let that tile stand out; a coloured panel would compete with it.
  */
-export const sidebarBackground = [0x2d, 0x61, 0x44];
+export const sidebarBackground = [0xfa, 0xf8, 0xf5];
 /** Background of the header strip: Modern UI paints the header white (`MUI_BGCOLOR`). */
 export const headerBackground = [0xff, 0xff, 0xff];
 

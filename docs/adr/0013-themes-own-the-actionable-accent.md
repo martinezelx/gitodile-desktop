@@ -44,6 +44,11 @@ inside themed content beside a different theme accent.
   or more so the fixed black outline and glasses stay legible, while the
   GitOdile themes show the mascot's own lime through the brand-layer token
   `--mascot-brand-fill`. The packaged icons stay lime.
+
+  *Update, ADR 0018 (2026-09-30):* the v4 mascot keeps this rule. Its body
+  green `#86b640` is the new `--mascot-brand-fill`, the console's ASCII
+  mascot tints its body the same way, and the packaged icons are now the
+  mascot on an amber tile rather than lime.
 - The guard from ADR 0012 stands unchanged: a `[data-theme]` block still must
   not set a brand-layer token. `themeContrast.test.ts` now also covers
   `--accent-primary-contrast` on `--accent-primary-fill`, which is what a
