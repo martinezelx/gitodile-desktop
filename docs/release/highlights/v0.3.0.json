@@ -1,6 +1,6 @@
 {
-  "version": "0.3.0-preview.1",
-  "date": "2026-09-29",
+  "version": "0.3.0",
+  "date": "2026-10-01",
   "highlights": [
     {
       "id": "overviewAndWork",
@@ -27,10 +27,10 @@
       "es": "GitOdile estrena mascota e icono, y Ajustes ofrece temas de color: Catppuccin, Nord, Tokyo Night, Dracula, Solarized y Gruvbox, además de su claro y su oscuro."
     },
     {
-      "id": "updateChannelAndHighlights",
+      "id": "oneUpdateChannel",
       "icon": "cloud-download",
-      "en": "Choose between stable and preview updates in Settings → Updates, and the update dialog lists what a new version brings, in your language.",
-      "es": "Elige entre actualizaciones estables y preview en Ajustes → Actualizaciones, y el diálogo de actualización muestra qué trae la nueva versión, en tu idioma."
+      "en": "Updates follow one channel, so everyone gets every release, and the update dialog lists what a new version brings, in your language.",
+      "es": "Las actualizaciones siguen un único canal, así que todo el mundo recibe cada versión, y el diálogo de actualización muestra qué trae, en tu idioma."
     }
   ]
 }
