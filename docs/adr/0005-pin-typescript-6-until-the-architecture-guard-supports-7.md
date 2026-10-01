@@ -98,6 +98,16 @@ If that support does not arrive and a TypeScript 7 capability becomes necessary,
 the alternative is to replace dependency-cruiser rather than to reinstate the
 workarounds. That would be a new ADR.
 
+## Compatibility recheck on 2026-10-01
+
+An isolated probe with dependency-cruiser 18.4.0 reproduced the incompatibility:
+TypeScript 7.0.2 scanned zero modules, both in a three-module fixture and in
+GitOdile. With TypeScript 6.0.3, the same probe scanned all three fixture modules,
+identified both type-only imports, and scanned 495 GitOdile modules with 295
+type-only import records and no architecture violations. The compiler decision
+therefore remains unchanged. dependency-cruiser is updated independently to
+18.4.0, with the guard using its renamed `bin/dependency-cruiser.mjs` entry point.
+
 ## Alternatives considered
 
 ### Keep TypeScript 7 and keep the workarounds

@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const cruiserBin = path.join(repositoryRoot, "node_modules", "dependency-cruiser", "bin", "dependency-cruise.mjs");
+const cruiserBin = path.join(repositoryRoot, "node_modules", "dependency-cruiser", "bin", "dependency-cruiser.mjs");
 const configPath = path.join(repositoryRoot, ".dependency-cruiser.mjs");
 
 function normalize(filePath) {
