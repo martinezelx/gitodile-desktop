@@ -60,7 +60,7 @@ export function VersionLineRenameStrip({
   const noteId = useId();
   const trimmed = name.trim();
   const unchanged = trimmed === target;
-  useInstallDraftBlocker(`rename-version-line:${projectPath}:${target}`, "renamed version line name", !unchanged);
+  useInstallDraftBlocker(`rename-version-line:${projectPath}:${target}`, t.renameVersionLineInstallBlockerLabel(target), !unchanged);
 
   // Renaming is usually replacing, so the whole name is selected on arrival.
   useEffect(() => {

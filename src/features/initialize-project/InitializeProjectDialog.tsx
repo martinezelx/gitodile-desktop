@@ -131,7 +131,7 @@ export function InitializeProjectDialog({
   const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
   useInstallDraftBlocker(
     "initialize-project-dialog",
-    "new project details",
+    t.initializeDialogTitle,
     isOpen && step !== "success",
   );
 

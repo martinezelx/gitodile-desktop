@@ -40,9 +40,10 @@ volatile save-version draft, dirty tracked and untracked files in the active
 project and another project, and a representative active operation/helper.
 Capture repository HEAD/index/worktree identities.
 
-Complete the in-app check, download, verification, second confirmation,
-handoff and restart against the public feed. Independently confirm that the
-running version changed from A to B. Recheck every sentinel and prove Git
+Complete the in-app check, download, verification, the ready state's
+"Install and restart" confirmation, handoff and restart against the public
+feed. The relaunched app shows the "Updated to vB" toast rather than a
+dialog. Independently confirm that the running version changed from A to B. Recheck every sentinel and prove Git
 history is unchanged. Retain both signed-matrix hashes, source tags/full SHAs,
 pipeline run URLs, public release URLs and tag commits, package names,
 sizes/hashes, anonymous download URLs, the manifest hash, the observed

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { setInstallDraftBlocker } from "../../runtime/drafts";
 import type { UpdateAction, UpdateState } from "./domain";
 import { AUTOMATIC_CHECK_CADENCE_MS, createAppUpdatesController } from "./controller";
 import type { AppUpdatesPort } from "./port";
@@ -109,5 +110,25 @@ describe("application update controller", () => {
     expect(controller.getSnapshot().state).toEqual({ kind: "cancelled", stage: "downloading" });
     controller.dispose();
     void download;
+  });
+
+  it("carries an unfinished edit's own name into a blocked install, not into the native detail", async () => {
+    const candidate = {
+      candidateId: "candidate", version: "0.3.2", target: "windows-x86_64" as const,
+      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
+    };
+    const port = createPort({ readState: vi.fn(async () => ({ kind: "ready", candidate } as UpdateState)) });
+    const controller = createAppUpdatesController(port);
+    await controller.initialize();
+    setInstallDraftBlocker("controller-blocker-test", "Ajustes", true);
+    try {
+      const state = await controller.install();
+      expect(state).toMatchObject({ kind: "blocked", error: { code: "install_blocked", blocker: "Ajustes" } });
+      expect(state.kind === "blocked" ? state.error.safeDetail : "unexpected").toBeUndefined();
+      expect(port.install).not.toHaveBeenCalled();
+    } finally {
+      setInstallDraftBlocker("controller-blocker-test", "Ajustes", false);
+      controller.dispose();
+    }
   });
 });

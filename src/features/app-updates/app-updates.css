@@ -53,16 +53,6 @@
 .app-update-progress--indeterminate > span { width: 36%; animation: app-update-progress 1.4s ease-in-out infinite; }
 @keyframes app-update-progress { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
 
-/* The last confirmation before the app closes: a question and its consequence
-   on a neutral card — not a warning tint, because nothing has gone wrong. The
-   dialog's own actions step aside for the card's two. */
-.app-update-confirm {
-  margin-top: 18px; padding: var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-card);
-}
-.app-update-confirm h3 { margin: 0 0 var(--space-1); font-size: var(--text-body); font-weight: var(--weight-title); }
-.app-update-confirm p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
 .app-update-actions { flex-wrap: wrap; margin-top: 24px; }
 
 

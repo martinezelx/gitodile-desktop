@@ -350,9 +350,20 @@ The main desktop window should broadly support:
      installed version before anything about the next one; a failure is its
      one explanation, never a verdict line with the cause repeated beneath it.
      Its copy never names the product and keeps each state to one short
-     line. Checking never downloads; downloading never installs;
-     and installation adds a final focused confirmation that explains the
-     close/restart consequence. Determinate and indeterminate progress use the
+     line, and the title names the state whenever one applies (a new
+     version, downloading, verifying, ready, up to date, installing, can't
+     install yet). Checking never downloads; downloading never installs;
+     and the ready state is the install confirmation: it states the
+     close/restart consequence above "Not now" and "Install and restart",
+     and nothing installs without that button. Up to date closes as its
+     primary action, with checking again beside it. The manual download is
+     offered only where the cause's sentence recommends it — never offline,
+     after a timeout or for an edit the reader can finish. The first launch
+     after an install reports how it went without asking for anything when
+     it worked: a toast says "Updated to vX.Y.Z" and, when that version has
+     highlights, offers "See what's new". Only a restart on the wrong version
+     opens the dialog, under its own title, with one sentence, a fresh check
+     and the manual download. Determinate and indeterminate progress use the
      same stable region, dynamic state changes are announced, and reduced
      motion replaces the moving indeterminate bar with a static fill;
    - interactive chrome raised the text to 13px, inline icons to 14px, and the
@@ -1856,7 +1867,10 @@ done ones ticked.
 dialog shows is written in `translations.ts` from facts the native side
 returns. A sentence built in Rust arrives in English whatever the reader's
 language, so the native side sends codes and data, and the updater only shows
-its English safe detail to an English reader.
+its English safe detail to an English reader. A blocked install names the
+unfinished edit with the label its owning feature writes in the reader's
+language — the title of the dialog or section that holds it — and a block
+with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 

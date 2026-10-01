@@ -240,7 +240,7 @@ export function createAppUpdatesController(
                 code: "install_blocked",
                 stage: "admission",
                 retryable: true,
-                safeDetail: result.label,
+                ...(result.label !== null ? { blocker: result.label } : {}),
               },
             };
         publish({ state });

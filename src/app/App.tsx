@@ -733,12 +733,6 @@ export function App(): React.JSX.Element {
     onBackgroundCheckSettled: (state) => backgroundUpdateResultRef.current(state),
   }));
   const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
-  const presentedStartupUpdateRef = useRef(false);
-  useEffect(() => {
-    if (presentedStartupUpdateRef.current || appUpdates.startupConfirmation.kind === "none") return;
-    presentedStartupUpdateRef.current = true;
-    setIsAppUpdateOpen(true);
-  }, [appUpdates.startupConfirmation]);
   const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
   const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
     !watchProjects

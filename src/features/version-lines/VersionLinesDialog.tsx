@@ -98,7 +98,7 @@ export function CreateVersionLineDialog({
   const [name, setName] = useState("");
   useInstallDraftBlocker(
     `create-version-line:${projectPath}`,
-    "new version line name",
+    t.createVersionLineTitle,
     isOpen && name.trim() !== "",
   );
   const [switchChoice, setSwitchChoice] = useState(true);

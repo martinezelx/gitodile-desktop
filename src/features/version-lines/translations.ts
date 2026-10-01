@@ -230,6 +230,9 @@ export interface VersionLinesTranslations {
   deleteVersionLineRemoteOnNote: string;
   deleteVersionLineRemoteOffNote: string;
   renameVersionLineTitle: (name: string) => string;
+  /** How a blocked app update names an unfinished rename; the update quotes
+   * it, so it carries no quotes of its own. */
+  renameVersionLineInstallBlockerLabel: (name: string) => string;
   renameVersionLineNote: string;
   renameVersionLineUpstreamNote: (upstream: string) => string;
   renameVersionLineConfirm: string;
@@ -483,6 +486,7 @@ const en: VersionLinesTranslations = {
   deleteVersionLineRemoteOnNote: "Your team won't see it anymore.",
   deleteVersionLineRemoteOffNote: "It stays, and your team still sees it.",
   renameVersionLineTitle: (name) => `Rename “${name}”`,
+  renameVersionLineInstallBlockerLabel: (name) => `Rename ${name}`,
   renameVersionLineNote: "Only the name changes, and every saved version stays where it is.",
   renameVersionLineUpstreamNote: (upstream) =>
     `It keeps tracking ${upstream}, which keeps its own name. Renaming that is a separate step.`,
@@ -736,6 +740,7 @@ const es: VersionLinesTranslations = {
   deleteVersionLineRemoteOnNote: "Tu equipo dejará de verla.",
   deleteVersionLineRemoteOffNote: "Se queda, y tu equipo la sigue viendo.",
   renameVersionLineTitle: (name) => `Renombrar «${name}»`,
+  renameVersionLineInstallBlockerLabel: (name) => `Renombrar ${name}`,
   renameVersionLineNote: "Solo cambia el nombre y todas las versiones guardadas se quedan donde están.",
   renameVersionLineUpstreamNote: (upstream) =>
     `Sigue apuntando a ${upstream}, que conserva su nombre. Renombrarla ahí es otro paso.`,

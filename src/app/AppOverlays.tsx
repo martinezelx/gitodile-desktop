@@ -39,13 +39,15 @@ import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
-import type { AppUpdatesController, AppUpdatesSnapshot, UpdateState } from "../features/app-updates";
-import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations } from "../features/app-updates";
+import type { AppUpdatesController, AppUpdatesSnapshot, StartupUpdateConfirmation, UpdateState } from "../features/app-updates";
+import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations, useStartupUpdateReceipt } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
+
+const NO_STARTUP_CONFIRMATION: StartupUpdateConfirmation = { kind: "none" };
 
 /** The one line About can honestly say about updates: what the release model
  * knows and a person can act on. Every state names itself, so the line is never
@@ -204,6 +206,18 @@ export function AppOverlays({
       ? appUpdateTranslations(language).available(appUpdateState.candidate.version)
       : null;
   const aboutUpdate = aboutUpdateStatus(appUpdateState, appUpdateTranslations(language), t.aboutUpToDate, t.aboutUpdateUnavailable);
+  /* The first launch after an install reports how it went: a toast leading to
+     What's new when it worked, the update dialog when it did not. Raised here
+     because this is inside the toast provider and owns both destinations. */
+  const setChangelogOpen = changelog.setOpen;
+  const setAppUpdateOpen = appUpdate?.setOpen;
+  const openWhatsNew = useCallback(() => setChangelogOpen(true), [setChangelogOpen]);
+  const openAppUpdate = useCallback(() => setAppUpdateOpen?.(true), [setAppUpdateOpen]);
+  useStartupUpdateReceipt({
+    confirmation: settings.appUpdates?.startupConfirmation ?? NO_STARTUP_CONFIRMATION,
+    onOpenWhatsNew: CURRENT_APP_RELEASE.highlights.length > 0 ? openWhatsNew : undefined,
+    onOpenDialog: openAppUpdate,
+  });
   const settingsRef = useRef<HTMLDivElement>(null);
   const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);

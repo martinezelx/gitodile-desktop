@@ -132,7 +132,7 @@ export function useLineCreateFlow({
   // when the reader next asks to create.
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const issueId = useId();
-  useInstallDraftBlocker(draftKey, "new version line name", name.trim() !== "");
+  useInstallDraftBlocker(draftKey, t.createVersionLineTitle, name.trim() !== "");
 
   /* A choice worth showing only when it changes the answer: two different
    * lines standing at the same commit would offer "main" and "active" as if

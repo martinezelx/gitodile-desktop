@@ -327,7 +327,7 @@ function RemoteSection({
     pendingChange !== null;
   useInstallDraftBlocker(
     `project-settings-remotes:${project.path}`,
-    "project remote address",
+    t.projectSettingsRemoteTitle,
     hasRemoteDraft,
   );
 
@@ -1200,7 +1200,7 @@ export function ProjectSettingsPanel({
     isOverriding && identity.data !== null && hasIdentityDraftChanged(identityDraft, identity.data);
   useInstallDraftBlocker(
     `project-settings-editor:${project.path}`,
-    unsavedIgnoreScope !== null ? "project ignore rules" : "project identity",
+    unsavedIgnoreScope !== null ? t.projectSettingsIgnoredTitle : t.projectSettingsIdentityTitle,
     unsavedIgnoreScope !== null || hasUnsavedIdentity,
   );
 

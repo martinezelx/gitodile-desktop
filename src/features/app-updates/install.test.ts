@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { setInstallDraftBlocker } from "../../runtime/drafts";
 import { registerInstallParticipant } from "../../runtime/install";
 import { installReadyUpdate } from "./install";
 import type { AppUpdatesPort } from "./port";
@@ -43,6 +44,32 @@ describe("application update install preparation", () => {
         protectedCount: expect.any(Number),
         blockers: [],
       });
+    } finally {
+      unregister();
+    }
+  });
+
+  it("names an unfinished edit by its owner's label and never reaches the native side", async () => {
+    const install = vi.fn();
+    setInstallDraftBlocker("app-update-install-label-test", "Ajustes", true);
+    try {
+      await expect(installReadyUpdate(port(install), "candidate-opaque")).resolves.toEqual({ kind: "blocked", label: "Ajustes" });
+      expect(install).not.toHaveBeenCalled();
+    } finally {
+      setInstallDraftBlocker("app-update-install-label-test", "Ajustes", false);
+    }
+  });
+
+  it("leaves a block the reader cannot act on unnamed", async () => {
+    const unregister = registerInstallParticipant({
+      id: "app-update-install-refuses",
+      label: "test background work",
+      suspend() {
+        throw new Error("refused");
+      },
+    });
+    try {
+      await expect(installReadyUpdate(port(vi.fn()), "candidate-opaque")).resolves.toEqual({ kind: "blocked", label: null });
     } finally {
       unregister();
     }

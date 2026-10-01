@@ -28,6 +28,10 @@ export type UpdateError = Readonly<{
   retryable: boolean;
   httpStatus?: number;
   safeDetail?: string;
+  /** Renderer-only: the name of the unfinished edit that blocked an install,
+   * written by its owning feature in the reader's language. The native side
+   * never sends it. */
+  blocker?: string;
 }>;
 
 export type UpdateState =

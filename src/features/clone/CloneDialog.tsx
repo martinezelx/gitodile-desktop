@@ -71,7 +71,7 @@ export function CloneDialog({
   const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
   useInstallDraftBlocker(
     "clone-project-dialog",
-    "clone project details",
+    t.cloneDialogTitle,
     isOpen &&
       (source.trim() !== "" ||
         destinationName.trim() !== "" ||

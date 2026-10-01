@@ -606,7 +606,7 @@ export function SettingsPanel({
     isIdentityDirty ||
     (showsCustomBranch && branchInput.trim() !== (savedDefaultBranch ?? "")) ||
     (isCustomCadenceOpen && cadenceDraftMinutes !== remoteCheckInterval);
-  useInstallDraftBlocker("application-settings", "application settings", hasSettingsDraft);
+  useInstallDraftBlocker("application-settings", t.settingsInstallBlockerLabel, hasSettingsDraft);
 
   const saveIdentity = identity.save;
   const commitIdentity = useCallback(async (): Promise<boolean> => {

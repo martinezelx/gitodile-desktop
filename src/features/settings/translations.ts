@@ -1,4 +1,6 @@
 export interface SettingsTranslations {
+  /** How a blocked app update names unsaved changes in this dialog. */
+  settingsInstallBlockerLabel: string;
   settingsInterfaceTitle: string;
   settingsNavigationTitle: string;
   settingsNavigationDestinationsTitle: string;
@@ -207,6 +209,7 @@ export interface SettingsTranslations {
 }
 
 const en: SettingsTranslations = {
+  settingsInstallBlockerLabel: "Settings",
   settingsInterfaceTitle: "Interface",
   settingsNavigationTitle: "Navigation",
   settingsNavigationDestinationsTitle: "Sections in the bar",
@@ -410,6 +413,7 @@ const en: SettingsTranslations = {
 };
 
 const es: SettingsTranslations = {
+  settingsInstallBlockerLabel: "Ajustes",
   settingsInterfaceTitle: "Interfaz",
   settingsNavigationTitle: "Navegación",
   settingsNavigationDestinationsTitle: "Secciones de la barra",

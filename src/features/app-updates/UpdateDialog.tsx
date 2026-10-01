@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useId, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   CheckCircle2,
@@ -18,7 +18,7 @@ import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import { Dialog, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
-import type { UpdateCandidate, UpdateError, UpdateState } from "./domain";
+import type { StartupUpdateConfirmation, UpdateCandidate, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
 
 /** The build the reader is running. It lives in the app shell's release
@@ -46,6 +46,29 @@ type StatusTone = "neutral" | "progress" | "success" | "accent" | "warning" | "d
 type StatusLine = { tone: StatusTone; icon: React.JSX.Element; message: string };
 
 const BUSY_STATES: ReadonlySet<UpdateState["kind"]> = new Set(["checking", "downloading", "verifying", "installing"]);
+
+/* The codes whose sentence sends the reader to the manual download. Anywhere
+   else the download page cannot help — it is unreachable offline, and it does
+   nothing for an edit the reader still has to finish — so it is not offered:
+   a dead end offers the way out, and only where there is one. */
+const MANUAL_DOWNLOAD_CODES: ReadonlySet<UpdateError["code"]> = new Set([
+  "http_status", "feed_unavailable", "target_unavailable", "automatic_update_not_enabled",
+  "install_handoff_failed", "post_install_unconfirmed", "not_configured", "internal",
+]);
+
+/** The restarted app is not the version the installer was handed. It is
+ * reported once at startup, as a failed state with its own code. */
+function isUnconfirmedRestart(state: UpdateState): boolean {
+  return state.kind === "failed" && state.error.code === "post_install_unconfirmed";
+}
+
+/** The native side sends an empty expected version when the handoff record
+ * itself could not be read; the sentence then says so without a bare "v". */
+function unconfirmedMessage(confirmation: StartupUpdateConfirmation, language: Language): string {
+  const t = appUpdateTranslations(language);
+  const version = confirmation.kind === "unconfirmed" ? confirmation.expectedVersion.trim() : "";
+  return version === "" ? t.startupUnconfirmedUnknown : t.startupUnconfirmed(version);
+}
 
 /** One line per state, in a tone the reader can take in before the words: the
  * same scale the Git installation row uses, so "up to date" looks the same
@@ -86,6 +109,9 @@ function describeDetail(state: UpdateState, language: Language): string[] {
   const t = appUpdateTranslations(language);
   const error = errorState(state);
   if (!error) return [];
+  // An edit the reader left unfinished is named by its own feature, in the
+  // reader's language, so it is the whole explanation.
+  if (state.kind === "blocked" && error.blocker) return [t.installBlockedBy(error.blocker)];
   // The native side's safe detail is written in English. An English reader
   // gets it as the more specific cause; anyone else gets the sentence for
   // the code in their own language rather than a line in another one.
@@ -119,8 +145,9 @@ function Progress({ state, language }: { state: UpdateState; language: Language 
   const t = appUpdateTranslations(language);
   if (state.kind === "verifying") {
     return (
-      <div className="app-update-progress app-update-progress--indeterminate" role="progressbar" aria-label={t.verifying}>
-        <span />
+      <div className="app-update-progress-group">
+        <div className="app-update-progress app-update-progress--indeterminate" role="progressbar" aria-label={t.verifying}><span /></div>
+        <span>{t.verifying}</span>
       </div>
     );
   }
@@ -258,7 +285,7 @@ export function AppUpdateSettingsControl({
  * The update dialog, on the About shell like the changelog: mark, title, the
  * installed build, then one status line whose tone carries the state, and
  * only under it whatever that state has to show — a cause, the offered
- * release, progress, or the install confirmation.
+ * release, progress, or what installing will do.
  */
 export function AppUpdateDialog({
   isOpen,
@@ -276,45 +303,41 @@ export function AppUpdateDialog({
   const { language, t: appT } = useLanguage();
   const t = appUpdateTranslations(language);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  const [confirmingInstall, setConfirmingInstall] = useState(false);
   const descriptionId = useId();
   useModalFocus(isOpen, dialogRef, setOpen);
-
-  useEffect(() => {
-    if (!isOpen) setConfirmingInstall(false);
-  }, [isOpen]);
-  useEffect(() => {
-    if (confirmingInstall) confirmButtonRef.current?.focus();
-  }, [confirmingInstall]);
 
   if (!isOpen) return null;
   const state = snapshot.state;
   const candidate = candidateFromState(state);
   const error = errorState(state);
-  const line = describeState(state, language);
-  const detail = describeDetail(state, language);
-  const canRetry = error?.retryable || state.kind === "cancelled";
+  const unconfirmed = isUnconfirmedRestart(state);
+  /* A restart on the wrong version is one sentence: the startup receipt and
+     the failure say the same thing, so only the receipt is drawn. */
+  const line: StatusLine = unconfirmed
+    ? { tone: "warning", icon: <CircleAlert aria-hidden="true" />, message: unconfirmedMessage(snapshot.startupConfirmation, language) }
+    : describeState(state, language);
+  const detail = unconfirmed ? [] : describeDetail(state, language);
+  const offersManual = error !== null && MANUAL_DOWNLOAD_CODES.has(error.code);
+  const canRetry = !unconfirmed && (error?.retryable || state.kind === "cancelled");
   const cancelOperation = state.kind === "checking" || state.kind === "downloading";
-  const startup: StatusLine | null = snapshot.startupConfirmation.kind === "confirmed"
-    ? { tone: "success", icon: <CheckCircle2 aria-hidden="true" />, message: t.startupConfirmed(snapshot.startupConfirmation.version) }
-    : snapshot.startupConfirmation.kind === "unconfirmed"
-      ? { tone: "warning", icon: <CircleAlert aria-hidden="true" />, message: t.startupUnconfirmed(snapshot.startupConfirmation.expectedVersion) }
-      : null;
   const downloadLabel = candidate?.expectedBytes
     ? t.downloadSized(formatBytes(candidate.expectedBytes, language))
     : t.download;
+  const close = () => setOpen(false);
 
   const version = candidate ? candidate.version : null;
   /* The title is the state, so the reader knows what this is about before
      reading further; the status line only says what the title does not. */
-  const title = confirmingInstall && state.kind === "ready"
-    ? t.confirmTitle
-    : state.kind === "available" ? t.titleAvailable
-      : (state.kind === "downloading" || state.kind === "verifying") && version ? t.titleDownloading(version)
+  const title = state.kind === "available" ? t.titleAvailable
+    : state.kind === "downloading" && version ? t.titleDownloading(version)
+      : state.kind === "verifying" && version ? t.titleVerifying(version)
         : state.kind === "ready" ? t.titleReady
-          : t.title;
-  const titleSaysState = state.kind === "available" || state.kind === "ready"
+          : state.kind === "current" ? t.titleCurrent
+            : state.kind === "installing" ? t.titleInstalling
+              : state.kind === "blocked" && state.error.code === "install_blocked" ? t.titleBlocked
+                : unconfirmed ? t.titleUnconfirmed
+                  : t.title;
+  const titleSaysState = state.kind === "available" || state.kind === "ready" || state.kind === "current"
     || ((state.kind === "downloading" || state.kind === "verifying") && Boolean(version));
 
   return (
@@ -329,39 +352,32 @@ export function AppUpdateDialog({
       }
       descriptionId={descriptionId}
       icon={<CloudDownload />}
-      onClose={() => setOpen(false)}
+      onClose={close}
       closeLabel={appT.commonClose}
       dialogRef={dialogRef}
       className="app-update-dialog auto-hide-scrollbar"
       bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
     >
       <div id={descriptionId} className="app-update-dialog__state">
-        {startup && <StatusLine line={startup} />}
-        {confirmingInstall && state.kind === "ready"
+        {/* Ready is the install confirmation: what installing does, said
+            before the one button that does it. */}
+        {state.kind === "ready"
           ? <p className="app-dialog__text">{t.installExplanation}</p>
           : (!titleSaysState || detail.length > 0) && <StatusLine line={line} cause={detail} />}
       </div>
       {candidate && <CandidateDetails candidate={candidate} language={language} />}
       <Progress state={state} language={language} />
-      {/* The install confirmation is the dialog's own question, not a card
-          inside it: its buttons are the dialog's buttons while it asks. */}
       <div className="dialog-actions app-update-actions">
-        {confirmingInstall && state.kind === "ready" ? (
-          <>
-            <button className="secondary-button" type="button" onClick={() => setConfirmingInstall(false)}>{t.notNow}</button>
-            <button ref={confirmButtonRef} className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>
-          </>
-        ) : (
-          <>
-            {(error || state.kind === "unavailable") && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}><ExternalLink aria-hidden="true" />{t.manual}</button>}
-            {cancelOperation && <button className="secondary-button" type="button" onClick={() => void controller.cancel()}>{t.cancel}</button>}
-            {state.kind === "available" && <button className="secondary-button" type="button" onClick={() => setOpen(false)}>{t.notNow}</button>}
-            {(state.kind === "idle" || state.kind === "current") && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.check}</button>}
-            {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}><Download aria-hidden="true" />{downloadLabel}</button>}
-            {state.kind === "ready" && <button className="primary-button" type="button" onClick={() => setConfirmingInstall(true)}>{t.reviewInstall}</button>}
-            {canRetry && <button className="primary-button" type="button" onClick={() => void (state.kind === "blocked" ? controller.install() : controller.check())}>{t.retry}</button>}
-          </>
-        )}
+        {offersManual && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}><ExternalLink aria-hidden="true" />{t.manual}</button>}
+        {cancelOperation && <button className="secondary-button" type="button" onClick={() => void controller.cancel()}>{t.cancel}</button>}
+        {(state.kind === "available" || state.kind === "ready") && <button className="secondary-button" type="button" onClick={close}>{t.notNow}</button>}
+        {state.kind === "current" && <button className="secondary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.checkAgain}</button>}
+        {state.kind === "current" && <button className="primary-button" type="button" onClick={close}>{t.close}</button>}
+        {state.kind === "idle" && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.check}</button>}
+        {unconfirmed && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.checkAgain}</button>}
+        {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}><Download aria-hidden="true" />{downloadLabel}</button>}
+        {state.kind === "ready" && <button className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>}
+        {canRetry && <button className="primary-button" type="button" onClick={() => void (state.kind === "blocked" ? controller.install() : controller.check())}>{t.retry}</button>}
       </div>
     </Dialog>
   );

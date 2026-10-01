@@ -23,9 +23,13 @@ function controller(): AppUpdatesController {
   };
 }
 
-function Harness({ snapshot }: { snapshot: AppUpdatesSnapshot }) {
+function Harness({ snapshot, appController = controller() }: { snapshot: AppUpdatesSnapshot; appController?: AppUpdatesController }) {
   const [open, setOpen] = useState(false);
-  return <LanguageProvider><button onClick={() => setOpen(true)}>Open</button><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={snapshot} controller={controller()} installed={installed} /></LanguageProvider>;
+  return <LanguageProvider><button onClick={() => setOpen(true)}>Open</button><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={snapshot} controller={appController} installed={installed} /></LanguageProvider>;
+}
+
+function snapshotOf(state: AppUpdatesSnapshot["state"]): AppUpdatesSnapshot {
+  return { state, startupConfirmation: { kind: "none" }, automaticEnabled: false };
 }
 
 afterEach(cleanup);
@@ -113,38 +117,132 @@ describe("application update dialog", () => {
     expect(progress).toHaveAttribute("aria-valuenow", "25");
   });
 
-  it("requires a second, focused confirmation before install", async () => {
+  it("states what installing does beside the one button that installs", async () => {
     const user = userEvent.setup();
     const appController = controller();
-    function ReadyHarness() {
-      const [open, setOpen] = useState(true);
-      return <LanguageProvider><AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={{ state: { kind: "ready", candidate }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} controller={appController} installed={installed} /></LanguageProvider>;
-    }
-    render(<ReadyHarness />);
-    await user.click(screen.getByRole("button", { name: "Install…" }));
-    const confirm = screen.getByRole("button", { name: "Install and restart" });
-    expect(confirm).toHaveFocus();
+    render(<Harness snapshot={snapshotOf({ kind: "ready", candidate })} appController={appController} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Ready to install" });
+    expect(within(dialog).getByText(/closes and reopens on the new version/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/project files aren't touched/)).toBeInTheDocument();
     expect(appController.install).not.toHaveBeenCalled();
-    await user.click(confirm);
+    await user.click(within(dialog).getByRole("button", { name: "Not now" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(appController.install).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "Install and restart" }));
     expect(appController.install).toHaveBeenCalledOnce();
   });
 
-  it("does not claim install success when the restarted version was not confirmed", async () => {
+  it("says once that the restart did not land on the new version, and offers both ways forward", async () => {
     const user = userEvent.setup();
-    render(<Harness snapshot={{
-      state: { kind: "failed", error: { code: "post_install_unconfirmed", stage: "startup", retryable: false } },
-      startupConfirmation: {
-        kind: "unconfirmed",
-        expectedVersion: "0.3.1",
-        error: { code: "post_install_unconfirmed", stage: "startup", retryable: false },
-      },
+    const error = { code: "post_install_unconfirmed" as const, stage: "startup" as const, retryable: false, safeDetail: "The running version did not confirm the attempted update." };
+    const appController = controller();
+    render(<Harness appController={appController} snapshot={{
+      state: { kind: "failed", error },
+      startupConfirmation: { kind: "unconfirmed", expectedVersion: "0.3.1", error },
       automaticEnabled: false,
     }} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByText(/Couldn't confirm the update to v0.3.1/)).toBeInTheDocument();
-    expect(screen.queryByText(/Updated to/)).toBeNull();
-    // The failure line is the explanation; it is not repeated under itself.
-    expect(screen.getAllByText(/new version wasn't found/)).toHaveLength(1);
+    const dialog = screen.getByRole("dialog", { name: "The update didn't finish" });
+    expect(within(dialog).getAllByRole("status")).toHaveLength(1);
+    expect(within(dialog).getByRole("status")).toHaveTextContent("The app restarted, but not on v0.3.1. Check again or use the manual download.");
+    expect(within(dialog).queryByText(/Updated to/)).toBeNull();
+    expect(within(dialog).queryByText(/did not confirm/)).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
+    // The button says what the sentence asks for.
+    await user.click(within(dialog).getByRole("button", { name: "Check again" }));
+    expect(appController.check).toHaveBeenCalledOnce();
+  });
+
+  it("does not print a bare version when the handoff record named none", async () => {
+    const user = userEvent.setup();
+    const error = { code: "post_install_unconfirmed" as const, stage: "startup" as const, retryable: false };
+    render(<Harness snapshot={{
+      state: { kind: "failed", error },
+      startupConfirmation: { kind: "unconfirmed", expectedVersion: "", error },
+      automaticEnabled: false,
+    }} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("the new version couldn't be confirmed");
+    expect(status.textContent).not.toMatch(/\bv\./);
+  });
+
+  it("names the unfinished edit that blocks an install, in the reader's language, without a manual download", async () => {
+    localStorage.setItem("gitodile-language", "es");
+    const user = userEvent.setup();
+    try {
+      const error = { code: "install_blocked" as const, stage: "admission" as const, retryable: true, blocker: "Ajustes" };
+      const appController = controller();
+      render(<Harness appController={appController} snapshot={snapshotOf({ kind: "blocked", candidate, error })} />);
+      await user.click(screen.getByRole("button", { name: "Open" }));
+      const dialog = screen.getByRole("dialog", { name: "Todavía no se puede instalar" });
+      expect(within(dialog).getByRole("status")).toHaveTextContent("«Ajustes» tiene cambios sin guardar. Guárdalos o descártalos y reinténtalo.");
+      expect(within(dialog).queryByRole("button", { name: "Descarga manual" })).toBeNull();
+      await user.click(within(dialog).getByRole("button", { name: "Reintentar" }));
+      expect(appController.install).toHaveBeenCalledOnce();
+    } finally {
+      localStorage.removeItem("gitodile-language");
+    }
+  });
+
+  it("explains an unnamed block without pointing at a list that is not there", async () => {
+    localStorage.setItem("gitodile-language", "es");
+    const user = userEvent.setup();
+    try {
+      const error = { code: "install_blocked" as const, stage: "admission" as const, retryable: true, safeDetail: "Explicit install consent is required." };
+      render(<Harness snapshot={snapshotOf({ kind: "blocked", candidate, error })} />);
+      await user.click(screen.getByRole("button", { name: "Open" }));
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent("Hay algo en curso que impide instalar la actualización.");
+      expect(status.textContent).not.toMatch(/indicado|Explicit/);
+    } finally {
+      localStorage.removeItem("gitodile-language");
+    }
+  });
+
+  it("offers the manual download only where its sentence recommends it", async () => {
+    const user = userEvent.setup();
+    const offline = { code: "offline" as const, stage: "check" as const, retryable: true };
+    const { unmount } = render(<Harness snapshot={snapshotOf({ kind: "failed", error: offline })} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manual download" })).toBeNull();
+    unmount();
+
+    const handoff = { code: "install_handoff_failed" as const, stage: "install" as const, retryable: true };
+    render(<Harness snapshot={snapshotOf({ kind: "failed", error: handoff })} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("button", { name: "Manual download" })).toBeInTheDocument();
+  });
+
+  it("names verification in the title and in visible text", async () => {
+    const user = userEvent.setup();
+    render(<Harness snapshot={snapshotOf({ kind: "verifying", candidate, receivedBytes: 1_048_576 })} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Verifying v0.3.1" });
+    expect(within(dialog).getByRole("progressbar", { name: "Verifying the download…" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Verifying the download…", { selector: "span" })).toBeVisible();
+  });
+
+  it("closes from up to date and keeps checking again as the quieter choice", async () => {
+    const user = userEvent.setup();
+    const appController = controller();
+    render(<Harness appController={appController} snapshot={snapshotOf({ kind: "current", checkedAt: "2026-10-01T10:00:00Z" })} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "You have the latest version" });
+    // The corner button is also "Close"; the action row's is the primary one.
+    expect(dialog.querySelector(".app-update-actions .primary-button")).toHaveTextContent("Close");
+    await user.click(within(dialog).getByRole("button", { name: "Check again" }));
+    expect(appController.check).toHaveBeenCalledOnce();
+  });
+
+  it("titles the install in progress", async () => {
+    const user = userEvent.setup();
+    render(<Harness snapshot={snapshotOf({ kind: "installing", candidateId: "candidate" })} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("dialog", { name: "Installing the update" })).toBeInTheDocument();
   });
 
   it("says why updates are unavailable once, with the specific cause instead of the generic sentence", async () => {
