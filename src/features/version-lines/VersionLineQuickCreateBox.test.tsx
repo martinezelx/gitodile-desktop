@@ -1,7 +1,7 @@
 import React from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "../../i18n";
 import type { CreateVersionLinePlan, VersionLine, VersionLinesSnapshot } from "./domain";
@@ -73,6 +73,7 @@ function renderBox(props: Partial<React.ComponentProps<typeof VersionLineQuickCr
           forceSwitch={false}
           mainLine={null}
           activeLine={null}
+          existingNames={[]}
           listRef={listRef}
           onOperationStart={onOperationStart}
           onOperationFinish={onOperationFinish}
@@ -93,16 +94,47 @@ function isExpanded(container: HTMLElement): boolean {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("VersionLineQuickCreateBox", () => {
-  it("starts closed and opens on focus, without asking Git for anything", async () => {
+  // jsdom's `hasFocus()` is false in the middle of any blur, where a browser
+  // answers true for as long as the window itself has focus; the shared
+  // `useDockedComposerFocus` reads it. Pin the browser's answer.
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  it("starts closed, with its button beside the field, and opens on focus without asking Git for anything", async () => {
     const { container } = renderBox();
     expect(isExpanded(container)).toBe(false);
+    expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
     expect(mockedInvoke).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByLabelText("New line name"));
     expect(isExpanded(container)).toBe(true);
+  });
+
+  it("says where the new line starts, over the field", async () => {
+    const shared = line({ name: "main", tip: { ...line().tip, commit: "shared-commit" }, isDefault: true, isActive: true });
+    renderBox({ mainLine: shared, activeLine: shared });
+    await userEvent.click(screen.getByLabelText("New line name"));
+
+    expect(screen.getByText("Create from")).toBeInTheDocument();
+    expect(screen.getByText("main")).toBeInTheDocument();
+  });
+
+  it("stays open when an empty box is pressed on the switch option's words", async () => {
+    const { container } = renderBox();
+    await userEvent.click(screen.getByLabelText("New line name"));
+
+    // A label takes no focus of its own, so pressing its words used to hand
+    // focus to the page and fold an empty box away under the pointer.
+    await userEvent.click(screen.getByText("Switch to it"));
+
+    expect(isExpanded(container)).toBe(true);
+    expect(screen.getByRole("checkbox", { name: "Switch to it" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Create line" })).toBeInTheDocument();
   });
 
   it("closes again on blur when left empty, but not while a draft is there", async () => {
@@ -114,11 +146,12 @@ describe("VersionLineQuickCreateBox", () => {
     await userEvent.click(name);
     expect(isExpanded(container)).toBe(true);
     await userEvent.click(elsewhere);
-    expect(isExpanded(container)).toBe(false);
+    await waitFor(() => expect(isExpanded(container)).toBe(false));
 
     await userEvent.click(name);
     await userEvent.type(name, "feature/z");
     await userEvent.click(elsewhere);
+    await new Promise((resolve) => setTimeout(resolve, 10));
     expect(isExpanded(container)).toBe(true);
   });
 
@@ -134,7 +167,7 @@ describe("VersionLineQuickCreateBox", () => {
       if (!this.classList.contains("version-lines-quick-create")) {
         return rect;
       }
-      const height = this.classList.contains("version-lines-quick-create--expanded")
+      const height = this.classList.contains("docked-composer--expanded")
         ? EXPANDED_HEIGHT
         : COLLAPSED_HEIGHT;
       return { ...rect, height };
@@ -150,6 +183,7 @@ describe("VersionLineQuickCreateBox", () => {
               forceSwitch={false}
               mainLine={null}
               activeLine={null}
+              existingNames={[]}
               listRef={listRef}
               onOperationStart={vi.fn(() => true)}
               onOperationFinish={vi.fn()}
@@ -166,25 +200,45 @@ describe("VersionLineQuickCreateBox", () => {
       await userEvent.click(screen.getByLabelText("New line name"));
       expect(scrollElement.scrollTop).toBe(300 + (EXPANDED_HEIGHT - COLLAPSED_HEIGHT));
 
-      await userEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+      await userEvent.keyboard("{Escape}");
       expect(scrollElement.scrollTop).toBe(300);
     } finally {
       Element.prototype.getBoundingClientRect = originalRect;
     }
   });
 
-  it("the dismiss button clears the draft and closes the box", async () => {
+  it("lets a press elsewhere land before an empty box folds away", async () => {
+    // Same rule as Changes' box, through the shared `useDockedComposerFocus`:
+    // folding between a press and its release moved the list under the
+    // pointer, so the click has to reach what was pressed first.
+    let expandedWhenClicked: boolean | null = null;
     const { container } = renderBox();
-    const name = screen.getByLabelText("New line name");
-    await userEvent.type(name, "feature/z");
+    render(
+      <button type="button" onClick={() => { expandedWhenClicked = isExpanded(container); }}>
+        a line row
+      </button>,
+    );
+    await userEvent.click(screen.getByLabelText("New line name"));
 
-    await userEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+    await userEvent.click(screen.getByRole("button", { name: "a line row" }));
 
-    expect(name).toHaveValue("");
-    expect(isExpanded(container)).toBe(false);
+    expect(expandedWhenClicked).toBe(true);
+    await waitFor(() => expect(isExpanded(container)).toBe(false));
   });
 
-  it("Escape does the same as the dismiss button", async () => {
+  it("keeps an empty box open when the window, not the box, loses focus", async () => {
+    const { container } = renderBox();
+    const name = screen.getByLabelText("New line name");
+    await userEvent.click(name);
+
+    vi.mocked(document.hasFocus).mockReturnValue(false);
+    name.blur();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(isExpanded(container)).toBe(true);
+  });
+
+  it("Escape clears the draft and closes the box", async () => {
     const { container } = renderBox();
     const name = screen.getByLabelText("New line name");
     await userEvent.type(name, "feature/z");
@@ -201,7 +255,7 @@ describe("VersionLineQuickCreateBox", () => {
 
     mockedInvoke.mockResolvedValueOnce(plan());
     mockedInvoke.mockResolvedValueOnce(snapshot());
-    await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
     expect(await screen.findByText("Created “feature/z” and switched to it.")).toBeInTheDocument();
     expect(onOperationStart).toHaveBeenCalledOnce();
@@ -238,10 +292,10 @@ describe("VersionLineQuickCreateBox", () => {
     expect(await screen.findByText("Created “feature/z” and switched to it.")).toBeInTheDocument();
   });
 
-  it("creates without switching when the toggle is off", async () => {
+  it("creates without switching when that is unchecked, and says so on the button", async () => {
     renderBox();
     await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
-    await userEvent.click(screen.getByRole("switch", { name: "Switch to it" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Switch to it" }));
 
     mockedInvoke.mockResolvedValueOnce(plan({ willSwitch: false }));
     mockedInvoke.mockResolvedValueOnce(snapshot());
@@ -255,11 +309,75 @@ describe("VersionLineQuickCreateBox", () => {
     );
   });
 
+  it("says at once what Git would refuse in a name, and holds the button", async () => {
+    renderBox();
+    const field = screen.getByLabelText("New line name");
+    await userEvent.type(field, "my line");
+
+    expect(screen.getByText("Use hyphens instead of spaces, like my-line.")).toBeInTheDocument();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "my-line");
+    expect(screen.queryByText(/can't contain spaces/)).not.toBeInTheDocument();
+    expect(field).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("warns about a line that already exists, exactly or by letter case", async () => {
+    renderBox({ existingNames: ["main", "Fix/Typo"] });
+    const field = screen.getByLabelText("New line name");
+
+    await userEvent.type(field, "main");
+    expect(screen.getByText("A line named “main” already exists.")).toBeInTheDocument();
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "fix/typo");
+    expect(screen.getByText(/“Fix\/Typo” already exists/)).toBeInTheDocument();
+  });
+
+  it("leaves a half-typed ending alone until the reader asks to create, then asks Git for nothing", async () => {
+    const { onOperationStart } = renderBox();
+    const field = screen.getByLabelText("New line name");
+    await userEvent.type(field, "feature/");
+
+    expect(screen.queryByText("Names can't end with “/”.")).not.toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+
+    expect(screen.getByText("Names can't end with “/”.")).toBeInTheDocument();
+    expect(onOperationStart).not.toHaveBeenCalled();
+    expect(mockedInvoke).not.toHaveBeenCalled();
+
+    // Typing on is what fixes it, and clears the note straight away.
+    await userEvent.type(field, "x");
+    expect(screen.queryByText("Names can't end with “/”.")).not.toBeInTheDocument();
+  });
+
+  it("checks the name as it is sent, so a stray trailing space is no error", async () => {
+    renderBox();
+    await userEvent.type(screen.getByLabelText("New line name"), "feature/z ");
+    expect(screen.queryByText(/can't contain spaces/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create and switch" })).toBeEnabled();
+  });
+
+  it("asks what the line is for, and takes its example from the prefix the project's lines share", () => {
+    renderBox({ existingNames: ["main", "fix/a", "fix/b", "docs/c"] });
+    expect(screen.getByLabelText("New line name")).toHaveAttribute("placeholder", "What will you work on?");
+    expect(screen.getByText("fix/short-name")).toBeInTheDocument();
+  });
+
+  it("keeps the generic example when the project has no convention yet, until a name is typed", async () => {
+    renderBox({ existingNames: ["main", "fix/a"] });
+    expect(screen.getByText("feature/new-feature")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
+    expect(screen.queryByText("feature/new-feature")).not.toBeInTheDocument();
+  });
+
   it("does nothing without a name, even if Create is reached some other way", async () => {
     renderBox();
-    expect(screen.getByRole("button", { name: "Create line" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
     await userEvent.type(screen.getByLabelText("New line name"), "  ");
-    expect(screen.getByRole("button", { name: "Create line" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Create and switch" })).toBeDisabled();
     expect(mockedInvoke).not.toHaveBeenCalled();
   });
 
@@ -268,7 +386,7 @@ describe("VersionLineQuickCreateBox", () => {
     renderBox({ onOperationStart });
     await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
 
-    await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
     expect(onOperationStart).toHaveBeenCalledOnce();
     expect(mockedInvoke).not.toHaveBeenCalled();
@@ -278,17 +396,17 @@ describe("VersionLineQuickCreateBox", () => {
     renderBox({ forceSwitch: true });
     await userEvent.click(screen.getByLabelText("New line name"));
 
-    expect(screen.queryByRole("switch", { name: "Switch to it" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Switch to it" })).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "This project isn't on a version line right now, so GitOdile will switch to the new one to keep this commit easy to find.",
+        "You're not on a version line, so you'll switch to the new one to keep this work easy to find.",
       ),
     ).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("New line name"), "recover/here");
     mockedInvoke.mockResolvedValueOnce(plan({ name: "recover/here", willSwitch: true }));
     mockedInvoke.mockResolvedValueOnce(snapshot());
-    await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenNthCalledWith(
@@ -309,7 +427,7 @@ describe("VersionLineQuickCreateBox", () => {
       remediation: null,
       detail: null,
     });
-    await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByLabelText("New line name")).toHaveValue("feature/z");
@@ -324,7 +442,7 @@ describe("VersionLineQuickCreateBox", () => {
     // failed attempt, so there is no claim from it worth reusing.
     mockedInvoke.mockResolvedValueOnce(plan());
     mockedInvoke.mockResolvedValueOnce(snapshot());
-    await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
     expect(await screen.findByText("Created “feature/z” and switched to it.")).toBeInTheDocument();
     expect(onOperationStart).toHaveBeenCalledTimes(2);
@@ -336,11 +454,11 @@ describe("VersionLineQuickCreateBox", () => {
       renderBox({ mainLine: shared, activeLine: shared });
       await userEvent.click(screen.getByLabelText("New line name"));
 
-      expect(screen.queryByText("Main line")).not.toBeInTheDocument();
+      expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
       await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
       mockedInvoke.mockResolvedValueOnce(plan());
       mockedInvoke.mockResolvedValueOnce(snapshot());
-      await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+      await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
       await waitFor(() =>
         expect(mockedInvoke).toHaveBeenNthCalledWith(
@@ -357,14 +475,15 @@ describe("VersionLineQuickCreateBox", () => {
       renderBox({ mainLine: main, activeLine });
       await userEvent.click(screen.getByLabelText("New line name"));
 
-      expect(screen.getByRole("radio", { name: "Main line" })).toBeInTheDocument();
+      // Both by name, the main one telling what it is on its tooltip.
+      expect(screen.getByRole("radio", { name: "main" })).toHaveAttribute("data-tooltip", "Main line");
       const activeOption = screen.getByRole("radio", { name: "feature/other" });
       expect(activeOption).toHaveAttribute("aria-checked", "true");
 
       await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
       mockedInvoke.mockResolvedValueOnce(plan());
       mockedInvoke.mockResolvedValueOnce(snapshot());
-      await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+      await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
       await waitFor(() =>
         expect(mockedInvoke).toHaveBeenNthCalledWith(
@@ -386,23 +505,23 @@ describe("VersionLineQuickCreateBox", () => {
       await userEvent.click(screen.getByLabelText("New line name"));
       expect(container.querySelector(".version-lines-quick-create")?.className).toContain("--expanded");
 
-      await userEvent.click(screen.getByRole("radio", { name: "Main line" }));
+      await userEvent.click(screen.getByRole("radio", { name: "main" }));
 
       expect(container.querySelector(".version-lines-quick-create")?.className).toContain("--expanded");
-      expect(screen.getByRole("radio", { name: "Main line" })).toHaveAttribute("aria-checked", "true");
+      expect(screen.getByRole("radio", { name: "main" })).toHaveAttribute("aria-checked", "true");
     });
 
-    it("switches to the default line's commit when 'Main line' is chosen", async () => {
+    it("switches to the default line's commit when the main line is chosen", async () => {
       const main = line({ name: "main", tip: { ...line().tip, commit: "main-commit" }, isDefault: true });
       const activeLine = line({ name: "feature/other", tip: { ...line().tip, commit: "other-commit" }, isActive: true });
       renderBox({ mainLine: main, activeLine });
       await userEvent.click(screen.getByLabelText("New line name"));
-      await userEvent.click(screen.getByRole("radio", { name: "Main line" }));
+      await userEvent.click(screen.getByRole("radio", { name: "main" }));
 
       await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
       mockedInvoke.mockResolvedValueOnce(plan({ startingCommit: "main-commit", fromSavedVersion: true }));
       mockedInvoke.mockResolvedValueOnce(snapshot());
-      await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+      await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
       await waitFor(() =>
         expect(mockedInvoke).toHaveBeenNthCalledWith(
@@ -426,13 +545,13 @@ describe("VersionLineQuickCreateBox", () => {
       renderBox({ forceSwitch: true, mainLine: main, activeLine });
       await userEvent.click(screen.getByLabelText("New line name"));
 
-      expect(screen.queryByText("Main line")).not.toBeInTheDocument();
+      expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
       expect(screen.queryByText("feature/other")).not.toBeInTheDocument();
 
       await userEvent.type(screen.getByLabelText("New line name"), "recovered");
       mockedInvoke.mockResolvedValueOnce(plan({ name: "recovered" }));
       mockedInvoke.mockResolvedValueOnce(snapshot());
-      await userEvent.click(screen.getByRole("button", { name: "Create line" }));
+      await userEvent.click(screen.getByRole("button", { name: "Create and switch" }));
 
       await waitFor(() =>
         expect(mockedInvoke).toHaveBeenNthCalledWith(

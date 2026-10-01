@@ -5,8 +5,10 @@ import { localizeAppError } from "../../shared/i18n";
 import type { ChangesController } from "./controller";
 import type { DiscardRecovery } from "./domain";
 
-/** What the Changes header reports after a discard that was never confirmed.
- * `null` is "nothing to report", which is also what dismissing returns to. */
+/** What the Changes header reports after a discard — one that was never
+ * confirmed, or one the dialog confirmed and then closed on (DESIGN.md §
+ * Dialogs: a result with no next step is not a dialog to dismiss). `null` is
+ * "nothing to report", which is also what dismissing returns to. */
 export type DirectDiscardOutcome =
   | { status: "running" }
   | { status: "discarded"; discardedFiles: number; recovery: DiscardRecovery }
@@ -51,6 +53,9 @@ export function useDirectDiscard({
   outcome: DirectDiscardOutcome | null;
   discard: (request: DirectDiscardRequest) => Promise<void>;
   undo: (recovery: DiscardRecovery) => Promise<void>;
+  /** Shows a result the dialog produced, so its Undo goes through `undo` and
+   * claims the mutation slot like every other change. */
+  report: (outcome: DirectDiscardOutcome) => void;
   dismiss: () => void;
 } {
   const [outcome, setOutcome] = useState<DirectDiscardOutcome | null>(null);
@@ -102,5 +107,5 @@ export function useDirectDiscard({
     }
   };
 
-  return { outcome, discard, undo, dismiss: () => setOutcome(null) };
+  return { outcome, discard, undo, report: setOutcome, dismiss: () => setOutcome(null) };
 }

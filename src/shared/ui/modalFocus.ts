@@ -42,8 +42,12 @@ export function useModalFocus<T extends HTMLElement>(
       // focus goes to the first focusable element, which for any dialog with a
       // header close button is Close — so Enter right after opening shuts the
       // dialog the user just asked for.
+      // The shared dialog shell puts Close in every header, so the header's
+      // close button is never the landing point either: the first control
+      // after it is, and with none the dialog itself.
       const preferred = dialog.querySelector<HTMLElement>("[data-autofocus]");
-      (preferred ?? getFocusableElements(dialog)[0] ?? dialog).focus();
+      const firstControl = getFocusableElements(dialog).find((element) => !element.classList.contains("dialog-close-button"));
+      (preferred ?? firstControl ?? dialog).focus();
     };
     const animationFrame = window.requestAnimationFrame(focusDialog);
     const handleKeyDown = (event: KeyboardEvent): void => {

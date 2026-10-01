@@ -1,10 +1,13 @@
 use crate::application;
+use crate::application::in_parallel;
 use crate::changes::validate_commit_ish;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, git_stdout, run_git};
 use crate::operation::{truncate_detail, OperationKind};
-use crate::repository::{resolve_head_state, validate_branch_ref_name, HeadState};
-use crate::status::{git_log_summaries, read_working_tree_status, SavedVersionSummary};
+use crate::repository::{classify_head, read_head_commit, validate_branch_ref_name, HeadState};
+use crate::status::{
+    checked_status_records, git_log_summaries, SavedVersionSummary, UpstreamStatus,
+};
 use crate::sync::{
     classify_sync, destination_for_remote, fetch_remote_target, list_remotes,
     looks_like_authentication_failure, resolve_remote_selection, run_git_networked,
@@ -152,14 +155,50 @@ pub(crate) fn compute_publish_state_token(
     format!("{:016x}", hasher.finish())
 }
 
+/// What publishing needs from the working tree: the branch and its upstream,
+/// and whether anything is unsaved. Not `read_working_tree_status`, which also
+/// sums the diff's line totals — a `git diff` plus a read of every new file —
+/// for a number this plan never shows. Untracked folders are reported whole
+/// and renames are not paired: neither changes whether the tree is clean.
+const PUBLISH_STATUS_ARGS: [&str; 6] = [
+    "status",
+    "--porcelain=v2",
+    "--branch",
+    "--untracked-files=normal",
+    "--no-renames",
+    "-z",
+];
+
+fn read_publish_status(path: &str) -> Result<(UpstreamStatus, bool), AppError> {
+    let output = run_git(path, &PUBLISH_STATUS_ARGS)?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't check what changed in this project.",
+        )
+        .with_remediation("Check that the folder and its Git metadata are readable."));
+    }
+    let records = checked_status_records(&output.stdout)?;
+    Ok((records.upstream, records.entries.is_empty()))
+}
+
 fn validate_and_prepare_publish(
     path: &str,
     requested_remote: Option<String>,
     up_to: Option<String>,
 ) -> Result<ValidatedPublish, AppError> {
-    let status = read_working_tree_status(path.to_string())?;
-    let branch = status.upstream.branch.clone();
-    let (head_state, head_sha) = resolve_head_state(path, branch.clone())?;
+    // Three questions that don't depend on one another, asked side by side:
+    // on Windows the wait is the process launches, not the reads. Their
+    // answers are still checked in the order they always were, so the error
+    // a project gets doesn't depend on which process finished first.
+    let (status, (head_sha, remotes)) = in_parallel(
+        || read_publish_status(path),
+        || in_parallel(|| read_head_commit(path), || list_remotes(path)),
+    );
+    let (upstream, is_clean) = status?;
+    let branch = upstream.branch.clone();
+    let head_sha = head_sha?;
+    let head_state = classify_head(branch.is_some(), head_sha.is_some());
 
     if head_state == HeadState::Detached {
         return Err(AppError::new(
@@ -177,24 +216,32 @@ fn validate_and_prepare_publish(
     }
     let local_branch = branch.expect("a non-detached, non-unborn head has a branch name");
     let local_sha = head_sha.expect("a non-unborn head has a commit");
-    validate_branch_ref_name(path, &local_branch)?;
 
-    let remotes = list_remotes(path)?;
+    let remotes = remotes?;
     let remote = resolve_remote_selection(
         &remotes,
-        status.upstream.upstream.as_deref(),
+        upstream.upstream.as_deref(),
         requested_remote.as_deref(),
     )?;
     validate_remote_name(&remote)?;
     let destination_branch =
-        destination_for_remote(status.upstream.upstream.as_deref(), &remote, &local_branch);
-    validate_branch_ref_name(path, &destination_branch)?;
+        destination_for_remote(upstream.upstream.as_deref(), &remote, &local_branch);
+    if destination_branch == local_branch {
+        validate_branch_ref_name(path, &local_branch)?;
+    } else {
+        let (local, destination) = in_parallel(
+            || validate_branch_ref_name(path, &local_branch),
+            || validate_branch_ref_name(path, &destination_branch),
+        );
+        local?;
+        destination?;
+    }
     let target = PublishTarget {
         remote,
         destination_branch,
     };
     let configured_target = format!("{}/{}", target.remote, target.destination_branch);
-    let will_create_upstream = status.upstream.upstream.as_deref() != Some(&configured_target);
+    let will_create_upstream = upstream.upstream.as_deref() != Some(&configured_target);
 
     let source_ref = format!("refs/heads/{}", target.destination_branch);
     let remote_sha = match fetch_remote_target(path, &target.remote, &source_ref) {
@@ -233,6 +280,9 @@ fn validate_and_prepare_publish(
     };
 
     let commit_count = match &remote_sha {
+        // Publishing everything: the comparison above already counted what
+        // `remote..HEAD` holds, so there is no second walk to pay for.
+        Some(_) if target_sha == local_sha => relation.ahead,
         Some(remote_sha) => checked_git_stdout(run_git(
             path,
             &[
@@ -258,7 +308,7 @@ fn validate_and_prepare_publish(
         .unwrap_or(0)
     };
 
-    let has_unsaved_files = !status.is_clean;
+    let has_unsaved_files = !is_clean;
     let state_token = compute_publish_state_token(
         &target_sha,
         &target,
@@ -299,15 +349,26 @@ pub(crate) fn plan_publish(
 ) -> Result<PublishPlan, AppError> {
     let (_repository, _access) = application::authorize_repository(&path, "plan_publish", None)?;
     let validated = validate_and_prepare_publish(&path, remote, up_to)?;
-    let commit_summary = commit_summary_entries(
-        &path,
-        &validated.target_sha,
-        validated.remote_sha.as_deref(),
-    );
-    let remaining_commit_summary = if validated.remaining_after_publish > 0 {
-        commit_summary_entries(&path, &validated.local_branch, Some(&validated.target_sha))
+    let (commit_summary, remaining_commit_summary) = if validated.remaining_after_publish > 0 {
+        in_parallel(
+            || {
+                commit_summary_entries(
+                    &path,
+                    &validated.target_sha,
+                    validated.remote_sha.as_deref(),
+                )
+            },
+            || commit_summary_entries(&path, &validated.local_branch, Some(&validated.target_sha)),
+        )
     } else {
-        Vec::new()
+        (
+            commit_summary_entries(
+                &path,
+                &validated.target_sha,
+                validated.remote_sha.as_deref(),
+            ),
+            Vec::new(),
+        )
     };
 
     let summary = if validated.remote_sha.is_none() {

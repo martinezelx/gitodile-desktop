@@ -20,6 +20,15 @@ import { isReducedMotionRequested } from "../shared/ui";
  * race the first one and strip the root attribute mid-animation. */
 let activeTransition: ViewTransition | null = null;
 
+/** The titlebar glyph is given its own view-transition layer so it turns over
+ * instead of dissolving with the window. While a modal is open, though, the
+ * glyph sits behind its blurred backdrop, and a named layer is composited
+ * *above* the backdrop — so the icon would flash over the modal. With a modal
+ * open the glyph is left unnamed and dissolves with the rest of the window. */
+function hasOpenModal(): boolean {
+  return document.querySelector('[role="dialog"][aria-modal="true"]') !== null;
+}
+
 /** End a theme transition that was already in flight when motion was turned
  * off. The CSS override covers document content, but the browser owns view-
  * transition snapshots outside that subtree, so they need an explicit stop. */
@@ -29,6 +38,7 @@ export function stopActiveThemeTransition(): void {
   activeTransition = null;
   transition.skipTransition();
   delete document.documentElement.dataset.themeTransition;
+  delete document.documentElement.dataset.themeTransitionGlyph;
 }
 
 /** No view transitions under jsdom, and reduced motion means skipping the
@@ -51,6 +61,9 @@ export function startThemeFade(applyPreference: () => void): void {
   // Set before the transition starts so the outgoing capture already carries
   // the attribute, and the two halves of the pair are styled alike.
   root.dataset.themeTransition = "fade";
+  // A modal open now means the glyph is behind its blurred backdrop; leave it
+  // out of the named layers so it cannot composite over the dialog.
+  if (hasOpenModal()) root.dataset.themeTransitionGlyph = "off";
 
   // `flushSync` so React's own part of the change (the toggle swapping its
   // sun/moon glyph) lands in the captured new state instead of committing
@@ -62,6 +75,7 @@ export function startThemeFade(applyPreference: () => void): void {
     if (activeTransition !== transition) return; // a newer change owns the root now
     activeTransition = null;
     delete root.dataset.themeTransition;
+    delete root.dataset.themeTransitionGlyph;
   };
   transition.finished.then(finish, finish);
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useActiveScreenEffect } from "../../runtime/screen/module";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDown,
@@ -8,34 +9,38 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  LoaderCircle,
   Ellipsis,
+  History,
+  LoaderCircle,
   RotateCcw,
-  Save,
+  Settings,
   Trash2,
   X,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
-import { localizeAppError } from "../../shared/i18n";
+import { localizeAppError, type LocaleFormats } from "../../shared/i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
-  FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, SearchBox,
-  useAnchoredPopup, type FilterChip,
+  FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder,
+  useAnchoredPopup, useRowArrival, type FilterChip,
 } from "../../shared/ui";
-import { SaveVersionDialog } from "../save-version";
-import { QuickCommitBox } from "./QuickCommitBox";
+import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
 import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import type { ChangesController } from "./controller";
 import { DiffResultView, type DiffViewMode } from "./DiffResultView";
 import { DiffViewSelector } from "./DiffViewSelector";
 import { DiffStepNav } from "./DiffStepNav";
+import { DiffFind } from "./DiffFind";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import type { DiscardRecovery, FileDiff } from "./domain";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
+import { getChangesEmptyState, type ChangesEmptyHeadState } from "./emptyState";
+import { flatFileRows, flattenFileTree, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
+import { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";
 
 const DiscardChangesDialog = React.lazy(async () => {
   const module = await import("./DiscardChangesDialog");
@@ -291,122 +296,6 @@ export function fileTypesPresent(entries: WorkingTreeEntry[]): Array<{ key: stri
     if (b.key === "") return -1;
     return b.count - a.count || a.key.localeCompare(b.key);
   });
-}
-
-export type DiffLineTotals = { added: number; removed: number };
-
-/** Added and removed line counts for one file's diff. Only `text` and
- * `conflict` diffs carry hunks; the binary/too-large/unchanged kinds
- * contribute nothing, which is the honest answer — GitOdile never read their
- * contents. */
-export function countDiffLines(diff: FileDiff): DiffLineTotals {
-  const totals = { added: 0, removed: 0 };
-  if (diff.kind !== "text" && diff.kind !== "conflict") {
-    return totals;
-  }
-  for (const hunk of diff.hunks) {
-    for (const line of hunk.lines) {
-      if (line.kind === "addition") {
-        totals.added += 1;
-      } else if (line.kind === "deletion") {
-        totals.removed += 1;
-      }
-    }
-  }
-  return totals;
-}
-
-/** Screen-wide totals, summed over whichever diffs the snapshot's cache
- * currently holds. Returns `null` until every listed file is present, so the
- * subtitle shows nothing rather than a number that keeps climbing while the
- * batch prefetch fills in — a total that is briefly wrong is worse than one
- * that is briefly absent. */
-/** True when a diff's line counts would be a floor rather than the answer:
- * Git stopped early (`truncated`), or the file was never read at all
- * (`too-large`). Binary and unchanged files are not in this set — they
- * genuinely contribute no lines, which is a fact, not a gap. */
-function hasUncountableLines(diff: FileDiff): boolean {
-  if (diff.kind === "too-large") {
-    return true;
-  }
-  return (diff.kind === "text" || diff.kind === "conflict") && diff.truncated;
-}
-
-export function sumCachedDiffLines(entries: WorkingTreeEntry[], cache: Map<string, FileDiff>): DiffLineTotals | null {
-  if (entries.length === 0) {
-    return null;
-  }
-  const totals = { added: 0, removed: 0 };
-  for (const entry of entries) {
-    const diff = cache.get(entry.path);
-    // Same rule for "not read yet" and "cannot be counted": show nothing
-    // rather than a total the user would read as exact. A subtitle that
-    // quietly understates a huge change set is worse than one that omits the
-    // number until it can be trusted.
-    if (!diff || hasUncountableLines(diff)) {
-      return null;
-    }
-    const fileTotals = countDiffLines(diff);
-    totals.added += fileTotals.added;
-    totals.removed += fileTotals.removed;
-  }
-  return totals;
-}
-
-/* The screen's heading carries one action now. Discarding acts on the files
-   in the list — the selected one, or all of them — so its menu moved down to
-   the strip that owns that list, where what it will affect is on screen with
-   it. */
-function ChangesHeaderActions({
-  workingTree,
-  isChecking,
-  canChooseFiles,
-  canSaveSelection,
-  isEverythingSelected,
-  onSave,
-  t,
-}: {
-  workingTree: WorkingTreeStatus | null;
-  isChecking: boolean;
-  canChooseFiles: boolean;
-  canSaveSelection: boolean;
-  isEverythingSelected: boolean;
-  onSave: () => void;
-  t: Translations;
-}): React.JSX.Element {
-  const hasSavableChanges = workingTree !== null && !workingTree.isClean;
-  const actionsDisabled = !hasSavableChanges || isChecking;
-
-  return (
-    <div className="changes-header-actions">
-      <div className="changes-header-actions__buttons" role="group" aria-label={t.changesHeading}>
-        <button
-          className="primary-button changes-header-actions__save"
-          type="button"
-          onClick={onSave}
-          disabled={actionsDisabled || !canSaveSelection}
-          data-tooltip={
-            !hasSavableChanges
-              ? t.changesSaveVersionDisabledHint
-              : !canSaveSelection
-                ? t.changesSaveVersionNoSelectionHint
-                : undefined
-          }
-        >
-          <Save aria-hidden="true" />
-          {/* The label qualifies itself only when there is something to
-              qualify. Saving everything is just saving a version, so it says
-              so; leaving files out is the case worth naming, and the count
-              belongs to the summary line rather than to a second copy of it on
-              the button. A truncated status has no trustworthy selection, so
-              it reads as the whole thing too. */}
-          {canChooseFiles && canSaveSelection && !isEverythingSelected
-            ? t.changesSaveSelected
-            : t.changesSaveVersion}
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSettings, t }: {
@@ -769,6 +658,8 @@ function DiffWorkspace({
   // reset per file by the effect below.
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
+  const [diffSearch, setDiffSearch] = useState("");
+  const [isFindOpen, setIsFindOpen] = useState(false);
   const hunkCount = getHunkCount(diffState);
   const picture = usePictureDiff(
     diffState.status === "ready" ? diffState.diff : null,
@@ -825,8 +716,12 @@ function DiffWorkspace({
             <span className="changes-diff__name">{name}</span>
             <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
           </p>
+          {/* The category as the row it was chosen from says it — the same
+              glyph in the same colour, with the word beside it — rather than
+              a pill that said it in a third shape. */}
           {entry && (
             <span className={`changes-diff__category changes-diff__category--${entry.category}`}>
+              {CHANGE_CATEGORY_ICONS[entry.category]}
               {t[CATEGORY_LABEL_KEYS[entry.category]]}
             </span>
           )}
@@ -862,6 +757,17 @@ function DiffWorkspace({
               t={t}
             />
           )}
+          {/* The same find History's diff strip carries, between the arrows and
+              the reading controls: a magnifier at rest, a pill whose X closes
+              it once opened. */}
+          <DiffFind
+            isOpen={isFindOpen}
+            query={diffSearch}
+            onQueryChange={setDiffSearch}
+            onOpen={() => setIsFindOpen(true)}
+            onClose={() => { setIsFindOpen(false); setDiffSearch(""); }}
+            t={t}
+          />
           {/* Last, at the far edge: the arrows move within this file, and the
               picker changes the file's whole shape. A picture answers the same
               question with its own pickers, in the same place and the same
@@ -902,6 +808,7 @@ function DiffWorkspace({
               picture={picture}
               viewMode={viewMode}
               hunkTarget={hunkTarget}
+              searchQuery={diffSearch}
               t={t}
             />
           </div>
@@ -923,9 +830,15 @@ function FileListItem({
   virtualIndex,
   virtualCount,
   measureElement,
+  arrivalIndex,
+  depth,
   t,
 }: {
   entry: WorkingTreeEntry;
+  /** In the folder view, how many folders stand above it; the folder is then
+   * the row's parent, so the row drops its own folder line. Absent in the
+   * list. */
+  depth?: number;
   isSelected: boolean;
   isIncluded: boolean;
   canChoose: boolean;
@@ -936,6 +849,9 @@ function FileListItem({
   virtualIndex?: number;
   virtualCount?: number;
   measureElement?: (node: Element | null) => void;
+  /** When this row arrived while the screen was open, its place in the
+   * cascade; absent for the list's first draw and for every virtualized row. */
+  arrivalIndex?: number;
   t: Translations;
 }): React.JSX.Element {
   const { name, dir } = splitPath(entry.path);
@@ -950,14 +866,23 @@ function FileListItem({
     ? `${entry.path} — ${categoryLabel} — ${t.changesRenamedFrom(entry.originalPath)}`
     : `${entry.path} — ${categoryLabel}`;
 
+  // Captured at mount, not read from props: the arrival is decided by the list
+  // (see `useRowArrival`) on the render the row first appears, and a later
+  // render must not strip the class mid-animation. The list is readable the
+  // moment it opens; only a row that arrives afterwards wears `.row-in`. A
+  // virtualized row never does — it is mounted by a scroll, not by the screen.
+  const [arrival] = useState(() => (virtualPosition === undefined ? arrivalIndex : undefined));
+  const arrivalStyle: React.CSSProperties | undefined =
+    arrival === undefined ? undefined : ({ "--row-index": arrival } as React.CSSProperties);
+
   return (
     <li
-      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}`}
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${arrivalStyle ? " row-in" : ""}`}
       data-index={virtualIndex}
       ref={measureElement}
       aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
       aria-setsize={virtualCount}
-      style={virtualPosition === undefined ? undefined : { transform: `translateY(${virtualPosition}px)` }}
+      style={{ ...(virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }), ...(depth === undefined ? undefined : treeIndentStyle(depth)) }}
     >
       <input
         className="app-checkbox changes-file-row__checkbox"
@@ -982,7 +907,7 @@ function FileListItem({
         </span>
         <span className="changes-file-item__details">
           <span className="changes-file-item__name">{name}</span>
-          <span className="changes-file-item__dir">{dir || t.changesProjectRoot}</span>
+          {depth === undefined && <span className="changes-file-item__dir">{dir || t.changesProjectRoot}</span>}
           {entry.originalPath && (
             <span className="changes-file-item__origin">{t.changesRenamedFrom(entry.originalPath)}</span>
           )}
@@ -995,11 +920,101 @@ function FileListItem({
   );
 }
 
+/** Name and folder lengths for the first load's rows: varied, so the shape
+ * reads as a list of files rather than a striped block. */
+const FILE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["58%", "34%"],
+  ["44%", "52%"],
+  ["66%", "28%"],
+  ["38%", "46%"],
+  ["52%", "38%"],
+];
+
+/** The file list's first load: the search strip and a few rows in the places
+ * the real ones take (`LoadingPlaceholder`). */
+function FileListPlaceholder({ label }: { label: string }): React.JSX.Element {
+  return (
+    <LoadingPlaceholder label={label} className="changes-file-list__placeholder">
+      <div className="changes-file-list__toolbar">
+        <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+        <TextPlaceholder width="100%" />
+      </div>
+      <div className="changes-file-list__scroll">
+        <ul>
+          {FILE_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
+            <li key={name} className="changes-file-row">
+              <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+              <div className="changes-file-item">
+                <span className="changes-file-item__icon">
+                  <TextPlaceholder className="text-placeholder--glyph" />
+                </span>
+                <span className="changes-file-item__details">
+                  <span className="changes-file-item__name"><TextPlaceholder width={name} /></span>
+                  <span className="changes-file-item__dir"><TextPlaceholder width={dir} /></span>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </LoadingPlaceholder>
+  );
+}
+
+/** A folder in the Changes tree: its include box, then the folder itself.
+ * The box answers for everything under it — ticked when all of it goes into
+ * the version, clear when none does, and indeterminate in between — so a
+ * whole area of the project is included or left out in one press. */
+function FolderListItem({ row, props, virtual }: {
+  row: Extract<FileTreeRow<WorkingTreeEntry>, { kind: "folder" }>;
+  props: FileListRowsProps;
+  virtual?: { index: number; start: number; count: number; measureElement: (node: Element | null) => void };
+}): React.JSX.Element {
+  const included = row.files.filter((entry) => !props.excludedPaths.has(entry.path)).length;
+  const partial = included > 0 && included < row.files.length;
+  return (
+    <li
+      className={`changes-file-row changes-file-row--tree changes-file-row--folder${virtual ? " changes-file-row--virtual" : ""}`}
+      data-index={virtual?.index}
+      ref={virtual?.measureElement}
+      aria-posinset={virtual ? virtual.index + 1 : undefined}
+      aria-setsize={virtual?.count}
+      style={{ ...(virtual ? { transform: `translateY(${virtual.start}px)` } : undefined), ...treeIndentStyle(row.depth) }}
+    >
+      <input
+        ref={(node) => { if (node) node.indeterminate = partial; }}
+        className="app-checkbox changes-file-row__checkbox"
+        type="checkbox"
+        checked={included === row.files.length}
+        disabled={!props.canChoose}
+        aria-label={props.t.changesIncludeFolder(row.path)}
+        onChange={() => props.onToggleFolderIncluded(row.files, included < row.files.length)}
+      />
+      <FileTreeFolderButton row={row} formats={props.formats} onToggle={props.onToggleFolder} t={props.t} />
+    </li>
+  );
+}
+
+const NO_COLLAPSED_FOLDERS: ReadonlySet<string> = new Set();
+const entryPath = (entry: WorkingTreeEntry): string => entry.path;
+
 const FILE_LIST_VIRTUALIZATION_THRESHOLD = 100;
 const FILE_LIST_ESTIMATED_ROW_HEIGHT = 54;
 
 type FileListRowsProps = {
-  entries: WorkingTreeEntry[];
+  /** The rows as drawn: files only in the list, folders and files in the
+   * folder view. */
+  rows: FileTreeRow<WorkingTreeEntry>[];
+  /** Whether the rows are the folder view's, so a file row is indented under
+   * its folder and drops its own folder line. */
+  inFolders: boolean;
+  formats: LocaleFormats;
+  onToggleFolder: (path: string, expanded: boolean) => void;
+  /** Includes every file under a folder, or leaves every one of them out. */
+  onToggleFolderIncluded: (entries: WorkingTreeEntry[], include: boolean) => void;
+  /** Rows that arrived while this screen was open, keyed by path, valued by
+   * their place in the arrival cascade; empty on the list's first draw. */
+  arrivals: ReadonlyMap<string, number>;
   selectedPath: string | null;
   excludedPaths: Set<string>;
   canChoose: boolean;
@@ -1011,7 +1026,7 @@ type FileListRowsProps = {
 };
 
 function fileListItem(
-  entry: WorkingTreeEntry,
+  row: FileTreeRow<WorkingTreeEntry>,
   props: FileListRowsProps,
   virtual?: {
     index: number;
@@ -1019,11 +1034,16 @@ function fileListItem(
     count: number;
     measureElement: (node: Element | null) => void;
   },
+  arrivalIndex?: number,
 ): React.JSX.Element {
+  if (row.kind === "folder") return <FolderListItem key={`folder:${row.path}`} row={row} props={props} virtual={virtual} />;
+  const entry = row.item;
   return (
     <FileListItem
       key={entry.path}
       entry={entry}
+      depth={isGroupedFileRow(props.inFolders, row) ? row.depth : undefined}
+      arrivalIndex={arrivalIndex}
       isSelected={entry.path === props.selectedPath}
       isIncluded={!props.excludedPaths.has(entry.path)}
       canChoose={props.canChoose}
@@ -1041,9 +1061,12 @@ function fileListItem(
 
 function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
   const virtualizer = useVirtualizer({
-    count: props.entries.length,
+    count: props.rows.length,
     getScrollElement: () => props.scrollElement.current,
-    getItemKey: (index) => props.entries[index]?.path ?? index,
+    getItemKey: (index) => {
+      const row = props.rows[index];
+      return row ? `${row.kind}:${row.path}` : index;
+    },
     estimateSize: () => FILE_LIST_ESTIMATED_ROW_HEIGHT,
     overscan: 6,
     // jsdom and the first pre-layout render have no measured viewport yet.
@@ -1051,7 +1074,7 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
     // ResizeObserver measurement replaces it immediately in WebView2/WebKit.
     initialRect: { width: 320, height: 480 },
   });
-  const selectedIndex = props.entries.findIndex((entry) => entry.path === props.selectedPath);
+  const selectedIndex = props.rows.findIndex((row) => row.kind === "file" && row.path === props.selectedPath);
 
   useEffect(() => {
     if (selectedIndex >= 0) {
@@ -1065,12 +1088,12 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
       style={{ height: virtualizer.getTotalSize() }}
     >
       {virtualizer.getVirtualItems().map((virtualRow) => {
-        const entry = props.entries[virtualRow.index];
-        return entry
-          ? fileListItem(entry, props, {
+        const row = props.rows[virtualRow.index];
+        return row
+          ? fileListItem(row, props, {
               index: virtualRow.index,
               start: virtualRow.start,
-              count: props.entries.length,
+              count: props.rows.length,
               measureElement: virtualizer.measureElement,
             })
           : null;
@@ -1080,13 +1103,27 @@ function VirtualizedFileListRows(props: FileListRowsProps): React.JSX.Element {
 }
 
 function FileListRows(props: FileListRowsProps): React.JSX.Element {
-  if (props.entries.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
+  if (props.rows.length > FILE_LIST_VIRTUALIZATION_THRESHOLD) {
     return <VirtualizedFileListRows {...props} />;
   }
-  return <ul>{props.entries.map((entry) => fileListItem(entry, props))}</ul>;
+  return <ul>{props.rows.map((row) => fileListItem(row, props, undefined, row.kind === "file" ? props.arrivals.get(row.path) : undefined))}</ul>;
 }
 
+/** One actionable control in the clean state's block. */
+type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void };
+
+/** The copy and the controls the clean state shows for one repository
+ * situation: a headline, a sentence about what that situation means, an
+ * optional primary action and up to two secondary ones. */
+type ChangesEmptyContent = {
+  title: string;
+  description: string;
+  primary: ChangesEmptyAction | null;
+  secondary: ChangesEmptyAction[];
+};
+
 export function ChangesPanel({
+  tabs,
   projectPath,
   workingTree,
   workingTreeError,
@@ -1099,18 +1136,20 @@ export function ChangesPanel({
   onRefresh,
   onOpenSettings,
   onSaveCompleted,
-  onNavigateOverview,
   onPublishNow,
+  onGetChanges,
+  onOpenHistory,
+  headState = "branch",
   selectedPath,
   onSelectedPathChange,
-  isSaveVersionOpen,
-  onOpenSaveVersion,
-  onCloseSaveVersion,
-  onSaveVersionPhaseChange,
   onBeginDiscard,
   onDiscardClose,
   onDiscardPhaseChange,
 }: {
+  /** The Work screen's tab pair, drawn as the list panel's header in every
+   * state this panel has — it is what names the column now (task 126), and
+   * the way to History has to stay reachable when there is nothing to list. */
+  tabs: React.ReactNode;
   projectPath: string;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
@@ -1128,14 +1167,24 @@ export function ChangesPanel({
   /** Whether discarding opens the confirmation dialog. Off means the discard
    * runs immediately and reports its result — with an Undo — in the header. */
   confirmBeforeDiscarding: boolean;
-  /** Passed straight through to the save dialog: this panel owns neither the
-   * preference nor the save request, only the button that opens it. */
+  /** Passed straight through to the quick commit box: this panel owns neither
+   * the preference nor the save request, only the list the box saves from. */
   runGitHooks: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
   onSaveCompleted: () => void;
-  onNavigateOverview: () => void;
+  /** Opens the previewed publish flow: the empty state's primary action when
+   * the line has saved versions the remote does not have yet. */
   onPublishNow: () => void;
+  /** Brings the remote's newer versions in through the same previewed flow
+   * Overview's "review and get team changes" uses. */
+  onGetChanges: () => void;
+  /** Switches the Work screen to History — the natural next look when there is
+   * nothing to review, and a tab away rather than a screen away. */
+  onOpenHistory: () => void;
+  /** The repository's head state, so a clean tree can still tell "nothing to
+   * send" apart from "nothing saved yet" and from an old version being read. */
+  headState?: ChangesEmptyHeadState;
   /** Which file is selected, lifted to the caller so it survives switching
    * away to another project's session and back (see task 012's per-session
    * UI state). `excludedPaths` (the save-version checkbox picks) stays local
@@ -1143,18 +1192,18 @@ export function ChangesPanel({
    * project session needs to remember across navigation. */
   selectedPath: string | null;
   onSelectedPathChange: (path: string | null) => void;
-  isSaveVersionOpen: boolean;
-  onOpenSaveVersion: () => void;
-  onCloseSaveVersion: () => void;
-  onSaveVersionPhaseChange: (
-    phase: "planning" | "executing" | "error" | "success"
-  ) => void;
   onBeginDiscard: () => boolean;
   onDiscardClose: () => void;
   onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
 }): React.JSX.Element {
-  const { t } = useLanguage();
+  const { t, formats } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
+  // Which rows arrive while the screen is open, so the list it opens with is
+  // simply there (see `useRowArrival`). Taken from the whole working tree in
+  // display order rather than the filtered view: narrowing the list is not a
+  // set of arrivals, so a filter change must not animate the rows it reveals.
+  const arrivalKeys = useMemo(() => entries.map((entry) => entry.path), [entries]);
+  const arrivals = useRowArrival(arrivalKeys, `${projectPath}\0${sessionEpoch}`);
   const [announcement, setAnnouncement] = useState("");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ChangesFilters>(NO_CHANGES_FILTERS);
@@ -1169,6 +1218,81 @@ export function ChangesPanel({
      that has something to review does not need to know. */
   const [hasRecoveries, setHasRecoveries] = useState(false);
   const isClean = workingTree?.isClean === true;
+  // A clean tree is not one situation, so the block below is chosen from the
+  // snapshot rather than written once. See `getChangesEmptyState`.
+  const emptyState = workingTree ? getChangesEmptyState(workingTree, headState) : null;
+  const emptyContent = useMemo<ChangesEmptyContent | null>(() => {
+    if (!emptyState) return null;
+    const getChanges: ChangesEmptyAction = {
+      key: "get-changes",
+      label: t.changesEmptyGetChanges,
+      icon: <ArrowDown aria-hidden="true" />,
+      onClick: onGetChanges,
+    };
+    const viewHistory: ChangesEmptyAction = {
+      key: "history",
+      label: t.changesEmptyViewHistory,
+      icon: <History aria-hidden="true" />,
+      onClick: onOpenHistory,
+    };
+    switch (emptyState.kind) {
+      case "ahead":
+        return {
+          title: t.changesEmptySavedTitle,
+          description: t.changesEmptyAheadDescription(emptyState.count),
+          primary: {
+            key: "publish",
+            label: t.changesEmptyPublish(emptyState.count),
+            icon: <ArrowUp aria-hidden="true" />,
+            onClick: onPublishNow,
+          },
+          secondary: [getChanges, viewHistory],
+        };
+      case "behind":
+        return {
+          title: t.changesEmptySavedTitle,
+          description: t.changesEmptyBehindDescription(emptyState.count),
+          primary: getChanges,
+          secondary: [viewHistory],
+        };
+      case "no-remote":
+        return {
+          title: t.changesEmptyNoRemoteTitle,
+          description: t.changesEmptyNoRemoteDescription,
+          primary: null,
+          secondary: [
+            {
+              key: "settings",
+              label: t.changesEmptyOpenSettings,
+              icon: <Settings aria-hidden="true" />,
+              onClick: onOpenSettings,
+            },
+            viewHistory,
+          ],
+        };
+      case "unborn":
+        return {
+          title: t.changesEmptyUnbornTitle,
+          description: t.changesEmptyUnbornDescription,
+          primary: null,
+          secondary: [],
+        };
+      case "detached":
+        return {
+          title: t.changesEmptyDetachedTitle,
+          description: t.changesEmptyDetachedDescription,
+          primary: null,
+          secondary: [viewHistory],
+        };
+      case "up-to-date":
+        return {
+          title: t.changesEmptyUpToDateTitle,
+          description: t.changesEmptyUpToDateDescription,
+          primary: null,
+          secondary: [getChanges, viewHistory],
+        };
+    }
+  }, [emptyState, t, onGetChanges, onOpenHistory, onOpenSettings, onPublishNow]);
   useEffect(() => {
     if (!isClean) return undefined;
     let cancelled = false;
@@ -1219,6 +1343,21 @@ export function ChangesPanel({
   );
   // Only the kinds this working tree contains, so the panel never offers an
   // answer that would empty the list on its own.
+  const [fileView, setFileView] = useFileListView();
+  const { collapsed: collapsedFolders, toggle: toggleFolder, reveal: revealFile } = useCollapsedFolders();
+  const inFolders = fileView === "tree";
+  const fileRows = useMemo(
+    () => (inFolders ? flattenFileTree(visibleEntries, entryPath, collapsedFolders) : flatFileRows(visibleEntries, entryPath)),
+    [collapsedFolders, inFolders, visibleEntries],
+  );
+  // The order a step through the files follows: the order they are drawn in,
+  // folded folders included, so the arrows never jump around the tree.
+  const orderedEntries = useMemo(
+    () => (inFolders
+      ? flattenFileTree(visibleEntries, entryPath, NO_COLLAPSED_FOLDERS).flatMap((row) => (row.kind === "file" ? [row.item] : []))
+      : visibleEntries),
+    [inFolders, visibleEntries],
+  );
   const kindsPresent = useMemo(() => changeKindsPresent(entries), [entries]);
   const typesPresent = useMemo(() => fileTypesPresent(entries), [entries]);
   const activeFilterCount = countActiveChangesFilters(filters);
@@ -1369,97 +1508,43 @@ export function ChangesPanel({
   const allSelected = totalCount > 0 && includedCount === totalCount;
   const selectAllRef = useRef<HTMLInputElement>(null);
   const fileListScrollRef = useRef<HTMLDivElement>(null);
+  const quickCommitRef = useRef<QuickCommitBoxHandle>(null);
+  // The desktop convention for "save", pointed at the one place this screen
+  // saves from: it opens the box and puts the caret in the name field. Only
+  // while this screen is the active one, and never from under a dialog —
+  // a modal owns the keystroke, and focusing a field behind it would tear
+  // the focus out of the trap.
+  useActiveScreenEffect(() => {
+    const handleShortcut = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      quickCommitRef.current?.focus();
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
     }
   }, [includedCount, totalCount]);
 
-  const lineTotals = sumCachedDiffLines(entries, store.cache);
-
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file
   // hidden behind the filter.
-  const visibleIndex = visibleEntries.findIndex((entry) => entry.path === selectedPath);
+  const visibleIndex = orderedEntries.findIndex((entry) => entry.path === selectedPath);
   const selectFileAt = (index: number): void => {
-    const next = visibleEntries[index];
+    const next = orderedEntries[index];
     if (next) {
+      revealFile(next.path);
       onSelectedPathChange(next.path);
     }
   };
 
-  let headerMessage: React.ReactNode = null;
-  if (isLoadingList) {
-    headerMessage = <p>{t.statusCheckingMessage}</p>;
-  } else if (workingTree) {
-    const { conflicted, total } = workingTree.counts;
-    headerMessage = (
-      <p className="changes-view__summary">
-        <span>
-          {workingTree.isClean
-            ? t.changesSummaryClean
-            : conflicted > 0
-              ? t.changesSummaryWithConflicts(conflicted, total)
-              : t.changesSummaryTotal(total)}
-        </span>
-        {!workingTree.isClean && lineTotals && (
-          <>
-            <span className="changes-view__summary-separator" aria-hidden="true">
-              ·
-            </span>
-            <span className="changes-view__line-totals">
-              <span className="changes-view__lines changes-view__lines--added">
-                <span aria-hidden="true">{t.changesLinesAddedTotal(lineTotals.added)}</span>
-                <span className="visually-hidden">{t.changesLinesAddedTotalAriaLabel(lineTotals.added)}</span>
-              </span>
-              <span className="changes-view__lines changes-view__lines--removed">
-                <span aria-hidden="true">{t.changesLinesRemovedTotal(lineTotals.removed)}</span>
-                <span className="visually-hidden">{t.changesLinesRemovedTotalAriaLabel(lineTotals.removed)}</span>
-              </span>
-            </span>
-          </>
-        )}
-        {/* The selection belongs with the other things this screen says about
-            its changes, not beside the search box: the strip's job is finding
-            a file, and the count was taking a third of it to answer a question
-            nobody asks while typing. */}
-        {!workingTree.isClean && (
-          <>
-            <span className="changes-view__summary-separator" aria-hidden="true">
-              ·
-            </span>
-            <span className="changes-view__selection">
-              {t.changesSelectionSummary(includedCount, total)}
-            </span>
-          </>
-        )}
-      </p>
-    );
-  }
-
   return (
     <div className="changes-view" aria-busy={isCheckingChanges}>
       <ChangesStatusNotice watcherState={watcherState} error={workingTreeError} busy={isCheckingChanges} onRefresh={onRefresh} onOpenSettings={onOpenSettings} t={t} />
-      {/* Title and state on one line, with the screen's own actions at the far
-          end. `.screen-header` is the shared definition of that row — History
-          opens on the same one, so the two screens' panels start on the same
-          pixel row as well as in the same shape. */}
-      <header className="screen-header">
-        <div className="screen-header__heading">
-          <h1>{t.changesHeading}</h1>
-          {headerMessage}
-        </div>
-        <ChangesHeaderActions
-          workingTree={workingTree}
-          isChecking={isCheckingChanges}
-          canChooseFiles={canChooseFiles}
-          canSaveSelection={canSaveSelection}
-          isEverythingSelected={allSelected}
-          onSave={onOpenSaveVersion}
-          t={t}
-        />
-      </header>
-
       <DiscardOutcomeNotice
         outcome={directDiscard.outcome}
         onUndo={directDiscard.undo}
@@ -1482,169 +1567,244 @@ export function ChangesPanel({
         </div>
       )}
 
-      {isLoadingList ? (
-        <LoadingBar label={t.commonLoading} />
-      ) : !workingTree ? null : workingTree.isClean ? (
-        <div className="changes-empty">
-          <div className="changes-empty__icon" aria-hidden="true">
-            <CheckCircle2 />
-          </div>
-          <h2>{t.changesEmptyTitle}</h2>
-          <p>{t.changesEmptyDescription}</p>
-          <div className="changes-empty__actions">
-            <button className="secondary-button" type="button" onClick={onNavigateOverview}>
-              {t.changesBackToOverview}
-            </button>
-            {/* Discarding everything empties this screen, and the file list
-                takes the menu that reaches stored copies with it. Without this
-                the way back would exist only while there was still something
-                to review — which is exactly when nobody needs it. */}
-            {hasRecoveries && (
-              <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
-                <RotateCcw aria-hidden="true" />
-                {t.changesRestoreDiscarded}
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}`}>
-          <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
-            {/* One strip: what is included, and what is listed. The selection
-                summary had a band of its own above the search box, which is a
-                whole row of chrome for a fraction like "3/12"; beside the
-                checkbox it names it holds the same meaning in a quarter of
-                the space, and the files start ~50px higher. Paired with the
-                diff header — see `.changes-layout` in changes.css. */}
-            <div className="changes-file-list__toolbar">
-              <span className="changes-file-list__select-all">
-                {canChooseFiles ? (
-                  <input
-                    ref={selectAllRef}
-                    className="app-checkbox changes-file-row__checkbox"
-                    type="checkbox"
-                    checked={allSelected}
-                    aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
-                    onChange={() =>
-                      allSelected
-                        ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
-                        : setExcludedPaths(new Set())
-                    }
-                  />
-                ) : (
-                  <input
-                    className="app-checkbox changes-file-row__checkbox"
-                    type="checkbox"
-                    checked
-                    disabled
-                    aria-label={t.changesPartialUnavailableTruncated}
-                    data-tooltip={t.changesPartialUnavailableTruncated}
-                    readOnly
-                  />
-                )}
-              </span>
-              <SearchBox
-                value={search}
-                onChange={setSearch}
-                placeholder={t.changesSearchPlaceholder}
-                ariaLabel={t.changesSearchAriaLabel}
-                clearLabel={t.commonClearSearch}
-                trailing={<ChangesFilterPanel
-                  filters={filters}
-                  kinds={kindsPresent}
-                  types={typesPresent}
-                  canChooseFiles={canChooseFiles}
-                  onChange={setFilters}
-                  t={t}
-                />}
-              />
-              <ChangesActionsMenu
-                controller={controller}
-                projectPath={projectPath}
-                sessionEpoch={sessionEpoch}
-                selectedPath={selectedPath}
-                disabled={isCheckingChanges}
-                onChoose={requestDiscard}
-                t={t}
-              />
+      {/* The panel is the card, and the tab pair is its header: the row the
+          title used to fill (task 126). It is drawn in every state — loading,
+          nothing to review, listing — because it is also the way to History.
+          With nothing to review the list panel says so in its state row and
+          the empty block moves into the diff panel, where the reading surface
+          would be: the tabs stay where the tabs are, at the list column's
+          width, rather than stretching across a card that has no list. */}
+      <div
+        className={`changes-layout${isDetailFocused ? " changes-layout--detail" : ""}${
+          !isLoadingList && workingTree?.isClean ? " changes-layout--state" : ""
+        }`}
+      >
+        <nav className="changes-file-list" aria-label={t.changesListAriaLabel}>
+          <header className="changes-file-list__header">{tabs}</header>
+          {isLoadingList ? (
+            <FileListPlaceholder label={t.statusCheckingTitle} />
+          ) : !workingTree ? null : workingTree.isClean ? (
+            <div className="changes-file-list__state">
+              <p className="changes-view__summary">
+                <span>{t.changesSummaryClean}</span>
+              </p>
             </div>
-            <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
-            <div
-              {...autoHideScrollbarProps<HTMLDivElement>()}
-              ref={fileListScrollRef}
-              className="changes-file-list__scroll auto-hide-scrollbar"
-            >
-              {workingTree.truncated && (
-                <p className="changes-file-list__truncated" role="status">
-                  {t.statusTruncatedNote(entries.length)}
-                </p>
-              )}
-              {/* An empty list has to say why it is empty and offer the way
-                  back. The search box carries its own clear control in the
-                  strip above; the filters do not, so the one that can strand a
-                  reader here offers its own undo. */}
-              {visibleEntries.length === 0 && (
-                <div className="changes-file-list__empty" role="status">
-                  <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
-                  {activeFilterCount > 0 && (
-                    <button
-                      className="secondary-button secondary-button--sm"
-                      type="button"
-                      onClick={() => setFilters(NO_CHANGES_FILTERS)}
-                    >
-                      {t.changesFiltersClear}
-                    </button>
+          ) : (
+            <>
+              {/* One strip for what is listed: the include-everything checkbox
+                  at its head, at the rows' own inset so it reads as the
+                  column's first row, the search taking the rest of the width —
+                  the shape History's strip has — and the discard/restore `⋯`
+                  at its end. A step quieter than the
+                  header above it, the way History's inner panes step down from
+                  their panel. The breakdown and the line totals that used to
+                  sit beside the checkbox are gone: the Journey band and the
+                  status bar already say them, and a partial selection is the
+                  checkbox's own indeterminate state and the save box's plan
+                  ("3 of 7 files → main"). */}
+              <div className="changes-file-list__toolbar">
+                <span className="changes-file-list__select-all">
+                  {canChooseFiles ? (
+                    <input
+                      ref={selectAllRef}
+                      className="app-checkbox changes-file-row__checkbox"
+                      type="checkbox"
+                      checked={allSelected}
+                      aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                      onChange={() =>
+                        allSelected
+                          ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
+                          : setExcludedPaths(new Set())
+                      }
+                    />
+                  ) : (
+                    <input
+                      className="app-checkbox changes-file-row__checkbox"
+                      type="checkbox"
+                      checked
+                      disabled
+                      aria-label={t.changesPartialUnavailableTruncated}
+                      data-tooltip={t.changesPartialUnavailableTruncated}
+                      readOnly
+                    />
                   )}
-                </div>
-              )}
-              <FileListRows
-                entries={visibleEntries}
-                selectedPath={selectedPath}
-                excludedPaths={excludedPaths}
-                canChoose={canChooseFiles}
-                scrollElement={fileListScrollRef}
-                onSelect={(entry) => {
-                  onSelectedPathChange(entry.path);
-                  setIsDetailFocused(true);
-                }}
-                onToggleIncluded={(entry) =>
-                  setExcludedPaths((current) => {
-                    const next = new Set(current);
-                    if (next.has(entry.path)) {
-                      next.delete(entry.path);
-                    } else {
-                      next.add(entry.path);
-                    }
-                    return next;
-                  })
-                }
-                onContextMenu={(event, entry) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setContextMenu({
-                    kind: "file",
-                    x: event.clientX,
-                    y: event.clientY,
-                    path: entry.path,
-                    category: entry.category,
-                    focusTarget: event.currentTarget,
-                  });
-                }}
-                t={t}
-              />
+                </span>
+                <SearchBox
+                  value={search}
+                  onChange={setSearch}
+                  placeholder={t.changesSearchPlaceholder}
+                  ariaLabel={t.changesSearchAriaLabel}
+                  clearLabel={t.commonClearSearch}
+                  trailing={<>
+                    <ChangesFilterPanel
+                      filters={filters}
+                      kinds={kindsPresent}
+                      types={typesPresent}
+                      canChooseFiles={canChooseFiles}
+                      onChange={setFilters}
+                      t={t}
+                    />
+                    <FileViewToggle view={fileView} onChange={setFileView} t={t} />
+                  </>}
+                />
+                {/* What can be done to the listed changes without saving them
+                    — discard, or bring discarded work back — at the strip's
+                    trailing end. It sat inside the save box for a while, which
+                    put a destructive menu in the primary control; up here it
+                    acts on the list it heads, a panel's height away from Save.
+                    It opens its own confirmation before anything is discarded. */}
+                <ChangesActionsMenu
+                  controller={controller}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPath={selectedPath}
+                  disabled={isCheckingChanges}
+                  onChoose={requestDiscard}
+                  t={t}
+                />
+              </div>
+              <ChangesFilterChips filters={filters} onChange={setFilters} t={t} />
+              <div
+                {...autoHideScrollbarProps<HTMLDivElement>()}
+                ref={fileListScrollRef}
+                className="changes-file-list__scroll auto-hide-scrollbar"
+              >
+                {workingTree.truncated && (
+                  <p className="changes-file-list__truncated" role="status">
+                    {t.statusTruncatedNote(entries.length)}
+                  </p>
+                )}
+                {/* An empty list has to say why it is empty and offer the way
+                    back. The search box carries its own clear control in the
+                    strip above; the filters do not, so the one that can strand a
+                    reader here offers its own undo. */}
+                {visibleEntries.length === 0 && (
+                  <div className="changes-file-list__empty" role="status">
+                    <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
+                    {activeFilterCount > 0 && (
+                      <button
+                        className="secondary-button secondary-button--sm"
+                        type="button"
+                        onClick={() => setFilters(NO_CHANGES_FILTERS)}
+                      >
+                        {t.changesFiltersClear}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <FileListRows
+                  rows={fileRows}
+                  inFolders={inFolders}
+                  formats={formats}
+                  onToggleFolder={toggleFolder}
+                  onToggleFolderIncluded={(folderEntries, include) =>
+                    setExcludedPaths((current) => {
+                      const next = new Set(current);
+                      for (const entry of folderEntries) {
+                        if (include) next.delete(entry.path); else next.add(entry.path);
+                      }
+                      return next;
+                    })
+                  }
+                  arrivals={arrivals}
+                  selectedPath={selectedPath}
+                  excludedPaths={excludedPaths}
+                  canChoose={canChooseFiles}
+                  scrollElement={fileListScrollRef}
+                  onSelect={(entry) => {
+                    onSelectedPathChange(entry.path);
+                    setIsDetailFocused(true);
+                  }}
+                  onToggleIncluded={(entry) =>
+                    setExcludedPaths((current) => {
+                      const next = new Set(current);
+                      if (next.has(entry.path)) {
+                        next.delete(entry.path);
+                      } else {
+                        next.add(entry.path);
+                      }
+                      return next;
+                    })
+                  }
+                  onContextMenu={(event, entry) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setContextMenu({
+                      kind: "file",
+                      x: event.clientX,
+                      y: event.clientY,
+                      path: entry.path,
+                      category: entry.category,
+                      focusTarget: event.currentTarget,
+                    });
+                  }}
+                  t={t}
+                />
+              </div>
+              {/* The foot: the save box, the one place a version is saved
+                  from this screen, docked under the files it saves. Nothing
+                  destructive shares it — the discard/restore `⋯` heads the
+                  list in the strip above. */}
+              <div className="changes-file-list__foot">
+                <QuickCommitBox
+                  ref={quickCommitRef}
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  selectedPaths={selectedPathsForSave}
+                  canSave={canSaveSelection}
+                  runHooks={runGitHooks}
+                  remoteLabel={workingTree.upstream.upstream}
+                  fileListRef={fileListScrollRef}
+                  onSaveCompleted={onSaveCompleted}
+                  onPublishNow={onPublishNow}
+                />
+              </div>
+            </>
+          )}
+        </nav>
+        {!isLoadingList && workingTree?.isClean && emptyContent ? (
+          <div className="changes-diff changes-diff--state">
+            <div className="changes-empty">
+              <div className="changes-empty__icon" aria-hidden="true">
+                <CheckCircle2 />
+              </div>
+              <h2>{emptyContent.title}</h2>
+              <p>{emptyContent.description}</p>
+              <div className="changes-empty__actions">
+                {emptyContent.primary && (
+                  <button
+                    className="primary-button changes-empty__primary"
+                    type="button"
+                    onClick={emptyContent.primary.onClick}
+                  >
+                    {emptyContent.primary.icon}
+                    {emptyContent.primary.label}
+                  </button>
+                )}
+                {emptyContent.secondary.length > 0 && (
+                  <div className="changes-empty__secondary">
+                    {emptyContent.secondary.map((action) => (
+                      <button key={action.key} className="secondary-button" type="button" onClick={action.onClick}>
+                        {action.icon}
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Discarding everything empties this screen, and the file list
+                    takes the menu that reaches stored copies with it. Without this
+                    the way back would exist only while there was still something
+                    to review — which is exactly when nobody needs it. */}
+                {hasRecoveries && (
+                  <button className="ghost-button" type="button" onClick={() => requestDiscard({ mode: "restore", selectedPath: null })}>
+                    <RotateCcw aria-hidden="true" />
+                    {t.changesRestoreDiscarded}
+                  </button>
+                )}
+              </div>
             </div>
-            <QuickCommitBox
-              projectPath={projectPath}
-              sessionEpoch={sessionEpoch}
-              selectedPaths={selectedPathsForSave}
-              canSave={canSaveSelection}
-              runHooks={runGitHooks}
-              remoteLabel={workingTree.upstream.upstream}
-              fileListRef={fileListScrollRef}
-              onSaveCompleted={onSaveCompleted}
-              onPublishNow={onPublishNow}
-            />
-          </nav>
+          </div>
+        ) : !isLoadingList && workingTree ? (
           <DiffWorkspace
             projectPath={projectPath}
             sessionEpoch={sessionEpoch}
@@ -1661,8 +1821,10 @@ export function ChangesPanel({
             onCodeContextMenu={openCodeContextMenu}
             t={t}
           />
-        </div>
-      )}
+        ) : (
+          <div className="changes-diff" />
+        )}
+      </div>
 
       <span className="visually-hidden" role="status">
         {announcement}
@@ -1686,17 +1848,6 @@ export function ChangesPanel({
         />
       </React.Suspense>
 
-      <SaveVersionDialog
-        isOpen={isSaveVersionOpen}
-        projectPath={projectPath}
-        sessionEpoch={sessionEpoch}
-        selectedPaths={selectedPathsForSave}
-        runHooks={runGitHooks}
-        onClose={onCloseSaveVersion}
-        onSaved={onSaveCompleted}
-        onPublishNow={onPublishNow}
-        onPhaseChange={onSaveVersionPhaseChange}
-      />
       <React.Suspense fallback={null}>
         <DiscardChangesDialog
           request={discardRequest}
@@ -1706,6 +1857,7 @@ export function ChangesPanel({
           onClose={() => { setDiscardRequest(null); onDiscardClose(); }}
           onMutationCompleted={onSaveCompleted}
           onPhaseChange={onDiscardPhaseChange}
+          onFinished={directDiscard.report}
         />
       </React.Suspense>
     </div>

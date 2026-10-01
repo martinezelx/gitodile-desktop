@@ -215,8 +215,8 @@ Implemented 2026-10-01 on `feature/single-update-channel` (from `origin/main`).
 - Contract fixture schema 3 (no channels, `feeds.feed` + `legacyMirrors`).
 - Docs: ADR 0019, ADR 0010 header, AGENTS, README, DESIGN, ARCHITECTURE,
   contracts, runbooks, code-signing policy, roadmap queue, task 065-9-13.
-- Not changed: the offline updater-key backup gate in `signed-builds.md`,
-  now worded "before the first `X.Y.Z` release" — it applies to `0.3.0`.
+- The offline updater-key backup gate in `signed-builds.md` was later
+  deferred to `1.0.0` by the maintainer (task 143, 065-8).
 
 # Validation
 

@@ -70,8 +70,8 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}) {
 
 async function enterAndReview(): Promise<void> {
   await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://alice:secret@example.test/team/project.git?token=hidden");
-  await userEvent.type(screen.getByPlaceholderText("Choose a parent folder"), "C:\\projects");
-  await userEvent.click(screen.getByRole("button", { name: "Review clone" }));
+  await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
+  await userEvent.click(screen.getByRole("button", { name: "Review" }));
   expect(await screen.findByText("https://example.test/team/project.git")).toBeInTheDocument();
 }
 
@@ -87,9 +87,11 @@ describe("CloneDialog", () => {
     await waitFor(() => expect(screen.getByPlaceholderText("https://example.com/team/project.git")).toHaveFocus());
     await enterAndReview();
 
-    expect(screen.getByText(/does not publish, edit, or delete anything there/i)).toBeInTheDocument();
-    expect(screen.getByText(/credential helper/i)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Clone and open project" }));
+    expect(screen.getByText("The original project doesn't change.")).toBeInTheDocument();
+    // Sign-in is true and findable, but behind the details rather than beside
+    // the decision.
+    expect(screen.getByText(/your existing Git sign-in is used/i, { ignore: false })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
 
     await waitFor(() => expect(onVerifiedClone).toHaveBeenCalledWith(result));
     expect(onClose).toHaveBeenCalledOnce();
@@ -100,7 +102,7 @@ describe("CloneDialog", () => {
   it("answers an empty required field inline and closes from the header button", async () => {
     const plan = vi.fn(async () => planFixture);
     const { onClose } = renderDialog({ plan });
-    await userEvent.click(screen.getByRole("button", { name: "Review clone" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
 
     expect(plan).not.toHaveBeenCalled();
     expect(await screen.findAllByText("Fill in this field.")).toHaveLength(2);
@@ -121,12 +123,13 @@ describe("CloneDialog", () => {
     const cancel = vi.fn(async () => undefined);
     const { onVerifiedClone } = renderDialog({ execute: () => execution.promise, cancel });
     await enterAndReview();
-    await userEvent.click(screen.getByRole("button", { name: "Clone and open project" }));
+    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
     await userEvent.click(await screen.findByRole("button", { name: "Cancel clone" }));
 
     expect(cancel).toHaveBeenCalledWith("op-1");
     execution.resolve(result);
-    expect(await screen.findByText(/cancelled and no destination was published/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Clone cancelled" })).toBeInTheDocument();
+    expect(screen.getByText("Nothing was added.")).toBeInTheDocument();
     expect(onVerifiedClone).not.toHaveBeenCalled();
   });
 });

@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { DialogCloseButton, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
+import { Dialog, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { UpdateCandidate, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -73,40 +73,47 @@ function describeState(state: UpdateState, language: Language): StatusLine {
   }
 }
 
-/** What goes under the status line, if anything: the cause when the line
- * itself is only a verdict (blocked, unavailable), and the adapter's safe
- * detail — the name of the work that blocks an install, say — whenever there
- * is one. Never the same sentence twice. */
+/** The cause the status line says in place of its verdict, if any: the cause
+ * when the verdict alone (blocked, unavailable) would not say why, and the
+ * adapter's safe detail whenever there is one. Never the same sentence twice.
+ *
+ * A specific cause replaces the generic sentence for its code: "The update
+ * couldn't be completed" above "Update verification is not configured" said
+ * one thing twice, the first time vaguely and under a verdict ("not
+ * available") it contradicted. Only a blocked install keeps both — the
+ * sentence says what to do, the detail names the work in the way. */
 function describeDetail(state: UpdateState, language: Language): string[] {
   const t = appUpdateTranslations(language);
   const error = errorState(state);
   if (!error) return [];
+  // The native side's safe detail is written in English. An English reader
+  // gets it as the more specific cause; anyone else gets the sentence for
+  // the code in their own language rather than a line in another one.
+  const safeDetail = language === "en" ? error.safeDetail : null;
+  if (safeDetail && state.kind !== "blocked") return [safeDetail];
   const lines: string[] = [];
   if (state.kind !== "failed") lines.push(t.errors[error.code]);
-  if (error.safeDetail) lines.push(error.safeDetail);
+  if (safeDetail) lines.push(safeDetail);
   return lines;
 }
 
-function StatusLine({ line, className = "" }: { line: StatusLine; className?: string }) {
+/** The status, or its cause when it has one: a specific cause says what
+ * happened better than the generic status, so it takes the status's place
+ * rather than following it as a second sentence. */
+function StatusLine({ line, cause = [], className = "" }: { line: StatusLine; cause?: string[]; className?: string }) {
   return (
     <p className={`status-line status-line--${line.tone} ${className}`.trim()} role="status" aria-live="polite" aria-atomic="true">
       {line.icon}
-      <span>{line.message}</span>
+      <span>{cause.length > 0 ? cause.join(" ") : line.message}</span>
     </p>
   );
 }
 
-/** The installed build, the way About and the changelog show it: the
- * version in the label weight. */
-function InstalledLine({ installed, language }: { installed: InstalledRelease; language: Language }) {
-  const t = appUpdateTranslations(language);
-  return (
-    <p className="about-dialog__release app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version}`}>
-      <span className="app-update-dialog__installed-label">{t.installedLabel}</span>
-      <span className="about-dialog__release-version">v{installed.version}</span>
-    </p>
-  );
-}
+/* The dialog has something the Settings row cannot say only once there is a
+   release to read, a transfer to watch or an install to confirm. */
+const DIALOG_STATES: ReadonlySet<UpdateState["kind"]> = new Set([
+  "available", "downloading", "verifying", "ready", "blocked", "installing",
+]);
 
 function Progress({ state, language }: { state: UpdateState; language: Language }) {
   const t = appUpdateTranslations(language);
@@ -140,7 +147,10 @@ function Progress({ state, language }: { state: UpdateState; language: Language 
 }
 
 /** The offered release as a card: identity row in the changelog's vocabulary
- * (version, date), then its notes as bounded plain text. */
+ * (version, date), then what it brings. A release whose feed
+ * carries highlights shows them the way What's new does, in the reader's
+ * language; one that carries none (every release before the field existed)
+ * falls back to its notes as bounded plain text. */
 function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate; language: Language }) {
   const { formats } = useLanguage();
   const t = appUpdateTranslations(language);
@@ -153,8 +163,17 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
           <time className="app-update-candidate__date" dateTime={candidate.publishedAt}>{publishedAt}</time>
         )}
       </div>
-      <p className="app-update-candidate__notes-label">{t.releaseNotes}</p>
-      <p className="app-update-notes">{candidate.notes.trim() || t.noNotes}</p>
+      {candidate.highlights.length > 0 ? (
+        <>
+          <p className="app-update-candidate__notes-label">{t.highlights}</p>
+          <ReleaseHighlights highlights={candidate.highlights} language={language} />
+        </>
+      ) : (
+        <>
+          <p className="app-update-candidate__notes-label">{t.releaseNotes}</p>
+          <p className="app-update-notes">{candidate.notes.trim() || t.noNotes}</p>
+        </>
+      )}
     </section>
   );
 }
@@ -184,22 +203,24 @@ export function AppUpdateSettingsControl({
   const state = snapshot.state;
   const busy = BUSY_STATES.has(state.kind);
   const line = describeState(state, language);
+  const detail = describeDetail(state, language);
   /* "Details" opens the dialog, where the notes, the progress and the install
-     confirmation live. It is offered only when there is something to see
-     there that this row does not already say. */
-  const hasDetails = onOpenDialog && !["idle", "checking", "current"].includes(state.kind);
+     confirmation live. The cause of a failure is already in the row, so it
+     is offered only when the dialog has something the row does not. */
+  const hasDetails = onOpenDialog && DIALOG_STATES.has(state.kind);
+  /* Two groups, neither named after the tab it sits in: the build you have,
+     and how the next one reaches you — today only the startup check. */
   return (
     <div className="settings-groups">
       <section className="settings-group">
-        <header className="settings-group__header"><h3>{t.title}</h3></header>
+        <header className="settings-group__header"><h3>{t.installedLabel}</h3></header>
         <div className="settings-group__body">
           <div className="settings-row">
             <div className="app-update-settings__identity">
               <p className="version-line">
-                <span className="version-line__label">{t.installedLabel}</span>
                 <span className="version-line__value">v{installed.version}</span>
               </p>
-              <StatusLine line={line} />
+              <StatusLine line={line} cause={detail} />
             </div>
             <div className="settings-row__actions">
               {hasDetails && (
@@ -214,7 +235,7 @@ export function AppUpdateSettingsControl({
         </div>
       </section>
       <section className="settings-group">
-        <header className="settings-group__header"><h3>{t.automaticTitle}</h3></header>
+        <header className="settings-group__header"><h3>{t.receivingTitle}</h3></header>
         <div className="settings-group__body">
           <div className="settings-row">
             <div><strong>{t.automaticLabel}</strong><p>{t.automaticDescription}</p></div>
@@ -284,45 +305,64 @@ export function AppUpdateDialog({
     ? t.downloadSized(formatBytes(candidate.expectedBytes, language))
     : t.download;
 
+  const version = candidate ? candidate.version : null;
+  /* The title is the state, so the reader knows what this is about before
+     reading further; the status line only says what the title does not. */
+  const title = confirmingInstall && state.kind === "ready"
+    ? t.confirmTitle
+    : state.kind === "available" ? t.titleAvailable
+      : (state.kind === "downloading" || state.kind === "verifying") && version ? t.titleDownloading(version)
+        : state.kind === "ready" ? t.titleReady
+          : t.title;
+  const titleSaysState = state.kind === "available" || state.kind === "ready"
+    || ((state.kind === "downloading" || state.kind === "verifying") && Boolean(version));
+
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
-      <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={dialogRef} className="about-dialog app-update-dialog auto-hide-scrollbar" role="dialog" aria-modal="true" aria-labelledby="app-update-title" aria-describedby={descriptionId} tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
-        <DialogCloseButton label={appT.commonClose} onClick={() => setOpen(false)} />
-        <div className="app-update-dialog__mark" aria-hidden="true"><CloudDownload /></div>
-        <h2 id="app-update-title">{t.title}</h2>
-        <InstalledLine installed={installed} language={language} />
-        <div id={descriptionId} className="app-update-dialog__state">
-          {startup && <StatusLine line={startup} />}
-          <StatusLine line={line} />
-          {detail.length > 0 && (
-            <div className="app-update-detail">
-              {detail.map((text) => <p key={text}>{text}</p>)}
-            </div>
-          )}
-        </div>
-        {candidate && <CandidateDetails candidate={candidate} language={language} />}
-        <Progress state={state} language={language} />
-        {confirmingInstall && state.kind === "ready" && (
-          <div className="app-update-confirm" role="group" aria-labelledby="app-update-confirm-title">
-            <h3 id="app-update-confirm-title">{t.confirmTitle}</h3>
-            <p>{t.installExplanation}</p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={() => setConfirmingInstall(false)}>{t.notNow}</button>
-              <button ref={confirmButtonRef} className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>
-            </div>
-          </div>
-        )}
-        {!confirmingInstall && (
-          <div className="dialog-actions app-update-actions">
+    <Dialog
+      size="m"
+      title={title}
+      titleId="app-update-title"
+      subtitle={
+        <span className="app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version}`}>
+          {t.installedSubtitle(installed.version)}
+        </span>
+      }
+      descriptionId={descriptionId}
+      icon={<CloudDownload />}
+      onClose={() => setOpen(false)}
+      closeLabel={appT.commonClose}
+      dialogRef={dialogRef}
+      className="app-update-dialog auto-hide-scrollbar"
+      bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
+    >
+      <div id={descriptionId} className="app-update-dialog__state">
+        {startup && <StatusLine line={startup} />}
+        {confirmingInstall && state.kind === "ready"
+          ? <p className="app-dialog__text">{t.installExplanation}</p>
+          : (!titleSaysState || detail.length > 0) && <StatusLine line={line} cause={detail} />}
+      </div>
+      {candidate && <CandidateDetails candidate={candidate} language={language} />}
+      <Progress state={state} language={language} />
+      {/* The install confirmation is the dialog's own question, not a card
+          inside it: its buttons are the dialog's buttons while it asks. */}
+      <div className="dialog-actions app-update-actions">
+        {confirmingInstall && state.kind === "ready" ? (
+          <>
+            <button className="secondary-button" type="button" onClick={() => setConfirmingInstall(false)}>{t.notNow}</button>
+            <button ref={confirmButtonRef} className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>
+          </>
+        ) : (
+          <>
             {(error || state.kind === "unavailable") && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}><ExternalLink aria-hidden="true" />{t.manual}</button>}
             {cancelOperation && <button className="secondary-button" type="button" onClick={() => void controller.cancel()}>{t.cancel}</button>}
+            {state.kind === "available" && <button className="secondary-button" type="button" onClick={() => setOpen(false)}>{t.notNow}</button>}
             {(state.kind === "idle" || state.kind === "current") && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.check}</button>}
             {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}><Download aria-hidden="true" />{downloadLabel}</button>}
             {state.kind === "ready" && <button className="primary-button" type="button" onClick={() => setConfirmingInstall(true)}>{t.reviewInstall}</button>}
             {canRetry && <button className="primary-button" type="button" onClick={() => void (state.kind === "blocked" ? controller.install() : controller.check())}>{t.retry}</button>}
-          </div>
+          </>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 }

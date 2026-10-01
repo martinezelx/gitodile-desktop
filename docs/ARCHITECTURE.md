@@ -101,14 +101,22 @@ navigation, command-palette entries, project guards, chunk prefetching,
 keep-alive mounting, accessibility behavior, and optional performance budgets.
 Do not wire any of those separately in `src/app/App.tsx`.
 
-Overview is eager because it owns first paint. Other functional screens use
+Home and Overview are eager because Home owns first paint and Overview is the
+first project screen. Other functional screens use
 `createLazyScreenContainer`; the same loader promise serves lazy mounting and
 primary preloading. Overlay panels stay eager: an overlay opens from a click
 with no navigation in front of it, and `React.lazy` suspends on first render
 even when its module is already warmed, so code-splitting one buys a fallback
 frame no prefetch can remove.
 
-Visited project screens remain mounted for the active project epoch:
+Visited project screens remain mounted for the active project epoch. Home is an
+application-session screen: switching projects does not evict it, and showing
+it never clears the underlying active project or changes that project's
+`lastView`. It is registered for palette, prefetch and lifecycle but excluded
+from the rail and navigation preferences. Its Back/Forward step is app-level;
+project screen history remains per-session.
+
+Screen lifecycle states are:
 
 - `active`: subscriptions and active-only effects may run;
 - `hidden`: DOM/local UI state is retained, but the subtree is `hidden`,
@@ -118,6 +126,19 @@ Visited project screens remain mounted for the active project epoch:
 Use `useActiveProjectSelector` and `useActiveScreenEffect` inside screens.
 Visibility is not freshness: never fetch, poll, or warm a cache merely because
 a screen became visible.
+
+A screen that shows several views in turn — Work, whose Changes and History
+tabs were screens of their own until task 126 — hosts each view in a
+`KeepAliveViewSlot` from `src/runtime/screen/module.tsx`. The slot mounts a
+view on first visit, hides it `hidden` and `inert` afterwards, re-renders the
+hidden element by identity, and hands it a lifecycle controller derived from
+the screen's: `active` only while the screen is active *and* the view is the
+shown one, `hidden` otherwise, evicted with the screen. A feature rendered
+inside reads the same hooks it would read as a screen and cannot tell the
+difference, so the rule above holds one level down. Which view shows is
+session state (`workbenchTab`), not a navigation step: Back and Forward move
+between screens, and a deep link from another screen sets the tab and then
+navigates.
 
 The complete implementation recipe is in the
 [`frontend feature guide`](architecture/frontend-feature-guide.md). Version
@@ -215,6 +236,8 @@ src-tauri/src/
   application.rs          # execution-policy inventory and authorization entry
   repository_access.rs    # RepositoryContext + fair commonGitDir coordinator
   git_command.rs          # policy-aware domain-facing Git facade
+  console/                # project console: catalogue, typed-line tokenizer,
+                          #   permission-tier classifier and single-use plans
   git.rs                  # bounded process execution and cancellation
   error.rs                # stable structured application errors
   operation.rs            # shared operation kind and safe diagnostic details
@@ -375,6 +398,43 @@ TypeScript tests verify command names, arguments, responses, error codes, and
 representative serialization. Intentional changes update the JSON contract and
 both sides in one review.
 
+`run_console_query` accepts a project path, session epoch and one fixed
+operation ID. Rust validates all three before running an allowlisted Git
+template through the repository-read policy (64 KiB stdout, 8 KiB stderr,
+15 seconds). It returns exit status, truncation and sanitized text.
+
+Typed Git commands follow [ADR 0017](adr/0017-console-git-commands-by-permission-tier.md).
+The line crosses IPC once, as text, to `plan_console_command`: Rust tokenizes
+it without a shell (`console/tokenize.rs`), classifies it from a subcommand
+allowlist and a deny list of options that run programs, write files, leave the
+project or need a terminal (`console/classify.rs`), and answers with a plan or
+a structured refusal; a refused line starts no process. `run_console_plan` runs
+a Read plan once, for the project and session epoch it was issued to, under
+the same budget as the catalogue, with `--no-ext-diff`, `--no-textconv` and
+`--no-show-signature` added where the subcommand takes them. The renderer never
+splits the line or chooses an argument.
+
+Local change and Remote plans exist only in advanced mode, a GitOdile setting
+`console/settings.rs` keeps in the app's local data folder with a second one,
+change confirmations, and reads on every plan and run; the renderer can ask to
+change them but never passes them with a command. Their plan comes from a pre-flight read (`console/preview.rs`): plain
+facts such as the files `git add` would stage or the versions `git push` would
+publish, and a fingerprint of HEAD, every ref and the `status` of the index and
+working tree. `run_console_change` runs under the exclusive write policy only
+after the person answered yes (or at once when confirmations are off, the
+console's "root" mode, and still off), only while advanced mode is still on, and only while the
+fingerprint still matches; otherwise it answers `stale_preview`.
+`pull` runs as `--no-rebase --ff-only`, `revert` with `--no-edit`, and the
+Settings hooks switch reaches the plan like the guided flows' `runHooks`: off,
+the plan adds `--no-verify` to `commit` and `push` and says so. A completed
+change refreshes the project through the guided flows' post-mutation path.
+History and Destructive plans stay refused until task 139.
+
+Shortcut names, and the command lines a shortcut may store with the tier Rust
+gave them, are an app-wide frontend preference; a stored line is planned again
+on every run and is not run when its plan needs a wider tier. The transcript is
+held only by the project screen and is evicted with its session epoch.
+
 Every command that acts on an already-open repository requires `sessionEpoch`,
 reads and mutations alike, and a missing epoch fails with `stale_session`
 exactly like a stale one. Optionality is a semantic property, never a
@@ -514,6 +574,13 @@ previous commit is protected by a create-only ref under
 in the common Git directory. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
+
+Deleting a version line whose work reached the main line only as copies
+(squash or rebase, found by `git patch-id --stable`) uses the same protocol
+under its own operation — `refs/gitodile/recovery/v1/delete-version-line/`,
+its own manifest folder and its own limit of 20 — before the line is removed
+([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md)).
+`recovery::HistoryRecoveryOperation` names the operations; the protocol is one.
 
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.
@@ -689,12 +756,23 @@ claims.
 
 ### Application icon and Windows shortcuts
 
-`src-tauri/icons/source.svg` (the mark on its lime tile, 1024×1024) is the only
-hand-maintained icon file. `pnpm icons` runs `tauri icon` on it, which renders
-every PNG, the macOS `.icns`, the Windows `.ico`, and the Store logos at their
-native sizes (SVG input, so no resampling of an intermediate bitmap); the
-Android/iOS sets it also emits are discarded because GitOdile does not ship
-them. Edit the SVG and regenerate; never touch a generated PNG by hand.
+`scripts/icons/mascot.mjs` is the only hand-maintained icon source. It holds
+the mascot as one element tree and crops it three ways (ADR 0018): the body,
+the head and the portrait the application icon uses. `pnpm icons` writes the
+standalone SVGs, the element tree the in-app mark renders inline
+(`src/shared/ui/mascotArtwork.ts`, so its fill can follow the theme) and the
+console welcome's ASCII art (`src/features/console/mascotAscii.ts`, sampled by
+the dependency-free `scripts/icons/ascii-art.mjs`) from it, then runs `tauri
+icon` on two 1024×1024 sources: the portrait on the amber tile filling the
+canvas, and the identical icon on Apple's 824px macOS grid. Every PNG, the
+Windows `.ico` and the Store logos come from the first; the macOS `.icns` comes
+from the second. There is one icon at every size, with no head variant spliced
+into the small layers. The same run renders the brand PNGs under
+`src/assets/brand/png` with `tauri icon --png` (the icon at 16–1024px, the macOS
+icon, and the mascot and head on transparent squares). The Android/iOS sets
+`tauri icon` also emits are discarded because GitOdile does not ship them. Edit
+`mascot.mjs` and regenerate; never touch a generated SVG, module or PNG by hand.
+`check:icons` fails when the generated text files drift from `mascot.mjs`.
 
 `tauri icon` writes every ICO layer PNG-compressed. Windows guarantees PNG only
 for the 256px layer and expects the 16–64px layers as 32-bit DIBs; some shell
@@ -707,8 +785,8 @@ fails the gate when the committed `icon.ico` drifts from that shape.
 The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
-draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px tile on the
-brand contrast black, shown on the Welcome and Finish pages) and
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px icon on
+the light theme's warm white, shown on the Welcome and Finish pages) and
 `installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
 header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
 step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and

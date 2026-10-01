@@ -3,8 +3,8 @@ import { LayoutDashboard } from "lucide-react";
 import { createEagerScreenContainer, type ScreenModule } from "../../runtime/screen/module";
 import { OverviewPanel as OverviewPanelComponent } from "./OverviewPanel";
 
-/** Eager, not lazy. Overview is what the app paints with no project open, so a
- * chunk fetch here would sit in front of first paint. It is still registered
+/** Eager, not lazy. Overview is the first project screen, so a chunk fetch
+ * here would delay the first project paint. It is still registered
  * through a container so nav, palette, keep-alive, lifecycle and eviction come
  * from this descriptor rather than from the shell composing it by hand. */
 const container = createEagerScreenContainer(OverviewPanelComponent);
@@ -16,14 +16,13 @@ export const overviewScreenModule = {
   id: "overview",
   section: "project",
   labelKey: "navOverview",
-  disabledLabelKey: null,
+  disabledLabelKey: "navOverviewTitle",
   commandLabelKey: "commandGoOverview",
   icon: <LayoutDashboard />,
-  requiresProject: false,
+  requiresProject: true,
   inCompactNav: true,
   container,
   additionalPreloads: [
-    () => import("./PendingVersionsSection"),
     () => import("./HistorySummarySection"),
     () => import("../publish"),
     () => import("../version-lines"),

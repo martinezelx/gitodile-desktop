@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getWorkingTreeBreakdown,
   getWorkingTreeSummary,
+  workingTreeSnapshotsEqual,
   type WorkingTreeCounts,
   type WorkingTreeStatus,
 } from "./domain";
@@ -19,6 +20,7 @@ function status(counts: Partial<WorkingTreeCounts>): WorkingTreeStatus {
   return {
     isClean: filled.total === 0,
     counts: filled,
+    lineTotals: null,
     entries: [],
     truncated: false,
     hasPreparedChanges: false,
@@ -69,5 +71,21 @@ describe("getWorkingTreeBreakdown", () => {
 
   it("returns nothing for a clean tree", () => {
     expect(getWorkingTreeBreakdown(status({}))).toEqual([]);
+  });
+});
+
+describe("workingTreeSnapshotsEqual", () => {
+  it("treats a changed line total as a new snapshot", () => {
+    const withTotals = (added: number): WorkingTreeStatus => ({
+      ...status({ changed: 1, total: 1 }),
+      lineTotals: { added, removed: 0 },
+    });
+
+    expect(workingTreeSnapshotsEqual(withTotals(4), withTotals(4))).toBe(true);
+    expect(workingTreeSnapshotsEqual(withTotals(4), withTotals(5))).toBe(false);
+    // Known zero and unknown are different answers, so they are different
+    // snapshots even when every other field agrees.
+    expect(workingTreeSnapshotsEqual(null, withTotals(4))).toBe(false);
+    expect(workingTreeSnapshotsEqual(withTotals(4), { ...withTotals(4), lineTotals: null })).toBe(false);
   });
 });

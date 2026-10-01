@@ -6,11 +6,11 @@
 // so each one is composed here by painting an icon layer over a solid
 // background:
 //
-//   installer-sidebar.bmp   the 128px tile centred on the brand contrast black
+//   installer-sidebar.bmp   the 128px icon, amber tile included, centred on warm white
 //   installer-header.bmp    the 48px layer of icon.ico on the header's white
 //
-// The pixels come from `src-tauri/icons` (rendered from `source.svg` by
-// `tauri icon`), so the installer stays in step with the app icon whenever
+// The pixels come from `src-tauri/icons` (rendered from the mascot by
+// `pnpm icons`), so the installer stays in step with the app icon whenever
 // `pnpm icons` runs. Nothing is resampled: each bitmap uses a layer that
 // already exists at the size it is shown.
 //
@@ -27,8 +27,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const iconsDir = path.join(root, "src-tauri", "icons");
 export const windowsDir = path.join(root, "src-tauri", "windows");
 
-/** Background behind the tile on the Welcome/Finish panel: `--accent-brand-contrast`. */
-export const sidebarBackground = [0x14, 0x17, 0x0f];
+/**
+ * Background behind the icon on the Welcome/Finish panel: the warm white of the
+ * GitOdile light theme (`--surface-app`, `#faf8f5`). The icon brings its own amber tile, so the panel only
+ * has to let that tile stand out; a coloured panel would compete with it.
+ */
+export const sidebarBackground = [0xfa, 0xf8, 0xf5];
 /** Background of the header strip: Modern UI paints the header white (`MUI_BGCOLOR`). */
 export const headerBackground = [0xff, 0xff, 0xff];
 

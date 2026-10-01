@@ -102,7 +102,7 @@ workflow inputs or logs:
 | --- | --- | --- |
 | Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for the testing modes; the pipeline supplies the separate canonical `GITODILE_TEST_UPDATE_TARGETS` pair to every build so real updates can be tested without claiming qualification. |
 | `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
-| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before the first `X.Y.Z` release |
+| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before `1.0.0` |
 
 There is exactly one updater signing identity. The earlier disposable
 validation key, its `validation-updater-signing` environment, the
@@ -206,8 +206,9 @@ application's Rust verifier and its recorded public key. The key identity is
 `sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
 
 This is not the required second offline, geographically separate recovery
-store. No `X.Y.Z` release may run until that independent backup is made and its
-custody is recorded. The private key and password are deliberately absent from
+store. No `1.0.0` release may run until that independent backup is made and
+its custody is recorded; the maintainer deferred it to then on 2026-10-01,
+accepting that losing the key before it would strand installed builds. The private key and password are deliberately absent from
 this repository and its evidence. The disposable validation identity used by
 the retired internal test builds is no longer referenced anywhere; delete its
 environment and destroy its recovery copy once those builds are no longer

@@ -2,7 +2,6 @@ import React from "react";
 import ReactMark from "~icons/vscode-icons/file-type-reactjs";
 import RustMark from "~icons/vscode-icons/file-type-rust";
 import TauriMark from "~icons/vscode-icons/file-type-tauri";
-import TypeScriptMark from "~icons/vscode-icons/file-type-typescript-official";
 import { rawSvgImage } from "../shared/ui/rawSvgImage";
 import type { StackLayerId } from "./stack";
 
@@ -30,7 +29,6 @@ import type { StackLayerId } from "./stack";
 const STACK_MARKS: Record<StackLayerId, string> = {
   tauri: TauriMark,
   react: ReactMark,
-  typescript: TypeScriptMark,
   rust: RustMark,
 };
 

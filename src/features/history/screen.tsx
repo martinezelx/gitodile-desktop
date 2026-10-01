@@ -1,26 +1,12 @@
-import { GitCommitHorizontal } from "lucide-react";
-import { createLazyScreenContainer, type ScreenModule } from "../../runtime/screen/module";
+import { createLazyScreenContainer } from "../../runtime/screen/module";
 
+/** History is a view of the Work screen (task 126), not a screen of its own,
+ * so this is the lazy chunk and its preload rather than a registry entry. The
+ * workbench module lists the preload so the idle prefetch still warms it. */
 const container = createLazyScreenContainer(
   () => import("./HistoryScreen"),
   (module) => module.HistoryScreen,
 );
 
 export const HistoryScreen = container.Component;
-
-export const historyScreenModule = {
-  kind: "screen",
-  id: "history",
-  section: "project",
-  labelKey: "navHistory",
-  disabledLabelKey: "navHistoryTitle",
-  commandLabelKey: "commandGoHistory",
-  icon: <GitCommitHorizontal />,
-  requiresProject: true,
-  inCompactNav: true,
-  container,
-  additionalPreloads: [],
-  lifecycle: { hidden: "retain-suspended", evict: "project-session" },
-  accessibility: { inactive: "hidden-inert", announcements: "active-only" },
-  performanceBudget: { warmSwitchWarningMs: 40, warmSwitchFailureMs: 50, maxVisibleDescendants: 400 },
-} as const satisfies ScreenModule;
+export const preloadHistoryScreen = container.preload;

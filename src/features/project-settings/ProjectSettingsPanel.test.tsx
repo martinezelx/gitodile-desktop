@@ -66,6 +66,7 @@ function createPort(overrides: Partial<ProjectSettingsPort> = {}): ProjectSettin
     })),
     connectRemote: vi.fn(async () => undefined),
     readIdentity: vi.fn(async () => IDENTITY),
+    readTechnology: vi.fn(async () => ({ path: "/repo", technology: null, source: null })),
     setIdentity: vi.fn(async (_project, draft) => ({
       ...IDENTITY,
       localName: draft.name,
@@ -141,7 +142,7 @@ describe("the remote section", () => {
 
     await user.click(change);
     expect(port.setRemoteUrl).not.toHaveBeenCalled();
-    expect(screen.getByText("Change where this project points?")).toBeInTheDocument();
+    expect(screen.getByText("Change the remote address?")).toBeInTheDocument();
     expect(screen.getByText("Now: https://example.test/repo.git")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Change it" }));
@@ -152,7 +153,7 @@ describe("the remote section", () => {
         "https://example.test/moved.git",
       ),
     );
-    expect(await screen.findByText("origin now points at the new address.")).toBeInTheDocument();
+    expect(await screen.findByText("origin now uses the new address.")).toBeInTheDocument();
   });
 
   it("says when the stored address hides sign-in details the field cannot show", async () => {
@@ -173,12 +174,12 @@ describe("the remote section", () => {
 
     expect(
       await screen.findByText(
-        "The saved address includes sign-in details GitOdile doesn't show. Saving a new address replaces them.",
+        "This address includes hidden sign-in details, and saving a new address removes them.",
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Publishing uses a separate address (https://mirror.test/repo.git), which this field does not change.",
+        "Publishing uses a different address (https://mirror.test/repo.git), which this field doesn't change.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Publishes here")).not.toBeInTheDocument();
@@ -205,7 +206,7 @@ describe("the remote section", () => {
     expect(port.connectRemote).not.toHaveBeenCalled();
     expect(screen.getByText("Connect this remote?")).toBeInTheDocument();
     expect(
-      screen.getByText("Publishing will ask your Git credential helper to sign in."),
+      screen.getByText("Publishing will sign in with your Git credential helper."),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Connect it" }));
@@ -228,12 +229,12 @@ describe("the remote section", () => {
     await user.clear(field);
     await user.type(field, "https://example.test/moved.git");
     await user.click(screen.getByRole("button", { name: "Change address" }));
-    expect(screen.getByText("Change where this project points?")).toBeInTheDocument();
+    expect(screen.getByText("Change the remote address?")).toBeInTheDocument();
 
     // Correcting the address after asking means the question on screen is about
     // an address the field no longer holds.
     await user.type(field, "x");
-    expect(screen.queryByText("Change where this project points?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Change the remote address?")).not.toBeInTheDocument();
     expect(port.setRemoteUrl).not.toHaveBeenCalled();
   });
 
@@ -272,10 +273,10 @@ describe("the remote section", () => {
 
     expect(
       await screen.findByText(
-        "Enter a complete HTTPS, SSH, Git, file, or SCP-like SSH remote URL.",
+        "Enter a full HTTPS, SSH, Git or file address.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText("origin now points at the new address.")).not.toBeInTheDocument();
+    expect(screen.queryByText("origin now uses the new address.")).not.toBeInTheDocument();
   });
 });
 
@@ -308,7 +309,7 @@ describe("the ignored-files section", () => {
     expect(port.readIgnoreFile).toHaveBeenLastCalledWith(PROJECT, "personal");
     expect(
       screen.getByText(
-        "Kept in this copy of the project only. Nobody else sees these rules, and they are never published.",
+        "Kept only in your copy, so nobody else sees these rules and they're never published.",
       ),
     ).toBeInTheDocument();
   });
@@ -327,7 +328,7 @@ describe("the ignored-files section", () => {
 
     expect(
       await screen.findByText(
-        "This file is too large to edit here. Open it in a text editor instead.",
+        "This file is too large to edit here. Open it in a text editor.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -347,7 +348,7 @@ describe("the ignored-files section", () => {
 
     expect(
       await screen.findByText(
-        "This ignore file changed outside GitOdile. Reopen it to see the current rules before saving.",
+        "This file changed outside GitOdile. Reopen it before saving.",
       ),
     ).toBeInTheDocument();
   });
@@ -449,7 +450,7 @@ describe("the identity section", () => {
     const inheritedOption = await screen.findByRole("radio", { name: /Your Git identity/ });
     expect(inheritedOption).toHaveAttribute("aria-checked", "true");
     expect(inheritedOption).toHaveTextContent(
-      "The one your other projects use: Global Person <global@example.test>.",
+      "Same as your other projects: Global Person <global@example.test>.",
     );
     expect(
       screen.getByText("Versions saved here will be signed Global Person <global@example.test>."),
@@ -496,7 +497,7 @@ describe("the identity section", () => {
 
     await waitFor(() => expect(port.clearIdentity).toHaveBeenCalledWith(PROJECT));
     expect(
-      await screen.findByText("This project is back to your Git identity."),
+      await screen.findByText("This project uses your Git identity again."),
     ).toBeInTheDocument();
     // Back to inheriting: the fields go with the option they belonged to.
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
@@ -582,7 +583,7 @@ describe("the panel itself", () => {
     // knows about it and shows it rather than losing it quietly.
     expect(guardRef.current?.()).toBe(true);
     expect(await screen.findByLabelText("Rules in .gitignore")).toHaveValue("build/\ndist/");
-    expect(screen.getByText("You have changes that aren't saved")).toBeInTheDocument();
+    expect(screen.getByText("You have unsaved changes")).toBeInTheDocument();
   });
 
   it("keeps every radio group to one tab stop, with arrows inside it", async () => {
@@ -637,7 +638,7 @@ describe("the panel itself", () => {
     expect(guardRef.current?.()).toBe(true);
     expect(port.writeIgnoreFile).not.toHaveBeenCalled();
 
-    expect(await screen.findByText("You have changes that aren't saved")).toBeInTheDocument();
+    expect(await screen.findByText("You have unsaved changes")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Discard and close" }));
     expect(onClose).toHaveBeenCalled();
   });
@@ -645,7 +646,7 @@ describe("the panel itself", () => {
   it("names the project it is scoped to", async () => {
     render(<Harness port={createPort()} />);
     expect(
-      await screen.findByText("These settings apply to alpha only."),
+      await screen.findByText("These settings apply only to alpha."),
     ).toBeInTheDocument();
   });
 });

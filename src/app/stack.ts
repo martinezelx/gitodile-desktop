@@ -1,17 +1,22 @@
-/** The four layers About credits by name.
+/** The three layers About credits by name.
  *
  * Deliberately not the whole dependency list. Vite, Vitest, pnpm and Node are
  * build tooling the user never runs, and printing them turns a product-identity
- * surface into a rendered `package.json`. These four are the ones the product
- * is actually *made of*: the desktop shell, the UI runtime, the language the
- * frontend is written in, and the language the backend is written in.
+ * surface into a rendered `package.json`. These three are the ones the product
+ * is actually *made of*: the desktop shell, the UI runtime, and the language
+ * the backend is written in. TypeScript was a fourth credit and was dropped on
+ * request so the row fits one line without shrinking type or tearing a version
+ * away from its name; a build tool's language is not a fact any reader acts on,
+ * while the shell, the runtime and the backend language name three different
+ * things.
  *
  * They are credits, not diagnostics. Every user on a given build runs exactly
- * the same four versions, so none of them can explain a machine-specific bug —
- * that is what the technical-details rows beside them are for. */
-/** Shell outwards: what the app runs inside, then what draws it, then the two
- * languages. Fixed rather than sorted by name so the row never reshuffles
- * itself when a layer is missing.
+ * the same versions, so none of them can explain a machine-specific bug — that
+ * is what the technical-details rows beside them are for.
+ *
+ * Shell outwards: what the app runs inside, then what draws it, then the
+ * language the backend is written in. Fixed rather than sorted by name so the
+ * row never reshuffles itself when a layer is missing.
  *
  * The names are the vendors' own spelling and are never translated: a product
  * name is a name.
@@ -25,7 +30,6 @@
 const STACK_LAYERS = [
   { id: "tauri", name: "Tauri", url: "https://tauri.app/" },
   { id: "react", name: "React", url: "https://react.dev/" },
-  { id: "typescript", name: "TypeScript", url: "https://www.typescriptlang.org/" },
   { id: "rust", name: "Rust", url: "https://www.rust-lang.org/" },
 ] as const;
 

@@ -32,6 +32,60 @@ fn read_working_tree_status_reports_real_changes() {
 }
 
 #[test]
+fn read_working_tree_status_counts_added_and_removed_lines() {
+    let path = unique_temp_dir("status-line-totals");
+    git_init(&path);
+    write_file(&path, "tracked.txt", "one\ntwo\nthree\n");
+    git_add_all(&path);
+    git_commit(&path, "first");
+    // One replaced line among the tracked files, and a new untracked file
+    // whose every line is an addition.
+    write_file(&path, "tracked.txt", "one\nTWO\nthree\n");
+    write_file(&path, "new.txt", "alpha\nbeta\n");
+
+    let status = read_working_tree_status(path.clone()).expect("a repository should report");
+    let totals = status.line_totals.expect("totals should be computable");
+    assert_eq!(totals.added, 3);
+    assert_eq!(totals.removed, 1);
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn the_status_without_line_totals_reports_the_same_changes() {
+    let path = unique_temp_dir("status-without-line-totals");
+    git_init(&path);
+    write_file(&path, "tracked.txt", "one\ntwo\nthree\n");
+    git_add_all(&path);
+    git_commit(&path, "first");
+    write_file(&path, "tracked.txt", "one\nTWO\nthree\n");
+    write_file(&path, "new.txt", "alpha\nbeta\n");
+
+    let full = read_working_tree_status(path.clone()).expect("a repository should report");
+    let lean = crate::status::read_working_tree_status_without_line_totals(path.clone())
+        .expect("a repository should report");
+    assert!(full.line_totals.is_some());
+    assert!(lean.line_totals.is_none());
+    assert_eq!(lean.counts, full.counts);
+    assert_eq!(lean.entries, full.entries);
+    assert_eq!(lean.upstream, full.upstream);
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_working_tree_status_has_no_line_totals_when_nothing_changed() {
+    let path = unique_temp_dir("status-line-totals-clean");
+    git_init(&path);
+    git_commit_empty(&path);
+
+    let status = read_working_tree_status(path.clone()).expect("a repository should report");
+    assert!(status.line_totals.is_none());
+
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
 fn read_working_tree_status_handles_an_unborn_branch() {
     let path = unique_temp_dir("status-unborn");
     git_init(&path);

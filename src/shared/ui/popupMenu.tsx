@@ -192,10 +192,12 @@ export function usePortalFlyout(
     if (!position || hasFocused.current) return;
     hasFocused.current = true;
     const popup = popupRef.current;
-    // Deliberately not shared with `useAnchoredPopup` above: the two resolve
-    // `selected-menu-item` differently — that one prefers a checked
-    // `menuitemradio`, this one skips disabled items — and unifying them would
-    // change behaviour for existing consumers of both.
+    // Kept apart from `useAnchoredPopup` above in one respect that matters:
+    // this one skips disabled items so focus never lands on a control the
+    // reader cannot press. It still prefers the checked radio when the menu is
+    // a picker, because that item is the one the popup is open *about* — every
+    // portal-flyout consumer today is a plain `menuitem` menu, so the checked
+    // branch only ever fires for a shared diff-view picker.
     const target = ((): HTMLElement | null | undefined => {
       if (!popup) return null;
       switch (focusTarget) {
@@ -204,7 +206,10 @@ export function usePortalFlyout(
         case "container":
           return popup;
         case "selected-menu-item":
-          return popup.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)');
+          return (
+            popup.querySelector<HTMLElement>('[role="menuitemradio"][aria-checked="true"]') ??
+            popup.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)')
+          );
         case "first-control":
           return popup.querySelector<HTMLElement>(
             "input:not(:disabled), button:not(:disabled), [tabindex]:not([tabindex='-1'])",

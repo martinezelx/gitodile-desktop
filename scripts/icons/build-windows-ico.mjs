@@ -16,7 +16,7 @@
 //   node scripts/icons/build-windows-ico.mjs --check    fail if icon.ico is not in the expected shape
 //
 // Only the frame encoding changes; pixels are copied as-is from the PNG frames
-// Tauri rendered from `source.svg`. No third-party dependency: the PNG frames
+// Tauri rendered from the mascot (see `generate-icons.mjs`). No third-party dependency: the PNG frames
 // Tauri writes are 8-bit, non-interlaced, and the decoder below covers exactly
 // the colour types PNG allows at that depth.
 

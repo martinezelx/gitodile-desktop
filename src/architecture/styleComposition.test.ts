@@ -3,9 +3,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { THEME_IDS } from "../shared/theme";
 
 const EXPECTED_IMPORTS = [
   "./styles/tokens.css",
+  "./styles/themes.css",
   "./styles/base.css",
   "./styles/theme-transition.css",
   "./app/app-shell.css",
@@ -19,7 +21,9 @@ const EXPECTED_IMPORTS = [
   "./features/publish/publish.css",
   "./features/sync/sync.css",
   "./features/version-lines/version-lines.css",
+  "./features/console/console.css",
   "./features/history/history.css",
+  "./features/workbench/workbench.css",
   "./features/settings/settings.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",
@@ -54,11 +58,12 @@ describe("production style composition", () => {
   });
 
   it("keeps closed visual contracts with their feature owners", () => {
-    expect(readSource("features/overview/overview.css")).toContain(".project-hero");
+    expect(readSource("features/overview/overview.css")).toContain(".journey");
     expect(readSource("features/clone/clone.css")).toContain(".clone-dialog");
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
-    expect(readSource("features/sync/sync.css")).toContain(".team-changes");
+    expect(readSource("features/sync/sync.css")).toContain(".get-team-plan");
+    expect(readSource("shared/ui/primitives.css")).toContain(".app-dialog");
     expect(readSource("features/app-updates/app-updates.css")).toContain(".app-update-dialog");
     const changes = readSource("features/changes/changes.css");
     expect(changes).toContain(".changes-file-item__type-icon");
@@ -81,10 +86,10 @@ describe("production style composition", () => {
     expect(settings).not.toContain(".settings-layout {");
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
-    // The row a screen opens on — its title, its state and its own actions —
-    // is shared by Changes and History, so exactly one sheet may define it.
-    // Two hand-written copies had already drifted apart on the title's leading.
-    expect(primitiveChrome).toContain(".screen-header {");
+    // No screen opens on a page row any more: Changes, History and Lines head
+    // their list panels instead, so the shared row is gone and must not come
+    // back as a private copy either.
+    expect(primitiveChrome).not.toContain(".screen-header {");
     expect(changes).not.toContain(".changes-view__header");
     expect(readSource("features/history/history.css")).not.toContain(".history-view__header");
     // Stacked option cards are shared by line endings and the per-project
@@ -139,9 +144,9 @@ describe("production style composition", () => {
     expect(appShell).not.toContain(".settings-layout");
     expect(appShell).toContain(".project-settings-dialog__project");
     expect(settings).not.toContain(".settings-dialog");
-    // The mark is the whole identity in the window furniture: no wordmark
-    // beside it, at any width.
-    expect(appShell).toContain(".window-titlebar__mark");
+    // The titlebar carries no brand at any width: no mark and no wordmark
+    // (DESIGN.md § Brand). The mascot lives in the welcome screen and About.
+    expect(appShell).not.toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
   });
 
@@ -153,8 +158,9 @@ describe("production style composition", () => {
 
     expect(primitives).toContain(".app-menu {");
     // A feature override still has to be able to win on equal specificity —
-    // the discard menu is one, because its trigger is not at the right edge of
-    // the window and its items name the list underneath it.
+    // the discard menu is one, because its trigger ends the list's search
+    // strip and its items name the list under it: it opens rightward, across
+    // the diff, so the files it names stay in view.
     expect(changes).toContain(".changes-actions-menu__popup { right: auto; left: 0;");
     expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
 
@@ -169,8 +175,13 @@ describe("production style composition", () => {
   });
 
   it("retains theme, focus, reduced-motion and forced-color foundations", () => {
-    expect(readSource("styles/tokens.css")).toContain(':root[data-theme="light"]');
-    expect(readSource("styles/tokens.css")).toContain(':root[data-theme="dark"]');
+    const themes = readSource("styles/themes.css");
+    expect(themes).toContain('[data-theme="gitodile-light"]');
+    expect(themes).toContain('[data-theme="gitodile-dark"]');
+    expect(themes).toContain("@media (prefers-color-scheme: dark)");
+    // The theme layers are the only place colour values live; tokens.css keeps
+    // the non-colour foundations and the brand identity. See ADR 0012.
+    expect(readSource("styles/tokens.css")).not.toContain('[data-theme="');
     expect(readSource("styles/base.css")).toContain("@media (prefers-reduced-motion: reduce)");
     expect(readSource("styles/base.css")).toContain(':root[data-reduced-motion="true"] *');
 
@@ -187,7 +198,67 @@ describe("production style composition", () => {
     const primitives = readSource("shared/ui/primitives.css");
     expect(primitives).toContain(":focus-visible");
     expect(primitives).toContain("@media (forced-colors: active)");
-    expect(primitives).toContain('url("../../assets/gitodile-mark.svg")');
+    expect(primitives).toContain(".gitodile-mascot__fill { fill: var(--mascot-fill); }");
+  });
+
+  // ADR 0012: two layers. The brand identity is declared once in tokens.css
+  // and every theme block fills only the swap-able layer. A theme that set
+  // --accent-brand would recolour the crocodile and the primary action, and a
+  // theme without color-scheme would leave native scrollbars on the old scheme.
+  it("keeps the brand layer out of every theme block", () => {
+    const themes = readSource("styles/themes.css");
+    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--mascot-brand-crest:", "--avatar-", "--tooltip-"];
+    const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
+    expect(blocks.length).toBe(THEME_IDS.length);
+    for (const [, body] of blocks) {
+      for (const token of brandTokens) {
+        expect(body, `${token} leaked into a theme block`).not.toContain(token);
+      }
+      expect(body).toMatch(/color-scheme:\s*(?:light|dark)/);
+    }
+    // Every registry theme has a block, and no block is left unnamed.
+    for (const id of THEME_IDS) {
+      expect(themes).toContain(`[data-theme="${id}"]`);
+    }
+
+    // ADR 0013: the brand lime is identity only. Nothing in the cascade paints
+    // with it except the brand mark itself; the actionable accent is
+    // --accent-primary. A new in-app use of --accent-brand elsewhere is the
+    // regression this guards.
+    const paintedWithBrand: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      for (const rule of readRules(relativePath)) {
+        if (!rule.body.includes("var(--accent-brand")) continue;
+        paintedWithBrand.push(`${relativePath}: ${rule.selector}`);
+      }
+    }
+    expect(paintedWithBrand).toEqual([]);
+  });
+
+  // The base default and the OS-dark override duplicate the official pair: the
+  // "match device" preference keeps no data-theme attribute and lets the media
+  // query follow the operating system. Duplication is only safe while this
+  // holds the two copies together.
+  it("keeps the default and OS-dark blocks identical to the official themes", () => {
+    const rules = readRules("styles/themes.css");
+    const roots = rules.filter((rule) => rule.selector === ":root");
+    expect(roots).toHaveLength(2);
+    const declarations = (body: string): Record<string, string> =>
+      Object.fromEntries(
+        [...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]),
+      );
+    const officialLight = declarations(ruleBody("styles/themes.css", '[data-theme="gitodile-light"]'));
+    const officialDark = declarations(ruleBody("styles/themes.css", '[data-theme="gitodile-dark"]'));
+    const rootLight = declarations(roots[0].body);
+    const rootDark = declarations(roots[1].body);
+    for (const [name, value] of Object.entries(officialLight)) {
+      expect(rootLight[name], `${name} default differs from gitodile-light`).toBe(value);
+    }
+    for (const [name, value] of Object.entries(officialDark)) {
+      expect(rootDark[name], `${name} OS-dark differs from gitodile-dark`).toBe(value);
+    }
   });
 
   // DESIGN.md § Shape: radius states a role, never a size. A raw length here is
@@ -385,12 +456,14 @@ describe("production style composition", () => {
   // 14.5, 16, 18, 20 and 21 among them, each reasonable where it was written
   // and none of them agreeing with the next sheet over.
   it("keeps font size on the scale", () => {
-    // DESIGN.md § Typography names both: a numeral inside a 14px status dot,
-    // and the label inside a miniature drawing of the navigation rail. Neither
-    // is text anyone reads, and neither fits the floor.
+    // DESIGN.md § Typography names all three: a numeral inside a 14px status
+    // dot, the label inside a miniature drawing of the navigation rail, and the
+    // console's ASCII mascot, whose characters are shading. None is text anyone
+    // reads, and none fits the floor.
     const documentedExceptions = new Set([
       ".sidebar-project__badge-count",
       ".navigation-display__preview small",
+      ".console-art",
     ]);
     const offenders: string[] = [];
 
@@ -419,8 +492,9 @@ describe("production style composition", () => {
   it("keeps --text-* a size and --text-*-color a color", () => {
     const tokens = readSource("styles/tokens.css");
     expect(tokens).not.toMatch(/--text-(?:primary|secondary):/);
-    expect(tokens).toMatch(/--text-primary-color:/);
-    expect(tokens).toMatch(/--text-secondary-color:/);
+    const themes = readSource("styles/themes.css");
+    expect(themes).toMatch(/--text-primary-color:/);
+    expect(themes).toMatch(/--text-secondary-color:/);
 
     const offenders: string[] = [];
     for (const importPath of EXPECTED_IMPORTS) {
@@ -578,13 +652,32 @@ describe("production style composition", () => {
       ["app/app-shell.css", ".palette-list", "padding: var(--space-2)"],
       ["app/app-shell.css", ".project-switcher-compact__popover", "padding: var(--space-2)"],
       ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
-      ["features/clone/clone.css", ".clone-dialog__progress li > span", "border-radius: var(--radius-round)"],
-      ["features/initialize-project/initialize-project.css", ".initialize-dialog__progress li > svg, .initialize-dialog__progress li > span", "border-radius: var(--radius-round)"],
-      ["features/overview/overview.css", ".pending-versions__node", "border-radius: var(--radius-round)"],
+      // A project's chip is the same rounded square wherever it is drawn —
+      // one left round is the drift that made "the same project" look like two.
+      ["app/app-shell.css", ".sidebar-jump__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".sidebar-project__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-switcher__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-switcher-compact__avatar", "border-radius: var(--radius-identity)"],
+      ["features/overview/overview.css", ".welcome-recents__avatar", "border-radius: var(--radius-identity)"],
+      ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
+      ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
+      // A dialog's header glyph and a progress step's dot are atomic marks
+      // with no reading direction: circles, in every dialog that shows them.
+      ["shared/ui/primitives.css", ".app-dialog__glyph", "border-radius: var(--radius-round)"],
+      ["shared/ui/primitives.css", ".app-dialog__step-dot", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
-      ["features/sync/sync.css", ".team-changes__endpoint > svg", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
-      ["features/version-lines/version-lines.css", ".version-lines-avatar", "border-radius: var(--radius-round)"],
+      // Every project chip carries the neutral brand ring. The fixed palette
+      // cannot clear 3:1 on the lighter community dark panels (Nord, Catppuccin
+      // Frappé) with white text still at 4.5:1, so the ring is what keeps the
+      // chip edged against any surface — dropping it from one avatar is the
+      // regression this keeps from returning. See tokens.css and ADR 0012.
+      ["app/app-shell.css", ".sidebar-jump__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".sidebar-project__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-switcher__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-switcher-compact__avatar", "box-shadow: var(--avatar-ring)"],
+      ["features/overview/overview.css", ".welcome-recents__avatar", "box-shadow: var(--avatar-ring)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box
       // rather than a control of its own, so it stays rectangular.
@@ -642,12 +735,17 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Two controls qualify,
-    // both underlined inline disclosures that send the reader somewhere:
-    // Save version's detail toggle, and the licence/source pair in About.
-    // Anything else appearing here is the drift this guard exists to catch.
+    // ordinary button keeps the platform arrow cursor. Five controls qualify,
+    // all text actions styled as links: the update link and the licence/source
+    // pair in About, Save version's detail toggle, a dialog's inline way out
+    // ("Add in Settings", "Save without hooks just this once") and a toast's
+    // action. Anything else appearing here is the drift this guard exists to
+    // catch.
     expect(pointerRules).toEqual([
+      "app/app-shell.css: .about-dialog__update-link",
       "app/app-shell.css: .about-dialog__legal button",
+      "shared/ui/primitives.css: .app-dialog__link",
+      "shared/ui/primitives.css: .app-toast__action",
       "features/save-version/save-version.css: .save-version-detail__toggle",
     ]);
   });

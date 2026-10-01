@@ -13,6 +13,7 @@ const info = (epoch: string): RepositoryInfo => ({
 const status = (total: number): WorkingTreeStatus => ({
   isClean: total === 0,
   counts: { changed: total, new: 0, deleted: 0, renamed: 0, conflicted: 0, total },
+  lineTotals: null,
   entries: [], truncated: false, hasPreparedChanges: false, hasUnpreparedChanges: total > 0,
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
 });

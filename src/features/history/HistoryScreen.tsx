@@ -6,6 +6,7 @@ import { useActiveHistoryState } from "./hooks";
 import { HistoryPanel, type HistoryLineActions } from "./HistoryPanel";
 
 export function HistoryScreen({
+  tabs,
   controller,
   projectPath,
   sessionEpoch,
@@ -18,8 +19,12 @@ export function HistoryScreen({
   onViewLine,
   onSwitchLine,
   onCreateLineFromVersion,
+  onPublish,
   onOpenSettings,
+  selfEmail = null,
 }: {
+  /** The Work screen's tab pair; see `HistoryPanel`. */
+  tabs: React.ReactNode;
   controller: HistoryController;
   projectPath: string;
   sessionEpoch: string;
@@ -42,7 +47,10 @@ export function HistoryScreen({
   onViewLine?: (name: string) => void;
   onSwitchLine?: (name: string) => void;
   onCreateLineFromVersion?: HistoryLineActions["onCreateLineFromVersion"];
+  onPublish?: () => void;
   onOpenSettings: () => void;
+  /** The user's own Git email; see `HistoryPanel`. */
+  selfEmail?: string | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -71,16 +79,18 @@ export function HistoryScreen({
     selectCommitIntent,
   ]);
   const actions = useMemo<HistoryLineActions>(
-    () => ({ lines, onViewLine, onSwitchLine, onCreateLineFromVersion }),
-    [lines, onCreateLineFromVersion, onSwitchLine, onViewLine],
+    () => ({ lines, onViewLine, onSwitchLine, onCreateLineFromVersion, onPublish }),
+    [lines, onCreateLineFromVersion, onPublish, onSwitchLine, onViewLine],
   );
   return (
     <HistoryPanel
+      tabs={tabs}
       controller={controller}
       query={query}
       state={state}
       watcherState={watcherState}
       actions={actions}
+      selfEmail={selfEmail}
       onOpenSettings={onOpenSettings}
       error={state.error ? localizeAppError(state.error, t, t.historyErrorLoading) : null}
     />

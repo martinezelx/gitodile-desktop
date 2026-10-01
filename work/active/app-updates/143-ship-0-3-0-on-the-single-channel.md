@@ -86,11 +86,11 @@ version, so the branch is first renamed back to a work branch.
 
 - Task 142 merged into `main`.
 - The `public-release` environment from task 142's operational steps exists.
-- The independent offline updater-key backup that
-  `docs/release/signed-builds.md` requires before the first `X.Y.Z` release
-  is made and its custody recorded (maintainer).
 
 # Decisions
+
+- 2026-10-01: the maintainer deferred the offline updater-key backup to
+  `1.0.0` (task 065-8); `0.3.0` does not wait for it.
 
 # Implementation notes
 

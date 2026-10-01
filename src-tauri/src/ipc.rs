@@ -12,6 +12,9 @@ use crate::{
     application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
+    console::{
+        self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
+    },
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
@@ -31,6 +34,7 @@ use crate::{
         self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
         GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, TeamSyncStatus,
     },
+    technology::{self, ProjectTechnology},
     tooling::{
         self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
         GitUpdateLaunchResult, GitUpdateStatus,
@@ -292,6 +296,111 @@ pub(crate) fn read_working_tree_status(
             validate_session(&path, &session_epoch)?;
             status::read_working_tree_status(path)
         })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn run_console_query(
+    path: String,
+    session_epoch: String,
+    operation_id: String,
+) -> Result<ConsoleQueryResult, AppError> {
+    report_result(
+        "run_console_query",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_query(path, operation_id)
+        })(),
+    )
+}
+
+/// The typed line crosses IPC only here, to be parsed and classified in Rust;
+/// what may run comes back as a plan, never as arguments the renderer chose.
+///
+/// `run_hooks` is the Settings switch the guided flows receive the same way;
+/// advanced mode is never a parameter, since Rust holds it.
+#[tauri::command(async)]
+pub(crate) fn plan_console_command(
+    settings: tauri::State<'_, ConsoleSettings>,
+    path: String,
+    session_epoch: String,
+    line: String,
+    run_hooks: bool,
+) -> Result<ConsolePlan, AppError> {
+    report_result(
+        "plan_console_command",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::plan_console_command(&settings, path, session_epoch, line, run_hooks)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn run_console_plan(
+    path: String,
+    session_epoch: String,
+    plan_id: String,
+) -> Result<ConsoleRunResult, AppError> {
+    report_result(
+        "run_console_plan",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_plan(path, session_epoch, plan_id)
+        })(),
+    )
+}
+
+/// Runs a change plan once the person answered its `[s/N]`; Rust checks the
+/// answer, advanced mode and the repository against the plan again.
+#[tauri::command(async)]
+pub(crate) fn run_console_change(
+    settings: tauri::State<'_, ConsoleSettings>,
+    path: String,
+    session_epoch: String,
+    plan_id: String,
+    answer: String,
+) -> Result<ConsoleRunResult, AppError> {
+    report_result(
+        "run_console_change",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_change(&settings, path, session_epoch, plan_id, answer)
+        })(),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn get_console_settings(settings: tauri::State<'_, ConsoleSettings>) -> ConsoleModes {
+    report_value("get_console_settings", settings.modes())
+}
+
+/// Turning advanced mode on needs `confirmed`, the renderer's word that the
+/// person accepted the dialog explaining it; turning it off does not.
+#[tauri::command]
+pub(crate) fn set_console_advanced_mode(
+    settings: tauri::State<'_, ConsoleSettings>,
+    enabled: bool,
+    confirmed: bool,
+) -> Result<ConsoleModes, AppError> {
+    report_result(
+        "set_console_advanced_mode",
+        settings.set_advanced_mode(enabled, confirmed),
+    )
+}
+
+/// Turning change confirmations off needs `confirmed`, the renderer's word
+/// that the person accepted the dialog explaining it; turning them back on
+/// does not.
+#[tauri::command]
+pub(crate) fn set_console_confirm_changes(
+    settings: tauri::State<'_, ConsoleSettings>,
+    enabled: bool,
+    confirmed: bool,
+) -> Result<ConsoleModes, AppError> {
+    report_result(
+        "set_console_confirm_changes",
+        settings.set_confirm_changes(enabled, confirmed),
     )
 }
 
@@ -740,6 +849,20 @@ pub(crate) fn write_ignore_file(
         (|| {
             validate_session(&path, &session_epoch)?;
             project_settings::write_ignore_file(path, scope, contents, state_token)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_project_technology(
+    path: String,
+    session_epoch: String,
+) -> Result<ProjectTechnology, AppError> {
+    report_result(
+        "read_project_technology",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            technology::read_project_technology(path)
         })(),
     )
 }
@@ -1204,6 +1327,19 @@ mod session_boundary_tests {
         let epoch = session::global().open(&path, None).unwrap();
 
         assert!(read_working_tree_status(path.clone(), epoch.clone()).is_ok());
+        assert!(run_console_query(path.clone(), epoch.clone(), "status".into()).is_ok());
+        assert_eq!(
+            run_console_query(path.clone(), "not-an-epoch".into(), "status".into())
+                .unwrap_err()
+                .code,
+            AppErrorCode::StaleSession
+        );
+        assert_eq!(
+            run_console_query(path.clone(), epoch.clone(), "status --porcelain".into())
+                .unwrap_err()
+                .code,
+            AppErrorCode::InvalidSelection
+        );
         assert_eq!(
             read_working_tree_status(path.clone(), "not-an-epoch".into())
                 .unwrap_err()
@@ -1418,6 +1554,7 @@ mod contract_tests {
             AppErrorCode::GitMissing,
             AppErrorCode::GitUnusable,
             AppErrorCode::GitCommandFailed,
+            AppErrorCode::GitTimeout,
             AppErrorCode::InvalidIdentity,
             AppErrorCode::GitConfigWriteFailed,
             AppErrorCode::PathInvalid,

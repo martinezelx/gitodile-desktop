@@ -5,6 +5,7 @@ import {
   forgetRecentProject,
   readRecentProjects,
   rememberRecentProject,
+  rememberRecentProjectTechnology,
 } from "./recentProjects";
 
 describe("recent projects storage", () => {
@@ -35,6 +36,27 @@ describe("recent projects storage", () => {
       { path: "/a", name: "a-renamed" },
       { path: "/b", name: "b" },
     ]);
+  });
+
+  it("keeps a detected mark after closing and reopening the app, then replaces it on a new read", () => {
+    rememberRecentProject({ path: "/a", name: "a" });
+    expect(rememberRecentProjectTechnology("/a", "rust")).toEqual([
+      { path: "/a", name: "a", technology: "rust" },
+    ]);
+    expect(rememberRecentProjectTechnology("/a", "rust")).toBeNull();
+    expect(readRecentProjects()).toEqual([{ path: "/a", name: "a", technology: "rust" }]);
+
+    rememberRecentProject({ path: "/a", name: "renamed" });
+    expect(readRecentProjects()).toEqual([{ path: "/a", name: "renamed", technology: "rust" }]);
+    rememberRecentProjectTechnology("/a", null);
+    expect(readRecentProjects()).toEqual([{ path: "/a", name: "renamed", technology: null }]);
+  });
+
+  it("does not recreate a forgotten recent project from a late detection", () => {
+    rememberRecentProject({ path: "/a", name: "a" });
+    forgetRecentProject("/a");
+    expect(rememberRecentProjectTechnology("/a", "rust")).toBeNull();
+    expect(readRecentProjects()).toEqual([]);
   });
 
   it("forgets exactly one entry and leaves the rest in order", () => {

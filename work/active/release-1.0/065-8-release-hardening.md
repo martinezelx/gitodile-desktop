@@ -65,6 +65,9 @@ macOS portion for `1.0.0`: real macOS delivery is now post-1.0.
 
 # Acceptance criteria
 
+- [ ] The independent offline updater-key backup required by
+      `docs/release/signed-builds.md` exists, passed a restore test, and its
+      custody is recorded (deferred to `1.0.0` on 2026-10-01).
 - [ ] Every roadmap Gate 0–3 task is done and the frozen matrix maps advertised
       behavior to automated plus actual-artifact evidence.
 - [ ] No open blocker/critical issue can lose work, corrupt state, expose a

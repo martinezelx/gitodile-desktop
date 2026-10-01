@@ -8,6 +8,7 @@ import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import {
   Sun,
   Moon,
+  Monitor,
   ChevronLeft,
   ChevronRight,
   CloudDownload,
@@ -28,9 +29,10 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../i18n";
 import { isAppError, localizeAppError } from "../shared/i18n";
+import { isOfficialTheme } from "../shared/theme";
 import type { RepositoryInvalidation } from "../runtime/project/invalidation";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
-import { handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
+import { ToastProvider, handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "../features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
 import {
@@ -45,7 +47,12 @@ import {
   useNotificationCenter,
   type AppNotification,
 } from "../features/notifications";
-import { createSaveVersionController, saveVersionPort } from "../features/save-version";
+import {
+  createSaveVersionController,
+  previewFromWorkingTree,
+  SaveVersionDialog,
+  saveVersionPort,
+} from "../features/save-version";
 import {
   createRepositoryController,
   createRepositoryReadCoordinator,
@@ -87,14 +94,15 @@ import {
   useStoredFavouriteVersionLines,
   useVersionLinesState,
   versionLinesPort,
+  type VersionLineCreateContext,
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
 import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController, type UpdateState } from "../features/app-updates";
+import { useConsoleAdvancedMode } from "../features/console";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
 import { useIssueReport } from "./useIssueReport";
-import { CROCODILE_MARK } from "./branding";
 import { CommandPalette, type AppCommand } from "./CommandPalette";
 import {
   CONFIRM_CLOSE_PROJECT_DEFAULT,
@@ -114,9 +122,12 @@ import {
   APP_UPDATE_AUTOMATIC_DEFAULT,
   APP_UPDATE_AUTOMATIC_STORAGE_KEY,
   applyTheme,
-  resolveEffectiveTheme,
+  resolveEffectiveThemeScheme,
   useStoredBoolean,
   useStoredFavouriteProjects,
+  useStoredProjectAvatarStyle,
+  useStoredProjectIconChoices,
+  useStoredConsolePreferences,
   useStoredDiffPreferences,
   useStoredNavigationPreferences,
   useStoredRemoteCheckInterval,
@@ -137,12 +148,15 @@ import {
   projectSessionsStateToStored,
   readStoredProjects,
   writeStoredProjects,
+  type ProjectMutationPhase,
   type ProjectView,
+  type WorkbenchTab,
 } from "../runtime/project/sessions";
 import {
   forgetRecentProject,
   readRecentProjects,
   rememberRecentProject,
+  rememberRecentProjectTechnology,
   type RecentProject,
 } from "../runtime/project/recentProjects";
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "../runtime/project/runtime";
@@ -153,31 +167,39 @@ import {
   type ProjectSwitcherEntry,
   orderByFavourite,
 } from "./project-switcher/ProjectSwitcher";
-import { avatarColorVar, avatarInitials } from "../shared/ui/projectAvatar";
+import { ProjectAvatar } from "../shared/ui/projectAvatarView";
+import { isTechnologyId } from "../shared/ui/projectIdentity";
+import { useProjectTechnologies } from "./projectTechnologies";
+import { consoleProjectStatus } from "./consoleProjectStatus";
 import {
   ChangesPanel,
+  ConsoleScreen,
   HistoryScreen,
+  HomeScreen,
   KeepAliveScreens,
   OverviewPanel,
   NAV_DESTINATIONS,
   VersionLinesScreen,
+  WorkbenchScreen,
   markScreenSwitchIntent,
   prefetchScreenChunks,
   screenRequiresProject,
   type ScreenId,
 } from "./screens";
+import { previewFromPendingVersions } from "../features/publish/domain";
 import "../styles.css";
 
-// Lazily loaded: none of these are needed for the first paint (the Overview
-// screen with no project open), and ChangesPanel/PublishDialog/PendingVersions
+// Lazily loaded: none of these are needed for Home's first paint, and
+// ChangesPanel/PublishDialog/PendingVersions
 // pull in the file-type icon set (~70 SVGs). Deferring them keeps the initial
 // bundle — and therefore first-paint time — small. The two screen panels live
 // in `screens.tsx` next to their registry entries; these are the dialogs,
 // which are not screens.
-const PublishDialog = lazy(() => import("../features/publish/PublishDialog").then((m) => ({ default: m.PublishDialog })));
-const PendingVersionsSection = lazy(() =>
-  import("../features/overview/PendingVersionsSection").then((m) => ({ default: m.PendingVersionsSection })),
-);
+//
+// Publish is also warmed with the screen chunks after first paint (below): it
+// opens from a click, with no navigation to hide its first chunk load behind.
+const loadPublishDialog = () => import("../features/publish/PublishDialog");
+const PublishDialog = lazy(() => loadPublishDialog().then((m) => ({ default: m.PublishDialog })));
 const CreateVersionLineDialog = lazy(() =>
   import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );
@@ -189,7 +211,7 @@ const SwitchVersionLineDialog = lazy(() =>
 type View = ScreenId;
 
 const PROJECT_NAV_DESTINATIONS = NAV_DESTINATIONS.filter(
-  (destination) => destination.section === "project",
+  (destination) => destination.section === "project" && destination.inRail,
 );
 const DEFAULT_NAVIGATION_PREFERENCES = {
   visibleDestinationIds: PROJECT_NAV_DESTINATIONS.map((destination) => destination.id),
@@ -234,9 +256,30 @@ export function App(): React.JSX.Element {
     mode: InitializeTargetKind;
     existingPath?: string;
   } | null>(null);
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>(() =>
+    localStorage.getItem("gitodile-reopen-last-project") === "true" && readStoredProjects().order.length > 0
+      ? "overview"
+      : "home",
+  );
+  const [homeHistory, setHomeHistory] = useState<{
+    projectId: string;
+    returnView: ProjectView;
+    canGoForward: boolean;
+  } | null>(null);
+  const hasShownHomeGreeting = useRef(false);
+  const previousViewRef = useRef<View>(view);
+  useEffect(() => {
+    if (previousViewRef.current === "home" && view !== "home") {
+      hasShownHomeGreeting.current = true;
+    }
+    previousViewRef.current = view;
+  }, [view]);
   const [theme, setTheme] = useThemePreference();
-  const effectiveTheme = resolveEffectiveTheme(theme);
+  const effectiveThemeScheme = resolveEffectiveThemeScheme(theme);
+  // A community theme has no official counterpart to flip to, so there the
+  // toggle hands control back to the device; from the device or an official
+  // theme it flips between the official light and dark. See ADR 0015.
+  const themeIsCommunity = theme !== "system" && !isOfficialTheme(theme);
   // `applyTheme` runs alongside `setTheme` because the hook applies the
   // attribute from a passive effect, which is not guaranteed to have run by the
   // time a transition captures the DOM.
@@ -254,8 +297,20 @@ export function App(): React.JSX.Element {
     startThemeFade(commitTheme(next));
   };
   const toggleTheme = (): void => {
-    startThemeFade(commitTheme(effectiveTheme === "dark" ? "light" : "dark"));
+    if (themeIsCommunity) {
+      changeTheme("system");
+      return;
+    }
+    changeTheme(effectiveThemeScheme === "dark" ? "gitodile-light" : "gitodile-dark");
   };
+  // One control, three meanings: back to the device, or to the other official
+  // scheme. The glyph and the accessible name always describe the change the
+  // press will make.
+  const themeToggle = themeIsCommunity
+    ? { label: t.commandUseSystemTheme, icon: <Monitor className="titlebar-theme-icon" aria-hidden="true" /> }
+    : effectiveThemeScheme === "dark"
+      ? { label: t.titlebarSwitchToLightTheme, icon: <Sun className="titlebar-theme-icon" aria-hidden="true" /> }
+      : { label: t.titlebarSwitchToDarkTheme, icon: <Moon className="titlebar-theme-icon" aria-hidden="true" /> };
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [historyController] = useState(() => createHistoryController(historyPort));
@@ -310,6 +365,19 @@ export function App(): React.JSX.Element {
   );
   const sessionsState = useProjectSelector(projectRuntime, (snapshot) => snapshot);
   const dispatchSessions = projectRuntime.dispatch;
+  // The technology detected for each open project, read once per session and
+  // cached. The identity chip prefers it over the initials and under a chosen
+  // emoji (task 130).
+  const technologyTargets = useMemo(
+    () =>
+      sessionsState.order.map((id) => {
+        const session = sessionsState.byId[id];
+        return { id, path: session.project.path, sessionEpoch: session.epoch };
+      }),
+    [sessionsState.order, sessionsState.byId],
+  );
+  const { technologies: projectTechnologies, failed: technologyFailures } =
+    useProjectTechnologies(technologyTargets);
   // Tracks only native watcher registrations. Read generations, mutation
   // deferral and diff retention belong to the feature controllers above.
   const watchedSessionsRef = useRef<Record<string, string>>({});
@@ -328,6 +396,10 @@ export function App(): React.JSX.Element {
   const pendingVersions = activeSession?.pendingVersions ?? EMPTY_PENDING_VERSIONS;
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
   const teamSync = activeSession?.teamSync ?? EMPTY_TEAM_SYNC_STATE;
+  const consoleStatus = useMemo(
+    () => consoleProjectStatus(workingTree, isCheckingChanges, workingTreeError, teamSync),
+    [workingTree, isCheckingChanges, workingTreeError, teamSync],
+  );
   const mapStatusError = useMemo<StatusErrorMapper>(
     () => (error, area) =>
       localizeAppError(
@@ -353,22 +425,54 @@ export function App(): React.JSX.Element {
       return;
     }
     markScreenSwitchIntent(view, next);
-    if (sessionsState.activeId) {
+    if (next === "home") {
+      setHomeHistory(activeSession ? {
+        projectId: activeSession.id,
+        returnView: view === "home" ? activeSession.lastView : view,
+        canGoForward: false,
+      } : null);
+    } else {
+      setHomeHistory(null);
+    }
+    if (next !== "home" && sessionsState.activeId) {
       dispatchSessions({ type: "navigate", id: sessionsState.activeId, view: next });
     }
     setView(next);
   };
 
+  /** Work on a given tab. The tab is the session's state rather than a view
+   * of its own (task 126): setting it is not a navigation step, so Back from
+   * here returns to the previous *screen*, whatever tab it was left on. */
+  const openWorkbench = (tab: WorkbenchTab): void => {
+    if (sessionsState.activeId) {
+      dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab });
+    }
+    navigateToView("workbench");
+  };
+
   const goBack = (): void => {
+    if (view === "home") {
+      if (homeHistory && homeHistory.projectId === activeSession?.id) {
+        setView(homeHistory.returnView);
+        setHomeHistory({ ...homeHistory, canGoForward: true });
+      }
+      return;
+    }
     if (!activeSession || activeSession.viewHistoryIndex === 0) {
       return;
     }
     const nextIndex = activeSession.viewHistoryIndex - 1;
+    setHomeHistory(null);
     dispatchSessions({ type: "goBack", id: activeSession.id });
     setView(activeSession.viewHistory[nextIndex]);
   };
 
   const goForward = (): void => {
+    if (homeHistory?.canGoForward && homeHistory.projectId === activeSession?.id && view === homeHistory.returnView) {
+      setView("home");
+      setHomeHistory({ ...homeHistory, canGoForward: false });
+      return;
+    }
     if (
       !activeSession ||
       activeSession.viewHistoryIndex >= activeSession.viewHistory.length - 1
@@ -376,22 +480,27 @@ export function App(): React.JSX.Element {
       return;
     }
     const nextIndex = activeSession.viewHistoryIndex + 1;
+    setHomeHistory(null);
     dispatchSessions({ type: "goForward", id: activeSession.id });
     setView(activeSession.viewHistory[nextIndex]);
   };
 
-  const canGoBack = Boolean(activeSession && activeSession.viewHistoryIndex > 0);
-  const canGoForward =
+  const canGoBack = view === "home"
+    ? Boolean(homeHistory && homeHistory.projectId === activeSession?.id)
+    : Boolean(activeSession && activeSession.viewHistoryIndex > 0);
+  const canGoForward = view !== "home" && (
+    Boolean(homeHistory?.canGoForward && homeHistory.projectId === activeSession?.id && view === homeHistory.returnView) ||
     Boolean(
       activeSession &&
         activeSession.viewHistoryIndex < activeSession.viewHistory.length - 1,
-    );
+    ));
   // The failed-open message and whether its dialog is showing are tracked
   // separately so closing the overlay can clear stale content independently.
   const [openError, setOpenError] = useState<string | null>(null);
   const [openErrorTitle, setOpenErrorTitle] = useState(t.overviewOpenFailedTitle);
   const [isOpenErrorDialogOpen, setIsOpenErrorDialogOpen] = useState(false);
   const [openErrorRecoveryAction, setOpenErrorRecoveryAction] = useState<{
+    alternative?: { label: string; onAction: () => void };
     label: string;
     onAction: () => void;
   } | null>(null);
@@ -402,6 +511,10 @@ export function App(): React.JSX.Element {
   const [publishDialogSessionId, setPublishDialogSessionId] = useState<string | null>(null);
   const [publishUpTo, setPublishUpTo] = useState<string | null>(null);
   const [saveDialogSessionId, setSaveDialogSessionId] = useState<string | null>(null);
+  /* Get project changes can end in "save your changes first". Save version
+     opens only once that dialog has closed and its operation has finished, or
+     the mutation guard would still see the sync running and refuse. */
+  const [saveAfterSyncSessionId, setSaveAfterSyncSessionId] = useState<string | null>(null);
   const [getTeamDialogSessionId, setGetTeamDialogSessionId] = useState<string | null>(null);
   // App-wide bounded quick-switch and Overview's quick-create are distinct
   // from the Lines screen's own dialog state because neither entry point is
@@ -456,6 +569,18 @@ export function App(): React.JSX.Element {
      in the same gesture, and the activation has not reached this render's
      `activeSession` at that point. Everything below already addresses the
      session by id, so this only replaces where the id comes from. */
+  const closeSaveDialog = (): void => {
+    if (saveDialogSessionId) {
+      finishSessionOperation(saveDialogSessionId);
+    }
+    setSaveDialogSessionId(null);
+  };
+  const setSaveDialogPhase = (phase: ProjectMutationPhase): void => {
+    if (saveDialogSessionId) {
+      dispatchSessions({ type: "setOperationPhase", id: saveDialogSessionId, phase });
+    }
+  };
+
   const startSessionOperation = (
     kind: "save" | "publish" | "discard" | "sync",
     upTo?: string,
@@ -484,6 +609,16 @@ export function App(): React.JSX.Element {
     }
     return true;
   };
+
+  // Runs on the render after Get project changes closed, when the sessions
+  // state no longer holds its operation (see `saveAfterSyncSessionId`).
+  const startSessionOperationRef = useRef(startSessionOperation);
+  startSessionOperationRef.current = startSessionOperation;
+  useEffect(() => {
+    if (!saveAfterSyncSessionId || getTeamDialogSessionId) return;
+    setSaveAfterSyncSessionId(null);
+    startSessionOperationRef.current("save", undefined, saveAfterSyncSessionId);
+  }, [getTeamDialogSessionId, saveAfterSyncSessionId]);
 
   /* The notification centre's one action.
 
@@ -564,6 +699,10 @@ export function App(): React.JSX.Element {
     });
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
+  const [consolePreferences, setConsolePreferences] = useStoredConsolePreferences();
+  // Rust holds advanced mode and checks it on every console plan; this copy
+  // drives the Settings switch and the console's indicator.
+  const consoleAdvancedMode = useConsoleAdvancedMode();
   const [reducedMotion, setReducedMotion] = useReducedMotionPreference();
   const [navigationPreferences, setNavigationPreferences] =
     useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
@@ -650,6 +789,8 @@ export function App(): React.JSX.Element {
     SIDEBAR_HIDDEN_DEFAULT,
   );
   const [favouriteProjectIds, toggleFavouriteProject] = useStoredFavouriteProjects();
+  const [projectIconChoices, setProjectIconChoice] = useStoredProjectIconChoices();
+  const [projectAvatarStyle, setProjectAvatarStyle] = useStoredProjectAvatarStyle();
   // A short jump menu hanging off the collapse control, for reaching a
   // destination while the rail is away. Hover-opened, so it needs the same
   // grace period any hover menu does: the menu portals to `body` and sits a
@@ -749,12 +890,36 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionsState.order, sessionsState.byId]);
 
+  // A successful read updates the recent entry once. The welcome list can
+  // then show a closed project's last detected mark after an app restart,
+  // without reading a repository merely to render that list.
+  useEffect(() => {
+    let updated: RecentProject[] | null = null;
+    for (const project of technologyTargets) {
+      if (!projectTechnologies.has(project.id) || technologyFailures.has(project.id)) continue;
+      const entries = rememberRecentProjectTechnology(
+        project.id,
+        projectTechnologies.get(project.id) ?? null,
+      );
+      if (entries) updated = entries;
+    }
+    if (updated) setRecentProjects(updated);
+  }, [technologyTargets, projectTechnologies, technologyFailures]);
+
   // Favourites first, then by recency — ordered *before* the welcome screen
   // takes its slice, so a project someone starred stays reachable there after
   // it has aged out of the newest few. The star itself is the app's existing
   // project favourite, not a second list-local mark.
   const recentProjectEntries = orderByFavourite(
-    recentProjects.map((entry) => ({ ...entry, isFavourite: favouriteProjectIds.has(entry.path) })),
+    recentProjects.filter((entry) => view !== "home" || !sessionsState.byId[entry.path]).map((entry) => ({
+      ...entry,
+      isFavourite: favouriteProjectIds.has(entry.path),
+      iconChoice: projectIconChoices.get(entry.path) ?? null,
+      technology: projectTechnologies.has(entry.path)
+        ? (projectTechnologies.get(entry.path) ?? null)
+        : (isTechnologyId(entry.technology) ? entry.technology : null),
+      avatarStyle: projectAvatarStyle,
+    })),
   );
 
   const openPalette = (): void => {
@@ -822,25 +987,24 @@ export function App(): React.JSX.Element {
     dispatchSessions({ type: "setOperationPhase", id: path, phase });
   };
 
-  // Switching or opening a project moves the visible screen to whatever that
-  // session was last showing — unless the user is currently in Settings,
-  // which is application-wide and stays exactly where it is regardless of
-  // which project is active underneath it.
+  // Switching or opening a project restores that session's last project
+  // screen. Home remains independent of the session's own screen history.
   const syncViewToSession = (targetLastView: ProjectView): void => {
+    setHomeHistory(null);
     if (view !== targetLastView) {
       setView(targetLastView);
     }
   };
 
   const activateSession = (id: string): void => {
-    if (hasBlockingDialog || id === sessionsState.activeId) {
+    if (hasBlockingDialog || (id === sessionsState.activeId && view !== "home")) {
       return;
     }
     const target = sessionsState.byId[id];
     if (!target) {
       return;
     }
-    dispatchSessions({ type: "activate", id });
+    if (id !== sessionsState.activeId) dispatchSessions({ type: "activate", id });
     syncViewToSession(target.lastView);
     setProjectAnnouncement(t.projectSwitcherActiveAnnouncement(target.project.name));
     void checkWorkingTree(target.project.path);
@@ -891,10 +1055,18 @@ export function App(): React.JSX.Element {
       setOpenErrorRecoveryAction(
         selectedPath && isAppError(error) && error.code === "not_repository"
           ? {
-              label: t.commandTurnFolderIntoProject,
+              label: t.openErrorTurnIntoProject,
               onAction: () => {
                 setIsOpenErrorDialogOpen(false);
                 setInitializeDialogRequest({ mode: "existing-folder", existingPath: selectedPath ?? undefined });
+              },
+              // The message names two ways out, so the dialog offers both.
+              alternative: {
+                label: t.openErrorChooseAnother,
+                onAction: () => {
+                  setIsOpenErrorDialogOpen(false);
+                  void handleOpenProjectRef.current();
+                },
               },
             }
           : null,
@@ -952,6 +1124,7 @@ export function App(): React.JSX.Element {
     let cancelled = false;
     void (async () => {
       let skipped = 0;
+      let restored = 0;
       for (const path of stored.order) {
         if (cancelled) {
           return;
@@ -959,6 +1132,7 @@ export function App(): React.JSX.Element {
         try {
           const info = await repositoryController.open({ selectedPath: path });
           dispatchSessions({ type: "open", project: info });
+          restored += 1;
           void checkWorkingTree(info.path, info.sessionEpoch);
         } catch {
           skipped += 1;
@@ -970,6 +1144,7 @@ export function App(): React.JSX.Element {
       if (stored.activeId) {
         dispatchSessions({ type: "activate", id: stored.activeId });
       }
+      setView(restored > 0 ? "overview" : "home");
       if (skipped > 0) {
         setSkippedRestoreCount(skipped);
       }
@@ -984,6 +1159,25 @@ export function App(): React.JSX.Element {
   }, []);
 
   const projectPath = project?.path ?? null;
+  /* Where the quick switches in the status bar and on Overview make a new
+     line, inside their own popup: the lock every version-line change takes,
+     and on success the same hand-back the create dialog gives — the session
+     cache first, then everything that depends on which line is active. */
+  const versionLineCreate: VersionLineCreateContext | undefined =
+    project && activeSession
+      ? {
+          projectPath: project.path,
+          sessionEpoch: activeSession.epoch,
+          onOperationStart: () => startVersionLineOperation(project.path),
+          onOperationFinish: () => finishSessionOperation(project.path),
+          onOperationPhaseChange: (phase) => setVersionLineOperationPhase(project.path, phase),
+          onCreated: (snapshot) => {
+            versionLinesController.commit(activeVersionLinesQuery, snapshot);
+            void handleVersionLineChanged(project.path);
+            finishSessionOperation(project.path);
+          },
+        }
+      : undefined;
   // `pendingVersions` is the real, local-only list of not-yet-published
   // saved versions (see `list_unpublished_versions`'s doc comment for the
   // "cached, possibly optimistic" caveat — it reflects the last-known
@@ -1141,7 +1335,14 @@ export function App(): React.JSX.Element {
   // Module-level idle work outlived jsdom test environments and left lazy
   // imports running after teardown. Owning it here gives React a real cleanup
   // point while preserving the same after-first-paint scheduling in the app.
-  useEffect(() => scheduleIdleTask(prefetchScreenChunks), []);
+  useEffect(
+    () =>
+      scheduleIdleTask(() => {
+        prefetchScreenChunks();
+        void loadPublishDialog();
+      }),
+    [],
+  );
 
   // Every open worktree is registered after startup restore. Rust coalesces
   // shared common-Git-dir signals and fans them to related worktrees exactly
@@ -1308,10 +1509,10 @@ export function App(): React.JSX.Element {
   // a project that is no longer open. Which screens those are comes from the
   // registry, so a new project-only screen is covered by declaring itself one.
   useEffect(() => {
-    if (screenRequiresProject(view) && !project) {
-      navigateToView("overview");
+    if (hasCompletedSessionRestore && screenRequiresProject(view) && !project) {
+      navigateToView("home");
     }
-  }, [view, project]);
+  }, [view, project, hasCompletedSessionRestore]);
 
   const performCloseSession = async (id: string): Promise<void> => {
     const closingSession = sessionsState.byId[id];
@@ -1352,7 +1553,8 @@ export function App(): React.JSX.Element {
     historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
-      setView(nextSession?.lastView ?? "overview");
+      setHomeHistory(null);
+      setView(view === "home" ? "home" : (nextSession?.lastView ?? "home"));
       if (nextSession) {
         setProjectAnnouncement(
           t.projectSwitcherActiveAnnouncement(nextSession.project.name),
@@ -1499,6 +1701,14 @@ export function App(): React.JSX.Element {
           action: () => navigateToView(screen),
         },
       ];
+      if (screen === "workbench") {
+        // The two tabs are destinations to a reader who knows where they are
+        // going, even though they are one screen to the registry.
+        entries.push(
+          { id: "go-changes", label: t.commandGoChanges, action: () => openWorkbench("changes") },
+          { id: "go-history", label: t.commandGoHistory, action: () => openWorkbench("history") },
+        );
+      }
       if (screen === "version-lines") {
         entries.push({
           id: "new-version-line",
@@ -1551,7 +1761,7 @@ export function App(): React.JSX.Element {
                 ),
               }]
             : []),
-          ...(view === "history"
+          ...(view === "workbench" && activeSession.workbenchTab === "history"
             ? [{
                 id: "refresh-history",
                 label: t.commandRefreshHistory,
@@ -1583,8 +1793,8 @@ export function App(): React.JSX.Element {
           }))
       : []),
     { id: "theme-system", label: t.commandUseSystemTheme, action: () => changeTheme("system") },
-    { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("light") },
-    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("dark") },
+    { id: "theme-light", label: t.commandUseLightTheme, action: () => changeTheme("gitodile-light") },
+    { id: "theme-dark", label: t.commandUseDarkTheme, action: () => changeTheme("gitodile-dark") },
     ...(project
       ? [
           {
@@ -1630,6 +1840,9 @@ export function App(): React.JSX.Element {
       ),
       hasUnsavedChanges: Boolean(session.workingTree && !session.workingTree.isClean),
       isFavourite: favouriteProjectIds.has(id),
+      iconChoice: projectIconChoices.get(id) ?? null,
+      technology: projectTechnologies.get(id) ?? null,
+      avatarStyle: projectAvatarStyle,
     };
   });
   /**
@@ -1719,6 +1932,7 @@ export function App(): React.JSX.Element {
     // versions list under Overview renders diffs too, through an entirely
     // different panel.
     <DiffPreferencesProvider value={diffPreferences}>
+    <ToastProvider>
     <div
       className={
         `app-window` +
@@ -1730,31 +1944,14 @@ export function App(): React.JSX.Element {
         {projectAnnouncement}
       </span>
       <header className="window-titlebar">
-        {/* The mark is the About affordance, the way it is in every desktop
-            app: identity in the corner, and clicking identity tells you what
-            the thing is. Deliberately unadvertised — no tooltip, no fill —
-            because it is the alternative route, not the signposted one; the
-            menu and the palette are where someone looks when they do not
-            already know the convention. The accessible name stays: it is
-            invisible to a sighted user, so it costs the quiet nothing, and
-            without it the button is unnamed to a screen reader.
-
-            `data-tauri-drag-region` stays on the wrapper only — Tauri reads
-            the attribute off the element under the pointer, so the button
-            keeps its click and the chrome around it still drags the window. */}
-        <div className="window-titlebar__brand" data-tauri-drag-region>
-          <button
-            className="window-titlebar__mark"
-            type="button"
-            aria-label={t.aboutGitOdile}
-            onClick={() => setIsAboutOpen(true)}
-          >
-            {CROCODILE_MARK}
-          </button>
-        </div>
-
+        {/* No brand in the corner. The mascot was the only colour illustration
+            in a row of line icons and drew the eye to a spot that does
+            nothing; the operating system already shows the app icon. The
+            mascot lives in the brand moments instead — the no-project welcome
+            and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
           <TitlebarMenu
+            onOpenHome={() => navigateToView("home")}
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
             onCheckAppUpdates={() => {
@@ -1767,7 +1964,7 @@ export function App(): React.JSX.Element {
             onCloseProject={requestCloseActiveProject}
             onOpenSettings={() => openSettings()}
             onOpenShortcuts={() => setIsShortcutsOpen(true)}
-            hasProject={project !== null}
+            hasProject={project !== null && view !== "home"}
             isOpeningProject={isOpening}
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
             onReportIssue={() => void issueReport.report()}
@@ -1831,7 +2028,7 @@ export function App(): React.JSX.Element {
                 </button>
               ))}
 
-              <div className="sidebar-jump__divider" role="separator" />
+              <div className="app-menu__divider" role="separator" />
 
               {/* The project group, flattened. The rail spends an avatar and a
                   "+" on two menus of their own; a list this short can just say
@@ -1839,24 +2036,25 @@ export function App(): React.JSX.Element {
               {jumpMenuEntries.map((entry) => (
                 <button
                   key={entry.id}
-                  className={`app-menu__item${entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
+                  className={`app-menu__item${view !== "home" && entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
                   type="button"
                   role="menuitem"
                   disabled={hasBlockingDialog}
-                  aria-current={entry.id === sessionsState.activeId ? "true" : undefined}
+                  aria-current={view !== "home" && entry.id === sessionsState.activeId ? "true" : undefined}
                   aria-label={t.projectSwitcherRailTrigger(entry.name)}
                   onClick={() => {
                     closeJumpMenu();
                     activateSession(entry.id);
                   }}
                 >
-                  <span
+                  <ProjectAvatar
+                    id={entry.id}
+                    name={entry.name}
                     className="sidebar-jump__avatar"
-                    aria-hidden="true"
-                    style={{ backgroundColor: avatarColorVar(entry.id) }}
-                  >
-                    {avatarInitials(entry.name)}
-                  </span>
+                    iconChoice={entry.iconChoice}
+                    technology={entry.technology}
+                    style={entry.avatarStyle}
+                  />
                   <span>{entry.name}</span>
                 </button>
               ))}
@@ -1900,10 +2098,10 @@ export function App(): React.JSX.Element {
                 <span>{t.projectSwitcherCloneProject}</span>
               </button>
 
-              <div className="sidebar-jump__divider" role="separator" />
+              <div className="app-menu__divider" role="separator" />
 
               {/* The foot, in the same order the rail stacks it. */}
-              {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map(
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map(
                 (destination) => {
                   const { screen, overlay } = destination;
                   const isActive =
@@ -1976,15 +2174,11 @@ export function App(): React.JSX.Element {
           <button
             className="titlebar-icon-button"
             type="button"
-            aria-label={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
-            data-tooltip={effectiveTheme === "dark" ? t.titlebarSwitchToLightTheme : t.titlebarSwitchToDarkTheme}
+            aria-label={themeToggle.label}
+            data-tooltip={themeToggle.label}
             onClick={toggleTheme}
           >
-            {effectiveTheme === "dark" ? (
-              <Sun className="titlebar-theme-icon" aria-hidden="true" />
-            ) : (
-              <Moon className="titlebar-theme-icon" aria-hidden="true" />
-            )}
+            {themeToggle.icon}
           </button>
         </div>
 
@@ -2004,6 +2198,8 @@ export function App(): React.JSX.Element {
           isEnabled={notificationsEnabled}
           onOpened={notificationCenter.markAllRead}
           onClear={notificationCenter.clear}
+          onDismiss={(notification) => notificationCenter.dismiss(notification.id)}
+          onToggleEnabled={setNotificationsEnabled}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
           onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
           onOpenSettings={() => openSettings("notifications")}
@@ -2042,7 +2238,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "changes" || view === "history" || view === "version-lines" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2057,78 +2253,78 @@ export function App(): React.JSX.Element {
           />
 
           {/* Slack-like hierarchy: the destinations answer "where in this
-              project am I", everything below the rule answers "which project,
-              and which app-level control". Spacing alone used to carry that
-              split; at 88px the eye reads a column of evenly stacked circles
-              instead, so the rule states it. */}
-          <hr className="sidebar-divider" />
+              project am I", everything in the tray answers "which project,
+              and which app-level control". The free height above carries the
+              split in a tall window; the tray's own shape keeps it when a
+              short one closes that gap. */}
+          <div className="sidebar-tray">
+            <div className="sidebar-project-section" data-flyout-group-anchor="">
+              <ProjectSwitcherRail
+                entries={switcherEntries}
+                activeId={view === "home" ? null : sessionsState.activeId}
+                canSwitch={!hasBlockingDialog}
+                isOpening={isOpening}
+                onActivate={activateSession}
+                onClose={requestCloseSession}
+                onOpenAnother={() => void handleOpenProject()}
+                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
+                onClone={() => setIsCloneOpen(true)}
+                onToggleFavourite={toggleFavouriteProject}
+                onOpenProjectSettings={openProjectSettings}
+                onPrefetchProjectSettings={prefetchProjectSettings}
+              />
+            </div>
 
-          <div className="sidebar-project-section" data-flyout-group-anchor="">
-            <ProjectSwitcherRail
-              entries={switcherEntries}
-              activeId={sessionsState.activeId}
-              canSwitch={!hasBlockingDialog}
-              isOpening={isOpening}
-              onActivate={activateSession}
-              onClose={requestCloseSession}
-              onOpenAnother={() => void handleOpenProject()}
-              onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-              onClone={() => setIsCloneOpen(true)}
-              onToggleFavourite={toggleFavouriteProject}
-              onOpenProjectSettings={openProjectSettings}
-              onPrefetchProjectSettings={prefetchProjectSettings}
-            />
+            <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
+              {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map((destination) => {
+                const { screen, overlay } = destination;
+                const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
+                const label = t[destination.labelKey];
+                return (
+                  <button
+                    key={destination.id}
+                    className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
+                    type="button"
+                    disabled={screen === null && overlay === undefined}
+                    aria-current={screen !== null && isActive ? "page" : undefined}
+                    aria-haspopup={overlay ? "dialog" : undefined}
+                    aria-expanded={overlay ? isSettingsOpen : undefined}
+                    data-tooltip={label}
+                    // These carry no visible name in either display mode, so the
+                    // accessible name lives on the control itself rather than in
+                    // a caption that only one mode renders.
+                    aria-label={label}
+                    onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
+                  >
+                    {destination.icon}
+                  </button>
+                );
+              })}
+              {/* Signing in is not built yet, but its place in the rail is: it
+                  sits with Settings the way an account always does, disabled
+                  and saying so, rather than appearing later and pushing the
+                  rail's furniture around. */}
+              <button
+                className="sidebar-round"
+                type="button"
+                aria-disabled="true"
+                aria-label={t.navAccountTitle}
+                data-tooltip={t.navAccountTitle}
+              >
+                <UserRound aria-hidden="true" />
+              </button>
+            </nav>
           </div>
-
-          <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
-            {NAV_DESTINATIONS.filter((destination) => destination.section === "application").map((destination) => {
-              const { screen, overlay } = destination;
-              const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
-              const label = t[destination.labelKey];
-              return (
-                <button
-                  key={destination.id}
-                  className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
-                  type="button"
-                  disabled={screen === null && overlay === undefined}
-                  aria-current={screen !== null && isActive ? "page" : undefined}
-                  aria-haspopup={overlay ? "dialog" : undefined}
-                  aria-expanded={overlay ? isSettingsOpen : undefined}
-                  data-tooltip={label}
-                  // These carry no visible name in either display mode, so the
-                  // accessible name lives on the control itself rather than in
-                  // a caption that only one mode renders.
-                  aria-label={label}
-                  onClick={overlay === "settings" ? () => openSettings() : screen ? () => navigateToView(screen) : undefined}
-                >
-                  {destination.icon}
-                </button>
-              );
-            })}
-            {/* Signing in is not built yet, but its place in the rail is: it
-                sits with Settings the way an account always does, disabled
-                and saying so, rather than appearing later and pushing the
-                rail's furniture around. */}
-            <button
-              className="sidebar-round"
-              type="button"
-              aria-disabled="true"
-              aria-label={t.navAccountTitle}
-              data-tooltip={t.navAccountTitle}
-            >
-              <UserRound aria-hidden="true" />
-            </button>
-          </nav>
         </aside>
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "changes" ? " workspace--changes" : ""}${view === "history" ? " workspace--history" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}${view === "console" ? " workspace--console" : ""}`}
         >
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
               entries={switcherEntries}
-              activeId={sessionsState.activeId}
+              activeId={view === "home" ? null : sessionsState.activeId}
               canSwitch={!hasBlockingDialog}
               isOpening={isOpening}
               onActivate={activateSession}
@@ -2208,14 +2404,26 @@ export function App(): React.JSX.Element {
             </p>
           )}
 
-          {/* One mounted set of screens per project session: keying the
-              host by the active session drops the previous project's
-              screens instead of keeping them alive against a project the
-              user has left. */}
+          {/* Project screens are keyed by epoch; Home survives project switches
+              and suspends its effects while hidden. */}
           <KeepAliveScreens
-            key={activeSession?.epoch ?? "no-project"}
             active={view}
+            projectEpoch={activeSession?.epoch}
             screens={{
+              home: (
+                <HomeScreen
+                  isOpening={isOpening}
+                  recentProjects={recentProjectEntries}
+                  onOpenProject={() => void handleOpenProject()}
+                  onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
+                  onCloneProject={() => setIsCloneOpen(true)}
+                  onOpenRecentProject={(path) => void handleOpenProject(path)}
+                  onToggleFavouriteRecentProject={toggleFavouriteProject}
+                  onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
+                  hasOpenProjects={sessionsState.order.length > 0}
+                  playGreeting={!hasShownHomeGreeting.current}
+                />
+              ),
               overview: (
                 <OverviewPanel
                   project={project}
@@ -2237,7 +2445,7 @@ export function App(): React.JSX.Element {
                         },
                       });
                     }
-                    navigateToView("changes");
+                    openWorkbench("changes");
                   }}
                   onOpenProject={() => void handleOpenProject()}
                   onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
@@ -2260,21 +2468,21 @@ export function App(): React.JSX.Element {
                       setVersionLineSwitchTarget(target);
                     }
                   }}
-                  onQuickCreateVersionLine={(forceSwitch) => {
-                    if (projectPath && startVersionLineOperation(projectPath)) {
-                      setCreateLineRequest({ forceSwitch });
-                    }
-                  }}
+                  versionLineCreate={versionLineCreate}
                   onOpenProjectSettings={() => openProjectSettings()}
+                  onChangeProjectIcon={() => openProjectSettings(undefined, "icon")}
                   onPrefetchProjectSettings={() => prefetchProjectSettings()}
+                  projectIdentity={{
+                    iconChoice: project ? (projectIconChoices.get(project.path) ?? null) : null,
+                    technology: project ? (projectTechnologies.get(project.path) ?? null) : null,
+                    avatarStyle: projectAvatarStyle,
+                  }}
+                  selfEmail={gitIdentity.identity.email || null}
                   onGoToVersionLines={() => navigateToView("version-lines")}
                   onCopyPathError={() =>
                     showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
                   }
-                  onOpenSaveVersion={() => {
-                    startSessionOperation("save");
-                    navigateToView("changes");
-                  }}
+                  onOpenSaveVersion={() => startSessionOperation("save")}
                   teamSync={teamSync}
                   onCheckTeamChanges={() => {
                     if (!activeSession) return;
@@ -2286,65 +2494,82 @@ export function App(): React.JSX.Element {
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   historyController={historyController}
-                  onOpenHistory={() => navigateToView("history")}
+                  onOpenHistory={() => openWorkbench("history")}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
               // project is open: the host drops what it is not given.
               ...(project
                 ? {
-                    changes: (
+                    workbench: (
                       <Suspense fallback={<ViewLoadingFallback />}>
-                        <ChangesPanel
-                          projectPath={project.path}
-                          workingTree={workingTree}
-                          workingTreeError={workingTreeError}
-                          isCheckingChanges={isCheckingChanges}
-                          controller={changesController}
-                          sessionEpoch={activeSession?.epoch ?? ""}
-                          watcherState={activeWatcherState}
-                          confirmBeforeDiscarding={confirmDiscard}
-                          runGitHooks={runGitHooks}
-                          onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
-                          onOpenSettings={() => openSettings("general")}
-                          onSaveCompleted={() => void handleMutationSucceeded(project.path)}
-                          onNavigateOverview={() => navigateToView("overview")}
-                          onPublishNow={() => openPublishDialog()}
-                          selectedPath={activeSession?.changesSelection.selectedPath ?? null}
-                          onSelectedPathChange={(selectedPath) =>
+                        <WorkbenchScreen
+                          tab={activeSession?.workbenchTab ?? "changes"}
+                          onTabChange={(tab) =>
                             sessionsState.activeId &&
-                            dispatchSessions({
-                              type: "setChangesSelection",
-                              id: sessionsState.activeId,
-                              selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
-                            })
+                            dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab })
                           }
-                          isSaveVersionOpen={saveDialogSessionId === sessionsState.activeId}
-                          onOpenSaveVersion={() => startSessionOperation("save")}
-                          onCloseSaveVersion={() => {
-                            if (saveDialogSessionId) {
-                              finishSessionOperation(saveDialogSessionId);
-                            }
-                            setSaveDialogSessionId(null);
-                          }}
-                          onSaveVersionPhaseChange={(phase) => {
-                            if (saveDialogSessionId) {
-                              dispatchSessions({
-                                type: "setOperationPhase",
-                                id: saveDialogSessionId,
-                                phase,
-                              });
-                            }
-                          }}
-                          onBeginDiscard={() => startSessionOperation("discard")}
-                          onDiscardClose={() => finishSessionOperation(project.path)}
-                          onDiscardPhaseChange={(phase) => {
-                            dispatchSessions({
-                              type: "setOperationPhase",
-                              id: project.path,
-                              phase,
-                            });
-                          }}
+                          renderChanges={(tabs) => (
+                            // The workbench owns the Suspense boundary, so the
+                            // tabs stay on screen while a tab's chunk loads.
+                            <ChangesPanel
+                              tabs={tabs}
+                              projectPath={project.path}
+                              workingTree={workingTree}
+                              workingTreeError={workingTreeError}
+                              isCheckingChanges={isCheckingChanges}
+                              controller={changesController}
+                              sessionEpoch={activeSession?.epoch ?? ""}
+                              watcherState={activeWatcherState}
+                              confirmBeforeDiscarding={confirmDiscard}
+                              runGitHooks={runGitHooks}
+                              onRefresh={() => projectPath && void checkWorkingTree(projectPath)}
+                              onOpenSettings={() => openSettings("general")}
+                              onSaveCompleted={() => void handleMutationSucceeded(project.path)}
+                              onPublishNow={() => openPublishDialog()}
+                              onGetChanges={() => startSessionOperation("sync")}
+                              onOpenHistory={() => openWorkbench("history")}
+                              headState={project.headState}
+                              selectedPath={activeSession?.changesSelection.selectedPath ?? null}
+                              onSelectedPathChange={(selectedPath) =>
+                                sessionsState.activeId &&
+                                dispatchSessions({
+                                  type: "setChangesSelection",
+                                  id: sessionsState.activeId,
+                                  selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
+                                })
+                              }
+                              onBeginDiscard={() => startSessionOperation("discard")}
+                              onDiscardClose={() => finishSessionOperation(project.path)}
+                              onDiscardPhaseChange={(phase) => {
+                                dispatchSessions({
+                                  type: "setOperationPhase",
+                                  id: project.path,
+                                  phase,
+                                });
+                              }}
+                            />
+                          )}
+                          renderHistory={(tabs) => (
+                            <HistoryScreen
+                              tabs={tabs}
+                              controller={historyController}
+                              projectPath={project.path}
+                              sessionEpoch={activeSession?.epoch ?? ""}
+                              watcherState={activeWatcherState}
+                              lines={versionLineNames}
+                              scopeLineIntent={historyScopeLineIntent}
+                              selectCommitIntent={historySelectCommitIntent}
+                              onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
+                              onScopeLineIntentHandled={clearHistoryScopeLineIntent}
+                              onViewLine={viewVersionLine}
+                              onSwitchLine={switchToVersionLine}
+                              onCreateLineFromVersion={createVersionLineFromVersion}
+                              onPublish={() => openPublishDialog()}
+                              onOpenSettings={() => openSettings("general")}
+                              selfEmail={gitIdentity.identity.email || null}
+                            />
+                          )}
                         />
                       </Suspense>
                     ),
@@ -2362,13 +2587,13 @@ export function App(): React.JSX.Element {
                           onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
                           onSaveVersion={() => {
                             startSessionOperation("save");
-                            navigateToView("changes");
+                            openWorkbench("changes");
                           }}
-                          onOpenChanges={() => navigateToView("changes")}
+                          onOpenChanges={() => openWorkbench("changes")}
                           onOpenHistory={(name, commit) => {
                             setHistoryScopeLineIntent(name);
                             setHistorySelectCommitIntent(commit ?? null);
-                            navigateToView("history");
+                            openWorkbench("history");
                           }}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
@@ -2377,22 +2602,22 @@ export function App(): React.JSX.Element {
                         />
                       </Suspense>
                     ),
-                    history: (
+                    console: (
                       <Suspense fallback={<ViewLoadingFallback />}>
-                        <HistoryScreen
-                          controller={historyController}
+                        <ConsoleScreen
                           projectPath={project.path}
+                          projectName={project.name}
+                          branch={project.branch}
                           sessionEpoch={activeSession?.epoch ?? ""}
-                          watcherState={activeWatcherState}
-                          lines={versionLineNames}
-                          scopeLineIntent={historyScopeLineIntent}
-                          selectCommitIntent={historySelectCommitIntent}
-                          onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
-                          onScopeLineIntentHandled={clearHistoryScopeLineIntent}
-                          onViewLine={viewVersionLine}
-                          onSwitchLine={switchToVersionLine}
-                          onCreateLineFromVersion={createVersionLineFromVersion}
-                          onOpenSettings={() => openSettings("general")}
+                          gitVersion={readGitVersion(gitTooling.diagnostics)}
+                          projectStatus={consoleStatus}
+                          preferences={consolePreferences}
+                          theme={theme}
+                          advancedMode={consoleAdvancedMode.advancedMode}
+                          confirmChanges={consoleAdvancedMode.confirmChanges}
+                          runHooks={runGitHooks}
+                          onRepositoryChanged={() => void handleMutationSucceeded(project.path)}
+                          onOpenSettings={() => openSettings("console")}
                         />
                       </Suspense>
                     ),
@@ -2402,11 +2627,13 @@ export function App(): React.JSX.Element {
           />
         </section>
 
-        {/* On every screen, Overview included: a strip that came and went
-            would make the window resize under the pointer on each navigation,
-            and the one place state is always visible is worth more than the
-            small duplication with Overview's own cards. */}
-        <StatusBar
+        {/* On every screen but Console, Overview included: a strip that came
+            and went would make the window resize under the pointer on each
+            navigation, and the one place state is always visible is worth more
+            than the small duplication with Overview's own cards. Console is
+            the exception: it is a terminal across the workspace, and its own
+            status line carries the same project facts, read-only. */}
+        {view !== "console" && <StatusBar
           project={project}
           workingTree={workingTree}
           workingTreeError={workingTreeError}
@@ -2421,11 +2648,7 @@ export function App(): React.JSX.Element {
               setVersionLineSwitchTarget(target);
             }
           }}
-          onCreateVersionLine={() => {
-            if (projectPath && startVersionLineOperation(projectPath)) {
-              setCreateLineRequest({ forceSwitch: false });
-            }
-          }}
+          versionLineCreate={versionLineCreate}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
           onCheckTeamChanges={() => {
             if (!activeSession) return;
@@ -2435,8 +2658,11 @@ export function App(): React.JSX.Element {
               mapSyncError,
             );
           }}
+          onOpenProjectSettings={() => openProjectSettings()}
+          onPrefetchProjectSettings={() => prefetchProjectSettings()}
+          onPublish={() => openPublishDialog()}
           onOpenChangelog={() => setIsChangelogOpen(true)}
-        />
+        />}
       </main>
 
       {/* Feedback about a gesture in progress, not app chrome: it exists only
@@ -2494,6 +2720,15 @@ export function App(): React.JSX.Element {
             projectPath={publishDialogSession.project.path}
             sessionEpoch={publishDialogSession.epoch}
             upTo={publishUpTo ?? undefined}
+            preview={previewFromPendingVersions({
+              pending: publishDialogSession.pendingVersions,
+              pendingError: publishDialogSession.pendingVersionsError,
+              upstream: publishDialogSession.workingTree?.upstream.upstream ?? null,
+              hasUnsavedFiles: publishDialogSession.workingTree
+                ? !publishDialogSession.workingTree.isClean
+                : false,
+              upTo: publishUpTo ?? undefined,
+            })}
             runHooks={runGitHooks}
             onClose={() => {
               finishSessionOperation(publishDialogSession.id);
@@ -2571,6 +2806,11 @@ export function App(): React.JSX.Element {
               phase,
             })
           }
+          onSaveVersion={() => {
+            finishSessionOperation(getTeamDialogSession.id);
+            setGetTeamDialogSessionId(null);
+            setSaveAfterSyncSessionId(getTeamDialogSession.id);
+          }}
         />
       )}
 
@@ -2593,7 +2833,7 @@ export function App(): React.JSX.Element {
             }}
             onSaveVersion={() => {
               startSessionOperation("save");
-              navigateToView("changes");
+              openWorkbench("changes");
             }}
             onCreateWithWork={() => {
               if (startVersionLineOperation(project.path)) {
@@ -2628,6 +2868,25 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
+      {project && activeSession && (
+        <SaveVersionDialog
+          isOpen={saveDialogSessionId === sessionsState.activeId}
+          projectPath={project.path}
+          sessionEpoch={activeSession.epoch}
+          selectedPaths={null}
+          preview={previewFromWorkingTree({
+            workingTree: activeSession.workingTree,
+            headState: activeSession.project.headState,
+            selectedPaths: null,
+          })}
+          runHooks={runGitHooks}
+          onClose={closeSaveDialog}
+          onSaved={() => void handleMutationSucceeded(project.path)}
+          onPublishNow={() => openPublishDialog()}
+          onPhaseChange={setSaveDialogPhase}
+        />
+      )}
+
       <AppOverlays
         issueReport={issueReport}
         projectSettings={{
@@ -2640,6 +2899,13 @@ export function App(): React.JSX.Element {
           section: projectSettingsSection,
           setSection: setProjectSettingsSection,
           cache: projectSettingsCache,
+          iconChoice: project ? (projectIconChoices.get(project.path) ?? null) : null,
+          technology: project ? (projectTechnologies.get(project.path) ?? null) : null,
+          technologyFailed: project ? technologyFailures.has(project.path) : false,
+          avatarStyle: projectAvatarStyle,
+          onChooseIcon: (choice: string | null) => {
+            if (project) setProjectIconChoice(project.path, choice);
+          },
         }}
         settings={{
           isOpen: isSettingsOpen,
@@ -2648,6 +2914,8 @@ export function App(): React.JSX.Element {
           setTheme: changeTheme,
           reducedMotion,
           setReducedMotion,
+          projectAvatarStyle,
+          setProjectAvatarStyle,
           section: settingsSection,
           setSection: setSettingsSection,
           gitTooling,
@@ -2678,6 +2946,9 @@ export function App(): React.JSX.Element {
           setNavigationPreferences,
           diffPreferences,
           setDiffPreferences,
+          consolePreferences,
+          setConsolePreferences,
+          consoleAdvancedMode,
           identity: gitIdentity,
           defaultBranch,
           lineEndings,
@@ -2706,6 +2977,7 @@ export function App(): React.JSX.Element {
       />
       <TooltipHost />
     </div>
+    </ToastProvider>
     </DiffPreferencesProvider>
   );
 }

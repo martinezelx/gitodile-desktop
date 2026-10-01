@@ -6,13 +6,21 @@
 }
 .settings-nav__alert svg { width: 15px; height: 15px; }
 .settings-nav__alert--accent { color: var(--accent-primary); }
-.navigation-destinations { display: grid; gap: var(--space-1); padding: 0; }
+/* The same dense list as Notifications: one bordered surface with rows split
+   by hairlines, not rows floating in the section. Each row reads icon, name,
+   then how to move it, then whether it shows. */
+.navigation-destinations {
+  display: grid; gap: 0; padding: 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+}
 .navigation-destination {
-  min-height: 48px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto;
-  align-items: center; gap: 10px; padding: 3px var(--space-1);
-  border-radius: var(--radius-item);
+  min-height: 48px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--space-3); padding: 4px var(--space-3);
   transition: background var(--duration-fast), opacity var(--duration-fast);
 }
+.navigation-destination + .navigation-destination { border-top: 1px solid var(--border-subtle); }
+.navigation-destination:first-child { border-radius: var(--radius-control) var(--radius-control) 0 0; }
+.navigation-destination:last-of-type { border-radius: 0 0 var(--radius-control) var(--radius-control); }
 .navigation-destination__order-controls {
   display: flex; align-items: center; gap: 2px;
 }
@@ -33,12 +41,24 @@
   border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
 }
 .navigation-destination__icon svg { width: 17px; height: 17px; }
-.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; }
+.navigation-destination__copy { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .navigation-destination__copy strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
-.navigation-destination__copy small { color: var(--text-secondary-color); font-size: var(--text-caption); }
+/* The same capsule as the Notifications "Silent" tag. */
+.navigation-destination__tag {
+  flex-shrink: 0; padding: 0 6px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
+}
+/* Off: kept in place in the secondary ink — colour, not opacity, so every
+   theme's contrast contract still holds. */
+.navigation-destination--hidden .navigation-destination__copy strong { color: var(--text-secondary-color); font-weight: var(--weight-normal); }
+.navigation-destination--hidden .navigation-destination__icon { color: var(--text-secondary-color); }
+/* The arrows are the keyboard's and the precise pointer's way to move a row;
+   at rest they would put four chevrons in every row, so they surface on hover
+   and whenever focus is inside the row. */
 .navigation-destination__move-buttons {
   display: flex; align-items: center; gap: 2px;
-  opacity: 0.46;
+  opacity: 0;
   transition: opacity var(--duration-fast);
 }
 .navigation-destination:hover .navigation-destination__move-buttons,
@@ -212,38 +232,197 @@
 .line-endings__caveat p { margin: 0; }
 .line-endings__caveat p + p { margin-top: 6px; }
 
-/* A settings row with no control. It keeps the row's shape so the section reads
-   as one surface, but leads with the icon instead of trailing a switch: these
-   rows explain what the switch above covers, and the icon is the same one the
-   notification will wear, so the vocabulary is taught here.
-
-   `align-items: flex-start` because these descriptions run to two or three
-   lines and a centred icon would drift away from the label it belongs to. */
-.settings-notification-event {
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: var(--space-3);
-}
-.settings-notification-event__icon {
-  width: 26px; height: 26px; flex-shrink: 0; margin-top: 1px;
+/* Notifications is one group on one icon column. The switch leads with the
+   bell and the events hang under it in the same column, so every label starts
+   on one edge and the events read as what the switch covers — not as four more
+   settings that forgot their controls. `--notification-icon` is that column. */
+.settings-group__body:has(> .settings-notifications__master) { --notification-icon: 28px; }
+.settings-notifications__master { justify-content: flex-start; gap: var(--space-3); }
+.settings-notifications__master > :last-child { margin-left: auto; }
+.settings-notifications__icon {
+  width: var(--notification-icon); height: var(--notification-icon); flex-shrink: 0;
   display: grid; place-items: center;
   border-radius: var(--radius-round);
   background: var(--surface-control);
+  color: var(--text-secondary-color);
 }
-.settings-notification-event__icon svg { width: 14px; height: 14px; }
-.settings-notification-event__icon--info svg { color: var(--accent-primary); }
-.settings-notification-event__icon--success svg { color: var(--status-success); }
-.settings-notification-event__icon--warning svg { color: var(--status-warning); }
+.settings-notifications__icon svg { width: 15px; height: 15px; }
+.settings-notifications__icon--on { color: var(--accent-primary); }
+
+/* Indented by the icon column plus the row's gap, so the list's edge sits under
+   the switch's label rather than under its bell. */
+.settings-notifications__events { margin: var(--space-4) 0 0 calc(var(--notification-icon, 28px) + var(--space-3)); }
+.settings-notifications__events-title {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-normal);
+}
+/* A dense list: bordered rows, not a card per event. */
+.settings-notifications__list {
+  margin: 0; padding: 0; list-style: none;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+}
+.settings-notifications__event {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: 10px var(--space-3);
+}
+.settings-notifications__event + .settings-notifications__event { border-top: 1px solid var(--border-subtle); }
+.settings-notifications__event > svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
+.settings-notifications__event strong {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug);
+}
+.settings-notifications__event p {
+  margin: 2px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
+}
+.settings-notifications__event--info > svg { color: var(--accent-primary); }
+.settings-notifications__event--success > svg { color: var(--status-success); }
+.settings-notifications__event--warning > svg { color: var(--status-warning); }
+.settings-notifications__silent {
+  padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
+  line-height: var(--leading-snug); cursor: default;
+}
+/* Off: the list stays so what the switch gives is still visible, but in one
+   quiet ink and down to its names. Colour, not opacity, so every theme's
+   contrast contract still holds. */
+.settings-notifications__events--off .settings-notifications__event > svg,
+.settings-notifications__events--off .settings-notifications__event strong { color: var(--text-secondary-color); }
+.settings-notifications__events--off .settings-notifications__event strong { font-weight: var(--weight-normal); }
+
+/* --- Theme picker (Interface > Theme) ------------------------------------
+   Each card previews a theme in its own tokens: `data-theme` scopes the
+   palette to the miniature. See ADR 0012.
+
+   The card speaks the same language as the project-icon picker below it — a
+   bordered `--surface-raised` card, `--radius-control`, the name under the
+   preview on the card's own surface, selection as an accent border — rather
+   than a picker of its own. It used to be a full-bleed square tile with the
+   name on a black scrim: at the default window the group stood 791px tall in a
+   602px viewport, most of every square was empty preview under the scrim, and
+   the scrim put a dark band across every light theme.
+
+   Both rows share one auto-fill track list, so the official trio and the
+   community grid line up column for column at every width: five columns at
+   the default window, four at the minimum. */
+.theme-picker__official,
+.theme-picker__community {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--space-3);
+}
+.theme-picker__official { margin-bottom: var(--space-5); }
+/* Padding and inner radius are concentric: 14 = 10 + 4. */
+.theme-card {
+  display: grid; gap: var(--space-2); min-width: 0;
+  padding: var(--space-1) var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--surface-raised); color: var(--text-primary-color);
+  font: inherit; text-align: center;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.theme-card:hover { background: var(--surface-hover); }
+.theme-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.theme-card[aria-checked="true"] {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+/* 16:10, not square: the miniature's content fills the top of the frame, and
+   a square left the lower half as empty app background. The hairline keeps a
+   light preview from dissolving into a light card. */
+.theme-card__tile {
+  display: grid; aspect-ratio: 16 / 10; overflow: hidden;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+}
+.theme-card__label {
+  display: flex; justify-content: center; align-items: center; min-width: 0;
+}
+.theme-card__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-label); font-weight: var(--weight-strong);
+}
+/* The official badge: a verified rosette right after the name, the way a
+   verified mark follows a profile name, so the two centre as one group and
+   the name truncates before it. A rosette rather than a plain check: selection
+   is the border, and a check on all three cards would read as all three being
+   chosen. `--accent-primary`, not the brand lime: the name now sits on the
+   card's own surface, and the lime measures 1.95:1 on a light one. */
+.theme-card__official {
+  flex-shrink: 0; width: 14px; height: 14px; margin-left: 4px;
+  color: var(--accent-primary);
+}
+.theme-card__split { display: grid; grid-template-columns: 1fr 1fr; }
+
+/* the miniature app drawn in a theme's tokens */
+.theme-preview { display: grid; grid-template-columns: 30px minmax(0, 1fr); background: var(--surface-app); }
+.theme-preview__rail {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+  background: var(--surface-panel); border-right: 1px solid var(--border-subtle);
+}
+.theme-preview__mark { width: 12px; height: 12px; border-radius: var(--radius-round); background: var(--accent-primary); }
+.theme-preview__nav { width: 14px; height: 3px; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.theme-preview__nav--active { background: var(--accent-primary-fill); }
+.theme-preview__main { display: grid; align-content: start; gap: 6px; padding: 10px 8px; }
+.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.theme-preview__file {
+  width: 48%; height: 5px; border-radius: var(--radius-pill);
+  background: var(--text-secondary-color); opacity: 0.5;
+}
+.theme-preview__cta { width: 24px; height: 8px; border-radius: var(--radius-pill); background: var(--accent-primary-fill); }
+.theme-preview__line { height: 6px; border-radius: 2px; background: var(--border-subtle); }
+.theme-preview__line--add { background: color-mix(in srgb, var(--diff-added) 26%, transparent); }
+.theme-preview__line--del { background: color-mix(in srgb, var(--diff-removed) 26%, transparent); }
+
+/* The project-icon style picker: three cards, each previewing the same sample
+   projects under one style, so the choice is shown rather than only described. */
+.project-icons-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.project-icons-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--text-primary-color);
+  text-align: center;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.project-icons-card:hover { background: var(--surface-hover); }
+.project-icons-card--active {
+  border-color: var(--accent-primary);
+  box-shadow: inset 0 0 0 1px var(--accent-primary);
+}
+.project-icons-card__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.project-icons-card__avatar {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--radius-identity); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+}
+.project-icons-card__label { font-size: var(--text-body); font-weight: var(--weight-strong); }
+.project-icons-card__hint {
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
 
 @media (max-width: 800px) {
-  /* Every other row stacks here to give its control the full width. These have
-     no control, so stacking would only push the icon onto a line of its own,
-     away from the label it labels. */
-  .settings-notification-event { flex-direction: row; align-items: flex-start; }
+  /* Every other row stacks here to give its control the full width. The
+     notifications switch is small enough to stay beside its label, and
+     stacking would push the bell onto a line of its own. */
+  .settings-notifications__master { flex-direction: row; align-items: center; }
+  .settings-notifications__events { margin-left: 0; }
   .settings-nav__alert { margin-left: 2px; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
   .format-picker { grid-template-columns: 1fr; }
+  .project-icons-picker { grid-template-columns: 1fr; }
   .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .remote-check-cadence { width: 100%; }

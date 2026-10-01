@@ -3,6 +3,7 @@ import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
+import { consoleTranslations } from "../features/console/translations";
 import { initializeProjectTranslations } from "../features/initialize-project/translations";
 import { notificationsTranslations } from "../features/notifications/translations";
 import { historyTranslations } from "../features/history/translations";
@@ -14,6 +15,7 @@ import { settingsTranslations } from "../features/settings/translations";
 import { statusTranslations } from "../features/status/translations";
 import { syncTranslations } from "../features/sync/translations";
 import { versionLinesTranslations } from "../features/version-lines/translations";
+import { workbenchTranslations } from "../features/workbench/translations";
 import {
   DEFAULT_DATE_FORMAT,
   DEFAULT_NUMBER_FORMAT,
@@ -49,6 +51,7 @@ export const translationNamespaces = {
   app: appTranslations,
   shared: sharedTranslations,
   clone: cloneTranslations,
+  console: consoleTranslations,
   initializeProject: initializeProjectTranslations,
   notifications: notificationsTranslations,
   history: historyTranslations,
@@ -61,12 +64,14 @@ export const translationNamespaces = {
   projectSettings: projectSettingsTranslations,
   publish: publishTranslations,
   versionLines: versionLinesTranslations,
+  workbench: workbenchTranslations,
 } as const;
 
 const en = {
   ...appTranslations.en,
   ...sharedTranslations.en,
   ...cloneTranslations.en,
+  ...consoleTranslations.en,
   ...initializeProjectTranslations.en,
   ...notificationsTranslations.en,
   ...historyTranslations.en,
@@ -79,6 +84,7 @@ const en = {
   ...projectSettingsTranslations.en,
   ...publishTranslations.en,
   ...versionLinesTranslations.en,
+  ...workbenchTranslations.en,
 };
 
 export type Translations = typeof en;
@@ -87,6 +93,7 @@ const es: Translations = {
   ...appTranslations.es,
   ...sharedTranslations.es,
   ...cloneTranslations.es,
+  ...consoleTranslations.es,
   ...initializeProjectTranslations.es,
   ...notificationsTranslations.es,
   ...historyTranslations.es,
@@ -99,6 +106,7 @@ const es: Translations = {
   ...projectSettingsTranslations.es,
   ...publishTranslations.es,
   ...versionLinesTranslations.es,
+  ...workbenchTranslations.es,
 };
 
 /** All namespaces are composed eagerly so lazy screens never paint keys or a fallback locale. */

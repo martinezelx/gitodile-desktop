@@ -2,14 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   CircleAlert,
-  FilePlus2,
-  FolderInput,
-  FolderOpen,
+  FolderPlus,
   GitBranch,
   KeyRound,
+  Laptop,
   Link2,
   LoaderCircle,
-  Network,
   ShieldCheck,
 } from "lucide-react";
 
@@ -18,7 +16,7 @@ import { useInstallDraftBlocker } from "../../runtime/drafts";
 import type { RepositoryInfo } from "../repository";
 import type { SaveVersionController } from "../save-version";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { DialogCloseButton, FieldError, LoadingBar, useFieldErrors, useModalFocus } from "../../shared/ui";
+import { Dialog, DialogBanner, DialogFacts, FieldError, useFieldErrors, useModalFocus, useToast } from "../../shared/ui";
 import type {
   ConnectRemoteAttempt,
   InitializeAttempt,
@@ -33,19 +31,18 @@ import {
   type InitializeTargetKind,
 } from "./domain";
 
-const PROGRESS_PHASES: InitializeProgressPhase[] = [
-  "revalidating",
-  "preparingFolder",
-  "initializingGit",
-  "creatingReadme",
-  "verifying",
-  "finalizing",
+/* Six phases on the wire, three steps on screen, the last shared with opening
+   the project and saving its first version: re-checking the folder is how
+   creation stays safe, not something to follow (DESIGN.md § Content design). */
+const PROGRESS_STEPS: { step: "folder" | "project" | "opening"; phases: InitializeProgressPhase[] }[] = [
+  { step: "folder", phases: ["revalidating", "preparingFolder"] },
+  { step: "project", phases: ["initializingGit", "creatingReadme", "verifying"] },
+  { step: "opening", phases: ["finalizing"] },
 ];
 
 type DialogStep =
   | "input"
   | "planning"
-  | "preview"
   | "executing"
   | "cleanup"
   | "opening"
@@ -104,7 +101,10 @@ export function InitializeProjectDialog({
   onOpenIdentitySettings,
 }: InitializeProjectDialogProps): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [identityMissing, setIdentityMissing] = useState(false);
   const [targetKind, setTargetKind] = useState<InitializeTargetKind>(initialMode);
   const [destinationParent, setDestinationParent] = useState(readLastCreateParent);
   const [destinationName, setDestinationName] = useState("");
@@ -147,6 +147,7 @@ export function InitializeProjectDialog({
     setIsCleaning(false);
     setCleanupAfterFailure(false);
     setConnectedRemoteName(null);
+    setIdentityMissing(false);
     resetFieldErrors();
   };
 
@@ -163,6 +164,7 @@ export function InitializeProjectDialog({
     setConnectRemote(false);
     setRemoteName("origin");
     setRemoteUrl("");
+    setAdvancedOpen(false);
     resetTransientState();
   }, [
     defaultBranchName,
@@ -206,7 +208,13 @@ export function InitializeProjectDialog({
     message: t.commonRequiredField,
   });
 
-  const validateLocalInput = (): boolean => validate([
+  const validateLocalInput = (): boolean => {
+    const hiddenFieldMissing = !initialBranch.trim() || (connectRemote && (!remoteName.trim() || !remoteUrl.trim()));
+    if (hiddenFieldMissing) setAdvancedOpen(true);
+    return validateFields();
+  };
+
+  const validateFields = (): boolean => validate([
     ...(targetKind === "new-folder"
       ? [requiredCheck("initialize-parent", destinationParent), requiredCheck("initialize-name", destinationName)]
       : [requiredCheck("initialize-existing", existingPath)]),
@@ -222,14 +230,24 @@ export function InitializeProjectDialog({
     requiredCheck("initialize-remote-url", remoteUrl),
   ]);
 
-  const planAttempt = async (): Promise<void> => {
+  /* One step: the form already says what will happen, so a valid plan is
+     carried out at once. The plan still runs first — it is what re-checks the
+     folder and holds the state token — and the one thing it can add, a missing
+     Git identity for the first version, comes back to the form as a notice. */
+  const createProject = async (): Promise<void> => {
     setStep("planning");
     setError(null);
+    setIdentityMissing(false);
     try {
       const planned = await controller.plan(request);
       if (!planned) return;
       setAttempt(planned);
-      setStep("preview");
+      if (planned.plan.saveInitialVersion && !planned.plan.identityReady) {
+        setIdentityMissing(true);
+        setStep("input");
+        return;
+      }
+      await executeAttempt(planned);
     } catch (planError) {
       setError(planError);
       setStep("error");
@@ -321,8 +339,7 @@ export function InitializeProjectDialog({
     }
   };
 
-  const executeAttempt = async (): Promise<void> => {
-    if (!attempt) return;
+  const executeAttempt = async (attempt: InitializeAttempt): Promise<void> => {
     setStep("executing");
     setPhase("revalidating");
     setError(null);
@@ -376,7 +393,9 @@ export function InitializeProjectDialog({
       await onProjectChanged(connected.projectId);
       setConnectedRemoteName(connected.remoteName);
       setRemoteUrl("");
-      setStep("success");
+      // Connected is the end of the flow: a toast, and the dialog closes.
+      showToast({ icon: <Link2 />, message: t.initializeRemoteConnectedToast(connected.remoteName) });
+      finishClose();
     } catch (connectError) {
       setError(connectError);
       setStep("remote-error");
@@ -390,195 +409,329 @@ export function InitializeProjectDialog({
     ? localizeAppError(firstSaveError, t, t.initializeFirstSaveFailedDescription)
     : null;
   const technicalDetail = isAppError(error) ? error.detail : null;
-  const currentPhaseIndex = PROGRESS_PHASES.indexOf(phase);
+  const projectName = targetKind === "new-folder"
+    ? destinationName.trim()
+    : existingPath.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? existingPath;
+  const separator = destinationParent.includes("\\") ? "\\" : "/";
+  const newPath = destinationParent.trim() && destinationName.trim()
+    ? `${destinationParent.replace(/[\\/]+$/, "")}${separator}${destinationName.trim()}`
+    : null;
+  const currentStepIndex = step === "opening" || step === "saving"
+    ? PROGRESS_STEPS.length - 1
+    : PROGRESS_STEPS.findIndex((item) => item.phases.includes(phase));
+  const isBusy = BUSY_STEPS.has(step);
+  const close = (): void => requestOpenChange(false);
 
-  const renderRemoteInput = (): React.JSX.Element => (
-    <form
-      className="initialize-dialog__form"
-      {...formProps}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!validateRemoteInput()) return;
-        if (openedProject && attempt) void planRemote(openedProject, attempt.generation);
-      }}
-    >
-      <div className="initialize-dialog__intro">
-        <h3>{t.initializeRemoteReviewTitle}</h3>
-        <p>{t.initializeRemoteReviewDescription}</p>
-      </div>
-      {localizedError && <p className="initialize-dialog__notice initialize-dialog__notice--danger" role="alert"><CircleAlert aria-hidden="true" />{localizedError}</p>}
-      <label className="text-field initialize-dialog__field">
-        <span>{t.initializeRemoteNameLabel}</span>
-        <input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required data-autofocus />
-        <FieldError field="initialize-remote-name" errors={errors} />
-      </label>
-      <label className="text-field initialize-dialog__field">
-        <span>{t.initializeRemoteUrlLabel}</span>
-        <input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required />
-        <FieldError field="initialize-remote-url" errors={errors} />
-      </label>
-      <div className="dialog-actions initialize-dialog__actions">
-        <button className="secondary-button" type="button" onClick={() => setStep("success")}>{t.initializeSkipRemote}</button>
-        <button className="primary-button" type="submit">{t.initializeReviewRemoteAction}</button>
-      </div>
-    </form>
-  );
-
-  return (
-    <div className="initialize-backdrop" onMouseDown={() => requestOpenChange(false)}>
-      <div
-        ref={dialogRef}
-        className="initialize-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="initialize-dialog-title"
-        aria-describedby="initialize-dialog-description"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
+  // A result or a failure is a short message: the small shell and a status
+  // glyph. The flow — form, progress, the remote — keeps its own size.
+  if (step === "success" || step === "error" || step === "open-error" || step === "cleanup" || step === "remote-error") {
+    const isFailure = step === "error" || step === "open-error" || step === "remote-error";
+    const title = step === "success"
+      ? firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeReadyTitle(openedProject?.name ?? projectName)
+      : step === "cleanup"
+        ? cleanupAfterFailure ? t.initializeFailureCleanupTitle : t.initializeCleanupTitle
+        : step === "open-error" ? t.initializeOpenFailedTitle
+          : step === "remote-error" ? t.initializeRemoteErrorTitle
+            : t.initializeErrorTitle;
+    return (
+      <Dialog
+        size="s"
+        role={isFailure ? "alertdialog" : "dialog"}
+        title={title}
+        titleId="initialize-dialog-title"
+        icon={isFailure ? <CircleAlert /> : step === "cleanup" ? <ShieldCheck /> : <Check />}
+        tone={isFailure ? "danger" : step === "cleanup" || firstSaveError ? "warning" : "success"}
+        onClose={step === "cleanup" ? undefined : finishClose}
+        closeLabel={t.commonClose}
+        dialogRef={dialogRef}
       >
-        <header className="initialize-dialog__header">
-          <span className="initialize-dialog__header-icon" aria-hidden="true"><FolderInput /></span>
-          <div>
-            <h2 id="initialize-dialog-title">{t.initializeDialogTitle}</h2>
-            <p id="initialize-dialog-description">{t.initializeDialogDescription}</p>
-          </div>
-          {!BUSY_STEPS.has(step) && (
-            <DialogCloseButton label={t.commonClose} onClick={finishClose} />
+        <p className="app-dialog__text" role={isFailure ? undefined : "status"}>
+          {step === "success"
+            ? firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription
+            : step === "cleanup"
+              ? cleanupAfterFailure ? t.initializeFailureCleanupDescription : t.initializeCleanupDescription
+              : step === "open-error" ? t.initializeOpenFailedDescription : localizedError}
+        </p>
+        {step === "success" && localizedSaveError && <p className="app-dialog__text">{localizedSaveError}</p>}
+        {step === "cleanup" && localizedError && <p className="app-dialog__text">{localizedError}</p>}
+        {isFailure && technicalDetail && (
+          <details className="app-dialog__details"><summary>{t.initializeTechnicalDetails}</summary><pre>{technicalDetail}</pre></details>
+        )}
+        <div className="dialog-actions">
+          {step === "success" && (
+            <>
+              {openedProject && !connectRemote && (
+                <button className="secondary-button" type="button" onClick={() => setStep("remote-input")}>
+                  {t.initializeConnectRemoteAction}
+                </button>
+              )}
+              <button className="primary-button" type="button" onClick={finishClose}>{t.initializeFinishAction}</button>
+            </>
           )}
-        </header>
+          {step === "cleanup" && (
+            <button className="primary-button" type="button" disabled={isCleaning} onClick={() => void retryCleanup()}>
+              {isCleaning ? t.initializeCleaningUp : t.initializeCleanupAction}
+            </button>
+          )}
+          {(step === "error" || step === "open-error") && (
+            <>
+              <button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>
+              {step === "error" && <button className="primary-button" type="button" onClick={() => setStep("input")}>{t.initializeRetryAction}</button>}
+            </>
+          )}
+          {step === "remote-error" && (
+            <>
+              <button className="secondary-button" type="button" onClick={() => setStep("success")}>{t.initializeSkipRemote}</button>
+              <button className="primary-button" type="button" onClick={() => setStep("remote-input")}>{t.initializeEditRemote}</button>
+            </>
+          )}
+        </div>
+      </Dialog>
+    );
+  }
 
-        {step === "input" && (
-          <form className="initialize-dialog__form" {...formProps} onSubmit={(event) => { event.preventDefault(); if (!validateLocalInput()) return; void planAttempt(); }}>
-            <fieldset className="initialize-dialog__mode">
-              <legend className="visually-hidden">{t.initializeDialogTitle}</legend>
-              <label className={targetKind === "new-folder" ? "is-selected" : ""}>
-                <input type="radio" name="initialize-mode" value="new-folder" checked={targetKind === "new-folder"} onChange={() => setTargetKind("new-folder")} />
-                <FolderInput aria-hidden="true" /><span><strong>{t.initializeNewMode}</strong><small>{t.initializeNewModeDescription}</small></span>
-              </label>
-              <label className={targetKind === "existing-folder" ? "is-selected" : ""}>
-                <input type="radio" name="initialize-mode" value="existing-folder" checked={targetKind === "existing-folder"} onChange={() => setTargetKind("existing-folder")} />
-                <FolderOpen aria-hidden="true" /><span><strong>{t.initializeExistingMode}</strong><small>{t.initializeExistingModeDescription}</small></span>
-              </label>
-            </fieldset>
-
-            {targetKind === "new-folder" ? (
-              <>
-                <label className="text-field initialize-dialog__field">
-                  <span id="initialize-parent-label">{t.initializeParentLabel}</span>
-                  <span className="initialize-dialog__path-picker">
-                    <input {...fieldProps("initialize-parent")} aria-labelledby="initialize-parent-label" value={destinationParent} onChange={(event) => setDestinationParent(event.target.value)} placeholder={t.initializeParentPlaceholder} required data-autofocus />
-                    <button className="secondary-button" type="button" onClick={() => void chooseParent()}>{t.initializeChooseParent}</button>
-                  </span>
-                  <FieldError field="initialize-parent" errors={errors} />
-                </label>
-                <label className="text-field initialize-dialog__field">
-                  <span>{t.initializeNameLabel}</span>
-                  <input {...fieldProps("initialize-name")} value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder={t.initializeNamePlaceholder} required />
-                  <small>{t.initializeNameHelp}</small>
-                  <FieldError field="initialize-name" errors={errors} />
-                </label>
-              </>
-            ) : (
-              <label className="text-field initialize-dialog__field">
-                <span id="initialize-existing-label">{t.initializeExistingLabel}</span>
-                <span className="initialize-dialog__path-picker">
-                  <input {...fieldProps("initialize-existing")} aria-labelledby="initialize-existing-label" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder={t.initializeExistingPlaceholder} required data-autofocus />
-                  <button className="secondary-button" type="button" onClick={() => void chooseExisting()}>{t.initializeChooseExisting}</button>
-                </span>
-                <FieldError field="initialize-existing" errors={errors} />
-              </label>
+  if (step === "remote-input" || step === "remote-planning" || step === "remote-preview" || step === "remote-connecting") {
+    const sameAddress = remoteAttempt?.plan.fetchUrlDisplay === remoteAttempt?.plan.pushUrlDisplay;
+    return (
+      <Dialog
+        size="m"
+        title={t.initializeRemoteDialogTitle}
+        titleId="initialize-dialog-title"
+        subtitle={step === "remote-preview" ? t.initializeRemoteReviewDescription : t.initializeRemoteHelp}
+        icon={<Link2 />}
+        onClose={isBusy ? undefined : () => setStep("success")}
+        closeLabel={t.commonClose}
+        dismissible={!isBusy}
+        dialogRef={dialogRef}
+      >
+        {localizedSaveError && (
+          <DialogBanner tone="warning" icon={<CircleAlert />}>
+            <p><strong>{t.initializeFirstSaveFailedTitle}</strong> {localizedSaveError}</p>
+          </DialogBanner>
+        )}
+        {(step === "remote-input" || step === "remote-planning") && (
+          <form
+            className="initialize-dialog__form"
+            {...formProps}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!validateRemoteInput()) return;
+              if (openedProject && attempt) void planRemote(openedProject, attempt.generation);
+            }}
+          >
+            {localizedError && (
+              <DialogBanner tone="danger" icon={<CircleAlert />}><p role="alert">{localizedError}</p></DialogBanner>
             )}
+            <label className="text-field initialize-dialog__field">
+              <span>{t.initializeRemoteNameLabel}</span>
+              <input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required data-autofocus />
+              <FieldError field="initialize-remote-name" errors={errors} />
+            </label>
+            <label className="text-field initialize-dialog__field">
+              <span>{t.initializeRemoteUrlLabel}</span>
+              <input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required />
+              <FieldError field="initialize-remote-url" errors={errors} />
+            </label>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={() => setStep("success")} disabled={isBusy}>{t.initializeSkipRemote}</button>
+              <button className="primary-button" type="submit" disabled={isBusy}>
+                {step === "remote-planning" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+                {t.initializeReviewRemoteAction}
+              </button>
+            </div>
+          </form>
+        )}
+        {(step === "remote-preview" || step === "remote-connecting") && remoteAttempt && (
+          <>
+            <dl className="app-dialog__kv">
+              <dt>{t.initializeRemoteNamePreview}</dt><dd><code>{remoteAttempt.plan.remoteName}</code></dd>
+              {sameAddress ? (
+                <><dt>{t.initializeRemoteAddressLabel}</dt><dd><code>{remoteAttempt.plan.fetchUrlDisplay}</code></dd></>
+              ) : (
+                <>
+                  <dt>{t.initializeRemoteFetchPreview}</dt><dd><code>{remoteAttempt.plan.fetchUrlDisplay}</code></dd>
+                  <dt>{t.initializeRemotePushPreview}</dt><dd><code>{remoteAttempt.plan.pushUrlDisplay}</code></dd>
+                </>
+              )}
+            </dl>
+            <DialogFacts
+              facts={[
+                { icon: <Laptop />, text: t.initializeRemoteLocalEffects },
+                {
+                  icon: <ShieldCheck />,
+                  text: remoteAttempt.plan.futureNetworkAccess ? t.initializeRemoteFutureNetwork : t.initializeRemoteLocalOnly,
+                  safe: true,
+                },
+              ]}
+            />
+            <details className="app-dialog__details">
+              <summary>{t.initializeTechnicalDetails}</summary>
+              <pre>{`${t.initializeRemoteCredentials(remoteAttempt.plan.credentialExpectation)}\n${t.initializeRemoteSafety}`}</pre>
+            </details>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={() => setStep("remote-input")} disabled={isBusy}>{t.initializeEditRemote}</button>
+              <button className="primary-button" type="button" onClick={() => void connectReviewedRemote()} disabled={isBusy}>
+                {step === "remote-connecting" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+                {step === "remote-connecting" ? t.initializeConnectingRemote : t.initializeConnectRemote}
+              </button>
+            </div>
+          </>
+        )}
+      </Dialog>
+    );
+  }
 
+  if (step === "executing" || step === "opening" || step === "saving") {
+    return (
+      <Dialog
+        size="l"
+        title={t.initializeCreatingTitle(projectName)}
+        titleId="initialize-dialog-title"
+        icon={<FolderPlus />}
+        dismissible={false}
+        dialogRef={dialogRef}
+      >
+        <ol className="app-dialog__steps" aria-label={t.initializeProgressTitle} aria-busy="true">
+          {PROGRESS_STEPS.map((item, index) => (
+            <li
+              key={item.step}
+              className={`app-dialog__step${index === currentStepIndex ? " app-dialog__step--active" : index < currentStepIndex ? " app-dialog__step--done" : ""}`}
+              aria-current={index === currentStepIndex ? "step" : undefined}
+            >
+              <span className="app-dialog__step-dot" aria-hidden="true">{index < currentStepIndex && <Check />}</span>
+              {t.initializeStep(item.step)}
+            </li>
+          ))}
+        </ol>
+        <p className="visually-hidden" role="status">
+          {step === "opening" ? t.initializeOpeningTitle : step === "saving" ? t.initializeSavingTitle : t.initializeProgressPhase(phase)}
+        </p>
+        {targetKind === "existing-folder" && <p className="app-dialog__note"><ShieldCheck aria-hidden="true" />{t.initializeProgressDescription}</p>}
+      </Dialog>
+    );
+  }
+
+  // The form, with what will happen said under it: no separate review step.
+  const facts = [
+    {
+      icon: <FolderPlus />,
+      text: targetKind === "new-folder"
+        ? newPath ? t.initializeNewFact(newPath) : t.initializeNewModeDescription
+        : t.initializeExistingFact,
+    },
+    ...(saveInitialVersion ? [{ icon: <GitBranch />, text: t.initializeFirstVersionEffect }] : []),
+    ...(connectRemote ? [{ icon: <Link2 />, text: t.initializeRemoteLaterEffect }] : []),
+    { icon: <ShieldCheck />, text: t.initializeSafetyBody, safe: true },
+  ];
+  return (
+    <Dialog
+      size="l"
+      title={t.initializeDialogTitle}
+      titleId="initialize-dialog-title"
+      subtitle={<span id="initialize-dialog-description">{t.initializeDialogDescription}</span>}
+      descriptionId="initialize-dialog-description"
+      icon={<FolderPlus />}
+      onClose={close}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+      className="initialize-dialog auto-hide-scrollbar"
+    >
+      <form className="initialize-dialog__form" {...formProps} onSubmit={(event) => { event.preventDefault(); if (!validateLocalInput()) return; void createProject(); }}>
+        <fieldset className="initialize-dialog__mode">
+          <legend className="visually-hidden">{t.initializeDialogTitle}</legend>
+          <label className={targetKind === "new-folder" ? "is-selected" : ""}>
+            <input type="radio" name="initialize-mode" value="new-folder" checked={targetKind === "new-folder"} onChange={() => setTargetKind("new-folder")} />
+            <span><strong>{t.initializeNewMode}</strong><small>{t.initializeNewModeDescription}</small></span>
+          </label>
+          <label className={targetKind === "existing-folder" ? "is-selected" : ""}>
+            <input type="radio" name="initialize-mode" value="existing-folder" checked={targetKind === "existing-folder"} onChange={() => setTargetKind("existing-folder")} />
+            <span><strong>{t.initializeExistingMode}</strong><small>{t.initializeExistingModeDescription}</small></span>
+          </label>
+        </fieldset>
+
+        {targetKind === "new-folder" ? (
+          <>
+            <label className="text-field initialize-dialog__field">
+              <span id="initialize-parent-label">{t.initializeParentLabel}</span>
+              <span className="initialize-dialog__path-picker">
+                <input {...fieldProps("initialize-parent")} aria-labelledby="initialize-parent-label" value={destinationParent} onChange={(event) => setDestinationParent(event.target.value)} placeholder={t.initializeParentPlaceholder} required data-autofocus />
+                <button className="secondary-button" type="button" onClick={() => void chooseParent()}>{t.initializeChooseParent}</button>
+              </span>
+              <FieldError field="initialize-parent" errors={errors} />
+            </label>
+            <label className="text-field initialize-dialog__field">
+              <span>{t.initializeNameLabel}</span>
+              <input {...fieldProps("initialize-name")} value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder={t.initializeNamePlaceholder} required />
+              <FieldError field="initialize-name" errors={errors} />
+            </label>
+          </>
+        ) : (
+          <label className="text-field initialize-dialog__field">
+            <span id="initialize-existing-label">{t.initializeExistingLabel}</span>
+            <span className="initialize-dialog__path-picker">
+              <input {...fieldProps("initialize-existing")} aria-labelledby="initialize-existing-label" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder={t.initializeExistingPlaceholder} required data-autofocus />
+              <button className="secondary-button" type="button" onClick={() => void chooseExisting()}>{t.initializeChooseExisting}</button>
+            </span>
+            <FieldError field="initialize-existing" errors={errors} />
+          </label>
+        )}
+
+        <label className="app-dialog__check">
+          <input className="app-checkbox" type="checkbox" checked={saveInitialVersion} onChange={(event) => { setSaveInitialVersion(event.target.checked); setIdentityMissing(false); }} />
+          {t.initializeFirstVersionLabel}
+        </label>
+        {saveInitialVersion && (
+          <div className="initialize-dialog__nested-fields">
+            <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionTitleLabel}</span><input {...fieldProps("initialize-first-version-title")} value={firstVersionTitle} onChange={(event) => setFirstVersionTitle(event.target.value)} placeholder={t.initializeFirstVersionTitlePlaceholder} required /><FieldError field="initialize-first-version-title" errors={errors} /></label>
+            <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionDescriptionLabel}</span><textarea value={firstVersionDescription} onChange={(event) => setFirstVersionDescription(event.target.value)} placeholder={t.initializeFirstVersionDescriptionPlaceholder} rows={2} /></label>
+          </div>
+        )}
+        {identityMissing && (
+          <DialogBanner tone="warning" icon={<KeyRound />}>
+            <p>{t.initializeIdentityMissingShort}</p>
+            <button className="app-dialog__link" type="button" onClick={() => { finishClose(); onOpenIdentitySettings(); }}>{t.initializeAddIdentity}</button>
+          </DialogBanner>
+        )}
+
+        {/* What most people never change: the main line's name, a README and
+            a remote to connect afterwards. */}
+        <details className="initialize-dialog__advanced" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+          <summary>{t.initializeAdvancedLabel}</summary>
+          <div className="initialize-dialog__advanced-body">
             <label className="text-field initialize-dialog__field">
               <span>{t.initializeBranchLabel}</span>
               <input {...fieldProps("initialize-branch")} value={initialBranch} onChange={(event) => setInitialBranch(event.target.value)} autoComplete="off" spellCheck={false} required />
               <small>{t.initializeBranchHelp}</small>
               <FieldError field="initialize-branch" errors={errors} />
             </label>
-
-            <div className="initialize-dialog__options">
-              <label className="initialize-dialog__option"><input type="checkbox" checked={createReadme} onChange={(event) => setCreateReadme(event.target.checked)} /><FilePlus2 aria-hidden="true" /><span><strong>{t.initializeReadmeLabel}</strong><small>{t.initializeReadmeHelp}</small></span></label>
-              <label className="initialize-dialog__option"><input type="checkbox" checked={saveInitialVersion} onChange={(event) => setSaveInitialVersion(event.target.checked)} /><Check aria-hidden="true" /><span><strong>{t.initializeFirstVersionLabel}</strong><small>{t.initializeFirstVersionHelp}</small></span></label>
-              {saveInitialVersion && (
-                <div className="initialize-dialog__nested-fields">
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionTitleLabel}</span><input {...fieldProps("initialize-first-version-title")} value={firstVersionTitle} onChange={(event) => setFirstVersionTitle(event.target.value)} placeholder={t.initializeFirstVersionTitlePlaceholder} required /><FieldError field="initialize-first-version-title" errors={errors} /></label>
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeFirstVersionDescriptionLabel}</span><textarea value={firstVersionDescription} onChange={(event) => setFirstVersionDescription(event.target.value)} placeholder={t.initializeFirstVersionDescriptionPlaceholder} rows={2} /></label>
-                </div>
-              )}
-              <label className="initialize-dialog__option"><input type="checkbox" checked={connectRemote} onChange={(event) => setConnectRemote(event.target.checked)} /><Link2 aria-hidden="true" /><span><strong>{t.initializeRemoteLabel}</strong><small>{t.initializeRemoteHelp}</small></span></label>
-              {connectRemote && (
-                <div className="initialize-dialog__nested-fields initialize-dialog__nested-fields--remote">
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteNameLabel}</span><input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required /><FieldError field="initialize-remote-name" errors={errors} /></label>
-                  <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteUrlLabel}</span><input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required /><FieldError field="initialize-remote-url" errors={errors} /></label>
-                </div>
-              )}
-            </div>
-            <div className="dialog-actions initialize-dialog__actions"><button className="primary-button" type="submit">{t.initializeReviewAction}</button></div>
-          </form>
-        )}
-
-        {step === "planning" && <div className="initialize-dialog__body initialize-dialog__center" aria-busy="true"><LoadingBar label={t.initializePlanning} /><LoaderCircle aria-hidden="true" /><h3>{t.initializePlanning}</h3></div>}
-
-        {step === "preview" && attempt && (
-          <div className="initialize-dialog__body">
-            <div className="initialize-dialog__intro"><h3>{t.initializeReviewTitle}</h3><p>{t.initializeReviewDescription}</p></div>
-            <dl className="initialize-dialog__summary"><div><dt>{t.initializeDestinationLabel}</dt><dd>{attempt.plan.destinationPath}</dd></div><div><dt>{t.initializeBranchPreviewLabel}</dt><dd>{attempt.plan.initialBranch}</dd></div></dl>
-            <div className="initialize-dialog__effects">
-              <section><FolderInput aria-hidden="true" /><div><h3>{t.initializeLocalEffectsTitle}</h3><p>{attempt.plan.targetKind === "new-folder" ? t.initializeNewLocalEffects : t.initializeExistingLocalEffects(attempt.plan.existingEntryCount, attempt.plan.existingEntriesTruncated)}</p></div></section>
-              <section><FilePlus2 aria-hidden="true" /><div><h3>{t.initializeReadmeLabel}</h3><p>{attempt.plan.createReadme ? t.initializeReadmeEffect : t.initializeNoReadmeEffect}</p></div></section>
-              <section><GitBranch aria-hidden="true" /><div><h3>{t.initializeFirstVersionLabel}</h3><p>{attempt.plan.saveInitialVersion ? t.initializeFirstVersionEffect : t.initializeNoFirstVersionEffect}</p></div></section>
-              {connectRemote && <section><Link2 aria-hidden="true" /><div><h3>{t.initializeRemoteLabel}</h3><p>{t.initializeRemoteLaterEffect}</p></div></section>}
-              <section><ShieldCheck aria-hidden="true" /><div><h3>{t.initializeSafetyTitle}</h3><p>{t.initializeSafetyBody}</p></div></section>
-            </div>
-            {attempt.plan.saveInitialVersion && <p className={`initialize-dialog__notice${attempt.plan.identityReady ? "" : " initialize-dialog__notice--warning"}`}><KeyRound aria-hidden="true" /><span><strong>{t.initializeIdentityTitle}</strong>{attempt.plan.identityReady ? t.initializeIdentityReady : t.initializeIdentityMissing}</span></p>}
-            <div className="dialog-actions initialize-dialog__actions">
-              <button className="secondary-button" type="button" onClick={() => setStep("input")}>{t.initializeEditAction}</button>
-              {attempt.plan.saveInitialVersion && !attempt.plan.identityReady ? <button className="primary-button" type="button" onClick={() => { finishClose(); onOpenIdentitySettings(); }}>{t.initializeOpenIdentitySettings}</button> : <button className="primary-button" type="button" onClick={() => void executeAttempt()}>{t.initializeConfirmAction}</button>}
-            </div>
+            <label className="app-dialog__check">
+              <input className="app-checkbox" type="checkbox" checked={createReadme} onChange={(event) => setCreateReadme(event.target.checked)} />
+              <span>{t.initializeReadmeLabel}<small>{t.initializeReadmeHelp}</small></span>
+            </label>
+            <label className="app-dialog__check">
+              <input className="app-checkbox" type="checkbox" checked={connectRemote} onChange={(event) => setConnectRemote(event.target.checked)} />
+              <span>{t.initializeRemoteLabel}<small>{t.initializeRemoteHelp}</small></span>
+            </label>
+            {connectRemote && (
+              <div className="initialize-dialog__nested-fields initialize-dialog__nested-fields--remote">
+                <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteNameLabel}</span><input {...fieldProps("initialize-remote-name")} value={remoteName} onChange={(event) => setRemoteName(event.target.value)} autoComplete="off" required /><FieldError field="initialize-remote-name" errors={errors} /></label>
+                <label className="text-field initialize-dialog__field"><span>{t.initializeRemoteUrlLabel}</span><input {...fieldProps("initialize-remote-url")} value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder={t.initializeRemoteUrlPlaceholder} autoComplete="off" spellCheck={false} required /><FieldError field="initialize-remote-url" errors={errors} /></label>
+              </div>
+            )}
           </div>
-        )}
+        </details>
 
-        {step === "executing" && (
-          <div className="initialize-dialog__body initialize-dialog__progress" aria-busy="true">
-            <LoadingBar label={t.initializeProgressTitle} />
-            <div className="initialize-dialog__intro"><h3>{t.initializeProgressTitle}</h3><p>{t.initializeProgressDescription}</p></div>
-            <ol aria-label={t.initializeProgressTitle}>{PROGRESS_PHASES.filter((item) => createReadme || item !== "creatingReadme").map((item) => { const index = PROGRESS_PHASES.indexOf(item); return <li key={item} className={index < currentPhaseIndex ? "is-complete" : index === currentPhaseIndex ? "is-current" : ""}>{index < currentPhaseIndex ? <Check aria-hidden="true" /> : index === currentPhaseIndex ? <LoaderCircle aria-hidden="true" /> : <span aria-hidden="true" />}{t.initializeProgressPhase(item)}</li>; })}</ol>
-            <p className="visually-hidden" role="status">{t.initializeProgressPhase(phase)}</p>
-          </div>
-        )}
+        <DialogFacts facts={facts} />
 
-        {step === "cleanup" && (
-          <div className="initialize-dialog__body initialize-dialog__center" role="alert"><ShieldCheck aria-hidden="true" /><h3>{cleanupAfterFailure ? t.initializeFailureCleanupTitle : t.initializeCleanupTitle}</h3><p>{cleanupAfterFailure ? t.initializeFailureCleanupDescription : t.initializeCleanupDescription}</p>{localizedError && <p>{localizedError}</p>}<div className="dialog-actions initialize-dialog__actions"><button className="primary-button" type="button" disabled={isCleaning} onClick={() => void retryCleanup()}>{isCleaning ? t.initializeCleaningUp : t.initializeCleanupAction}</button></div></div>
-        )}
-
-        {(step === "opening" || step === "saving") && <div className="initialize-dialog__body initialize-dialog__center" aria-busy="true"><LoadingBar label={step === "opening" ? t.initializeOpeningTitle : t.initializeSavingTitle} /><LoaderCircle aria-hidden="true" /><h3>{step === "opening" ? t.initializeOpeningTitle : t.initializeSavingTitle}</h3><p>{step === "opening" ? t.initializeOpeningDescription : t.initializeSavingDescription}</p></div>}
-
-        {step === "remote-input" && renderRemoteInput()}
-        {step === "remote-planning" && <div className="initialize-dialog__body initialize-dialog__center" aria-busy="true"><LoadingBar label={t.initializeRemotePlanning} /><LoaderCircle aria-hidden="true" /><h3>{t.initializeRemotePlanning}</h3></div>}
-
-        {step === "remote-preview" && remoteAttempt && (
-          <div className="initialize-dialog__body">
-            <div className="initialize-dialog__intro"><h3>{t.initializeRemoteReviewTitle}</h3><p>{t.initializeRemoteReviewDescription}</p></div>
-            {localizedSaveError && <p className="initialize-dialog__notice initialize-dialog__notice--warning"><CircleAlert aria-hidden="true" /><span><strong>{t.initializeFirstSaveFailedTitle}</strong>{localizedSaveError}</span></p>}
-            <dl className="initialize-dialog__summary"><div><dt>{t.initializeRemoteNamePreview}</dt><dd>{remoteAttempt.plan.remoteName}</dd></div><div><dt>{t.initializeRemoteFetchPreview}</dt><dd>{remoteAttempt.plan.fetchUrlDisplay}</dd></div><div><dt>{t.initializeRemotePushPreview}</dt><dd>{remoteAttempt.plan.pushUrlDisplay}</dd></div></dl>
-            <div className="initialize-dialog__effects">
-              <section><Link2 aria-hidden="true" /><div><h3>{t.initializeRemoteLocalEffectsTitle}</h3><p>{t.initializeRemoteLocalEffects}</p></div></section>
-              <section><Network aria-hidden="true" /><div><h3>{t.initializeRemoteNetworkEffectsTitle}</h3><p>{t.initializeRemoteNoNetworkNow} {remoteAttempt.plan.futureNetworkAccess ? t.initializeRemoteFutureNetwork : t.initializeRemoteLocalOnly}</p></div></section>
-              <section><KeyRound aria-hidden="true" /><div><h3>{t.initializeRemoteCredentialsTitle}</h3><p>{t.initializeRemoteCredentials(remoteAttempt.plan.credentialExpectation)}</p></div></section>
-              <section><ShieldCheck aria-hidden="true" /><div><h3>{t.initializeRemoteSafetyTitle}</h3><p>{t.initializeRemoteSafety}</p></div></section>
-            </div>
-            <div className="dialog-actions initialize-dialog__actions"><button className="secondary-button" type="button" onClick={() => setStep("remote-input")}>{t.initializeEditRemote}</button><button className="primary-button" type="button" onClick={() => void connectReviewedRemote()}>{t.initializeConnectRemote}</button></div>
-          </div>
-        )}
-
-        {step === "remote-connecting" && <div className="initialize-dialog__body initialize-dialog__center" aria-busy="true"><LoadingBar label={t.initializeConnectingRemote} /><LoaderCircle aria-hidden="true" /><h3>{t.initializeConnectingRemote}</h3><p>{t.initializeRemoteNoNetworkNow}</p></div>}
-
-        {step === "remote-error" && <div className="initialize-dialog__body initialize-dialog__center" role="alert"><CircleAlert aria-hidden="true" /><h3>{t.initializeRemoteErrorTitle}</h3><p>{localizedError}</p>{technicalDetail && <details><summary>{t.initializeTechnicalDetails}</summary><pre>{technicalDetail}</pre></details>}<div className="dialog-actions initialize-dialog__actions"><button className="secondary-button" type="button" onClick={() => setStep("success")}>{t.initializeSkipRemote}</button><button className="primary-button" type="button" onClick={() => setStep("remote-input")}>{t.initializeEditRemote}</button></div></div>}
-
-        {step === "success" && <div className="initialize-dialog__body initialize-dialog__center" role="status"><Check aria-hidden="true" /><h3>{connectedRemoteName ? t.initializeRemoteConnectedTitle : firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeCreatedTitle}</h3><p>{connectedRemoteName ? t.initializeRemoteConnectedDescription(connectedRemoteName) : firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription}</p>{localizedSaveError && <p className="initialize-dialog__notice initialize-dialog__notice--warning"><CircleAlert aria-hidden="true" />{localizedSaveError}</p>}<div className="dialog-actions initialize-dialog__actions"><button className="primary-button" type="button" onClick={finishClose}>{t.initializeFinishAction}</button></div></div>}
-
-        {(step === "error" || step === "open-error") && <div className="initialize-dialog__body initialize-dialog__center" role="alert"><CircleAlert aria-hidden="true" /><h3>{step === "open-error" ? t.initializeOpenFailedTitle : t.initializeErrorTitle}</h3><p>{step === "open-error" ? t.initializeOpenFailedDescription : localizedError}</p>{technicalDetail && <details><summary>{t.initializeTechnicalDetails}</summary><pre>{technicalDetail}</pre></details>}<div className="dialog-actions initialize-dialog__actions"><button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>{step === "error" && <button className="primary-button" type="button" onClick={() => setStep("input")}>{t.initializeRetryAction}</button>}</div></div>}
-      </div>
-    </div>
+        <div className="dialog-actions">
+          <button className="secondary-button" type="button" onClick={close} disabled={isBusy}>{t.commonCancel}</button>
+          <button className="primary-button" type="submit" disabled={isBusy}>
+            {step === "planning" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+            {t.initializeConfirmAction}
+          </button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

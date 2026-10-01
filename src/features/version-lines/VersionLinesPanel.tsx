@@ -1,48 +1,42 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowLeftRight,
   ArrowRight,
-  BookOpen,
+  ArrowUp,
   CircleAlert,
   CircleCheck,
+  CircleDot,
+  Cloud,
+  CloudOff,
   GitBranch,
   Info,
+  Laptop,
   PenLine,
-  Plus,
   ShieldCheck,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
-import {
-  AutomaticUpdatesNotice,
-  avatarInitials,
-  contextMenuAnchorFrom,
-  FilterCapsule,
-  FilterCapsules,
-  FilterGroup,
-  FilterPanel,
-  FilterSwitch,
-  LoadingBar,
-  SearchBox,
-  autoHideScrollbarProps,
-} from "../../shared/ui";
+import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
 import { VersionLineContextMenu, type VersionLineContextMenuState } from "./VersionLineContextMenu";
 import { VersionLineQuickCreateBox } from "./VersionLineQuickCreateBox";
+import { VersionLineRenameStrip } from "./VersionLineRenameStrip";
+import { VersionLineRoute, type DrawnRoute } from "./VersionLineRoute";
+import { VersionLineChanges } from "./VersionLineChanges";
 import {
   CreateVersionLineDialog,
   DeleteVersionLineDialog,
-  RenameVersionLineDialog,
   SwitchVersionLineDialog,
 } from "./VersionLinesDialog";
 
 type DialogRequest =
   | { kind: "create"; forceSwitch: boolean }
   | { kind: "switch"; target: string }
-  | { kind: "rename"; target: string; upstream: string | null }
   | { kind: "delete"; target: string }
   | null;
 
@@ -64,6 +58,17 @@ const SORT_LABEL_KEYS = {
 type StateFilter = "tracking" | "local-only" | "deletable" | "blocked";
 
 const STATE_KEYS = ["tracking", "local-only", "deletable", "blocked"] as const;
+
+/** The glyph each state wears on a row, drawn beside its name here too: the
+ * filter panel is where the glyphs are listed with their words, which makes it
+ * the list's legend as well as its filter. `tracking` has no row glyph — it is
+ * the unremarkable state — so it takes the remote's cloud only here. */
+const STATE_GLYPHS = {
+  tracking: { icon: <Cloud />, tone: "neutral" },
+  "local-only": { icon: <Laptop />, tone: "neutral" },
+  deletable: { icon: <CircleCheck />, tone: "positive" },
+  blocked: { icon: <TriangleAlert />, tone: "warning" },
+} as const satisfies Record<StateFilter, { icon: React.ReactNode; tone: StateGlyphTone }>;
 
 const STATE_LABEL_KEYS = {
   tracking: "versionLinesStateTracking",
@@ -136,13 +141,128 @@ function tipDate(line: VersionLine): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** How many saved versions the detail lists while the comparison with the
+ * main line has the panel's height — enough to see the line's latest work,
+ * the rest one press away in History. */
+const VERSIONS_BESIDE_CHANGES = 4;
+
 /* ---------------------------------------------------------------- list ---- */
 
+/** One state a row flags, as a glyph. `label` is the short name the chip used
+ * to spell out — what a screen reader hears, as the row's description —
+ * and `tooltip` the sentence that says what the glyph means to someone who has
+ * not learned it yet. */
+type RowGlyph = {
+  key: string;
+  tone: StateGlyphTone;
+  icon: React.ReactNode;
+  /** Drawn beside the icon: how many versions an arrow stands for. */
+  count?: string;
+  label: string;
+  tooltip: string;
+};
+
+/** The same two questions the chips answered — where the line stands against
+ * its remote, and whether it can be cleared away — each as a glyph. In sync
+ * with its remote says nothing, as it always did: the unremarkable state is
+ * the one without a mark. */
+function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): RowGlyph[] {
+  const glyphs: RowGlyph[] = [];
+  // First, in the accent: where the project is. It carries no `label` — the
+  // row's own accessible name already ends in "Active".
+  if (line.isActive) {
+    glyphs.push({
+      key: "active",
+      tone: "accent",
+      icon: <CircleDot />,
+      label: "",
+      tooltip: t.versionLinesGlyphActive,
+    });
+  }
+  const sync = syncStatusOf(line);
+  if (sync.kind === "none") {
+    glyphs.push({
+      key: "local",
+      tone: "neutral",
+      icon: <Laptop />,
+      label: t.versionLinesNoUpstreamLabel,
+      tooltip: t.versionLinesGlyphLocalOnly,
+    });
+  } else if (sync.kind === "gone") {
+    glyphs.push({
+      key: "gone",
+      tone: "warning",
+      icon: <CloudOff />,
+      label: syncText(sync, t),
+      tooltip: t.versionLinesGlyphGone,
+    });
+  } else if (sync.kind === "ahead" || sync.kind === "diverged") {
+    const ahead = sync.kind === "ahead" ? sync.count : sync.ahead;
+    glyphs.push({
+      key: "ahead",
+      tone: "neutral",
+      icon: <ArrowUp />,
+      count: formatNumber(ahead, formats),
+      label: sync.kind === "ahead" ? syncText(sync, t) : "",
+      tooltip: t.versionLinesSyncAhead(ahead),
+    });
+  }
+  if (sync.kind === "behind" || sync.kind === "diverged") {
+    const behind = sync.kind === "behind" ? sync.count : sync.behind;
+    glyphs.push({
+      key: "behind",
+      tone: "neutral",
+      icon: <ArrowDown />,
+      count: formatNumber(behind, formats),
+      // A diverged line is read out as one state, the way its chip said it,
+      // rather than as two halves of one sentence.
+      label: syncText(sync, t),
+      tooltip: t.versionLinesSyncBehind(behind),
+    });
+  }
+
+  const deletability = deletabilityOf(line);
+  if (deletability === "protected") {
+    glyphs.push({
+      key: "protected",
+      tone: "accent",
+      icon: <ShieldCheck />,
+      label: t.versionLinesDefaultLineChip,
+      tooltip: t.versionLinesGlyphProtected,
+    });
+  } else if (!line.isActive && deletability === "ready") {
+    glyphs.push({
+      key: "ready",
+      tone: "positive",
+      icon: <CircleCheck />,
+      label: t.versionLinesDeletablePill,
+      tooltip: t.versionLinesGlyphDeletable,
+    });
+  } else if (!line.isActive && deletability === "unique-work") {
+    glyphs.push({
+      key: "unique",
+      tone: "warning",
+      icon: <TriangleAlert />,
+      label: t.versionLinesNotDeletablePill,
+      tooltip: t.versionLinesGlyphNotDeletable,
+    });
+  }
+  return glyphs;
+}
+
+/** Name and state lengths for the first read's rows. */
+const LINE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["34%", "22%"],
+  ["62%", "30%"],
+  ["48%", "18%"],
+  ["56%", "26%"],
+];
+
 /** One line in the list column: the sibling of a History timeline row and of a
- * Changes file row, at the same tier — a name, the one fact under it that
- * names where the line lives, and only the states worth flagging. Its actions
- * are not here: a row that carries three buttons per line spends the column's
- * width on controls for lines nobody has selected. */
+ * Changes file row, at the same tier — a name, the states worth flagging as
+ * glyphs, and when it last moved, on one line. Its actions are not here: a row
+ * that carries three buttons per line spends the column's width on controls
+ * for lines nobody has selected. */
 const VersionLineRow = React.memo(function VersionLineRow({
   line,
   selected,
@@ -153,6 +273,8 @@ const VersionLineRow = React.memo(function VersionLineRow({
   onMove,
   onOpenDetail,
   onContextMenu,
+  onRename,
+  onHoverIntent,
 }: {
   line: VersionLine;
   selected: boolean;
@@ -163,15 +285,35 @@ const VersionLineRow = React.memo(function VersionLineRow({
   onMove: (index: number) => void;
   onOpenDetail: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
+  /** F2, the rename key every file list answers to. It opens the same edit
+   * the detail's Rename does, in the strip, and only where Rename is offered. */
+  onRename: (name: string) => void;
+  /** The pointer came to rest on this row, or left it (`null`) — the panel
+   * starts this line's detail read on the first, a moment before the press
+   * that would otherwise start it. */
+  onHoverIntent?: (line: VersionLine | null) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const sync = syncStatusOf(line);
-  const deletability = deletabilityOf(line);
+  const glyphs = rowGlyphs(line, t, formats);
+  /* What the glyphs say, in words, for a screen reader. A description rather
+     than hidden text inside the row: the row's `aria-label` replaces its
+     content, and a description that points at the row's own children is one
+     assistive technology is free to drop. */
+  const states = glyphs
+    .map((glyph) => glyph.label)
+    .filter(Boolean)
+    .join(", ");
   const date = tipDate(line);
   const relative = date ? formatRelativeTime(date, formats) : "";
   const label = line.isActive ? `${line.name} — ${t.versionLinesActiveLabel}` : line.name;
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
+    if (event.key === "F2") {
+      if (!versionLineActions(line).canRename) return;
+      event.preventDefault();
+      onRename(line.name);
+      return;
+    }
     const target =
       event.key === "ArrowDown"
         ? index + 1
@@ -190,11 +332,12 @@ const VersionLineRow = React.memo(function VersionLineRow({
   return (
     <button
       id={`version-line-${line.name}`}
-      className={`version-line-row${selected ? " version-line-row--selected" : ""}`}
+      className={`version-line-row${selected ? " version-line-row--selected" : ""}${line.isActive ? " version-line-row--active" : ""}`}
       type="button"
       role="option"
       aria-selected={selected}
       aria-label={label}
+      aria-description={states || undefined}
       tabIndex={focusable ? 0 : -1}
       onClick={() => {
         onSelect(line.name);
@@ -207,43 +350,34 @@ const VersionLineRow = React.memo(function VersionLineRow({
         onContextMenu(event);
       }}
       onKeyDown={handleKeyDown}
+      onPointerEnter={onHoverIntent && (() => onHoverIntent(line))}
+      onPointerLeave={onHoverIntent && (() => onHoverIntent(null))}
     >
+      {/* Two lines: the name alone, then the states as glyphs and the date,
+          quieter, under it. The states used to be text chips — `Local only ·
+          Can't be deleted yet` is most of a 272px row — and then one line of
+          glyphs beside the name, which left a long name
+          `feature/windows-installe…` in half the row. A name is what the
+          reader scans the list for, so it gets the whole width; a glyph says
+          its state in 14px on the line below, its tooltip in a sentence, and
+          the row's description reads it out. `Active` is one of them — the
+          first, in the accent: the word is in the detail strip beside the
+          list, and saying it on the row as well put the same chip twice on
+          one line of the screen. */}
       <span className="version-line-row__name-row">
         <span className="version-line-row__name" title={line.name}>
           {line.name}
         </span>
-        {line.isActive && (
-          <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
-        )}
-        {relative && <span className="version-line-row__date">{relative}</span>}
       </span>
-      {/* At most two chips, and always the same two questions: where this line
-          stands against its remote, and whether it can be cleared away. A row
-          that answers more than that stops being a list of names — the rest is
-          one click away in the detail, which has room for a sentence about it.
-          The upstream is one of the answers that moved there: spelled out here
-          it was the row's own name truncated. */}
-      <span className="version-line-row__states">
-        {sync.kind === "gone" ? (
-          <span className="version-line-chip version-line-chip--warning">{syncText(sync, t)}</span>
-        ) : sync.kind === "ahead" || sync.kind === "behind" || sync.kind === "diverged" ? (
-          <span className="version-line-chip">{syncText(sync, t)}</span>
-        ) : sync.kind === "none" ? (
-          <span className="version-line-chip">{t.versionLinesNoUpstreamLabel}</span>
-        ) : null}
-        {/* The active line is never a deletion candidate, and a line checked
-            out elsewhere is refused for a reason the detail states in full. */}
-        {deletability === "protected" ? (
-          <span className="version-line-chip">{t.versionLinesDefaultLineChip}</span>
-        ) : line.isActive ? null : deletability === "ready" ? (
-          <span className="version-line-chip version-line-chip--positive">
-            {t.versionLinesDeletablePill}
-          </span>
-        ) : deletability === "unique-work" ? (
-          <span className="version-line-chip version-line-chip--warning">
-            {t.versionLinesNotDeletablePill}
-          </span>
-        ) : null}
+      <span className="version-line-row__meta">
+      {glyphs.length > 0 && (
+        <StateGlyphs>
+          {glyphs.map((glyph) => (
+            <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} count={glyph.count} tooltip={glyph.tooltip} />
+          ))}
+        </StateGlyphs>
+      )}
+      {relative && <span className="version-line-row__date">{relative}</span>}
       </span>
     </button>
   );
@@ -316,6 +450,9 @@ function VersionLinesFilterPanel({
           <FilterSwitch
             key={state}
             checked={selectedStates.includes(state)}
+            icon={
+              <StateGlyph tone={STATE_GLYPHS[state].tone} icon={STATE_GLYPHS[state].icon} />
+            }
             label={t[STATE_LABEL_KEYS[state]]}
             count={stateCounts[state]}
             onChange={() => onToggleState(state)}
@@ -352,65 +489,72 @@ function VersionLinesFilterPanel({
 
 /* -------------------------------------------------------------- detail ---- */
 
-/** What can be done to the line the reader has chosen. All three sit together
- * on one row: Switch, Rename, Delete.
+/** What can be done to the line the reader has chosen, at the end of its
+ * strip: Switch as the one labelled action, Rename and Delete as icon-only
+ * circles named on their tooltips.
  *
- * Delete used to hide behind a `⋯` — which reads as "advanced", when it is one
- * of the three ordinary things you do to a version line, and it also put the
- * only destructive action one step further from the explanation of whether it
- * is safe. It is out in the open now and quiet instead: a bordered button that
- * takes the danger colour on hover, next to two that do not.
+ * The active line has no "new line from here": the composer under the list
+ * starts a line from exactly that point, and a second button for the same
+ * form is the route this screen stopped offering when the header's "New line"
+ * went.
+ *
+ * Delete is out in the open rather than behind a `⋯`, which read as
+ * "advanced" for one of the three ordinary things done to a line and put the
+ * only destructive action a step further from the explanation of whether it
+ * is safe. It is told apart by its glyph's danger tone, and by the tint it
+ * takes only under the pointer.
  *
  * Every one of them is absent rather than disabled where it cannot apply, with
  * one exception — a line open in another workspace keeps a disabled Switch,
  * because that is a temporary condition the tooltip explains. */
 function VersionLineActions({
   line,
+  copiedInto,
   onSwitch,
   onRename,
   onDelete,
-  onNewFromLine,
 }: {
   line: VersionLine;
+  /** The main line's name when this line's work reached it as copies. */
+  copiedInto: string | null;
   onSwitch: () => void;
   onRename: () => void;
   onDelete: () => void;
-  onNewFromLine: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const isCheckedOutElsewhere = line.worktreePath !== null;
   const { canRename, canDelete } = versionLineActions(line);
-  const deleteLabel = deleteActionLabel(line, t);
+  const deleteLabel = deleteActionLabel(line, t, copiedInto);
 
   return (
     <div className="version-lines-detail__actions">
-      {line.isActive ? (
-        // Branching starts from where the project is, so this is only ever the
-        // active line's action — the create plan has no other starting point.
-        <button className="secondary-button secondary-button--sm" type="button" onClick={onNewFromLine}>
-          <Plus aria-hidden="true" />
-          {t.versionLinesNewFromLine}
-        </button>
-      ) : (
+      {/* Switch keeps its word — it is what the reader came to this screen to
+          do, and "Switch" says it better than any glyph — in the quiet
+          outlined capsule; Rename and Delete are its icon-only satellites, the
+          circles History's version strip carries, named on their tooltips.
+          A labelled capsule beside circles reads as the primary one without
+          spending the accent on it (DESIGN.md, Shape). */}
+      {!line.isActive && (
         <button
-          className="secondary-button secondary-button--sm"
+          className="version-lines-detail__switch"
           type="button"
           onClick={onSwitch}
           disabled={isCheckedOutElsewhere}
           aria-label={t.versionLinesSwitchToLineLabel(line.name)}
         >
+          <ArrowLeftRight aria-hidden="true" />
           {t.versionLinesSwitchShort}
         </button>
       )}
       {canRename && (
         <button
-          className="secondary-button secondary-button--sm"
+          className="version-lines-detail__icon-action"
           type="button"
           onClick={onRename}
           aria-label={t.versionLinesRenameLineLabel(line.name)}
+          data-tooltip={`${t.versionLinesRenameShort} (F2)`}
         >
           <PenLine aria-hidden="true" />
-          {t.versionLinesRenameShort}
         </button>
       )}
       {/* The active line has no Delete at all: it is refused for a reason the
@@ -420,15 +564,14 @@ function VersionLineActions({
           the tooltip says so. */}
       {!line.isActive && deletabilityOf(line) !== "protected" && (
         <button
-          className="secondary-button secondary-button--sm version-lines-detail__delete"
+          className="version-lines-detail__icon-action version-lines-detail__delete"
           type="button"
           onClick={onDelete}
           disabled={!canDelete}
-          title={deleteLabel}
+          data-tooltip={deleteLabel}
           aria-label={deleteLabel}
         >
           <Trash2 aria-hidden="true" />
-          {t.versionLinesDeleteShort}
         </button>
       )}
     </div>
@@ -449,6 +592,8 @@ function RelationIcon({ tone }: { tone: RelationTone }): React.JSX.Element {
  * concept the rest of the screen does not already name. */
 function relationEntries(
   line: VersionLine,
+  mainName: string | null,
+  routeShown: boolean,
   t: Translations,
 ): { key: string; tone: RelationTone; title: string; detail: string }[] {
   const entries: { key: string; tone: RelationTone; title: string; detail: string }[] = [];
@@ -497,19 +642,27 @@ function relationEntries(
       title: t.versionLinesRelationshipActiveTitle,
       detail: t.versionLinesRelationshipActiveDetail,
     });
-  } else if (line.uniqueCommitCount !== null && line.uniqueCommitCount > 0) {
+  }
+  // Counted against the main line, for the active line too — the line the
+  // route under this section is drawn against, so the number here and the
+  // dots there are one answer. No main line, no count.
+  // Not while the route is drawn under this section: its sentence says the
+  // same count against the same line, and a fact is said once on a panel.
+  if (routeShown) {
+    // The route answers where this line stands against the main line.
+  } else if (mainName !== null && line.uniqueCommitCount !== null && line.uniqueCommitCount > 0) {
     entries.push({
       key: "unique",
       tone: "neutral",
-      title: t.versionLinesUniqueCommits(line.uniqueCommitCount),
-      detail: t.versionLinesRelationshipUniqueDetail,
+      title: t.versionLinesUniqueCommits(line.uniqueCommitCount, mainName),
+      detail: t.versionLinesRelationshipUniqueDetail(mainName),
     });
-  } else if (line.uniqueCommitCount === 0) {
+  } else if (mainName !== null && line.uniqueCommitCount === 0) {
     entries.push({
       key: "merged",
       tone: "positive",
-      title: t.versionLinesRelationshipMergedTitle,
-      detail: t.versionLinesRelationshipMergedDetail,
+      title: t.versionLinesRelationshipMergedTitle(mainName),
+      detail: t.versionLinesRelationshipMergedDetail(mainName),
     });
   }
 
@@ -542,34 +695,59 @@ function relationEntries(
  * takes the same one. */
 function VersionLineDetail({
   line,
+  mainName,
   history,
+  historyLoading,
+  previousRoute,
   formats,
   onSwitch,
   onRename,
   onDelete,
-  onNewFromLine,
   onOpenHistory,
   onBack,
+  renameEditor,
 }: {
   line: VersionLine;
+  /** The project's main line, by name — what this line's own versions are
+   * counted against. `null` when the project has none. */
+  mainName: string | null;
   /** This line's recent saved versions, once the on-demand read has answered.
    * `null` while it is in flight, when it failed, or when the host does not
    * offer the read at all — every section below degrades to what the
    * inventory already knows rather than showing a placeholder. */
   history: VersionLineHistory | null;
+  /** The history read is still out. The route keeps its place meanwhile. */
+  historyLoading: boolean;
+  /** The route drawn for the line selected before this one, if any. */
+  previousRoute: DrawnRoute | null;
   formats: LocaleFormats;
   onSwitch: () => void;
   onRename: () => void;
   onDelete: () => void;
-  onNewFromLine: () => void;
   /** Open History reading this line, and — when a version is named — with that
    * version selected. Lines' own list of saved versions is a preview of the
    * one History draws in full. */
   onOpenHistory?: (name: string, commit?: string) => void;
   onBack: () => void;
+  /** The strip in its editing state while this line is being renamed —
+   * `VersionLineRenameStrip`, owned by the panel — drawn in place of the
+   * strip at rest. */
+  renameEditor?: React.ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const published = isTipPublished(line);
+  /* The route section is drawn for a line that has one, and — while the read
+     is out — for any line that will: any but the main line, in a project that
+     has one. */
+  const routeShown =
+    history?.route != null || (historyLoading && mainName !== null && line.name !== mainName);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+  /* What the line changes against the main line comes with its route, and
+     takes the height the panel has left — the saved versions, the least of
+     the three, step down to a short preview under it. Kept in place while
+     the read is out, like the route, so the versions do not jump when it
+     lands. */
+  const changesShown = routeShown && (history?.route ? history.route.changes !== null : true);
   const date = tipDate(line);
   /* The tip's own record in the read, matched by commit rather than taken as
    * the first one. The two answers come from two Git calls: the inventory
@@ -588,6 +766,8 @@ function VersionLineDetail({
     { ...line.tip, authorName: author },
     ...(history?.versions ?? []).filter((version) => version.commit !== line.tip.commit),
   ];
+  const shownVersions = changesShown ? versions.slice(0, VERSIONS_BESIDE_CHANGES) : versions;
+  const moreVersions = (history?.totalCount ?? versions.length) - shownVersions.length;
 
   return (
     <section className="version-lines-detail" aria-label={t.versionLinesDetailAriaLabel(line.name)}>
@@ -596,55 +776,48 @@ function VersionLineDetail({
         {t.versionLinesBackToList}
       </button>
       <div className="version-lines-detail__card">
-        {/* The name and its actions on one row, then everything else known
-            about the line on the row under them — where it lives, and who
-            saved the last version to it, when.
-
-            The byline used to be a band of its own below this header: a rule
-            across the panel, 44px tall, holding one right-aligned line with
-            the width of the panel empty beside it. Two blocks of chrome for
-            the identity of one line. */}
-        <header className="version-lines-detail__summary">
-          <div className="version-lines-detail__summary-top">
-            <span className="version-lines-detail__icon" aria-hidden="true">
-              <GitBranch />
-            </span>
-            <div className="version-lines-detail__identity">
-              <h2>
-                <span className="version-lines-detail__name">{line.name}</span>
-                {line.isActive && (
-                  <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
-                )}
-              </h2>
-            </div>
-            <VersionLineActions
-              line={line}
-              onSwitch={onSwitch}
-              onRename={onRename}
-              onDelete={onDelete}
-              onNewFromLine={onNewFromLine}
-            />
-          </div>
-          <p className="version-lines-detail__meta">
-            <span className="version-lines-detail__upstream">
-              {line.upstream
-                ? t.versionLinesUpstreamLabel(line.upstream)
-                : t.versionLinesRelationshipLocalOnlyDetail}
-            </span>
+        {/* The line's strip: its name on the first line, who last saved to it
+            and when on the second, its actions at the trailing
+            end. A fixed `--strip-height`, the height the list panel's header
+            beside it wears, so the two panels start their content on the same
+            pixel row — the shape History's version strip has. It used to be a
+            block of its own, a 34px branch glyph beside a 22px title over a
+            meta line: taller than the header next to it, and the glyph was the
+            rail's own icon a second time. */}
+        {renameEditor ?? (
+        <header className="version-lines-detail__strip">
+          <div className="version-lines-detail__identity">
+            <h2>
+              <span className="version-lines-detail__name" title={line.name}>
+                {line.name}
+              </span>
+              {line.isActive && (
+                <span className="version-line-chip version-line-chip--active">{t.versionLinesActiveLabel}</span>
+              )}
+            </h2>
+            {/* Not where the line lives: the first state under the strip
+                already names the upstream, or says there is none, in a
+                sentence about it. Stated here as well it was the panel saying
+                one thing twice with a rule between them. */}
             {(author || date) && (
-              <span className="version-lines-detail__byline">
+              <p className="version-lines-detail__meta">
                 <span className="version-lines-detail__byline-label">{t.versionLinesLatestSavedLabel}</span>
-                {author && (
-                  <span className="version-lines-avatar" aria-hidden="true">
-                    {avatarInitials(author)}
-                  </span>
-                )}
                 {author && <strong>{author}</strong>}
                 {date && <span>{formatDate(date, formats)}</span>}
-              </span>
+              </p>
             )}
-          </p>
+          </div>
+          <VersionLineActions
+            line={line}
+            copiedInto={
+              history?.route?.merge && history.route.merge.kind !== "merge" ? history.route.base : null
+            }
+            onSwitch={onSwitch}
+            onRename={onRename}
+            onDelete={onDelete}
+          />
         </header>
+        )}
 
         {/* The panel does not scroll; the list inside it does. Where this line
             stands is three lines that never grow, and scrolling them out of
@@ -652,10 +825,13 @@ function VersionLineDetail({
             rather than the question. */}
         <div className="version-lines-detail__body">
           <div className="version-lines-detail__grid">
+            {/* No heading: two or three states that each say what they are
+                need no label over them, and the rule under the strip already
+                says a new part of the panel has started. The name stays for a
+                screen reader, on the list itself. */}
             <section className="version-lines-card">
-              <h3>{t.versionLinesRelationshipTitle}</h3>
-              <ul className="version-lines-relations">
-                {relationEntries(line, t).map((entry) => (
+              <ul className="version-lines-relations" aria-label={t.versionLinesRelationshipTitle}>
+                {relationEntries(line, mainName, routeShown, t).map((entry) => (
                   <li key={entry.key} className={`version-lines-relations__item--${entry.tone}`}>
                     <RelationIcon tone={entry.tone} />
                     {/* One line each: the state and the sentence that explains
@@ -670,18 +846,75 @@ function VersionLineDetail({
               </ul>
             </section>
 
+            {/* Where this line left the main line, drawn — between where it
+                stands and the versions on it, the two things the drawing
+                connects. Only for a line that has a route: the main line
+                itself, a project with none, and a shallow clone draw nothing
+                rather than a guess. While the read is out, a line that will
+                have one — any but the main line, in a project that has one —
+                keeps the section's place with the main lane already drawn, so
+                the answer grows into a space that was waiting for it instead
+                of pushing the versions down when it lands. */}
+            {routeShown && (
+              <section className="version-lines-card" aria-label={t.versionLinesRouteTitle}>
+                <h3>{t.versionLinesRouteTitle}</h3>
+                <VersionLineRoute
+                  line={line}
+                  route={history?.route ?? null}
+                  base={history?.route?.base ?? mainName ?? ""}
+                  previous={previousRoute}
+                  highlightedCommit={highlighted}
+                  onOpenVersion={onOpenHistory}
+                />
+              </section>
+            )}
+
+            {changesShown && (
+              <VersionLineChanges
+                changes={history?.route?.changes ?? null}
+                base={history?.route?.base ?? mainName ?? ""}
+                brought={Boolean(history?.route?.merge)}
+              />
+            )}
+
             {/* One list, not a card for the latest version and a list of the
                 rest under it. They are the same sequence, and the split cost a
                 heading and a rule to separate a row from the row below it. The
                 newest carries what only it can say — whether it is published,
                 and its hash — and the others carry when they landed. */}
-            <section className="version-lines-card version-lines-card--fill">
-              <h3>{t.versionLinesVersionsTitle}</h3>
+            <section className={`version-lines-card${changesShown ? "" : " version-lines-card--fill"}`}>
+              {/* The way on to History heads the list it continues rather than
+                  closing the card as a band of its own: the versions here are
+                  a preview of the sequence History draws in full, so "all of
+                  them" belongs next to their name. The band spent a rule, a
+                  glyph, a title and a sentence on one button, under the rows
+                  it took the height from. */}
+              <div className="version-lines-card__head">
+                <h3>{t.versionLinesVersionsTitle}</h3>
+                {onOpenHistory && (
+                  <button
+                    className="ghost-button version-lines-card__link"
+                    type="button"
+                    // The line being looked at, opened as the line being looked
+                    // at — no checkout, and no landing on whichever line happens
+                    // to be active. The tooltip says so for a line that is not.
+                    title={
+                      line.isActive
+                        ? t.versionLinesHistoryDescription
+                        : t.versionLinesHistoryScopedDescription(line.name)
+                    }
+                    onClick={() => onOpenHistory(line.name)}
+                  >
+                    {t.versionLinesHistoryAction}
+                    <ArrowRight aria-hidden="true" />
+                  </button>
+                )}
+              </div>
               <ol
                 {...autoHideScrollbarProps<HTMLOListElement>()}
                 className="version-lines-recent auto-hide-scrollbar"
               >
-                {versions.map((version, index) => {
+                {shownVersions.map((version, index) => {
                   const savedAt = version.committedAt ? new Date(version.committedAt) : null;
                   const valid = savedAt !== null && !Number.isNaN(savedAt.getTime());
                   const body = (
@@ -708,7 +941,17 @@ function VersionLineDetail({
                     </>
                   );
                   return (
-                    <li key={version.commit}>
+                    <li
+                      key={version.commit}
+                      // The row the reader is on lights the same version's dot
+                      // in the route above — by keyboard as well as pointer, so
+                      // the drawing answers the list for someone who cannot
+                      // reach its dots.
+                      onFocus={() => setHighlighted(version.commit)}
+                      onBlur={() => setHighlighted(null)}
+                      onMouseEnter={() => setHighlighted(version.commit)}
+                      onMouseLeave={() => setHighlighted(null)}
+                    >
                       {/* A row opens this version in History, the way a row in
                           any of the three lists opens what it names. Without a
                           host to open it the row states the version and stays
@@ -729,28 +972,21 @@ function VersionLineDetail({
                   );
                 })}
               </ol>
+              {/* Cut short beside the comparison: how many more there are, and
+                  the way to them — the same way the header offers. */}
+              {changesShown && moreVersions > 0 && onOpenHistory && (
+                <button
+                  className="version-lines-recent__more"
+                  type="button"
+                  onClick={() => onOpenHistory(line.name)}
+                >
+                  {t.versionLinesVersionsMore(moreVersions, formatNumber(moreVersions, formats))}
+                </button>
+              )}
             </section>
           </div>
         </div>
 
-        {onOpenHistory && (
-          <footer className="version-lines-detail__history">
-            <BookOpen aria-hidden="true" />
-            <div>
-              <strong>{t.versionLinesHistoryTitle}</strong>
-              {/* The line the reader is looking at, opened as the line the
-                  reader is looking at — no checkout, and no landing on
-                  whichever line happens to be active. */}
-              <p>
-                {line.isActive ? t.versionLinesHistoryDescription : t.versionLinesHistoryScopedDescription(line.name)}
-              </p>
-            </div>
-            <button className="secondary-button secondary-button--sm" type="button" onClick={() => onOpenHistory(line.name)}>
-              {t.versionLinesHistoryAction}
-              <ArrowRight aria-hidden="true" />
-            </button>
-          </footer>
-        )}
       </div>
     </section>
   );
@@ -830,7 +1066,8 @@ export function VersionLinesPanel({
   onOperationPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
   /** Set by the command palette's "New version line" action, which can fire
    * from any screen — this opens the create dialog as soon as the panel
-   * mounts instead of only reacting to its own "New line" button. */
+   * mounts. The screen itself has no button into the dialog: its composer
+   * starts a line. */
   autoOpenCreate?: boolean;
   onAutoOpenCreateHandled?: () => void;
   /** A line another screen asked this one to select — History's "View line".
@@ -847,6 +1084,14 @@ export function VersionLinesPanel({
   const [stateFilters, setStateFilters] = useState<StateFilter[]>([]);
   const [sort, setSort] = useState<SortKey>("recent");
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  /* The line whose name is being edited in the detail strip, if any. Tied to
+     a name rather than to "the selection" so choosing another line drops it
+     instead of carrying a half-typed name over to a line it was not for. */
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const selectLine = useCallback((name: string) => {
+    setSelectedName(name);
+    setRenaming((current) => (current === name ? current : null));
+  }, []);
   /* One column at a time below 1024px, the way Changes and History narrow.
      Which of the two is showing is this screen's own state, not a filter on
      the data, so it survives every refresh underneath it. */
@@ -1006,6 +1251,10 @@ export function VersionLinesPanel({
   /* The repository's default line — what `VersionLineQuickCreateBox` offers
      as the alternative starting point to `active` when the two differ. */
   const defaultLine = snapshot?.lines.find((line) => line.isDefault) ?? null;
+  /* Every loaded line's name, for the quick create box to warn about a clash
+     and to take its example's prefix from. The whole snapshot, not the
+     filtered list: a search must not hide the line a new name clashes with. */
+  const lineNames = useMemo(() => snapshot?.lines.map((line) => line.name) ?? [], [snapshot]);
   /* The active line heads the list and is exempt from search and filters: it
      is where the project *is*, and a screen that can hide it leaves the reader
      without the one row that answers "where am I". */
@@ -1027,14 +1276,19 @@ export function VersionLinesPanel({
   const [history, setHistory] = useState<VersionLineHistory | null>(() =>
     selected && selectedTip ? peekHistory?.(selected.name, selectedTip) ?? null : null,
   );
+  /* Whether that read is still out — the detail keeps the route's place while
+     it is, rather than letting the section arrive and push the versions down. */
+  const [historyLoading, setHistoryLoading] = useState(false);
   useEffect(() => {
     const name = selected?.name;
     if (!readHistory || !name || !selectedTip) {
       setHistory(null);
+      setHistoryLoading(false);
       return undefined;
     }
     const cached = peekHistory?.(name, selectedTip) ?? null;
     setHistory(cached);
+    setHistoryLoading(cached === null);
     if (cached) return undefined;
     let cancelled = false;
     void readHistory(name, selectedTip)
@@ -1043,17 +1297,57 @@ export function VersionLinesPanel({
       })
       .catch(() => {
         if (!cancelled) setHistory(null);
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [peekHistory, readHistory, selected?.name, selectedTip]);
 
+  /* The route the detail last drew, and whose line it was. The detail mounts
+     afresh for each line, so the next one's drawing is handed the last one's
+     to hold while it is read and to cross-fade from — see `VersionLineRoute`. */
+  const [lastRoute, setLastRoute] = useState<DrawnRoute | null>(null);
+  useEffect(() => {
+    if (selected && history?.name === selected.name && history.route) {
+      setLastRoute({ line: selected, route: history.route });
+    }
+  }, [history, selected]);
+
+  /* A row the pointer rests on starts its line's detail read, so a press a
+     moment later finds it answered or already on its way — the controller
+     shares one request between the two. Only after a pause, so sweeping the
+     pointer down the list asks Git nothing, and never for a line whose answer
+     is already held. */
+  const hoverTimerRef = useRef<number | null>(null);
+  const handleHoverIntent = useCallback(
+    (line: VersionLine | null) => {
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
+      if (!line || !readHistory || peekHistory?.(line.name, line.tip.commit)) return;
+      hoverTimerRef.current = window.setTimeout(() => {
+        hoverTimerRef.current = null;
+        void readHistory(line.name, line.tip.commit).catch(() => undefined);
+      }, 120);
+    },
+    [peekHistory, readHistory],
+  );
+  useEffect(
+    () => () => {
+      if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current);
+    },
+    [],
+  );
+
   function moveSelection(target: number): void {
     const index = Math.max(0, Math.min(target, listed.length - 1));
     const line = listed[index];
     if (!line) return;
-    setSelectedName(line.name);
+    selectLine(line.name);
     requestAnimationFrame(() => document.getElementById(`version-line-${line.name}`)?.focus());
   }
 
@@ -1062,6 +1356,23 @@ export function VersionLinesPanel({
     setDialog(null);
     onChanged();
     onOperationFinish();
+  }
+
+  /** Opens the rename in the detail strip — from its Rename button, the row's
+   * menu, or F2 on the row. The line is selected first, so the strip being
+   * edited is the one describing it; in a one-column window the detail is
+   * brought forward, since that is where the field is. */
+  function startRename(name: string): void {
+    setSelectedName(name);
+    setRenaming(name);
+    setShowNarrowDetail(true);
+  }
+
+  /** The row keeps the keyboard's place once the strip closes, under whatever
+   * name the line now has. */
+  function endRename(name: string): void {
+    setRenaming(null);
+    requestAnimationFrame(() => document.getElementById(`version-line-${name}`)?.focus());
   }
 
   const dialogs = (
@@ -1073,24 +1384,6 @@ export function VersionLinesPanel({
         forceSwitch={dialog?.kind === "create" ? dialog.forceSwitch : undefined}
         onClose={closeDialog}
         onCreated={handleMutated}
-        onPhaseChange={onOperationPhaseChange}
-      />
-      <RenameVersionLineDialog
-        isOpen={dialog?.kind === "rename"}
-        projectPath={projectPath}
-        sessionEpoch={sessionEpoch}
-        target={dialog?.kind === "rename" ? dialog.target : ""}
-        upstream={dialog?.kind === "rename" ? dialog.upstream : null}
-        onClose={closeDialog}
-        onRenamed={(next, newName) => {
-          // The selection follows the rename rather than snapping back to the
-          // active line. By the name the rename was given, not by looking for
-          // the tip commit again: a line branched from another and not yet
-          // advanced shares its tip, and the search would have found whichever
-          // of the two came first.
-          setSelectedName(newName);
-          handleMutated(next);
-        }}
         onPhaseChange={onOperationPhaseChange}
       />
       <SwitchVersionLineDialog
@@ -1110,7 +1403,14 @@ export function VersionLinesPanel({
         sessionEpoch={sessionEpoch}
         target={dialog?.kind === "delete" ? dialog.target : ""}
         onClose={closeDialog}
-        onDeleted={handleMutated}
+        // The list and the rest of the app catch up at once; the dialog then
+        // closes itself with a toast that says what happened on the remote
+        // and whether a recovery point was kept. Closing it (`closeDialog`)
+        // gives the mutation slot back.
+        onDeleted={(next) => {
+          onSnapshot(next);
+          onChanged();
+        }}
         // The mutation slot is already held by the delete dialog, so this
         // hands it over to the switch dialog rather than registering again.
         onSwitchInstead={() =>
@@ -1186,10 +1486,38 @@ export function VersionLinesPanel({
     return (
       <div className="version-lines-screen">
         {notices}
-        <div className="empty-state" aria-busy="true">
-          <LoadingBar label={t.versionLinesLoading} />
-          <h1>{t.versionLinesTitle}</h1>
-          <p>{t.versionLinesLoading}</p>
+        {/* The screen's own shape, headed by its real name: the list panel
+            with rows where the lines will be, and the detail card beside it. */}
+        <div className="version-lines-layout">
+          <section className="version-lines-list-panel" aria-label={t.versionLinesListAriaLabel}>
+            <header className="version-lines-list-panel__header">
+              <GitBranch aria-hidden="true" />
+              <h1>{t.versionLinesTitle}</h1>
+            </header>
+            <LoadingPlaceholder label={t.versionLinesLoading} className="version-lines-placeholder">
+              <div className="version-lines-list-panel__toolbar"><TextPlaceholder width="100%" /></div>
+              <div className="version-lines-list">
+                {LINE_PLACEHOLDER_WIDTHS.map(([name, meta]) => (
+                  <span key={name} className="version-line-row">
+                    <span className="version-line-row__name-row">
+                      <span className="version-line-row__name"><TextPlaceholder width={name} /></span>
+                    </span>
+                    <span className="version-line-row__meta">
+                      <TextPlaceholder width={meta} />
+                      <span className="version-line-row__date"><TextPlaceholder width="44px" /></span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </LoadingPlaceholder>
+          </section>
+          <section className="version-lines-detail">
+            <LoadingPlaceholder className="version-lines-detail__card version-lines-detail__placeholder">
+              <p><TextPlaceholder width="38%" /></p>
+              <p><TextPlaceholder width="62%" /></p>
+              <p><TextPlaceholder width="54%" /></p>
+            </LoadingPlaceholder>
+          </section>
         </div>
         {dialogs}
       </div>
@@ -1221,44 +1549,23 @@ export function VersionLinesPanel({
   return (
     <div className={`version-lines-screen${showNarrowDetail ? " version-lines-screen--narrow-detail" : ""}`}>
       {notices}
-      {/* Title and state on one line, and nothing else: `.screen-header` in
-          primitives.css, the row Changes and History open on too. Lines used to
-          add a sentence of explanation under it, which was the one thing that
-          made this header taller than the other two — and a screen reached from
-          a rail that already names it does not need to introduce itself every
-          time it is opened. The three now measure the same, so the panels below
-          start on the same pixel row on all of them. */}
-      <header className="screen-header">
-        <div className="screen-header__heading">
-          <h1>{t.versionLinesTitle}</h1>
-          {/* One sentence saying what a version line is and what you do with
-              one — the caption Changes and History both carry, spent here on
-              the idea rather than on a tally. It used to count: lines, then
-              how many were active, then how many were local only. Exactly one
-              line is active at any moment and the list says which by putting
-              it first, "local only" is a filter offered in the strip below,
-              and the total is the list itself. Three numbers, none of them a
-              fact the reader could not already see. */}
-          <p>{t.versionLinesExplanation}</p>
-        </div>
-        {snapshot.headState !== "unborn" && (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => openDialog({ kind: "create", forceSwitch: snapshot.headState === "detached" })}
-          >
-            <Plus aria-hidden="true" />
-            {t.versionLinesNewButton}
-          </button>
-        )}
-      </header>
-
       <div className="version-lines-layout">
         <section className="version-lines-list-panel" aria-label={t.versionLinesListAriaLabel}>
           {/* One strip, the way the Changes file list and the History timeline
               have one. Searching, filtering and sorting answer the same
               question — which lines this column shows — so they share a
               control instead of stacking rows of chrome above the panel. */}
+          {/* The panel's own header is the screen's name, the way the Work
+              screen's list panel is headed by its tab pair: at the height of
+              a strip, the glyph the rail gives Lines in the accent and the
+              word in the title's type. There used to be a page row above both
+              panels — the name, a sentence about what a line is, and "New
+              line" — and with the composer under this list doing that job, the
+              row was a name the rail already states. */}
+          <header className="version-lines-list-panel__header">
+            <GitBranch aria-hidden="true" />
+            <h1>{t.versionLinesTitle}</h1>
+          </header>
           <div className="version-lines-list-panel__toolbar">
             <SearchBox
               value={search}
@@ -1318,8 +1625,10 @@ export function VersionLinesPanel({
                 selected={selected?.name === line.name}
                 focusable={selected?.name === line.name}
                 formats={formats}
-                onSelect={setSelectedName}
+                onSelect={selectLine}
                 onMove={moveSelection}
+                onRename={startRename}
+                onHoverIntent={handleHoverIntent}
                 onOpenDetail={() => setShowNarrowDetail(true)}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -1346,10 +1655,10 @@ export function VersionLinesPanel({
             </footer>
           )}
 
-          {/* The fast path, next to "New line" above rather than instead of
-              it — see `VersionLineQuickCreateBox`'s own doc. Absent on an
-              unborn `HEAD`, the same case that already hides the header
-              button: there is no commit yet for a line to point at. */}
+          {/* The one way to start a line on this screen — see
+              `VersionLineQuickCreateBox`'s own doc. The dialog stays for the
+              palette and the detached-`HEAD` banner. Absent on an unborn
+              `HEAD`: there is no commit yet for a line to point at. */}
           {snapshot.headState !== "unborn" && (
             <VersionLineQuickCreateBox
               projectPath={projectPath}
@@ -1357,6 +1666,7 @@ export function VersionLinesPanel({
               forceSwitch={snapshot.headState === "detached"}
               mainLine={defaultLine}
               activeLine={active}
+              existingNames={lineNames}
               listRef={listScrollRef}
               onOperationStart={onOperationStart}
               onOperationFinish={onOperationFinish}
@@ -1370,16 +1680,40 @@ export function VersionLinesPanel({
           <VersionLineDetail
             key={selected.name}
             line={selected}
+            mainName={defaultLine?.name ?? null}
             history={history?.name === selected.name ? history : null}
+            historyLoading={historyLoading}
+            previousRoute={lastRoute}
             formats={formats}
             onSwitch={() => openDialog({ kind: "switch", target: selected.name })}
-            onRename={() =>
-              openDialog({ kind: "rename", target: selected.name, upstream: selected.upstream })
-            }
+            onRename={() => startRename(selected.name)}
             onDelete={() => openDialog({ kind: "delete", target: selected.name })}
-            onNewFromLine={() => openDialog({ kind: "create", forceSwitch: false })}
             onOpenHistory={onOpenHistory}
             onBack={() => setShowNarrowDetail(false)}
+            renameEditor={
+              renaming === selected.name ? (
+                <VersionLineRenameStrip
+                  projectPath={projectPath}
+                  sessionEpoch={sessionEpoch}
+                  target={selected.name}
+                  upstream={selected.upstream}
+                  existingNames={lineNames}
+                  onCancel={() => endRename(selected.name)}
+                  onRenamed={(next, newName) => {
+                    // The selection follows the rename — by the name it was
+                    // given, not by looking for the tip commit again: a line
+                    // branched from another and not yet advanced shares its
+                    // tip, and the search would find whichever came first.
+                    setSelectedName(newName);
+                    handleMutated(next);
+                    endRename(newName);
+                  }}
+                  onOperationStart={onOperationStart}
+                  onOperationFinish={onOperationFinish}
+                  onOperationPhaseChange={onOperationPhaseChange}
+                />
+              ) : undefined
+            }
           />
         ) : (
           <section className="version-lines-detail version-lines-detail--empty">
@@ -1393,16 +1727,15 @@ export function VersionLinesPanel({
           panel behind it refuses. */}
       <VersionLineContextMenu
         context={contextMenu}
+        activeName={active?.name ?? null}
+        copiedIntoOf={(line) => {
+          const route = peekHistory?.(line.name, line.tip.commit)?.route;
+          return route?.merge && route.merge.kind !== "merge" ? route.base : null;
+        }}
         onClose={closeContextMenu}
         onCopied={() => setAnnouncement(t.versionLinesNameCopied)}
         onSwitch={(target) => openDialog({ kind: "switch", target })}
-        onRename={(target) =>
-          openDialog({
-            kind: "rename",
-            target,
-            upstream: snapshot.lines.find((line) => line.name === target)?.upstream ?? null,
-          })
-        }
+        onRename={startRename}
         onDelete={(target) => openDialog({ kind: "delete", target })}
       />
       <p className="visually-hidden" role="status">

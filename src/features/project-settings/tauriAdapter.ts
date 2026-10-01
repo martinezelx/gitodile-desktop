@@ -13,6 +13,8 @@ export const projectSettingsPort: ProjectSettingsPort = {
     await invoke("connect_remote", { path, sessionEpoch, remoteName, remoteUrl, stateToken });
   },
   readIdentity: ({ path, sessionEpoch }) => invoke("read_project_identity", { path, sessionEpoch }),
+  readTechnology: ({ path, sessionEpoch }) =>
+    invoke("read_project_technology", { path, sessionEpoch }),
   setIdentity: ({ path, sessionEpoch }, { name, email }) =>
     invoke("set_project_identity", { path, sessionEpoch, name, email }),
   clearIdentity: ({ path, sessionEpoch }) =>

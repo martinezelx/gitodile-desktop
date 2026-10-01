@@ -8,7 +8,7 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current development version: **0.2.0-preview.12**.
+Current development version: **0.3.0**.
 This candidate has not been tagged or published yet.
 
 Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
@@ -83,6 +83,27 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - See one version line's recent saved versions, its saved-version count and
   where it stands against its remote, read on demand for the line you select
   rather than for every branch on every refresh.
+- Use a project-scoped Console to type read-only Git commands such as
+  `git log --graph --oneline -- src/`, `git show HEAD~2:README.md` or
+  `git blame -L 10,20 file`; `help git` lists them. GitOdile reads the line
+  itself, without a shell, and refuses anything that would change the project,
+  reach the remote, run another program or leave the project, saying why.
+  Settings › Console › Console mode offers three modes: read-only (the
+  default), advanced and root, each move up behind a confirmation. Advanced
+  also runs commands such as `git add`, `git commit -m`,
+  `git switch`, `git stash push`, `git fetch`, `git pull` (fast-forward only)
+  and `git push`: each prints what it will change and asks `[s/N]` first, and
+  does not run if the project changed in between. Root drops the question,
+  and the console's status line shows it in a colour of its own. Commands that rewrite history
+  or can discard work stay unavailable.
+  Twenty built-in read-only shortcuts, such as `look` (`git status`), `graph`,
+  `today` or `unpublished`, are listed with the Git command each runs in
+  [docs/console-shortcuts.md](docs/console-shortcuts.md) and in the console's
+  `help`; you can rename them or add your own names, including names for whole
+  command lines (`lg` → `git log --oneline -20`).
+  Settings › Console turns suggestions and the welcome on or off and sets the
+  cursor and text size. The transcript stays in memory for the open project
+  session.
 - Browse the active version line as a bounded, read-only saved-version
   timeline. Inspect author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
@@ -118,6 +139,8 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.
+- Return to Projects from More actions or the command palette while projects stay
+  open, use recent closed projects, and go Back to the project screen you left.
 
 Not yet implemented: non-fast-forward/local-line integration, the recovery
 center, guided conflict
@@ -226,7 +249,7 @@ separate:
 - `application.rs` assigns one checked execution policy to every command;
 - `repository_access.rs` coordinates concurrent reads and exclusive mutations
   by common Git directory;
-- `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`,
+- `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`, `console/`,
   `save_version.rs`, `sync.rs`,
   `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
@@ -248,7 +271,7 @@ Rust syntax-based boundary tests, and a checked JSON IPC contract. Read the
 ## Technology versions
 
 The lockfiles are authoritative. This is the current resolved development
-snapshot; the About dialog credits the Tauri, React, TypeScript, and Rust rows
+snapshot; the About dialog credits the Tauri, React, and Rust rows
 of it, reading them from the same lockfiles at build time rather than from a
 hardcoded list:
 
@@ -315,8 +338,8 @@ pnpm run check
 ```
 
 The aggregate check validates Markdown links/task metadata, frontend dependency
-rules, TypeScript, 655 frontend tests, the production build, Rust formatting,
-Clippy with warnings denied, and 321 Rust tests. Individual commands remain
+rules, TypeScript, frontend tests, the production build, Rust formatting,
+Clippy with warnings denied, and Rust tests. Individual commands remain
 available as `check:docs`, `check:architecture`, `check:frontend`, and
 `check:rust`.
 

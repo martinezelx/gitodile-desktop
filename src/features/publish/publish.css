@@ -1,71 +1,4 @@
-.publish-dialog { width: min(100%, 560px); max-height: min(100%, 720px); }
-.publish-plan { gap: var(--space-3); }
-.publish-plan__section {
-  display: grid;
-  gap: 6px;
-  padding: 0;
-}
-.publish-plan__section + .publish-plan__section {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
-}
-.publish-plan__section h3 {
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  font-weight: var(--weight-heading);
-}
-.publish-plan__section p { margin: 0; }
-.publish-stays__pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.publish-stays__pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  max-width: 100%;
-  padding: 4px 10px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: var(--surface-panel);
-  color: var(--text-primary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-snug);
-  overflow-wrap: anywhere;
-}
-.publish-stays__pill--unsaved {
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.publish-plan__destination {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-secondary-color);
-}
-.publish-plan__destination code {
-  padding: 3px 7px;
-  border-radius: var(--radius-item);
-  background: var(--surface-panel);
-  color: var(--text-primary-color);
-  font-size: var(--text-label);
-}
-.publish-operation-status {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: var(--radius-surface);
-  background: var(--surface-active);
-  color: var(--text-primary-color);
-  font-size: var(--text-body);
-}
-.publish-operation-status > svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
-.publish-operation-status span { display: grid; gap: 2px; }
-.publish-operation-status small { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+
 
 .publish-commit-list {
   margin: 0;
@@ -142,10 +75,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__file-path { overflow-wrap: anywhere; }
 .publish-commit-list__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }
 
-.publish-remote-list { display: flex; flex-direction: column; gap: var(--space-2); }
-.publish-remote-option {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  width: 100%; text-align: left; padding: 10px 12px;
-}
-.publish-remote-option__name { font-weight: var(--weight-strong); }
-.publish-remote-option__url { color: var(--text-secondary-color); font-size: var(--text-label); word-break: break-all; }
+
+/* One status region around the placeholder lines, spaced as the dialog body
+   spaces the real ones, so nothing moves when the plan replaces them. */
+.publish-placeholder { display: flex; flex-direction: column; gap: inherit; }

@@ -1,8 +1,12 @@
-//! Recovery records for history-rewriting workflows.
+//! Recovery records for workflows that move or remove a version line.
 //!
 //! A `get team changes` rebase moves the version line, so the pre-rewrite tip
 //! is preserved as a hidden ref under `refs/gitodile/recovery/` per ADR 0008.
-//! Records are owned per worktree and reconciled before a new one is reserved.
+//! Deleting a line whose work reached the main line only as copies removes
+//! the one ref holding its original versions, so their tip is preserved the
+//! same way first (ADR 0016). Each operation has its own namespace, manifest
+//! folder and retention limit; the protocol is one. Records are owned per
+//! worktree and reconciled before a new one is reserved.
 //! This is a separate owner from [`super::discard`]: the two share only the
 //! clock.
 
@@ -17,8 +21,31 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const HISTORY_RECOVERY_SCHEMA_VERSION: u32 = 1;
+/// Per operation: each keeps its own newest twenty.
 pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
-const HISTORY_RECOVERY_NAMESPACE: &str = "refs/gitodile/recovery/v1/get-team-changes";
+
+/// The workflows that keep a recovery point before they change a version
+/// line. The slug names the ref namespace, the manifest folder and the
+/// record's `operation` field; `get-team-changes` is the ADR 0008 layout
+/// unchanged, so records already written stay where they are.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HistoryRecoveryOperation {
+    GetTeamChanges,
+    DeleteVersionLine,
+}
+
+impl HistoryRecoveryOperation {
+    fn slug(self) -> &'static str {
+        match self {
+            Self::GetTeamChanges => "get-team-changes",
+            Self::DeleteVersionLine => "delete-version-line",
+        }
+    }
+
+    fn namespace(self) -> String {
+        format!("refs/gitodile/recovery/v1/{}", self.slug())
+    }
+}
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -101,9 +128,14 @@ fn history_recovery_root(common_git_dir: &Path) -> PathBuf {
         .join("v1")
 }
 
-fn history_record_path(common_git_dir: &Path, owner_id: &str, recovery_id: &str) -> PathBuf {
+fn history_record_path(
+    common_git_dir: &Path,
+    operation: HistoryRecoveryOperation,
+    owner_id: &str,
+    recovery_id: &str,
+) -> PathBuf {
     history_recovery_root(common_git_dir)
-        .join("get-team-changes")
+        .join(operation.slug())
         .join(owner_id)
         .join(format!("{recovery_id}.json"))
 }
@@ -115,17 +147,30 @@ fn history_pending_path(common_git_dir: &Path, owner_id: &str, recovery_id: &str
 }
 
 pub(crate) fn plan_history_recovery(repository: &RepositoryContext) -> HistoryRecoveryPreview {
+    plan_history_recovery_for(repository, HistoryRecoveryOperation::GetTeamChanges)
+}
+
+pub(crate) fn plan_history_recovery_for(
+    repository: &RepositoryContext,
+    operation: HistoryRecoveryOperation,
+) -> HistoryRecoveryPreview {
     let owner_id = history_owner_id(repository);
     let recovery_id = unique_history_recovery_id();
-    HistoryRecoveryPreview {
-        reference: format!(
-            "{HISTORY_RECOVERY_NAMESPACE}/{owner_id}/{recovery_id}"
+    let (explanation, kind) = match operation {
+        HistoryRecoveryOperation::GetTeamChanges => (
+            "GitOdile will protect the current saved version with a verified local reference before changing history or files.",
+            "team-update",
         ),
-        explanation:
-            "GitOdile will protect the current saved version with a verified local reference before changing history or files."
-                .to_string(),
+        HistoryRecoveryOperation::DeleteVersionLine => (
+            "GitOdile will keep this line's original saved versions with a verified local reference before deleting it.",
+            "deleted-line",
+        ),
+    };
+    HistoryRecoveryPreview {
+        reference: format!("{}/{owner_id}/{recovery_id}", operation.namespace()),
+        explanation: explanation.to_string(),
         retention: format!(
-            "The recovery point stays local and is kept among the newest {MAX_HISTORY_RECOVERY_RECORDS} team-update recovery points for this project repository."
+            "The recovery point stays local and is kept among the newest {MAX_HISTORY_RECOVERY_RECORDS} {kind} recovery points for this project repository."
         ),
         retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
     }
@@ -147,8 +192,9 @@ fn repo_path(repository: &RepositoryContext) -> String {
 
 fn read_history_records(
     common_git_dir: &Path,
+    operation: HistoryRecoveryOperation,
 ) -> Result<Vec<(PathBuf, HistoryRecoveryRecord)>, AppError> {
-    let root = history_recovery_root(common_git_dir).join("get-team-changes");
+    let root = history_recovery_root(common_git_dir).join(operation.slug());
     let Ok(owners) = fs::read_dir(&root) else {
         return Ok(Vec::new());
     };
@@ -181,13 +227,17 @@ fn read_history_records(
     Ok(records)
 }
 
-fn list_history_refs(path: &str) -> Result<HashMap<String, String>, AppError> {
+fn list_history_refs(
+    path: &str,
+    operation: HistoryRecoveryOperation,
+) -> Result<HashMap<String, String>, AppError> {
+    let namespace = operation.namespace();
     let output = run_git(
         path,
         &[
             "for-each-ref",
             "--format=%(refname)%09%(objectname)",
-            HISTORY_RECOVERY_NAMESPACE,
+            &namespace,
         ],
     )?;
     if !output.status.success() {
@@ -236,6 +286,7 @@ fn delete_history_record(
 
 fn reconcile_pending_history_records(
     repository: &RepositoryContext,
+    operation: HistoryRecoveryOperation,
     refs: &mut HashMap<String, String>,
 ) -> Result<(), AppError> {
     let common = repository.common_git_dir.backend_path();
@@ -261,7 +312,13 @@ fn reconcile_pending_history_records(
                 "Pending history recovery evidence uses an unsupported format; GitOdile kept it for inspection.",
             ));
         }
-        let final_path = history_record_path(common, &record.owner_id, &record.recovery_id);
+        // The pending folder is shared; another operation's evidence is that
+        // operation's to reconcile, against that operation's refs.
+        if record.operation != operation.slug() {
+            continue;
+        }
+        let final_path =
+            history_record_path(common, operation, &record.owner_id, &record.recovery_id);
         if final_path.is_file() {
             fs::remove_file(entry.path()).map_err(|_| {
                 history_error("GitOdile couldn't remove duplicate pending recovery evidence.")
@@ -308,12 +365,15 @@ fn reconcile_pending_history_records(
     Ok(())
 }
 
-fn reserve_history_recovery_slot(repository: &RepositoryContext) -> Result<(), AppError> {
+fn reserve_history_recovery_slot(
+    repository: &RepositoryContext,
+    operation: HistoryRecoveryOperation,
+) -> Result<(), AppError> {
     let common = repository.common_git_dir.backend_path();
     let path = repo_path(repository);
-    let mut refs = list_history_refs(&path)?;
-    reconcile_pending_history_records(repository, &mut refs)?;
-    let mut records = read_history_records(common)?;
+    let mut refs = list_history_refs(&path, operation)?;
+    reconcile_pending_history_records(repository, operation, &mut refs)?;
+    let mut records = read_history_records(common, operation)?;
 
     // A manifest without its ref cannot protect a commit. Remove only that
     // manifest; refs without complete manifests remain counted and therefore
@@ -359,8 +419,22 @@ pub(crate) fn create_history_recovery(
     planned_reference: &str,
     metadata: HistoryRecoveryMetadata,
 ) -> Result<HistoryRecoveryRecord, AppError> {
+    create_history_recovery_for(
+        repository,
+        HistoryRecoveryOperation::GetTeamChanges,
+        planned_reference,
+        metadata,
+    )
+}
+
+pub(crate) fn create_history_recovery_for(
+    repository: &RepositoryContext,
+    operation: HistoryRecoveryOperation,
+    planned_reference: &str,
+    metadata: HistoryRecoveryMetadata,
+) -> Result<HistoryRecoveryRecord, AppError> {
     let owner_id = history_owner_id(repository);
-    let prefix = format!("{HISTORY_RECOVERY_NAMESPACE}/{owner_id}/");
+    let prefix = format!("{}/{owner_id}/", operation.namespace());
     let recovery_id = planned_reference
         .strip_prefix(&prefix)
         .filter(|value| {
@@ -373,10 +447,10 @@ pub(crate) fn create_history_recovery(
         .ok_or_else(|| history_error("That planned history recovery reference is invalid."))?
         .to_string();
 
-    reserve_history_recovery_slot(repository)?;
+    reserve_history_recovery_slot(repository, operation)?;
     let common = repository.common_git_dir.backend_path();
     let pending = history_pending_path(common, &owner_id, &recovery_id);
-    let final_path = history_record_path(common, &owner_id, &recovery_id);
+    let final_path = history_record_path(common, operation, &owner_id, &recovery_id);
     if let Some(parent) = pending.parent() {
         fs::create_dir_all(parent).map_err(|_| {
             history_error("GitOdile couldn't create its pending history recovery folder.")
@@ -392,7 +466,7 @@ pub(crate) fn create_history_recovery(
         recovery_id,
         reference: planned_reference.to_string(),
         created_at_ms: now_ms().min(u128::from(u64::MAX)) as u64,
-        operation: "get-team-changes".to_string(),
+        operation: operation.slug().to_string(),
         owner_id,
         branch: metadata.branch,
         previous_commit: metadata.previous_commit,
@@ -505,11 +579,31 @@ mod tests {
         let common = Path::new("project").join(".git");
         let root = common.join("gitodile").join("history-recovery").join("v1");
         assert_eq!(
-            HISTORY_RECOVERY_NAMESPACE,
+            HistoryRecoveryOperation::GetTeamChanges.namespace(),
             "refs/gitodile/recovery/v1/get-team-changes"
         );
         assert_eq!(
-            history_record_path(&common, "worktree-main", "record-id"),
+            HistoryRecoveryOperation::DeleteVersionLine.namespace(),
+            "refs/gitodile/recovery/v1/delete-version-line"
+        );
+        assert_eq!(
+            history_record_path(
+                &common,
+                HistoryRecoveryOperation::DeleteVersionLine,
+                "worktree-main",
+                "record-id"
+            ),
+            root.join("delete-version-line")
+                .join("worktree-main")
+                .join("record-id.json")
+        );
+        assert_eq!(
+            history_record_path(
+                &common,
+                HistoryRecoveryOperation::GetTeamChanges,
+                "worktree-main",
+                "record-id"
+            ),
             root.join("get-team-changes")
                 .join("worktree-main")
                 .join("record-id.json")

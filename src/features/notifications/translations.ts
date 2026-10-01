@@ -8,9 +8,10 @@ export interface NotificationsTranslations {
   notificationsListAriaLabel: string;
   notificationsClear: string;
   notificationsEmptyTitle: string;
-  notificationsEmptyDescription: string;
+  notificationsEmptyLine: string;
   notificationsDisabledTitle: string;
-  notificationsDisabledDescription: string;
+  notificationsDisabledLine: string;
+  notificationsDismiss: string;
   notificationsOpenSettings: string;
   notificationsUnreadLabel: string;
   notificationsJustNow: string;
@@ -37,27 +38,25 @@ const en: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notifications",
   notificationsListAriaLabel: "Recent notifications",
   notificationsClear: "Clear all",
-  notificationsEmptyTitle: "Nothing to report",
-  notificationsEmptyDescription:
-    "GitOdile tells you here when newer project versions turn up, when a newer version of the app is available, or when an automatic check cannot reach the remote project.",
-  notificationsDisabledTitle: "Notifications are turned off",
-  notificationsDisabledDescription:
-    "GitOdile is not recording anything new. Turn notifications back on to hear about project changes and failed checks.",
+  notificationsEmptyTitle: "All caught up",
+  notificationsEmptyLine: "New notifications show up here.",
+  notificationsDisabledTitle: "Notifications are off",
+  notificationsDisabledLine: "Turn them on in Settings.",
+  notificationsDismiss: "Delete notification",
   notificationsOpenSettings: "Open notification settings",
   notificationsUnreadLabel: "Unread",
   notificationsJustNow: "just now",
   notificationTeamChangesTitle: (count) =>
-    `${count} newer project ${count === 1 ? "version is" : "versions are"} available`,
-  notificationTeamChangesDescription: "Found by an automatic check. Nothing has changed on your computer yet.",
-  notificationTeamChangesAction: "Review and get them",
+    `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
+  notificationTeamChangesDescription: "Found by an automatic check, and nothing on your computer has changed yet.",
+  notificationTeamChangesAction: "Review and get",
   notificationRemoteCheckFailedTitle: "Couldn't check for project changes",
-  notificationRemoteCheckFailedDescription:
-    "The last automatic check could not reach the remote project.",
+  notificationRemoteCheckFailedDescription: "The last automatic check couldn't reach the remote.",
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
   notificationAppUpdateTitle: (version) => `v${version} is available`,
-  notificationAppUpdateDescription: "Found by the startup check. Nothing has been downloaded.",
+  notificationAppUpdateDescription: "Found at startup, and nothing has been downloaded.",
   notificationAppUpdateAction: "View update",
 };
 
@@ -72,28 +71,25 @@ const es: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notificaciones",
   notificationsListAriaLabel: "Notificaciones recientes",
   notificationsClear: "Borrar todo",
-  notificationsEmptyTitle: "Nada que contar",
-  notificationsEmptyDescription:
-    "GitOdile te avisa aquí cuando aparecen versiones nuevas del proyecto, cuando hay una versión nueva de la aplicación o cuando una comprobación automática no puede conectar con el proyecto remoto.",
-  notificationsDisabledTitle: "Las notificaciones están desactivadas",
-  notificationsDisabledDescription:
-    "GitOdile no está registrando nada nuevo. Vuelve a activarlas para enterarte de los cambios del proyecto y de las comprobaciones fallidas.",
+  notificationsEmptyTitle: "Todo al día",
+  notificationsEmptyLine: "Aquí verás las notificaciones nuevas.",
+  notificationsDisabledTitle: "Notificaciones desactivadas",
+  notificationsDisabledLine: "Actívalas en Ajustes.",
+  notificationsDismiss: "Eliminar notificación",
   notificationsOpenSettings: "Abrir ajustes de notificaciones",
   notificationsUnreadLabel: "Sin leer",
   notificationsJustNow: "ahora mismo",
   notificationTeamChangesTitle: (count) =>
-    `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"} del proyecto`,
-  notificationTeamChangesDescription:
-    "Lo encontró una comprobación automática. Todavía no ha cambiado nada en tu equipo.",
-  notificationTeamChangesAction: "Revisarlas y obtenerlas",
+    `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
+  notificationTeamChangesDescription: "Encontrada en una comprobación automática, sin que haya cambiado aún nada en tu ordenador.",
+  notificationTeamChangesAction: "Revisar y traer",
   notificationRemoteCheckFailedTitle: "No se pudo comprobar si hay cambios",
-  notificationRemoteCheckFailedDescription:
-    "La última comprobación automática no pudo conectar con el proyecto remoto.",
+  notificationRemoteCheckFailedDescription: "La última comprobación automática no pudo llegar al remoto.",
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
-  notificationAppUpdateTitle: (version) => `Hay una versión nueva: v${version}`,
-  notificationAppUpdateDescription: "Lo encontró la comprobación al iniciar. No se ha descargado nada.",
+  notificationAppUpdateTitle: (version) => `Nueva versión disponible: v${version}`,
+  notificationAppUpdateDescription: "Detectada al iniciar, sin descargar nada.",
   notificationAppUpdateAction: "Ver actualización",
 };
 

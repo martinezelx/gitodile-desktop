@@ -5,6 +5,7 @@ export { changesPort } from "./tauriAdapter";
 export { DiffResultView, type DiffViewMode } from "./DiffResultView";
 export { DiffViewSelector } from "./DiffViewSelector";
 export { DiffStepNav } from "./DiffStepNav";
+export { DiffFind } from "./DiffFind";
 export {
   PictureDiffBody,
   PictureDiffControls,
@@ -25,4 +26,9 @@ export {
   type DiffPreferences,
   type DiffTabWidth,
 } from "./diffPreferences";
-export { ChangesPanel, changesScreenModule } from "./screen";
+export { ChangesPanel, preloadChangesPanel } from "./screen";
+/* The file lists' folder view: Changes draws it first, and a saved version's
+   files in History draw the same tree with the same switch and one shared
+   preference. */
+export { flattenFileTree, flatFileRows, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileListView, type FileTreeRow } from "./fileTree";
+export { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";

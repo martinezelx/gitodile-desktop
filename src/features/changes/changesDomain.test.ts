@@ -15,15 +15,13 @@ import {
   countActiveChangesFilters,
   fileTypeKey,
   fileTypesPresent,
-  countDiffLines,
   filterEntriesBySearch,
   getOrderedChangeEntries,
   NO_CHANGES_FILTERS,
   resolveSelectedPath,
-  sumCachedDiffLines,
   type ChangesFilters,
 } from "./ChangesPanel";
-import type { DiffHunk, DiffLine, FileDiff } from "./index";
+import type { DiffHunk, DiffLine } from "./index";
 import type { ChangeCategory, WorkingTreeEntry, WorkingTreeStatus } from "../status";
 
 function entry(path: string, category: ChangeCategory, originalPath: string | null = null): WorkingTreeEntry {
@@ -34,6 +32,7 @@ function status(entries: WorkingTreeEntry[], truncated = false): WorkingTreeStat
   return {
     isClean: entries.length === 0,
     counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: entries.length },
+    lineTotals: null,
     entries,
     truncated,
     hasPreparedChanges: false,
@@ -283,87 +282,6 @@ describe("changes filters", () => {
       { key: "", count: 2 },
     ]);
     expect(fileTypesPresent([])).toEqual([]);
-  });
-});
-
-function textDiff(path: string, hunks: DiffHunk[]): FileDiff {
-  return { kind: "text", path, originalPath: null, change: "changed", hunks, truncated: false };
-}
-
-describe("countDiffLines", () => {
-  it("counts additions and deletions, ignoring context lines", () => {
-    const diff = textDiff("a.txt", [
-      hunk(1, 2, [line("context", "keep"), line("addition", "new"), line("deletion", "old"), line("addition", "new2")]),
-    ]);
-
-    expect(countDiffLines(diff)).toEqual({ added: 2, removed: 1 });
-  });
-
-  it("reports zero for kinds whose contents were never read", () => {
-    const binary: FileDiff = { kind: "binary", path: "logo.png", originalPath: null, change: "changed" };
-    expect(countDiffLines(binary)).toEqual({ added: 0, removed: 0 });
-  });
-});
-
-describe("sumCachedDiffLines", () => {
-  const entries = [entry("a.txt", "changed"), entry("b.txt", "changed")];
-
-  it("sums every file once the whole snapshot is cached", () => {
-    const cache = new Map<string, FileDiff>([
-      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
-      ["b.txt", textDiff("b.txt", [hunk(1, 1, [line("deletion", "y"), line("addition", "z")])])],
-    ]);
-
-    expect(sumCachedDiffLines(entries, cache)).toEqual({ added: 2, removed: 1 });
-  });
-
-  it("returns null while any file is still missing, rather than a partial total", () => {
-    const cache = new Map<string, FileDiff>([["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])]]);
-
-    expect(sumCachedDiffLines(entries, cache)).toBeNull();
-  });
-
-  it("returns null for an empty change set", () => {
-    expect(sumCachedDiffLines([], new Map())).toBeNull();
-  });
-
-  it("returns null when a file's own count would only be a floor", () => {
-    const truncated: FileDiff = {
-      kind: "text",
-      path: "b.txt",
-      originalPath: null,
-      change: "changed",
-      hunks: [hunk(1, 1, [line("addition", "y")])],
-      truncated: true,
-    };
-    const withTruncated = new Map<string, FileDiff>([
-      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
-      ["b.txt", truncated],
-    ]);
-    expect(sumCachedDiffLines(entries, withTruncated)).toBeNull();
-
-    const tooLarge: FileDiff = {
-      kind: "too-large",
-      path: "b.txt",
-      originalPath: null,
-      change: "changed",
-      limitBytes: 1024,
-    };
-    const withTooLarge = new Map<string, FileDiff>([
-      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
-      ["b.txt", tooLarge],
-    ]);
-    expect(sumCachedDiffLines(entries, withTooLarge)).toBeNull();
-  });
-
-  it("still counts files that genuinely contribute no lines", () => {
-    const binary: FileDiff = { kind: "binary", path: "b.txt", originalPath: null, change: "changed" };
-    const cache = new Map<string, FileDiff>([
-      ["a.txt", textDiff("a.txt", [hunk(1, 1, [line("addition", "x")])])],
-      ["b.txt", binary],
-    ]);
-
-    expect(sumCachedDiffLines(entries, cache)).toEqual({ added: 1, removed: 0 });
   });
 });
 

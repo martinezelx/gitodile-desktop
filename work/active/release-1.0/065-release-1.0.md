@@ -38,6 +38,9 @@ is the authoritative release sequence and capability cut.
   leads the queue through its eight children, before the remaining product work
   and final release qualification in 065-8.
 - Complete existing tasks 015, 037, and 064 at their defined dependency points.
+- Complete the read-only project console in [task 134](../../done/134-project-git-console.md)
+  before final release hardening; it remains an optional advanced path, not a
+  prerequisite for the ordinary guided workflow.
 - Close the settled visual system across the release-candidate surface in task
   099 before final platform and distribution hardening.
 - Keep the `1.0.0` contract provider-neutral and local-first.
@@ -61,6 +64,11 @@ is the authoritative release sequence and capability cut.
       validation recorded. Updater epic 065-9 was closed on 2026-09-16; the
       evidence it still owes is tracked by
       [065-9-13](../app-updates/065-9-13-updater-evidence-and-os-signing.md).
+- [ ] The project console (task 134 and epic 138) is validated on the
+      supported platforms: read-only by default, with advanced mode off until
+      the person turns it on and covered by the release qualification matrix.
+      History and destructive console commands (task 139) are not part of
+      `1.0.0`.
 - [ ] The release capability matrix has no unsupported path presented as
       working and no required path dependent on the terminal.
 - [ ] The actual Windows and Linux release artifacts pass their defined smoke,

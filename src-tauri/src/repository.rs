@@ -38,24 +38,30 @@ pub(crate) fn resolve_head_state(
     path: &str,
     branch: Option<String>,
 ) -> Result<(HeadState, Option<String>), AppError> {
+    let head_sha = read_head_commit(path)?;
+    Ok((
+        classify_head(branch.is_some(), head_sha.is_some()),
+        head_sha,
+    ))
+}
+
+/// The current `HEAD` commit, or `None` on an unborn branch. Split from
+/// `resolve_head_state` so a caller can ask it alongside the status read that
+/// names the branch instead of after it.
+pub(crate) fn read_head_commit(path: &str) -> Result<Option<String>, AppError> {
     let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
-    let head_sha = verified_head
+    Ok(verified_head
         .status
         .success()
-        .then(|| git_stdout(&verified_head));
+        .then(|| git_stdout(&verified_head)))
+}
 
-    let head_state = if branch.is_some() {
-        if head_sha.is_some() {
-            HeadState::Branch
-        } else {
-            HeadState::Unborn
-        }
-    } else if head_sha.is_some() {
-        HeadState::Detached
-    } else {
-        HeadState::Unborn
-    };
-    Ok((head_state, head_sha))
+pub(crate) fn classify_head(has_branch: bool, has_commit: bool) -> HeadState {
+    match (has_branch, has_commit) {
+        (true, true) => HeadState::Branch,
+        (false, true) => HeadState::Detached,
+        (_, false) => HeadState::Unborn,
+    }
 }
 
 /// Uses Git's own ref parser before a branch name enters a refspec or a

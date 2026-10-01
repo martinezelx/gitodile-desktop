@@ -7,11 +7,28 @@ import {
   type DiffPreferences,
 } from "../features/changes";
 import {
+  normalizeConsolePreferences,
+  type ConsolePreferences,
+} from "../features/console";
+import {
   isRemoteCheckIntervalMinutes,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
-  type ThemePreference,
 } from "../features/settings";
+import {
+  isThemeId,
+  themeById,
+  type ThemeId,
+  type ThemePreference,
+} from "../shared/theme";
+import {
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  isProjectAvatarStyle,
+  PROJECT_ICON_INITIALS,
+  sanitizeEmoji,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+} from "../shared/ui/projectIdentity";
 import { stopActiveThemeTransition } from "./themeTransition";
 
 const THEME_STORAGE_KEY = "gitodile-theme";
@@ -26,9 +43,12 @@ export const REDUCE_MOTION_STORAGE_KEY = "gitodile-reduce-motion";
 export const APP_UPDATE_AUTOMATIC_STORAGE_KEY = "gitodile-app-update-automatic";
 
 export const DIFF_PREFERENCES_STORAGE_KEY = "gitodile-diff-preferences";
+export const CONSOLE_PREFERENCES_STORAGE_KEY = "gitodile-console-preferences";
 export const NAVIGATION_PREFERENCES_STORAGE_KEY = "gitodile-navigation-preferences";
 export const SIDEBAR_HIDDEN_STORAGE_KEY = "gitodile-sidebar-hidden";
 export const FAVOURITE_PROJECTS_STORAGE_KEY = "gitodile-favourite-projects";
+export const PROJECT_ICONS_STORAGE_KEY = "gitodile-project-icons";
+export const PROJECT_AVATAR_STYLE_STORAGE_KEY = "gitodile-project-avatar-style";
 
 /** Named because two places need to agree on them: the hook that seeds the
  * preference and the Settings panel's "reset this section". */
@@ -173,14 +193,28 @@ export function readStoredBoolean(key: string, defaultValue: boolean): boolean {
   return stored === null ? defaultValue : stored === "true";
 }
 
+/** The stored preference, migrated once from the pre-theme values. `light` and
+ * `dark` were the old union's members; they now name the official themes.
+ * Catppuccin Macchiato was retired for sitting too close to Mocha, so it lands
+ * on its nearest sibling rather than on the device theme. Anything
+ * unrecognised falls back to following the device. The first write after a
+ * read lands the migrated value back in storage, so this is a one-way upgrade
+ * rather than a repeated translation. */
 function readStoredTheme(): ThemePreference {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "light" || stored === "dark" ? stored : "system";
+  if (stored === "light") return "gitodile-light";
+  if (stored === "dark") return "gitodile-dark";
+  if (stored === "catppuccin-macchiato") return "catppuccin-mocha";
+  return stored !== null && isThemeId(stored) ? stored : "system";
 }
 
 /** Exported so the titlebar reveal can pin the attribute inside its view
  * transition callback: the hook below applies it from a passive effect, which
- * is not guaranteed to have run by the time the transition captures the DOM. */
+ * is not guaranteed to have run by the time the transition captures the DOM.
+ *
+ * "system" keeps no attribute at all, so the `prefers-color-scheme` media
+ * query in `styles/themes.css` follows the operating system live. Every other
+ * preference pins a `[data-theme]` block. */
 export function applyTheme(theme: ThemePreference): void {
   if (theme === "system") delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
@@ -219,9 +253,21 @@ export function useReducedMotionPreference(): [boolean, Dispatch<SetStateAction<
   return [reducedMotion, setReducedMotion];
 }
 
-export function resolveEffectiveTheme(theme: ThemePreference): "light" | "dark" {
+/** The theme actually in effect, as a concrete theme id: `system` resolves to
+ * one of the official pair from the operating-system colour scheme. Used for
+ * the titlebar glyph and the toggle's direction, never to pick token values —
+ * those come from the `[data-theme]` blocks in CSS. */
+export function resolveEffectiveThemeId(theme: ThemePreference): ThemeId {
   if (theme !== "system") return theme;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "gitodile-dark"
+    : "gitodile-light";
+}
+
+/** The scheme of the theme a preference resolves to, for a caller that only
+ * needs to know which way the light/dark glyph should face. */
+export function resolveEffectiveThemeScheme(theme: ThemePreference): "light" | "dark" {
+  return themeById(resolveEffectiveThemeId(theme)).scheme;
 }
 
 /**
@@ -263,6 +309,84 @@ export function useStoredFavouriteProjects(): [
   };
 
   return [ids, toggle];
+}
+
+/**
+ * The icon a person picked for a project, stored as a map from the canonical
+ * worktree root — the same identity favourites use — to one short glyph or the
+ * reserved `PROJECT_ICON_INITIALS` for the two-letter chip.
+ *
+ * A missing entry means "automatic": the avatar then follows the app-wide
+ * Project icons style. Removing the choice (setting it to `null`) returns a
+ * project to that automatic behaviour.
+ */
+export function useStoredProjectIconChoices(): [
+  ReadonlyMap<string, string>,
+  (id: string, choice: ProjectIconChoice) => void,
+] {
+  const [choices, setChoices] = useState<ReadonlyMap<string, string>>(() => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(PROJECT_ICONS_STORAGE_KEY) ?? "null",
+      );
+      if (stored === null || typeof stored !== "object" || Array.isArray(stored)) {
+        return new Map<string, string>();
+      }
+      const entries: Array<[string, string]> = [];
+      for (const [id, value] of Object.entries(stored as Record<string, unknown>)) {
+        const choice = cleanProjectIconChoice(value);
+        if (choice !== null) entries.push([id, choice]);
+      }
+      return new Map(entries);
+    } catch {
+      return new Map<string, string>();
+    }
+  });
+
+  // Sorted keys so the serialization is stable regardless of insertion order;
+  // `usePersistedChoice` compares the string to decide whether to write.
+  usePersistedChoice(
+    PROJECT_ICONS_STORAGE_KEY,
+    JSON.stringify(Object.fromEntries([...choices].sort(([a], [b]) => a.localeCompare(b)))),
+  );
+
+  const setChoice = (id: string, choice: ProjectIconChoice): void => {
+    setChoices((current) => {
+      const next = new Map(current);
+      const clean = cleanProjectIconChoice(choice);
+      if (clean === null) next.delete(id);
+      else next.set(id, clean);
+      return next;
+    });
+  };
+
+  return [choices, setChoice];
+}
+
+/** Accepts the reserved initials value or a single short glyph; anything else
+ * (a long string, a non-string) is not a stored choice. */
+function cleanProjectIconChoice(value: unknown): string | null {
+  if (value === PROJECT_ICON_INITIALS) {
+    return PROJECT_ICON_INITIALS;
+  }
+  return sanitizeEmoji(value);
+}
+
+/**
+ * How project avatars are filled when a project has no chosen emoji. A
+ * machine-wide appearance choice, stored as one of `PROJECT_AVATAR_STYLES`;
+ * `technology` (the detected mark, or initials) is the default.
+ */
+export function useStoredProjectAvatarStyle(): [
+  ProjectAvatarStyle,
+  (style: ProjectAvatarStyle) => void,
+] {
+  const [style, setStyle] = useState<ProjectAvatarStyle>(() => {
+    const stored = localStorage.getItem(PROJECT_AVATAR_STYLE_STORAGE_KEY);
+    return isProjectAvatarStyle(stored) ? stored : DEFAULT_PROJECT_AVATAR_STYLE;
+  });
+  usePersistedChoice(PROJECT_AVATAR_STYLE_STORAGE_KEY, style);
+  return [style, setStyle];
 }
 
 export function useStoredBoolean(
@@ -318,15 +442,32 @@ export function useStoredDiffPreferences(): [DiffPreferences, Dispatch<SetStateA
   return [preferences, setPreferences];
 }
 
-/** The rail order that shipped before History moved up beside Changes. Every
- * session writes the whole snapshot back, so by the time the default changed
- * this exact list was already sitting in storage for everyone who had ever
+/** The console's Settings choices as one object, each field validated on its own. */
+export function useStoredConsolePreferences(): [ConsolePreferences, Dispatch<SetStateAction<ConsolePreferences>>] {
+  const [preferences, setPreferences] = useState<ConsolePreferences>(() => {
+    try {
+      return normalizeConsolePreferences(JSON.parse(localStorage.getItem(CONSOLE_PREFERENCES_STORAGE_KEY) ?? "null"));
+    } catch {
+      return normalizeConsolePreferences(null);
+    }
+  });
+
+  usePersistedChoice(CONSOLE_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+
+  return [preferences, setPreferences];
+}
+
+/** Rail orders that shipped as defaults before the current one: first with
+ * History below Lines, then with History moved up beside Changes. Every
+ * session writes the whole snapshot back, so by the time a default changed
+ * its predecessor was already sitting in storage for everyone who had ever
  * opened the app — including everyone who had never opened Navigation
  * Settings. An order identical to a superseded default is the absence of a
  * choice rather than one, so it adopts the new default; anything else is the
  * user's arrangement and stands. */
 const SUPERSEDED_DESTINATION_ORDERS: readonly (readonly string[])[] = [
   ["overview", "changes", "version-lines", "history", "recovery"],
+  ["overview", "changes", "history", "version-lines", "recovery"],
 ];
 
 function isSupersededOrder(order: readonly string[]): boolean {
@@ -334,6 +475,26 @@ function isSupersededOrder(order: readonly string[]): boolean {
     (superseded) =>
       superseded.length === order.length && superseded.every((id, index) => id === order[index]),
   );
+}
+
+/** Destinations that became one (task 126): Changes and History are the two
+ * tabs of Work now. A stored list keeps its shape — Work takes the place
+ * Changes held, and History drops out — so an arrangement someone made by
+ * hand survives the merge instead of being appended to. Applied before the
+ * unknown-id filter, which would otherwise discard both and put Work last. */
+const MERGED_DESTINATIONS: Readonly<Record<string, string | null>> = {
+  changes: "workbench",
+  history: null,
+};
+
+function migrateDestinationIds(ids: readonly unknown[]): string[] {
+  const migrated: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string") continue;
+    const target = id in MERGED_DESTINATIONS ? MERGED_DESTINATIONS[id] : id;
+    if (target !== null) migrated.push(target);
+  }
+  return migrated;
 }
 
 /** Navigation is stored as one validated snapshot: membership, order and
@@ -359,24 +520,33 @@ export function useStoredNavigationPreferences(
       if (!Array.isArray(read.visibleDestinationIds)) return fallback();
       const allowed = new Set(defaultDestinationIds);
       const visibleDestinationIds = Array.from(
-        new Set(
-          read.visibleDestinationIds.filter(
-            (id): id is string => typeof id === "string" && allowed.has(id),
-          ),
-        ),
+        new Set(migrateDestinationIds(read.visibleDestinationIds).filter((id) => allowed.has(id))),
       );
+      // A newly registered screen is visible once by default. The stored
+      // order distinguishes that migration from someone hiding it later.
+      if (allowed.has("console") && (!Array.isArray(read.destinationOrderIds) || !read.destinationOrderIds.includes("console"))) {
+        visibleDestinationIds.push("console");
+      }
       const displayMode =
         read.displayMode === "icons-only" || read.displayMode === "icons-and-text"
           ? read.displayMode
           : "icons-and-text";
-      const storedOrder = Array.isArray(read.destinationOrderIds)
-        ? read.destinationOrderIds.filter(
-            (id): id is string => typeof id === "string" && allowed.has(id),
-          )
-        : [];
-      const destinationOrderIds = isSupersededOrder(storedOrder)
+      const storedOrder: unknown[] = Array.isArray(read.destinationOrderIds) ? read.destinationOrderIds : [];
+      // A superseded default is recognised as stored, before migration:
+      // it is the old ids that name it.
+      const previousDefaultOrder = defaultDestinationIds.filter((destination) => destination !== "console");
+      const isPreviousDefaultOrder = storedOrder.length === previousDefaultOrder.length &&
+        storedOrder.every((id, index) => id === previousDefaultOrder[index]);
+      const isNewlyAppendedOrder = storedOrder.length === defaultDestinationIds.length &&
+        storedOrder.every((id, index) => id === [...previousDefaultOrder, "console"][index]);
+      const destinationOrderIds = isSupersededOrder(storedOrder.filter((id): id is string => typeof id === "string")) || isPreviousDefaultOrder || isNewlyAppendedOrder
         ? [...defaultDestinationIds]
-        : Array.from(new Set([...storedOrder, ...defaultDestinationIds]));
+        : Array.from(
+            new Set([
+              ...migrateDestinationIds(storedOrder).filter((id) => allowed.has(id)),
+              ...defaultDestinationIds,
+            ]),
+          );
       return { visibleDestinationIds, destinationOrderIds, displayMode };
     } catch {
       return fallback();

@@ -5,14 +5,15 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(77);
+    expect(contract.commands).toHaveLength(85);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "get_app_update_state", "get_startup_update_confirmation",
       "check_app_update", "download_app_update", "cancel_app_update", "install_app_update",
       "open_repository", "reveal_project_file", "plan_clone", "clone_repository",
       "cancel_clone", "cleanup_clone", "plan_initialize_project", "initialize_project",
-      "cleanup_initialize_project", "read_working_tree_status",
-      "read_file_diff", "read_file_image_preview", "read_file_lines", "read_working_tree_diffs",
+      "cleanup_initialize_project", "read_working_tree_status", "run_console_query",
+      "plan_console_command", "run_console_plan", "run_console_change", "get_console_settings",
+      "set_console_advanced_mode", "set_console_confirm_changes", "read_file_diff", "read_file_image_preview", "read_file_lines", "read_working_tree_diffs",
       "plan_discard_changes",
       "discard_changes", "get_discard_recovery", "list_discard_recoveries",
       "restore_discarded_changes", "delete_discard_recovery", "git_diagnostics",
@@ -22,6 +23,7 @@ describe("IPC contract snapshot", () => {
       "plan_save_version", "save_version", "discover_remotes", "plan_connect_remote",
       "connect_remote", "read_project_remotes", "set_remote_url", "read_project_identity",
       "set_project_identity", "clear_project_identity", "read_ignore_file", "write_ignore_file",
+      "read_project_technology",
       "read_team_sync_status",
       "check_team_changes", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions",
       "read_commit_file_changes", "read_commit_file_diff", "read_history_page",
@@ -37,7 +39,8 @@ describe("IPC contract snapshot", () => {
       response: "SaveVersionResult",
     });
     for (const commandName of [
-      "read_working_tree_status", "read_file_diff", "read_file_image_preview", "read_file_lines",
+      "read_working_tree_status", "run_console_query", "plan_console_command", "run_console_plan", "run_console_change",
+      "read_file_diff", "read_file_image_preview", "read_file_lines",
       "read_working_tree_diffs",
       "discover_remotes", "list_unpublished_versions", "read_commit_file_changes",
       "read_commit_file_diff", "get_version_lines", "get_version_line_history",

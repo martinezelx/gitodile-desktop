@@ -81,9 +81,11 @@ There is one release channel.
 - Operational changes belong to the maintainer: create `public-release` with
   `GITODILE_PUBLIC_RELEASE_TOKEN`, decide its reviewer, and delete
   `public-release-preview` and `public-release-stable` after the first
-  single-channel release succeeds. The offline updater-key backup that
-  `docs/release/signed-builds.md` requires before the first `X.Y.Z` release
-  still applies.
+  single-channel release succeeds.
+- Amendment, 2026-10-01: the offline updater-key backup that
+  `docs/release/signed-builds.md` used to require before the first stable
+  release is deferred to `1.0.0` by the maintainer (task 065-8), accepting
+  that losing the key before then would strand installed builds.
 
 ## Alternatives considered
 

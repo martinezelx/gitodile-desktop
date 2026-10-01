@@ -6,6 +6,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { ChangesPanel } from "./ChangesPanel";
 import { changesPort, createChangesController, type ChangesController } from "./index";
 import { LanguageProvider } from "../../i18n";
+import { ToastProvider } from "../../shared/ui";
+import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import type { WorkingTreeStatus } from "../status";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -34,10 +36,6 @@ function ControlledChangesPanel(
     | "sessionEpoch"
     | "selectedPath"
     | "onSelectedPathChange"
-    | "isSaveVersionOpen"
-    | "onOpenSaveVersion"
-    | "onCloseSaveVersion"
-    | "onSaveVersionPhaseChange"
     | "onSaveCompleted"
     | "watcherState"
     | "confirmBeforeDiscarding"
@@ -46,22 +44,34 @@ function ControlledChangesPanel(
     | "onDiscardClose"
     | "onDiscardPhaseChange"
     | "onOpenSettings"
+    | "onGetChanges"
+    | "onOpenHistory"
+    | "tabs"
   > & {
     controller?: ChangesController;
+    /** The Work screen's tab pair, which the real app draws in the list
+     * panel's header; a stub here, since the tabs are the screen's to test. */
+    tabs?: React.ReactNode;
     /** Both default to the app's defaults, so only the tests that are about
      * these preferences have to mention them. */
     watcherState?: "starting" | "watching" | "off" | "unavailable";
     confirmBeforeDiscarding?: boolean;
     runGitHooks?: boolean;
     onOpenSettings?: () => void;
+    onGetChanges?: () => void;
+    onOpenHistory?: () => void;
   },
 ): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [isSaveVersionOpen, setIsSaveVersionOpen] = useState(false);
   const ownController = useRef(createChangesController(changesPort));
+  // The real app renders this inside its screen host; the panel's own
+  // Ctrl/Cmd+S shortcut listens only while that host says it is active.
+  const lifecycle = useRef(createScreenLifecycleController("active"));
   return (
+    <ScreenLifecycleProvider controller={lifecycle.current}>
     <ChangesPanel
       {...props}
+      tabs={props.tabs ?? <div role="tablist" aria-label="Changes or history" />}
       controller={props.controller ?? ownController.current}
       sessionEpoch="test-epoch"
       watcherState={props.watcherState ?? "watching"}
@@ -69,22 +79,22 @@ function ControlledChangesPanel(
       runGitHooks={props.runGitHooks ?? false}
       selectedPath={selectedPath}
       onSelectedPathChange={setSelectedPath}
-      isSaveVersionOpen={isSaveVersionOpen}
-      onOpenSaveVersion={() => setIsSaveVersionOpen(true)}
-      onCloseSaveVersion={() => setIsSaveVersionOpen(false)}
-      onSaveVersionPhaseChange={() => {}}
       onSaveCompleted={() => {}}
       onBeginDiscard={() => true}
       onDiscardClose={() => {}}
       onDiscardPhaseChange={() => {}}
       onOpenSettings={props.onOpenSettings ?? (() => {})}
+      onGetChanges={props.onGetChanges ?? (() => {})}
+      onOpenHistory={props.onOpenHistory ?? (() => {})}
     />
+    </ScreenLifecycleProvider>
   );
 }
 
 const workingTree: WorkingTreeStatus = {
   isClean: false,
   counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+  lineTotals: null,
   entries: [
     {
       path: "edited.txt",
@@ -107,6 +117,62 @@ const workingTree: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
 };
 
+describe("ChangesPanel folder view", () => {
+  const nested: WorkingTreeStatus = {
+    ...workingTree,
+    counts: { changed: 2, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 3 },
+    entries: [
+      { path: "src/features/history/panel.tsx", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "src/features/history/panel.css", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true },
+      { path: "README.md", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
+    ],
+  };
+
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command) =>
+      command === "read_file_diff"
+        ? Promise.resolve({ kind: "unchanged", path: "README.md" })
+        : Promise.reject(new Error(`Unexpected command: ${command}`)));
+  });
+  afterEach(() => localStorage.removeItem("gitodile-file-list-view"));
+
+  function renderNested(): void {
+    render(
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={nested} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
+    );
+  }
+
+  it("groups the files in compacted folders, folds them, and includes or leaves out a folder at once", async () => {
+    renderNested();
+    const toggle = screen.getByRole("button", { name: "Show files in folders" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    const folder = screen.getByRole("button", { name: "src/features/history folder, 2 files" });
+    expect(folder).toHaveAttribute("aria-expanded", "true");
+    // Under its folder a file drops its own folder line.
+    expect(document.querySelector(".changes-file-row--tree .changes-file-item__dir")).toBeNull();
+
+    const box = screen.getByRole("checkbox", { name: "Include everything in src/features/history in this version" });
+    expect(box).toBeChecked();
+    await userEvent.click(box);
+    expect(screen.getByRole("checkbox", { name: "Include src/features/history/panel.tsx in this version" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Include src/features/history/panel.css in this version" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Include README.md in this version" })).toBeChecked();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include src/features/history/panel.css in this version" }));
+    expect((box as HTMLInputElement).indeterminate).toBe(true);
+
+    await userEvent.click(folder);
+    expect(folder).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("checkbox", { name: "Include src/features/history/panel.tsx in this version" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ChangesPanel save selection", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
@@ -126,6 +192,7 @@ describe("ChangesPanel save selection", () => {
           isPartial: true,
           hasPreparedChanges: false,
           counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+          files: [],
         });
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -134,17 +201,17 @@ describe("ChangesPanel save selection", () => {
 
   it("selects everything by default and sends only the chosen files to the planner", async () => {
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     const edited = screen.getByRole("checkbox", { name: "Include edited.txt in this version" });
@@ -155,14 +222,16 @@ describe("ChangesPanel save selection", () => {
     // same way the row it was chosen from does.
     expect(screen.getAllByText("Project root")).toHaveLength(3);
 
-    // Nothing selected is not a selection to name, so the button reads as the
-    // plain action it always was — and is disabled.
+    // Nothing selected is nothing to save: the box's action is disabled and
+    // says why, and it asks Git for no plan.
     await userEvent.click(screen.getByRole("checkbox", { name: "Select none" }));
-    expect(within(screen.getByRole("group", { name: "Changes" })).getByRole("button", { name: "Save version" })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Version name"), "just the edit");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(mockedInvoke).not.toHaveBeenCalledWith("plan_save_version", expect.anything());
 
+    // Including one file plans for exactly that file, and the box's plan line
+    // says what the press saves out of how many, and where.
     await userEvent.click(edited);
-    await userEvent.click(screen.getByRole("button", { name: "Save selected" }));
-
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
         path: "/repo",
@@ -170,10 +239,11 @@ describe("ChangesPanel save selection", () => {
         selectedPaths: ["edited.txt"],
       }),
     );
-    expect(await screen.findByText("1 other file will remain as a pending change.")).toBeInTheDocument();
+    expect(await screen.findByText("1 of 2 files")).toBeInTheDocument();
+    expect(screen.queryByText("1 other file will remain as a pending change.")).not.toBeInTheDocument();
   });
 
-  it("saves through the quick commit box docked under the file list, without opening Save Version", async () => {
+  it("saves through the quick commit box docked under the file list — the screen's one save control", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "read_file_diff") {
         return Promise.resolve({ kind: "unchanged", path: "edited.txt" });
@@ -190,6 +260,7 @@ describe("ChangesPanel save selection", () => {
           isPartial: false,
           hasPreparedChanges: false,
           counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+          files: [],
         });
       }
       if (command === "save_version") {
@@ -206,23 +277,38 @@ describe("ChangesPanel save selection", () => {
     });
 
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
+    // The heading carries no save action of its own: the box is where a
+    // version is saved from here, so nothing above it answers twice.
+    expect(screen.queryByRole("button", { name: "Save version" })).not.toBeInTheDocument();
+
     await userEvent.type(screen.getByLabelText("Version name"), "quick fix");
+    // The box still asks Git for the plan that will write the version; it just
+    // no longer restates the file count and the line beside the list and header
+    // that already say them.
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
+        path: "/repo",
+        sessionEpoch: "test-epoch",
+        selectedPaths: ["edited.txt", "new.txt"],
+      }),
+    );
+    expect(screen.queryByText(/will be saved to/)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText('Saved "quick fix" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved “quick fix” as abc123a.')).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", {
       path: "/repo",
       sessionEpoch: "test-epoch",
@@ -234,17 +320,17 @@ describe("ChangesPanel save selection", () => {
 
   it("reuses a cached diff until the working-tree snapshot changes", async () => {
     const { container, rerender } = render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
     const panel = within(container);
 
@@ -258,17 +344,17 @@ describe("ChangesPanel save selection", () => {
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
 
     rerender(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={{ ...workingTree }}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     // A new working-tree snapshot resets the store, so the selected file is
@@ -282,7 +368,7 @@ describe("ChangesPanel save selection", () => {
     // and re-ran every read (task 019).
     const controller = createChangesController(changesPort);
     const panelElement = (
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
@@ -290,10 +376,10 @@ describe("ChangesPanel save selection", () => {
           isCheckingChanges={false}
           controller={controller}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>
+      </ToastProvider></LanguageProvider>
     );
 
     const first = render(panelElement);
@@ -306,7 +392,7 @@ describe("ChangesPanel save selection", () => {
     // Rendered straight from the cache, with no further Git work: the diff is
     // already on screen and the count is unchanged.
     expect(await panel.findByText("No content changed")).toBeInTheDocument();
-    expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
   });
 
@@ -322,24 +408,24 @@ describe("ChangesPanel save selection", () => {
     });
 
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
-    expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument();
-    expect(await screen.findByText("Reading the difference…")).toBeInTheDocument();
+    expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument();
+    expect(await screen.findByText("Reading changes…")).toBeInTheDocument();
 
     resolvers.get("edited.txt")?.({ kind: "unchanged", path: "edited.txt" });
-    await waitFor(() => expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument());
   });
 
   it("shares an in-flight diff read when returning to the same file", async () => {
@@ -352,17 +438,17 @@ describe("ChangesPanel save selection", () => {
     });
 
     const { container } = render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
     const panel = within(container);
 
@@ -374,7 +460,7 @@ describe("ChangesPanel save selection", () => {
 
     resolvers.get("edited.txt")?.({ kind: "unchanged", path: "edited.txt" });
     resolvers.get("new.txt")?.({ kind: "unchanged", path: "new.txt" });
-    await waitFor(() => expect(screen.queryByText("Reading the difference…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading changes…")).not.toBeInTheDocument());
   });
 
   it("renders a multi-hunk text diff through the virtualized line list", async () => {
@@ -432,17 +518,17 @@ describe("ChangesPanel save selection", () => {
     });
 
     const { container } = render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(await screen.findByText("line one")).toBeInTheDocument();
@@ -539,7 +625,7 @@ describe("ChangesPanel review controls", () => {
 
   function renderPanel(controller = createChangesController(changesPort)): void {
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
@@ -547,12 +633,55 @@ describe("ChangesPanel review controls", () => {
           isCheckingChanges={false}
           controller={controller}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
   }
+
+  it("opens with its list already there, and animates only a row that arrives later", () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "read_file_diff") return Promise.resolve(editedDiff);
+      if (command === "read_working_tree_diffs") {
+        return Promise.resolve({ outcome: "completed", diffs: [editedDiff, newDiff], changedFiles: 2, budgetBytes: 2097152 });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = (added: boolean): WorkingTreeStatus => added
+      ? {
+          ...workingTree,
+          counts: { ...workingTree.counts, new: 2, total: 3 },
+          entries: [...workingTree.entries, {
+            path: "arrived-later.txt", originalPath: null, category: "new", isPrepared: false, hasUnpreparedChanges: true,
+          }],
+        }
+      : workingTree;
+    const panel = (added: boolean): React.JSX.Element => (
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={tree(added)}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onGetChanges={vi.fn()}
+          onPublishNow={vi.fn()}
+        />
+      </ToastProvider></LanguageProvider>
+    );
+
+    const { container, rerender } = render(panel(false));
+    // A work surface is readable the instant it opens — nothing assembles.
+    expect(container.querySelector(".changes-file-row.row-in")).toBeNull();
+
+    rerender(panel(true));
+
+    const list = within(container.querySelector(".changes-file-list") as HTMLElement);
+    expect(list.getByText("arrived-later.txt").closest(".changes-file-row")).toHaveClass("row-in");
+    // A row the screen already showed does not re-run the arrival.
+    expect(list.getByText("edited.txt").closest(".changes-file-row")).not.toHaveClass("row-in");
+  });
 
   it("expands the unchanged lines between hunks, and keeps a marker for the rest", async () => {
     // The first hunk covers old lines 1-2, the second starts at old line 50,
@@ -610,32 +739,39 @@ describe("ChangesPanel review controls", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Show 47 unchanged lines" }));
 
-    expect(await screen.findByText("Couldn’t read those lines.")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't read those lines.")).toBeInTheDocument();
     // The diff itself is untouched, and the marker is still a live retry.
     expect(screen.getByText("before one")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show 47 unchanged lines" })).toBeEnabled();
   });
 
-  it("keeps the healthy heading focused on saving, with the change actions over the list", () => {
+  it("heads the list panel with the Work tabs and the search strip with the include-everything checkbox, with every action over the list", () => {
     renderPanel();
 
-    const actions = screen.getByRole("group", { name: "Changes" });
-    expect(within(actions).queryByRole("button", { name: "Check local changes" })).not.toBeInTheDocument();
-    expect(within(actions).getByRole("button", { name: "Save version" })).toBeEnabled();
-    // Discarding acts on the files, so its menu sits over the file list rather
-    // than beside Save.
-    expect(within(actions).queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
+    // No page row over the two panels, and no title of its own: the list
+    // panel's card header is the Work screen's tab pair (task 126).
+    expect(document.querySelector(".screen-header")).toBeNull();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     const list = screen.getByRole("navigation", { name: "Changed files" });
-    expect(within(list).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
-  });
-
-  it("shows the snapshot's added and removed line totals once the diff cache is warm", async () => {
-    const controller = createChangesController(changesPort);
-    await controller.warmStore(controller.getStore("/repo", "test-epoch", workingTree));
-    renderPanel(controller);
-
-    expect(await screen.findByText("3 lines added")).toBeInTheDocument();
-    expect(screen.getByText("1 line removed")).toBeInTheDocument();
+    const header = list.querySelector(".changes-file-list__header");
+    if (!(header instanceof HTMLElement)) throw new Error("no panel header");
+    expect(within(header).getByRole("tablist", { name: "Changes or history" })).toBeInTheDocument();
+    // The include-everything checkbox heads the search strip; the tree's
+    // counts are the Journey band's and the status bar's to say, so the list
+    // has no state row between the strip and its rows.
+    const toolbar = list.querySelector(".changes-file-list__toolbar");
+    if (!(toolbar instanceof HTMLElement)) throw new Error("no search strip");
+    expect(within(toolbar).getByRole("checkbox", { name: "Select none" })).toBeChecked();
+    expect(within(toolbar).getByRole("searchbox", { name: "Search changed files" })).toBeInTheDocument();
+    expect(list.querySelector(".changes-file-list__state")).toBeNull();
+    expect(screen.queryByLabelText("1 edited · 1 new")).not.toBeInTheDocument();
+    // Discarding acts on the files, so its menu ends the strip that heads
+    // them — never inside the save box docked under them.
+    expect(within(toolbar).getByRole("button", { name: "Discard or restore changes" })).toBeEnabled();
+    const foot = list.querySelector(".changes-file-list__foot");
+    if (!(foot instanceof HTMLElement)) throw new Error("no save box foot");
+    expect(within(foot).getByLabelText("Version name")).toBeInTheDocument();
+    expect(within(foot).queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
   });
 
   it("narrows the file list as the user searches, and explains an empty result", async () => {
@@ -690,25 +826,45 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Next change" })).toBeDisabled();
   });
 
+  it("finds text in the open difference, and its one X closes the find", async () => {
+    renderPanel();
+    await screen.findByText("after one");
+
+    // The find is an icon until asked for, so it spends no width at rest.
+    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Search in the selected file's changes" }));
+
+    await userEvent.type(screen.getByPlaceholderText("Search in diff"), "fifty");
+    await waitFor(() =>
+      expect(document.querySelector(".diff-search-match")).toHaveTextContent("fifty"),
+    );
+
+    // The pill's single X ends the find and clears the highlight with it.
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search in the selected file's changes" })).toBeInTheDocument();
+    expect(document.querySelector(".diff-search-match")).toBeNull();
+  });
+
   it("switches the diff to the side-by-side view and keeps the choice across files", async () => {
     const { container } = render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={workingTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(await screen.findByText("before one")).toBeInTheDocument();
     expect(container.querySelector(".diff-split-row")).toBeNull();
 
-    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff view (Unified)" }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "Split" }));
 
     await waitFor(() => expect(container.querySelector(".diff-split-row")).not.toBeNull());
@@ -735,7 +891,7 @@ describe("ChangesPanel review controls", () => {
     });
 
     const { container } = render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/large-repo"
           workingTree={{
@@ -747,10 +903,10 @@ describe("ChangesPanel review controls", () => {
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /file-0000\.txt/ });
@@ -765,7 +921,7 @@ describe("ChangesPanel review controls", () => {
     renderPanel();
 
     await screen.findByText("before one");
-    await userEvent.click(screen.getByRole("button", { name: "Difference view (Unified)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff view (Unified)" }));
 
     const unified = screen.getByRole("menuitemradio", { name: "Unified" });
     expect(unified).toHaveFocus();
@@ -773,7 +929,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("menuitemradio", { name: "Accessible text" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
 
-    const completeDiff = screen.getByLabelText("Complete difference as accessible text");
+    const completeDiff = screen.getByLabelText("All changes as accessible text");
     expect(completeDiff).toHaveTextContent("@@ -1,2 +1,2 @@");
     expect(completeDiff).toHaveTextContent("-before one");
     expect(completeDiff).toHaveTextContent("+after fifty");
@@ -809,18 +965,21 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
     await screen.findByRole("button", { name: /edited\.txt/ });
     await userEvent.click(screen.getByRole("button", { name: "Discard or restore changes" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file’s changes…" }));
-    expect(await screen.findByRole("heading", { name: "Discard this file’s changes?" })).toBeInTheDocument();
-    await screen.findByText("edited.txt goes back to its last saved version.");
-    await userEvent.click(screen.getByRole("button", { name: "Discard these changes" }));
-    expect(await screen.findByText("1 file went back to its last saved version.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Discard this file's changes…" }));
+    expect(await screen.findByRole("heading", { name: "Discard changes?" })).toBeInTheDocument();
+    await screen.findByText("“edited.txt” goes back to its last saved version.");
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    // Done means closed: the result and its undo are a toast, not a dialog.
+    expect(await screen.findByText("1 file is back to its last saved version.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo discard" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("offers only Copy when code is right-clicked and copies the exact selection", async () => {
@@ -835,9 +994,9 @@ describe("ChangesPanel review controls", () => {
         })
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
     const code = await screen.findByText("const área = ", { exact: false });
     const selection = window.getSelection();
@@ -869,14 +1028,14 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
     const file = await screen.findByRole("button", { name: /new\.txt/ });
     fireEvent.contextMenu(file, { clientX: 180, clientY: 220 });
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard changes…" }));
-    expect(await screen.findByText("new.txt goes back to its last saved version.")).toBeInTheDocument();
+    expect(await screen.findByText("“new.txt” goes back to its last saved version.")).toBeInTheDocument();
   });
 
   it("says the screen has stopped updating itself, beside the refresh that replaces it", async () => {
@@ -885,17 +1044,17 @@ describe("ChangesPanel review controls", () => {
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     const onRefresh = vi.fn();
     const onOpenSettings = vi.fn();
-    const panel = (isCheckingChanges: boolean) => <LanguageProvider>
-      <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={isCheckingChanges} watcherState="off" onRefresh={onRefresh} onOpenSettings={onOpenSettings} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-    </LanguageProvider>;
+    const panel = (isCheckingChanges: boolean) => <LanguageProvider><ToastProvider>
+      <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={isCheckingChanges} watcherState="off" onRefresh={onRefresh} onOpenSettings={onOpenSettings} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+    </ToastProvider></LanguageProvider>;
     const view = render(panel(false));
 
     const description = await screen.findByText("This screen may be out of date.");
     expect(description).toBeInTheDocument();
     const notice = description.closest(".automatic-updates-notice");
-    const title = screen.getByRole("heading", { name: "Changes" });
+    const tabs = screen.getByRole("tablist", { name: "Changes or history" });
     expect(notice).not.toBeNull();
-    expect((notice as HTMLElement).compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((notice as HTMLElement).compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const update = screen.getByRole("button", { name: "Check local changes" });
     const settings = screen.getByRole("button", { name: "Turn on automatic updates" });
     expect(update).toHaveClass("ghost-button");
@@ -905,7 +1064,7 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByRole("button", { name: "Check local changes" })).toHaveTextContent("Update now");
     view.rerender(panel(true));
     expect(screen.getByText("Automatic updates are off")).toBeInTheDocument();
-    const busyUpdate = screen.getByRole("button", { name: "GitOdile is looking at your project files." });
+    const busyUpdate = screen.getByRole("button", { name: "Looking at your project files." });
     expect(busyUpdate).toHaveTextContent("Updating…");
     expect(busyUpdate.querySelector(".icon--spinning")).not.toBeNull();
     view.rerender(panel(false));
@@ -918,9 +1077,9 @@ describe("ChangesPanel review controls", () => {
       ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -935,9 +1094,9 @@ describe("ChangesPanel review controls", () => {
       ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="starting" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="starting" onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -950,12 +1109,12 @@ describe("ChangesPanel review controls", () => {
       ? Promise.resolve({ kind: "unchanged", path: "edited.txt", originalPath: null, change: "changed" })
       : Promise.reject(new Error(`Unexpected command: ${command}`)));
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="unavailable" onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} watcherState="unavailable" onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
-    expect(await screen.findByText("Automatic updates aren’t available")).toBeInTheDocument();
+    expect(await screen.findByText("Automatic updates aren't available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check local changes" })).toBeEnabled();
   });
 
@@ -988,9 +1147,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} confirmBeforeDiscarding={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} confirmBeforeDiscarding={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -998,14 +1157,14 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     // No dialog, no second click: the work is gone and the screen says so.
-    expect(await screen.findByText("2 files went back to their last saved version.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files are back to their last saved version.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Discard all unsaved changes?" })).toBeNull();
     expect(discarded).toEqual([
       { path: "/repo", sessionEpoch: "test-epoch", selectedPath: null, stateToken: "before" },
     ]);
 
     await userEvent.click(screen.getByRole("button", { name: "Undo discard" }));
-    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
     expect(restores).toBe(1);
   });
 
@@ -1038,9 +1197,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -1049,27 +1208,26 @@ describe("ChangesPanel review controls", () => {
 
     expect(await screen.findByRole("heading", { name: "Restore discarded changes" })).toBeInTheDocument();
     // Only what can be applied is an option, and the newest of those is chosen
-    // for you. The dialog closes the way the others do, with no Cancel of its
-    // own.
+    // for you. Cancel sits beside Restore, like every other dialog.
     const options = screen.getAllByRole("radio");
     expect(options).toHaveLength(1);
     expect(options[0]).toBeChecked();
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
 
     // The one whose own files were written again is kept and folded away —
     // its copy is still on disk — and says why when asked for.
     expect(screen.queryByText("a.txt, b.txt, c.txt, d.txt and 1 more")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "1 more can’t be restored right now" }));
+    await userEvent.click(screen.getByRole("button", { name: "1 more can't be restored now" }));
     expect(screen.getByText("a.txt, b.txt, c.txt, d.txt and 1 more")).toBeInTheDocument();
-    expect(screen.getByText(/One of these files changed after this discard/)).toBeInTheDocument();
+    expect(screen.getByText(/A file changed since, so restoring would overwrite newer work/)).toBeInTheDocument();
     // This one matches the project as a whole, so it says nothing about
     // prepared changes: it puts them back with the files.
     expect(screen.queryByText(/Prepared changes stay/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Restore these changes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
 
-    expect(await screen.findByText("2 files are back where they were.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
     expect(restores).toEqual([
       { path: "/repo", sessionEpoch: "test-epoch", recoveryId: "discard-2", stateToken: "token-2" },
     ]);
@@ -1095,9 +1253,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -1105,7 +1263,7 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Restore discarded changes…" }));
 
     expect(await screen.findByRole("radio")).toBeChecked();
-    expect(screen.getByText(/Prepared changes stay as they are/)).toBeInTheDocument();
+    expect(screen.getByText(/leaves prepared changes as they are/)).toBeInTheDocument();
   });
 
   it("asks before deleting a stored copy, and lists what is left afterwards", async () => {
@@ -1134,9 +1292,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -1189,13 +1347,17 @@ describe("ChangesPanel review controls", () => {
       hasUnpreparedChanges: false,
     };
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     // Discarding everything takes the file list away, and its menu with it.
-    expect(screen.getByRole("heading", { name: "Nothing to review" })).toBeInTheDocument();
+    // A clean tree with no upstream reads as a local-only project, not as
+    // "nothing to review".
+    expect(
+      screen.getByRole("heading", { name: "Everything is saved on this computer" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Discard or restore changes" })).not.toBeInTheDocument();
 
     // The door to what was discarded has to survive that.
@@ -1212,9 +1374,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -1240,9 +1402,9 @@ describe("ChangesPanel review controls", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
     render(
-      <LanguageProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onNavigateOverview={vi.fn()} onPublishNow={vi.fn()} />
-      </LanguageProvider>,
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>,
     );
 
     await screen.findByRole("button", { name: /edited\.txt/ });
@@ -1250,6 +1412,120 @@ describe("ChangesPanel review controls", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Discard all changes…" }));
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("ChangesPanel clean state", () => {
+  type Upstream = { upstream: string | null; ahead: number; behind: number };
+
+  function cleanTree(upstream: Upstream): WorkingTreeStatus {
+    return {
+      ...workingTree,
+      isClean: true,
+      counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+      entries: [],
+      hasUnpreparedChanges: false,
+      upstream: { branch: "main", ...upstream },
+    };
+  }
+
+  function renderClean({
+    upstream,
+    headState,
+    onGetChanges = vi.fn(),
+    onOpenHistory = vi.fn(),
+    onPublishNow = vi.fn(),
+    onOpenSettings = vi.fn(),
+  }: {
+    upstream: Upstream;
+    headState?: "branch" | "detached" | "unborn";
+    onGetChanges?: () => void;
+    onOpenHistory?: () => void;
+    onPublishNow?: () => void;
+    onOpenSettings?: () => void;
+  }) {
+    render(
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel
+          projectPath="/repo"
+          workingTree={cleanTree(upstream)}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          onRefresh={vi.fn()}
+          onPublishNow={onPublishNow}
+          onGetChanges={onGetChanges}
+          onOpenHistory={onOpenHistory}
+          onOpenSettings={onOpenSettings}
+          {...(headState ? { headState } : {})}
+        />
+      </ToastProvider></LanguageProvider>,
+    );
+    return { onGetChanges, onOpenHistory, onPublishNow, onOpenSettings };
+  }
+
+  it("offers to publish when saved versions are still only local", async () => {
+    const { onPublishNow, onGetChanges, onOpenHistory } = renderClean({
+      upstream: { upstream: "origin/main", ahead: 4, behind: 0 },
+    });
+
+    expect(screen.getByRole("heading", { name: "All changes are saved" })).toBeInTheDocument();
+    expect(screen.getByText(/4 saved versions/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Publish 4 versions" }));
+    expect(onPublishNow).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
+    expect(onGetChanges).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "View history" }));
+    expect(onOpenHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("brings changes in first when the remote is ahead", async () => {
+    const { onGetChanges, onPublishNow } = renderClean({
+      upstream: { upstream: "origin/main", ahead: 0, behind: 2 },
+    });
+
+    expect(screen.getByText(/2 newer versions are available/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
+    expect(onGetChanges).toHaveBeenCalledTimes(1);
+    expect(onPublishNow).not.toHaveBeenCalled();
+  });
+
+  it("says everything is settled when there is nothing to send or receive", () => {
+    renderClean({ upstream: { upstream: "origin/main", ahead: 0, behind: 0 } });
+
+    expect(screen.getByRole("heading", { name: "You're all caught up" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Get project changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
+  });
+
+  it("points to project settings when there is no remote", async () => {
+    const { onOpenSettings } = renderClean({ upstream: { upstream: null, ahead: 0, behind: 0 } });
+
+    expect(
+      screen.getByRole("heading", { name: "Everything is saved on this computer" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Open project settings" }));
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("names an empty project without offering a publish", () => {
+    renderClean({ upstream: { upstream: null, ahead: 0, behind: 0 }, headState: "unborn" });
+
+    expect(screen.getByRole("heading", { name: "No saved versions yet" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish|Get project changes/ })).not.toBeInTheDocument();
+  });
+
+  it("names an old version being read without offering a publish", () => {
+    renderClean({ upstream: { upstream: "origin/main", ahead: 3, behind: 0 }, headState: "detached" });
+
+    expect(screen.getByRole("heading", { name: "You're viewing an old version" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
   });
 });
 
@@ -1263,6 +1539,7 @@ describe("ChangesPanel filters", () => {
   const mixedTree: WorkingTreeStatus = {
     isClean: false,
     counts: { changed: 2, new: 1, deleted: 1, renamed: 0, conflicted: 1, total: 5 },
+    lineTotals: null,
     entries: [
       { path: "conflict.txt", originalPath: null, category: "conflicted", isPrepared: false, hasUnpreparedChanges: true },
       { path: "edited.txt", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true },
@@ -1287,17 +1564,17 @@ describe("ChangesPanel filters", () => {
 
   function renderMixed(): ReturnType<typeof render> {
     return render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={mixedTree}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
   }
 
@@ -1331,16 +1608,20 @@ describe("ChangesPanel filters", () => {
     const { container } = renderMixed();
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
+    // A partial selection is the include-everything checkbox's own state:
+    // neither checked nor clear, but mixed.
+    const selectAll = () => screen.getByRole("checkbox", { name: /^Select (all|none)$/ }) as HTMLInputElement;
+    expect(selectAll().indeterminate).toBe(false);
     await userEvent.click(screen.getByRole("checkbox", { name: "Include asset.png in this version" }));
-    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+    expect(selectAll().indeterminate).toBe(true);
 
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));
     await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("radio", { name: "No" }));
 
     expect(listedFiles(container)).toEqual(["asset.png"]);
-    // Filtering changed only what is listed: the count and the select-all
-    // checkbox still answer for the whole working tree.
-    expect(container.querySelector(".changes-view__selection")).toHaveTextContent("4 of 5 selected");
+    // Filtering changed only what is listed: the select-all checkbox still
+    // answers for the whole working tree.
+    expect(selectAll().indeterminate).toBe(true);
     expect(screen.getByRole("checkbox", { name: "Select all" })).toBeInTheDocument();
   });
 
@@ -1411,10 +1692,10 @@ describe("ChangesPanel filters", () => {
 
     // The stub rejects everything but `read_file_diff`. The menu that asked is
     // already gone, so the message needs a surface that outlives it.
-    const notice = await screen.findByText("That file couldn't be shown.");
+    const notice = await screen.findByText("Couldn't show that file.");
     expect(notice.closest(".changes-notice--error")).not.toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByText("That file couldn't be shown.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Couldn't show that file.")).not.toBeInTheDocument();
   });
 
   it("offers the file types most of the list first and narrows by one", async () => {
@@ -1476,17 +1757,17 @@ describe("ChangesPanel filters", () => {
       entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")),
     };
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={oneType}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
@@ -1510,17 +1791,17 @@ describe("ChangesPanel filters", () => {
     // question, so a filter counted on the trigger would have nowhere to be
     // undone — it goes with it.
     rerender(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={{ ...mixedTree, entries: mixedTree.entries.filter((entry) => entry.path.endsWith(".txt")) }}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
 
     expect(container.querySelector(".filter-control__badge")).toBeNull();
@@ -1529,17 +1810,17 @@ describe("ChangesPanel filters", () => {
 
   it("does not ask what the next version takes when no file can be left out", async () => {
     render(
-      <LanguageProvider>
+      <LanguageProvider><ToastProvider>
         <ControlledChangesPanel
           projectPath="/repo"
           workingTree={{ ...mixedTree, truncated: true }}
           workingTreeError={null}
           isCheckingChanges={false}
           onRefresh={vi.fn()}
-          onNavigateOverview={vi.fn()}
+          onGetChanges={vi.fn()}
           onPublishNow={vi.fn()}
         />
-      </LanguageProvider>,
+      </ToastProvider></LanguageProvider>,
     );
     await screen.findByRole("button", { name: /conflict\.txt/ });
 
@@ -1566,7 +1847,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(panel).getByRole("radio", { name: "No" }));
     await userEvent.keyboard("{Escape}");
 
-    expect(screen.getByText("No changed file matches what you are looking for.")).toBeInTheDocument();
+    expect(screen.getByText("No changed file matches these filters.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
 
     expect(listedFiles(container)).toHaveLength(5);

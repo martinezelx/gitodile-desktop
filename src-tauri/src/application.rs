@@ -86,6 +86,28 @@ const fn read(command: &'static str) -> ExecutionPolicy {
     ExecutionPolicy::repository_read(command)
 }
 
+/// The console's small output budget: enough to read, bounded so a long log
+/// or diff never floods the renderer.
+const fn console_read(command: &'static str) -> ExecutionPolicy {
+    ExecutionPolicy {
+        stdout_cap: 64 * 1024,
+        stderr_cap: 8 * 1024,
+        timeout: Duration::from_secs(15),
+        ..read(command)
+    }
+}
+
+/// Typed console changes: local changes and remote transfers, exclusive
+/// like every mutation, on the console's output budget. Remote is the widest
+/// class one can have until history and destructive commands arrive.
+const fn console_change() -> ExecutionPolicy {
+    ExecutionPolicy {
+        stdout_cap: 64 * 1024,
+        stderr_cap: 8 * 1024,
+        ..ExecutionPolicy::repository_write("run_console_change", OperationClass::RemoteMutation)
+    }
+}
+
 pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     control("app_status"),
     control("show_main_window"),
@@ -109,6 +131,15 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     global_process("initialize_project", OperationClass::LocalMutation, 120),
     no_process_with_class("cleanup_initialize_project", OperationClass::Destructive),
     read("read_working_tree_status"),
+    console_read("run_console_query"),
+    // Planning a read only parses and classifies the line; a change plan
+    // also reads the repository for its preview and fingerprint.
+    console_read("plan_console_command"),
+    console_read("run_console_plan"),
+    console_change(),
+    no_process("get_console_settings"),
+    no_process_with_class("set_console_advanced_mode", OperationClass::LocalMutation),
+    no_process_with_class("set_console_confirm_changes", OperationClass::LocalMutation),
     read("read_file_diff"),
     read("read_file_image_preview"),
     read("read_file_lines"),
@@ -145,6 +176,7 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     ExecutionPolicy::repository_write("clear_project_identity", OperationClass::LocalMutation),
     read("read_ignore_file"),
     ExecutionPolicy::repository_write("write_ignore_file", OperationClass::LocalMutation),
+    read("read_project_technology"),
     read("read_team_sync_status"),
     ExecutionPolicy::repository_write("check_team_changes", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("plan_get_team_changes", OperationClass::LocalMutation),
@@ -424,6 +456,72 @@ pub(crate) fn current_cancellation() -> Option<CancellationToken> {
     })
 }
 
+/// The running command's frame, carried into a scoped worker thread so the
+/// Git processes a command splits across threads run under the same policy
+/// and cancellation it does. The frame stack is thread-local, and a thread
+/// that starts without it has no policy at all — `require_policy` refuses to
+/// run Git there.
+///
+/// Only for a read that fans out inside one command and joins before the
+/// command returns (`std::thread::scope`): the frame must never outlive the
+/// command that pushed it.
+pub(crate) struct InheritedCommand {
+    frame: CommandFrame,
+}
+
+pub(crate) fn inherit_command() -> Option<InheritedCommand> {
+    POLICY_STACK
+        .with(|stack| stack.borrow().last().cloned())
+        .map(|frame| InheritedCommand { frame })
+}
+
+impl InheritedCommand {
+    /// Pushes the frame on the calling thread until the guard drops.
+    pub(crate) fn enter(self) -> InheritedCommandGuard {
+        POLICY_STACK.with(|stack| stack.borrow_mut().push(self.frame));
+        InheritedCommandGuard { _private: () }
+    }
+}
+
+pub(crate) struct InheritedCommandGuard {
+    _private: (),
+}
+
+impl Drop for InheritedCommandGuard {
+    fn drop(&mut self) {
+        POLICY_STACK.with(|stack| {
+            stack.borrow_mut().pop();
+        });
+    }
+}
+
+/// Runs `second` on a scoped worker thread while `first` runs here, and
+/// returns both. The worker carries the running command's policy frame
+/// (`inherit_command`), so its Git processes run under the same
+/// policy and cancellation; it joins before this returns, so the frame never
+/// outlives the command. Read-only questions only — nothing that mutates may
+/// race another process.
+pub(crate) fn in_parallel<A, B>(
+    first: impl FnOnce() -> A,
+    second: impl FnOnce() -> B + Send,
+) -> (A, B)
+where
+    B: Send,
+{
+    let inherited = inherit_command();
+    std::thread::scope(|scope| {
+        let worker = scope.spawn(move || {
+            let _frame = inherited.map(InheritedCommand::enter);
+            second()
+        });
+        let first = first();
+        let second = worker
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        (first, second)
+    })
+}
+
 fn cancellations() -> &'static Mutex<HashMap<(String, &'static str), CancellationToken>> {
     static CANCELLATIONS: OnceLock<Mutex<HashMap<(String, &'static str), CancellationToken>>> =
         OnceLock::new();
@@ -659,6 +757,13 @@ mod tests {
         "initialize_project",
         "cleanup_initialize_project",
         "read_working_tree_status",
+        "run_console_query",
+        "plan_console_command",
+        "run_console_plan",
+        "run_console_change",
+        "get_console_settings",
+        "set_console_advanced_mode",
+        "set_console_confirm_changes",
         "read_file_diff",
         "read_file_image_preview",
         "read_file_lines",
@@ -693,6 +798,7 @@ mod tests {
         "clear_project_identity",
         "read_ignore_file",
         "write_ignore_file",
+        "read_project_technology",
         "read_team_sync_status",
         "check_team_changes",
         "plan_get_team_changes",

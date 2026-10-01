@@ -44,6 +44,7 @@ export type HistoryFilters = {
   path: string | null;
   noMerges: boolean;
   unpublishedOnly: boolean;
+  taggedOnly: boolean;
 };
 
 export const NO_HISTORY_FILTERS: HistoryFilters = {
@@ -53,6 +54,7 @@ export const NO_HISTORY_FILTERS: HistoryFilters = {
   path: null,
   noMerges: false,
   unpublishedOnly: false,
+  taggedOnly: false,
 };
 
 export function countActiveFilters(filters: HistoryFilters): number {
@@ -63,6 +65,7 @@ export function countActiveFilters(filters: HistoryFilters): number {
     filters.path,
     filters.noMerges || null,
     filters.unpublishedOnly || null,
+    filters.taggedOnly || null,
   ].filter(Boolean).length;
 }
 
@@ -72,7 +75,8 @@ export function sameHistoryFilters(left: HistoryFilters, right: HistoryFilters):
     && left.until === right.until
     && left.path === right.path
     && left.noMerges === right.noMerges
-    && left.unpublishedOnly === right.unpublishedOnly;
+    && left.unpublishedOnly === right.unpublishedOnly
+    && left.taggedOnly === right.taggedOnly;
 }
 
 export type HistoryPageRequest = HistoryQuery & {

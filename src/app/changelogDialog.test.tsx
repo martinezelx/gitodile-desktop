@@ -12,7 +12,7 @@ import {
   buildAppChangelog,
   compareAppReleaseVersions,
 } from "./appRelease";
-import { ChangelogDialog } from "./ChangelogDialog";
+import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 
 afterEach(() => {
   cleanup();
@@ -89,25 +89,61 @@ describe("Changelog dialog", () => {
     expect(onCheckForUpdates).toHaveBeenCalledOnce();
   });
 
+  it("lets the update state decide what the line under the title offers", async () => {
+    const onCheckForUpdates = vi.fn();
+    const onOpenUpdates = vi.fn();
+    const renderWith = (updateStatus: AppUpdateStatusLine) => render(
+      <LanguageProvider>
+        <ChangelogDialog isOpen setOpen={vi.fn()} onCheckForUpdates={onCheckForUpdates} onOpenUpdates={onOpenUpdates} updateStatus={updateStatus} />
+      </LanguageProvider>,
+    );
+
+    // Settled: the state, then the way to check.
+    renderWith({ tone: "ok", label: "Up to date" });
+    const line = screen.getByText("Up to date").closest("p") as HTMLElement;
+    expect(within(line).getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
+    cleanup();
+
+    // Something to do: the state is the way in, with no second link. It
+    // opens the update dialog without a new check, which would drop a
+    // download that is ready to install.
+    renderWith({ tone: "attention", label: "Ready to install" });
+    expect(screen.queryByRole("button", { name: "Check for updates" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Ready to install" }));
+    expect(onOpenUpdates).toHaveBeenCalledOnce();
+    expect(onCheckForUpdates).not.toHaveBeenCalled();
+    cleanup();
+
+    // Already checking: nothing to ask for.
+    renderWith({ tone: "busy", label: "Checking for updates…" });
+    expect(screen.getByText("Checking for updates…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check for updates" })).toBeNull();
+  });
+
   it("lists every bundled release with its date and notes", async () => {
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "What's new" });
-    const releases = [...dialog.querySelectorAll(".changelog-release")];
-    expect(releases).toHaveLength(APP_CHANGELOG.length);
+    const current = dialog.querySelector(".changelog-current") as HTMLElement;
+    const earlier = [...dialog.querySelectorAll(".changelog-release")] as HTMLElement[];
+    expect(earlier).toHaveLength(APP_CHANGELOG.length - 1);
 
-    for (const [index, release] of APP_CHANGELOG.entries()) {
-      const rendered = releases[index] as HTMLElement;
-      expect(within(rendered).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
+    const rendered = [current, ...earlier];
+    const releases = [CURRENT_APP_RELEASE, ...APP_CHANGELOG.filter((release) => release !== CURRENT_APP_RELEASE)];
+    for (const [index, release] of releases.entries()) {
+      const element = rendered[index]!;
+      expect(within(element).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
       if (release.date === null) {
-        expect(rendered.querySelector("time")).toBeNull();
+        expect(element.querySelector("time")).toBeNull();
       } else {
-        expect(rendered.querySelector("time")).toHaveAttribute("dateTime", release.date);
+        expect(element.querySelector("time")).toHaveAttribute("dateTime", release.date);
       }
-      await userEvent.click(within(rendered).getByRole("button"));
-      expect(rendered.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.highlights.length);
+      if (index > 0) {
+        await userEvent.click(within(element).getByRole("button"));
+      }
+      expect(element.querySelectorAll(".changelog-release__notes li")).toHaveLength(release.highlights.length);
       for (const highlight of release.highlights) {
-        expect(within(rendered).getByText(highlight.en)).toBeInTheDocument();
+        expect(within(element).getByText(highlight.en)).toBeInTheDocument();
       }
     }
   });
@@ -115,18 +151,23 @@ describe("Changelog dialog", () => {
   it("marks the release the user is actually running", () => {
     renderDialog();
 
-    const current = screen.getByText("You are running this");
+    const current = screen.getByText("Your version");
     expect(current).toHaveClass("changelog-release__current");
-    expect(current.closest(".changelog-release")).toHaveTextContent(`v${CURRENT_APP_RELEASE.version}`);
+    expect(current.closest(".changelog-current")).toHaveTextContent(`v${CURRENT_APP_RELEASE.version}`);
   });
 
-  it("keeps each release compact until its notes are requested", async () => {
+  it("opens the running build's notes and keeps earlier releases to one counted line", async () => {
     renderDialog();
     const currentHeading = screen.getByRole("heading", { name: `v${CURRENT_APP_RELEASE.version}` });
-    const disclosure = currentHeading.closest("button");
+    // The running build is not a disclosure: its notes are the answer.
+    expect(currentHeading.closest("button")).toBeNull();
 
+    const earlier = APP_CHANGELOG.find((release) => release !== CURRENT_APP_RELEASE && release.highlights.length > 1);
+    if (earlier === undefined) return;
+    const disclosure = screen.getByRole("heading", { name: `v${earlier.version}` }).closest("button") as HTMLElement;
+    expect(disclosure).toHaveTextContent(`${earlier.highlights.length} changes`);
     expect(disclosure).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(disclosure as HTMLElement);
+    await userEvent.click(disclosure);
     expect(disclosure).toHaveAttribute("aria-expanded", "true");
   });
 
@@ -135,13 +176,15 @@ describe("Changelog dialog", () => {
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "Novedades" });
-    expect(within(dialog).getByText("Estás usando esta")).toBeInTheDocument();
+    expect(within(dialog).getByText("Tu versión")).toBeInTheDocument();
     // 0.1.0 always ships highlights; the running build may not (a
     // pipeline-only preview), so the Spanish text is checked on the former.
     const first = APP_CHANGELOG.find((entry) => entry.version === "0.1.0")!;
-    await userEvent.click(within(dialog).getByRole("button", {
-      name: (accessibleName) => accessibleName.includes("v0.1.0"),
-    }));
+    if (first !== CURRENT_APP_RELEASE) {
+      await userEvent.click(within(dialog).getByRole("button", {
+        name: (accessibleName) => accessibleName.includes("v0.1.0"),
+      }));
+    }
     expect(within(dialog).getByText(first.highlights[0]!.es)).toBeInTheDocument();
     expect(within(dialog).queryByText(first.highlights[0]!.en)).toBeNull();
   });

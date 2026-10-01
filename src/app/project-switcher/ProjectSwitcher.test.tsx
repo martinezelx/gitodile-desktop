@@ -149,7 +149,7 @@ describe("ProjectSwitcherRail", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    const search = screen.getByRole("textbox", { name: "Search a project…" });
+    const search = screen.getByRole("textbox", { name: "Search projects…" });
     await waitFor(() => expect(search).toHaveFocus());
 
     await userEvent.type(search, "bet");
@@ -214,7 +214,7 @@ describe("ProjectSwitcherRail", () => {
     expect(within(popover).getByRole("button", { name: /^alpha/i })).toBeInTheDocument();
     expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show favorites only" }));
     expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
     expect(within(popover).queryByRole("button", { name: /^alpha/i })).not.toBeInTheDocument();
   });
@@ -227,11 +227,11 @@ describe("ProjectSwitcherRail", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    await userEvent.click(screen.getByRole("button", { name: "Show favourites only" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show favorites only" }));
 
     // "No projects match that search" would be a lie: nothing was searched.
     expect(
-      screen.getByText("No favourites yet. Star a project to keep it here."),
+      screen.getByText("No favorites yet. Star a project to keep it here."),
     ).toBeInTheDocument();
   });
 
@@ -372,9 +372,9 @@ describe("project favourites", () => {
     // The marked one offers removal and reports itself pressed; the unmarked
     // one offers the opposite. That pair is what a screen reader has to
     // distinguish, since the difference is otherwise only colour and fill.
-    const marked = await screen.findByRole("button", { name: "Remove alpha from favourites" });
+    const marked = await screen.findByRole("button", { name: "Remove alpha from favorites" });
     expect(marked).toHaveAttribute("aria-pressed", "true");
-    const unmarked = screen.getByRole("button", { name: "Add beta to favourites" });
+    const unmarked = screen.getByRole("button", { name: "Add beta to favorites" });
     expect(unmarked).toHaveAttribute("aria-pressed", "false");
 
     await userEvent.click(marked);

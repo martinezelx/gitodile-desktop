@@ -27,7 +27,12 @@ export function deletabilityOf(line: VersionLine): Deletability {
  * the menu labelled every Delete "its saved work is already kept somewhere
  * else", which is the opposite of the truth for a line whose work lives
  * nowhere but there. */
-export function deleteActionLabel(line: VersionLine, t: Translations): string {
+export function deleteActionLabel(line: VersionLine, t: Translations, copiedInto?: string | null): string {
+  // Held by no other line, but its work reached the main line as copies: it
+  // can go, with a recovery point for the originals (ADR 0016).
+  if (copiedInto && deletabilityOf(line) === "unique-work") {
+    return t.versionLinesDeleteCopiedTooltip(line.name, copiedInto);
+  }
   switch (deletabilityOf(line)) {
     case "elsewhere":
       return t.versionLinesDeleteElsewhereTooltip(line.name);

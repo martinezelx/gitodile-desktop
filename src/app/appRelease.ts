@@ -1,20 +1,9 @@
-/** The glyph catalogue. The release scripts validate every highlights file
- * against `docs/release/highlights/icons.json`; this list is the same names
- * as literal types, so the dialog's icon map is complete by construction, and
- * a test holds the two lists equal so neither can grow without the other. */
-export const HIGHLIGHT_ICONS = [
-  "bug",
-  "cloud-download",
-  "folder-open",
-  "git-branch",
-  "history",
-  "list-checks",
-  "send",
-  "shield-check",
-  "sparkles",
-  "tag",
-] as const;
-export type HighlightIcon = (typeof HIGHLIGHT_ICONS)[number];
+/* The glyph catalogue lives with the component that draws it, which the
+   update dialog shares; the release model names it from there. */
+import { HIGHLIGHT_ICONS, type HighlightIcon } from "../shared/ui";
+
+export { HIGHLIGHT_ICONS, type HighlightIcon };
+
 
 /** One line of What's new, in both languages the app speaks. Stored as text
  * rather than as a translation key because a release's highlights belong to

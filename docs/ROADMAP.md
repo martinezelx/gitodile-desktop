@@ -101,9 +101,12 @@ references and therefore do not change when priorities move.
 | Q17 | 064-5 | Audit the set-aside workflow |
 | Q18 | 065-7 | Harden credential and remote diagnostics |
 | Q19 | 065-8 | Verify and distribute `1.0.0` |
-| Q20 | 102 | Refine the crocodile brand mark |
-| Q21 | 065-9-13 | Record the remaining updater evidence and add OS signing |
-| Q22 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
+| Q20 | 065-9-13 | Record the remaining updater evidence and add OS signing |
+| Q21 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
+| Q22 | 127 | Settle canonical colour themes |
+| Q23 | 130 | Add project identity icons |
+| Q24 | 131 | Replace the app icon with the mascot |
+| Q25 | 140 | Build the account sign-in screens against a functional mock |
 
 ### Preview distribution — delivered
 
@@ -116,8 +119,8 @@ references and therefore do not change when priorities move.
   is [Q19 / 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
 - This enables preview distribution before the rest of the 1.0.0 feature set.
   New operations and drafts must integrate with install protection as they land.
-  Git credential diagnostics remain Q21 / 065-7; final product qualification
-  remains Q22 / 065-8. Completing this epic does not establish 1.0.0 readiness.
+  Git credential diagnostics remain Q16 / 065-7; final product qualification
+  remains Q18 / 065-8. Completing this epic does not establish 1.0.0 readiness.
   ADR 0011 defers Windows Authenticode and all macOS delivery until after
   `1.0.0`; the initial release matrix is Windows x86-64 plus Linux x86-64.
 
@@ -149,11 +152,11 @@ save a change, and verify the result in History.
 
 ### Gate 2 — Complete collaboration and overlaps
 
-- **Q08–Q14 / 037: Guided conflict resolution.** Deliver its child slices from conflict
+- **Q01–Q07 / 037: Guided conflict resolution.** Deliver its child slices from conflict
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q15 / 065-4: Integrate version lines and diverged project changes.** Add previewed
+- **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
    local-branch merge and non-fast-forward team integration. Clean results
    complete normally; overlaps enter task 037's established session contract.
 
@@ -162,12 +165,12 @@ without a terminal. Rebase and force push remain excluded.
 
 ### Gate 3 — Make safety visible and reusable
 
-- **Q16 / 065-5: Recovery center.** Inventory supported recovery records, explain
+- **Q09 / 065-5: Recovery center.** Inventory supported recovery records, explain
    retention/eligibility, and perform only state-token-safe restores.
-- **Q17 / 065-6: Restore a saved version.** From History, choose a reversible
+- **Q10 / 065-6: Restore a saved version.** From History, choose a reversible
    strategy: undo unpublished local work or create a new reverting version for
    shared work. Never hide history rewriting or use a destructive hard reset.
-- **Q18–Q22 / 064: Set changes aside.** Deliver the five epic children in order;
+- **Q11–Q15 / 064: Set changes aside.** Deliver the five epic children in order;
   discovery/create come first, then restore and
    removal after the conflict and recovery contracts they consume are stable.
 
@@ -177,7 +180,7 @@ restored safely.
 
 ### Gate 4 — Release candidate
 
-- **Q23 / 065-7: Credential and remote diagnostics.** Verify system credential
+- **Q16 / 065-7: Credential and remote diagnostics.** Verify system credential
     helper behavior for clone/fetch/publish, classify common provider-neutral
     failures, and give actionable remediation. Native provider login remains
     post-`1.0.0`.
@@ -185,7 +188,20 @@ restored safely.
     region, menu, popover, dialog, control family, and representative state
     against the settled radius and control-geometry system. Fix and guard all
     drift before the final platform matrix.
-- **Q24 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **Q17 / 134: Project Git console.** Ship the first keyboard-driven,
+   project-scoped screen for fixed read-only Git queries and custom shortcut
+   names. It uses the existing bounded Rust runner and does not replace the
+   guided workflows or expose a system shell; see [task 134](../work/done/134-project-git-console.md).
+- **Q25–Q26 / 138: Git commands in the console.** Typed Git commands, parsed
+   and classified in Rust into permission tiers
+   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read-only
+   commands for everyone, then an advanced mode, off by default, for local and
+   remote changes that are previewed and, unless the person turns that off,
+   confirmed; see [epic 138](../work/done/138-console-git-commands.md).
+   138-1 is independent. History and destructive commands moved to
+   [task 139](../work/blocked/139-console-history-and-destructive-commands.md),
+   blocked on the Recovery Center (065-5).
+- **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
     qualify updates and reinstall recovery, versioning, release notes, and

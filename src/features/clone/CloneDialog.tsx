@@ -3,18 +3,17 @@ import {
   Check,
   CircleAlert,
   CloudDownload,
-  FolderInput,
   FolderOpen,
-  KeyRound,
+  Info,
+  Laptop,
   LoaderCircle,
-  Network,
   ShieldCheck,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { DialogCloseButton, FieldError, LoadingBar, useFieldErrors, useModalFocus } from "../../shared/ui";
+import { Dialog, DialogFacts, FieldError, useFieldErrors, useModalFocus } from "../../shared/ui";
 import type { CloneAttempt, CloneController } from "./controller";
 import {
   readLastCloneParent,
@@ -24,13 +23,13 @@ import {
   type CloneResult,
 } from "./domain";
 
-const PROGRESS_PHASES: CloneProgressPhase[] = [
-  "preparing",
-  "cloning",
-  "sanitizingRemote",
-  "verifying",
-  "publishing",
-  "finalizing",
+/* Six phases on the wire, three steps on screen: the temporary folder, the
+   address clean-up and the move into place are how a clone stays safe, not
+   something the reader has to follow (DESIGN.md § Content design). */
+const PROGRESS_STEPS: { step: "downloading" | "checking" | "opening"; phases: CloneProgressPhase[] }[] = [
+  { step: "downloading", phases: ["preparing", "cloning"] },
+  { step: "checking", phases: ["sanitizingRemote", "verifying"] },
+  { step: "opening", phases: ["publishing", "finalizing"] },
 ];
 
 type DialogStep =
@@ -234,217 +233,219 @@ export function CloneDialog({
         ? t.cloneCredentialsSsh
         : t.cloneCredentialsNone
     : "";
-  const currentPhaseIndex = PROGRESS_PHASES.indexOf(phase);
+  const currentStepIndex = PROGRESS_STEPS.findIndex((item) => item.phases.includes(phase));
+  const close = (): void => requestOpenChange(false);
+
+  // A result is a short message: the small shell, a status glyph and the way
+  // out. The flow itself — form, review, progress — keeps the large one.
+  if (step === "error" || step === "cancelled" || step === "cleanup" || step === "open-error") {
+    const isError = step === "error" || step === "open-error";
+    const title = step === "error" ? t.cloneErrorTitle
+      : step === "cancelled" ? t.cloneCancelled
+        : step === "cleanup" ? t.cloneCleanupTitle
+          : t.cloneOpenFailedTitle;
+    return (
+      <Dialog
+        size="s"
+        role={isError ? "alertdialog" : "dialog"}
+        title={title}
+        titleId="clone-dialog-title"
+        icon={isError ? <CircleAlert /> : step === "cleanup" ? <ShieldCheck /> : <Info />}
+        tone={isError ? "danger" : step === "cleanup" ? "warning" : "neutral"}
+        onClose={step === "cleanup" ? undefined : close}
+        closeLabel={t.commonClose}
+        dialogRef={dialogRef}
+      >
+        {step === "cancelled" && <p className="app-dialog__text">{t.cloneCancelledDescription}</p>}
+        {step === "cleanup" && <p className="app-dialog__text">{t.cloneCleanupDescription}</p>}
+        {step === "open-error" && <p className="app-dialog__text">{t.cloneOpenFailedDescription}</p>}
+        {localizedError && <p className="app-dialog__text">{localizedError}</p>}
+        {step === "open-error" && result && (
+          <p className="app-dialog__text">{t.cloneDependencyNotice(result.submodules, result.gitLfs)}</p>
+        )}
+        {(technicalDetail || (step === "cleanup" && result?.cleanupPath)) && (
+          <details className="app-dialog__details">
+            <summary>{t.cloneTechnicalDetails}</summary>
+            <pre>{step === "cleanup" ? result?.cleanupPath : technicalDetail}</pre>
+          </details>
+        )}
+        <div className="dialog-actions">
+          {step === "cleanup" ? (
+            <button className="primary-button" type="button" disabled={isCleaning} onClick={() => void retryCleanup()}>
+              {isCleaning && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+              {isCleaning ? t.cloneCleaningUp : t.cloneCleanupAction}
+            </button>
+          ) : (
+            <>
+              <button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>
+              {step === "open-error" && result ? (
+                <button className="primary-button" type="button" onClick={() => void openVerified(result)}>{t.cloneRetryOpen}</button>
+              ) : (
+                <button className="primary-button" type="button" onClick={() => void retryClone()}>{t.cloneRetryAction}</button>
+              )}
+            </>
+          )}
+        </div>
+      </Dialog>
+    );
+  }
+
+  const isForm = step === "input" || step === "planning";
+  const title = step === "preview" ? t.cloneReviewTitle
+    : step === "executing" && attempt ? t.cloneProgressTitleNamed(attempt.plan.destinationName)
+      : step === "opening" ? t.cloneOpeningTitle
+        : t.cloneDialogTitle;
+  // The subtitle belongs to the step it describes: the form says what cloning
+  // is, the review that nothing has happened yet, and progress says nothing.
+  const subtitle = isForm ? t.cloneDialogDescription : step === "preview" ? t.cloneReviewDescription : undefined;
 
   return (
-    <div className="clone-backdrop" onMouseDown={() => requestOpenChange(false)}>
-      <div
-        ref={dialogRef}
-        className="clone-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="clone-dialog-title"
-        aria-describedby="clone-dialog-description"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="clone-dialog__header">
-          <span aria-hidden="true"><CloudDownload /></span>
-          <div>
-            <h2 id="clone-dialog-title">{t.cloneDialogTitle}</h2>
-            <p id="clone-dialog-description">{t.cloneDialogDescription}</p>
-          </div>
-          {step !== "opening" && (
-            <DialogCloseButton label={t.commonClose} onClick={() => requestOpenChange(false)} />
-          )}
-        </header>
-
-        {(step === "input" || step === "planning") && (
-          <form
-            className="clone-dialog__form"
-            {...formProps}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!validateInput()) return;
-              void planAttempt();
-            }}
-          >
-            <label className="text-field clone-dialog__field">
-              <span id="clone-source-label">{t.cloneSourceLabel}</span>
+    <Dialog
+      size="l"
+      title={title}
+      titleId="clone-dialog-title"
+      subtitle={subtitle}
+      icon={<CloudDownload />}
+      onClose={step === "opening" ? undefined : close}
+      closeLabel={t.commonClose}
+      dialogRef={dialogRef}
+      className="clone-dialog auto-hide-scrollbar"
+    >
+      {isForm && (
+        <form
+          className="clone-dialog__form"
+          {...formProps}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!validateInput()) return;
+            void planAttempt();
+          }}
+        >
+          <label className="text-field clone-dialog__field">
+            <span id="clone-source-label">{t.cloneSourceLabel}</span>
+            <input
+              {...fieldProps("clone-source", "clone-source-help")}
+              aria-labelledby="clone-source-label"
+              data-autofocus
+              value={source}
+              onChange={(event) => setSource(event.target.value)}
+              placeholder={t.cloneSourcePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+              required
+            />
+            <small id="clone-source-help">{t.cloneSourceHelp}</small>
+            <FieldError field="clone-source" errors={errors} />
+          </label>
+          <label className="text-field clone-dialog__field">
+            <span id="clone-parent-label">{t.cloneParentLabel}</span>
+            <span className="clone-dialog__path-picker">
               <input
-                {...fieldProps("clone-source", "clone-source-help")}
-                aria-labelledby="clone-source-label"
-                data-autofocus
-                value={source}
-                onChange={(event) => setSource(event.target.value)}
-                placeholder={t.cloneSourcePlaceholder}
+                {...fieldProps("clone-parent")}
+                aria-labelledby="clone-parent-label"
+                value={destinationParent}
+                onChange={(event) => setDestinationParent(event.target.value)}
+                placeholder={t.cloneParentPlaceholder}
                 autoComplete="off"
                 spellCheck={false}
                 required
               />
-              <small id="clone-source-help">{t.cloneSourceHelp}</small>
-              <FieldError field="clone-source" errors={errors} />
-            </label>
-            <label className="text-field clone-dialog__field">
-              <span id="clone-parent-label">{t.cloneParentLabel}</span>
-              <span className="clone-dialog__path-picker">
-                <input
-                  {...fieldProps("clone-parent")}
-                  aria-labelledby="clone-parent-label"
-                  value={destinationParent}
-                  onChange={(event) => setDestinationParent(event.target.value)}
-                  placeholder={t.cloneParentPlaceholder}
-                  autoComplete="off"
-                  spellCheck={false}
-                  required
-                />
-                <button className="secondary-button" type="button" onClick={() => void chooseParent()}>
-                  <FolderOpen aria-hidden="true" />
-                  {t.cloneChooseParent}
-                </button>
-              </span>
-              <FieldError field="clone-parent" errors={errors} />
-            </label>
-            <label className="text-field clone-dialog__field">
-              <span id="clone-name-label">{t.cloneNameLabel}</span>
-              <input
-                aria-labelledby="clone-name-label"
-                aria-describedby="clone-name-help"
-                value={destinationName}
-                onChange={(event) => setDestinationName(event.target.value)}
-                placeholder={t.cloneNamePlaceholder}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <small id="clone-name-help">{t.cloneNameHelp}</small>
-            </label>
-            <div className="dialog-actions clone-dialog__actions">
-              <button className="primary-button" type="submit" disabled={step === "planning"}>
-                {step === "planning" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
-                {t.cloneReviewAction}
+              <button className="secondary-button" type="button" onClick={() => void chooseParent()}>
+                <FolderOpen aria-hidden="true" />
+                {t.cloneChooseParent}
               </button>
-            </div>
-          </form>
-        )}
-
-        {step === "preview" && attempt && (
-          <div className="clone-dialog__body">
-            <div className="clone-dialog__intro">
-              <h3>{t.cloneReviewTitle}</h3>
-              <p>{t.cloneReviewDescription}</p>
-            </div>
-            <dl className="clone-dialog__summary">
-              <div><dt>{t.cloneRemoteLabel}</dt><dd>{attempt.plan.sourceDisplay}</dd></div>
-              <div><dt>{t.cloneDestinationLabel}</dt><dd>{attempt.plan.destinationPath}</dd></div>
-            </dl>
-            <div className="clone-dialog__effects">
-              <section>
-                <FolderInput aria-hidden="true" />
-                <div><h3>{t.cloneLocalEffectsTitle}</h3><p>{t.cloneLocalEffects}</p></div>
-              </section>
-              <section>
-                <Network aria-hidden="true" />
-                <div><h3>{t.cloneRemoteEffectsTitle}</h3><p>{attempt.plan.contactsNetwork ? t.cloneRemoteEffectsNetwork : t.cloneRemoteEffectsLocal}</p></div>
-              </section>
-              <section>
-                <KeyRound aria-hidden="true" />
-                <div><h3>{t.cloneCredentialsTitle}</h3><p>{credentialsCopy}</p></div>
-              </section>
-              <section>
-                <ShieldCheck aria-hidden="true" />
-                <div><h3>{t.cloneSafetyTitle}</h3><p>{t.cloneSafetyBody}</p></div>
-              </section>
-            </div>
-            <div className="dialog-actions clone-dialog__actions">
-              <button className="secondary-button" type="button" onClick={() => setStep("input")}>{t.cloneEditAction}</button>
-              <button className="primary-button" type="button" onClick={() => void executeAttempt(attempt)}>
-                <CloudDownload aria-hidden="true" />{t.cloneConfirmAction}
-              </button>
-            </div>
+            </span>
+            <FieldError field="clone-parent" errors={errors} />
+          </label>
+          <label className="text-field clone-dialog__field">
+            <span id="clone-name-label">{t.cloneNameLabel}</span>
+            <input
+              aria-labelledby="clone-name-label"
+              value={destinationName}
+              onChange={(event) => setDestinationName(event.target.value)}
+              placeholder={t.cloneNamePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
+            <button className="primary-button" type="submit" disabled={step === "planning"}>
+              {step === "planning" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+              {t.cloneReviewAction}
+            </button>
           </div>
-        )}
+        </form>
+      )}
 
-        {step === "executing" && (
-          <div className="clone-dialog__body clone-dialog__progress" aria-busy="true">
-            <LoadingBar label={t.cloneProgressTitle} />
-            <div className="clone-dialog__intro">
-              <h3>{t.cloneProgressTitle}</h3>
-              <p>{t.cloneProgressDescription}</p>
-            </div>
-            <ol aria-label={t.cloneProgressTitle}>
-              {PROGRESS_PHASES.map((item, index) => {
-                const complete = index < currentPhaseIndex;
-                const current = index === currentPhaseIndex;
-                return (
-                  <li key={item} className={complete ? "is-complete" : current ? "is-current" : undefined} aria-current={current ? "step" : undefined}>
-                    <span aria-hidden="true">{complete ? <Check /> : current ? <LoaderCircle className="icon--spinning" /> : null}</span>
-                    {t.cloneProgressPhase(item)}
-                  </li>
-                );
-              })}
-            </ol>
-            <p className="visually-hidden" role="status">{t.cloneProgressPhase(phase)}</p>
-            <div className="dialog-actions clone-dialog__actions">
+      {step === "preview" && attempt && (
+        <>
+          <dl className="app-dialog__kv">
+            <dt>{t.cloneRemoteLabel}</dt><dd><code>{attempt.plan.sourceDisplay}</code></dd>
+            <dt>{t.cloneDestinationLabel}</dt><dd><code>{attempt.plan.destinationPath}</code></dd>
+          </dl>
+          <DialogFacts
+            facts={[
+              { icon: <Laptop />, text: t.cloneLocalEffects },
+              {
+                icon: <ShieldCheck />,
+                text: attempt.plan.contactsNetwork ? t.cloneRemoteEffectsNetwork : t.cloneRemoteEffectsLocal,
+                safe: true,
+              },
+            ]}
+          />
+          {/* Sign-in and what cancelling does are true and worth finding, but
+              not what decides whether to clone. */}
+          <details className="app-dialog__details">
+            <summary>{t.cloneTechnicalDetails}</summary>
+            <pre>{`${credentialsCopy}\n${t.cloneSafetyBody}`}</pre>
+          </details>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={() => setStep("input")}>{t.cloneEditAction}</button>
+            <button className="primary-button" type="button" onClick={() => void executeAttempt(attempt)}>
+              <CloudDownload aria-hidden="true" />{t.cloneConfirmAction}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === "executing" && (
+        <>
+          <ol className="app-dialog__steps" aria-label={t.cloneProgressTitle} aria-busy="true">
+            {PROGRESS_STEPS.map((item, index) => {
+              const complete = index < currentStepIndex;
+              const current = index === currentStepIndex;
+              return (
+                <li
+                  key={item.step}
+                  className={`app-dialog__step${current ? " app-dialog__step--active" : complete ? " app-dialog__step--done" : ""}`}
+                  aria-current={current ? "step" : undefined}
+                >
+                  <span className="app-dialog__step-dot" aria-hidden="true">{complete && <Check />}</span>
+                  {t.cloneStep(item.step)}
+                </li>
+              );
+            })}
+          </ol>
+          <p className="visually-hidden" role="status">{t.cloneProgressPhase(phase)}</p>
+          <div className="app-dialog__foot">
+            <p className="app-dialog__note"><Info aria-hidden="true" />{t.cloneProgressDescription}</p>
+            <div className="dialog-actions">
               <button className="secondary-button" type="button" disabled={isCancelling} onClick={() => cancelExecution(false)}>
                 {isCancelling ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : null}
                 {isCancelling ? t.cloneCancelling : t.cloneCancelAction}
               </button>
             </div>
           </div>
-        )}
+        </>
+      )}
 
-        {(step === "error" || step === "cancelled") && (
-          <div className="clone-dialog__body clone-dialog__result" role={step === "error" ? "alert" : "status"}>
-            <span className={`clone-dialog__result-icon${step === "error" ? " clone-dialog__result-icon--error" : ""}`} aria-hidden="true">
-              {step === "error" ? <CircleAlert /> : <Check />}
-            </span>
-            <h3>{step === "error" ? t.cloneErrorTitle : t.cloneCancelled}</h3>
-            {localizedError && <p>{localizedError}</p>}
-            {technicalDetail && (
-              <details><summary>{t.cloneTechnicalDetails}</summary><pre>{technicalDetail}</pre></details>
-            )}
-            <div className="dialog-actions clone-dialog__actions">
-              <button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>
-              <button className="primary-button" type="button" onClick={() => void retryClone()}>{t.cloneRetryAction}</button>
-            </div>
-          </div>
-        )}
-
-        {step === "cleanup" && result && (
-          <div className="clone-dialog__body clone-dialog__result" role="alert">
-            <span className="clone-dialog__result-icon clone-dialog__result-icon--warning" aria-hidden="true"><ShieldCheck /></span>
-            <h3>{t.cloneCleanupTitle}</h3>
-            <p>{t.cloneCleanupDescription}</p>
-            <code>{result.cleanupPath}</code>
-            {localizedError && <p>{localizedError}</p>}
-            <div className="dialog-actions clone-dialog__actions">
-              <button className="primary-button" type="button" disabled={isCleaning} onClick={() => void retryCleanup()}>
-                {isCleaning && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
-                {isCleaning ? t.cloneCleaningUp : t.cloneCleanupAction}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {(step === "opening" || step === "open-error") && result && (
-          <div className="clone-dialog__body clone-dialog__result" aria-busy={step === "opening"} role={step === "open-error" ? "alert" : "status"}>
-            <span className={`clone-dialog__result-icon${step === "open-error" ? " clone-dialog__result-icon--error" : ""}`} aria-hidden="true">
-              {step === "opening" ? <LoaderCircle className="icon--spinning" /> : <CircleAlert />}
-            </span>
-            <h3>{step === "opening" ? t.cloneOpeningTitle : t.cloneOpenFailedTitle}</h3>
-            <p>{step === "opening" ? t.cloneOpeningDescription : t.cloneOpenFailedDescription}</p>
-            <code>{result.destinationPath}</code>
-            <p>{t.cloneDependencyNotice(result.submodules, result.gitLfs)}</p>
-            {localizedError && <p>{localizedError}</p>}
-            {step === "open-error" && (
-              <div className="dialog-actions clone-dialog__actions">
-                <button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>
-                <button className="primary-button" type="button" onClick={() => void openVerified(result)}>{t.cloneRetryOpen}</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      {step === "opening" && result && (
+        <p className="app-dialog__note" role="status" aria-busy="true">
+          <LoaderCircle className="icon--spinning" aria-hidden="true" />
+          {t.cloneOpeningDescription}
+        </p>
+      )}
+    </Dialog>
   );
 }

@@ -239,7 +239,7 @@ export function RailNav({
               <span>{item.isDisabled ? item.disabledLabel ?? item.label : item.label}</span>
             </button>
           ))}
-          {overflowItems.length > 0 && <div className="rail-more__divider" role="separator" />}
+          {overflowItems.length > 0 && <div className="app-menu__divider" role="separator" />}
           <button
             className="app-menu__item rail-more__customize"
             type="button"

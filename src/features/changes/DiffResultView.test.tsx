@@ -289,14 +289,14 @@ describe("changed images", () => {
       after: ready(PNG_BASE64, "image/png"),
     });
 
-    expect(await screen.findByText(/larger than 10 MB/)).toBeInTheDocument();
+    expect(await screen.findByText(/over 10 MB/)).toBeInTheDocument();
   });
 
   it("keeps the plain note when the surface cannot say which versions to compare", () => {
     renderImage(imageDiff(), null);
 
     expect(
-      screen.getByRole("heading", { name: "This file can’t be previewed as text" }),
+      screen.getByRole("heading", { name: "This file can't be shown as text" }),
     ).toBeInTheDocument();
   });
 });
@@ -321,7 +321,7 @@ describe("changed SVGs", () => {
     expect(await screen.findByAltText("src/assets/icon.svg before this change")).toBeInTheDocument();
     expect(diffText()).toBe("");
 
-    fireEvent.click(screen.getByRole("button", { name: "How to read this file (Drawing)" }));
+    fireEvent.click(screen.getByRole("button", { name: "How to show this file (Drawing)" }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Source" }));
 
     // The text diff that exists today, unchanged, is what Source returns to.

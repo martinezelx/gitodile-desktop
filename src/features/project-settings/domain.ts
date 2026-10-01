@@ -3,7 +3,7 @@
  * Three, and deliberately not more: everything else a project can be
  * configured with is either machine-wide (Settings owns it) or a workflow
  * rather than a setting. */
-export const PROJECT_SETTINGS_SECTIONS = ["remote", "ignored", "identity"] as const;
+export const PROJECT_SETTINGS_SECTIONS = ["remote", "ignored", "identity", "icon"] as const;
 export type ProjectSettingsSection = (typeof PROJECT_SETTINGS_SECTIONS)[number];
 
 export function projectSettingsSectionLabel(
@@ -12,6 +12,7 @@ export function projectSettingsSectionLabel(
     projectSettingsRemote: string;
     projectSettingsIgnored: string;
     projectSettingsIdentity: string;
+    projectSettingsIcon: string;
   },
 ): string {
   switch (section) {
@@ -21,6 +22,8 @@ export function projectSettingsSectionLabel(
       return t.projectSettingsIgnored;
     case "identity":
       return t.projectSettingsIdentity;
+    case "icon":
+      return t.projectSettingsIcon;
   }
 }
 

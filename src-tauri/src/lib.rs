@@ -8,6 +8,7 @@ mod application;
 mod architecture;
 mod changes;
 mod clone;
+mod console;
 mod desktop;
 mod diagnostics;
 mod error;
@@ -29,6 +30,7 @@ mod save_version;
 mod session;
 mod status;
 mod sync;
+mod technology;
 mod tooling;
 mod version_lines;
 mod watch;
@@ -76,6 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             app.manage(app_updates::AppUpdateService::new(app.handle()));
+            app.manage(console::ConsoleSettings::for_app(app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -97,6 +100,13 @@ pub fn run() {
             ipc::initialize_project,
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
+            ipc::run_console_query,
+            ipc::plan_console_command,
+            ipc::run_console_plan,
+            ipc::run_console_change,
+            ipc::get_console_settings,
+            ipc::set_console_advanced_mode,
+            ipc::set_console_confirm_changes,
             ipc::read_file_diff,
             ipc::read_file_image_preview,
             ipc::read_file_lines,
@@ -131,6 +141,7 @@ pub fn run() {
             ipc::clear_project_identity,
             ipc::read_ignore_file,
             ipc::write_ignore_file,
+            ipc::read_project_technology,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
             ipc::plan_get_team_changes,

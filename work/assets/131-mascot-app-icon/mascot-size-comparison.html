@@ -1,0 +1,356 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Mascota en la app</title>
+<style>
+:root{font-family:"Segoe UI",system-ui,sans-serif;color:#1c1917;background:#f1efeb}
+body{margin:0;padding:24px 16px 48px;max-width:1200px;margin-inline:auto}
+h1{font-size:26px;margin:0 0 4px} h2{font-size:19px;margin:34px 0 4px} .sub{color:#6b6760;margin:0 0 16px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.colh{font-weight:700;font-size:15px;margin-bottom:8px}
+.win{max-width:100%;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px #0002;margin-bottom:14px}
+.win.light{--app:#faf8f5;--panel:#fff;--line:#e7e4df;--ic:#b9b4ad;--tx:#1c1917;--mu:#78716c;--on:#e6f0d8}
+.win.dark{--app:#161814;--panel:#1d201b;--line:#2c3029;--ic:#5b6157;--tx:#ece9e4;--mu:#9a968f;--on:#27351c}
+.tb{height:44px;display:flex;align-items:center;gap:6px;padding:0 6px 0 10px;background:var(--app)}
+.mark{min-width:30px;height:30px;display:grid;place-items:center;border:0;background:transparent;padding:0 3px;border-radius:8px}
+.ico{width:16px;height:16px;border-radius:4px;background:var(--ic);opacity:.55;margin:0 4px} .ico.s{width:12px;height:12px}
+.sep{width:1px;height:16px;background:var(--line)} .drag{flex:1} .wc{color:var(--mu);font-size:12px;width:34px;text-align:center}
+.body{display:flex;height:250px;background:var(--app)}
+.rail{width:60px;display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:10px}
+.rail i{width:22px;height:22px;border-radius:7px;background:var(--ic);opacity:.45} .rail i.on{background:var(--on);opacity:1;width:34px;height:34px;border-radius:50%} .rail .grow{flex:1}
+main{flex:1;margin:0 8px 8px 0;background:var(--panel);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--tx)}
+main h3{margin:0;font-size:16px} main p{margin:6px 0 14px;font-size:11px;color:var(--mu);max-width:220px;text-align:center}
+.cards{display:flex;gap:10px} .cards div{width:70px;height:56px;border:1px solid var(--line);border-radius:10px}
+.cap{font-size:12px;color:#6b6760;background:#fff;padding:6px 10px;border-top:1px solid #e7e4df}
+.zoom{display:flex;gap:14px;align-items:flex-end;padding:14px;border-radius:10px;margin-bottom:14px}
+.zoom.light{background:#faf8f5} .zoom.dark{background:#161814}
+.zoom .z{transform-origin:left bottom;}
+.task{display:flex;flex-wrap:nowrap;overflow:hidden;align-items:center;justify-content:center;gap:10px;border-radius:10px;margin-bottom:10px}
+.task.dark{background:#202020;color:#fff} .task.light{background:#eef0f4;color:#222}
+.start{font-size:18px;margin-right:6px;opacity:.8}
+.tbi{border-radius:6px;display:inline-block}
+.tbme{position:relative;display:grid;place-items:center;padding:6px;border-radius:6px}
+.task.dark .tbme{background:#3a3a3a} .task.light .tbme{background:#fff}
+.tbme b{position:absolute;bottom:-1px;left:50%;width:14px;margin-left:-7px;height:3px;border-radius:2px;background:#60cdff}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.note{font-size:13px;color:#57534e;line-height:1.5;background:#fff;border-radius:10px;padding:12px 16px;margin-top:10px}
+</style></head><body>
+<h1>Mascota en la esquina superior izquierda y en la barra de tareas</h1>
+<p class="sub">Comparación: lo que hay ahora (cabeza) frente al cuerpo completo. Tamaños reales; la app en tema GitOdile claro y oscuro.</p>
+<h2>Esquina superior izquierda de la app</h2>
+<p class="sub">La barra de título mide 44 px de alto y el botón de la marca 30 px.</p>
+<div class="grid"><div><div class="colh">A · Ahora</div><div class="win light">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cabeza · 24 px de ancho</div></div><div class="win dark">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cabeza · 24 px de ancho</div></div></div><div><div class="colh">B · Cuerpo</div><div class="win light">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:44px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cuerpo · 44 × 22 px</div></div><div class="win dark">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:44px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cuerpo · 44 × 22 px</div></div></div><div><div class="colh">C · Cuerpo grande</div><div class="win light">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:56px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cuerpo · 56 × 28 px</div></div><div class="win dark">
+  <div class="tb"><button class="mark" title="Acerca de GitOdile"><svg aria-hidden="true" style="width:56px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></button>
+    <span class="ico"></span><span class="ico"></span><span class="sep"></span><span class="ico s"></span><span class="ico s"></span>
+    <div class="drag"></div><span class="ico"></span><span class="wc">—</span><span class="wc">▢</span><span class="wc">✕</span></div>
+  <div class="body"><nav class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><span class="grow"></span><i></i><i></i></nav>
+  <main><h3>Ningún proyecto abierto</h3><p>Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.</p>
+  <div class="cards"><div></div><div></div><div></div></div></main></div>
+  <div class="cap">Cuerpo · 56 × 28 px</div></div></div></div><h2>Detalle ampliado ×3 (esquina)</h2><p class="sub">Solo para ver la forma; en pantalla se ve al tamaño de arriba.</p><div class="grid"><div><div class="colh">A · Ahora</div><div class="zoom light"><div style="width:72px"><svg aria-hidden="true" style="width:72px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div><div class="zoom dark"><div style="width:72px"><svg aria-hidden="true" style="width:72px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div></div><div><div class="colh">B · Cuerpo</div><div class="zoom light"><div style="width:132px"><svg aria-hidden="true" style="width:132px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div><div class="zoom dark"><div style="width:132px"><svg aria-hidden="true" style="width:132px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div></div><div><div class="colh">C · Cuerpo grande</div><div class="zoom light"><div style="width:168px"><svg aria-hidden="true" style="width:168px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div><div class="zoom dark"><div style="width:168px"><svg aria-hidden="true" style="width:168px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg></div></div></div></div><h2>Icono en la barra de tareas de Windows</h2>
+<p class="sub">Windows usa 24 px con escala 100 % y 32 px con escala 125–150 %. Todos los iconos cuadrados de al lado miden lo mismo.</p><div class="two"><div><div class="colh">A · Ahora: cabeza</div><div class="task dark" style="height:48px"><span class="start">⊞</span><span class="tbi" style="width:24px;height:24px;background:#0078d4"></span><span class="tbi" style="width:24px;height:24px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:24px;height:24px;background:#107c10"></span><span class="tbi" style="width:24px;height:24px;background:#c83c3c"></span></div><div class="task light" style="height:48px"><span class="start">⊞</span><span class="tbi" style="width:24px;height:24px;background:#0078d4"></span><span class="tbi" style="width:24px;height:24px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:24px;height:24px;background:#107c10"></span><span class="tbi" style="width:24px;height:24px;background:#c83c3c"></span></div><div class="task dark" style="height:56px"><span class="start">⊞</span><span class="tbi" style="width:32px;height:32px;background:#0078d4"></span><span class="tbi" style="width:32px;height:32px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:32px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:32px;height:32px;background:#107c10"></span><span class="tbi" style="width:32px;height:32px;background:#c83c3c"></span></div><div class="task light" style="height:56px"><span class="start">⊞</span><span class="tbi" style="width:32px;height:32px;background:#0078d4"></span><span class="tbi" style="width:32px;height:32px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:32px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="545 170 915 610">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L840 732 C680 732 588 662 588 560 C588 492 614 438 655 392 Z"/>
+    <path fill="none" d="M605 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:32px;height:32px;background:#107c10"></span><span class="tbi" style="width:32px;height:32px;background:#c83c3c"></span></div></div><div><div class="colh">B · Cuerpo completo</div><div class="task dark" style="height:48px"><span class="start">⊞</span><span class="tbi" style="width:24px;height:24px;background:#0078d4"></span><span class="tbi" style="width:24px;height:24px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:24px;height:24px;background:#107c10"></span><span class="tbi" style="width:24px;height:24px;background:#c83c3c"></span></div><div class="task light" style="height:48px"><span class="start">⊞</span><span class="tbi" style="width:24px;height:24px;background:#0078d4"></span><span class="tbi" style="width:24px;height:24px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:24px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:24px;height:24px;background:#107c10"></span><span class="tbi" style="width:24px;height:24px;background:#c83c3c"></span></div><div class="task dark" style="height:56px"><span class="start">⊞</span><span class="tbi" style="width:32px;height:32px;background:#0078d4"></span><span class="tbi" style="width:32px;height:32px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:32px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:32px;height:32px;background:#107c10"></span><span class="tbi" style="width:32px;height:32px;background:#c83c3c"></span></div><div class="task light" style="height:56px"><span class="start">⊞</span><span class="tbi" style="width:32px;height:32px;background:#0078d4"></span><span class="tbi" style="width:32px;height:32px;background:#ffb900"></span><span class="tbme"><svg aria-hidden="true" style="width:32px;height:auto;display:block" xmlns="http://www.w3.org/2000/svg" viewBox="68 176 1400 700">
+  
+  <g fill="#a8f442" stroke="#000000" stroke-width="50" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="1000" y="660" width="112" height="170" rx="28"/>
+    <path d="M118 580 C118 500 158 445 208 445 C250 445 272 482 296 516 C324 490 336 478 352 478 C370 478 390 490 398 500 C425 462 444 432 462 432 C482 432 505 446 515 458 C548 395 568 355 590 355 C615 355 640 375 655 392 C660 300 720 232 800 232 C835 232 862 250 875 272 C890 245 925 222 962 222 C1030 222 1080 270 1095 330 L1100 352 C1180 356 1270 358 1340 356 C1405 354 1434 390 1434 445 C1434 495 1414 540 1388 572 C1335 650 1250 712 1150 732 L950 731 Q920 731 920 761 L920 800 Q920 830 890 830 L770 830 Q740 830 740 800 L740 760 Q740 730 710 730 L520 730 Q490 730 490 760 L490 800 Q490 830 460 830 L320 830 Q290 830 290 800 L290 752 C200 732 125 670 118 575 Z"/>
+    <path fill="none" d="M655 378 H780"/>
+    <path fill="none" stroke-width="48" d="M885 540 C960 588 1055 600 1175 594 C1255 590 1330 572 1392 555"/>
+  </g>
+  <path fill="#000000" stroke="#000000" stroke-width="16" stroke-linejoin="round" d="M765 345 L1250 300 C1262 300 1266 318 1258 340 C1250 420 1200 485 1140 485 C1085 485 1048 455 1035 420 L1015 422 C1000 460 950 498 885 498 C815 498 770 440 765 345 Z"/>
+  <g fill="#ffffff">
+    <path d="M920 353 L955 351 L875 458 L843 452 Z"/>
+    <path d="M1175 338 L1212 335 L1133 441 L1100 435 Z"/>
+  </g>
+  <circle cx="1335" cy="450" r="27" fill="#000000"/>
+</svg><b></b></span><span class="tbi" style="width:32px;height:32px;background:#107c10"></span><span class="tbi" style="width:32px;height:32px;background:#c83c3c"></span></div></div></div>
+<div class="note"><b>Qué cambiaría:</b> la opción B/C solo toca el titlebar (CSS del tamaño y el SVG usado) y, para la barra de tareas, el umbral de <code>pnpm icons</code> (HEAD_MAX_SIZE). El escritorio, el Explorador en iconos grandes y el dock ya usan el cuerpo.</div>
+</body></html>

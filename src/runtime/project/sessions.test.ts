@@ -169,6 +169,7 @@ describe("projectSessionsReducer", () => {
     const staleWorkingTree = {
       isClean: false,
       counts: { changed: 1, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 1 },
+      lineTotals: null,
       entries: [],
       truncated: false,
       hasPreparedChanges: false,
@@ -206,6 +207,7 @@ describe("projectSessionsReducer", () => {
     const workingTree = {
       isClean: true,
       counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
+      lineTotals: null,
       entries: [],
       truncated: false,
       hasPreparedChanges: false,
@@ -320,13 +322,13 @@ describe("projectSessionsReducer", () => {
     for (const path of ["/a", "/b"]) {
       state = projectSessionsReducer(state, { type: "open", project: makeProject(path) });
     }
-    state = projectSessionsReducer(state, { type: "navigate", id: "/a", view: "changes" });
+    state = projectSessionsReducer(state, { type: "navigate", id: "/a", view: "workbench" });
     state = projectSessionsReducer(state, {
       type: "setChangesSelection",
       id: "/a",
       selection: { selectedPath: "src/main.tsx", excludedPaths: ["README.md"] },
     });
-    expect(state.byId["/a"].lastView).toBe("changes");
+    expect(state.byId["/a"].lastView).toBe("workbench");
     expect(state.byId["/a"].changesSelection).toEqual({ selectedPath: "src/main.tsx", excludedPaths: ["README.md"] });
     expect(state.byId["/b"].lastView).toBe("overview");
   });
@@ -334,7 +336,7 @@ describe("projectSessionsReducer", () => {
   it("keeps independent back and forward history for each project", () => {
     let state = initialProjectSessionsState;
     state = projectSessionsReducer(state, { type: "open", project: makeProject("/a") });
-    state = projectSessionsReducer(state, { type: "navigate", id: "/a", view: "changes" });
+    state = projectSessionsReducer(state, { type: "navigate", id: "/a", view: "workbench" });
     state = projectSessionsReducer(state, { type: "open", project: makeProject("/b") });
 
     state = projectSessionsReducer(state, { type: "goBack", id: "/a" });
@@ -342,7 +344,7 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/b"].lastView).toBe("overview");
 
     state = projectSessionsReducer(state, { type: "goForward", id: "/a" });
-    expect(state.byId["/a"].lastView).toBe("changes");
+    expect(state.byId["/a"].lastView).toBe("workbench");
   });
 
   it("blocks concurrent mutations that share a common Git directory", () => {

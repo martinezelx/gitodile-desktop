@@ -29,6 +29,17 @@ pub(crate) struct WorkingTreeEntry {
     pub(crate) has_unprepared_changes: bool,
 }
 
+/// Added and removed line counts across the working tree, as the status bar
+/// shows them. Carried as `Option` on `WorkingTreeStatus`: `None` means the
+/// number could not be trusted rather than that it is zero. See
+/// `changes::working_tree_line_totals` for what makes it untrustworthy.
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Default, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LineTotals {
+    pub(crate) added: u64,
+    pub(crate) removed: u64,
+}
+
 #[derive(serde::Serialize, Debug, PartialEq, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WorkingTreeCounts {
@@ -57,6 +68,8 @@ pub(crate) struct UpstreamStatus {
 pub(crate) struct WorkingTreeStatus {
     pub(crate) is_clean: bool,
     pub(crate) counts: WorkingTreeCounts,
+    /// Added and removed line counts, or `None` when they cannot be trusted.
+    pub(crate) line_totals: Option<LineTotals>,
     pub(crate) entries: Vec<WorkingTreeEntry>,
     /// True when more files changed than `MAX_REPORTED_ENTRIES`. The counts
     /// stay exact; only the per-file list is capped.
@@ -357,6 +370,22 @@ pub(crate) fn find_status_entry(
 }
 
 pub(crate) fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus, AppError> {
+    read_status_snapshot(path, true)
+}
+
+/// The same snapshot without its line totals. A caller that needs the counts
+/// and the file list but not the diff's `+`/`-` numbers (a save plan) skips
+/// `git diff --numstat` and the read of every new file that the totals cost.
+pub(crate) fn read_working_tree_status_without_line_totals(
+    path: String,
+) -> Result<WorkingTreeStatus, AppError> {
+    read_status_snapshot(path, false)
+}
+
+fn read_status_snapshot(
+    path: String,
+    with_line_totals: bool,
+) -> Result<WorkingTreeStatus, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "read_working_tree_status", None).map_err(
             |error| match error.code {
@@ -406,7 +435,19 @@ pub(crate) fn read_working_tree_status(path: String) -> Result<WorkingTreeStatus
         .with_remediation("Check that the folder and its Git metadata are readable."));
     }
 
-    Ok(status_from_records(checked_status_records(&output.stdout)?))
+    let records = checked_status_records(&output.stdout)?;
+    // The line totals are a summary of the same snapshot, so they are read
+    // here rather than fetched separately; a failure to compute them only
+    // hides the numbers, it never fails the status. Counting lines is diff
+    // work, so the implementation lives in the changes module.
+    let line_totals = if with_line_totals {
+        crate::changes::working_tree_line_totals(&path, &records.entries).unwrap_or(None)
+    } else {
+        None
+    };
+    let mut status = status_from_records(records);
+    status.line_totals = line_totals;
+    Ok(status)
 }
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]

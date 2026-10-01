@@ -83,7 +83,6 @@ export default defineConfig({
     __STACK_VERSIONS__: JSON.stringify({
       tauri: lockedCrateVersion("tauri"),
       react: installedVersion("react"),
-      typescript: installedVersion("typescript"),
       rust: toolchainRustVersion(),
     }),
   },

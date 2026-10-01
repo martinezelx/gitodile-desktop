@@ -94,7 +94,7 @@ Secondary:
   `src/app/App.tsx` are watcher and session lifecycle wiring, which the
   composition root owns.
 - `src/app/App.tsx` is the app composition root and renders no screen body.
-  Overview owns an eager feature container; the other functional screens own lazy
+  Home and Overview own eager feature containers; the other functional screens own lazy
   containers, and the screen contract has no `host-owned` escape hatch. A new
   screen owns its own container; see the measured footprint table in
   `docs/architecture/frontend-feature-guide.md` §8 before starting one.

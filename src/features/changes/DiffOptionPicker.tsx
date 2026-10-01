@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 
-import { handlePopupMenuKeyDown, useAnchoredPopup } from "../../shared/ui";
+import { handlePopupMenuKeyDown, usePortalFlyout } from "../../shared/ui";
 
 export type DiffPickerOption<Value extends string> = {
   value: Value;
@@ -34,16 +35,24 @@ export function DiffOptionPicker<Value extends string>({
       triggerRef.current?.focus();
     }
   };
-  const { containerRef, popupRef: menuRef } = useAnchoredPopup(
+  // Portalled to `document.body` rather than rendered inside the trigger's
+  // own row: this picker sits in the diff header, which clips its overflow so
+  // a long path cannot push the reading controls off the strip. Absolute
+  // positioning inside that clip cut the open menu down to the header's own
+  // height, so it escaped the panel the way every other clipped trigger in
+  // the app does — `usePortalFlyout`. It opens below the trigger, left-aligned
+  // to it and clamped to the window, so at the strip's right edge it lands
+  // back over the diff.
+  const { popupRef: menuRef, style: menuStyle } = usePortalFlyout(
     isOpen,
     triggerRef,
     closeMenu,
-    "selected-menu-item",
+    "below",
   );
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   return (
-    <div className="changes-view-picker" ref={containerRef}>
+    <div className="changes-view-picker">
       <button
         ref={triggerRef}
         type="button"
@@ -59,12 +68,13 @@ export function DiffOptionPicker<Value extends string>({
         <span className="changes-view-picker__value">{selected.label}</span>
         <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
       </button>
-      {isOpen && (
+      {isOpen && createPortal(
         <div
           ref={menuRef}
           className="app-menu changes-view-picker__menu"
           role="menu"
           aria-label={ariaLabel}
+          style={menuStyle}
           onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => closeMenu(false))}
         >
           {options.map((option) => (
@@ -86,7 +96,8 @@ export function DiffOptionPicker<Value extends string>({
               {value === option.value && <Check aria-hidden="true" className="app-menu__check" />}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

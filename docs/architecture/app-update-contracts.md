@@ -279,8 +279,11 @@ type UpdateCandidate = Readonly<{
   target: "windows-x86_64" | "darwin-aarch64" | "darwin-x86_64" | "linux-x86_64";
   publishedAt: string | null;
   notes: string;
+  highlights: readonly UpdateHighlight[];
   expectedBytes: number | null;
 }>;
+
+type UpdateHighlight = Readonly<{ id: string; icon: string; en: string; es: string }>;
 ```
 
 `candidateId` is the hex SHA-256 of a versioned canonical encoding of the
@@ -297,6 +300,17 @@ HTML/Markdown, never load images or links, and are excluded with a typed
 `notes_too_large` failure rather than truncated into a misleading signed-release
 description. Bundled notes remain independent and available offline.
 
+The feed may also carry `highlights`: the release's bilingual What's new lines
+from `docs/release/highlights/v<version>.json` (`id`, `icon`, `en`, `es`). When
+the offered release has them, the update dialog draws them the way What's new
+does, in the reader's language, and the plain-text notes are not shown. The
+field is presentation only and never fails a check: a feed without it, or with
+a malformed one — more than eight lines, a line over 240 characters, markup or
+control characters, a non-ASCII id or icon name — yields an empty list and the
+dialog falls back to the notes. A list is taken whole or not at all. An icon
+name this build does not know draws a generic glyph, so a newer release may
+use a new one.
+
 Errors are closed, stage-aware data rather than raw library strings:
 
 ```ts
@@ -308,7 +322,7 @@ type UpdateError = Readonly<{
     | "read_only_installation"
     | "notes_too_large" | "payload_too_large" | "truncated_download"
     | "signature_invalid" | "insufficient_space" | "install_blocked"
-    | "install_handoff_failed" | "post_install_unconfirmed" | "internal";
+    | "install_handoff_failed" | "post_install_unconfirmed" | "not_configured" | "internal";
   stage: "check" | "download" | "verify" | "admission" | "install" | "startup";
   retryable: boolean;
   httpStatus?: number;
@@ -349,6 +363,7 @@ native handoff. Late events for a cancelled/superseded operation are inert.
 | --- | ---: |
 | Canonical serialized `raw_json` manifest | 256 KiB |
 | Remote notes within that response | 16 KiB UTF-8 |
+| Remote highlights | 8 lines of at most 240 characters each |
 | Platform entries | 8 |
 | Signature text | 4 KiB |
 | Artifact, known or streamed length | 256 MiB |

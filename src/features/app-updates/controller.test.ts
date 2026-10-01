@@ -68,7 +68,7 @@ describe("application update controller", () => {
     vi.useFakeTimers();
     const candidate = {
       candidateId: "c1", version: "0.3.0", target: "windows-x86_64" as const,
-      publishedAt: null, notes: "", expectedBytes: null,
+      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
     };
     const port = createPort({ check: vi.fn(async () => action({ kind: "available", candidate })) });
     const onBackgroundCheckSettled = vi.fn();
@@ -90,7 +90,7 @@ describe("application update controller", () => {
   it("uses the native operation id when cancelling a download", async () => {
     const candidate = {
       candidateId: "candidate-1", version: "0.3.0",
-      target: "windows-x86_64" as const, publishedAt: null, notes: "Notes", expectedBytes: null,
+      target: "windows-x86_64" as const, publishedAt: null, notes: "Notes", highlights: [], expectedBytes: null,
     };
     const cancel = vi.fn(async () => ({ kind: "cancelled", stage: "downloading" } as UpdateState));
     const port = createPort({

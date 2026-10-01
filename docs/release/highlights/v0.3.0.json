@@ -1,0 +1,36 @@
+{
+  "version": "0.3.0",
+  "date": "2026-10-01",
+  "highlights": [
+    {
+      "id": "overviewAndWork",
+      "icon": "list-checks",
+      "en": "Overview walks you through Changes, Save and Publish and points out the next step, and Changes and History are now the two tabs of one Work screen.",
+      "es": "Resumen te guía por Cambios, Guardar y Publicar y te señala el siguiente paso, y Cambios e Historial son ahora las dos pestañas de una sola pantalla, Trabajo."
+    },
+    {
+      "id": "versionLineRoute",
+      "icon": "git-branch",
+      "en": "Lines shows where each version line left the main line, what it changes and whether its work is already there, even as copies.",
+      "es": "Líneas muestra dónde se separó cada línea de versiones de la principal, qué cambia y si su trabajo ya está en ella, aunque sea como copias."
+    },
+    {
+      "id": "gitConsole",
+      "icon": "terminal",
+      "en": "The new Console runs Git commands you type, read-only unless you choose an advanced mode where every change is shown first.",
+      "es": "La nueva Consola ejecuta los comandos Git que escribes, en solo lectura salvo que elijas un modo avanzado que muestra cada cambio antes."
+    },
+    {
+      "id": "newLookAndThemes",
+      "icon": "sparkles",
+      "en": "GitOdile has a new mascot and icon, and Settings offers colour themes: Catppuccin, Nord, Tokyo Night, Dracula, Solarized and Gruvbox beside its own light and dark.",
+      "es": "GitOdile estrena mascota e icono, y Ajustes ofrece temas de color: Catppuccin, Nord, Tokyo Night, Dracula, Solarized y Gruvbox, además de su claro y su oscuro."
+    },
+    {
+      "id": "oneUpdateChannel",
+      "icon": "cloud-download",
+      "en": "Updates follow one channel, so everyone gets every release, and the update dialog lists what a new version brings, in your language.",
+      "es": "Las actualizaciones siguen un único canal, así que todo el mundo recibe cada versión, y el diálogo de actualización muestra qué trae, en tu idioma."
+    }
+  ]
+}

@@ -2,7 +2,8 @@ use crate::application;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{git_stdout, run_git, run_git_capped, CappedOutput};
 use crate::status::{
-    checked_status_records, find_status_entry, ChangeCategory, RawStatusEntry, STATUS_ARGS,
+    checked_status_records, find_status_entry, ChangeCategory, LineTotals, RawStatusEntry,
+    MAX_REPORTED_ENTRIES, STATUS_ARGS,
 };
 use std::{io::ErrorKind, path::Path};
 
@@ -779,6 +780,82 @@ pub(crate) fn untracked_file_diff(repo_path: &Path, entry: &RawStatusEntry) -> F
     }
 }
 
+/// Added and removed line counts for a whole working tree, or `None` when the
+/// number would be a floor rather than the answer.
+///
+/// Tracked changes come from one `git diff --numstat`, which is numeric and
+/// therefore locale-independent; binary files print `-` counts and contribute
+/// nothing, which is a fact rather than a gap. Untracked files have no index
+/// or `HEAD` entry, so Git's own diff ignores them: their every line is
+/// counted as an addition, exactly the way the Changes view draws them, by
+/// reading the file from disk.
+///
+/// `None` is the honest answer when any part of the tree could not be counted
+/// — an oversize or truncated untracked file, or a status whose entry list was
+/// itself capped — because a total the reader would take as exact must never
+/// quietly understate a large change set. The frontend hides the numbers in
+/// that case rather than showing a partial sum.
+pub(crate) fn working_tree_line_totals(
+    path: &str,
+    entries: &[RawStatusEntry],
+) -> Result<Option<LineTotals>, AppError> {
+    if entries.is_empty() || entries.len() > MAX_REPORTED_ENTRIES {
+        return Ok(None);
+    }
+    let base = diff_base_rev(path)?;
+    let output = run_git(
+        path,
+        &["diff", "--no-color", "--numstat", "-z", "-M", &base, "--"],
+    )?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let mut totals = parse_numstat(&String::from_utf8_lossy(&output.stdout));
+    let repo_path = Path::new(path);
+    for entry in entries.iter().filter(|entry| entry.is_untracked) {
+        match untracked_file_diff(repo_path, entry) {
+            FileDiff::Text {
+                hunks,
+                truncated: false,
+                ..
+            } => {
+                for hunk in hunks {
+                    totals.added += hunk
+                        .lines
+                        .iter()
+                        .filter(|line| line.kind == DiffLineKind::Addition)
+                        .count() as u64;
+                }
+            }
+            // A truncated read or an oversize file is a floor, not the total.
+            FileDiff::Text { .. } | FileDiff::TooLarge { .. } => return Ok(None),
+            _ => {}
+        }
+    }
+    Ok(Some(totals))
+}
+
+/// Sums one `git diff --numstat -z` pass: `<added>\t<removed>\t<path>\0` per
+/// file, with a rename's two paths emitted as their own NUL fields. Those
+/// trailing path fields carry no leading counts and are skipped, and so is a
+/// binary file's `-` count. Strictly numeric, so no locale handling is needed.
+pub(crate) fn parse_numstat(text: &str) -> LineTotals {
+    let mut totals = LineTotals::default();
+    for record in text.split('\0') {
+        let mut fields = record.splitn(3, '\t');
+        let (Some(added), Some(removed)) = (fields.next(), fields.next()) else {
+            continue;
+        };
+        if let (Ok(added), Ok(removed)) =
+            (added.trim().parse::<u64>(), removed.trim().parse::<u64>())
+        {
+            totals.added += added;
+            totals.removed += removed;
+        }
+    }
+    totals
+}
+
 /// What one batched tracked-diff pass produced, and what it cost against the
 /// caller's budget.
 pub(crate) struct BatchedTrackedDiffs {
@@ -988,6 +1065,27 @@ mod tests {
             }
         );
         assert!(!parsed.truncated);
+    }
+
+    #[test]
+    fn parse_numstat_sums_records_and_ignores_binary_counts_and_rename_paths() {
+        let text = concat!(
+            "3\t1\tmodified.txt\0",
+            // A binary file reports `-` counts and contributes nothing.
+            "-\t-\timage.png\0",
+            // A rename's added/removed pair carries an empty path, with the
+            // two real paths in their own count-less NUL fields.
+            "1\t0\t\0old name.txt\0new name.txt\0",
+        );
+        let totals = parse_numstat(text);
+
+        assert_eq!(totals.added, 4);
+        assert_eq!(totals.removed, 1);
+    }
+
+    #[test]
+    fn parse_numstat_returns_zero_for_no_records() {
+        assert_eq!(parse_numstat(""), LineTotals::default());
     }
 
     #[test]

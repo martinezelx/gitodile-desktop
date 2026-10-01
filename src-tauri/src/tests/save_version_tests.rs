@@ -69,6 +69,35 @@ fn plan_save_version_returns_a_normal_plan_for_an_existing_history() {
 }
 
 #[test]
+fn plan_save_version_lists_its_files_up_to_the_limit() {
+    let path = unique_temp_dir("plan-files");
+    git_init(&path);
+    git_commit_empty(&path);
+    let file_count = crate::save_version::SAVE_PLAN_FILE_LIMIT + 3;
+    for index in 0..file_count {
+        write_file(&path, &format!("file-{index:03}.txt"), "hello\n");
+    }
+    let identity = write_test_identity_config("plan-files");
+
+    let plan = plan_save_version_with_identity_override(path.clone(), Some(&identity))
+        .expect("a repo with changes should produce a plan");
+    assert_eq!(
+        plan.total_files, file_count,
+        "the count is always the whole"
+    );
+    assert_eq!(
+        plan.files.len(),
+        crate::save_version::SAVE_PLAN_FILE_LIMIT,
+        "the list stops at the limit"
+    );
+    assert_eq!(plan.files[0].path, "file-000.txt");
+    assert_eq!(plan.files[0].category, crate::status::ChangeCategory::New);
+
+    let _ = fs::remove_dir_all(&path);
+    let _ = fs::remove_file(&identity);
+}
+
+#[test]
 fn plan_save_version_rejects_a_detached_head() {
     let path = unique_temp_dir("plan-detached");
     git_init(&path);

@@ -94,6 +94,33 @@ export function formatRelativeTime(date: Date, formats: LocaleFormats, now = Dat
   return formatter.format(Math.round(deltaSeconds / seconds), unit);
 }
 
+/** When a remote check happened, as the status bar and Overview both say it:
+ * "just now" for the first 45 seconds, then short minutes, hours or days.
+ * Coarser than `formatRelativeTime` on purpose — "9 seconds ago" is precision
+ * nobody asked for about a check, and two surfaces naming the same instant
+ * differently is what this function exists to prevent. */
+export function formatRelativeCheckTime(
+  checkedAt: number,
+  now: number,
+  /* A BCP-47 tag rather than the app's own `Language`: a relative time has no
+     separators for the date-format preference to choose between, so it follows
+     the locale directly, and `LocaleFormats` carries that as a plain tag. */
+  language: string,
+  justNow: string,
+): string {
+  const elapsed = Math.max(0, now - checkedAt);
+  if (elapsed < 45_000) return justNow;
+
+  const formatter = new Intl.RelativeTimeFormat(language, { numeric: "always", style: "short" });
+  if (elapsed < 60 * 60_000) {
+    return formatter.format(-Math.round(elapsed / 60_000), "minute");
+  }
+  if (elapsed < 24 * 60 * 60_000) {
+    return formatter.format(-Math.round(elapsed / (60 * 60_000)), "hour");
+  }
+  return formatter.format(-Math.round(elapsed / (24 * 60 * 60_000)), "day");
+}
+
 /** Named rather than typed: an ordinary space would let a grouped number wrap
  * across two lines, and the character that would not is invisible in a diff. */
 const NARROW_NO_BREAK_SPACE = String.fromCharCode(0x202f);

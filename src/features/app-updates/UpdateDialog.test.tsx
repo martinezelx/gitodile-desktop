@@ -10,7 +10,7 @@ import { AppUpdateDialog, AppUpdateSettingsControl } from "./UpdateDialog";
 const candidate = {
   candidateId: "candidate", version: "0.3.1",
   target: "windows-x86_64" as const, publishedAt: null,
-  notes: "Plain <b>text</b>\nhttps://example.invalid/image.png", expectedBytes: null,
+  notes: "Plain <b>text</b>\nhttps://example.invalid/image.png", highlights: [], expectedBytes: null,
 };
 
 const installed = { version: "0.3.0" };
@@ -41,6 +41,31 @@ describe("application update dialog", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("shows the feed's highlights in the reader's language instead of the notes", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("gitodile-language", "es");
+    try {
+      const highlights = [
+        { id: "faster", icon: "cloud-download", en: "Faster updates.", es: "Actualizaciones más rápidas." },
+        { id: "future", icon: "rocket", en: "A glyph this build does not know.", es: "Un glifo que esta build no conoce." },
+      ];
+      render(<Harness snapshot={{ state: { kind: "available", candidate: { ...candidate, highlights } }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} />);
+      await user.click(screen.getByRole("button", { name: "Open" }));
+      const dialog = screen.getByRole("dialog");
+      const list = within(dialog).getByRole("list");
+      expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+        "Actualizaciones más rápidas.",
+        "Un glifo que esta build no conoce.",
+      ]);
+      // An unknown icon name still draws a glyph rather than an empty slot.
+      expect(list.querySelectorAll(".release-highlights__icon svg")).toHaveLength(2);
+      expect(within(dialog).getByText("Novedades")).toBeInTheDocument();
+      expect(dialog.querySelector(".app-update-notes")).toBeNull();
+    } finally {
+      localStorage.removeItem("gitodile-language");
+    }
+  });
+
   it("keeps the notes' paragraphs and bullets and offers the manual download for a check-time block", async () => {
     const user = userEvent.setup();
     const notes = "First paragraph, joined.\n\n- one item\n- another item\n\nLast paragraph.";
@@ -50,8 +75,8 @@ describe("application update dialog", () => {
     const dialog = screen.getByRole("dialog", { name: "Updates" });
     const rendered = dialog.querySelector(".app-update-notes");
     expect(rendered?.textContent).toBe(notes);
-    expect(within(dialog).getByRole("status")).toHaveTextContent("Can't install yet");
-    expect(within(dialog).getByText("This build can't install updates by itself. Get the new version with the manual download.")).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent("This build can't update itself. Use the manual download.");
+    expect(within(dialog).queryByText("Can't install yet")).toBeNull();
     expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /^Download/ })).toBeNull();
   });
@@ -64,9 +89,9 @@ describe("application update dialog", () => {
       automaticEnabled: false,
     }} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    const dialog = screen.getByRole("dialog", { name: "Updates" });
-    expect(within(dialog).getByText("v0.3.0")).toBeInTheDocument();
-    expect(within(dialog).getByRole("status")).toHaveTextContent("New version: v0.3.1");
+    // The title is the state, and the installed build is the line under it.
+    const dialog = screen.getByRole("dialog", { name: "A new version is available" });
+    expect(within(dialog).getByText("You have v0.3.0")).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "v0.3.1" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Download (38 MB)" })).toBeInTheDocument();
   });
@@ -119,7 +144,60 @@ describe("application update dialog", () => {
     expect(screen.getByText(/Couldn't confirm the update to v0.3.1/)).toBeInTheDocument();
     expect(screen.queryByText(/Updated to/)).toBeNull();
     // The failure line is the explanation; it is not repeated under itself.
-    expect(screen.getAllByText(/expected version wasn't found/)).toHaveLength(1);
+    expect(screen.getAllByText(/new version wasn't found/)).toHaveLength(1);
+  });
+
+  it("says why updates are unavailable once, with the specific cause instead of the generic sentence", async () => {
+    const user = userEvent.setup();
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Updates aren't set up for this build." };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false };
+    render(<Harness snapshot={snapshot} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    const dialog = screen.getByRole("dialog", { name: "Updates" });
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Updates aren't set up for this build.");
+    expect(within(dialog).queryByText("Not available for this installation")).toBeNull();
+    expect(within(dialog).queryByText(/couldn't be completed/)).toBeNull();
+  });
+
+  it("never shows the native side's English detail to a Spanish reader", async () => {
+    localStorage.setItem("gitodile-language", "es");
+    const user = userEvent.setup();
+    const error = { code: "post_install_unconfirmed" as const, stage: "check" as const, retryable: false, safeDetail: "The running version did not confirm the attempted update." };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false };
+    render(<Harness snapshot={snapshot} />);
+    localStorage.removeItem("gitodile-language");
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.queryByText(/did not confirm/)).toBeNull();
+    expect(screen.getByText(/No se encontró la nueva versión|nueva versión/)).toBeInTheDocument();
+  });
+
+  it("names a build that can't check for updates by its own code, in the reader's language", async () => {
+    const user = userEvent.setup();
+    const error = { code: "not_configured" as const, stage: "check" as const, retryable: false };
+    const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false };
+    render(<Harness snapshot={snapshot} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByRole("status")).toHaveTextContent("This build can't check for updates. Download the latest one manually.");
+  });
+
+  it("puts the cause in the Settings row and keeps Details for what only the dialog shows", () => {
+    const error = { code: "internal" as const, stage: "check" as const, retryable: false, safeDetail: "Updates aren't set up for this build." };
+    render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl
+          snapshot={{ state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false }}
+          controller={controller()}
+          installed={installed}
+          enabled={false}
+          setEnabled={vi.fn()}
+          onOpenDialog={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Installed version" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How you get updates" })).toBeInTheDocument();
+    expect(screen.getByText("Updates aren't set up for this build.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
   });
 
   it("enables background checks only from the disclosed Settings switch", async () => {
@@ -137,7 +215,7 @@ describe("application update dialog", () => {
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText(/again every 24 hours/)).toBeInTheDocument();
+    expect(screen.getByText(/every 24 hours/)).toBeInTheDocument();
     expect(screen.getByText("v0.3.0")).toBeInTheDocument();
     expect(appController.check).not.toHaveBeenCalled();
     await user.click(screen.getByRole("switch", { name: "Check for updates at startup" }));

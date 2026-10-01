@@ -1,13 +1,13 @@
 /**
- * The app's loading indicator for anything that fills a panel: a thin track
- * with a segment sweeping across it, the pattern GitHub and YouTube use for
- * page-level work.
+ * The app's loading indicator for content whose shape can't be known before
+ * it arrives: a diff, a screen still loading its code, a page of older
+ * versions being appended, a refresh drawn over what is already there. A thin
+ * track with a segment sweeping across it, the pattern GitHub and YouTube use
+ * for page-level work.
  *
- * Chosen over a centred spinner because it sits along one edge instead of
- * claiming the middle of the panel, and over a skeleton because a skeleton
- * draws *fake content* — in a Git client, where the whole point is seeing
- * what actually changed, ghost rows that get replaced by different real rows
- * read as noise rather than as progress.
+ * A first load whose shape *is* known — a list, a sentence, a form — draws
+ * that shape instead (`LoadingPlaceholder`): the answer then lands in a space
+ * that was waiting for it, and a quick read shows nothing at all.
  *
  * Indeterminate on purpose: none of these reads report progress, so the bar
  * never pretends to know how far along it is (see the reduced-motion note in

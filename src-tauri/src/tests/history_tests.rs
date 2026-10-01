@@ -849,6 +849,89 @@ fn date_and_merge_filters_narrow_the_timeline() {
 }
 
 #[test]
+fn tagged_only_keeps_the_versions_a_tag_points_at() {
+    let path = unique_temp_dir("history-tagged-only");
+    git_init(&path);
+    for index in 0..4 {
+        write_file(
+            &path,
+            "file.txt",
+            &format!(
+                "{index}
+"
+            ),
+        );
+        commit_all(&path, &format!("version {index}"));
+        if index == 1 {
+            assert!(git_command(&path)
+                .args(["tag", "v1"])
+                .status()
+                .unwrap()
+                .success());
+        }
+        if index == 2 {
+            assert!(git_command(&path)
+                .args([
+                    "-c",
+                    "user.name=GitOdile Test",
+                    "-c",
+                    "user.email=test@gitodile.local",
+                    "tag",
+                    "-a",
+                    "v2",
+                    "-m",
+                    "annotated",
+                ])
+                .status()
+                .unwrap()
+                .success());
+        }
+    }
+
+    let tagged = read_history_page(
+        path.clone(),
+        None,
+        Some(50),
+        Some(HistoryFilters {
+            tagged_only: true,
+            ..filters()
+        }),
+        None,
+    )
+    .unwrap();
+    // Lightweight and annotated alike; the tip carries only its line, so it
+    // is not a tagged version however decorated it is.
+    assert_eq!(subjects(&tagged), vec!["version 2", "version 1"]);
+    assert!(tagged.versions.iter().all(|version| version
+        .decorations
+        .iter()
+        .any(|decoration| matches!(decoration.kind, DecorationKind::Tag))));
+
+    // A page of one at a time reaches the same two and no more: the cursor
+    // counts what Git walked, so dropping the untagged root after the walk
+    // neither repeats a version on the next page nor ends paging early.
+    let tagged_only = || {
+        Some(HistoryFilters {
+            tagged_only: true,
+            ..filters()
+        })
+    };
+    let mut paged = Vec::new();
+    let mut cursor = None;
+    for _ in 0..10 {
+        let page = read_history_page(path.clone(), cursor, Some(1), tagged_only(), None).unwrap();
+        paged.extend(subjects(&page));
+        if !page.has_more {
+            break;
+        }
+        cursor = page.next_cursor;
+    }
+    assert_eq!(paged, vec!["version 2", "version 1"]);
+
+    let _ = fs::remove_dir_all(path);
+}
+
+#[test]
 fn shallow_history_is_reported_explicitly() {
     let source = unique_temp_dir("history-shallow-source");
     git_init(&source);

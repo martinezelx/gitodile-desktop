@@ -53,6 +53,7 @@ pub(crate) enum AppErrorCode {
     GitMissing,
     GitUnusable,
     GitCommandFailed,
+    GitTimeout,
     InvalidIdentity,
     GitConfigWriteFailed,
     PathInvalid,

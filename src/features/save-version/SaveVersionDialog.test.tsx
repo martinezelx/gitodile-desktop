@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { LanguageProvider } from "../../i18n";
 import { SaveVersionDialog } from "./SaveVersionDialog";
-import type { SaveVersionPlan, SaveVersionResult } from "./domain";
+import type { SaveVersionPlan, SaveVersionPreview, SaveVersionResult } from "./domain";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
@@ -22,8 +22,19 @@ function plan(overrides: Partial<SaveVersionPlan> = {}): SaveVersionPlan {
     isPartial: false,
     hasPreparedChanges: false,
     counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+    files: [],
     ...overrides,
   };
+}
+
+/** "More details" is folded behind "Add details" until asked for, or until a
+ * draft already has some. */
+async function detailsField(): Promise<HTMLElement> {
+  const add = screen.queryByRole("button", { name: "Add details" });
+  if (add) {
+    await userEvent.click(add);
+  }
+  return screen.getByLabelText("More details (optional)");
 }
 
 function saveResult(overrides: Partial<SaveVersionResult> = {}): SaveVersionResult {
@@ -90,7 +101,7 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
 
-    expect(await screen.findByText("2 files will be saved.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Version name")).toHaveFocus());
     expect(mockedInvoke).toHaveBeenCalledWith("plan_save_version", { path: "/repo", sessionEpoch: "epoch-1", selectedPaths: null });
   });
@@ -101,26 +112,136 @@ describe("SaveVersionDialog", () => {
 
     const title = await screen.findByLabelText("Version name");
     expect(title).toBeRequired();
-    expect(title).toHaveAccessibleDescription(
-      "Around 50 characters is easy to scan, but longer names are allowed.",
-    );
-    expect(screen.getByLabelText("More details (optional)")).toBeInTheDocument();
+    // The length hint is not a standing line of grey: it appears only once
+    // the name runs past 50 characters.
+    expect(title).not.toHaveAccessibleDescription();
+    await userEvent.type(title, "x".repeat(51));
+    expect(title).toHaveAccessibleDescription("Short names read better in History.");
+    // Details are one click away, and that click puts the cursor in them.
+    expect(screen.queryByLabelText("More details (optional)")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add details" }));
+    await waitFor(() => expect(screen.getByLabelText("More details (optional)")).toHaveFocus());
   });
 
-  it("focuses the version name after a realistically delayed plan", async () => {
-    let resolvePlan: ((value: SaveVersionPlan) => void) | undefined;
+  function pendingPlan(): { resolve: (value: SaveVersionPlan) => void; reject: (error: unknown) => void } {
+    const handle = {
+      resolve: (_value: SaveVersionPlan): void => undefined,
+      reject: (_error: unknown): void => undefined,
+    };
     mockedInvoke.mockImplementationOnce(
       () =>
-        new Promise<SaveVersionPlan>((resolve) => {
-          resolvePlan = resolve;
+        new Promise<SaveVersionPlan>((resolve, reject) => {
+          handle.resolve = resolve;
+          handle.reject = reject;
         }),
     );
+    return handle;
+  }
+
+  const previewOf = (overrides: Partial<SaveVersionPreview> = {}): SaveVersionPreview => ({
+    branch: "main",
+    isFirstVersion: false,
+    totalFiles: 2,
+    remainingFiles: 0,
+    hasPreparedChanges: false,
+    counts: { changed: 1, new: 1, deleted: 0, renamed: 0, conflicted: 0, total: 2 },
+    files: [],
+    ...overrides,
+  });
+
+  it("opens in its final shape with the version name focused while the plan is still out", async () => {
+    const pending = pendingPlan();
     renderDialog();
 
-    await waitFor(() => expect(screen.getByRole("dialog")).toHaveFocus());
-    await act(async () => resolvePlan?.(plan()));
+    const title = screen.getByLabelText("Version name");
+    expect(screen.getByRole("button", { name: "Add details" })).toBeInTheDocument();
+    await waitFor(() => expect(title).toHaveFocus());
+    // Nothing to save on yet: Save waits for the plan that decides.
+    expect(screen.getByRole("button", { name: "Checking…" })).toBeDisabled();
 
-    await waitFor(() => expect(screen.getByLabelText("Version name")).toHaveFocus());
+    // What was typed while Git answered is still there, and still focused.
+    await userEvent.type(title, "fix the thing");
+    await act(async () => pending.resolve(plan()));
+
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(title).toHaveValue("fix the thing");
+    expect(title).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("draws placeholders where the summary will be when there is nothing to preview", async () => {
+    const pending = pendingPlan();
+    renderDialog();
+
+    expect(screen.getByText("Preparing a preview…").closest('[role="status"]')).not.toBeNull();
+    expect(screen.queryByText("2 files")).not.toBeInTheDocument();
+
+    await act(async () => pending.resolve(plan()));
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(screen.queryByText("Preparing a preview…")).not.toBeInTheDocument();
+  });
+
+  it("shows the session's preview at once and holds Save back until the plan confirms it", async () => {
+    const pending = pendingPlan();
+    renderDialog({
+      preview: previewOf({
+        totalFiles: 3,
+        counts: { changed: 3, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 3 },
+      }),
+    });
+
+    expect(screen.getByText("3 files")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Checking…");
+    const held = screen.getByRole("button", { name: "Checking…" });
+    expect(held).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Version name"), "x");
+    await userEvent.click(held);
+    expect(mockedInvoke).toHaveBeenCalledTimes(1);
+
+    // The fresh plan decides: a different count replaces the preview's.
+    await act(async () => pending.resolve(plan()));
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(screen.queryByText("3 files")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("saves with the fresh plan's state token, never the preview's", async () => {
+    const pending = pendingPlan();
+    renderDialog({ preview: previewOf() });
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
+    await act(async () => pending.resolve(plan({ stateToken: "fresh-token" })));
+    mockedInvoke.mockResolvedValueOnce(saveResult());
+
+    await userEvent.click(await screen.findByRole("button", { name: "Save" }));
+
+    expect(mockedInvoke).toHaveBeenLastCalledWith(
+      "save_version",
+      expect.objectContaining({ stateToken: "fresh-token" }),
+    );
+  });
+
+  it("replaces the form with the blocker when the plan is refused after a preview", async () => {
+    const pending = pendingPlan();
+    renderDialog({ preview: previewOf() });
+    expect(screen.getByLabelText("Version name")).toBeInTheDocument();
+
+    await act(async () =>
+      pending.reject({
+        code: "unresolved_conflicts",
+        message: "Some files have overlapping changes that need to be resolved first.",
+      }),
+    );
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Version name")).not.toBeInTheDocument();
+  });
+
+  it("names the first version from the preview's own first-version flag", () => {
+    pendingPlan();
+    renderDialog({ preview: previewOf({ isFirstVersion: true }) });
+
+    expect(screen.getByRole("heading", { name: "Save your first version" })).toBeInTheDocument();
+    expect(screen.getByText("This will be the first saved version on main.")).toBeInTheDocument();
   });
 
   it("renders the form copy in Spanish", async () => {
@@ -130,10 +251,9 @@ describe("SaveVersionDialog", () => {
     localStorage.removeItem("gitodile-language");
 
     expect(await screen.findByLabelText("Nombre de la versión")).toBeRequired();
-    expect(screen.getByLabelText("Más detalles (opcional)")).toBeInTheDocument();
-    expect(
-      screen.getByText("Unas 50 letras se leen de un vistazo, pero se permiten nombres más largos."),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Añadir detalles" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Publicar después de guardar" })).toBeInTheDocument();
+    expect(screen.getByText("Solo en este ordenador hasta que publiques.")).toBeInTheDocument();
   });
 
   it("shows a first-version note only when the plan says so", async () => {
@@ -147,7 +267,11 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.0-preview.1" }));
     renderDialog();
 
-    expect(await screen.findByText("This version will be saved to 0.2.0-preview.1.")).toBeInTheDocument();
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(screen.getByText("0.2.0-preview.1").closest(".save-version-branch")).toHaveAttribute(
+      "data-tooltip",
+      "0.2.0-preview.1",
+    );
   });
 
   it("names no destination when the plan has no version line to name", async () => {
@@ -158,19 +282,42 @@ describe("SaveVersionDialog", () => {
 
     expect(
       await screen.findByText(
-        "This project isn't on a version line right now, so this version won't belong to one. Create a version line here to keep it easy to find.",
+        "You're not on a version line. Create one so this version is easy to find.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/This version will be saved to/)).not.toBeInTheDocument();
+    expect(await screen.findByText("2 files")).toBeInTheDocument();
+    expect(document.querySelector(".save-version-branch")).toBeNull();
+  });
+
+  it("says what the publish choice means where it is made, and follows the choice", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog();
+
+    expect(await screen.findByText("Only on this computer until you publish.")).toBeInTheDocument();
+    const publishAfter = screen.getByRole("checkbox", { name: "Publish after saving" });
+    expect(publishAfter).toHaveAccessibleDescription("Only on this computer until you publish.");
+    await userEvent.click(publishAfter);
+    expect(publishAfter).toHaveAccessibleDescription("You'll review it before anything is published.");
+    expect(screen.getByText("You'll review it before anything is published.")).toBeInTheDocument();
+    expect(screen.queryByText("Only on this computer until you publish.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save and publish" })).toBeEnabled();
+  });
+
+  it("offers only Close when there is nothing to save, since retrying can't change that", async () => {
+    mockedInvoke.mockRejectedValueOnce({ code: "nothing_to_save", message: "x", remediation: null });
+    const { onClose } = renderDialog();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("There's nothing to save yet.");
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("shows a localized blocker and offers to try again when planning fails", async () => {
-    mockedInvoke.mockRejectedValueOnce({ code: "nothing_to_save", message: "x", remediation: null });
+    mockedInvoke.mockRejectedValueOnce({ code: "permission_denied", message: "x", remediation: null });
     renderDialog();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "There's nothing to save right now. Make some changes first.",
-    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByLabelText("Version name")).not.toBeInTheDocument();
 
     mockedInvoke.mockResolvedValueOnce(plan());
@@ -186,7 +333,7 @@ describe("SaveVersionDialog", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Write a short name before saving.")).toBeInTheDocument();
+    expect(await screen.findByText("Give the version a short name.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1); // only the plan fetch
   });
 
@@ -196,10 +343,10 @@ describe("SaveVersionDialog", () => {
     await screen.findByLabelText("Version name");
 
     await userEvent.type(screen.getByLabelText("Version name"), "   ");
-    await userEvent.type(screen.getByLabelText("More details (optional)"), "some context");
+    await userEvent.type(await detailsField(), "some context");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Write a short name before saving.")).toBeInTheDocument();
+    expect(await screen.findByText("Give the version a short name.")).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(1); // only the plan fetch
   });
 
@@ -208,11 +355,11 @@ describe("SaveVersionDialog", () => {
     renderDialog();
     await screen.findByLabelText("Version name");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText("Write a short name before saving.");
+    await screen.findByText("Give the version a short name.");
 
     await userEvent.type(screen.getByLabelText("Version name"), "a");
 
-    expect(screen.queryByText("Write a short name before saving.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Give the version a short name.")).not.toBeInTheDocument();
   });
 
   it("saves successfully with only a name, shows the short commit, and refreshes the caller", async () => {
@@ -224,10 +371,9 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(saveResult());
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('“fix the thing” is on “main”, only on this computer.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Version saved" })).toHaveFocus());
-    expect(screen.getByRole("status")).toHaveTextContent('Saved "fix the thing" as abc123a.');
-    expect(screen.getByText("Saved on this computer. Not published to a remote project yet.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent('“fix the thing” is on “main”, only on this computer.');
     expect(screen.getByRole("button", { name: "Publish now" })).toBeEnabled();
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
@@ -248,7 +394,7 @@ describe("SaveVersionDialog", () => {
 
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
     await userEvent.type(
-      screen.getByLabelText("More details (optional)"),
+      await detailsField(),
       "line one{enter}{enter}line two",
     );
     mockedInvoke.mockResolvedValueOnce(
@@ -256,7 +402,7 @@ describe("SaveVersionDialog", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText('Saved "fix the thing" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('“fix the thing” is on “main”, only on this computer.')).toBeInTheDocument();
     expect(container.querySelector(".save-version-success-details")?.textContent).toBe(
       "line one\n\nline two",
     );
@@ -278,9 +424,9 @@ describe("SaveVersionDialog", () => {
     await userEvent.type(title, "keyboard save");
 
     await userEvent.tab();
-    expect(screen.getByLabelText("More details (optional)")).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Add details" })).toHaveFocus();
     await userEvent.tab();
-    expect(screen.getByRole("switch", { name: "Also publish" })).toHaveFocus();
+    expect(screen.getByRole("checkbox", { name: "Publish after saving" })).toHaveFocus();
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
     await userEvent.tab();
@@ -289,7 +435,7 @@ describe("SaveVersionDialog", () => {
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: "keyboard save" }));
     await userEvent.keyboard("{Enter}");
 
-    expect(await screen.findByText('Saved "keyboard save" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('“keyboard save” is on “main”, only on this computer.')).toBeInTheDocument();
   });
 
   it("accepts long names and details without imposing a hard limit", async () => {
@@ -298,12 +444,12 @@ describe("SaveVersionDialog", () => {
     const longTitle = "A".repeat(120);
     const longDetails = `Context ${"x".repeat(1000)}\n\n${"y".repeat(1000)}`;
     fireEvent.change(await screen.findByLabelText("Version name"), { target: { value: longTitle } });
-    fireEvent.change(screen.getByLabelText("More details (optional)"), { target: { value: longDetails } });
+    fireEvent.change(await detailsField(), { target: { value: longDetails } });
 
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: longTitle, description: longDetails }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await screen.findByText(`Saved "${longTitle}" as abc123a.`);
+    await screen.findByText(`“${longTitle}” is on “main”, only on this computer.`);
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -315,17 +461,69 @@ describe("SaveVersionDialog", () => {
     });
   });
 
+  it("folds the plan's files behind Show files, and says how many the list leaves out", async () => {
+    mockedInvoke.mockResolvedValueOnce(
+      plan({
+        totalFiles: 3,
+        counts: { changed: 1, new: 1, deleted: 0, renamed: 1, conflicted: 0, total: 3 },
+        files: [
+          { path: "src/app.ts", originalPath: null, category: "changed" },
+          { path: "docs/new.md", originalPath: "docs/old.md", category: "renamed" },
+        ],
+      }),
+    );
+    renderDialog();
+    const toggle = await screen.findByRole("button", { name: "Show files" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("list", { name: "Files in this version" })).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Hide files" })).toHaveAttribute("aria-expanded", "true");
+    const list = screen.getByRole("list", { name: "Files in this version" });
+    expect(list).toHaveTextContent("editedsrc/app.ts");
+    expect(list).toHaveTextContent("renameddocs/old.md → docs/new.md");
+    expect(screen.getByText("And 1 more — Changes lists every file.")).toBeInTheDocument();
+  });
+
+  it("saves with Ctrl+Enter from the details", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog();
+    await screen.findByRole("button", { name: "Save" });
+
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
+    mockedInvoke.mockResolvedValueOnce(saveResult({ description: "why" }));
+    await userEvent.type(await detailsField(), "why{Control>}{Enter}{/Control}");
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
+    expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", expect.objectContaining({ description: "why" }));
+  });
+
+  it("saves with Enter in the name once the plan is in", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan());
+    renderDialog();
+    await screen.findByRole("button", { name: "Save" });
+    mockedInvoke.mockResolvedValueOnce(saveResult());
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing{Enter}");
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
+  });
+
+  it("ignores Enter while the plan is still out", async () => {
+    pendingPlan();
+    renderDialog();
+    await userEvent.type(screen.getByLabelText("Version name"), "fix the thing{Enter}");
+    expect(mockedInvoke).not.toHaveBeenCalledWith("save_version", expect.anything());
+  });
+
   it("trims surrounding whitespace from both fields before saving", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();
     await screen.findByLabelText("Version name");
 
     await userEvent.type(screen.getByLabelText("Version name"), "  fix the thing  ");
-    await userEvent.type(screen.getByLabelText("More details (optional)"), "  details  ");
+    await userEvent.type(await detailsField(), "  details  ");
     mockedInvoke.mockResolvedValueOnce(saveResult({ description: "details" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -345,7 +543,7 @@ describe("SaveVersionDialog", () => {
 
     mockedInvoke.mockResolvedValueOnce(saveResult());
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
 
     await userEvent.click(screen.getByRole("button", { name: "Publish now" }));
 
@@ -379,7 +577,7 @@ describe("SaveVersionDialog", () => {
 
     mockedInvoke.mockResolvedValueOnce(saveResult({ title: "done", savedFiles: 1 }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByText('Saved "done" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('“done” is on “main”, only on this computer.')).toBeInTheDocument();
 
     rerender(
       <LanguageProvider>
@@ -396,7 +594,7 @@ describe("SaveVersionDialog", () => {
       </LanguageProvider>,
     );
 
-    expect(screen.getByText('Saved "done" as abc123a.')).toBeInTheDocument();
+    expect(screen.getByText('“done” is on “main”, only on this computer.')).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
   });
 
@@ -405,7 +603,7 @@ describe("SaveVersionDialog", () => {
     renderDialog();
     await screen.findByLabelText("Version name");
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
-    await userEvent.type(screen.getByLabelText("More details (optional)"), "some context");
+    await userEvent.type(await detailsField(), "some context");
 
     mockedInvoke.mockRejectedValueOnce({
       code: "hook_rejected",
@@ -426,7 +624,7 @@ describe("SaveVersionDialog", () => {
     // This save already skipped the hooks, so "save without the hooks" is not
     // a way out of anything — offering it would be nonsense.
     expect(
-      screen.queryByRole("button", { name: "Save without running the hooks" }),
+      screen.queryByRole("button", { name: "Save without running hooks" }),
     ).not.toBeInTheDocument();
   });
 
@@ -450,9 +648,9 @@ describe("SaveVersionDialog", () => {
     expect(screen.getByText("pre-commit: 2 files need formatting")).toBeInTheDocument();
 
     mockedInvoke.mockResolvedValueOnce(saveResult());
-    await userEvent.click(screen.getByRole("button", { name: "Save without running the hooks" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save without running hooks" }));
 
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
     expect(mockedInvoke).toHaveBeenLastCalledWith("save_version", {
       path: "/repo",
       sessionEpoch: "epoch-1",
@@ -512,7 +710,7 @@ describe("SaveVersionDialog", () => {
 
     await screen.findByRole("alert");
     expect(
-      screen.queryByRole("button", { name: "Save without running the hooks" }),
+      screen.queryByRole("button", { name: "Save without running hooks" }),
     ).not.toBeInTheDocument();
   });
 
@@ -538,7 +736,7 @@ describe("SaveVersionDialog", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     resolveSave?.(saveResult({ title: "save safely" }));
-    expect(await screen.findByText('Saved "save safely" as abc123a.')).toBeInTheDocument();
+    expect(await screen.findByText('“save safely” is on “main”, only on this computer.')).toBeInTheDocument();
   });
 
   it("closes on Escape and restores focus to the element that opened it", async () => {
@@ -622,7 +820,7 @@ describe("SaveVersionDialog", () => {
       </LanguageProvider>,
     );
     await userEvent.type(await screen.findByLabelText("Version name"), "fix the thing");
-    await userEvent.type(screen.getByLabelText("More details (optional)"), "some context");
+    await userEvent.type(await detailsField(), "some context");
 
     // A stray Cancel — or a backdrop click, or Escape, all the same path —
     // used to throw this away with no confirmation.
@@ -634,12 +832,18 @@ describe("SaveVersionDialog", () => {
     await screen.findByLabelText("Version name");
     expect(screen.getByLabelText("Version name")).toHaveValue("fix the thing");
     expect(screen.getByLabelText("More details (optional)")).toHaveValue("some context");
+    // Opened by the draft, and kept open while it is cleared: the field does
+    // not fold away under the cursor.
+    const drafted = screen.getByLabelText("More details (optional)");
+    await userEvent.clear(drafted);
+    expect(screen.getByLabelText("More details (optional)")).toBe(drafted);
+    await userEvent.type(drafted, "some context");
 
     // A save that actually succeeds is the one thing that does clear it —
     // the draft became the version's own record, not still-editable text.
     mockedInvoke.mockResolvedValueOnce(saveResult());
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText('Saved "fix the thing" as abc123a.');
+    await screen.findByText('“fix the thing” is on “main”, only on this computer.');
 
     await userEvent.click(screen.getByRole("button", { name: "toggle open" }));
     mockedInvoke.mockResolvedValueOnce(plan());
@@ -647,6 +851,7 @@ describe("SaveVersionDialog", () => {
 
     await screen.findByLabelText("Version name");
     expect(screen.getByLabelText("Version name")).toHaveValue("");
-    expect(screen.getByLabelText("More details (optional)")).toHaveValue("");
+    // Nothing drafted, so the details are folded again.
+    expect(screen.queryByLabelText("More details (optional)")).not.toBeInTheDocument();
   });
 });

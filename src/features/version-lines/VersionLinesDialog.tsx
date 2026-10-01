@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CircleAlert, GitBranch, LoaderCircle, PenLine, Trash2, TriangleAlert } from "lucide-react";
+import { CircleAlert, GitBranch, LoaderCircle, ShieldCheck, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError, isAppError } from "../../shared/i18n";
-import { useModalFocus } from "../../shared/ui";
+import { Dialog, DialogBanner, moveFocusWithinRadioGroup, useModalFocus, useToast } from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type {
   CreateVersionLinePlan,
   DeleteVersionLinePlan,
   DeleteVersionLineResult,
-  RenameVersionLinePlan,
   SwitchVersionLinePlan,
   VersionLinesSnapshot,
 } from "./domain";
@@ -44,14 +43,16 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
 
 function ErrorBanner({ error, t }: { error: unknown; t: Translations }): React.JSX.Element {
   return (
-    <div>
-      <p className="save-version-error" role="alert">
-        <CircleAlert aria-hidden="true" />
-        {localizeAppError(error, t, t.errorGitCommandFailed)}
-      </p>
+    <DialogBanner tone="danger" icon={<CircleAlert />}>
+      <p role="alert">{localizeAppError(error, t, t.errorGitCommandFailed)}</p>
       <FailureDetail error={error} t={t} />
-    </div>
+    </DialogBanner>
   );
+}
+
+/** A ref as the reader knows it: the line's own name, not its path in Git. */
+function lineName(ref: string): string {
+  return ref.replace(/^refs\/(heads|remotes|tags)\//, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +92,7 @@ export function CreateVersionLineDialog({
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -184,6 +186,9 @@ export function CreateVersionLineDialog({
       setState({ status: "success", snapshot, name: plan.name, switched: plan.willSwitch });
       onPhaseChangeRef.current?.("success");
       onCreated(snapshot);
+      // Nothing left to decide: a toast. The host closes the dialog on
+      // `onCreated`, the way it always has.
+      showToast({ icon: <GitBranch />, message: t.createVersionLineToast(plan.name, plan.willSwitch) });
     } catch (error) {
       setState({ status: "form-error", error });
       onPhaseChangeRef.current?.("error");
@@ -191,128 +196,109 @@ export function CreateVersionLineDialog({
   }
 
   return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="save-version-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-version-line-title"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id="create-version-line-title">
-          {state.status === "success" ? t.createVersionLineSuccessTitle : t.createVersionLineTitle}
-        </h2>
+    <Dialog
+      size="s"
+      title={t.createVersionLineTitle}
+      titleId="create-version-line-title"
+      onClose={requestClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+    >
+      {state.status === "confirm" || state.status === "creating" ? (
+        <>
+          <p className="app-dialog__text">{state.plan.summary}</p>
+          {state.plan.risks.map((risk) => (
+            <p key={risk} className="app-dialog__text">{risk}</p>
+          ))}
+          <div className="dialog-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => setState({ status: "form" })}
+              disabled={isBusy}
+            >
+              {t.commonCancel}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => void execute(state.plan)}
+              disabled={isBusy}
+            >
+              {isBusy ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                  {t.createVersionLineCreating}
+                </>
+              ) : (
+                <>
+                  <GitBranch aria-hidden="true" />
+                  {t.createVersionLineConfirm}
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      ) : (
+        <form className="version-line-form" onSubmit={(event) => void handleSubmit(event)}>
+          {/* Said before the name is typed, because it is the fact that makes
+              this creation different from every other one. */}
+          {startVersion && (
+            <p className="app-dialog__text">
+              {t.createVersionLineStartsAt(startVersion.shortCommit, startVersion.subject)}
+            </p>
+          )}
+          <label className="text-field">
+            <span>{t.createVersionLineNameLabel}</span>
+            <input
+              ref={nameRef}
+              type="text"
+              value={name}
+              required
+              disabled={isBusy}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t.createVersionLineNamePlaceholder}
+            />
+          </label>
 
-        {state.status === "success" ? (
-          <>
-            <p>{state.name}</p>
-            <div className="dialog-actions">
-              <button className="primary-button" type="button" onClick={onClose}>
-                {t.createVersionLineDone}
-              </button>
-            </div>
-          </>
-        ) : state.status === "confirm" || state.status === "creating" ? (
-          <>
-            <div className="save-version-summary">
-              <p>{state.plan.summary}</p>
-              {state.plan.risks.map((risk) => (
-                <p key={risk} className="save-version-note">
-                  {risk}
-                </p>
-              ))}
-            </div>
-            <div className="dialog-actions">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => setState({ status: "form" })}
-                disabled={isBusy}
-              >
-                {t.commonCancel}
-              </button>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => void execute(state.plan)}
-                disabled={isBusy}
-              >
-                {isBusy ? (
-                  <>
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    {t.createVersionLineCreating}
-                  </>
-                ) : (
-                  <>
-                    <GitBranch aria-hidden="true" />
-                    {t.createVersionLineConfirm}
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        ) : (
-          <form onSubmit={(event) => void handleSubmit(event)}>
-            {/* Said before the name is typed, because it is the fact that makes
-                this creation different from every other one. */}
-            {startVersion && (
-              <p className="save-version-note">
-                {t.createVersionLineStartsAt(startVersion.shortCommit, startVersion.subject)}
-              </p>
-            )}
-            <label className="text-field save-version-title">
-              <span>{t.createVersionLineNameLabel}</span>
+          {!forceSwitch && (
+            <label className="app-dialog__check">
               <input
-                ref={nameRef}
-                type="text"
-                value={name}
-                required
+                className="app-checkbox"
+                type="checkbox"
+                checked={switchChoice}
                 disabled={isBusy}
-                onChange={(event) => setName(event.target.value)}
-                placeholder={t.createVersionLineNamePlaceholder}
+                onChange={(event) => setSwitchChoice(event.target.checked)}
               />
+              {t.createVersionLineSwitchLabel}
             </label>
+          )}
+          {forceSwitch && <p className="app-dialog__text">{t.createVersionLineDetachedNote}</p>}
 
-            {!forceSwitch && (
-              <label className="version-lines-checkbox">
-                <input
-                  type="checkbox"
-                  checked={switchChoice}
-                  disabled={isBusy}
-                  onChange={(event) => setSwitchChoice(event.target.checked)}
-                />
-                <span>{t.createVersionLineSwitchLabel}</span>
-              </label>
-            )}
-            {forceSwitch && <p className="save-version-note">{t.createVersionLineDetachedNote}</p>}
+          {state.status === "form-error" && <ErrorBanner error={state.error} t={t} />}
 
-            {state.status === "form-error" && <ErrorBanner error={state.error} t={t} />}
-
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="submit" disabled={isBusy}>
-                {isBusy ? (
-                  <>
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    {t.createVersionLineCreating}
-                  </>
-                ) : (
-                  <>
-                    <GitBranch aria-hidden="true" />
-                    {t.createVersionLineConfirm}
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
+              {t.commonCancel}
+            </button>
+            <button className="primary-button" type="submit" disabled={isBusy}>
+              {isBusy ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                  {t.createVersionLineCreating}
+                </>
+              ) : (
+                <>
+                  <GitBranch aria-hidden="true" />
+                  {t.createVersionLineConfirm}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      )}
+    </Dialog>
   );
 }
 
@@ -350,9 +336,13 @@ export function SwitchVersionLineDialog({
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [state, setState] = useState<SwitchState>({ status: "loading" });
+  /* With unsaved changes there are two ways through, offered as a choice
+     rather than as three buttons side by side. */
+  const [dirtyChoice, setDirtyChoice] = useState<"save" | "new-line">("save");
   const onPhaseChangeRef = useRef(onPhaseChange);
   onPhaseChangeRef.current = onPhaseChange;
 
@@ -422,6 +412,8 @@ export function SwitchVersionLineDialog({
         setState({ status: "success", snapshot });
         onPhaseChangeRef.current?.("success");
         onSwitched(snapshot);
+        // The host closes the dialog on `onSwitched`.
+        showToast({ icon: <GitBranch />, message: t.switchVersionLineToast(plan.to) });
       })
       .catch((error: unknown) => {
         setState({ status: "switch-error", plan, error });
@@ -432,305 +424,123 @@ export function SwitchVersionLineDialog({
   const plan = "plan" in state ? state.plan : null;
 
   return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="save-version-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="switch-version-line-title"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id="switch-version-line-title">
-          {state.status === "success" ? t.switchVersionLineSuccessTitle : t.switchVersionLineTitle(target)}
-        </h2>
+    <Dialog
+      size="s"
+      title={t.switchVersionLineTitle(target)}
+      titleId="switch-version-line-title"
+      onClose={requestClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+    >
+      {state.status === "loading" && (
+        <p className="app-dialog__note" role="status">
+          <LoaderCircle aria-hidden="true" className="icon--spinning" />
+          {t.switchVersionLineLoading}
+        </p>
+      )}
 
-        {state.status === "loading" && (
-          <div className="save-version-status" role="status">
-            <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            <p>{t.switchVersionLineLoading}</p>
+      {state.status === "blocked" && isDirty && (
+        <>
+          <p className="app-dialog__text">{t.switchVersionLineDirtyDescription}</p>
+          <div
+            className="choice-list"
+            role="radiogroup"
+            aria-label={t.switchVersionLineDirtyDescription}
+            onKeyDown={moveFocusWithinRadioGroup}
+          >
+            {([
+              ["save", t.switchVersionLineDirtySaveTitle, t.switchVersionLineDirtySaveNote],
+              ["new-line", t.switchVersionLineDirtyNewTitle, t.switchVersionLineDirtyNewNote],
+            ] as const).map(([value, label, note]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={dirtyChoice === value}
+                tabIndex={dirtyChoice === value ? 0 : -1}
+                // The arrows move focus and the choice with it, so the primary
+                // action below always names what focus is on.
+                onFocus={() => setDirtyChoice(value)}
+                className={`choice-list__option${dirtyChoice === value ? " choice-list__option--active" : ""}`}
+                onClick={() => setDirtyChoice(value)}
+              >
+                <span className="choice-list__label">{label}</span>
+                <span className="choice-list__description">{note}</span>
+              </button>
+            ))}
           </div>
-        )}
-
-        {state.status === "blocked" && isDirty && (
-          <>
-            <p>{t.switchVersionLineDirtyDescription}</p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonCancel}
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onSaveVersion();
-                }}
-              >
-                {t.switchVersionLineSaveVersionAction}
-              </button>
-              <button
-                className="primary-button"
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onCreateWithWork();
-                }}
-              >
-                {t.switchVersionLineNewLineAction}
-              </button>
-            </div>
-          </>
-        )}
-
-        {state.status === "blocked" && !isDirty && (
-          <>
-            <ErrorBanner error={state.error} t={t} />
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="button" onClick={() => setRetryToken((value) => value + 1)}>
-                {t.versionLinesRetry}
-              </button>
-            </div>
-          </>
-        )}
-
-        {plan && state.status !== "success" && (
-          <>
-            <div className="save-version-summary">
-              <p>{t.switchVersionLineChangedFiles(plan.changedFilesTotal)}</p>
-              {plan.changedFilesTotal > plan.changedFiles.length && (
-                <p className="save-version-note">
-                  {t.switchVersionLineChangedFilesTruncated(plan.changedFiles.length, plan.changedFilesTotal)}
-                </p>
-              )}
-              <p className="save-version-note">{plan.recovery}</p>
-            </div>
-
-            {state.status === "switch-error" && <ErrorBanner error={state.error} t={t} />}
-
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="button" onClick={handleConfirm} disabled={isBusy}>
-                {isBusy ? (
-                  <>
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    {t.switchVersionLineSwitching}
-                  </>
-                ) : (
-                  <>
-                    <GitBranch aria-hidden="true" />
-                    {t.switchVersionLineConfirm}
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
-
-        {state.status === "success" && (
           <div className="dialog-actions">
-            <button className="primary-button" type="button" onClick={onClose}>
-              {t.switchVersionLineDone}
+            <button className="secondary-button" type="button" onClick={requestClose}>
+              {t.commonCancel}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => {
+                onClose();
+                if (dirtyChoice === "save") onSaveVersion();
+                else onCreateWithWork();
+              }}
+            >
+              {dirtyChoice === "save" ? t.switchVersionLineSaveVersionAction : t.switchVersionLineNewLineAction}
             </button>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
+        </>
+      )}
 
-// ---------------------------------------------------------------------------
-// Rename a version line
-// ---------------------------------------------------------------------------
+      {state.status === "blocked" && !isDirty && (
+        <>
+          <ErrorBanner error={state.error} t={t} />
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>
+              {t.commonClose}
+            </button>
+            <button className="primary-button" type="button" onClick={() => setRetryToken((value) => value + 1)}>
+              {t.versionLinesRetry}
+            </button>
+          </div>
+        </>
+      )}
 
-type RenameState =
-  | { status: "editing" }
-  | { status: "planning" }
-  | { status: "plan-error"; error: unknown }
-  | { status: "renaming" }
-  | { status: "error"; error: unknown };
+      {plan && state.status !== "success" && (
+        <>
+          <p className="app-dialog__text">{t.switchVersionLineChangedFiles(plan.changedFilesTotal)}</p>
+          {plan.changedFilesTotal > plan.changedFiles.length && (
+            <p className="app-dialog__text">
+              {t.switchVersionLineChangedFilesTruncated(plan.changedFiles.length, plan.changedFilesTotal)}
+            </p>
+          )}
+          {/* Written here from the plan's facts rather than taken from the
+              plan's own English sentence: the reader's language decides it. */}
+          <p className="app-dialog__note">
+            <Undo2 aria-hidden="true" />
+            {t.switchVersionLineRecoveryNote(plan.from)}
+          </p>
 
-/** Renaming is a local mutation and the only one on this screen that cannot
- * lose anything: the saved versions keep their commits and only the name over
- * them moves. So there is no plan-then-confirm step to read — the field is the
- * dialog, and the plan is fetched and executed by the same click.
- *
- * The published copy is the one consequence worth stating, because Git does
- * not rename it and the line goes on tracking its old remote name. */
-export function RenameVersionLineDialog({
-  isOpen,
-  projectPath,
-  sessionEpoch,
-  target,
-  upstream,
-  onClose,
-  onRenamed,
-  onPhaseChange,
-}: {
-  isOpen: boolean;
-  projectPath: string;
-  sessionEpoch: string;
-  target: string;
-  /** What the line tracks, from the list's own snapshot. Shown as the note
-   * under the field so the consequence is readable before the click, not
-   * after it. */
-  upstream: string | null;
-  onClose: () => void;
-  /** The snapshot the rename returned, and the name it was given — the
-   * caller uses it to keep the selection on this line. */
-  onRenamed: (snapshot: VersionLinesSnapshot, newName: string) => void;
-  onPhaseChange?: (phase: VersionLineOperationPhase) => void;
-}): React.JSX.Element | null {
-  const { t } = useLanguage();
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState(target);
-  useInstallDraftBlocker(
-    `rename-version-line:${projectPath}:${target}`,
-    "renamed version line name",
-    isOpen && name.trim() !== target,
-  );
-  const [state, setState] = useState<RenameState>({ status: "editing" });
-  const onPhaseChangeRef = useRef(onPhaseChange);
-  onPhaseChangeRef.current = onPhaseChange;
-
-  const onCloseRef = useRef(onClose);
-  const isBusyRef = useRef(false);
-  onCloseRef.current = onClose;
-  const setOpenState = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
-    const value = typeof next === "function" ? (next as (previous: boolean) => boolean)(true) : next;
-    if (!value && !isBusyRef.current) {
-      onCloseRef.current();
-    }
-  }, []);
-  useModalFocus(isOpen, dialogRef, setOpenState);
-
-  const selectedOnceRef = useRef(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setName(target);
-    setState({ status: "editing" });
-    selectedOnceRef.current = false;
-  }, [isOpen, target]);
-
-  if (!isOpen) {
-    return null;
-  }
-
-  const isBusy = state.status === "planning" || state.status === "renaming";
-  isBusyRef.current = isBusy;
-  const trimmed = name.trim();
-  const unchanged = trimmed === target;
-  const canSubmit = trimmed.length > 0 && !unchanged && !isBusy;
-
-  function requestClose(): void {
-    if (!isBusy) onClose();
-  }
-
-  function handleSubmit(event: React.FormEvent): void {
-    event.preventDefault();
-    if (!canSubmit) return;
-    const newName = trimmed;
-    setState({ status: "planning" });
-    onPhaseChangeRef.current?.("planning");
-    versionLinesPort
-      .planRename({ projectId: projectPath, sessionEpoch, name: target, newName })
-      .then((plan: RenameVersionLinePlan) => {
-        setState({ status: "renaming" });
-        onPhaseChangeRef.current?.("executing");
-        return versionLinesPort.rename({
-          projectId: projectPath,
-          sessionEpoch,
-          name: target,
-          newName,
-          stateToken: plan.stateToken,
-        });
-      })
-      .then((snapshot) => {
-        onPhaseChangeRef.current?.("success");
-        // No success screen: the list behind this dialog is the confirmation,
-        // and it already shows the new name.
-        onRenamed(snapshot, newName);
-      })
-      .catch((error: unknown) => {
-        setState({ status: "plan-error", error });
-        onPhaseChangeRef.current?.("error");
-      });
-  }
-
-  const error = "error" in state ? state.error : null;
-
-  return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="save-version-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="rename-version-line-title"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id="rename-version-line-title">{t.renameVersionLineTitle(target)}</h2>
-        <form onSubmit={handleSubmit}>
-          <label className="text-field">
-            <span>{t.renameVersionLineNameLabel}</span>
-            {/* `data-autofocus` is how a dialog names its landing point — the
-                shared modal focus would otherwise land on Cancel. The whole
-                name is selected the first time it lands, and only then:
-                renaming is usually replacing, but a click into the middle of
-                the field later is a caret, not a request to start over. */}
-            <input
-              ref={inputRef}
-              data-autofocus
-              type="text"
-              value={name}
-              spellCheck={false}
-              autoComplete="off"
-              disabled={isBusy}
-              onFocus={(event) => {
-                if (selectedOnceRef.current) return;
-                selectedOnceRef.current = true;
-                event.currentTarget.select();
-              }}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <p className="save-version-note">{t.renameVersionLineNote}</p>
-          {upstream && <p className="save-version-note">{t.renameVersionLineUpstreamNote(upstream)}</p>}
-
-          {error !== null && <ErrorBanner error={error} t={t} />}
+          {state.status === "switch-error" && <ErrorBanner error={state.error} t={t} />}
 
           <div className="dialog-actions">
             <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
               {t.commonCancel}
             </button>
-            <button className="primary-button" type="submit" disabled={!canSubmit}>
+            <button className="primary-button" type="button" onClick={handleConfirm} disabled={isBusy}>
               {isBusy ? (
                 <>
                   <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                  {t.renameVersionLineRenaming}
+                  {t.switchVersionLineSwitching}
                 </>
               ) : (
                 <>
-                  <PenLine aria-hidden="true" />
-                  {t.renameVersionLineConfirm}
+                  <GitBranch aria-hidden="true" />
+                  {t.switchVersionLineConfirm}
                 </>
               )}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </>
+      )}
+    </Dialog>
   );
 }
 
@@ -774,6 +584,7 @@ export function DeleteVersionLineDialog({
   onPhaseChange?: (phase: VersionLineOperationPhase) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
+  const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [state, setState] = useState<DeleteState>({ status: "loading" });
@@ -852,6 +663,17 @@ export function DeleteVersionLineDialog({
         setState({ status: "success", result });
         onPhaseChangeRef.current?.("success");
         onDeleted(result.snapshot);
+        // The local line is gone whatever the remote said, so a refusal out
+        // there is reported as a fact about the remote, not as a failure.
+        const extra = result.remoteError
+          ? "remote-failed"
+          : result.remoteDeleted === true
+            ? "remote"
+            : result.recoveryReference
+              ? "recovery"
+              : null;
+        showToast({ icon: <Trash2 />, message: t.deleteVersionLineDeletedToast(plan.name, extra) });
+        onCloseRef.current();
       })
       .catch((error: unknown) => {
         setState({ status: "delete-error", plan, error });
@@ -873,189 +695,146 @@ export function DeleteVersionLineDialog({
     blockedReason === "version_line_is_default" ||
     blockedReason === "git_operation_in_progress";
 
+  const isConflictBlock = blockedReason === "git_operation_in_progress";
+
   return (
-    <div className="save-version-backdrop" role="presentation" onMouseDown={requestClose}>
-      <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
-        ref={dialogRef}
-        className="save-version-dialog auto-hide-scrollbar"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-version-line-title"
-        tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id="delete-version-line-title">
-          {state.status === "success"
-            ? t.deleteVersionLineSuccessTitle
-            : isExplainedBlock
-              ? t.deleteVersionLineBlockedTitle(target)
-              : t.deleteVersionLineTitle(target)}
-        </h2>
+    <Dialog
+      size="s"
+      role={isExplainedBlock ? "alertdialog" : "dialog"}
+      title={isExplainedBlock
+        ? isConflictBlock ? t.deleteVersionLineConflictTitle : t.deleteVersionLineBlockedTitle
+        : t.deleteVersionLineTitle(target)}
+      titleId="delete-version-line-title"
+      icon={isExplainedBlock ? isConflictBlock ? <CircleAlert /> : <TriangleAlert /> : undefined}
+      tone="warning"
+      onClose={requestClose}
+      closeLabel={t.commonClose}
+      dismissible={!isBusy}
+      dialogRef={dialogRef}
+    >
+      {state.status === "loading" && (
+        <p className="app-dialog__note" role="status">
+          <LoaderCircle aria-hidden="true" className="icon--spinning" />
+          {t.versionLinesLoading}
+        </p>
+      )}
 
-        {state.status === "loading" && (
-          <div className="save-version-status" role="status">
-            <LoaderCircle aria-hidden="true" className="icon--spinning" />
-            <p>{t.versionLinesLoading}</p>
-          </div>
-        )}
-
-        {state.status === "blocked" && isExplainedBlock && (
-          <>
-            <div className="save-version-summary" role="status">
-              <p>
-                {blockedReason === "version_line_unique_work"
-                  ? t.deleteVersionLineBlockedUniqueLead
-                  : blockedReason === "version_line_checked_out_elsewhere"
-                    ? t.deleteVersionLineBlockedElsewhereLead
-                    : blockedReason === "git_operation_in_progress"
-                      ? t.deleteVersionLineBlockedOperationLead
-                      : blockedReason === "version_line_is_default"
-                        ? t.deleteVersionLineBlockedDefaultLead
-                        : t.deleteVersionLineBlockedActiveLead}
-              </p>
-              {blockedReason === "git_operation_in_progress" && (
-                <p className="save-version-note">{t.deleteVersionLineBlockedOperationNote}</p>
-              )}
-              {blockedReason === "version_line_unique_work" && (
-                <ul className="delete-version-line-options">
-                  <li>{t.deleteVersionLineBlockedUniqueOptionPublish}</li>
-                  <li>{t.deleteVersionLineBlockedUniqueOptionMerge}</li>
-                  <li>{t.deleteVersionLineBlockedUniqueOptionKeep}</li>
-                </ul>
-              )}
-            </div>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonClose}
+      {state.status === "blocked" && isExplainedBlock && (
+        <>
+          <p className="app-dialog__text" role="status">
+            {blockedReason === "version_line_unique_work"
+              ? t.deleteVersionLineBlockedUniqueLead(target)
+              : blockedReason === "version_line_checked_out_elsewhere"
+                ? t.deleteVersionLineBlockedElsewhereLead
+                : isConflictBlock
+                  ? t.deleteVersionLineBlockedOperationLead(target)
+                  : blockedReason === "version_line_is_default"
+                    ? t.deleteVersionLineBlockedDefaultLead
+                    : t.deleteVersionLineBlockedActiveLead}
+          </p>
+          {blockedReason === "version_line_unique_work" && (
+            <ul className="delete-version-line-options">
+              <li>{t.deleteVersionLineBlockedUniqueOptionPublish}</li>
+              <li>{t.deleteVersionLineBlockedUniqueOptionMerge}</li>
+              <li>{t.deleteVersionLineBlockedUniqueOptionKeep}</li>
+            </ul>
+          )}
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>
+              {t.commonClose}
+            </button>
+            {isConflictBlock && onOpenChanges && (
+              <button className="primary-button" type="button" onClick={() => onOpenChanges()}>
+                {t.deleteVersionLineOpenChangesAction}
               </button>
-              {blockedReason === "git_operation_in_progress" && onOpenChanges && (
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={() => {
-                    onOpenChanges();
-                  }}
-                >
-                  <TriangleAlert aria-hidden="true" />
-                  {t.deleteVersionLineOpenChangesAction}
-                </button>
-              )}
-              {blockedReason === "version_line_unique_work" && onSwitchInstead && (
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={() => {
-                    onSwitchInstead();
-                  }}
-                >
-                  <GitBranch aria-hidden="true" />
-                  {t.deleteVersionLineSwitchAction}
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {state.status === "blocked" && !isExplainedBlock && (
-          <>
-            <ErrorBanner error={state.error} t={t} />
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="button" onClick={() => setRetryToken((value) => value + 1)}>
-                {t.versionLinesRetry}
-              </button>
-            </div>
-          </>
-        )}
-
-        {plan && state.status !== "success" && (
-          <>
-            <div className="save-version-summary">
-              <p>{t.deleteVersionLineSafeLead}</p>
-              <ul className="delete-version-line-options">
-                {plan.retainedBy.map((ref) => (
-                  <li key={ref}>{ref}</li>
-                ))}
-              </ul>
-              {/* The published copy, and the one decision this dialog asks for.
-                  A line deleted only here is still on everyone else's screen,
-                  which is why it is on by default; it is a checkbox and not a
-                  silent side effect because it changes what the team sees. */}
-              {plan.published && (
-                <label className="version-lines-checkbox">
-                  <input
-                    className="app-checkbox"
-                    type="checkbox"
-                    checked={deleteRemote}
-                    disabled={isBusy}
-                    onChange={(event) => setDeleteRemote(event.target.checked)}
-                  />
-                  <span>
-                    <strong>{t.deleteVersionLineRemoteLabel(plan.published.shortName)}</strong>
-                    <span className="save-version-note">
-                      {deleteRemote
-                        ? t.deleteVersionLineRemoteOnNote
-                        : t.deleteVersionLineRemoteOffNote(plan.published.shortName)}
-                    </span>
-                  </span>
-                </label>
-              )}
-              <p className="save-version-note">{t.deleteVersionLineWarning}</p>
-            </div>
-
-            {state.status === "delete-error" && <ErrorBanner error={state.error} t={t} />}
-
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
-                {t.commonCancel}
-              </button>
-              <button className="primary-button" type="button" onClick={handleConfirm} disabled={isBusy}>
-                {isBusy ? (
-                  <>
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    {t.deleteVersionLineDeleting}
-                  </>
-                ) : (
-                  <>
-                    <Trash2 aria-hidden="true" />
-                    {t.deleteVersionLineConfirm}
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
-
-        {state.status === "success" && (
-          <>
-            {/* The local line is gone whatever the remote said, so a refusal
-                out there is reported as a fact about the remote rather than as
-                a failure of the whole operation. */}
-            {state.result.remoteError ? (
-              <div className="save-version-summary" role="status">
-                <p>{t.deleteVersionLineRemoteFailedLead}</p>
-                <p className="save-version-note">
-                  {localizeAppError(state.result.remoteError, t, t.deleteVersionLineRemoteFailedLead)}
-                </p>
-              </div>
-            ) : (
-              state.result.remoteDeleted === true && (
-                <div className="save-version-summary" role="status">
-                  <p>{t.deleteVersionLineRemoteDoneLead}</p>
-                </div>
-              )
             )}
-            <div className="dialog-actions">
-              <button className="primary-button" type="button" onClick={onClose}>
-                {t.deleteVersionLineDone}
+            {blockedReason === "version_line_unique_work" && onSwitchInstead && (
+              <button className="primary-button" type="button" onClick={() => onSwitchInstead()}>
+                <GitBranch aria-hidden="true" />
+                {t.deleteVersionLineSwitchAction}
               </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {state.status === "blocked" && !isExplainedBlock && (
+        <>
+          <ErrorBanner error={state.error} t={t} />
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>
+              {t.commonClose}
+            </button>
+            <button className="primary-button" type="button" onClick={() => setRetryToken((value) => value + 1)}>
+              {t.versionLinesRetry}
+            </button>
+          </div>
+        </>
+      )}
+
+      {plan && state.status !== "success" && (
+        <>
+          {/* Held by another line, the work is simply elsewhere. Held by none
+              but copied into the main line, the originals are about to lose
+              their last name — so the plan says where the work is and that a
+              recovery point keeps the originals first. */}
+          {plan.copiedInto ? (
+            <>
+              <p className="app-dialog__text">
+                {t.deleteVersionLineCopiedLead(plan.copiedInto.base, plan.copiedInto.kind === "squash")}
+              </p>
+              <p className="app-dialog__note">
+                <ShieldCheck aria-hidden="true" />
+                {t.deleteVersionLineCopiedRecovery}
+              </p>
+            </>
+          ) : (
+            <p className="app-dialog__text">
+              {t.deleteVersionLineSafeLead(lineName(plan.retainedBy[0] ?? ""))}
+            </p>
+          )}
+          {/* The published copy, and the one decision this dialog asks for.
+              A line deleted only here is still on everyone else's screen, which
+              is why it is on by default; it is a checkbox and not a silent side
+              effect because it changes what the team sees. */}
+          {plan.published && (
+            <label className="app-dialog__check app-dialog__check--block">
+              <input
+                className="app-checkbox"
+                type="checkbox"
+                checked={deleteRemote}
+                disabled={isBusy}
+                onChange={(event) => setDeleteRemote(event.target.checked)}
+              />
+              <span>
+                <strong>{t.deleteVersionLineRemoteLabel}</strong>
+                <small>{deleteRemote ? t.deleteVersionLineRemoteOnNote : t.deleteVersionLineRemoteOffNote}</small>
+              </span>
+            </label>
+          )}
+
+          {state.status === "delete-error" && <ErrorBanner error={state.error} t={t} />}
+
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
+              {t.commonCancel}
+            </button>
+            <button className="danger-button" type="button" onClick={handleConfirm} disabled={isBusy}>
+              {isBusy ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                  {t.deleteVersionLineDeleting}
+                </>
+              ) : (
+                <>
+                  <Trash2 aria-hidden="true" />
+                  {t.deleteVersionLineConfirm}
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }

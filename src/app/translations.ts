@@ -15,7 +15,6 @@ export interface AppTranslations {
   issueReportReviewTitle: string;
   issueReportReviewMessage: string;
   issueReportContentsLabel: string;
-  issueReportAttachmentNote: string;
   issueReportCopyReport: string;
   issueReportReportCopied: string;
   issueReportCopyReportFailed: string;
@@ -34,12 +33,18 @@ export interface AppTranslations {
   issueReportRetry: string;
   titlebarKeyboardShortcuts: string;
   shortcutsDialogTitle: string;
+  shortcutsPlatformLabel: (platform: string) => string;
   shortcutsOpenPalette: string;
   shortcutsOpenSettings: string;
   shortcutsToggleSidebar: string;
   shortcutsNextProject: string;
   shortcutsPreviousProject: string;
   shortcutsCloseDialogs: string;
+  shortcutsSaveVersion: string;
+  shortcutsRenameLine: string;
+  shortcutsGroupProjects: string;
+  shortcutsGroupEditing: string;
+  shortcutsGroupInterface: string;
   titlebarGoBack: string;
   titlebarGoForward: string;
   titlebarHistoryControls: string;
@@ -50,12 +55,14 @@ export interface AppTranslations {
   navProjectAriaLabel: string;
   navApplicationAriaLabel: string;
   navOverview: string;
-  navChanges: string;
-  navChangesTitle: string;
+  navOverviewTitle: string;
+  navHome: string;
+  navWork: string;
+  navWorkTitle: string;
   navVersionLines: string;
   navVersionLinesTitle: string;
-  navHistory: string;
-  navHistoryTitle: string;
+  navConsole: string;
+  navConsoleTitle: string;
   navRecovery: string;
   navRecoveryTitle: string;
   navSettings: string;
@@ -70,7 +77,11 @@ export interface AppTranslations {
   palettePlaceholder: string;
   paletteNoMatches: string;
   commandGoOverview: string;
+  commandGoHome: string;
   commandGoVersionLines: string;
+  commandGoConsole: string;
+  commandGoWork: string;
+  commandGoChanges: string;
   commandGoHistory: string;
   commandNewVersionLine: string;
   commandCheckLocalChanges: string;
@@ -92,7 +103,8 @@ export interface AppTranslations {
   commandCloseActiveProject: string;
   commandCloneProject: string;
   commandCreateProject: string;
-  commandTurnFolderIntoProject: string;
+  openErrorTurnIntoProject: string;
+  openErrorChooseAnother: string;
   commandSwitchToProject: (name: string) => string;
   projectSwitcherAriaLabel: string;
   projectSwitchToLabel: (name: string) => string;
@@ -121,7 +133,7 @@ export interface AppTranslations {
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
   statusBarNoProject: string;
-  statusBarWorkingOn: string;
+  statusBarProjectTooltip: (name: string) => string;
   statusBarDetached: string;
   statusBarUnbornLine: string;
   statusBarVersionLineUnavailable: string;
@@ -130,6 +142,8 @@ export interface AppTranslations {
   statusBarChangesNotChecked: string;
   statusBarEverythingSaved: string;
   statusBarUnsaved: (count: number) => string;
+  statusBarLinesAdded: (count: number) => string;
+  statusBarLinesRemoved: (count: number) => string;
   statusBarUpToDate: string;
   statusBarAhead: (count: number) => string;
   statusBarBehind: (count: number) => string;
@@ -149,6 +163,7 @@ export interface AppTranslations {
   statusBarJustNow: string;
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
+  statusBarPublishAction: (count: number) => string;
   statusBarVersion: (version: string) => string;
   statusBarOpenChangelog: (version: string) => string;
   titlebarHideSidebar: string;
@@ -179,17 +194,27 @@ export interface AppTranslations {
      name is not what the press acts on. */
   aboutStackLink: (name: string, site: string) => string;
   aboutCopySystemInfo: string;
+  /* The visible label of the copy action, short because it heads the section it
+     copies; `aboutCopySystemInfo` stays its accessible name. */
+  aboutCopy: string;
   aboutCopied: string;
+  /* The one short thing About says when the release model reports the running
+     build as current. A word, not a sentence: it sits on the version line. */
+  aboutUpToDate: string;
+  /* The same slot when the build cannot answer at all: a development build
+     configures no update feed. Short, and about the check rather than the whole
+     installation, so it reads as a state and not as a fault. */
+  aboutUpdateUnavailable: string;
   /* Split around the heart so it can be colored, and so both halves stay
      translatable — word order around it is not the same in every language. */
   aboutFooterMadeWith: string;
   aboutFooterByAuthor: string;
   aboutHeartLabel: string;
-  changelogEyebrow: string;
   changelogTitle: string;
-  changelogDescription: string;
   changelogVersionHeading: (version: string) => string;
   changelogCurrentRelease: string;
+  changelogEarlierHeading: string;
+  changelogHighlightCount: (count: number) => string;
   changelogNoHighlights: string;
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
@@ -204,39 +229,44 @@ const en: AppTranslations = {
   titlebarCreateProject: "Create local project",
   titlebarCloneProject: "Clone remote project",
   titlebarReloadWindow: "Reload window",
-  titlebarReloadBlocked: "Finish the current project operation before reloading.",
+  titlebarReloadBlocked: "Wait for the current operation to finish before reloading.",
   titlebarReportIssue: "Report an issue",
-  issueReportHint: "Reviews the system details and recent app activity before opening GitHub. A GitHub account is required; reports are public.",
+  issueReportHint: "Review your system details and recent activity, then open a public issue on GitHub (account required).",
   issueReportPreparingTitle: "Preparing your report",
-  issueReportPreparingMessage: "Collecting the app and system details stored for this session.",
-  issueReportReviewTitle: "Review issue report",
-  issueReportReviewMessage: "Only the versions are prefilled. Copy or save to include the activity.",
+  issueReportPreparingMessage: "Gathering app and system details from this session.",
+  issueReportReviewTitle: "Review the report before sending it",
+  issueReportReviewMessage: "GitHub only receives the versions, so copy or save the report to include the activity.",
   issueReportContentsLabel: "Report contents",
-  issueReportAttachmentNote: "If you save the report, attach it to the issue yourself.",
   issueReportCopyReport: "Copy",
   issueReportReportCopied: "Report copied.",
-  issueReportCopyReportFailed: "Couldn't copy the report. Select the text above and copy it manually.",
+  issueReportCopyReportFailed: "Couldn't copy the report. Select the text and copy it by hand.",
   issueReportSaveReport: "Save report…",
   issueReportSaving: "Saving…",
   issueReportSaved: "Report saved. Attach the file to your GitHub issue.",
-  issueReportSaveFailed: "Couldn't save the report. Choose another location and try again.",
+  issueReportSaveFailed: "Couldn't save the report. Choose another location.",
   issueReportContinue: "Open issue",
-  issueReportFailedTitle: "Couldn't open the issue report",
-  issueReportFailedMessage: "Try again or copy the link into your browser. GitHub requires sign-in, and you can review the public report before submitting it.",
+  issueReportFailedTitle: "The browser didn't open",
+  issueReportFailedMessage: "Copy the link and paste it yourself.",
   issueReportLink: "Report link",
   issueReportCopyLink: "Copy link",
   issueReportCopied: "Link copied.",
-  issueReportCopyFailed: "Couldn't copy the link. Select the address above and copy it manually.",
+  issueReportCopyFailed: "Couldn't copy the link. Select the address and copy it by hand.",
   issueReportOpening: "Opening…",
   issueReportRetry: "Try again",
   titlebarKeyboardShortcuts: "Keyboard shortcuts",
   shortcutsDialogTitle: "Keyboard shortcuts",
+  shortcutsPlatformLabel: (platform) => `Shortcuts for ${platform}`,
   shortcutsOpenPalette: "Open command palette",
   shortcutsOpenSettings: "Open Settings",
   shortcutsToggleSidebar: "Show or hide the sidebar",
   shortcutsNextProject: "Next project",
   shortcutsPreviousProject: "Previous project",
   shortcutsCloseDialogs: "Close dialogs and menus",
+  shortcutsSaveVersion: "Save a version",
+  shortcutsRenameLine: "Rename a version line",
+  shortcutsGroupProjects: "Projects",
+  shortcutsGroupEditing: "Editing",
+  shortcutsGroupInterface: "Interface",
   titlebarGoBack: "Go back",
   titlebarGoForward: "Go forward",
   titlebarHistoryControls: "Navigation history",
@@ -247,32 +277,38 @@ const en: AppTranslations = {
   navProjectAriaLabel: "Project navigation",
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
-  navChanges: "Changes",
-  navChangesTitle: "Changes — Open a project first",
+  navOverviewTitle: "Overview — open a project first",
+  navHome: "Projects",
+  navWork: "Work",
+  navWorkTitle: "Work — open a project first",
   navVersionLines: "Lines",
-  navVersionLinesTitle: "Lines — Open a project first",
-  navHistory: "History",
-  navHistoryTitle: "History — Open a project first",
+  navVersionLinesTitle: "Lines — open a project first",
+  navConsole: "Console",
+  navConsoleTitle: "Console — open a project first",
   navRecovery: "Recovery",
-  navRecoveryTitle: "Recovery — Coming soon",
+  navRecoveryTitle: "Recovery — coming soon",
   navSettings: "Settings",
   navMore: "More",
   navCustomizeNavigation: "Customize navigation bar",
   navAccount: "Sign in",
-  navAccountTitle: "Sign in — Coming soon",
+  navAccountTitle: "Sign in — coming soon",
   dropFolderTitle: "Drop a folder to open it",
-  dropFolderHint: "One folder at a time. If it isn't a project yet, GitOdile offers to make it one.",
+  dropFolderHint: "One folder at a time, and if it isn't a project yet, GitOdile can make it one.",
   paletteAriaLabel: "Command palette",
   palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
   commandGoOverview: "Go to Overview",
+  commandGoHome: "Go to Projects",
   commandGoVersionLines: "Go to Lines",
+  commandGoConsole: "Go to Console",
+  commandGoWork: "Go to Work",
+  commandGoChanges: "Go to Changes",
   commandGoHistory: "Go to History",
   commandNewVersionLine: "New version line",
   commandCheckLocalChanges: "Check local changes",
   commandCheckRemoteChanges: "Check remote project changes",
-  commandRefreshHistory: "Update history",
-  commandRefreshVersionLines: "Update version lines",
+  commandRefreshHistory: "Refresh history",
+  commandRefreshVersionLines: "Refresh version lines",
   commandCheckAppUpdates: "Check for updates",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
@@ -280,7 +316,7 @@ const en: AppTranslations = {
   automaticUpdatesUpdating: "Updating…",
   automaticUpdatesOpenSettings: "Turn on automatic updates",
   automaticUpdatesOffTitle: "Automatic updates are off",
-  automaticUpdatesUnavailableTitle: "Automatic updates aren’t available",
+  automaticUpdatesUnavailableTitle: "Automatic updates aren't available",
   automaticUpdatesOutdatedDescription: "This screen may be out of date.",
   commandUseSystemTheme: "Use system theme",
   commandUseLightTheme: "Use light theme",
@@ -288,7 +324,8 @@ const en: AppTranslations = {
   commandCloseActiveProject: "Close active project",
   commandCloneProject: "Clone a remote project",
   commandCreateProject: "Create a local project",
-  commandTurnFolderIntoProject: "Turn this folder into a project",
+  openErrorTurnIntoProject: "Turn into a project",
+  openErrorChooseAnother: "Choose another folder",
   commandSwitchToProject: (name) => `Switch to ${name}`,
   projectSwitcherAriaLabel: "Open projects",
   projectSwitchToLabel: (name) => `Switch to ${name}`,
@@ -298,28 +335,28 @@ const en: AppTranslations = {
   projectSwitcherErrorIndicator: "Needs attention",
   projectSwitcherCollapsedTrigger: "Switch project",
   projectSwitcherRailTrigger: (name) => `${name.trim() || "Unnamed project"} — switch project`,
-  projectSwitcherSearchPlaceholder: "Search a project…",
+  projectSwitcherSearchPlaceholder: "Search projects…",
   projectSwitcherSearchEmpty: "No project by that name",
-  projectSwitcherSwitchBlockedHint: "Finish the open dialog before switching projects",
+  projectSwitcherSwitchBlockedHint: "Close the open dialog before switching projects",
   projectSwitcherEmptyHint: "Your open projects will show up here.",
   projectSwitcherAddProject: "Add project",
-  projectSwitcherFavourite: (name) => `Add ${name} to favourites`,
-  projectSwitcherUnfavourite: (name) => `Remove ${name} from favourites`,
-  projectSwitcherFavouriteHint: "Add to favourites",
-  projectSwitcherFavouritesOnly: "Show favourites only",
-  projectSwitcherFavouritesOnlyOff: "Show every open project",
-  projectSwitcherFavouritesEmpty: "No favourites yet. Star a project to keep it here.",
-  projectSwitcherUnfavouriteHint: "Remove from favourites",
+  projectSwitcherFavourite: (name) => `Add ${name} to favorites`,
+  projectSwitcherUnfavourite: (name) => `Remove ${name} from favorites`,
+  projectSwitcherFavouriteHint: "Add to favorites",
+  projectSwitcherFavouritesOnly: "Show favorites only",
+  projectSwitcherFavouritesOnlyOff: "Show all open projects",
+  projectSwitcherFavouritesEmpty: "No favorites yet. Star a project to keep it here.",
+  projectSwitcherUnfavouriteHint: "Remove from favorites",
   projectSwitcherCloneProject: "Clone remote project",
   projectSwitcherCreateProject: "Create local project",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
   projectSwitcherMutationBlocked: (name) =>
-    `Wait for the operation in ${name} to finish before starting another one in a linked workspace.`,
+    `Wait for the operation in ${name} to finish, since both workspaces share one project.`,
   projectSwitcherCloseBlocked: (name) =>
-    `Wait for the operation in ${name} to finish. You can keep working in another project meanwhile.`,
+    `Wait for the operation in ${name} to finish. You can work in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
-  statusBarWorkingOn: "Working on",
+  statusBarProjectTooltip: (name) => `Project: ${name}`,
   statusBarDetached: "Specific saved version",
   statusBarUnbornLine: "New version line",
   statusBarVersionLineUnavailable: "Version line unavailable",
@@ -328,25 +365,28 @@ const en: AppTranslations = {
   statusBarChangesNotChecked: "Changes not checked",
   statusBarEverythingSaved: "Everything is saved",
   statusBarUnsaved: (count) => (count === 1 ? "1 unsaved change" : `${count} unsaved changes`),
+  statusBarLinesAdded: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
+  statusBarLinesRemoved: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
   statusBarUpToDate: "Up to date",
   statusBarAhead: (count) => `${count} ${count === 1 ? "version" : "versions"} to publish`,
-  statusBarBehind: (count) => `${count} project ${count === 1 ? "version" : "versions"} available`,
+  statusBarBehind: (count) => `${count} newer ${count === 1 ? "version" : "versions"} available`,
   statusBarDiverged: "Both sides changed",
   statusBarNoRemote: "No remote connected",
   statusBarNoUpstream: "No publish destination",
   statusBarSyncUnborn: "Save a version to compare",
   statusBarSyncDetached: "Switch lines to compare",
-  statusBarSyncUnknown: "Project sync unavailable",
-  statusBarTeamNotChecked: "Project changes not checked",
-  statusBarCheckingTeam: "Checking project changes…",
-  statusBarReadingTeam: "Reading remote project status…",
-  statusBarTeamUnavailable: "Couldn’t check project changes",
+  statusBarSyncUnknown: "Sync status unavailable",
+  statusBarTeamNotChecked: "Remote not checked",
+  statusBarCheckingTeam: "Checking the remote…",
+  statusBarReadingTeam: "Reading remote status…",
+  statusBarTeamUnavailable: "Couldn't check the remote",
   statusBarLocalSnapshot: "Local snapshot",
-  statusBarMayBeOutdated: "May be outdated",
+  statusBarMayBeOutdated: "May be out of date",
   statusBarCheckFailed: "Check failed",
   statusBarJustNow: "just now",
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
+  statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version) => `What's new in GitOdile v${version}`,
   titlebarHideSidebar: "Hide sidebar",
@@ -360,7 +400,7 @@ const en: AppTranslations = {
   aboutProductName: "GitOdile",
   aboutGitOdile: "About",
   aboutHeading: "Git without the fear.",
-  aboutDescription: "Turns version control into clear, worry-free steps.",
+  aboutDescription: "Version control in clear, worry-free steps.",
   aboutLicense: "GNU AGPL v3.0 only",
   aboutViewLicense: "View license",
   aboutViewSource: "View source code",
@@ -372,19 +412,22 @@ const en: AppTranslations = {
   aboutBuiltWith: "Built with",
   aboutStackLink: (name, site) => `${name} — open ${site}`,
   aboutCopySystemInfo: "Copy system info",
+  aboutCopy: "Copy",
   aboutCopied: "Copied",
+  aboutUpToDate: "Up to date",
+  aboutUpdateUnavailable: "Updates unavailable",
   aboutFooterMadeWith: "Made with",
   aboutFooterByAuthor: "by Luis M. Martínez.",
   aboutHeartLabel: "love",
-  changelogEyebrow: "Release notes",
   changelogTitle: "What's new",
-  changelogDescription: "Every note ships with the build you are running and opens without a network request.",
   changelogVersionHeading: (version) => `v${version}`,
-  changelogCurrentRelease: "You are running this",
+  changelogCurrentRelease: "Your version",
+  changelogEarlierHeading: "Earlier versions",
+  changelogHighlightCount: (count) => (count === 1 ? "1 change" : `${count} changes`),
   changelogNoHighlights: "Nothing new to show for this version.",
   closeConfirmTitle: "Close this project?",
-  closeConfirmBodyGeneric: "The project stays exactly as it is on disk. You can reopen it anytime.",
-  closeConfirmBodyNamed: (name) => `"${name}" stays exactly as it is on disk. You can reopen it anytime.`,
+  closeConfirmBodyGeneric: "Nothing on disk changes, and you can reopen it anytime.",
+  closeConfirmBodyNamed: (name) => `“${name}” stays as it is on disk, and you can reopen it anytime.`,
 };
 
 const es: AppTranslations = {
@@ -395,39 +438,44 @@ const es: AppTranslations = {
   titlebarCreateProject: "Crear proyecto local",
   titlebarCloneProject: "Clonar proyecto remoto",
   titlebarReloadWindow: "Recargar ventana",
-  titlebarReloadBlocked: "Termina la operación actual del proyecto antes de recargar.",
+  titlebarReloadBlocked: "Espera a que termine la operación en curso para recargar.",
   titlebarReportIssue: "Reportar un problema",
-  issueReportHint: "Permite revisar los datos del sistema y la actividad reciente antes de abrir GitHub. Requiere una cuenta de GitHub; los informes son públicos.",
+  issueReportHint: "Revisa los datos del sistema y la actividad reciente, y abre una incidencia pública en GitHub (requiere cuenta).",
   issueReportPreparingTitle: "Preparando el informe",
-  issueReportPreparingMessage: "Recopilando los datos de la aplicación y del sistema guardados durante esta sesión.",
-  issueReportReviewTitle: "Revisar informe del problema",
-  issueReportReviewMessage: "Solo se rellenan las versiones. Copia o guarda para incluir la actividad.",
+  issueReportPreparingMessage: "Reuniendo los datos de la aplicación y del sistema de esta sesión.",
+  issueReportReviewTitle: "Revisa el informe antes de enviarlo",
+  issueReportReviewMessage: "GitHub solo recibe las versiones, así que copia o guarda el informe para incluir la actividad.",
   issueReportContentsLabel: "Contenido del informe",
-  issueReportAttachmentNote: "Si guardas el informe, adjúntalo tú en GitHub.",
   issueReportCopyReport: "Copiar",
   issueReportReportCopied: "Informe copiado.",
-  issueReportCopyReportFailed: "No se pudo copiar el informe. Selecciona el texto de arriba y cópialo manualmente.",
+  issueReportCopyReportFailed: "No se pudo copiar el informe. Selecciona el texto y cópialo a mano.",
   issueReportSaveReport: "Guardar informe…",
   issueReportSaving: "Guardando…",
   issueReportSaved: "Informe guardado. Adjunta el archivo en GitHub.",
-  issueReportSaveFailed: "No se pudo guardar el informe. Elige otra ubicación e inténtalo de nuevo.",
+  issueReportSaveFailed: "No se pudo guardar el informe. Elige otra ubicación.",
   issueReportContinue: "Reportar en GitHub",
-  issueReportFailedTitle: "No se pudo abrir el informe",
-  issueReportFailedMessage: "Reinténtalo o copia el enlace en tu navegador. GitHub requiere iniciar sesión y podrás revisar el informe público antes de enviarlo.",
+  issueReportFailedTitle: "El navegador no se abrió",
+  issueReportFailedMessage: "Copia el enlace y pégalo tú.",
   issueReportLink: "Enlace del informe",
   issueReportCopyLink: "Copiar enlace",
   issueReportCopied: "Enlace copiado.",
-  issueReportCopyFailed: "No se pudo copiar el enlace. Selecciona la dirección de arriba y cópiala manualmente.",
+  issueReportCopyFailed: "No se pudo copiar el enlace. Selecciona la dirección y cópiala a mano.",
   issueReportOpening: "Abriendo…",
   issueReportRetry: "Reintentar",
   titlebarKeyboardShortcuts: "Atajos de teclado",
   shortcutsDialogTitle: "Atajos de teclado",
+  shortcutsPlatformLabel: (platform) => `Atajos para ${platform}`,
   shortcutsOpenPalette: "Abrir la paleta de comandos",
   shortcutsOpenSettings: "Abrir Ajustes",
   shortcutsToggleSidebar: "Mostrar u ocultar la barra lateral",
   shortcutsNextProject: "Proyecto siguiente",
   shortcutsPreviousProject: "Proyecto anterior",
   shortcutsCloseDialogs: "Cerrar diálogos y menús",
+  shortcutsSaveVersion: "Guardar una versión",
+  shortcutsRenameLine: "Renombrar una línea de versión",
+  shortcutsGroupProjects: "Proyectos",
+  shortcutsGroupEditing: "Edición",
+  shortcutsGroupInterface: "Interfaz",
   titlebarGoBack: "Atrás",
   titlebarGoForward: "Adelante",
   titlebarHistoryControls: "Historial de navegación",
@@ -438,27 +486,33 @@ const es: AppTranslations = {
   navProjectAriaLabel: "Navegación del proyecto",
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
-  navChanges: "Cambios",
-  navChangesTitle: "Cambios — Abre un proyecto primero",
+  navOverviewTitle: "Resumen — abre antes un proyecto",
+  navHome: "Proyectos",
+  navWork: "Trabajo",
+  navWorkTitle: "Trabajo — abre antes un proyecto",
   navVersionLines: "Líneas",
-  navVersionLinesTitle: "Líneas — Abre un proyecto primero",
-  navHistory: "Historial",
-  navHistoryTitle: "Historial — Abre un proyecto primero",
+  navVersionLinesTitle: "Líneas — abre antes un proyecto",
+  navConsole: "Consola",
+  navConsoleTitle: "Consola — abre antes un proyecto",
   navRecovery: "Rescate",
-  navRecoveryTitle: "Rescate — Próximamente",
+  navRecoveryTitle: "Rescate — próximamente",
   navSettings: "Ajustes",
   navMore: "Más",
-  navCustomizeNavigation: "Personalizar barra de navegación",
+  navCustomizeNavigation: "Personalizar la barra de navegación",
   navAccount: "Iniciar sesión",
-  navAccountTitle: "Iniciar sesión — Próximamente",
+  navAccountTitle: "Iniciar sesión — próximamente",
   dropFolderTitle: "Suelta una carpeta para abrirla",
-  dropFolderHint: "Una carpeta cada vez. Si todavía no es un proyecto, GitOdile te ofrece convertirla en uno.",
+  dropFolderHint: "Una carpeta cada vez y, si aún no es un proyecto, GitOdile puede convertirla en uno.",
   paletteAriaLabel: "Paleta de comandos",
   palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
   commandGoOverview: "Ir a Resumen",
+  commandGoHome: "Ir a Proyectos",
   commandGoVersionLines: "Ir a Líneas",
-  commandGoHistory: "Ir al Historial",
+  commandGoConsole: "Ir a Consola",
+  commandGoWork: "Ir a Trabajo",
+  commandGoChanges: "Ir a Cambios",
+  commandGoHistory: "Ir a Historial",
   commandNewVersionLine: "Nueva línea de versión",
   commandCheckLocalChanges: "Comprobar cambios locales",
   commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
@@ -470,8 +524,8 @@ const es: AppTranslations = {
   automaticUpdatesUpdateNow: "Actualizar ahora",
   automaticUpdatesUpdating: "Actualizando…",
   automaticUpdatesOpenSettings: "Activar actualizaciones automáticas",
-  automaticUpdatesOffTitle: "Las actualizaciones automáticas están desactivadas",
-  automaticUpdatesUnavailableTitle: "Las actualizaciones automáticas no están disponibles",
+  automaticUpdatesOffTitle: "Actualizaciones automáticas desactivadas",
+  automaticUpdatesUnavailableTitle: "Actualizaciones automáticas no disponibles",
   automaticUpdatesOutdatedDescription: "Esta pantalla puede estar desactualizada.",
   commandUseSystemTheme: "Usar el tema del sistema",
   commandUseLightTheme: "Usar el tema claro",
@@ -479,7 +533,8 @@ const es: AppTranslations = {
   commandCloseActiveProject: "Cerrar el proyecto activo",
   commandCloneProject: "Clonar un proyecto remoto",
   commandCreateProject: "Crear un proyecto local",
-  commandTurnFolderIntoProject: "Convertir esta carpeta en proyecto",
+  openErrorTurnIntoProject: "Convertir en proyecto",
+  openErrorChooseAnother: "Elegir otra carpeta",
   commandSwitchToProject: (name) => `Cambiar a ${name}`,
   projectSwitcherAriaLabel: "Proyectos abiertos",
   projectSwitchToLabel: (name) => `Cambiar a ${name}`,
@@ -489,9 +544,9 @@ const es: AppTranslations = {
   projectSwitcherErrorIndicator: "Necesita atención",
   projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
   projectSwitcherRailTrigger: (name) => `${name.trim() || "Proyecto sin nombre"} — cambiar de proyecto`,
-  projectSwitcherSearchPlaceholder: "Buscar un proyecto…",
+  projectSwitcherSearchPlaceholder: "Buscar proyectos…",
   projectSwitcherSearchEmpty: "Ningún proyecto con ese nombre",
-  projectSwitcherSwitchBlockedHint: "Termina el diálogo abierto antes de cambiar de proyecto",
+  projectSwitcherSwitchBlockedHint: "Cierra el diálogo abierto antes de cambiar de proyecto",
   projectSwitcherEmptyHint: "Aquí aparecerán tus proyectos abiertos.",
   projectSwitcherAddProject: "Añadir proyecto",
   projectSwitcherFavourite: (name) => `Añadir ${name} a favoritos`,
@@ -499,18 +554,18 @@ const es: AppTranslations = {
   projectSwitcherFavouriteHint: "Añadir a favoritos",
   projectSwitcherFavouritesOnly: "Ver solo favoritos",
   projectSwitcherFavouritesOnlyOff: "Ver todos los proyectos abiertos",
-  projectSwitcherFavouritesEmpty: "Todavía no hay favoritos. Marca un proyecto con la estrella para tenerlo aquí.",
+  projectSwitcherFavouritesEmpty: "Aún no hay favoritos. Marca un proyecto con la estrella para tenerlo aquí.",
   projectSwitcherUnfavouriteHint: "Quitar de favoritos",
   projectSwitcherCloneProject: "Clonar proyecto remoto",
   projectSwitcherCreateProject: "Crear proyecto local",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
   projectSwitcherMutationBlocked: (name) =>
-    `Espera a que termine la operación de ${name} antes de iniciar otra en un espacio de trabajo vinculado.`,
+    `Espera a que termine la operación de ${name}, porque los dos espacios de trabajo comparten proyecto.`,
   projectSwitcherCloseBlocked: (name) =>
-    `Espera a que termine la operación de ${name}. Mientras tanto puedes seguir trabajando en otro proyecto.`,
+    `Espera a que termine la operación de ${name}. Mientras, puedes trabajar en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
-  statusBarWorkingOn: "Trabajando en",
+  statusBarProjectTooltip: (name) => `Proyecto: ${name}`,
   statusBarDetached: "Versión guardada concreta",
   statusBarUnbornLine: "Línea de versión nueva",
   statusBarVersionLineUnavailable: "Línea de versión no disponible",
@@ -519,25 +574,28 @@ const es: AppTranslations = {
   statusBarChangesNotChecked: "Cambios sin comprobar",
   statusBarEverythingSaved: "Todo está guardado",
   statusBarUnsaved: (count) => (count === 1 ? "1 cambio sin guardar" : `${count} cambios sin guardar`),
+  statusBarLinesAdded: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
+  statusBarLinesRemoved: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
   statusBarUpToDate: "Al día",
   statusBarAhead: (count) => `${count} ${count === 1 ? "versión por publicar" : "versiones por publicar"}`,
-  statusBarBehind: (count) => `${count} ${count === 1 ? "versión del proyecto disponible" : "versiones del proyecto disponibles"}`,
+  statusBarBehind: (count) => `${count} ${count === 1 ? "versión nueva disponible" : "versiones nuevas disponibles"}`,
   statusBarDiverged: "Ambos lados han cambiado",
   statusBarNoRemote: "Sin remoto conectado",
   statusBarNoUpstream: "Sin destino de publicación",
   statusBarSyncUnborn: "Guarda una versión para comparar",
   statusBarSyncDetached: "Cambia de línea para comparar",
-  statusBarSyncUnknown: "Sincronización del proyecto no disponible",
-  statusBarTeamNotChecked: "Cambios del proyecto sin comprobar",
-  statusBarCheckingTeam: "Comprobando cambios del proyecto…",
-  statusBarReadingTeam: "Leyendo el estado remoto del proyecto…",
-  statusBarTeamUnavailable: "No se pudieron comprobar los cambios del proyecto",
+  statusBarSyncUnknown: "Sincronización no disponible",
+  statusBarTeamNotChecked: "Remoto sin comprobar",
+  statusBarCheckingTeam: "Comprobando el remoto…",
+  statusBarReadingTeam: "Leyendo el estado del remoto…",
+  statusBarTeamUnavailable: "No se pudo comprobar el remoto",
   statusBarLocalSnapshot: "Estado local",
   statusBarMayBeOutdated: "Puede estar desactualizado",
   statusBarCheckFailed: "La comprobación falló",
   statusBarJustNow: "ahora mismo",
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
+  statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version) => `Novedades de GitOdile v${version}`,
   titlebarHideSidebar: "Ocultar la barra lateral",
@@ -551,8 +609,8 @@ const es: AppTranslations = {
   aboutProductName: "GitOdile",
   aboutGitOdile: "Acerca de",
   aboutHeading: "Git sin miedo.",
-  aboutDescription: "Convierte el control de versiones en pasos claros y sin sustos.",
-  aboutLicense: "GNU AGPL v3.0 únicamente",
+  aboutDescription: "El control de versiones, en pasos claros y sin sustos.",
+  aboutLicense: "Solo GNU AGPL v3.0",
   aboutViewLicense: "Ver licencia",
   aboutViewSource: "Ver código fuente",
   aboutTechnicalDetails: "Tu sistema",
@@ -560,22 +618,25 @@ const es: AppTranslations = {
   aboutSystemVersion: "Versión del sistema",
   aboutWebview: "Webview",
   aboutGitVersion: "Git",
-  aboutBuiltWith: "Hecho con",
+  aboutBuiltWith: "Construido con",
   aboutStackLink: (name, site) => `${name} — abrir ${site}`,
-  aboutCopySystemInfo: "Copiar info del sistema",
+  aboutCopySystemInfo: "Copiar datos del sistema",
+  aboutCopy: "Copiar",
   aboutCopied: "Copiado",
+  aboutUpToDate: "Al día",
+  aboutUpdateUnavailable: "Actualizaciones no disponibles",
   aboutFooterMadeWith: "Hecho con",
   aboutFooterByAuthor: "por Luis M. Martínez.",
   aboutHeartLabel: "amor",
-  changelogEyebrow: "Notas de versión",
   changelogTitle: "Novedades",
-  changelogDescription: "Todas las notas vienen con la build que estás usando y se abren sin ninguna petición de red.",
   changelogVersionHeading: (version) => `v${version}`,
-  changelogCurrentRelease: "Estás usando esta",
+  changelogCurrentRelease: "Tu versión",
+  changelogEarlierHeading: "Versiones anteriores",
+  changelogHighlightCount: (count) => (count === 1 ? "1 novedad" : `${count} novedades`),
   changelogNoHighlights: "Esta versión no tiene novedades que mostrar.",
   closeConfirmTitle: "¿Cerrar este proyecto?",
-  closeConfirmBodyGeneric: "El proyecto se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.",
-  closeConfirmBodyNamed: (name) => `"${name}" se mantiene exactamente igual en el disco. Puedes volver a abrirlo cuando quieras.`,
+  closeConfirmBodyGeneric: "No cambia nada en el disco y puedes volver a abrirlo cuando quieras.",
+  closeConfirmBodyNamed: (name) => `«${name}» se queda tal cual en el disco y puedes volver a abrirlo cuando quieras.`,
 };
 
 export const appTranslations = { en, es } as const;

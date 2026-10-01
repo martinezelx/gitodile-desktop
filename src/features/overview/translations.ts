@@ -1,10 +1,4 @@
 export interface OverviewTranslations {
-  overviewRepositoryBranch: (branch: string) => string;
-  overviewWorktreeBranch: (branch: string) => string;
-  overviewRepositoryDetached: string;
-  overviewWorktreeDetached: string;
-  overviewRepositoryUnborn: (branch: string) => string;
-  overviewWorktreeUnborn: (branch: string) => string;
   overviewLocalProject: string;
   overviewSeparateWorkspace: string;
   overviewProjectReady: string;
@@ -13,12 +7,13 @@ export interface OverviewTranslations {
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
   overviewCurrentVersionLine: string;
+  /** The caption over the line name in the header's selector. */
+  overviewVersionLineLabel: string;
   overviewSpecificSavedVersion: string;
   overviewNoSavedVersions: string;
   overviewVersionLineDescription: string;
   overviewDetachedDescription: string;
   overviewUnbornDescription: string;
-  overviewOpenedFrom: string;
   overviewProjectType: string;
   overviewRepositoryTypeDescription: string;
   overviewWorktreeTypeDescription: string;
@@ -27,6 +22,9 @@ export interface OverviewTranslations {
   overviewSelectedFolder: string;
   overviewGitDirectory: string;
   overviewCommonGitDirectory: string;
+  /** The header's project icon is a button into project settings' icon
+   * section. */
+  overviewChangeProjectIcon: string;
   overviewCopyPath: string;
   overviewPathCopied: string;
   overviewCopyPathFailedTitle: string;
@@ -37,15 +35,47 @@ export interface OverviewTranslations {
   overviewReviewChanges: string;
   overviewSaveVersion: string;
   overviewCheckLocalAgain: string;
-  overviewVersionsAhead: (count: number) => string;
+  /** The changed-files card: its title, and the line under it saying what
+   * the files are counted from. */
+  overviewChangedFilesTitle: string;
+  overviewChangedFilesSince: string;
+  /** Under the clean card's tick: what the card will hold once there is
+   * something to hold. */
+  overviewChangedFilesCleanTip: string;
   overviewChangesPreviewLabel: string;
-  overviewChangesPreviewMore: (remaining: number) => string;
   overviewChangesPreviewOpenFile: (path: string) => string;
-  overviewCategoryEdited: (count: number) => string;
-  overviewCategoryAdded: (count: number) => string;
-  overviewCategoryDeleted: (count: number) => string;
-  overviewCategoryRenamed: (count: number) => string;
-  overviewCategoryConflicted: (count: number) => string;
+  /** The band across the top: change, save, publish. One label per step,
+   * one value and one hint per state, and the sentence under the band. */
+  overviewJourneyTitle: string;
+  overviewJourneyChanges: string;
+  overviewJourneySave: string;
+  overviewJourneyPublish: string;
+  overviewJourneyNextStep: string;
+  overviewJourneyNoChanges: string;
+  overviewJourneyNothingChanged: string;
+  overviewJourneyResolve: string;
+  overviewJourneySaveWaiting: string;
+  overviewJourneySaveWaitingHint: string;
+  overviewJourneySaveBlocked: string;
+  overviewJourneySaveBlockedHint: string;
+  overviewJourneySaveDoneHint: string;
+  /** The Save tile's hint once saved, when the last saved version's time is
+   * known — the one thing that tile can add that the others do not say. */
+  overviewJourneyLastSaved: (relative: string) => string;
+  overviewJourneySaveActive: string;
+  overviewJourneyCheckHint: string;
+  overviewJourneyReadyToPublish: (count: number) => string;
+  overviewJourneyNewerAvailable: (count: number) => string;
+  /** Before the remote line on the Publish tile: "to origin · main". */
+  overviewJourneyPublishTo: string;
+  overviewJourneyNoRemote: string;
+  overviewJourneyNoRemoteHint: string;
+  overviewJourneyNoUpstream: string;
+  overviewJourneyNoteSave: string;
+  overviewJourneyNoteAhead: string;
+  overviewJourneyNoteNoRemote: string;
+  overviewJourneyNoteAllDone: string;
+  overviewJourneyNoteIdle: string;
   overviewPublishAll: (count: number) => string;
   overviewHistoryTitle: string;
   overviewHistoryDescription: string;
@@ -61,19 +91,23 @@ export interface OverviewTranslations {
   overviewHistoryUnknownAuthor: string;
   overviewHistoryPublished: string;
   overviewHistoryLocalOnly: string;
+  /** A version saved under the user's own Git identity. */
+  overviewHistoryYou: string;
+  /** The badge on the version the project stands on, in place of the line's
+   * name, which the header already says. */
+  overviewHistoryCurrentLine: string;
   overviewHistoryPublicationUnknown: string;
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
   overviewPublishChanges: string;
-  overviewPendingVersionsTitle: (count: number) => string;
-  overviewPendingVersionsGuidance: string;
-  overviewPendingVersionsTruncated: (visible: number, total: number) => string;
   overviewPendingVersionsError: string;
-  overviewSavedAndReadyTitle: string;
-  overviewSavedAndReadyMessage: (count: number) => string;
+  /** On an unpublished row of Recent history: publish it and every older
+   * version, through the previewed flow. */
   overviewPublishUpTo: string;
+  overviewPublishUpToHint: string;
   overviewCloseProject: string;
   overviewEmptyTitle: string;
+  overviewHomeTitle: string;
   overviewEmptyDescription: string;
   overviewOpening: string;
   overviewOpenProject: string;
@@ -89,6 +123,10 @@ export interface OverviewTranslations {
    * nothing on screen said so. */
   overviewDropFolderHint: string;
   overviewRecentProjectsTitle: string;
+  /** The star beside the recents heading: the same view filter the version
+   * line quick switch has, in the recents' own words. */
+  overviewRecentFavouritesOnly: string;
+  overviewRecentFavouritesOnlyOff: string;
   overviewForgetRecentProject: (name: string) => string;
   overviewForgetRecentProjectShort: string;
   overviewOpenDialogTitle: string;
@@ -96,12 +134,6 @@ export interface OverviewTranslations {
 }
 
 const en: OverviewTranslations = {
-  overviewRepositoryBranch: (branch) => `Git project on version line “${branch}”.`,
-  overviewWorktreeBranch: (branch) => `Separate workspace on version line “${branch}”.`,
-  overviewRepositoryDetached: "Git project opened at a specific saved version.",
-  overviewWorktreeDetached: "Separate workspace opened at a specific saved version.",
-  overviewRepositoryUnborn: (branch) => `New Git project on version line “${branch}”, with no saved versions yet.`,
-  overviewWorktreeUnborn: (branch) => `New separate workspace on version line “${branch}”, with no saved versions yet.`,
   overviewLocalProject: "Local project",
   overviewSeparateWorkspace: "Separate workspace",
   overviewProjectReady: "Your project is ready",
@@ -110,80 +142,104 @@ const en: OverviewTranslations = {
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
   overviewCurrentVersionLine: "Current version line",
+  overviewVersionLineLabel: "Version line",
   overviewSpecificSavedVersion: "Specific saved version",
   overviewNoSavedVersions: "No saved versions yet",
-  overviewVersionLineDescription: "New work will stay on this version line.",
-  overviewDetachedDescription: "You are inspecting an exact point in the project history.",
-  overviewUnbornDescription: "The first saved version will start this project’s history.",
-  overviewOpenedFrom: "Opened from a folder inside this project",
+  overviewVersionLineDescription: "New work goes on this line.",
+  overviewDetachedDescription: "You're looking at a specific point in history.",
+  overviewUnbornDescription: "Your first saved version starts this project's history.",
   overviewProjectType: "Project type",
-  overviewRepositoryTypeDescription: "A standard project stored in this folder.",
+  overviewRepositoryTypeDescription: "A standard project in this folder.",
   overviewWorktreeTypeDescription: "A linked workspace with its own files and version line.",
-  overviewTechnicalDetails: "Technical project details",
+  overviewTechnicalDetails: "Technical details",
   overviewResolvedRoot: "Project root",
   overviewSelectedFolder: "Folder you selected",
   overviewGitDirectory: "Git directory",
   overviewCommonGitDirectory: "Shared Git directory",
+  overviewChangeProjectIcon: "Change project icon",
   overviewCopyPath: "Copy project path",
   overviewPathCopied: "Path copied",
   overviewCopyPathFailedTitle: "Couldn't copy the path",
-  overviewCopyPathFailedMessage: "Select the project path and copy it manually.",
+  overviewCopyPathFailedMessage: "Select the path and copy it by hand.",
   overviewOpeningTitle: "Opening project…",
-  overviewOpeningDescription: "GitOdile is checking the selected folder.",
-  overviewOpenFailedTitle: "We couldn’t open that project",
+  overviewOpeningDescription: "Checking the selected folder.",
+  overviewOpenFailedTitle: "Couldn't open that project",
   overviewReviewChanges: "Review changes",
   overviewSaveVersion: "Save version",
   overviewCheckLocalAgain: "Check local changes again",
-  overviewVersionsAhead: (count) => (count === 1 ? "1 ready to publish" : `${count} ready to publish`),
+  overviewChangedFilesTitle: "Changed files",
+  overviewChangedFilesSince: "Since your last saved version.",
+  overviewChangedFilesCleanTip: "Files you edit, add or delete show up here, ready to review before you save a version.",
   overviewChangesPreviewLabel: "Changed files",
-  overviewChangesPreviewMore: (remaining) =>
-    remaining === 1 ? "See 1 more file" : `See ${remaining} more files`,
   overviewChangesPreviewOpenFile: (path) => `Review ${path}`,
-  overviewCategoryEdited: (count) => `Edited (${count})`,
-  overviewCategoryAdded: (count) => `Added (${count})`,
-  overviewCategoryDeleted: (count) => `Deleted (${count})`,
-  overviewCategoryRenamed: (count) => `Renamed (${count})`,
-  overviewCategoryConflicted: (count) => `Conflicts (${count})`,
+  overviewJourneyTitle: "Where your work is",
+  overviewJourneyChanges: "Changes",
+  overviewJourneySave: "Save",
+  overviewJourneyPublish: "Publish",
+  overviewJourneyNextStep: "next step",
+  overviewJourneyNoChanges: "Nothing to save",
+  overviewJourneyNothingChanged: "Edit a file and it shows up here.",
+  overviewJourneyResolve: "Resolve overlaps",
+  overviewJourneySaveWaiting: "Waiting for the check",
+  overviewJourneySaveWaitingHint: "You can save once your files are checked.",
+  overviewJourneySaveBlocked: "Resolve the overlaps first",
+  overviewJourneySaveBlockedHint: "Files with overlapping changes can't be saved yet.",
+  overviewJourneySaveDoneHint: "Every change is in a saved version.",
+  overviewJourneyLastSaved: (relative) => `Last saved ${relative}`,
+  overviewJourneySaveActive: "Keep your work safe",
+  overviewJourneyCheckHint: "Check the remote for the latest changes.",
+  overviewJourneyReadyToPublish: (count) =>
+    count === 1 ? "1 version ready to publish" : `${count} versions ready to publish`,
+  overviewJourneyNewerAvailable: (count) =>
+    count === 1 ? "1 newer version available" : `${count} newer versions available`,
+  overviewJourneyPublishTo: "to",
+  overviewJourneyNoRemote: "No remote yet",
+  overviewJourneyNoRemoteHint: "Add one in project settings to share your work.",
+  overviewJourneyNoUpstream: "No publish destination yet",
+  overviewJourneyNoteSave: "Saving keeps a point to come back to, and nothing leaves this computer until you publish.",
+  overviewJourneyNoteAhead: "Your saved versions are only on this computer until you publish them.",
+  overviewJourneyNoteNoRemote: "Everything is saved on this computer, so add a remote whenever you want to share it.",
+  overviewJourneyNoteAllDone: "Everything is saved and published.",
+  overviewJourneyNoteIdle: "Checking your project…",
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
   overviewHistoryTitle: "Recent history",
   overviewHistoryDescription: "Your latest saved versions, newest first.",
   overviewHistoryViewAll: "View all",
   overviewHistoryLoading: "Loading recent history…",
   overviewHistoryErrorTitle: "Recent history is unavailable",
-  overviewHistoryError: "GitOdile couldn't load the recent saved versions.",
+  overviewHistoryError: "Couldn't load recent saved versions.",
   overviewHistoryRetry: "Try again",
   overviewHistoryEmptyTitle: "No saved versions yet",
-  overviewHistoryEmptyDescription: "Your first saved version will appear here.",
+  overviewHistoryEmptyDescription: "Your first saved version will show up here.",
   overviewHistoryListLabel: "Recent saved versions",
-  overviewHistoryUntitled: "Saved version without a title",
+  overviewHistoryUntitled: "Untitled saved version",
   overviewHistoryUnknownAuthor: "Unknown author",
   overviewHistoryPublished: "Published",
   overviewHistoryLocalOnly: "Not published",
-  overviewHistoryPublicationUnknown: "Publication unknown",
-  overviewHistoryOpenVersion: (title) => `Open “${title}” in history`,
+  overviewHistoryYou: "You",
+  overviewHistoryCurrentLine: "current",
+  overviewHistoryPublicationUnknown: "Publish status unknown",
+  overviewHistoryOpenVersion: (title) => `Open “${title}” in History`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
   overviewPublishChanges: "Publish changes",
-  overviewPendingVersionsTitle: (count) => `Saved versions not yet published (${count})`,
-  overviewPendingVersionsGuidance:
-    "Newest first. Publishing through a version also publishes every older version below it.",
-  overviewPendingVersionsTruncated: (visible, total) => `Showing the ${visible} newest of ${total}.`,
-  overviewPendingVersionsError: "GitOdile couldn't load the saved versions waiting to be published.",
-  overviewSavedAndReadyTitle: "Your files are saved",
-  overviewSavedAndReadyMessage: (count) =>
-    count === 1 ? "1 saved version is ready to publish." : `${count} saved versions are ready to publish.`,
+  overviewPendingVersionsError: "Couldn't load the versions waiting to be published.",
   overviewPublishUpTo: "Publish up to here",
+  overviewPublishUpToHint: "Publishes this version and all older ones.",
   overviewCloseProject: "Close project",
   overviewEmptyTitle: "No project open",
-  overviewEmptyDescription: "Pick how you want to start. Everything stays on this computer until you publish.",
+  overviewHomeTitle: "What would you like to open?",
+  overviewEmptyDescription: "Choose how to start. Everything stays on this computer until you publish.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
   overviewCloneRemoteProject: "Clone a remote project",
   overviewCreateLocalProject: "Create a local project",
-  overviewCreateLocalProjectHint: "A new folder, or one you already have",
-  overviewOpenProjectHint: "A folder that already uses Git",
-  overviewCloneRemoteProjectHint: "Download it from a remote server",
+  overviewCreateLocalProjectHint: "A new or existing folder",
+  overviewOpenProjectHint: "A folder that uses Git",
+  overviewCloneRemoteProjectHint: "Download from a server",
   overviewDropFolderHint: "Or drag a project folder onto this window.",
-  overviewRecentProjectsTitle: "Back to a recent project",
+  overviewRecentProjectsTitle: "Recent projects",
+  overviewRecentFavouritesOnly: "Show favorite projects only",
+  overviewRecentFavouritesOnlyOff: "Show all recent projects",
   overviewForgetRecentProject: (name) => `Remove ${name} from recent projects`,
   overviewForgetRecentProjectShort: "Remove from recent projects",
   overviewOpenDialogTitle: "Open a Git project",
@@ -191,98 +247,112 @@ const en: OverviewTranslations = {
 };
 
 const es: OverviewTranslations = {
-  overviewRepositoryBranch: (branch) => `Proyecto de Git en la línea de versión «${branch}».`,
-  overviewWorktreeBranch: (branch) => `Espacio de trabajo separado en la línea de versión «${branch}».`,
-  overviewRepositoryDetached: "Proyecto de Git abierto en una versión guardada concreta.",
-  overviewWorktreeDetached: "Espacio de trabajo separado abierto en una versión guardada concreta.",
-  overviewRepositoryUnborn: (branch) =>
-    `Proyecto de Git nuevo en la línea de versión «${branch}», todavía sin versiones guardadas.`,
-  overviewWorktreeUnborn: (branch) =>
-    `Espacio de trabajo separado nuevo en la línea de versión «${branch}», todavía sin versiones guardadas.`,
   overviewLocalProject: "Proyecto local",
   overviewSeparateWorkspace: "Espacio de trabajo separado",
   overviewProjectReady: "Tu proyecto está listo",
   overviewWorktreeReady: "Tu espacio de trabajo separado está listo",
-  overviewUnbornReady: "Tu nuevo proyecto está listo",
-  overviewDetachedReady: "Hay abierta una versión guardada concreta",
+  overviewUnbornReady: "Tu proyecto nuevo está listo",
+  overviewDetachedReady: "Tienes abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
   overviewCurrentVersionLine: "Línea de versión actual",
+  overviewVersionLineLabel: "Línea de versión",
   overviewSpecificSavedVersion: "Versión guardada concreta",
-  overviewNoSavedVersions: "Todavía no hay versiones guardadas",
-  overviewVersionLineDescription: "El trabajo nuevo permanecerá en esta línea de versión.",
-  overviewDetachedDescription: "Estás inspeccionando un punto exacto del historial del proyecto.",
-  overviewUnbornDescription: "La primera versión guardada iniciará el historial de este proyecto.",
-  overviewOpenedFrom: "Abierto desde una carpeta dentro de este proyecto",
+  overviewNoSavedVersions: "Aún no hay versiones guardadas",
+  overviewVersionLineDescription: "El trabajo nuevo va a esta línea.",
+  overviewDetachedDescription: "Estás viendo un punto concreto del historial.",
+  overviewUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
   overviewProjectType: "Tipo de proyecto",
-  overviewRepositoryTypeDescription: "Un proyecto estándar guardado en esta carpeta.",
-  overviewWorktreeTypeDescription: "Un espacio enlazado con sus propios archivos y línea de versión.",
-  overviewTechnicalDetails: "Detalles técnicos del proyecto",
+  overviewRepositoryTypeDescription: "Un proyecto normal en esta carpeta.",
+  overviewWorktreeTypeDescription: "Un espacio de trabajo vinculado, con sus propios archivos y línea de versión.",
+  overviewTechnicalDetails: "Detalles técnicos",
   overviewResolvedRoot: "Raíz del proyecto",
-  overviewSelectedFolder: "Carpeta que seleccionaste",
+  overviewSelectedFolder: "Carpeta que elegiste",
   overviewGitDirectory: "Directorio de Git",
   overviewCommonGitDirectory: "Directorio de Git compartido",
+  overviewChangeProjectIcon: "Cambiar el icono del proyecto",
   overviewCopyPath: "Copiar la ruta del proyecto",
   overviewPathCopied: "Ruta copiada",
   overviewCopyPathFailedTitle: "No se pudo copiar la ruta",
-  overviewCopyPathFailedMessage: "Selecciona la ruta del proyecto y cópiala manualmente.",
+  overviewCopyPathFailedMessage: "Selecciona la ruta y cópiala a mano.",
   overviewOpeningTitle: "Abriendo el proyecto…",
-  overviewOpeningDescription: "GitOdile está comprobando la carpeta seleccionada.",
-  overviewOpenFailedTitle: "No hemos podido abrir ese proyecto",
+  overviewOpeningDescription: "Comprobando la carpeta elegida.",
+  overviewOpenFailedTitle: "No se pudo abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
   overviewSaveVersion: "Guardar versión",
-  overviewCheckLocalAgain: "Comprobar de nuevo los cambios locales",
-  overviewVersionsAhead: (count) => (count === 1 ? "1 lista para publicar" : `${count} listas para publicar`),
+  overviewCheckLocalAgain: "Volver a comprobar los cambios locales",
+  overviewChangedFilesTitle: "Archivos modificados",
+  overviewChangedFilesSince: "Desde tu última versión guardada.",
+  overviewChangedFilesCleanTip: "Los archivos que edites, añadas o borres aparecerán aquí, listos para revisar antes de guardar una versión.",
   overviewChangesPreviewLabel: "Archivos modificados",
-  overviewChangesPreviewMore: (remaining) =>
-    remaining === 1 ? "Ver 1 archivo más" : `Ver ${remaining} archivos más`,
   overviewChangesPreviewOpenFile: (path) => `Revisar ${path}`,
-  overviewCategoryEdited: (count) => `Editados (${count})`,
-  overviewCategoryAdded: (count) => `Añadidos (${count})`,
-  overviewCategoryDeleted: (count) => `Eliminados (${count})`,
-  overviewCategoryRenamed: (count) => `Renombrados (${count})`,
-  overviewCategoryConflicted: (count) => `Conflictos (${count})`,
+  overviewJourneyTitle: "Dónde está tu trabajo",
+  overviewJourneyChanges: "Cambios",
+  overviewJourneySave: "Guardar",
+  overviewJourneyPublish: "Publicar",
+  overviewJourneyNextStep: "siguiente paso",
+  overviewJourneyNoChanges: "Nada que guardar",
+  overviewJourneyNothingChanged: "Edita un archivo y aparecerá aquí.",
+  overviewJourneyResolve: "Resolver solapamientos",
+  overviewJourneySaveWaiting: "Esperando la comprobación",
+  overviewJourneySaveWaitingHint: "Podrás guardar cuando se revisen tus archivos.",
+  overviewJourneySaveBlocked: "Resuelve antes los solapamientos",
+  overviewJourneySaveBlockedHint: "Los archivos con cambios superpuestos aún no se pueden guardar.",
+  overviewJourneySaveDoneHint: "Todos los cambios están en una versión guardada.",
+  overviewJourneyLastSaved: (relative) => `Guardada por última vez ${relative}`,
+  overviewJourneySaveActive: "Pon tu trabajo a salvo",
+  overviewJourneyCheckHint: "Comprueba el remoto para ver lo último.",
+  overviewJourneyReadyToPublish: (count) =>
+    count === 1 ? "1 versión lista para publicar" : `${count} versiones listas para publicar`,
+  overviewJourneyNewerAvailable: (count) =>
+    count === 1 ? "1 versión nueva disponible" : `${count} versiones nuevas disponibles`,
+  overviewJourneyPublishTo: "a",
+  overviewJourneyNoRemote: "Aún sin remoto",
+  overviewJourneyNoRemoteHint: "Añade uno en los ajustes del proyecto para compartir tu trabajo.",
+  overviewJourneyNoUpstream: "Aún sin destino de publicación",
+  overviewJourneyNoteSave: "Guardar crea un punto al que volver y nada sale de este ordenador hasta que publiques.",
+  overviewJourneyNoteAhead: "Tus versiones guardadas solo están en este ordenador hasta que las publiques.",
+  overviewJourneyNoteNoRemote: "Todo está guardado en este ordenador, así que añade un remoto cuando quieras compartirlo.",
+  overviewJourneyNoteAllDone: "Todo está guardado y publicado.",
+  overviewJourneyNoteIdle: "Revisando tu proyecto…",
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
   overviewHistoryTitle: "Historial reciente",
-  overviewHistoryDescription: "Tus últimas versiones guardadas, de más reciente a más antigua.",
+  overviewHistoryDescription: "Tus últimas versiones guardadas, de la más reciente a la más antigua.",
   overviewHistoryViewAll: "Ver todo",
   overviewHistoryLoading: "Cargando el historial reciente…",
   overviewHistoryErrorTitle: "El historial reciente no está disponible",
-  overviewHistoryError: "GitOdile no pudo cargar las versiones guardadas recientes.",
+  overviewHistoryError: "No se pudieron cargar las versiones guardadas recientes.",
   overviewHistoryRetry: "Reintentar",
-  overviewHistoryEmptyTitle: "Todavía no hay versiones guardadas",
+  overviewHistoryEmptyTitle: "Aún no hay versiones guardadas",
   overviewHistoryEmptyDescription: "Tu primera versión guardada aparecerá aquí.",
   overviewHistoryListLabel: "Versiones guardadas recientes",
   overviewHistoryUntitled: "Versión guardada sin título",
   overviewHistoryUnknownAuthor: "Autor desconocido",
   overviewHistoryPublished: "Publicada",
   overviewHistoryLocalOnly: "Sin publicar",
+  overviewHistoryYou: "Tú",
+  overviewHistoryCurrentLine: "actual",
   overviewHistoryPublicationUnknown: "Publicación desconocida",
-  overviewHistoryOpenVersion: (title) => `Abrir «${title}» en el historial`,
+  overviewHistoryOpenVersion: (title) => `Abrir «${title}» en Historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",
   overviewPublishChanges: "Publicar cambios",
-  overviewPendingVersionsTitle: (count) => `Versiones guardadas sin publicar (${count})`,
-  overviewPendingVersionsGuidance:
-    "Las más recientes aparecen primero. Publicar hasta una versión también publica todas las anteriores que aparecen debajo.",
-  overviewPendingVersionsTruncated: (visible, total) => `Se muestran las ${visible} más recientes de ${total}.`,
-  overviewPendingVersionsError: "GitOdile no pudo cargar las versiones guardadas pendientes de publicar.",
-  overviewSavedAndReadyTitle: "Tus archivos están guardados",
-  overviewSavedAndReadyMessage: (count) =>
-    count === 1
-      ? "Hay 1 versión guardada lista para publicar."
-      : `Hay ${count} versiones guardadas listas para publicar.`,
+  overviewPendingVersionsError: "No se pudieron cargar las versiones pendientes de publicar.",
   overviewPublishUpTo: "Publicar hasta aquí",
+  overviewPublishUpToHint: "Publica esta versión y todas las anteriores.",
   overviewCloseProject: "Cerrar proyecto",
-  overviewEmptyTitle: "No hay ningún proyecto abierto",
-  overviewEmptyDescription: "Elige cómo quieres empezar. Todo se queda en tu equipo hasta que publiques.",
+  overviewEmptyTitle: "Ningún proyecto abierto",
+  overviewHomeTitle: "¿Qué te gustaría abrir?",
+  overviewEmptyDescription: "Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
   overviewCloneRemoteProject: "Clonar un proyecto remoto",
   overviewCreateLocalProject: "Crear un proyecto local",
-  overviewCreateLocalProjectHint: "Una carpeta nueva o una que ya tienes",
-  overviewOpenProjectHint: "Una carpeta que ya usa Git",
-  overviewCloneRemoteProjectHint: "Descárgalo de un servidor remoto",
+  overviewCreateLocalProjectHint: "Carpeta nueva o tuya",
+  overviewOpenProjectHint: "Una carpeta con Git",
+  overviewCloneRemoteProjectHint: "Desde un servidor",
   overviewDropFolderHint: "O arrastra la carpeta de un proyecto a esta ventana.",
-  overviewRecentProjectsTitle: "Vuelve a un proyecto reciente",
+  overviewRecentProjectsTitle: "Proyectos recientes",
+  overviewRecentFavouritesOnly: "Ver solo proyectos favoritos",
+  overviewRecentFavouritesOnlyOff: "Ver todos los proyectos recientes",
   overviewForgetRecentProject: (name) => `Quitar ${name} de proyectos recientes`,
   overviewForgetRecentProjectShort: "Quitar de proyectos recientes",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",

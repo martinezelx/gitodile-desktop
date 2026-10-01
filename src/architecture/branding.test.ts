@@ -105,7 +105,7 @@ describe("desktop link permissions", () => {
     // The chips are a claim the reader should be able to check, and an
     // unlisted host fails silently: the scope is where a new credit is most
     // easily forgotten.
-    for (const layer of describeStack({ tauri: "1", react: "1", typescript: "1", rust: "1" })) {
+    for (const layer of describeStack({ tauri: "1", react: "1", rust: "1" })) {
       expect(scopeAllows(openerScope(), layer.url), layer.name).toBe(true);
     }
   });
@@ -137,7 +137,6 @@ describe("desktop link permissions", () => {
         { url: "https://git-scm.com/download/*" },
         { url: "https://tauri.app/*" },
         { url: "https://react.dev/*" },
-        { url: "https://www.typescriptlang.org/*" },
         { url: "https://www.rust-lang.org/*" },
       ],
     }]);

@@ -1,11 +1,20 @@
 export interface ChangesTranslations {
-  changesHeading: string;
   changesSummaryClean: string;
-  changesSummaryTotal: (total: number) => string;
-  changesSummaryWithConflicts: (conflicted: number, total: number) => string;
-  changesEmptyTitle: string;
-  changesEmptyDescription: string;
-  changesBackToOverview: string;
+  changesEmptySavedTitle: string;
+  changesEmptyAheadDescription: (count: number) => string;
+  changesEmptyPublish: (count: number) => string;
+  changesEmptyBehindDescription: (count: number) => string;
+  changesEmptyGetChanges: string;
+  changesEmptyViewHistory: string;
+  changesEmptyUpToDateTitle: string;
+  changesEmptyUpToDateDescription: string;
+  changesEmptyNoRemoteTitle: string;
+  changesEmptyNoRemoteDescription: string;
+  changesEmptyOpenSettings: string;
+  changesEmptyUnbornTitle: string;
+  changesEmptyUnbornDescription: string;
+  changesEmptyDetachedTitle: string;
+  changesEmptyDetachedDescription: string;
   changesBackToList: string;
   changesListAriaLabel: string;
   changesCategoryLabelChanged: string;
@@ -18,6 +27,8 @@ export interface ChangesTranslations {
   changesDiffLoadingTitle: string;
   changesDiffErrorTitle: string;
   changesDiffRetry: string;
+  changesSearchDiffPlaceholder: string;
+  changesSearchDiffAriaLabel: string;
   changesDiffBinaryTitle: string;
   changesDiffBinaryDescription: string;
   changesImageLoading: string;
@@ -61,10 +72,6 @@ export interface ChangesTranslations {
   changesDiffTruncatedNote: (shownLines: number) => string;
   changesLineAddedLabel: string;
   changesLineRemovedLabel: string;
-  changesLinesAddedTotal: (count: number) => string;
-  changesLinesRemovedTotal: (count: number) => string;
-  changesLinesAddedTotalAriaLabel: (count: number) => string;
-  changesLinesRemovedTotalAriaLabel: (count: number) => string;
   changesSearchPlaceholder: string;
   changesSearchAriaLabel: string;
   changesNoSearchMatches: string;
@@ -102,15 +109,18 @@ export interface ChangesTranslations {
   changesCheckLocal: string;
   changesRefreshFailedTitle: string;
   changesDiscardingNow: string;
-  changesSaveSelected: string;
-  changesSaveVersion: string;
-  changesSaveVersionDisabledHint: string;
   changesSaveVersionNoSelectionHint: string;
-  changesQuickCommitDismiss: string;
-  changesSelectionSummary: (selected: number, total: number) => string;
+  changesQuickCommitFiles: (saved: number, total: number) => string;
+  changesQuickCommitSaving: string;
+
   changesSelectAll: string;
   changesSelectNone: string;
   changesIncludeFile: (path: string) => string;
+  changesIncludeFolder: (path: string) => string;
+  changesFolderLabel: (path: string, count: number) => string;
+  changesFileViewFolders: string;
+  changesFileViewShowList: string;
+  changesFileViewShowFolders: string;
   changesPartialUnavailableTruncated: string;
   changesProjectRoot: string;
   changesMoreActions: string;
@@ -128,8 +138,6 @@ export interface ChangesTranslations {
   changesDiscardFileTitle: string;
   changesDiscardAllTitle: string;
   changesRestoreTitle: string;
-  changesDiscardDoneTitle: string;
-  changesRestoreDoneTitle: string;
   changesDiscardFileSummary: (path: string) => string;
   changesDiscardAllSummary: (count: number) => string;
   changesDiscardPreparedWarning: string;
@@ -164,18 +172,28 @@ export interface ChangesTranslations {
 }
 
 const en: ChangesTranslations = {
-  changesHeading: "Changes",
-  changesSummaryClean: "Everything is saved. There is nothing to review.",
-  changesSummaryTotal: (total) => (total === 1 ? "1 file has unsaved changes." : `${total} files have unsaved changes.`),
-  changesSummaryWithConflicts: (conflicted, total) =>
-    conflicted === total
-      ? conflicted === 1
-        ? "1 file needs your attention."
-        : `${conflicted} files need your attention.`
-      : `${conflicted} of ${total} files need your attention.`,
-  changesEmptyTitle: "Nothing to review",
-  changesEmptyDescription: "Every saved file matches the latest saved version. Come back after you make changes.",
-  changesBackToOverview: "Back to Overview",
+  changesSummaryClean: "All changes are saved.",
+  changesEmptySavedTitle: "All changes are saved",
+  changesEmptyAheadDescription: (count) =>
+    count === 1
+      ? "1 saved version is only on this computer. Publish it to share it."
+      : `${count} saved versions are only on this computer. Publish them to share them.`,
+  changesEmptyPublish: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
+  changesEmptyBehindDescription: (count) =>
+    count === 1
+      ? "1 newer version is available on the remote."
+      : `${count} newer versions are available on the remote.`,
+  changesEmptyGetChanges: "Get project changes",
+  changesEmptyViewHistory: "View history",
+  changesEmptyUpToDateTitle: "You're all caught up",
+  changesEmptyUpToDateDescription: "Everything is saved and published.",
+  changesEmptyNoRemoteTitle: "Everything is saved on this computer",
+  changesEmptyNoRemoteDescription: "Add a remote in project settings when you want to share your work.",
+  changesEmptyOpenSettings: "Open project settings",
+  changesEmptyUnbornTitle: "No saved versions yet",
+  changesEmptyUnbornDescription: "Your first saved version starts this project's history.",
+  changesEmptyDetachedTitle: "You're viewing an old version",
+  changesEmptyDetachedDescription: "This is a point in history, not a version line. Switch back to a line to keep working.",
   changesBackToList: "Back to the file list",
   changesListAriaLabel: "Changed files",
   changesCategoryLabelChanged: "Edited",
@@ -184,24 +202,25 @@ const en: ChangesTranslations = {
   changesCategoryLabelRenamed: "Renamed",
   changesCategoryLabelConflicted: "Needs attention",
   changesRenamedFrom: (original) => `Renamed from ${original}`,
-  changesSelectionAnnouncement: (path) => `Now showing the difference for ${path}.`,
-  changesDiffLoadingTitle: "Reading the difference…",
-  changesDiffErrorTitle: "We couldn’t read this file’s difference",
+  changesSelectionAnnouncement: (path) => `Showing changes in ${path}.`,
+  changesDiffLoadingTitle: "Reading changes…",
+  changesDiffErrorTitle: "Couldn't read this file's changes",
   changesDiffRetry: "Try again",
-  changesDiffBinaryTitle: "This file can’t be previewed as text",
-  changesDiffBinaryDescription: "GitOdile can tell this file changed, but its contents aren’t readable as text.",
-  changesImageLoading: "Opening the picture…",
-  changesImageError: "GitOdile couldn’t open this picture.",
-  changesImageUnavailable: "There is no version of this picture to show.",
+  changesSearchDiffPlaceholder: "Search in diff",
+  changesSearchDiffAriaLabel: "Search in the selected file's changes",
+  changesDiffBinaryTitle: "This file can't be shown as text",
+  changesDiffBinaryDescription: "It changed, but its contents aren't text.",
+  changesImageLoading: "Opening the image…",
+  changesImageError: "Couldn't open this image.",
+  changesImageUnavailable: "There's no version of this image to show.",
   changesImageBefore: "Before",
   changesImageAfter: "After",
   changesImageAdded: "Added",
   changesImageRemoved: "Removed",
   changesImageBeforeAlt: (path) => `${path} before this change`,
   changesImageAfterAlt: (path) => `${path} after this change`,
-  changesImageTooLarge: (limit) =>
-    `This version is larger than ${limit}, GitOdile’s limit for showing pictures here. The file itself is unaffected.`,
-  changesImageUnsupported: "This version isn’t a picture GitOdile can draw.",
+  changesImageTooLarge: (limit) => `This image is over ${limit}, too large to show here, but the file itself is fine.`,
+  changesImageUnsupported: "This version isn't an image GitOdile can show.",
   changesImageComparisonLabel: "How to compare",
   changesImageModeSideBySide: "Side by side",
   changesImageModeSwipe: "Swipe",
@@ -211,42 +230,35 @@ const en: ChangesTranslations = {
   changesImageSameSize: "same size",
   changesImageLarger: (amount) => `${amount} larger`,
   changesImageSmaller: (amount) => `${amount} smaller`,
-  changesSvgViewLabel: "How to read this file",
+  changesSvgViewLabel: "How to show this file",
   changesSvgDrawing: "Drawing",
   changesSvgSource: "Source",
-  changesDiffTooLargeTitle: "This difference is too large to show here",
-  changesDiffTooLargeDescription: (limit) =>
-    `This file’s difference is larger than ${limit}, GitOdile’s safety limit for reviewing changes here. The file itself is unaffected.`,
+  changesDiffTooLargeTitle: "Too many changes to show here",
+  changesDiffTooLargeDescription: (limit) => `This file's changes are over ${limit}, the limit for showing them here, but the file itself is fine.`,
   changesDiffWhitespaceOnlyTitle: "Only spacing changed",
-  changesDiffWhitespaceOnlyDescription:
-    "Every change in this file is whitespace, and you asked for those to be ignored. Turn that off in Settings to see them.",
+  changesDiffWhitespaceOnlyDescription: "Spacing changes are hidden, and you can show them in Settings.",
   changesDiffUnchangedTitle: "No content changed",
-  changesDiffUnchangedDescription: "Only the file’s name or permissions changed. There is no text difference to show.",
+  changesDiffUnchangedDescription: "Only the file's name or permissions changed.",
   changesDiffConflictTitle: "This file needs your attention",
-  changesDiffConflictDescription:
-    "GitOdile is showing the current conflict markers for information only. Resolving conflicts isn’t supported here yet.",
-  changesDiffConflictUnavailable: "GitOdile couldn’t read the current conflict markers for this file.",
-  changesDiffConflictBinary: "This file’s contents aren’t readable as text, so its conflict markers can’t be shown.",
-  changesDiffConflictTooLarge: "The conflict is too large to preview safely here.",
-  changesDiffAriaLabel: (path) => `Difference for ${path}`,
+  changesDiffConflictDescription: "These are the conflict markers as they are now, since resolving conflicts here isn't supported yet.",
+  changesDiffConflictUnavailable: "Couldn't read this file's conflict markers.",
+  changesDiffConflictBinary: "This file isn't text, so its conflict can't be shown.",
+  changesDiffConflictTooLarge: "This conflict is too large to show here.",
+  changesDiffAriaLabel: (path) => `Changes in ${path}`,
   changesDiffHiddenLines: (count) => (count === 1 ? "1 unchanged line" : `${count} unchanged lines`),
   changesDiffShowHiddenLines: (count) =>
     count === 1 ? "Show 1 unchanged line" : `Show ${count} unchanged lines`,
-  changesDiffExpandFailed: "Couldn’t read those lines.",
-  changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines of this difference.`,
+  changesDiffExpandFailed: "Couldn't read those lines.",
+  changesDiffTruncatedNote: (shownLines) => `Showing the first ${shownLines} lines.`,
   changesLineAddedLabel: "Added:",
   changesLineRemovedLabel: "Removed:",
-  changesLinesAddedTotal: (count) => `+${count}`,
-  changesLinesRemovedTotal: (count) => `−${count}`,
-  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
-  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
-  changesSearchPlaceholder: "Search files…",
+  changesSearchPlaceholder: "Search changes",
   changesSearchAriaLabel: "Search changed files",
   changesNoSearchMatches: "No changed file matches your search.",
-  changesNoFilterMatches: "No changed file matches what you are looking for.",
+  changesNoFilterMatches: "No changed file matches these filters.",
   changesFiltersLabel: "Filters",
   changesFiltersActive: (count) => `Filters (${count} on)`,
-  changesFiltersActiveCount: (count) => `${count} filter${count === 1 ? "" : "s"} active`,
+  changesFiltersActiveCount: (count) => `${count} filter${count === 1 ? "" : "s"} on`,
   changesFiltersClear: "Clear all",
   changesFilterRemove: (label) => `Remove the ${label} filter`,
   changesFilterKindLabel: "Kind of change",
@@ -274,25 +286,28 @@ const en: ChangesTranslations = {
   changesViewUnified: "Unified",
   changesViewSplit: "Split",
   changesViewAccessible: "Accessible text",
-  changesViewAccessibleAriaLabel: "Complete difference as accessible text",
-  changesViewAriaLabel: "Difference view",
+  changesViewAccessibleAriaLabel: "All changes as accessible text",
+  changesViewAriaLabel: "Diff view",
   changesHunkPosition: (position, total) => `Change ${position} of ${total}`,
   changesPreviousHunk: "Previous change",
   changesNextHunk: "Next change",
   changesCheckLocal: "Check local changes",
-  changesRefreshFailedTitle: "Changes couldn’t be refreshed",
+  changesRefreshFailedTitle: "Couldn't refresh changes",
   changesDiscardingNow: "Discarding…",
-  changesSaveSelected: "Save selected",
-  changesSaveVersion: "Save version",
-  changesSaveVersionDisabledHint: "Make some changes first, then come back to save a version.",
   changesSaveVersionNoSelectionHint: "Choose at least one file to save.",
-  changesQuickCommitDismiss: "Discard draft",
-  changesSelectionSummary: (selected, total) => `${selected} of ${total} selected`,
+  changesQuickCommitFiles: (saved, total) =>
+    saved === total ? (total === 1 ? "1 file" : `${total} files`) : `${saved} of ${total} files`,
+  changesQuickCommitSaving: "Saving…",
+
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
   changesIncludeFile: (path) => `Include ${path} in this version`,
-  changesPartialUnavailableTruncated:
-    "This project has more changed files than can be listed safely. Save all changes before using file selection.",
+  changesIncludeFolder: (path) => `Include everything in ${path} in this version`,
+  changesFolderLabel: (path, count) => `${path} folder, ${count} file${count === 1 ? "" : "s"}`,
+  changesFileViewFolders: "Show files in folders",
+  changesFileViewShowList: "Showing folders · show as a list",
+  changesFileViewShowFolders: "Showing a list · show in folders",
+  changesPartialUnavailableTruncated: "Too many changed files to choose from, so save them all at once.",
   changesProjectRoot: "Project root",
   changesMoreActions: "Discard or restore changes",
   changesContextMenuLabel: "Context actions",
@@ -301,70 +316,76 @@ const en: ChangesTranslations = {
   // "Folder", not "File Explorer" or "Finder": one wording for three operating
   // systems, in the word this app already uses for where a project lives.
   changesRevealInFolder: "Show in folder",
-  changesRevealFailed: "That file couldn't be shown.",
-  changesCopied: "Selected text copied.",
-  changesCopyFailed: "Couldn’t copy the selected text. Use Ctrl+C or Cmd+C instead.",
+  changesRevealFailed: "Couldn't show that file.",
+  changesCopied: "Copied.",
+  changesCopyFailed: "Couldn't copy. Use Ctrl+C or Cmd+C instead.",
   changesDiscardFileContext: "Discard changes…",
-  changesDiscardSelected: "Discard this file’s changes…",
+  changesDiscardSelected: "Discard this file's changes…",
   changesDiscardAll: "Discard all changes…",
   changesRestoreDiscarded: "Restore discarded changes…",
-  changesDiscardFileTitle: "Discard this file’s changes?",
-  changesDiscardAllTitle: "Discard all unsaved changes?",
+  changesDiscardFileTitle: "Discard changes?",
+  changesDiscardAllTitle: "Discard all changes?",
   changesRestoreTitle: "Restore discarded changes",
-  changesDiscardDoneTitle: "Changes discarded",
-  changesRestoreDoneTitle: "Changes restored",
-  changesDiscardFileSummary: (path) => `${path} goes back to its last saved version.`,
-  changesDiscardAllSummary: (count) => count === 1 ? "1 changed file goes back to its last saved version." : `${count} changed files go back to their last saved version.`,
-  changesDiscardPreparedWarning: "Prepared changes are replaced too.",
-  changesDiscardUntrackedWarning: "New files leave the project.",
-  changesDiscardConflictWarning: "Unresolved conflicts are replaced by the last saved version.",
-  changesDiscardRecoveryNote: "GitOdile keeps a copy on this computer first, so you can undo it.",
-  changesDiscardConfirmFile: "Discard these changes",
-  changesDiscardConfirmAll: "Discard all changes",
-  changesRestoreConfirm: "Restore these changes",
-  changesDiscardSuccess: (count) => count === 1 ? "1 file went back to its last saved version." : `${count} files went back to their last saved version.`,
-  changesRestoreSuccess: (count) => count === 1 ? "1 file is back where it was." : `${count} files are back where they were.`,
+  changesDiscardFileSummary: (path) => `“${path}” goes back to its last saved version.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 file goes back to its last saved version." : `${count} files go back to their last saved version.`,
+  changesDiscardPreparedWarning: "Prepared changes are discarded too.",
+  changesDiscardUntrackedWarning: "New files are removed.",
+  changesDiscardConflictWarning: "Unresolved conflicts go back to the last saved version.",
+  changesDiscardRecoveryNote: "A copy is kept, so you can undo this.",
+  changesDiscardConfirmFile: "Discard changes",
+  changesDiscardConfirmAll: "Discard all",
+  changesRestoreConfirm: "Restore",
+  changesDiscardSuccess: (count) => count === 1 ? "1 file is back to its last saved version." : `${count} files are back to their last saved version.`,
+  changesRestoreSuccess: (count) => count === 1 ? "1 file restored." : `${count} files restored.`,
   changesUndoDiscard: "Undo discard",
   changesDiscardLoading: "Checking what will change…",
   changesRestoreLoading: "Looking for discarded changes…",
-  changesRestoreSummary: (count) => count === 1 ? "Bringing back 1 file…" : `Bringing back ${count} files…`,
+  changesRestoreSummary: (count) => count === 1 ? "Restoring 1 file…" : `Restoring ${count} files…`,
   changesRestoreChooseLabel: "Discarded changes",
-  changesRestoreChooseIntro: "Choose what to bring back.",
-  changesRestoreEmpty: "There are no stored copies to bring back.",
+  changesRestoreChooseIntro: "Choose what to restore.",
+  changesRestoreEmpty: "There's nothing to restore.",
   changesRestoreEntryPaths: (count) => count === 1 ? "1 file" : `${count} files`,
   changesRestoreEntryMore: (preview, hidden) => `${preview} and ${hidden} more`,
-  changesRestoreUnavailableSuperseded: "One of these files changed after this discard, so restoring it would overwrite newer work.",
-  changesRestoreUnavailableIncomplete: "This discard didn’t finish, so it can’t be restored automatically.",
+  changesRestoreUnavailableSuperseded: "A file changed since, so restoring would overwrite newer work.",
+  changesRestoreUnavailableIncomplete: "This discard didn't finish, so it can't be restored.",
   changesRestoreUnavailableToggle: (count) =>
-    count === 1 ? "1 more can’t be restored right now" : `${count} more can’t be restored right now`,
-  changesRestoreNoneAvailable: "None can be restored right now: each names a file that changed afterwards.",
-  changesRestorePreparedNote: "Brings the files back. Prepared changes stay as they are.",
+    count === 1 ? "1 more can't be restored now" : `${count} more can't be restored now`,
+  changesRestoreNoneAvailable: "Nothing can be restored now: every copy has a file that changed since.",
+  changesRestorePreparedNote: "Restores the files and leaves prepared changes as they are.",
   changesRestoreForget: "Delete this copy",
   changesRestoreForgetTitle: "Delete this copy?",
   changesRestoreForgetWarning: (count) =>
     count === 1
-      ? " The file it holds can’t be brought back afterwards."
-      : ` The ${count} files it holds can’t be brought back afterwards.`,
+      ? " Its file can't be restored afterwards."
+      : ` Its ${count} files can't be restored afterwards.`,
   changesRestoreForgetConfirm: "Delete copy",
   changesRestoreForgetCancel: "Keep it",
-  changesDiscardUnavailable: "This action is no longer available. Check local changes and try again.",
+  changesDiscardUnavailable: "This is no longer available. Check local changes and retry.",
 };
 
 const es: ChangesTranslations = {
-  changesHeading: "Cambios",
-  changesSummaryClean: "Todo está guardado. No hay nada que revisar.",
-  changesSummaryTotal: (total) =>
-    total === 1 ? "1 archivo tiene cambios sin guardar." : `${total} archivos tienen cambios sin guardar.`,
-  changesSummaryWithConflicts: (conflicted, total) =>
-    conflicted === total
-      ? conflicted === 1
-        ? "1 archivo necesita tu atención."
-        : `${conflicted} archivos necesitan tu atención.`
-      : `${conflicted} de ${total} archivos necesitan tu atención.`,
-  changesEmptyTitle: "Nada que revisar",
-  changesEmptyDescription:
-    "Todos los archivos guardados coinciden con la última versión guardada. Vuelve cuando hagas cambios.",
-  changesBackToOverview: "Volver a Resumen",
+  changesSummaryClean: "Todos los cambios están guardados.",
+  changesEmptySavedTitle: "Todos los cambios están guardados",
+  changesEmptyAheadDescription: (count) =>
+    count === 1
+      ? "1 versión guardada solo está en este ordenador. Publícala para compartirla."
+      : `${count} versiones guardadas solo están en este ordenador. Publícalas para compartirlas.`,
+  changesEmptyPublish: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
+  changesEmptyBehindDescription: (count) =>
+    count === 1
+      ? "Hay 1 versión nueva en el remoto."
+      : `Hay ${count} versiones nuevas en el remoto.`,
+  changesEmptyGetChanges: "Traer cambios del proyecto",
+  changesEmptyViewHistory: "Ver historial",
+  changesEmptyUpToDateTitle: "Todo al día",
+  changesEmptyUpToDateDescription: "Todo está guardado y publicado.",
+  changesEmptyNoRemoteTitle: "Todo está guardado en este ordenador",
+  changesEmptyNoRemoteDescription: "Añade un remoto en los ajustes del proyecto cuando quieras compartir tu trabajo.",
+  changesEmptyOpenSettings: "Abrir ajustes del proyecto",
+  changesEmptyUnbornTitle: "Aún no hay versiones guardadas",
+  changesEmptyUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
+  changesEmptyDetachedTitle: "Estás viendo una versión antigua",
+  changesEmptyDetachedDescription: "Es un punto del historial, no una línea de versión. Vuelve a una línea para seguir trabajando.",
   changesBackToList: "Volver a la lista de archivos",
   changesListAriaLabel: "Archivos con cambios",
   changesCategoryLabelChanged: "Editado",
@@ -373,14 +394,16 @@ const es: ChangesTranslations = {
   changesCategoryLabelRenamed: "Renombrado",
   changesCategoryLabelConflicted: "Necesita atención",
   changesRenamedFrom: (original) => `Renombrado desde ${original}`,
-  changesSelectionAnnouncement: (path) => `Mostrando ahora la diferencia de ${path}.`,
-  changesDiffLoadingTitle: "Leyendo la diferencia…",
-  changesDiffErrorTitle: "No pudimos leer la diferencia de este archivo",
+  changesSelectionAnnouncement: (path) => `Mostrando los cambios de ${path}.`,
+  changesDiffLoadingTitle: "Leyendo los cambios…",
+  changesDiffErrorTitle: "No se pudieron leer los cambios de este archivo",
   changesDiffRetry: "Reintentar",
-  changesDiffBinaryTitle: "Este archivo no se puede previsualizar como texto",
-  changesDiffBinaryDescription: "GitOdile detecta que este archivo cambió, pero su contenido no es legible como texto.",
+  changesSearchDiffPlaceholder: "Buscar en los cambios",
+  changesSearchDiffAriaLabel: "Buscar en los cambios del archivo seleccionado",
+  changesDiffBinaryTitle: "Este archivo no se puede mostrar como texto",
+  changesDiffBinaryDescription: "Ha cambiado, pero su contenido no es texto.",
   changesImageLoading: "Abriendo la imagen…",
-  changesImageError: "GitOdile no pudo abrir esta imagen.",
+  changesImageError: "No se pudo abrir esta imagen.",
   changesImageUnavailable: "No hay ninguna versión de esta imagen que mostrar.",
   changesImageBefore: "Antes",
   changesImageAfter: "Después",
@@ -388,9 +411,8 @@ const es: ChangesTranslations = {
   changesImageRemoved: "Eliminada",
   changesImageBeforeAlt: (path) => `${path} antes de este cambio`,
   changesImageAfterAlt: (path) => `${path} después de este cambio`,
-  changesImageTooLarge: (limit) =>
-    `Esta versión supera ${limit}, el límite de GitOdile para mostrar imágenes aquí. El archivo no se ve afectado.`,
-  changesImageUnsupported: "Esta versión no es una imagen que GitOdile pueda dibujar.",
+  changesImageTooLarge: (limit) => `Esta imagen supera ${limit}, demasiado para mostrarla aquí, pero el archivo no se ve afectado.`,
+  changesImageUnsupported: "Esta versión no es una imagen que GitOdile pueda mostrar.",
   changesImageComparisonLabel: "Cómo comparar",
   changesImageModeSideBySide: "Lado a lado",
   changesImageModeSwipe: "Cortinilla",
@@ -400,39 +422,32 @@ const es: ChangesTranslations = {
   changesImageSameSize: "mismo tamaño",
   changesImageLarger: (amount) => `${amount} más`,
   changesImageSmaller: (amount) => `${amount} menos`,
-  changesSvgViewLabel: "Cómo leer este archivo",
+  changesSvgViewLabel: "Cómo mostrar este archivo",
   changesSvgDrawing: "Dibujo",
   changesSvgSource: "Código",
-  changesDiffTooLargeTitle: "Esta diferencia es demasiado grande para mostrarla aquí",
-  changesDiffTooLargeDescription: (limit) =>
-    `La diferencia de este archivo supera ${limit}, el límite de seguridad de GitOdile para revisar cambios aquí. El archivo en sí no se ve afectado.`,
+  changesDiffTooLargeTitle: "Demasiados cambios para mostrarlos aquí",
+  changesDiffTooLargeDescription: (limit) => `Los cambios de este archivo superan ${limit}, el límite para mostrarlos aquí, pero el archivo no se ve afectado.`,
   changesDiffWhitespaceOnlyTitle: "Solo cambió el espaciado",
-  changesDiffWhitespaceOnlyDescription:
-    "Todos los cambios de este archivo son espacios en blanco, y pediste ignorarlos. Desactiva esa opción en Ajustes para verlos.",
-  changesDiffUnchangedTitle: "No hay cambios de contenido",
-  changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo. No hay diferencia de texto que mostrar.",
+  changesDiffWhitespaceOnlyDescription: "Los cambios de espaciado están ocultos y puedes mostrarlos en Ajustes.",
+  changesDiffUnchangedTitle: "El contenido no ha cambiado",
+  changesDiffUnchangedDescription: "Solo cambió el nombre o los permisos del archivo.",
   changesDiffConflictTitle: "Este archivo necesita tu atención",
-  changesDiffConflictDescription:
-    "GitOdile muestra las marcas de conflicto actuales solo a título informativo. Resolver conflictos aún no está disponible aquí.",
-  changesDiffConflictUnavailable: "GitOdile no pudo leer las marcas de conflicto actuales de este archivo.",
-  changesDiffConflictBinary: "El contenido de este archivo no es legible como texto, así que sus marcas de conflicto no se pueden mostrar.",
-  changesDiffConflictTooLarge: "El conflicto es demasiado grande para previsualizarlo aquí de forma segura.",
-  changesDiffAriaLabel: (path) => `Diferencia de ${path}`,
+  changesDiffConflictDescription: "Estas son las marcas de conflicto tal como están, porque aún no se pueden resolver conflictos aquí.",
+  changesDiffConflictUnavailable: "No se pudieron leer las marcas de conflicto de este archivo.",
+  changesDiffConflictBinary: "Este archivo no es texto, así que no se puede mostrar su conflicto.",
+  changesDiffConflictTooLarge: "Este conflicto es demasiado grande para mostrarlo aquí.",
+  changesDiffAriaLabel: (path) => `Cambios de ${path}`,
   changesDiffHiddenLines: (count) => (count === 1 ? "1 línea sin cambios" : `${count} líneas sin cambios`),
   changesDiffShowHiddenLines: (count) =>
     count === 1 ? "Mostrar 1 línea sin cambios" : `Mostrar ${count} líneas sin cambios`,
-  changesDiffExpandFailed: "No pudimos leer esas líneas.",
-  changesDiffTruncatedNote: (shownLines) => `Mostrando las primeras ${shownLines} líneas de esta diferencia.`,
+  changesDiffExpandFailed: "No se pudieron leer esas líneas.",
+  changesDiffTruncatedNote: (shownLines) => `Se muestran las primeras ${shownLines} líneas.`,
   changesLineAddedLabel: "Añadida:",
   changesLineRemovedLabel: "Eliminada:",
-  changesLinesAddedTotal: (count) => `+${count}`,
-  changesLinesRemovedTotal: (count) => `−${count}`,
-  changesLinesAddedTotalAriaLabel: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
-  changesLinesRemovedTotalAriaLabel: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
-  changesSearchPlaceholder: "Buscar archivos…",
+  changesSearchPlaceholder: "Buscar cambios",
   changesSearchAriaLabel: "Buscar archivos con cambios",
   changesNoSearchMatches: "Ningún archivo con cambios coincide con tu búsqueda.",
-  changesNoFilterMatches: "Ningún archivo con cambios coincide con lo que buscas.",
+  changesNoFilterMatches: "Ningún archivo con cambios coincide con estos filtros.",
   changesFiltersLabel: "Filtros",
   changesFiltersActive: (count) => `Filtros (${count} activo${count === 1 ? "" : "s"})`,
   changesFiltersActiveCount: (count) => `${count} filtro${count === 1 ? "" : "s"} activo${count === 1 ? "" : "s"}`,
@@ -458,26 +473,28 @@ const es: ChangesTranslations = {
   changesViewUnified: "Unificada",
   changesViewSplit: "Dividida",
   changesViewAccessible: "Texto accesible",
-  changesViewAccessibleAriaLabel: "Diferencia completa como texto accesible",
-  changesViewAriaLabel: "Vista de la diferencia",
+  changesViewAccessibleAriaLabel: "Todos los cambios como texto accesible",
+  changesViewAriaLabel: "Vista de los cambios",
   changesHunkPosition: (position, total) => `Cambio ${position} de ${total}`,
   changesPreviousHunk: "Cambio anterior",
   changesNextHunk: "Cambio siguiente",
   changesCheckLocal: "Comprobar cambios locales",
   changesRefreshFailedTitle: "No se pudieron actualizar los cambios",
   changesDiscardingNow: "Descartando…",
-  changesSaveSelected: "Guardar selección",
-  changesSaveVersion: "Guardar versión",
-  changesSaveVersionDisabledHint: "Haz algún cambio primero y vuelve para guardar una versión.",
   changesSaveVersionNoSelectionHint: "Elige al menos un archivo para guardar.",
-  changesQuickCommitDismiss: "Descartar borrador",
-  changesSelectionSummary: (selected, total) =>
-    selected === 1 ? `${selected} de ${total} seleccionado` : `${selected} de ${total} seleccionados`,
+  changesQuickCommitFiles: (saved, total) =>
+    saved === total ? (total === 1 ? "1 archivo" : `${total} archivos`) : `${saved} de ${total} archivos`,
+  changesQuickCommitSaving: "Guardando…",
+
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",
   changesIncludeFile: (path) => `Incluir ${path} en esta versión`,
-  changesPartialUnavailableTruncated:
-    "Este proyecto tiene más archivos modificados de los que se pueden listar con seguridad. Guarda todos los cambios antes de usar la selección.",
+  changesIncludeFolder: (path) => `Incluir todo lo de ${path} en esta versión`,
+  changesFolderLabel: (path, count) => `Carpeta ${path}, ${count} archivo${count === 1 ? "" : "s"}`,
+  changesFileViewFolders: "Ver archivos por carpetas",
+  changesFileViewShowList: "Viendo por carpetas · ver en lista",
+  changesFileViewShowFolders: "Viendo en lista · ver por carpetas",
+  changesPartialUnavailableTruncated: "Hay demasiados archivos cambiados para elegir, así que guárdalos todos a la vez.",
   changesProjectRoot: "Raíz del proyecto",
   changesMoreActions: "Descartar o restaurar cambios",
   changesContextMenuLabel: "Acciones contextuales",
@@ -485,52 +502,50 @@ const es: ChangesTranslations = {
   changesCopyPath: "Copiar ruta",
   changesRevealInFolder: "Mostrar en la carpeta",
   changesRevealFailed: "No se pudo mostrar el archivo.",
-  changesCopied: "Texto seleccionado copiado.",
-  changesCopyFailed: "No se pudo copiar el texto seleccionado. Usa Ctrl+C o Cmd+C en su lugar.",
+  changesCopied: "Copiado.",
+  changesCopyFailed: "No se pudo copiar. Usa Ctrl+C o Cmd+C.",
   changesDiscardFileContext: "Descartar cambios…",
   changesDiscardSelected: "Descartar los cambios de este archivo…",
   changesDiscardAll: "Descartar todos los cambios…",
   changesRestoreDiscarded: "Restaurar cambios descartados…",
-  changesDiscardFileTitle: "¿Descartar los cambios de este archivo?",
-  changesDiscardAllTitle: "¿Descartar todos los cambios sin guardar?",
+  changesDiscardFileTitle: "¿Descartar cambios?",
+  changesDiscardAllTitle: "¿Descartar todos los cambios?",
   changesRestoreTitle: "Restaurar cambios descartados",
-  changesDiscardDoneTitle: "Cambios descartados",
-  changesRestoreDoneTitle: "Cambios restaurados",
-  changesDiscardFileSummary: (path) => `${path} volverá a su última versión guardada.`,
-  changesDiscardAllSummary: (count) => count === 1 ? "1 archivo modificado volverá a su última versión guardada." : `${count} archivos modificados volverán a su última versión guardada.`,
-  changesDiscardPreparedWarning: "Los cambios preparados también se reemplazan.",
-  changesDiscardUntrackedWarning: "Los archivos nuevos salen del proyecto.",
-  changesDiscardConflictWarning: "Los conflictos sin resolver se reemplazan por la última versión guardada.",
-  changesDiscardRecoveryNote: "GitOdile guarda antes una copia en este equipo, para que puedas deshacerlo.",
-  changesDiscardConfirmFile: "Descartar estos cambios",
-  changesDiscardConfirmAll: "Descartar todos los cambios",
-  changesRestoreConfirm: "Restaurar estos cambios",
-  changesDiscardSuccess: (count) => count === 1 ? "1 archivo volvió a su última versión guardada." : `${count} archivos volvieron a su última versión guardada.`,
-  changesRestoreSuccess: (count) => count === 1 ? "1 archivo ha vuelto a donde estaba." : `${count} archivos han vuelto a donde estaban.`,
+  changesDiscardFileSummary: (path) => `«${path}» vuelve a su última versión guardada.`,
+  changesDiscardAllSummary: (count) => count === 1 ? "1 archivo vuelve a su última versión guardada." : `${count} archivos vuelven a su última versión guardada.`,
+  changesDiscardPreparedWarning: "Los cambios preparados también se descartan.",
+  changesDiscardUntrackedWarning: "Los archivos nuevos se eliminan.",
+  changesDiscardConflictWarning: "Los conflictos sin resolver vuelven a la última versión guardada.",
+  changesDiscardRecoveryNote: "Se guarda una copia, así que puedes deshacerlo.",
+  changesDiscardConfirmFile: "Descartar cambios",
+  changesDiscardConfirmAll: "Descartar todo",
+  changesRestoreConfirm: "Restaurar",
+  changesDiscardSuccess: (count) => count === 1 ? "1 archivo ha vuelto a su última versión guardada." : `${count} archivos han vuelto a su última versión guardada.`,
+  changesRestoreSuccess: (count) => count === 1 ? "1 archivo restaurado." : `${count} archivos restaurados.`,
   changesUndoDiscard: "Deshacer descarte",
   changesDiscardLoading: "Comprobando qué va a cambiar…",
   changesRestoreLoading: "Buscando cambios descartados…",
-  changesRestoreSummary: (count) => count === 1 ? "Recuperando 1 archivo…" : `Recuperando ${count} archivos…`,
+  changesRestoreSummary: (count) => count === 1 ? "Restaurando 1 archivo…" : `Restaurando ${count} archivos…`,
   changesRestoreChooseLabel: "Cambios descartados",
-  changesRestoreChooseIntro: "Elige qué quieres recuperar.",
-  changesRestoreEmpty: "No hay copias guardadas que recuperar.",
+  changesRestoreChooseIntro: "Elige qué restaurar.",
+  changesRestoreEmpty: "No hay nada que restaurar.",
   changesRestoreEntryPaths: (count) => count === 1 ? "1 archivo" : `${count} archivos`,
   changesRestoreEntryMore: (preview, hidden) => `${preview} y ${hidden} más`,
-  changesRestoreUnavailableSuperseded: "Uno de estos archivos cambió después del descarte, así que restaurarlo sobrescribiría trabajo más nuevo.",
-  changesRestoreUnavailableIncomplete: "Este descarte no llegó a terminar, así que no se puede restaurar automáticamente.",
+  changesRestoreUnavailableSuperseded: "Un archivo ha cambiado después, así que restaurarlo sobrescribiría trabajo más nuevo.",
+  changesRestoreUnavailableIncomplete: "Este descarte no llegó a terminar, así que no se puede restaurar.",
   changesRestoreUnavailableToggle: (count) =>
     count === 1 ? "1 más no se puede restaurar ahora" : `${count} más no se pueden restaurar ahora`,
-  changesRestoreNoneAvailable: "Ninguno se puede restaurar ahora: todos nombran un archivo que cambió después.",
-  changesRestorePreparedNote: "Recupera los archivos. Los cambios preparados se quedan como están.",
+  changesRestoreNoneAvailable: "Ahora no se puede restaurar nada: cada copia tiene un archivo que ha cambiado después.",
+  changesRestorePreparedNote: "Restaura los archivos y deja los cambios preparados como están.",
   changesRestoreForget: "Eliminar esta copia",
   changesRestoreForgetTitle: "¿Eliminar esta copia?",
   changesRestoreForgetWarning: (count) =>
     count === 1
-      ? " El archivo que guarda no se podrá recuperar después."
-      : ` Los ${count} archivos que guarda no se podrán recuperar después.`,
+      ? " Su archivo no se podrá restaurar después."
+      : ` Sus ${count} archivos no se podrán restaurar después.`,
   changesRestoreForgetConfirm: "Eliminar copia",
   changesRestoreForgetCancel: "Conservarla",
-  changesDiscardUnavailable: "Esta acción ya no está disponible. Comprueba los cambios locales e inténtalo de nuevo.",
+  changesDiscardUnavailable: "Ya no está disponible. Comprueba los cambios locales y reintenta.",
 };
 
 export const changesTranslations = { en, es } as const;

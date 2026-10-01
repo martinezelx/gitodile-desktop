@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
+  BadgeCheck,
   Bell,
+  BellOff,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -12,12 +14,10 @@ import {
   GripVertical,
   Info,
   LoaderCircle,
-  Monitor,
-  Moon,
   PanelLeft,
   Palette,
   Settings,
-  Sun,
+  SquareTerminal,
   TriangleAlert,
   WrapText,
 } from "lucide-react";
@@ -34,7 +34,24 @@ import {
   type DateFormatPreference,
   type NumberFormatPreference,
 } from "../../shared/i18n";
-import { autoHideScrollbarProps, moveFocusWithinRadioGroup } from "../../shared/ui";
+import {
+  autoHideScrollbarProps,
+  LoadingPlaceholder,
+  moveFocusWithinRadioGroup,
+  TextPlaceholder,
+  ToggleSwitch,
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  ProjectAvatar,
+  PROJECT_AVATAR_STYLES,
+  type ProjectAvatarStyle,
+  type TechnologyId,
+} from "../../shared/ui";
+import {
+  COMMUNITY_THEMES,
+  OFFICIAL_THEMES,
+  type ThemeId,
+  type ThemePreference,
+} from "../../shared/theme";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 // The diff viewer owns what these mean; Settings only offers the controls.
 import {
@@ -45,6 +62,7 @@ import {
   type DiffPreferences,
   type DiffTabWidth,
 } from "../changes";
+import { CONSOLE_TEXT_SIZES, DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
 import {
   DEFAULT_BRANCH_FALLBACK,
   DEFAULT_BRANCH_SUGGESTIONS,
@@ -67,17 +85,56 @@ import {
   type RemoteCheckIntervalMinutes,
   type RemoteCheckUnit,
   type SettingsSection,
-  type ThemePreference,
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
 import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
 
-const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
-  system: <Monitor />,
-  light: <Sun />,
-  dark: <Moon />,
+/** Three fixed sample projects the appearance picker previews each style with.
+ * The same names, ids and technologies are shown under all three options, so
+ * the comparison is of the style, not of the samples. */
+const PROJECT_ICON_SAMPLES: ReadonlyArray<{ id: string; name: string; technology: TechnologyId }> = [
+  { id: "/samples/gitodile", name: "gitodile", technology: "tauri" },
+  { id: "/samples/atlas", name: "atlas", technology: "rust" },
+  { id: "/samples/web", name: "web app", technology: "react" },
+];
+
+/** A miniature of the app drawn in a theme's own tokens. `data-theme` scopes
+ * the palette to this subtree, so the preview shows the real thing rather than
+ * a swatch. The mark and the action keep the brand layer, as they do in the
+ * app. */
+function ThemePreview({ theme }: { theme: ThemeId }): React.JSX.Element {
+  return (
+    <span className="theme-preview" data-theme={theme}>
+      <span className="theme-preview__rail">
+        <span className="theme-preview__mark" />
+        <span className="theme-preview__nav theme-preview__nav--active" />
+        <span className="theme-preview__nav" />
+        <span className="theme-preview__nav" />
+      </span>
+      <span className="theme-preview__main">
+        <span className="theme-preview__bar">
+          <span className="theme-preview__file" />
+          <span className="theme-preview__cta" />
+        </span>
+        <span className="theme-preview__line" />
+        <span className="theme-preview__line theme-preview__line--add" />
+        <span className="theme-preview__line theme-preview__line--del" />
+      </span>
+    </span>
+  );
+}
+
+/** One option in the theme picker: "match device" or a real theme, with its
+ * preview and the scheme's words for the accessible name. */
+type ThemeCardOption = {
+  id: ThemePreference;
+  name: string;
+  schemeLabel: string;
+  /** Official GitOdile records wear the official badge so the three stand apart. */
+  official: boolean;
+  preview: React.JSX.Element;
 };
 
 /* The characters a monospaced font is actually chosen for: zero against
@@ -86,14 +143,15 @@ const THEME_ICONS: Record<ThemePreference, React.JSX.Element> = {
    reader will get rather than a flattering enlargement. */
 const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
-/** Static, like `THEME_ICONS`: nothing about the rail's icons depends on
- * state, a preference or the language. */
+/** Static: nothing about the rail's icons depends on state, a preference or the
+ * language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   general: <Settings />,
   notifications: <Bell />,
   appearance: <Palette />,
   navigation: <PanelLeft />,
   reading: <WrapText />,
+  console: <SquareTerminal />,
   git: <GitBranch />,
   "line-endings": <CornerDownLeft />,
   updates: <CloudDownload />,
@@ -136,7 +194,6 @@ const NOTIFICATION_EVENT_ROWS = [
   description: string;
 }>;
 
-const THEME_ORDER: ThemePreference[] = ["system", "light", "dark"];
 const LANGUAGE_ORDER: LanguagePreference[] = ["system", "en", "es"];
 
 /* Deliberately permissive. Git itself accepts almost anything here, so this
@@ -279,6 +336,8 @@ export function SettingsPanel({
   setTheme,
   reducedMotion,
   setReducedMotion,
+  projectAvatarStyle = DEFAULT_PROJECT_AVATAR_STYLE,
+  setProjectAvatarStyle = () => undefined,
   activeSection,
   onSectionChange,
   gitDiagnostics,
@@ -306,6 +365,9 @@ export function SettingsPanel({
   setNavigationPreferences,
   diffPreferences,
   setDiffPreferences,
+  consolePreferences = DEFAULT_CONSOLE_PREFERENCES,
+  setConsolePreferences = () => undefined,
+  consoleAdvancedMode = null,
   identity,
   defaultBranch,
   lineEndingsState,
@@ -319,6 +381,8 @@ export function SettingsPanel({
   setTheme: (theme: ThemePreference) => void;
   reducedMotion: boolean;
   setReducedMotion: (value: boolean) => void;
+  projectAvatarStyle?: ProjectAvatarStyle;
+  setProjectAvatarStyle?: (style: ProjectAvatarStyle) => void;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   gitDiagnostics: GitDiagnostics | null;
@@ -348,6 +412,12 @@ export function SettingsPanel({
   ) => void;
   diffPreferences: DiffPreferences;
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
+  consolePreferences?: ConsolePreferences;
+  setConsolePreferences?: (update: (previous: ConsolePreferences) => ConsolePreferences) => void;
+  /** The console feature's own Console mode group, with its three mode cards
+   * and dialogs: Rust holds those settings, so this panel only places it, first
+   * in the Console section: what the console may do comes before how it looks. */
+  consoleAdvancedMode?: React.ReactNode;
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
    * still owns the draft, the notices and the close guard: those are the parts
@@ -372,6 +442,7 @@ export function SettingsPanel({
   const { t, languagePreference, setLanguagePreference, formats, setDateFormat, setNumberFormat } =
     useLanguage();
   const [gitActionNotice, setGitActionNotice] = useState<Notice | null>(null);
+  const notificationEventsTitleId = useId();
   const [nameInput, setNameInput] = useState(identity.identity.name);
   const [emailInput, setEmailInput] = useState(identity.identity.email);
   const [identityNotice, setIdentityNotice] = useState<Notice | null>(null);
@@ -805,6 +876,54 @@ export function SettingsPanel({
     setNavigationPreferences((previous) => ({ ...previous, displayMode }));
   };
 
+  /* The theme picker's options are built here so the two rows share one card
+     renderer and cannot drift. "Match device" is a preference, not a theme, so
+     it takes the split preview rather than a record. */
+  const themeCardOption = (record: (typeof OFFICIAL_THEMES)[number]): ThemeCardOption => ({
+    id: record.id,
+    name: record.name,
+    schemeLabel: record.scheme === "dark" ? t.themeSchemeDark : t.themeSchemeLight,
+    official: record.source === "official",
+    preview: <ThemePreview theme={record.id} />,
+  });
+  const officialThemeOptions: readonly ThemeCardOption[] = [
+    {
+      id: "system",
+      name: t.themeMatchDevice,
+      schemeLabel: t.themeSchemeAuto,
+      official: true,
+      preview: (
+        <span className="theme-card__split">
+          <ThemePreview theme="gitodile-light" />
+          <ThemePreview theme="gitodile-dark" />
+        </span>
+      ),
+    },
+    ...OFFICIAL_THEMES.map(themeCardOption),
+  ];
+  const communityThemeOptions: readonly ThemeCardOption[] = COMMUNITY_THEMES.map(themeCardOption);
+  const renderThemeCard = (option: ThemeCardOption, index: number): React.JSX.Element => {
+    const isSelected = theme === option.id;
+    return (
+      <button
+        key={option.id}
+        type="button"
+        role="radio"
+        aria-checked={isSelected}
+        aria-label={`${option.name}, ${option.schemeLabel}`}
+        tabIndex={isRadioTabStop(isSelected, true, index) ? 0 : -1}
+        className="theme-card"
+        onClick={() => setTheme(option.id)}
+      >
+        <span className="theme-card__tile">{option.preview}</span>
+        <span className="theme-card__label">
+          <span className="theme-card__name">{option.name}</span>
+          {option.official && <BadgeCheck className="theme-card__official" aria-hidden="true" />}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <div className="settings-layout">
       <SettingsNav
@@ -1020,7 +1139,17 @@ export function SettingsPanel({
                 <h3>{t.settingsNotificationsWhileAwayTitle}</h3>
               </header>
               <div className="settings-group__body">
-                <div className="settings-row">
+                {/* The switch leads with the bell, in the same icon column as
+                    the events below it, so every label starts on one edge:
+                    the events read as what the switch covers rather than as
+                    four more settings missing their controls. */}
+                <div className="settings-row settings-notifications__master">
+                  <span
+                    className={`settings-notifications__icon${notificationsEnabled ? " settings-notifications__icon--on" : ""}`}
+                    aria-hidden="true"
+                  >
+                    {notificationsEnabled ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+                  </span>
                   <div>
                     <strong>{t.notificationsEnableLabel}</strong>
                     <p>{t.notificationsEnableDescription}</p>
@@ -1031,40 +1160,48 @@ export function SettingsPanel({
                     onChange={setNotificationsEnabled}
                   />
                 </div>
-              </div>
-            </section>
-            {/* Ordinary settings rows rather than a bullet list, because they
-                answer the same question a row does — what is this, and why
-                would I want it — and because each carries the icon the
-                notification itself will wear, so the vocabulary is learned
-                here rather than guessed at in the panel.
-
-                They have no controls on purpose. Per-event muting is a choice
-                nobody can make usefully before they have seen the events, and
-                three of them do not need a preferences matrix. */}
-            <section className="settings-group">
-              <header className="settings-group__header">
-                <h3>{t.notificationsEventsTitle}</h3>
-                <p>{t.notificationsEventsDescription}</p>
-              </header>
-              <div className="settings-group__body">
-                {NOTIFICATION_EVENT_ROWS.map(({ kind, label, description }) => {
-                  const Icon = NOTIFICATION_ICONS[kind];
-                  return (
-                  <div className="settings-row settings-notification-event" key={kind}>
-                    <span
-                      className={`settings-notification-event__icon settings-notification-event__icon--${NOTIFICATION_KINDS[kind].tone}`}
-                      aria-hidden="true"
-                    >
-                      <Icon aria-hidden="true" />
-                    </span>
-                    <div>
-                      <strong>{t[label]}</strong>
-                      <p>{t[description]}</p>
-                    </div>
-                  </div>
-                  );
-                })}
+                {/* A list, not rows, and with no controls on purpose.
+                    Per-event muting is a choice nobody can make usefully
+                    before they have seen the events, and four of them do not
+                    need a preferences matrix. Each carries the icon the
+                    notification itself will wear, so the vocabulary is learned
+                    here. While the switch is off the list stays, dimmed and
+                    down to its names, so what turning it on gives is still
+                    visible. */}
+                <div
+                  className={`settings-notifications__events${notificationsEnabled ? "" : " settings-notifications__events--off"}`}
+                >
+                  <h4 className="settings-notifications__events-title" id={notificationEventsTitleId}>
+                    {notificationsEnabled ? t.notificationsEventsTitle : t.notificationsEventsOffTitle}
+                  </h4>
+                  <ul className="settings-notifications__list" aria-labelledby={notificationEventsTitleId}>
+                    {NOTIFICATION_EVENT_ROWS.map(({ kind, label, description }) => {
+                      const Icon = NOTIFICATION_ICONS[kind];
+                      // A kind recorded as already read never lights the bell;
+                      // the tag says so, where the description used to.
+                      const silent = !NOTIFICATION_KINDS[kind].unreadOnArrival;
+                      return (
+                        <li
+                          className={`settings-notifications__event settings-notifications__event--${NOTIFICATION_KINDS[kind].tone}`}
+                          key={kind}
+                        >
+                          <Icon aria-hidden="true" />
+                          <div>
+                            <strong>
+                              {t[label]}
+                              {silent && (
+                                <span className="settings-notifications__silent" data-tooltip={t.notificationsSilentHint}>
+                                  {t.notificationsSilentTag}
+                                </span>
+                              )}
+                            </strong>
+                            {notificationsEnabled && <p>{t[description]}</p>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </div>
             </section>
           </div>
@@ -1078,26 +1215,24 @@ export function SettingsPanel({
                 <p>{t.settingsThemeDescription}</p>
               </header>
               <div className="settings-group__body">
+                {/* Two radiogroups so the accessible names still say which
+                    group a theme belongs to; the official three are marked by
+                    the official badge, not by a label. */}
                 <div
-                  className="segmented-control"
+                  className="theme-picker__official"
                   role="radiogroup"
-                  aria-label={t.themeAriaLabel}
+                  aria-label={t.settingsThemeOfficialTitle}
                   onKeyDown={moveFocusWithinRadioGroup}
                 >
-                  {THEME_ORDER.map((option, index) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={theme === option}
-                      tabIndex={isRadioTabStop(theme === option, true, index) ? 0 : -1}
-                      className={`segmented-control__option${theme === option ? " segmented-control__option--active" : ""}`}
-                      onClick={() => setTheme(option)}
-                    >
-                      <span aria-hidden="true">{THEME_ICONS[option]}</span>
-                      {option === "system" ? t.commonSystem : option === "light" ? t.themeLight : t.themeDark}
-                    </button>
-                  ))}
+                  {officialThemeOptions.map(renderThemeCard)}
+                </div>
+                <div
+                  className="theme-picker__community"
+                  role="radiogroup"
+                  aria-label={t.settingsThemeMoreTitle}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {communityThemeOptions.map(renderThemeCard)}
                 </div>
               </div>
             </section>
@@ -1116,6 +1251,62 @@ export function SettingsPanel({
                     checked={reducedMotion}
                     onChange={setReducedMotion}
                   />
+                </div>
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsProjectIconsTitle}</h3>
+                <p>{t.settingsProjectIconsDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div
+                  className="project-icons-picker"
+                  role="radiogroup"
+                  aria-label={t.settingsProjectIconsAriaLabel}
+                  onKeyDown={moveFocusWithinRadioGroup}
+                >
+                  {PROJECT_AVATAR_STYLES.map((option) => {
+                    const isActive = projectAvatarStyle === option;
+                    const label =
+                      option === "initials"
+                        ? t.projectIconsStyleInitials
+                        : option === "random"
+                          ? t.projectIconsStyleRandom
+                          : t.projectIconsStyleTechnology;
+                    const hint =
+                      option === "initials"
+                        ? t.projectIconsStyleInitialsHint
+                        : option === "random"
+                          ? t.projectIconsStyleRandomHint
+                          : t.projectIconsStyleTechnologyHint;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        tabIndex={isActive ? 0 : -1}
+                        className={`project-icons-card${isActive ? " project-icons-card--active" : ""}`}
+                        onClick={() => setProjectAvatarStyle(option)}
+                      >
+                        <span className="project-icons-card__preview" aria-hidden="true">
+                          {PROJECT_ICON_SAMPLES.map((sample) => (
+                            <ProjectAvatar
+                              key={sample.id}
+                              id={sample.id}
+                              name={sample.name}
+                              className="project-icons-card__avatar"
+                              technology={sample.technology}
+                              style={option}
+                            />
+                          ))}
+                        </span>
+                        <span className="project-icons-card__label">{label}</span>
+                        <span className="project-icons-card__hint">{hint}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>
@@ -1245,13 +1436,52 @@ export function SettingsPanel({
                   <div
                     data-navigation-id={item.id}
                     className={`navigation-destination${
+                      visibleNavigationIds.has(item.id) ? "" : " navigation-destination--hidden"
+                    }${
                       draggedNavigationId === item.id ? " navigation-destination--dragging" : ""
                     }${
                       dragOverNavigationId === item.id ? " navigation-destination--drag-over" : ""
                     }`}
                     key={item.id}
                   >
+                    <span className="navigation-destination__icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    {/* A section turned off keeps its row, dimmed and tagged,
+                        so the list never changes height and its place in the
+                        order stays visible. */}
+                    <span className="navigation-destination__copy">
+                      <strong>{item.label}</strong>
+                      {!visibleNavigationIds.has(item.id) && (
+                        <span className="navigation-destination__tag">{t.settingsNavigationMovedToMore}</span>
+                      )}
+                    </span>
+                    {/* Reordering trails the name: a row says what it is before
+                        how to move it. The arrows surface on hover or focus;
+                        the grip stays, next to the switch. */}
                     <div className="navigation-destination__order-controls">
+                      <div className="navigation-destination__move-buttons">
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
+                          disabled={index === 0}
+                          onClick={() => moveNavigationDestination(item.id, index - 1)}
+                        >
+                          <ChevronUp aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="navigation-destination__move-button"
+                          aria-label={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          title={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
+                          disabled={index === navigationItems.length - 1}
+                          onClick={() => moveNavigationDestination(item.id, index + 1)}
+                        >
+                          <ChevronDown aria-hidden="true" />
+                        </button>
+                      </div>
                       <button
                         className="navigation-destination__handle"
                         type="button"
@@ -1306,38 +1536,7 @@ export function SettingsPanel({
                       >
                         <GripVertical aria-hidden="true" />
                       </button>
-                      <div className="navigation-destination__move-buttons">
-                        <button
-                          type="button"
-                          className="navigation-destination__move-button"
-                          aria-label={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
-                          title={`${t.settingsNavigationMoveUpLabel}: ${item.label}`}
-                          disabled={index === 0}
-                          onClick={() => moveNavigationDestination(item.id, index - 1)}
-                        >
-                          <ChevronUp aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="navigation-destination__move-button"
-                          aria-label={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
-                          title={`${t.settingsNavigationMoveDownLabel}: ${item.label}`}
-                          disabled={index === navigationItems.length - 1}
-                          onClick={() => moveNavigationDestination(item.id, index + 1)}
-                        >
-                          <ChevronDown aria-hidden="true" />
-                        </button>
-                      </div>
                     </div>
-                    <span className="navigation-destination__icon" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span className="navigation-destination__copy">
-                      <strong>{item.label}</strong>
-                      {!visibleNavigationIds.has(item.id) && (
-                        <small>{t.settingsNavigationMovedToMore}</small>
-                      )}
-                    </span>
                     <ToggleSwitch
                       label={item.label}
                       checked={visibleNavigationIds.has(item.id)}
@@ -1515,6 +1714,79 @@ export function SettingsPanel({
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeSection === "console" && (
+          <div className="settings-groups">
+            {consoleAdvancedMode}
+            <section className="settings-group">
+              <header className="settings-group__header">
+                <h3>{t.settingsConsoleTitle}</h3>
+                <p>{t.settingsConsoleDescription}</p>
+              </header>
+              <div className="settings-group__body">
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsAutocompleteLabel}</strong>
+                    <p>{t.consoleSettingsAutocompleteDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsAutocompleteLabel}
+                    checked={consolePreferences.autocomplete}
+                    onChange={(autocomplete) => setConsolePreferences((previous) => ({ ...previous, autocomplete }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsWelcomeLabel}</strong>
+                    <p>{t.consoleSettingsWelcomeDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsWelcomeLabel}
+                    checked={consolePreferences.welcome}
+                    onChange={(welcome) => setConsolePreferences((previous) => ({ ...previous, welcome }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsCursorLabel}</strong>
+                    <p>{t.consoleSettingsCursorDescription}</p>
+                  </div>
+                  <ToggleSwitch
+                    label={t.consoleSettingsCursorLabel}
+                    checked={consolePreferences.cursorBlink}
+                    onChange={(cursorBlink) => setConsolePreferences((previous) => ({ ...previous, cursorBlink }))}
+                  />
+                </div>
+                <div className="settings-row">
+                  <div>
+                    <strong>{t.consoleSettingsTextSizeLabel}</strong>
+                    <p>{t.consoleSettingsTextSizeDescription}</p>
+                  </div>
+                  <div
+                    className="segmented-control"
+                    role="radiogroup"
+                    aria-label={t.consoleSettingsTextSizeLabel}
+                    onKeyDown={moveFocusWithinRadioGroup}
+                  >
+                    {CONSOLE_TEXT_SIZES.map((size, index) => (
+                      <button
+                        key={size}
+                        type="button"
+                        role="radio"
+                        aria-checked={consolePreferences.textSize === size}
+                        tabIndex={isRadioTabStop(consolePreferences.textSize === size, true, index) ? 0 : -1}
+                        className={`segmented-control__option${consolePreferences.textSize === size ? " segmented-control__option--active" : ""}`}
+                        onClick={() => setConsolePreferences((previous) => ({ ...previous, textSize: size }))}
+                      >
+                        {t.consoleSettingsTextSizes[size]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>
@@ -1811,10 +2083,16 @@ export function SettingsPanel({
               </header>
               <div className="settings-group__body">
                 {lineEndings === null ? (
-                  <p className="settings-row__hint">
-                    <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                    <span>{t.settingsGeneralChecking}</span>
-                  </p>
+                  /* The choices' own list, one option per choice, with the
+                     label and its sentence as placeholders until Git answers. */
+                  <LoadingPlaceholder label={t.settingsGeneralChecking} className="choice-list">
+                    {LINE_ENDING_CHOICES.map((choice, index) => (
+                      <span key={choice} className="choice-list__option">
+                        <span className="choice-list__label"><TextPlaceholder width={["38%", "46%", "32%"][index % 3]} /></span>
+                        <span className="choice-list__description"><TextPlaceholder width={["82%", "70%", "76%"][index % 3]} /></span>
+                      </span>
+                    ))}
+                  </LoadingPlaceholder>
                 ) : (
                   <>
                     {/* Each option is a full sentence about what happens to
@@ -1899,31 +2177,5 @@ export function SettingsPanel({
         {activeSection === "updates" && applicationUpdates}
       </div>
     </div>
-  );
-}
-
-/** A labelled on/off switch. Private to this panel: it is the only surface with
- * true/false preferences, and `.toggle-switch` in `primitives.css` is the part
- * that was ever worth sharing. */
-function ToggleSwitch({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className={`toggle-switch${checked ? " toggle-switch--on" : ""}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="toggle-switch__knob" />
-    </button>
   );
 }

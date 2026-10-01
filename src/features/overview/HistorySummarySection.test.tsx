@@ -69,6 +69,7 @@ function renderSection(
   controller: ReturnType<typeof createHistoryController>,
   onOpenHistory = vi.fn(),
   isRefreshing = false,
+  selfEmail: string | null = null,
 ) {
   const lifecycle = createScreenLifecycleController("active");
   return {
@@ -82,6 +83,7 @@ function renderSection(
             sessionEpoch={query.sessionEpoch}
             isRefreshing={isRefreshing}
             onOpenHistory={onOpenHistory}
+            selfEmail={selfEmail}
           />
         </ScreenLifecycleProvider>
       </LanguageProvider>,
@@ -102,12 +104,14 @@ describe("HistorySummarySection", () => {
 
     expect(screen.getByRole("heading", { name: "Recent history" })).toBeInTheDocument();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
-    expect(screen.queryByText("Published")).not.toBeInTheDocument();
+    // No label row splits the list: the unpublished rows mark themselves.
+    expect(screen.getByText("Your latest saved versions, newest first.")).toBeInTheDocument();
+    expect(screen.queryByText(/only on this computer/i)).toBeNull();
     expect(screen.queryByText(version(2).shortCommit)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Open “Saved version 1” in history" }));
+    await user.click(screen.getByRole("button", { name: "Open “Saved version 1” in History" }));
 
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
     expect(onOpenHistory).toHaveBeenCalledOnce();
@@ -127,19 +131,116 @@ describe("HistorySummarySection", () => {
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
     const badge = rows[0].querySelector(".history-ref-badge");
-    expect(badge).toHaveTextContent("main");
+    // The line being stood on is called "current": the header names it.
+    expect(badge).toHaveTextContent("current");
+    expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
     expect(badge).toHaveClass("history-ref-badge--current");
-    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in history — Version line main");
+    // Version 2 is still only on this computer, and the label says so last.
+    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in History — Version line main — Not published");
     expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
-    expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in history");
+    expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
 
-    // Author, reference, time — the same order the History timeline uses.
+    // The unpublished mark leads, then author, reference, time — the same
+    // order the History timeline uses.
     const order = (row: HTMLElement): string[] =>
       [...row.querySelectorAll<HTMLElement>(".overview-history__meta > *")].map((element) => element.className.split(" ")[0]);
     expect(order(rows[0])).toEqual([
-      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
+      "state-glyph", "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
     ]);
     expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
+  });
+
+  it("leaves the current line's copy on the remote unbadged, keeping other lines' names", async () => {
+    const trackingRef = "refs/remotes/origin/main";
+    const upstreamTip: SavedVersionSummary = {
+      ...version(1),
+      decorations: [{ kind: "remoteBranch", name: "origin/main", fullRef: trackingRef }],
+    };
+    const other: SavedVersionSummary = {
+      ...version(3),
+      publication: "published",
+      decorations: [{ kind: "remoteBranch", name: "origin/feature", fullRef: "refs/remotes/origin/feature" }],
+    };
+    const upstream = { remote: "origin", destinationBranch: "main", trackingRef, commit: upstreamTip.commit };
+    const controller = createHistoryController(port(vi.fn(async () => ({ ...page([other, version(2), upstreamTip]), upstream }))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
+    expect(rows[0].querySelector(".history-ref-badge")).toHaveTextContent("origin/feature");
+    expect(rows[2].querySelector(".history-ref-badge")).toBeNull();
+    expect(rows[2].querySelector(".history-meta-dot + .history-meta-dot")).toBeNull();
+    expect(rows[2].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
+  });
+
+  it("marks unpublished versions and offers to publish up to one of them", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
+    await controller.refresh(query);
+    const onPublishUpTo = vi.fn();
+    const lifecycle = createScreenLifecycleController("active");
+    render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <HistorySummarySection
+            controller={controller}
+            projectPath={query.projectId}
+            sessionEpoch={query.sessionEpoch}
+            canPublish
+            onOpenHistory={vi.fn()}
+            onPublishUpTo={onPublishUpTo}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
+
+    // Only the local-only row carries the mark and the action; the
+    // published one below it has neither.
+    expect(screen.queryByText("Not published")).toBeNull();
+    const publish = screen.getByRole("button", { name: "Publish up to here: Saved version 2" });
+    await userEvent.click(publish);
+    expect(onPublishUpTo).toHaveBeenCalledWith(version(2).commit);
+    expect(screen.queryByRole("button", { name: /Publish up to here: Saved version 1/ })).toBeNull();
+  });
+
+  it("marks each unpublished version with History's laptop glyph and no label rows", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(3), version(2), version(1)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    const items = [...container.querySelectorAll<HTMLElement>(".overview-history__list > li")];
+    expect(items).toHaveLength(3);
+    const glyphs = items.map((item) => item.querySelector(".overview-history__meta .state-glyph"));
+    expect(glyphs.map((glyph) => glyph !== null)).toEqual([true, true, false]);
+    expect(glyphs[0]).toHaveAttribute("data-tooltip", "Saved locally — not published yet, so it's only on this computer");
+  });
+
+  it("keeps the publish hand-off off the rows when publishing is not possible", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
+    await controller.refresh(query);
+    renderSection(controller);
+
+    expect(screen.queryByRole("button", { name: /Publish up to here/ })).toBeNull();
+  });
+
+  it("says You for versions saved under the user's own identity, keeping the name one hover away", async () => {
+    const theirs: SavedVersionSummary = { ...version(1), author: { name: "Ada", email: "ada@example.com" } };
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), theirs]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller, vi.fn(), false, "Author@Example.com");
+
+    const authors = container.querySelectorAll<HTMLElement>(".overview-history__author");
+    expect(authors[0]).toHaveTextContent("You");
+    expect(authors[0]).toHaveAttribute("title", "Lin");
+    expect(authors[1]).toHaveTextContent("Ada");
+  });
+
+  it("marks nothing when every recent version is published", async () => {
+    const published = (index: number): SavedVersionSummary => ({ ...version(index), publication: "published" });
+    const controller = createHistoryController(port(vi.fn(async () => page([published(2), published(1)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    expect(container.querySelector(".state-glyph")).toBeNull();
   });
 
   it("shows a truthful empty state after history has loaded", async () => {

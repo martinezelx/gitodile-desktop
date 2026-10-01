@@ -68,3 +68,61 @@ export type CommitFileChange = {
   originalPath: string | null;
   category: ChangeCategory;
 };
+
+/** What the publish dialog can say before the remote has been checked: the
+ * parts of a `PublishPlan` its summary draws. A fresh `PublishPlan` is one;
+ * so is `previewFromPendingVersions`'s answer, read from what the session
+ * already holds. */
+export type PublishPreview = Pick<
+  PublishPlan,
+  "target" | "commitCount" | "commitSummary" | "remainingAfterPublish" | "hasUnsavedFiles"
+>;
+
+/** A first answer for the publish dialog from the session's cached pending
+ * list, shown while the fresh plan's fetch is out. It reflects the remote as
+ * of the last fetch, so it is only ever a preview: the dialog holds Publish
+ * back until the fresh plan replaces it, and that plan decides.
+ *
+ * `null` whenever the cache can't stand for the plan:
+ * - no upstream — the pending list then counts every local version, and the
+ *   destination isn't known until Rust resolves the remote;
+ * - nothing pending, or the list failed;
+ * - `upTo` names a version the list doesn't hold. */
+export function previewFromPendingVersions({
+  pending,
+  pendingError,
+  upstream,
+  hasUnsavedFiles,
+  upTo,
+}: {
+  pending: PendingVersionsResult;
+  pendingError: string | null;
+  /** `remote/branch`, as `git status` reports the tracked branch. */
+  upstream: string | null;
+  hasUnsavedFiles: boolean;
+  upTo?: string;
+}): PublishPreview | null {
+  if (pendingError || !upstream || pending.totalCount === 0 || pending.versions.length === 0) {
+    return null;
+  }
+  const separator = upstream.indexOf("/");
+  if (separator <= 0 || separator === upstream.length - 1) {
+    return null;
+  }
+  const target = {
+    remote: upstream.slice(0, separator),
+    destinationBranch: upstream.slice(separator + 1),
+  };
+  // Newest first: everything before the checkpoint stays unpublished.
+  const start = upTo === undefined ? 0 : pending.versions.findIndex((version) => version.commit === upTo);
+  if (start < 0) {
+    return null;
+  }
+  return {
+    target,
+    commitCount: pending.totalCount - start,
+    commitSummary: pending.versions.slice(start),
+    remainingAfterPublish: start,
+    hasUnsavedFiles,
+  };
+}

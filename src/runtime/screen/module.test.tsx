@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LayoutDashboard } from "lucide-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,9 +7,12 @@ import { createProjectRuntime } from "../project/runtime";
 import type { RepositoryInfo } from "../../features/repository";
 import { KeepAliveScreens } from "../../app/screens";
 import {
+  KeepAliveViewSlot,
   createEagerScreenContainer,
   createLazyScreenContainer,
+  createScreenLifecycleController,
   defineScreenModules,
+  ScreenLifecycleProvider,
   type ScreenModule,
 } from "./module";
 import { RuntimeTestScreen } from "../../test-fixtures/runtimeTestScreen";
@@ -107,7 +110,7 @@ describe("ScreenModule runtime", () => {
     const testScreen = <RuntimeTestScreen runtime={runtime} onRender={onRender} onPoll={onPoll} />;
 
     const { rerender } = render(
-      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     const originalNode = screen.getByRole("region", { name: "Runtime test screen" });
     const activeRenders = onRender.mock.calls.length;
@@ -119,7 +122,7 @@ describe("ScreenModule runtime", () => {
     expect(onPoll).toHaveBeenCalled();
 
     rerender(
-      <KeepAliveScreens key="epoch:/a" active="changes" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="workbench" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     const hiddenSlot = originalNode.closest(".screen-slot");
     expect(hiddenSlot).toHaveAttribute("hidden");
@@ -135,17 +138,96 @@ describe("ScreenModule runtime", () => {
     expect(onPoll).toHaveBeenCalledTimes(hiddenPolls);
 
     rerender(
-      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/a" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     expect(screen.getByText("Project /c")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Runtime test screen" })).toBe(originalNode);
     expect(screen.getByRole("button", { name: "Local 1" })).toBeInTheDocument();
 
     rerender(
-      <KeepAliveScreens key="epoch:/b" active="overview" screens={{ overview: testScreen, changes: <p>Other</p> }} />,
+      <KeepAliveScreens key="epoch:/b" active="overview" screens={{ overview: testScreen, workbench: <p>Other</p> }} />,
     );
     expect(screen.getByRole("region", { name: "Runtime test screen" })).not.toBe(originalNode);
     expect(screen.getByRole("button", { name: "Local 0" })).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("retains Home across project epochs while evicting project screens", () => {
+    function Counter({ label }: { label: string }): React.JSX.Element {
+      const [count, setCount] = useState(0);
+      return <button type="button" onClick={() => setCount((value) => value + 1)}>{label} {count}</button>;
+    }
+    const screens = { home: <Counter label="Home" />, overview: <Counter label="Overview" /> };
+    const { rerender } = render(
+      <KeepAliveScreens projectEpoch="epoch:/a" active="home" screens={screens} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Home 0" }));
+    rerender(<KeepAliveScreens projectEpoch="epoch:/a" active="overview" screens={screens} />);
+    fireEvent.click(screen.getByRole("button", { name: "Overview 0" }));
+    rerender(<KeepAliveScreens projectEpoch="epoch:/b" active="home" screens={screens} />);
+    expect(screen.getByRole("button", { name: "Home 1" })).toBeInTheDocument();
+    rerender(<KeepAliveScreens projectEpoch="epoch:/b" active="overview" screens={screens} />);
+    expect(screen.getByRole("button", { name: "Overview 0" })).toBeInTheDocument();
+  });
+
+  it("keeps a hidden view alive under a lifecycle derived from its screen's", () => {
+    // The Work screen's two tabs are the same problem as two screens: the
+    // one not showing must keep its DOM, stop polling and announcing, and
+    // resume on return — and it must also go quiet when the *screen* around
+    // it is hidden, even while it is the shown tab.
+    vi.useFakeTimers();
+    const runtime = createProjectRuntime();
+    runtime.dispatch({ type: "open", project: makeProject("/a") });
+    const onRender = vi.fn();
+    const onPoll = vi.fn();
+    const screenLifecycle = createScreenLifecycleController("active");
+    const view = (active: "one" | "two") => (
+      <ScreenLifecycleProvider controller={screenLifecycle}>
+        <KeepAliveViewSlot className="view" isActive={active === "one"}>
+          <RuntimeTestScreen runtime={runtime} onRender={onRender} onPoll={onPoll} />
+        </KeepAliveViewSlot>
+        <KeepAliveViewSlot className="view" isActive={active === "two"}>
+          <p>Other</p>
+        </KeepAliveViewSlot>
+      </ScreenLifecycleProvider>
+    );
+
+    const { rerender } = render(view("one"));
+    const node = screen.getByRole("region", { name: "Runtime test screen" });
+    // The other view is not mounted until first shown.
+    expect(screen.queryByText("Other")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Local 0" }));
+    act(() => vi.advanceTimersByTime(50));
+    expect(onPoll).toHaveBeenCalled();
+
+    rerender(view("two"));
+    const hiddenSlot = node.closest(".view");
+    expect(hiddenSlot).toHaveAttribute("hidden");
+    expect(hiddenSlot).toHaveAttribute("inert");
+    expect(screen.getByText("Other")).toBeInTheDocument();
+    const hiddenRenders = onRender.mock.calls.length;
+    const hiddenPolls = onPoll.mock.calls.length;
+    act(() => {
+      runtime.dispatch({ type: "open", project: makeProject("/c") });
+      vi.advanceTimersByTime(100);
+    });
+    expect(onRender).toHaveBeenCalledTimes(hiddenRenders);
+    expect(onPoll).toHaveBeenCalledTimes(hiddenPolls);
+
+    rerender(view("one"));
+    expect(screen.getByRole("region", { name: "Runtime test screen" })).toBe(node);
+    expect(screen.getByRole("button", { name: "Local 1" })).toBeInTheDocument();
+    expect(screen.getByText("Project /c")).toBeInTheDocument();
+    expect(screen.getByText("Other").closest(".view")).toHaveAttribute("hidden");
+
+    // The shown tab of a hidden screen is hidden too.
+    act(() => screenLifecycle.transition("hidden"));
+    const screenHiddenPolls = onPoll.mock.calls.length;
+    act(() => vi.advanceTimersByTime(100));
+    expect(onPoll).toHaveBeenCalledTimes(screenHiddenPolls);
+    act(() => screenLifecycle.transition("active"));
+    act(() => vi.advanceTimersByTime(50));
+    expect(onPoll.mock.calls.length).toBeGreaterThan(screenHiddenPolls);
     vi.useRealTimers();
   });
 });

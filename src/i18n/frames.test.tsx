@@ -6,7 +6,7 @@ function FirstFrameCopy(): React.JSX.Element {
   const { language, t } = useLanguage();
   return (
     <output data-testid="first-frame">
-      {language}|{t.navOverview}|{t.changesHeading}|{t.versionLinesTitle}
+      {language}|{t.navOverview}|{t.workbenchTabChanges}|{t.versionLinesTitle}
     </output>
   );
 }

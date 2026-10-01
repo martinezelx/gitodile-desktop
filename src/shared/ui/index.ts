@@ -15,11 +15,30 @@
  * barrel.
  */
 export { autoHideScrollbarProps } from "./autoHideScrollbar";
+/* ADR 0003's two-consumer bar: About and the no-project welcome screen both
+   show the mascot, with the same themed fill; each picks its glasses motion. */
+export { Mascot, type MascotMotion, type MascotProps } from "./mascot";
+/* ADR 0003's two-consumer bar: the Changes file list and the History timeline
+   both needed to animate a row that arrives while the screen is open without
+   animating the list the screen opens with. */
+export { useRowArrival } from "./rowArrival";
 export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
+/* ADR 0003's two-consumer bar, passed many times over: every list, sentence
+   and form that waits on a first Git read — Overview, Changes, History, the
+   version lines, Publish, project settings — draws its shape with these. */
+export { LoadingPlaceholder, TextPlaceholder } from "./loadingPlaceholder";
 export { SearchBox } from "./searchBox";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
+/* DESIGN.md § Dialogs: every action dialog (create, clone, save, publish, get
+   changes, discard, the version-line dialogs, updates, the app's messages and
+   the issue report) wears this one shell, so sizes, header and actions can't
+   drift apart again the way seven widths and four paddings once did. */
+export { Dialog, DialogBanner, DialogFacts, type DialogFact, type DialogProps, type DialogSize, type DialogTone } from "./dialog";
+/* The same dialogs' results with no next step: a toast, not a dialog to
+   dismiss. The app shell mounts the provider once. */
+export { ToastProvider, useToast, type ToastRequest } from "./toast";
 export { moveFocusWithinRadioGroup } from "./radioGroup";
 export { AutomaticUpdatesNotice } from "./automaticUpdatesNotice";
 export { useFieldErrors, FieldError } from "./fieldErrors";
@@ -56,8 +75,62 @@ export { copyTextToClipboard } from "./clipboard";
    scroll-position correction when the box's own size changes. What is
    shared is the correction; the fields either box holds never were. */
 export { useScrollAnchoredResize, type ScrollAnchor } from "./scrollAnchoredResize";
+/* ADR 0003's two-consumer bar, by the same two boxes: when a docked compose
+   box opens and folds — never under the pointer, never because the window
+   lost focus — is one rule, and two copies of it had already drifted. */
+export { useDockedComposerFocus, type DockedComposerFocusHandlers } from "./dockedComposer";
 export { isReducedMotionRequested } from "./motionPreference";
+/* ADR 0003's two-consumer bar (task 125): Settings' preference rows authored
+   the switch, and the notification panel's "turn them back on" needs the same
+   control bound to the same preference. A caller that only reused the class
+   name would be free to drop `role="switch"`/`aria-checked`, so the component
+   moves up. */
+export { ToggleSwitch } from "./toggleSwitch";
 /* ADR 0003's two-consumer bar: the project switcher had this to itself until
    the welcome screen's recent-projects list needed the same identity — same
    colour, same initials, for the same project. */
 export { avatarColorVar, avatarInitials } from "./projectAvatar";
+/* Task 130: the same identity, now topping out at a chosen emoji or a detected
+   technology before it reaches the initials. One component keeps the five
+   avatar call sites from re-deriving the precedence and the artwork. */
+export { ProjectAvatar, type ProjectAvatarProps } from "./projectAvatarView";
+export {
+  DEFAULT_PROJECT_AVATAR_STYLE,
+  isProjectAvatarStyle,
+  isTechnologyId,
+  PROJECT_ICON_INITIALS,
+  resolveProjectIdentity,
+  sanitizeEmoji,
+  PROJECT_AVATAR_STYLES,
+  PROJECT_ICON_EMOJIS,
+  TECHNOLOGY_IDS,
+  TECHNOLOGY_LABELS,
+  type ProjectAvatarStyle,
+  type ProjectIconChoice,
+  type ProjectIdentity,
+  type ProjectTechnology,
+  type TechnologyId,
+  type TechnologySource,
+} from "./projectIdentity";
+/* ADR 0003's two-consumer bar: the status bar, About, the changelog and the
+   update dialog all mark a preview build beside its version, and had drifted
+   into three pill recipes — two of them naming classes no sheet defined. */
+/* ADR 0003's two-consumer bar: What's new lists the bundled releases'
+   highlights and the update dialog lists the offered release's, from the
+   feed. Both say the same thing about a version, so both draw it one way. */
+export {
+  HIGHLIGHT_ICONS,
+  ReleaseHighlights,
+  type HighlightIcon,
+  type ReleaseHighlightLine,
+} from "./releaseHighlights";
+/* ADR 0003's two-consumer bar: the Lines rows drew their states as glyphs
+   first, and the History timeline needed the same vocabulary for whether a
+   version has left the machine — two glyph recipes for one idea would drift
+   the way the preview pills did. The glyphs are shared; which states a row
+   flags stays with the screen that knows its rows. */
+export { StateGlyph, StateGlyphs, type StateGlyphTone } from "./stateGlyph";
+/* ADR 0003's two-consumer bar, passed by three: the app keeps a render error
+   in the screen it happened in, the Work screen in the tab it happened in,
+   and the root in a window that can still be reloaded — all with one notice. */
+export { ErrorBoundary, ViewErrorNotice, type ViewErrorLabels } from "./errorBoundary";
