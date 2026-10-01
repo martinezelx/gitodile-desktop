@@ -139,6 +139,44 @@ function versionOnLine(index: number, name: string): SavedVersionSummary {
 afterEach(cleanup);
 
 describe("HistoryPanel", () => {
+  it("keeps the same tab nodes through every state a refresh moves it between", () => {
+    // A refresh takes this panel through its states on its own. Each state
+    // used to draw a frame of its own, which rebuilt the tabs: a press that
+    // straddled the change landed on a detached button and was lost.
+    const historyController = controller();
+    const panel = (historyState: HistoryState, error: string | null = null) => (
+      <LanguageProvider>
+        <HistoryPanel
+          tabs={TABS}
+          controller={historyController}
+          query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={historyState}
+          watcherState="watching"
+          onOpenSettings={() => {}}
+          error={error}
+        />
+      </LanguageProvider>
+    );
+    const unread = state(0, { snapshot: null, versions: [], selectedCommit: null });
+    const { rerender } = render(panel(unread));
+    const tabs = screen.getByRole("tablist", { name: "Changes or history" });
+
+    const sequence: [string, HistoryState, string | null][] = [
+      ["first page loading", { ...unread, isLoading: true }, null],
+      ["first page failed", unread, "Couldn't read history"],
+      ["loading again", { ...unread, isLoading: true }, null],
+      ["loaded", state(3), null],
+      ["refreshing over the rows", state(3, { isLoading: true }), null],
+      ["no saved versions", state(0), null],
+      ["loaded again", state(2), null],
+    ];
+    for (const [label, historyState, error] of sequence) {
+      rerender(panel(historyState, error));
+      expect(screen.getByRole("tablist", { name: "Changes or history" }), label).toBe(tabs);
+      expect(tabs.isConnected, label).toBe(true);
+    }
+  });
+
   it("shows the empty, initial-loading, and cached-error states truthfully", () => {
     const first = renderPanel(state(0));
     expect(screen.getByText("No saved versions yet")).toBeInTheDocument();

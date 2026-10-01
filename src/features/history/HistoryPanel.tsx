@@ -327,8 +327,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
 const ROW_HEIGHT = 64;
 const BOUNDARY_HEIGHT = 26;
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, selectedCommit, publishedTo, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  tabs: React.ReactNode; versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, publishedTo, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -411,13 +411,10 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, se
     virtualizer.scrollToIndex(index, { align: "auto" });
     requestAnimationFrame(() => document.getElementById(`history-version-${version.commit}`)?.focus());
   }, [onSelect, versions, virtualizer]);
+  // The panel around these rows, and its header with the Work screen's tabs,
+  // belong to `HistoryPanel`: they are the same nodes in every state it has.
   return (
-    <section className="history-timeline" aria-label={t.historyTimelineAriaLabel} aria-busy={isLoading || undefined}>
-      {/* The panel is the card, and its header is the Work screen's tab pair
-          (task 126) — the row the screen's name used to fill, in the shape
-          the Changes list panel wears, so this panel and the detail card
-          beside it start on the same pixel row. */}
-      <header className="history-timeline__header">{tabs}</header>
+    <>
       {/* One strip, the way the Changes file list has one. Searching and
           filtering answer the same question, so they share a row; it steps down
           a size from the header above it, as an inner strip should. */}
@@ -490,7 +487,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ tabs, versions, se
           {hasMore && !clientTruncated && (isLoadingMore ? <div className="history-timeline__loading-more"><LoadingBar label={t.historyLoadingMore} showLabel /></div> : <button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyLoadMore}</button>)}
         </div>
       </div>
-    </section>
+    </>
   );
 });
 
@@ -1495,41 +1492,62 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
   const openNarrowDetail = useCallback(() => setShowNarrowDetail(true), []);
   const closeNarrowDetail = useCallback(() => setShowNarrowDetail(false), []);
 
-  // The states with no timeline to draw keep the timeline panel's shape —
-  // the tabs, and a strip saying what the panel is waiting on — and put the
-  // state block in the detail panel, where the card would be: the tabs stay at
-  // the list column's width rather than stretching over a card with no list.
-  const statePanel = (strip: React.ReactNode, block: React.ReactNode): React.JSX.Element => (
-    <div className="history-screen">
-      <div className="history-layout history-layout--state">
-        <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
+  // Every state draws the same frame, so the timeline panel and its header —
+  // the Work screen's tab pair — are the same nodes whichever state is
+  // showing. A refresh moves this panel between states on its own (loading,
+  // failed, loaded), and a frame per state rebuilt the tabs each time: a
+  // press that straddled one landed on a detached button and was lost, and
+  // focus on a tab fell to the body. The notices hold their slot as `null`
+  // where a state has none, so the layout after them keeps its position too.
+  const frame = ({ notices = null, isState, isBusy = false, isNarrowDetail = false, timeline = null, detail }: {
+    notices?: React.ReactNode;
+    /** No timeline to draw: the state block goes in the detail panel, where
+     * the card would be, so the tabs stay at the list column's width rather
+     * than stretching over a card with no list. */
+    isState: boolean;
+    isBusy?: boolean;
+    /** The one-column layout is showing a version's card in place of the
+     * timeline. Only the loaded timeline has a card to open, and a state
+     * frame must never hide its tabs. */
+    isNarrowDetail?: boolean;
+    /** The panel's body under its header. */
+    timeline?: React.ReactNode;
+    detail: React.ReactNode;
+  }): React.JSX.Element => (
+    <div className={`history-screen${isNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
+      {notices}
+      {/* The panels start at the top of the workspace: the title lives in the
+          timeline panel's own header and the version strip heads the card, so
+          no page row sits above either. */}
+      <div className={`history-layout${isState ? " history-layout--state" : ""}`}>
+        <section className="history-timeline" aria-label={t.historyTimelineAriaLabel} aria-busy={isBusy || undefined}>
+          {/* The panel is the card, and its header is the Work screen's tab
+              pair (task 126) — the row the screen's name used to fill, in the
+              shape the Changes list panel wears, so this panel and the detail
+              card beside it start on the same pixel row. */}
           <header className="history-timeline__header">{tabs}</header>
-          {strip}
+          {timeline}
         </section>
-        <section className="history-detail history-detail--state">{block}</section>
+        {detail}
       </div>
     </div>
   );
   // The first page draws the timeline's and the detail's shapes in their own
   // places, so the versions land in a column that was waiting for them.
-  if (!state.snapshot && state.isLoading) return (
-    <div className="history-screen">
-      <div className="history-layout">
-        <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
-          <header className="history-timeline__header">{tabs}</header>
-          <TimelinePlaceholder label={t.historyLoading} />
-        </section>
-        <section className="history-detail history-detail--loading">
-          <div className="history-detail__loading-title"><h2><TextPlaceholder width="52%" /></h2></div>
-          <DetailPlaceholder />
-        </section>
-      </div>
-    </div>
-  );
-  if (!state.snapshot && error) return statePanel(
-    null,
-    <div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h2>{t.historyErrorTitle}</h2><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div>,
-  );
+  if (!state.snapshot && state.isLoading) return frame({
+    isState: false,
+    timeline: <TimelinePlaceholder label={t.historyLoading} />,
+    detail: (
+      <section className="history-detail history-detail--loading">
+        <div className="history-detail__loading-title"><h2><TextPlaceholder width="52%" /></h2></div>
+        <DetailPlaceholder />
+      </section>
+    ),
+  });
+  if (!state.snapshot && error) return frame({
+    isState: true,
+    detail: <section className="history-detail history-detail--state"><div className="empty-state empty-state--error" role="alert"><div className="empty-state__icon" aria-hidden="true"><CircleAlert /></div><h2>{t.historyErrorTitle}</h2><p>{error}</p><div className="empty-state__actions"><button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button></div></div></section>,
+  });
   // "No saved versions yet" is a fact about the repository, and one this
   // screen may only state when it is not in the middle of asking. A filter
   // that matches nothing is a fact about the filter and belongs in the list
@@ -1541,38 +1559,36 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
   // loading clause it swallowed it again on Clear all — the filters are off by
   // then, and the empty list still on screen is the answer to the question
   // that was just retired.
-  if (state.snapshot && state.versions.length === 0 && !filtersActive && state.scope.kind === "currentLine" && !state.isLoading) return <div className="history-screen">
-    <div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div>
-    <div className="history-layout history-layout--state">
-      <section className="history-timeline" aria-label={t.historyTimelineAriaLabel}>
-        <header className="history-timeline__header">{tabs}</header>
-      </section>
+  if (state.snapshot && state.versions.length === 0 && !filtersActive && state.scope.kind === "currentLine" && !state.isLoading) return frame({
+    notices: <div className="history-notices"><HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} /></div>,
+    isState: true,
+    detail: (
       <section className="history-detail history-detail--state">
         <div className="empty-state"><div className="empty-state__icon" aria-hidden="true"><GitCommitHorizontal /></div><h2>{t.historyNoVersionsTitle}</h2><p>{t.historyNoVersionsDescription}</p></div>
       </section>
-    </div>
-  </div>;
+    ),
+  });
 
-  return <div className={`history-screen${showNarrowDetail ? " history-screen--narrow-detail" : ""}`}>
-    <div className="history-notices">
-      <HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} />
-      {state.staleNotice && <HistoryBanner tone="neutral" title={t.historyStaleNotice}>{t.historyLoadedCount(state.versions.length)}</HistoryBanner>}
-      {state.snapshot && error && <HistoryBanner tone="danger" title={t.historyErrorTitle} action={<button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button>}>{error}</HistoryBanner>}
-      {state.selectionRemoved && <p className="history-announcement" role="status">{t.historySelectionRemoved}</p>}
-      {state.snapshot?.shallow && <HistoryBanner tone="warning" title={t.historyShallowTitle}>{t.historyShallowDescription}</HistoryBanner>}
-      {state.snapshot?.headState === "detached" && <HistoryBanner tone="warning" title={t.historyDetachedTitle}>{t.historyDetachedDescription}</HistoryBanner>}
-      {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
-      {warnings.includes("linesTruncated") && <p className="history-meta-warning" role="status">{t.historyLinesTruncated}</p>}
-      {warnings.includes("unreadableMetadata") && <p className="history-meta-warning" role="status">{t.historyUnreadableMetadata}</p>}
-      {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
-      {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
-    </div>
-    {/* The panels start at the top of the workspace: the title lives in the
-        timeline panel's own header and the version strip heads the card, so no
-        page row sits above either. */}
-    <div className="history-layout">
-      <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} tabs={tabs} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />
-      <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />
-    </div>
-  </div>;
+  return frame({
+    notices: (
+      <div className="history-notices">
+        <HistoryWatchingNotice watcherState={watcherState} busy={state.isLoading} onRefresh={refreshHistory} onOpenSettings={onOpenSettings} />
+        {state.staleNotice && <HistoryBanner tone="neutral" title={t.historyStaleNotice}>{t.historyLoadedCount(state.versions.length)}</HistoryBanner>}
+        {state.snapshot && error && <HistoryBanner tone="danger" title={t.historyErrorTitle} action={<button className="secondary-button" type="button" onClick={refreshHistory}>{t.historyRetry}</button>}>{error}</HistoryBanner>}
+        {state.selectionRemoved && <p className="history-announcement" role="status">{t.historySelectionRemoved}</p>}
+        {state.snapshot?.shallow && <HistoryBanner tone="warning" title={t.historyShallowTitle}>{t.historyShallowDescription}</HistoryBanner>}
+        {state.snapshot?.headState === "detached" && <HistoryBanner tone="warning" title={t.historyDetachedTitle}>{t.historyDetachedDescription}</HistoryBanner>}
+        {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
+        {warnings.includes("linesTruncated") && <p className="history-meta-warning" role="status">{t.historyLinesTruncated}</p>}
+        {warnings.includes("unreadableMetadata") && <p className="history-meta-warning" role="status">{t.historyUnreadableMetadata}</p>}
+        {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
+        {state.clientTruncated && <p className="history-meta-warning" role="status">{t.historyClientLimit(formatNumber(MAX_HISTORY_ROWS, formats))}</p>}
+      </div>
+    ),
+    isState: false,
+    isBusy: state.isLoading,
+    isNarrowDetail: showNarrowDetail,
+    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
+    detail: <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />,
+  });
 }
