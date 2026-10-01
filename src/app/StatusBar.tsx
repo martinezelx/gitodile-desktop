@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  CircleArrowUp,
   Cloud,
   CloudAlert,
   CloudCheck,
@@ -7,12 +8,15 @@ import {
   FolderClosed,
   FolderGit2,
   LoaderCircle,
+  RotateCcw,
   RotateCw,
   Settings,
+  Sparkles,
 } from "lucide-react";
 
-import { useLanguage, type Translations } from "../i18n";
+import { useLanguage, type Language, type Translations } from "../i18n";
 import { formatDate, formatRelativeCheckTime, type LocaleFormats } from "../shared/i18n";
+import { appUpdateTranslations, type UpdateState } from "../features/app-updates";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
@@ -47,6 +51,12 @@ export type StatusBarProps = {
    * status bar's remote fact doubles as the shortcut to publishing it. */
   onPublish: () => void;
   onOpenChangelog: () => void;
+  /** The updater's state. The release tag stays quiet while there is nothing
+   * to do and becomes the way to the update when there is. */
+  appUpdate?: UpdateState;
+  /** From a confirmed update until the reader opens the changelog. */
+  hasUnseenWhatsNew?: boolean;
+  onOpenAppUpdate?: () => void;
 };
 
 function useStatusBarClock(): number {
@@ -142,6 +152,138 @@ function teamTone(state: TeamSyncViewState): "success" | "warning" | "neutral" {
   }
 }
 
+/** The house mark beside the version: the mascot's back, three saved versions
+ * along one line. It is drawn in the strip's ink, never a colour of its own,
+ * so the tag gains a glyph like every other fact without adding a signal. */
+function ReleaseMark({ busy = false }: { busy?: boolean }): React.JSX.Element {
+  return (
+    <svg
+      className={`status-bar__release-mark${busy ? " status-bar__release-mark--busy" : ""}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 18.5C9 17 15 12 20 5" strokeWidth="1.8" />
+      <circle cx="4.5" cy="18.3" r="2.3" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="13.2" r="2.3" fill="currentColor" stroke="none" />
+      <circle cx="19.3" cy="6" r="2.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const RING_RADIUS = 9;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
+function ProgressRing({ fraction }: { fraction: number }): React.JSX.Element {
+  return (
+    <svg className="status-bar__release-ring" viewBox="0 0 24 24" aria-hidden="true">
+      <circle className="status-bar__release-ring-track" cx="12" cy="12" r={RING_RADIUS} />
+      <circle
+        className="status-bar__release-ring-bar"
+        cx="12"
+        cy="12"
+        r={RING_RADIUS}
+        strokeDasharray={RING_LENGTH}
+        strokeDashoffset={RING_LENGTH * (1 - Math.min(1, Math.max(0, fraction)))}
+      />
+    </svg>
+  );
+}
+
+type ReleaseTag = {
+  /** `action` wears the warning pill: a state the reader should act on. */
+  variant: "quiet" | "action";
+  mark: React.ReactNode;
+  /** Replaces the version text; only an action names its state on the strip. */
+  label: string | null;
+  description: string;
+  target: "changelog" | "update";
+};
+
+/** What the release tag says. At rest it is the version and the changelog; a
+ * state to act on (a new version, one ready to install, one that can't install
+ * yet) takes the tag over in the words About and the rail use, and leads to the
+ * update dialog. A download in flight shows its progress without moving the
+ * strip. The notification centre announces an update once; this is where it
+ * stays until it is resolved, with no count of its own. */
+function releaseTag(
+  update: UpdateState | undefined,
+  hasUnseenWhatsNew: boolean,
+  language: Language,
+  t: Translations,
+): ReleaseTag {
+  const version = CURRENT_APP_RELEASE.version;
+  const changelog = t.statusBarOpenChangelog(version);
+  const ut = appUpdateTranslations(language);
+  switch (update?.kind) {
+    case "available": {
+      const label = ut.available(update.candidate.version);
+      return {
+        variant: "action",
+        mark: <CircleArrowUp aria-hidden="true" />,
+        label,
+        description: `${label} · ${t.statusBarOpenUpdates}`,
+        target: "update",
+      };
+    }
+    case "ready":
+      return {
+        variant: "action",
+        mark: <RotateCcw aria-hidden="true" />,
+        label: ut.ready,
+        description: `${ut.ready} · ${ut.available(update.candidate.version)}`,
+        target: "update",
+      };
+    case "blocked":
+      return {
+        variant: "action",
+        mark: <CircleArrowUp aria-hidden="true" />,
+        label: ut.status.blocked,
+        description: `${ut.status.blocked} · ${t.statusBarOpenUpdates}`,
+        target: "update",
+      };
+    case "downloading": {
+      const { transfer } = update;
+      const fraction = transfer.length === "known" && transfer.totalBytes > 0
+        ? Math.min(1, transfer.receivedBytes / transfer.totalBytes)
+        : null;
+      const title = ut.titleDownloading(update.candidate.version);
+      return {
+        variant: "quiet",
+        mark: fraction === null
+          ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
+          : <ProgressRing fraction={fraction} />,
+        label: null,
+        description: fraction === null ? title : `${title} · ${Math.floor(fraction * 100)}%`,
+        target: "update",
+      };
+    }
+    case "verifying":
+      return { variant: "quiet", mark: <ProgressRing fraction={1} />, label: null, description: ut.verifying, target: "update" };
+    case "checking":
+      return { variant: "quiet", mark: <ReleaseMark busy />, label: null, description: `${changelog} · ${ut.checking}`, target: "changelog" };
+    case "unavailable":
+      // A lasting fact of this build (a development build, an installation
+      // the updater can't write to), so it never dims the tag as if broken.
+      return { variant: "quiet", mark: <ReleaseMark />, label: null, description: `${changelog} · ${t.aboutUpdateUnavailable}`, target: "changelog" };
+    default:
+      // Only once an update is settled: the version just installed has notes
+      // the reader has not opened yet, and the accent sparkle says so.
+      if (hasUnseenWhatsNew) {
+        return {
+          variant: "quiet",
+          mark: <Sparkles className="status-bar__release-new" aria-hidden="true" />,
+          label: null,
+          description: `${ut.startupConfirmed(version)} · ${ut.seeWhatsNew}`,
+          target: "changelog",
+        };
+      }
+      return { variant: "quiet", mark: <ReleaseMark />, label: null, description: changelog, target: "changelog" };
+  }
+}
+
 export function StatusBar({
   project,
   workingTree,
@@ -160,8 +302,19 @@ export function StatusBar({
   onPrefetchProjectSettings,
   onPublish,
   onOpenChangelog,
+  appUpdate,
+  hasUnseenWhatsNew = false,
+  onOpenAppUpdate,
 }: StatusBarProps): React.JSX.Element {
-  const { t, formats } = useLanguage();
+  const { t, formats, language } = useLanguage();
+  const release = releaseTag(appUpdate, hasUnseenWhatsNew, language, t);
+  const releaseText = release.label ?? t.statusBarVersion(CURRENT_APP_RELEASE.version);
+  // The accessible name keeps the visible words, so "click v0.3.1" still
+  // finds the button while the tooltip talks about a download.
+  const releaseName = release.description.includes(releaseText)
+    ? release.description
+    : `${releaseText} · ${release.description}`;
+  const openRelease = release.target === "update" && onOpenAppUpdate ? onOpenAppUpdate : onOpenChangelog;
   const now = useStatusBarClock();
   const isReadingTeamStatus = teamSync.isLoading && !teamSync.status;
   const teamLabel = teamSync.isCheckingRemote
@@ -335,13 +488,14 @@ export function StatusBar({
           </span>
         )}
         <button
-          className="status-bar__release status-bar__item--muted"
+          className={`status-bar__release status-bar__release--${release.variant}`}
           type="button"
-          onClick={onOpenChangelog}
-          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
-          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
+          onClick={openRelease}
+          aria-label={releaseName}
+          data-tooltip={release.description}
         >
-          <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
+          {release.mark}
+          <span className="status-bar__version">{releaseText}</span>
         </button>
       </div>
     </footer>

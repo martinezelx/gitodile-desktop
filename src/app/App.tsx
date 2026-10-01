@@ -139,6 +139,7 @@ import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
 import { RailNav, type RailNavItem } from "./RailNav";
 import { StatusBar } from "./StatusBar";
+import { CURRENT_APP_RELEASE } from "./appRelease";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -733,6 +734,14 @@ export function App(): React.JSX.Element {
     onBackgroundCheckSettled: (state) => backgroundUpdateResultRef.current(state),
   }));
   const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
+  /* The status bar marks the release just installed until its changelog is
+     opened — from the tag, the startup toast or the menu — in this session. */
+  const [hasOpenedChangelog, setHasOpenedChangelog] = useState(false);
+  if (isChangelogOpen && !hasOpenedChangelog) setHasOpenedChangelog(true);
+  const hasUnseenWhatsNew =
+    !hasOpenedChangelog &&
+    appUpdates.startupConfirmation.kind === "confirmed" &&
+    CURRENT_APP_RELEASE.highlights.length > 0;
   const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
   const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
     !watchProjects
@@ -2656,6 +2665,9 @@ export function App(): React.JSX.Element {
           onPrefetchProjectSettings={() => prefetchProjectSettings()}
           onPublish={() => openPublishDialog()}
           onOpenChangelog={() => setIsChangelogOpen(true)}
+          appUpdate={appUpdates.state}
+          hasUnseenWhatsNew={hasUnseenWhatsNew}
+          onOpenAppUpdate={() => setIsAppUpdateOpen(true)}
         />}
       </main>
 

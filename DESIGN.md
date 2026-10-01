@@ -250,8 +250,27 @@ The main desktop window should broadly support:
    - the release metadata is grouped at the far right, a step further from
      the project facts than they are from each other and a size smaller: it
      is the one thing on the strip that is not about the project. The
-     version is shown alone, as `v0.3.0`: there is one release channel, so
-     nothing qualifies it. It is one quiet button that opens
+     version is shown as `v0.3.0` — the `v` marks the number as a version
+     rather than any other figure, and matches the release tags, About and the
+     update copy — beside the house mark: the mascot's back, three saved
+     versions along one line, in the tag's own ink. There is one release
+     channel, so nothing qualifies it, and there is no "all is well" dot: green
+     on this strip belongs to the remote, and the app being fine is not a fact
+     to keep restating. The tag follows the updater instead. A check makes the
+     mark's dots light in turn; a download replaces the mark with a progress
+     ring and keeps the version text, the percentage in the tooltip, so the
+     strip does not move. A state to act on — a new version, one ready to
+     install, one that can't install yet — takes the tag over in About's own
+     words ("New version: v0.3.1", "Ready to install") and wears the strip's
+     action pill in the warning tone, breathing once as it arrives, and leads
+     to the update dialog, the way the cloud leads to publishing. The
+     notification centre announces an update once; the tag is where it stays
+     until it is resolved, with no count of its own. After an update, an
+     accent sparkle replaces the mark until the changelog has been opened. A
+     build that can't update (a development build, an installation the updater
+     can't write to) keeps the tag at rest and says so in the tooltip: a
+     lasting fact is not dimmed as if it were broken.
+     Otherwise it is one quiet button that opens
      the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About

@@ -306,6 +306,49 @@
   outline-offset: 0;
 }
 .status-bar__version { font-size: var(--text-label); font-variant-numeric: tabular-nums; }
+.status-bar__release svg { width: 14px; height: 14px; flex-shrink: 0; }
+/* The house mark rests in the tag's own ink. Its dots light in turn on hover
+   and while a check runs: movement that says "alive", never a colour. */
+.status-bar__release:hover .status-bar__release-mark { color: var(--accent-primary); }
+.status-bar__release:hover .status-bar__release-mark circle,
+.status-bar__release-mark--busy circle { animation: status-bar-release-mark 1.1s ease-in-out infinite; }
+.status-bar__release-mark circle:nth-of-type(2) { animation-delay: 150ms; }
+.status-bar__release-mark circle:nth-of-type(3) { animation-delay: 300ms; }
+@keyframes status-bar-release-mark {
+  0%, 100% { opacity: 1; }
+  40% { opacity: 0.25; }
+}
+.status-bar__release-ring circle { fill: none; stroke-width: 3; }
+.status-bar__release-ring-track { stroke: var(--border-subtle); }
+.status-bar__release-ring-bar {
+  stroke: currentColor;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset var(--duration-fast);
+}
+.status-bar__release-new { color: var(--accent-primary); }
+/* A state to act on wears the strip's action pill in the warning tone — the
+   same move the cloud makes when there is something to publish — and breathes
+   once as it arrives, not in a loop: the notification centre announced it,
+   this only keeps it where it can be found. */
+.status-bar__release--action {
+  --attention-color: var(--status-warning);
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--status-warning) 11%, transparent);
+  color: var(--status-warning);
+  font-weight: var(--weight-medium);
+  animation: attention-breathe var(--attention-duration) ease-out 1;
+}
+.status-bar__release--action:hover {
+  background: color-mix(in srgb, var(--status-warning) 18%, transparent);
+  color: var(--status-warning);
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-bar__release-mark circle,
+  .status-bar__release:hover .status-bar__release-mark circle,
+  .status-bar__release--action { animation: none; }
+}
 /* "<project> <line>": the two facts, 8px apart because they are the parts
    of one statement. The project's name is a fact at the primary tier, like
    the line beside it, and the two of them share the room: each may take

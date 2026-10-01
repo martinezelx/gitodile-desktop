@@ -166,6 +166,7 @@ export interface AppTranslations {
   statusBarPublishAction: (count: number) => string;
   statusBarVersion: (version: string) => string;
   statusBarOpenChangelog: (version: string) => string;
+  statusBarOpenUpdates: string;
   titlebarHideSidebar: string;
   titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
@@ -389,6 +390,7 @@ const en: AppTranslations = {
   statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version) => `What's new in GitOdile v${version}`,
+  statusBarOpenUpdates: "Open updates",
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -598,6 +600,7 @@ const es: AppTranslations = {
   statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
   statusBarVersion: (version) => `v${version}`,
   statusBarOpenChangelog: (version) => `Novedades de GitOdile v${version}`,
+  statusBarOpenUpdates: "Abrir actualizaciones",
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",
