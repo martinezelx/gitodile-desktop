@@ -112,7 +112,7 @@ export function validateReleasePreparation({ root, authorization, changedFiles }
   const metadata = readReleaseMetadata(root, authorization.mergeSha);
   for (const [owner, version] of Object.entries(metadata)) if (version !== authorization.version) fail("metadata_mismatch", `${owner} does not match the release branch version`);
   const readme = readAtRevision(root, authorization.mergeSha, "README.md");
-  if (!readme.includes(`Current development version: **${authorization.version}**, **${authorization.channel}** channel.`)) fail("metadata_mismatch", "README current version and channel do not match the release branch");
+  if (!readme.includes(`Current development version: **${authorization.version}**.`)) fail("metadata_mismatch", "README current version does not match the release branch");
   const notes = readAtRevision(root, authorization.mergeSha, `docs/release/notes/${authorization.tag}.md`);
   const withoutComments = notes.replace(/<!--[\s\S]*?-->/g, "").trim();
   if (notes.includes(NOTES_PLACEHOLDER) || withoutComments === `# GitOdile ${authorization.version}` || !withoutComments.startsWith(`# GitOdile ${authorization.version}\n`)) fail("notes_incomplete", "curated release notes are missing or still contain the preparation placeholder");
@@ -185,7 +185,7 @@ export async function authorizeMergedRelease({ event, token, root, fetchImpl = f
 export function validateAuthorization(value) {
   if (value?.schemaVersion !== 1 || value.repository !== SOURCE_REPOSITORY || !FULL_SHA.test(value.mergeSha ?? "")) fail("authorization_invalid", "release authorization is malformed");
   const branch = parseReleaseBranch(value.branch);
-  if (branch.version !== value.version || branch.channel !== value.channel || branch.tag !== value.tag || !Number.isSafeInteger(value.pullRequestNumber)) fail("authorization_invalid", "release authorization identity is inconsistent");
+  if (branch.version !== value.version || branch.tag !== value.tag || !Number.isSafeInteger(value.pullRequestNumber)) fail("authorization_invalid", "release authorization identity is inconsistent");
   validateRequiredChecks(value.requiredChecks.map((check) => ({ ...check, status: "completed" })));
   if (!/^[0-9a-f]{64}$/.test(value.notesSha256 ?? "")) fail("authorization_invalid", "release notes identity is missing");
   return value;

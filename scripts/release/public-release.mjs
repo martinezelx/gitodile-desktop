@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { compareReleaseVersions, parseReleaseVersion, ReleaseValidationError, REQUIRED_TARGETS } from "./release-candidate.mjs";
 import { verifyCompleteMatrix, verifyEvidenceArtifacts } from "./release-evidence.mjs";
-import { qualifiedPreviewAllowed, validateQualificationRegistry } from "./qualification-evidence.mjs";
+import { productionAllowed, validateQualificationRegistry } from "./qualification-evidence.mjs";
 
 export const PUBLIC_REPOSITORY = "martinezelx/gitodile";
 export const PUBLIC_RELEASE_ORIGIN = `https://github.com/${PUBLIC_REPOSITORY}/releases/download`;
@@ -12,13 +12,16 @@ export const GUIDANCE_START = "<!-- gitodile-downloads:start -->";
 export const GUIDANCE_END = "<!-- gitodile-downloads:end -->";
 const SOURCE_ARCHIVE = /(?:^|[-_.])(source|src)(?:[-_.]|$)/i;
 const SECRET_NAME = /(?:private[-_.]?key|certificate|credential|secret|token|source[-_.]?archive)/i;
-export const PREVIEW_TESTING_NOTICE = "> Testing preview: Windows and Linux installed-update qualification is not complete. This prerelease does not claim platform qualification. Windows Authenticode is deferred.\n\n> Preview de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión preliminar no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
-/** A stable release published under the same testing policy as a preview:
- * updater-signed by Tauri, no platform qualification, no Authenticode. It
- * says so, the way a testing preview does, so the stable channel can be
- * exercised end to end before the qualification registry is complete. */
-export const STABLE_TESTING_NOTICE = "> Testing release: Windows and Linux installed-update qualification is not complete. This release does not claim platform qualification. Windows Authenticode is deferred.\n\n> Versión de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
-const TESTING_NOTICES = Object.freeze({ "preview-testing": PREVIEW_TESTING_NOTICE, "stable-testing": STABLE_TESTING_NOTICE });
+/** A release published before the qualification registry is complete:
+ * updater-signed by Tauri, no platform qualification, no Authenticode. The
+ * notes say so. */
+export const TESTING_NOTICE = "> Testing release: Windows and Linux installed-update qualification is not complete. This release does not claim platform qualification. Windows Authenticode is deferred.\n\n> Versión de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
+/** The public feed files a publication advances, under `updates/`. `latest`
+ * is the one feed every build from this source follows. `preview` is a
+ * mirror for installed `0.2.0-preview.*` builds, which know only that URL;
+ * retire it only after a release note has announced it, accepting that any
+ * such install left then needs a manual reinstall (ADR 0019). */
+export const FEED_FILES = Object.freeze(["latest", "preview"]);
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -99,29 +102,22 @@ function validateMatrixRecord(record, candidate) {
   if (
     record?.schemaVersion !== 1 || record?.result !== "passed" || record?.publicPromotionAllowed !== false ||
     record.source?.tag !== candidate.source.tag || record.source?.sha !== candidate.source.sha ||
-    record.release?.version !== candidate.release.version || record.release?.channel !== candidate.release.channel ||
+    record.release?.version !== candidate.release.version ||
     JSON.stringify(record.targets) !== JSON.stringify(candidate.matrix.requiredTargets)
   ) fail("matrix_record_invalid", "private matrix authorization does not match the signed candidate");
 }
 
-export const PUBLICATION_MODES = Object.freeze(["preview-testing", "preview-qualified", "stable-testing", "production"]);
+export const PUBLICATION_MODES = Object.freeze(["testing", "production"]);
 /** Assets rendered by the `publish` job once the release's real publication
  * time is known: the manifest carries it as `pub_date`, and the hash list
  * covers the manifest. Every other asset is fixed when the plan is prepared. */
 export const DERIVED_ASSET_NAMES = Object.freeze(["latest.json", "SHA256SUMS"]);
 
-/** The mode is derived, never chosen. The registry decides whether a
- * candidate publishes as qualified (`production` for stable,
- * `preview-qualified` for a preview, both without a notice) or under the
- * testing policy (`stable-testing`, `preview-testing`, with the notice):
- * only a registry that already proves every enabled target and production
- * approval is qualified. Anything short of that keeps the notice, on either
- * channel, so the stable channel can be exercised with Tauri-signed bytes
- * alone until the evidence exists (ADR 0010, 2026-09-15 amendment). */
-export function derivePublicationMode(release, qualification) {
-  const qualified = qualifiedPreviewAllowed(qualification);
-  if (release?.channel !== "preview" || release?.githubPrerelease !== true) return qualified ? "production" : "stable-testing";
-  return qualified ? "preview-qualified" : "preview-testing";
+/** The mode is derived, never chosen: `production`, without a notice, only
+ * when the registry already proves every enabled target and production
+ * approval; `testing`, with the notice, otherwise (ADR 0019). */
+export function derivePublicationMode(qualification) {
+  return productionAllowed(qualification) ? "production" : "testing";
 }
 
 /** The release's bilingual What's new lines as the feed carries them, so the
@@ -158,9 +154,8 @@ export function preparePublication({ signedDirectory, notesMarkdown, highlights 
     fail("matrix_record_invalid", "private matrix identity is incomplete");
   }
   const parsed = parseReleaseVersion(candidate.release.version);
-  if (candidate.source.tag !== `v${parsed.version}` || candidate.release.channel !== parsed.channel ||
-      candidate.release.githubPrerelease !== parsed.githubPrerelease || candidate.release.publicPromotionAllowed !== false) {
-    fail("release_identity_mismatch", "tag, version, channel or GitHub flag disagree");
+  if (candidate.source.tag !== `v${parsed.version}` || candidate.release.publicPromotionAllowed !== false) {
+    fail("release_identity_mismatch", "tag and version disagree");
   }
   if (JSON.stringify(matrix.targets) !== JSON.stringify(REQUIRED_TARGETS)) {
     fail("matrix_incomplete", "the signed matrix does not contain the complete required target set");
@@ -174,8 +169,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, highlights 
   });
   const ordered = verifyCompleteMatrix(evidence, candidate, { requiredPhase: "signed" });
   const gate = validateQualification(qualification, candidate, mode);
-  const notice = TESTING_NOTICES[mode];
-  const publishedNotes = notice ? `${notice}\n\n${notesMarkdown}` : notesMarkdown;
+  const publishedNotes = mode === "testing" ? `${TESTING_NOTICE}\n\n${notesMarkdown}` : notesMarkdown;
   const names = new Set(DERIVED_ASSET_NAMES);
   const assets = [];
   const platforms = {};
@@ -219,7 +213,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, highlights 
     mode,
     destination: PUBLIC_REPOSITORY,
     source: { tag: candidate.source.tag, sha: candidate.source.sha },
-    release: { version: candidate.release.version, channel: candidate.release.channel, githubPrerelease: parsed.githubPrerelease },
+    release: { version: candidate.release.version },
     qualification: gate,
     notesMarkdown: publishedNotes,
     manifest,
@@ -230,7 +224,7 @@ export function preparePublication({ signedDirectory, notesMarkdown, highlights 
 /** Completes a plan with the publication time GitHub recorded for the
  * release. The same plan and the same `published_at` render byte-identical
  * assets, which is what lets a reconciliation retry compare rather than
- * rewrite. Returns the channel manifest bytes and the two derived assets. */
+ * rewrite. Returns the feed manifest bytes and the two derived assets. */
 export function renderPublication(plan, publishedAt) {
   const validShape = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(publishedAt ?? "");
   const parsedDate = validShape ? new Date(publishedAt) : null;
@@ -253,44 +247,37 @@ export function renderPublication(plan, publishedAt) {
   return { manifest, manifestBytes, assets: [manifestAsset, sumsAsset] };
 }
 
+/** The feed files to write, keyed by `FEED_FILES` name, each either the new
+ * manifest bytes or `null` when that file already serves this version. A
+ * feed never regresses and never takes different bytes for the same
+ * version; the legacy mirror follows the same rule. */
 export function feedsForPromotion(plan, current = {}) {
-  const previewTesting = plan.mode === "preview-testing" && plan.qualification.previewTestingAllowed === true;
-  const previewQualified = plan.mode === "preview-qualified" && plan.qualification.previewQualifiedAllowed === true;
-  const stableTesting = plan.mode === "stable-testing" && plan.qualification.stableTestingAllowed === true;
+  const testing = plan.mode === "testing" && plan.qualification.testingAllowed === true;
   const production = plan.mode === "production" && plan.qualification.productionAllowed === true;
-  if (!previewTesting && !previewQualified && !stableTesting && !production) {
-    fail("promotion_forbidden", "only an approved preview-testing, qualified preview, stable-testing or qualified production plan may advance feeds");
-  }
-  if ((previewTesting || previewQualified) && (plan.release.channel !== "preview" || plan.release.githubPrerelease !== true)) {
-    fail("promotion_forbidden", "a preview mode can never publish a stable release or feed");
-  }
-  if ((stableTesting || production) && (plan.release.channel !== "stable" || plan.release.githubPrerelease !== false)) {
-    fail("promotion_forbidden", "a stable mode can never publish a preview release");
-  }
+  if (!testing && !production) fail("promotion_forbidden", "only an approved testing or qualified production plan may advance feeds");
+  parseReleaseVersion(plan.release.version);
   const result = {};
-  const consider = (channel) => {
-    const existing = current[channel];
-    if (!existing) return plan.manifestBytes;
+  for (const feed of FEED_FILES) {
+    const existing = current[feed];
+    if (!existing) {
+      result[feed] = plan.manifestBytes;
+      continue;
+    }
     const comparison = compareReleaseVersions(plan.release.version, existing.version);
-    if (comparison < 0) fail("feed_regression", `${channel} would regress from ${existing.version}`);
+    if (comparison < 0) fail("feed_regression", `${feed} would regress from ${existing.version}`);
     if (comparison === 0) {
       const bytes = `${JSON.stringify(existing, null, 2)}\n`;
-      if (bytes !== plan.manifestBytes) fail("feed_conflict", `${channel} already has different bytes for this version`);
-      return null;
+      if (bytes !== plan.manifestBytes) fail("feed_conflict", `${feed} already has different bytes for this version`);
+      result[feed] = null;
+      continue;
     }
-    return plan.manifestBytes;
-  };
-  if (plan.release.channel === "preview") result.preview = consider("preview");
-  else {
-    result.stable = consider("stable");
-    const preview = current.preview;
-    result.preview = !preview || compareReleaseVersions(plan.release.version, preview.version) > 0 ? plan.manifestBytes : null;
+    result[feed] = plan.manifestBytes;
   }
   return result;
 }
 
 export function updateFeedbackReadme(readme) {
-  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nTauri updater-signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). Preview-testing releases may be public before installed-update qualification is complete; a prerelease label is not a qualification claim. Windows packages through 1.0.0 intentionally lack Authenticode and may show SmartScreen or unknown-publisher warnings. macOS is not yet qualified and no macOS package is published. Preview releases are marked as prereleases. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the channel feed but is not silently replaced. [Application source](https://github.com/martinezelx/gitodile-desktop) is maintained separately and signing material is never published.\n\nLos instaladores NSIS de Windows x86-64 firmados para el actualizador de Tauri, las AppImage para Linux x86-64 y sus archivos de actualización se adjuntan a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). Las versiones preview-testing pueden ser públicas antes de completar la cualificación de actualización instalada; la etiqueta preliminar no declara cualificación. Los paquetes de Windows hasta 1.0.0 carecen intencionadamente de Authenticode y pueden mostrar avisos de SmartScreen o de editor desconocido. macOS todavía no está cualificado y no se publica ningún paquete para macOS. Las versiones preview se marcan como preliminares. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el canal, pero no se sustituye silenciosamente. El [código de la aplicación](https://github.com/martinezelx/gitodile-desktop) se mantiene por separado y el material de firma nunca se publica.\n${GUIDANCE_END}`;
+  const guidance = `${GUIDANCE_START}\n## Downloads / Descargas\n\nTauri updater-signed Windows x86-64 NSIS installers, Linux x86-64 AppImages and their application-update files are attached to each [GitOdile release](https://github.com/${PUBLIC_REPOSITORY}/releases). Releases may be public before installed-update qualification is complete; their notes then say so. Windows packages through 1.0.0 intentionally lack Authenticode and may show SmartScreen or unknown-publisher warnings. macOS is not yet qualified and no macOS package is published. Existing installers remain available for reinstall; a withdrawn update may stop appearing in the update feed but is not silently replaced. [Application source](https://github.com/martinezelx/gitodile-desktop) is maintained separately and signing material is never published.\n\nLos instaladores NSIS de Windows x86-64 firmados para el actualizador de Tauri, las AppImage para Linux x86-64 y sus archivos de actualización se adjuntan a cada [versión de GitOdile](https://github.com/${PUBLIC_REPOSITORY}/releases). Las versiones pueden publicarse antes de completar la cualificación de actualización instalada; sus notas lo indican. Los paquetes de Windows hasta 1.0.0 carecen intencionadamente de Authenticode y pueden mostrar avisos de SmartScreen o de editor desconocido. macOS todavía no está cualificado y no se publica ningún paquete para macOS. Los instaladores anteriores se conservan para reinstalar; una actualización retirada puede dejar de aparecer en el feed de actualizaciones, pero no se sustituye silenciosamente. El [código de la aplicación](https://github.com/martinezelx/gitodile-desktop) se mantiene por separado y el material de firma nunca se publica.\n${GUIDANCE_END}`;
   if (readme.includes(GUIDANCE_START)) {
     const pattern = new RegExp(`${GUIDANCE_START}[\\s\\S]*?${GUIDANCE_END}`);
     if (!pattern.test(readme)) fail("readme_contract", "download guidance markers are malformed");

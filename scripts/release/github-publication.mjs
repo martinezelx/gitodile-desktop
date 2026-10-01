@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DERIVED_ASSET_NAMES, feedsForPromotion, PUBLIC_REPOSITORY, renderPublication, updateFeedbackReadme } from "./public-release.mjs";
+import { DERIVED_ASSET_NAMES, FEED_FILES, feedsForPromotion, PUBLIC_REPOSITORY, renderPublication, updateFeedbackReadme } from "./public-release.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
 
 function fail(code, message) {
@@ -18,7 +18,7 @@ export const RELEASE_PIPELINE = Object.freeze({
   event: "workflow_dispatch",
   // The workflow declares `run-name`, and the Actions API then reports that
   // per-run title in `name` rather than the workflow name.
-  runName: /^Release v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)? at [0-9a-f]{40}$/,
+  runName: /^Release v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*) at [0-9a-f]{40}$/,
 });
 
 /** The signed bytes come from the same run that publishes them, so the run is
@@ -213,9 +213,9 @@ export async function atomicPublicCommit(client, baseSha, files, message) {
 
 async function loadCurrentFeeds(client) {
   const result = {};
-  for (const channel of ["stable", "preview"]) {
-    const file = await readPublicFile(client, `updates/${channel}.json`);
-    if (file) result[channel] = JSON.parse(file.bytes.toString("utf8"));
+  for (const feed of FEED_FILES) {
+    const file = await readPublicFile(client, `updates/${feed}.json`);
+    if (file) result[feed] = JSON.parse(file.bytes.toString("utf8"));
   }
   return result;
 }
@@ -231,9 +231,9 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
     await ensurePublicTag(client, plan.source.tag, mainSha);
     release = await client.api("/releases", { method: "POST", body: JSON.stringify({
       tag_name: plan.source.tag, target_commitish: mainSha, name: `GitOdile ${plan.release.version}`,
-      body: plan.notesMarkdown, draft: true, prerelease: plan.release.githubPrerelease,
+      body: plan.notesMarkdown, draft: true, prerelease: false,
     }) }, [201]);
-  } else if (release.tag_name !== plan.source.tag || release.prerelease !== plan.release.githubPrerelease || release.body !== plan.notesMarkdown) {
+  } else if (release.tag_name !== plan.source.tag || release.prerelease !== false || release.body !== plan.notesMarkdown) {
     fail("release_conflict", "existing release metadata differs from the immutable plan");
   }
   // Derived assets belong to the published release: a draft can only hold
@@ -258,7 +258,7 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
     await uploadAsset(client, release, directory, asset);
   }
   release = await client.api(`/releases/${release.id}`);
-  if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: plan.release.githubPrerelease }) }, [200]);
+  if (release.draft) release = await client.api(`/releases/${release.id}`, { method: "PATCH", body: JSON.stringify({ draft: false, prerelease: false }) }, [200]);
   const publishedAt = publicationTime(release);
   const rendered = renderPublication({ ...plan, assets: fixedAssets }, publishedAt);
   // The published release is immutable, with one exception that changes no
@@ -278,7 +278,7 @@ export async function publish({ directory, token, sourceRun, sourceRepository, f
   reconcileAssets(expectedAssets, release.assets ?? [], freshHashes, true);
   const currentFeeds = await loadCurrentFeeds(client);
   const feeds = feedsForPromotion({ ...plan, manifestBytes: rendered.manifestBytes }, currentFeeds);
-  const files = Object.fromEntries(Object.entries(feeds).filter(([, bytes]) => bytes !== null).map(([channel, bytes]) => [`updates/${channel}.json`, bytes]));
+  const files = Object.fromEntries(Object.entries(feeds).filter(([, bytes]) => bytes !== null).map(([feed, bytes]) => [`updates/${feed}.json`, bytes]));
   const readme = await readPublicFile(client, "README.md");
   if (!readme) fail("readme_contract", "public feedback README is missing");
   const nextReadme = updateFeedbackReadme(readme.bytes.toString("utf8"));

@@ -1,21 +1,18 @@
 # Public release publishing
 
 This runbook implements the public promotion half of
-[ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
-It consumes the package-only output of the
+[ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
+with the single channel of
+[ADR 0019](../adr/0019-publish-updates-through-one-channel.md). It consumes the package-only output of the
 [protected signed-build pipeline](signed-builds.md); it never compiles or signs an
 application and never accepts a local installer path supplied to the privileged
 job.
 
-No qualified production publication is currently authorized. Two narrow
-testing policies may automatically publish a Tauri-signed candidate without
-platform qualification: `preview-testing` publishes a preview as a GitHub
-prerelease and advances only `preview.json`; `stable-testing` (since task
-065-9-12, 2026-09-15) publishes a stable candidate as a non-prerelease
-release and advances `stable.json` and, when newer, `preview.json`, so both
-channels can be exercised end to end before the registry is complete. Neither
-exception changes any qualification state or claims that installation
-succeeded.
+No qualified production publication is currently authorized. The narrow
+`testing` policy automatically publishes a Tauri-signed `X.Y.Z` release
+without platform qualification, as a non-prerelease GitHub release that
+advances `updates/latest.json` and its legacy mirror `updates/preview.json`.
+It changes no qualification state and claims no installation succeeded.
 The qualification registry
 [`update-target-qualifications.json`](update-target-qualifications.json) is
 deny-by-default: Windows x86-64 and Linux x86-64 remain
@@ -25,7 +22,7 @@ false. Tasks 065-9-7 and 065-9-8 may replace the enabled-target states only
 after recording the real
 signed A-to-B evidence described by the
 [updater qualification runbook](updater-qualification.md). Schema version 4
-binds each record to its target, two real consecutive public preview releases,
+binds each record to its target, two real consecutive public releases,
 the public feed that served the update, preservation/failure results and
 platform trust; the retired schema-3 records and older shallow forms are
 rejected.
@@ -38,36 +35,20 @@ trigger. They run only after `updater-sign` succeeded in the same run and
 consume only that run's `private-signed-<tag>` artifact. The publication mode
 is derived from the signed matrix and the reviewed qualification registry
 (`derivePublicationMode` in `scripts/release/public-release.mjs`), never
-chosen: a candidate is `production` (stable) or `preview-qualified`
-(preview) when the registry already proves both enabled targets and
-production approval, and `stable-testing` or `preview-testing` otherwise.
+chosen: a release is `production` when the registry already proves both
+enabled targets and production approval, and `testing` otherwise.
 Ordinary pushes, pull requests, merges and tags cannot publish directly, and
 there is no draft-only mode or dispatch input that selects a mode.
 
-- automatic `preview-testing` accepts only a Tauri-signed preview,
-  requires the complete Windows NSIS/Linux AppImage matrix, preserves
-  `authenticode_deferred`, rejects every macOS target, finalizes the release as
-  a GitHub prerelease and may advance only `preview.json`. It deliberately
-  accepts `qualification_required` targets and returns an empty
-  `qualifiedTargets` list; it is publication-pipeline testing, not target
-  qualification or stable authorization. The publisher prepends a fixed
-  bilingual notice saying exactly that to the public release body and updater
-  notes, independent of the curated change summary.
-- automatic `stable-testing` is the stable counterpart of `preview-testing`:
-  a Tauri-signed stable candidate, the complete Windows NSIS/Linux AppImage
-  matrix, `authenticode_deferred` preserved, every macOS target rejected, a
-  fixed bilingual "Testing release" notice prepended to the body and updater
-  notes, an empty `qualifiedTargets` list. It finalizes a non-prerelease
-  GitHub release and advances `stable.json`, plus `preview.json` when the
-  version is newer than the preview feed's current candidate. It enters the
-  reviewed stable environment. It exists so the stable channel — and the
-  channel choice in Settings — can be tested with real installations; it is
-  not qualification and not the `production` mode.
-- automatic `preview-qualified` is the same preview publication once the
-  registry approves production and records a valid A-to-B proof for every
-  enabled target under one updater key: still a GitHub prerelease, still only
-  `preview.json`, still the preview environment, but without the testing
-  notice. Anything short of a fully qualified registry keeps the notice.
+- automatic `testing` accepts only a Tauri-signed `X.Y.Z` release, requires
+  the complete Windows NSIS/Linux AppImage matrix, preserves
+  `authenticode_deferred`, rejects every macOS target and finalizes a
+  non-prerelease GitHub release. It deliberately accepts
+  `qualification_required` targets and returns an empty `qualifiedTargets`
+  list; it is publication-pipeline testing, not target qualification. The
+  publisher prepends a fixed bilingual "Testing release" notice saying
+  exactly that to the public release body and updater notes, independent of
+  the curated change summary.
 - automatic `production` accepts only a production-signing profile and
   requires a registry that approves production plus every exact enabled
   target in the signed matrix. A missing or malformed A/B proof blocks the
@@ -78,7 +59,7 @@ The unprivileged `stage` job records the identity of its own pipeline run
 (release pipeline, `workflow_dispatch`, protected `main`, healthy), checks the
 live feedback contract, rehashes the
 complete enabled signed matrix, checks updater and OS-trust evidence independently,
-derives the channel and GitHub prerelease flag from the version, and creates a
+validates the release version, and creates a
 public-only bundle. That bundle contains packages, updater signatures,
 `LICENSE`, `THIRD_PARTY_LICENSES.md`, curated notes, the manifest template
 and the reviewed publisher runtime. It does not expose the source SHA as an asset,
@@ -105,26 +86,24 @@ scoped expiring fine-grained PAT is the temporary fallback. This job does not
 check out the source repository, and it is serialized across every release
 through the `gitodile-publication` concurrency group so an older run can never
 race a newer one at the feeds. Source visibility is not an authorization
-boundary. The environment is named after the channel it may write:
-
-| Mode | Environment | Protection |
-| --- | --- | --- |
-| `preview-testing`, `preview-qualified` | `public-release-preview` | protected branches only, intentionally no reviewer, so a merged preview completes without maintainer intervention |
-| `stable-testing`, `production` | `public-release-stable` | required reviewer, no administrator bypass; for `production` additionally the 065-9-7/065-9-8 evidence review and working-name clearance |
-
-Each environment holds its own copy of `GITODILE_PUBLIC_RELEASE_TOKEN`; an
-environment without the secret fails closed before any destination request.
+boundary. Every release, in either mode, publishes through the one
+`public-release` environment, which holds `GITODILE_PUBLIC_RELEASE_TOKEN`
+and allows protected branches only. Whether it also requires a reviewer is a
+maintainer setting: a reviewer adds one approval per release; `production`
+additionally needs the 065-9-7/065-9-8 evidence review and working-name
+clearance in the registry. An environment without the secret fails closed
+before any destination request.
 
 ## Immutable release sequence
 
 1. Add reviewed notes at `docs/release/notes/v<version>.md`, and the
    bilingual in-app highlights at `docs/release/highlights/v<version>.json`,
    on the one `release/<version>` branch produced by
-   `pnpm run release:prepare <version>`. Run it from a clean, current `main`
-   to cut a release of what is already there, or from the work branch that
-   holds the release's product changes: that branch must contain
-   `origin/main`, must not touch `.github/` or `scripts/release/`, and is
-   renamed in place to `release/<version>`. Then run `pnpm run release:notes`
+   `pnpm run release:prepare <version>` (a plain `X.Y.Z`). Run it from a
+   clean, current `main` when the version starts, then develop the version on
+   that branch; it may also be run from a work branch that contains
+   `origin/main`, which is renamed in place. The branch must not touch
+   `.github/` or `scripts/release/`. Before merging, run `pnpm run release:notes`
    so the notes' `## Highlights` block is rendered from the highlights file
    (the coordinator refuses a release whose two descriptions disagree).
    Do not generate
@@ -136,21 +115,17 @@ environment without the secret fails closed before any destination request.
    remains `publicPromotionAllowed: false` and the `stage` job supplies the
    separate promotion decision. All targets record the same updater public-key
    ID.
-3. On the first public previews, inspect the published release, asset names,
-   hashes, flags, public tag and curated notes; re-run the `publish` job once
-   to prove reconciliation without change. Confirm that `stable.json` did not
-   move. This is publisher evidence for the production approval, not target
+3. On the first single-channel publication, inspect the published release,
+   asset names, hashes, the prerelease flag (false), public tag and curated
+   notes, and confirm that `latest.json` and `preview.json` carry identical
+   bytes; re-run the `publish` job once to prove reconciliation without
+   change. This is publisher evidence for the production approval, not target
    qualification.
-4. Before target qualification is complete, a signed preview automatically
-   enters `preview-testing`, finalizes only that prerelease and advances
-   `preview.json`, and a signed stable candidate enters `stable-testing`
-   through the reviewer-protected stable environment, finalizes a
-   non-prerelease release and advances both feeds; record either as pipeline
-   evidence, never as an installed-update pass. After 065-9-7/
-   065-9-8 have recorded both enabled targets and production approval, later
-   previews enter `preview-qualified` and a stable candidate enters
-   reviewer-approved `production`. Do not edit the notes or qualification
-   registry during a retry.
+4. Before target qualification is complete, a signed release automatically
+   enters `testing`; record it as pipeline evidence, never as an
+   installed-update pass. After 065-9-7/065-9-8 have recorded both enabled
+   targets and production approval, later releases enter `production`. Do not
+   edit the notes or qualification registry during a retry.
 5. The `publish` job creates the public lightweight tag at a commit in the
    feedback repository and reconciles one draft release. Drafts are found by
    listing releases, because GitHub does not resolve a draft by its tag.
@@ -173,7 +148,7 @@ environment without the secret fails closed before any destination request.
    rechecked, with a bounded retry (6 attempts, 10 s apart) because the
    download CDN can answer 404 briefly after the release itself is public; a
    persistent failure stops the run before any feed changes. Only then does
-   the job prepare complete channel manifests and update the public `main`
+   the job prepare the complete feed manifest and update the public `main`
    tree with one compare-and-swap Git commit. A concurrent move of `main`
    fails rather than overwriting it.
 7. To retry an uncertain publication, re-run the failed jobs of the same
@@ -182,26 +157,25 @@ environment without the secret fails closed before any destination request.
    coordinator refuses to, and a manual dispatch would only reconcile the same
    immutable release.
 
-Every manifest URL names `/releases/download/v<version>/<asset>`. Preview
-versions set GitHub `prerelease: true` and can advance only `preview.json`.
-Stable versions are rejected by both preview modes, and preview versions by
-both stable modes. A stable mode (`stable-testing` or qualified `production`)
-sets the GitHub prerelease flag to false, advances `stable.json`, and advances preview only
-when newer than its current candidate. Equal versions must have byte-identical
-manifests. Older versions fail closed. A stable release is newly built and
-signed; changing a preview release flag is never promotion.
+Every manifest URL names `/releases/download/v<version>/<asset>`. A
+`-preview.N` version is refused before any feed is touched, and no release is
+a GitHub prerelease. Each publication writes the same manifest to
+`latest.json` and to the legacy `preview.json` mirror, which installed
+`0.2.0-preview.*` builds still read; each file follows the same rule: equal
+versions must have byte-identical manifests, and an older version fails
+closed. No file named `stable.json` is ever written.
 
 The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10
-is open. Preview-testing publication confirms only the immutable signed matrix,
-curated notes, preview identity, destination and unknown-publisher disclosure;
-it does not satisfy a registry evidence field by itself. Production approval
-is the pre-stable gate: it records name clearance and the publisher behaviour
-observed on real preview publications (a completed preview publication, an
+is open. A `testing` publication confirms only the immutable signed matrix,
+curated notes, release identity, destination and unknown-publisher
+disclosure; it does not satisfy a registry evidence field by itself.
+Production approval records name clearance and the publisher behaviour
+observed on real testing publications (a completed testing publication, an
 interrupted retry that reconciled without change, immutable assets, anonymous
 downloads and the advanced feed), and names the updater key identity it
-covers. Each enabled target's installed A-to-B proof between two of those
-public previews is recorded separately in its own registry entry.
+covers. Each enabled target's installed A-to-B proof between two public
+releases is recorded separately in its own registry entry.
 
 ## Retry and recovery
 
@@ -250,10 +224,10 @@ command that combines both.
   deferred to task 065-9-9. Apple credentials are deliberately out of scope
   with macOS disabled under task 065-10.
 - The destination environment and destination-scoped publisher credential must
-  be independently verified before the first `preview-testing` publication;
+  be independently verified before the first single-channel publication;
   their presence is not target qualification.
 - Neither enabled target has the installed A-to-B evidence between two real
-  public previews required by 065-9-7/065-9-8. macOS retains its separate
+  public releases required by 065-9-7/065-9-8. macOS retains its separate
   replacement-safety blocker without entering this release matrix.
 - Written clearance for the working name is not evidenced.
 

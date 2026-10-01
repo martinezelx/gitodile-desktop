@@ -9,7 +9,6 @@ import {
   APP_CHANGELOG,
   CURRENT_APP_RELEASE,
   HIGHLIGHT_ICONS,
-  appReleaseChannel,
   buildAppChangelog,
   compareAppReleaseVersions,
 } from "./appRelease";
@@ -41,15 +40,6 @@ function TriggerAndDialog(): React.JSX.Element {
 }
 
 describe("Changelog dialog", () => {
-  it("derives stable and preview channels from the release version", () => {
-    expect(appReleaseChannel("0.1.0")).toBe("stable");
-    expect(appReleaseChannel("0.2.0-preview.1")).toBe("preview");
-    expect(() => appReleaseChannel("0.2.0-alpha.1")).toThrow(/Unsupported GitOdile release version/);
-    expect(() => appReleaseChannel("0.2.0-preview.0")).toThrow(/Unsupported GitOdile release version/);
-    expect(() => appReleaseChannel("0.2.0-preview.01")).toThrow(/Unsupported GitOdile release version/);
-    expect(() => appReleaseChannel("01.2.0")).toThrow(/Unsupported GitOdile release version/);
-    expect(() => appReleaseChannel("0.2.0+build.7")).toThrow(/Unsupported GitOdile release version/);
-  });
   it("draws every glyph the release scripts accept, and no other", () => {
     expect([...HIGHLIGHT_ICONS]).toEqual(HIGHLIGHT_ICON_NAMES);
   });
@@ -65,7 +55,7 @@ describe("Changelog dialog", () => {
     expect(buildAppChangelog(files, "0.2.0-preview.10").map((entry) => entry.version)).toEqual(["0.2.0-preview.10", "0.2.0-preview.9", "0.1.0"]);
     // A checkout between releases has no file yet: listed, undated, empty.
     const between = buildAppChangelog(files, "0.2.0-preview.11");
-    expect(between[0]).toEqual({ version: "0.2.0-preview.11", channel: "preview", date: null, highlights: [] });
+    expect(between[0]).toEqual({ version: "0.2.0-preview.11", date: null, highlights: [] });
     // The tag's date wins over the day the branch was cut; a version whose
     // tag the build did not see keeps the file's date.
     const dated = buildAppChangelog(files, "0.2.0-preview.9", { "0.2.0-preview.9": "2026-09-16" });
@@ -99,7 +89,7 @@ describe("Changelog dialog", () => {
     expect(onCheckForUpdates).toHaveBeenCalledOnce();
   });
 
-  it("lists every bundled release with its channel, date, and notes", async () => {
+  it("lists every bundled release with its date and notes", async () => {
     renderDialog();
 
     const dialog = screen.getByRole("dialog", { name: "What's new" });
@@ -109,7 +99,6 @@ describe("Changelog dialog", () => {
     for (const [index, release] of APP_CHANGELOG.entries()) {
       const rendered = releases[index] as HTMLElement;
       expect(within(rendered).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
-      expect(rendered).toHaveTextContent(release.channel);
       if (release.date === null) {
         expect(rendered.querySelector("time")).toBeNull();
       } else {

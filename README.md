@@ -8,7 +8,7 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current development version: **0.2.0-preview.12**, **preview** channel.
+Current development version: **0.2.0-preview.12**.
 This candidate has not been tagged or published yet.
 
 Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
@@ -24,7 +24,7 @@ private vulnerability reporting channel.
 Privacy and release trust are documented in the public
 [privacy policy](docs/PRIVACY.md) and
 [code-signing policy](docs/CODE_SIGNING_POLICY.md). GitOdile does not currently
-offer a signed public preview download; the release gates below remain closed
+offer a qualified public download; the release gates below remain closed
 until the real Windows and Linux qualification evidence exists.
 
 The pre-release naming reset uses a new desktop identity and recovery namespace.
@@ -136,27 +136,27 @@ The completed History implementation and its validation are recorded in
 
 ## Publication checks
 
-The planned updater uses two channels, `stable` and `preview`, both released
-from tagged commits on `main`. Run `pnpm run release:prepare <semver>` from a
-clean, current `main`, or from the clean work branch that holds the release's
-changes and already contains `origin/main`; it produces the sole valid
-`release/<semver>` branch (renaming a work branch in place) and prepares the authoritative metadata, the public
-notes and the in-app highlights file that What's new is built from; after
-filling the highlights, `pnpm run release:notes` renders the notes' Highlights
-section from them.
+The updater has one channel: every release is a plain `X.Y.Z` version, tagged
+from `main`, and every installation is offered it. Start a release with
+`pnpm run release:prepare <X.Y.Z>` from a clean, current `main` (or from a
+clean work branch that already contains `origin/main`); it produces the sole
+valid `release/<X.Y.Z>` branch and prepares the authoritative metadata, the
+public notes and the in-app highlights file that What's new is built from.
+Develop the release on that branch; after filling the highlights,
+`pnpm run release:notes` renders the notes' Highlights section from them.
 After its same-repository pull request passes the complete check set and is
 merged, protected default-branch automation creates the tag at the exact merge
 SHA and dispatches the candidate build. Direct pushes and manual tags cannot
-authorize a release. The version/tag selects the channel. See
-[ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
+authorize a release. See
+[ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
+[ADR 0019](docs/adr/0019-publish-updates-through-one-channel.md)
 and [task 065-9](work/done/065-9-signed-application-updates.md); the evidence and OS-signing work still
 open is tracked by [task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
-The native updater lifecycle and its visual controls are implemented,
-including a Stable / Preview channel choice in Settings → Updates. The
-current release matrix enables only Windows x86-64 per-user NSIS and Linux
-x86-64 AppImage candidates. Both channels currently publish under a testing
-policy (Tauri updater signature, no platform qualification, Authenticode
-deferred) so that channels and updates can be exercised with real
+The native updater lifecycle and its visual controls are implemented in
+Settings → Updates. The current release matrix enables only Windows x86-64
+per-user NSIS and Linux x86-64 AppImage candidates. Releases currently publish
+under a testing policy (Tauri updater signature, no platform qualification,
+Authenticode deferred) so that updates can be exercised with real
 installations; neither target is qualified until its real Tauri-signed
 A-to-B evidence exists. Both macOS targets
 are post-1.0 work under task 065-10; they are not advertised in feeds or
@@ -164,19 +164,18 @@ published as supported packages. The single release pipeline (validate, build,
 OS-trust boundary, updater signing, staging and publication as jobs of one
 run) and its protected evidence are implemented. One production Tauri updater
 key is configured; there is no test-only key, feed or build profile, and
-qualification evidence comes from real consecutive public preview releases.
+qualification evidence comes from real consecutive public releases.
 Source-repository visibility grants no access to signing
 material or publisher credentials. The merge-driven coordinator, automatic
 protected public publisher,
-immutable-asset reconciliation and stable/preview feed gates are implemented
+immutable-asset reconciliation and the no-regression feed gate are implemented
 and locally tested. Production remains closed until the enabled Windows/Linux
 matrix is qualified and published. Authenticode is deliberately not a pre-1.0
 gate, so Windows downloads must disclose that the operating system does not
 know their publisher. Maintainers must follow the
 [signed-build](docs/release/signed-builds.md) and
 [public publishing](docs/release/public-publishing.md) runbooks; a private
-artifact is not a release and a preview publication cannot modify the stable
-feed.
+artifact is not a release.
 
 Before publishing a desktop build, run `pnpm run check:publication`. It runs
 the complete local gate plus `check:feedback`, which checks the live public
@@ -196,7 +195,7 @@ Actions runs, and published packages must retain their checksums and Tauri
 updater-signature evidence. Windows packages through `1.0.0` intentionally lack
 publicly trusted Authenticode and may trigger SmartScreen or unknown-publisher
 warnings. [Task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
-owns OS-level signing for both channels (SignPath Foundation is the intended
+owns OS-level signing (SignPath Foundation is the intended
 provider) and the remaining qualification evidence. No external
 signing-service application has been submitted yet.
 

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareReleaseVersions, parseReleaseVersion, ReleaseValidationError } from "./release-candidate.mjs";
+import { compareReleaseVersions, parseKnownVersion, ReleaseValidationError } from "./release-candidate.mjs";
 
 /**
  * Release highlights: the two-to-five sentences a version shows in the app's
@@ -118,7 +118,7 @@ export function parseHighlights(name, text) {
   if (typeof value.version !== "string") fail("highlights_invalid", `${name}: "version" must be a string`);
   const release = (() => {
     try {
-      return parseReleaseVersion(value.version);
+      return parseKnownVersion(value.version);
     } catch (error) {
       return fail("highlights_invalid", `${name}: ${error.message}`);
     }
@@ -146,7 +146,7 @@ export function parseHighlights(name, text) {
     }
     return { id: entry.id, icon: entry.icon, en: entry.en, es: entry.es };
   });
-  return { version: value.version, channel: release.channel, date: value.date, highlights };
+  return { version: release.version, date: value.date, highlights };
 }
 
 /** Every file in the directory, validated, newest version first. */

@@ -1,5 +1,3 @@
-export type AppReleaseChannel = "stable" | "preview";
-
 /** The glyph catalogue. The release scripts validate every highlights file
  * against `docs/release/highlights/icons.json`; this list is the same names
  * as literal types, so the dialog's icon map is complete by construction, and
@@ -31,7 +29,6 @@ export type ReleaseHighlight = Readonly<{
 
 export type AppReleaseEntry = Readonly<{
   version: string;
-  channel: AppReleaseChannel;
   /** The day the release was published — its tag's date — as ISO
    * `YYYY-MM-DD`, formatted for the reader's language at render time. A
    * version whose tag the build could not see (a development checkout, or
@@ -51,20 +48,9 @@ type ReleaseHighlightsFile = Readonly<{
   highlights: readonly ReleaseHighlight[];
 }>;
 
-/** Channel identity is encoded in the release version itself. Keeping a
- * second handwritten channel beside it would allow the updater feed, status
- * bar and changelog to disagree about the same build. */
-export function appReleaseChannel(version: string): AppReleaseChannel {
-  const number = "(?:0|[1-9]\\d*)";
-  if (new RegExp(`^${number}\\.${number}\\.${number}$`).test(version)) return "stable";
-  if (new RegExp(`^${number}\\.${number}\\.${number}-preview\\.[1-9]\\d*$`).test(version)) {
-    return "preview";
-  }
-  throw new Error(`Unsupported GitOdile release version: ${version}`);
-}
-
-/** SemVer order over the two supported shapes: every `X.Y.Z-preview.N`
- * precedes its `X.Y.Z` stable successor. Mirrors the release scripts'
+/** SemVer order over the release shape `X.Y.Z` and the legacy
+ * `X.Y.Z-preview.N` that older entries in the changelog still carry: every
+ * preview precedes its release. Mirrors the release scripts'
  * `compareReleaseVersions`, which the frontend cannot import. */
 export function compareAppReleaseVersions(left: string, right: string): number {
   const parse = (version: string) => {
@@ -102,14 +88,12 @@ export function buildAppChangelog(
     .filter((file) => file.highlights.length > 0 || file.version === currentVersion)
     .map((file) => ({
       version: file.version,
-      channel: appReleaseChannel(file.version),
       date: tagDates[file.version] ?? file.date,
       highlights: file.highlights,
     }));
   if (!entries.some((entry) => entry.version === currentVersion)) {
     entries.push({
       version: currentVersion,
-      channel: appReleaseChannel(currentVersion),
       date: null,
       highlights: [],
     });

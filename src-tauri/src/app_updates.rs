@@ -39,69 +39,19 @@ const DOWNLOAD_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_TOTAL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const READ_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
 const REDIRECT_LIMIT: usize = 5;
-const STABLE_FEED: &str =
-    "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json";
-const PREVIEW_FEED: &str =
-    "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json";
+/// The one feed every build follows. The publisher also mirrors each release
+/// into the retired `preview.json`, the only feed `0.2.0-preview.*` builds
+/// know; no build from this source reads it.
+const FEED: &str =
+    "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json";
 const RELEASE_PREFIX: &str = "/martinezelx/gitodile/releases/download/";
 const HANDOFF_FILE: &str = "app-update-handoff-v1.json";
-const CHANNEL_PREFERENCE_FILE: &str = "app-update-channel-v1.json";
-const CHANNEL_PREFERENCE_BYTES_LIMIT: usize = 256;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum UpdateCheckSource {
     Manual,
     Background,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum ReleaseChannel {
-    Stable,
-    Preview,
-}
-
-/// Which of the two compiled feeds a person asked to follow. `FollowBuild`
-/// is the default and means "the channel my version belongs to", which is
-/// exactly what every build did before the preference existed. The value is
-/// a choice between the two compiled feeds, never a feed, URL or key of its
-/// own, and it lives in the native app-local data directory, not in renderer
-/// storage.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum ChannelPreference {
-    #[default]
-    FollowBuild,
-    Stable,
-    Preview,
-}
-
-impl ChannelPreference {
-    fn resolve(self, build_channel: ReleaseChannel) -> ReleaseChannel {
-        match self {
-            Self::FollowBuild => build_channel,
-            Self::Stable => ReleaseChannel::Stable,
-            Self::Preview => ReleaseChannel::Preview,
-        }
-    }
-}
-
-/// What the renderer may know about the channel: the stored preference, the
-/// channel the running build belongs to, and the channel a check will use.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct UpdateChannelSetting {
-    preferred: ChannelPreference,
-    build_channel: ReleaseChannel,
-    channel: ReleaseChannel,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ChannelPreferenceRecord {
-    schema_version: u8,
-    preferred_channel: ChannelPreference,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -182,7 +132,6 @@ impl InstallationMode {
 pub(crate) struct UpdateCandidate {
     candidate_id: String,
     version: String,
-    channel: ReleaseChannel,
     target: UpdateTarget,
     published_at: Option<String>,
     notes: String,
@@ -214,7 +163,6 @@ pub(crate) enum UpdateErrorCode {
     FeedUnavailable,
     InvalidManifest,
     InvalidVersion,
-    ChannelMismatch,
     TargetUnavailable,
     UnsupportedInstallation,
     AutomaticUpdateNotEnabled,
@@ -381,7 +329,6 @@ struct ServiceInner {
     next_operation: AtomicU64,
     state: Mutex<ServiceState>,
     handoff_path: PathBuf,
-    preference_path: PathBuf,
 }
 
 struct ServiceState {
@@ -389,7 +336,6 @@ struct ServiceState {
     candidate: Option<PendingCandidate>,
     active: Option<ActiveOperation>,
     startup_confirmation: StartupUpdateConfirmation,
-    preference: ChannelPreference,
 }
 
 struct PendingCandidate {
@@ -420,12 +366,6 @@ enum ActiveOperationKind {
 #[derive(Clone)]
 struct BuildUpdateIdentity {
     version: Version,
-    /// The channel the compiled version belongs to. Compile-time gates key on
-    /// it, because they describe the build, not what the person asked for.
-    build_channel: ReleaseChannel,
-    /// The channel a check follows: the preference when one is set, else the
-    /// build channel. The feed is chosen from it, between the two constants.
-    channel: ReleaseChannel,
     feed: &'static str,
     public_key: String,
     public_key_id: String,
@@ -474,7 +414,6 @@ impl AppUpdateService {
             .app_local_data_dir()
             .unwrap_or_else(|_| std::env::temp_dir().join("gitodile"));
         let handoff_path = data_dir.join(HANDOFF_FILE);
-        let preference_path = data_dir.join(CHANNEL_PREFERENCE_FILE);
         let startup_confirmation = confirm_handoff(&handoff_path, env!("CARGO_PKG_VERSION"));
         let snapshot = match &startup_confirmation {
             StartupUpdateConfirmation::Unconfirmed { error, .. } => UpdateState::Failed {
@@ -489,10 +428,8 @@ impl AppUpdateService {
                 candidate: None,
                 active: None,
                 startup_confirmation,
-                preference: read_channel_preference(&preference_path),
             }),
             handoff_path,
-            preference_path,
         }))
     }
 
@@ -505,10 +442,8 @@ impl AppUpdateService {
                 candidate: None,
                 active: None,
                 startup_confirmation: StartupUpdateConfirmation::None,
-                preference: ChannelPreference::FollowBuild,
             }),
             handoff_path: std::env::temp_dir().join("gitodile-test-handoff-unused"),
-            preference_path: std::env::temp_dir().join("gitodile-test-channel-unused"),
         }))
     }
 
@@ -543,44 +478,6 @@ impl AppUpdateService {
         self.lock().startup_confirmation.clone()
     }
 
-    pub(crate) fn channel_setting(&self) -> UpdateChannelSetting {
-        channel_setting(self.lock().preference)
-    }
-
-    /// Stores the channel to follow from now on. The renderer chooses between
-    /// the two compiled feeds only; it still names no feed, URL or key. A
-    /// change is refused while a check, download or install is running, and
-    /// otherwise forgets the pending candidate: whatever was offered was found
-    /// on the other feed and must not be installed under the new choice.
-    pub(crate) fn set_channel(
-        &self,
-        channel: ReleaseChannel,
-    ) -> Result<UpdateChannelSetting, AppError> {
-        let mut state = self.lock();
-        if state.active.is_some() || matches!(state.snapshot, UpdateState::Installing { .. }) {
-            return Err(AppError::new(
-                AppErrorCode::UpdateOperationBusy,
-                "The update channel cannot change while an update check, download or install is running.",
-            ));
-        }
-        let preferred = match channel {
-            ReleaseChannel::Stable => ChannelPreference::Stable,
-            ReleaseChannel::Preview => ChannelPreference::Preview,
-        };
-        if preferred != state.preference {
-            persist_channel_preference(&self.0.preference_path, preferred).map_err(|_| {
-                AppError::new(
-                    AppErrorCode::PermissionDenied,
-                    "The update channel preference could not be saved.",
-                )
-            })?;
-            state.preference = preferred;
-        }
-        state.candidate = None;
-        state.snapshot = UpdateState::Idle;
-        Ok(channel_setting(state.preference))
-    }
-
     pub(crate) fn start_check<R: Runtime>(
         &self,
         app: AppHandle<R>,
@@ -594,7 +491,6 @@ impl AppUpdateService {
             let _ = active.cancel.send(true);
         }
         state.candidate = None;
-        let preference = state.preference;
         let operation_id = self.operation_id("check");
         let (cancel, cancel_rx) = watch::channel(false);
         state.active = Some(ActiveOperation {
@@ -620,7 +516,7 @@ impl AppUpdateService {
             let outcome = tokio::select! {
                 biased;
                 _ = wait_for_cancellation(cancel_rx, app_cancel) => CheckOutcome::Cancelled,
-                outcome = perform_check(&app, preference) => outcome,
+                outcome = perform_check(&app) => outcome,
             };
             drop(activity);
             service.finish_check(&task_id, outcome);
@@ -993,7 +889,6 @@ impl AppUpdateService {
             return Err(stale_candidate_error(UpdateStage::Install));
         }
         let mut state = self.lock();
-        let preference = state.preference;
         let pending = state
             .candidate
             .as_mut()
@@ -1016,7 +911,7 @@ impl AppUpdateService {
         if let Some(error) = installation_error(mode, UpdateStage::Install) {
             return Err(error);
         }
-        let build_identity = BuildUpdateIdentity::current(preference)?;
+        let build_identity = BuildUpdateIdentity::current()?;
         if !build_identity.target_is_enabled(pending.public.target) {
             return Err(automatic_update_not_enabled(UpdateStage::Install));
         }
@@ -1027,10 +922,7 @@ impl AppUpdateService {
                 false,
             ));
         }
-        // The identity is rebuilt under the channel in force now, so a
-        // candidate found under another preference can never be installed.
         let rebuilt = candidate_identity(
-            build_identity.channel,
             &pending.public.version,
             pending.public.target,
             mode,
@@ -1091,11 +983,8 @@ impl AppUpdateService {
     }
 }
 
-async fn perform_check<R: Runtime>(
-    app: &AppHandle<R>,
-    preference: ChannelPreference,
-) -> CheckOutcome {
-    let identity = match BuildUpdateIdentity::current(preference) {
+async fn perform_check<R: Runtime>(app: &AppHandle<R>) -> CheckOutcome {
+    let identity = match BuildUpdateIdentity::current() {
         Ok(identity) => identity,
         Err(error) => return CheckOutcome::Unavailable(error),
     };
@@ -1137,48 +1026,29 @@ async fn perform_check<R: Runtime>(
 }
 
 impl BuildUpdateIdentity {
-    fn current(preference: ChannelPreference) -> Result<Self, UpdateError> {
+    fn current() -> Result<Self, UpdateError> {
         debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.11.0");
         build_update_identity(
             env!("CARGO_PKG_VERSION"),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY").unwrap_or(""),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY_ID").unwrap_or(""),
-            preference,
         )
     }
 
     fn target_is_enabled(&self, target: UpdateTarget) -> bool {
-        production_target_is_enabled(self.build_channel, target)
+        production_target_is_enabled(target)
     }
 }
 
-fn build_channel() -> Option<ReleaseChannel> {
-    parse_release_version(env!("CARGO_PKG_VERSION")).map(|(_, channel)| channel)
-}
-
-fn channel_setting(preferred: ChannelPreference) -> UpdateChannelSetting {
-    // Every released version parses; a checkout with an unreleasable version
-    // still answers, as a stable build, rather than panicking in Settings.
-    let build_channel = build_channel().unwrap_or(ReleaseChannel::Stable);
-    UpdateChannelSetting {
-        preferred,
-        build_channel,
-        channel: preferred.resolve(build_channel),
-    }
-}
-
-/// The installed feed is derived from the compiled version's channel, the
-/// person's stored choice between the two compiled feeds, and the reviewed
-/// public key baked in at build time. There is no other routing: a build
-/// cannot be pointed at another feed or key by configuration or by the
-/// renderer.
+/// Every build follows the one compiled feed and trusts the reviewed public
+/// key baked in at build time. There is no other routing: a build cannot be
+/// pointed at another feed or key by configuration or by the renderer.
 fn build_update_identity(
     version_text: &str,
     public_key: &str,
     public_key_id: &str,
-    preference: ChannelPreference,
 ) -> Result<BuildUpdateIdentity, UpdateError> {
-    let (version, build_channel) = parse_release_version(version_text).ok_or_else(|| {
+    let version = parse_installed_version(version_text).ok_or_else(|| {
         UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false)
     })?;
     if public_key.is_empty()
@@ -1194,16 +1064,9 @@ fn build_update_identity(
                 .detail("Update verification is not configured for this build."),
         );
     }
-    let channel = preference.resolve(build_channel);
-    let feed = match channel {
-        ReleaseChannel::Stable => STABLE_FEED,
-        ReleaseChannel::Preview => PREVIEW_FEED,
-    };
     Ok(BuildUpdateIdentity {
         version,
-        build_channel,
-        channel,
-        feed,
+        feed: FEED,
         public_key: public_key.to_string(),
         public_key_id: public_key_id.to_string(),
     })
@@ -1261,16 +1124,11 @@ fn validate_candidate(
         Ok(manifest) => manifest,
         Err(error) => return CheckOutcome::Failed(error),
     };
-    let candidate_channel = match version_decision(
-        identity.build_channel,
-        identity.channel,
-        &identity.version,
-        &update.version,
-    ) {
-        Ok(Some(channel)) => channel,
-        Ok(None) => return CheckOutcome::Current,
+    match version_decision(&identity.version, &update.version) {
+        Ok(true) => {}
+        Ok(false) => return CheckOutcome::Current,
         Err(error) => return CheckOutcome::Failed(error),
-    };
+    }
     let notes = match plain_text_notes(update.body.as_deref().unwrap_or("")) {
         Ok(notes) => notes,
         Err(error) => return CheckOutcome::Failed(error),
@@ -1288,7 +1146,6 @@ fn validate_candidate(
     let manifest_digest = hex_digest(Sha256::digest(&validated_manifest.bytes));
     let artifact_url = update.download_url.as_str().to_string();
     let candidate_id = candidate_identity(
-        identity.channel,
         &update.version,
         target,
         mode,
@@ -1300,7 +1157,6 @@ fn validate_candidate(
     let public = UpdateCandidate {
         candidate_id,
         version: update.version.clone(),
-        channel: candidate_channel,
         target,
         published_at: update.date.and_then(|date| date.format(&Rfc3339).ok()),
         notes,
@@ -1440,7 +1296,17 @@ fn valid_artifact_url(url: &reqwest::Url, version: &str) -> bool {
         && url.path().len() > expected.len()
 }
 
-fn parse_release_version(value: &str) -> Option<(Version, ReleaseChannel)> {
+/// A release version: plain `X.Y.Z` without leading zeros, prerelease or
+/// build metadata. It is the only shape a feed may offer.
+fn parse_release_version(value: &str) -> Option<Version> {
+    parse_installed_version(value).filter(|version| version.pre.is_empty())
+}
+
+/// The version of a running build: a release version, or the legacy
+/// `X.Y.Z-preview.N` shape that every build up to `0.2.0-preview.12` (and
+/// `main` until it releases `0.3.0`) carries. It is read so those installs
+/// can be offered a release; that shape is never published again.
+fn parse_installed_version(value: &str) -> Option<Version> {
     if value.is_empty() || value.starts_with('v') || value.contains('+') {
         return None;
     }
@@ -1453,9 +1319,7 @@ fn parse_release_version(value: &str) -> Option<(Version, ReleaseChannel)> {
             return None;
         }
     }
-    let channel = if version.pre == semver::Prerelease::EMPTY {
-        ReleaseChannel::Stable
-    } else {
+    if !version.pre.is_empty() {
         let prefix = format!(
             "{}.{}.{}-preview.",
             version.major, version.minor, version.patch
@@ -1468,41 +1332,18 @@ fn parse_release_version(value: &str) -> Option<(Version, ReleaseChannel)> {
         {
             return None;
         }
-        ReleaseChannel::Preview
-    };
-    Some((version, channel))
+    }
+    Some(version)
 }
 
-/// Whether a candidate is offered, given the channel the build belongs to and
-/// the channel the check followed (the build's, unless a preference is set).
-///
-/// A preview candidate is accepted only when the check followed the preview
-/// channel. When it followed stable, a preview is a feed error on a stable
-/// build (`channel_mismatch`, as before the preference existed) and simply
-/// not an offer on a preview build whose person asked for stable only. A
-/// stable candidate is acceptable on either channel: the preview feed carries
-/// stable successors. Equal and older candidates are never offered.
-fn version_decision(
-    build_channel: ReleaseChannel,
-    effective_channel: ReleaseChannel,
-    installed_version: &Version,
-    candidate: &str,
-) -> Result<Option<ReleaseChannel>, UpdateError> {
-    let (candidate_version, candidate_channel) =
-        parse_release_version(candidate).ok_or_else(|| {
-            UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false)
-        })?;
-    if effective_channel == ReleaseChannel::Stable && candidate_channel == ReleaseChannel::Preview {
-        if build_channel == ReleaseChannel::Stable {
-            return Err(UpdateError::new(
-                UpdateErrorCode::ChannelMismatch,
-                UpdateStage::Check,
-                false,
-            ));
-        }
-        return Ok(None);
-    }
-    Ok((candidate_version > *installed_version).then_some(candidate_channel))
+/// Whether a candidate is offered: only a release version newer than the
+/// running build. Equal and older candidates are never offered, and a
+/// prerelease in the feed is a feed error, never an offer.
+fn version_decision(installed_version: &Version, candidate: &str) -> Result<bool, UpdateError> {
+    let candidate_version = parse_release_version(candidate).ok_or_else(|| {
+        UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false)
+    })?;
+    Ok(candidate_version > *installed_version)
 }
 
 fn plain_text_notes(notes: &str) -> Result<String, UpdateError> {
@@ -1541,7 +1382,6 @@ fn plain_text_notes(notes: &str) -> Result<String, UpdateError> {
 
 #[allow(clippy::too_many_arguments)]
 fn candidate_identity(
-    channel: ReleaseChannel,
     version: &str,
     target: UpdateTarget,
     mode: InstallationMode,
@@ -1552,11 +1392,7 @@ fn candidate_identity(
 ) -> String {
     let mut hash = Sha256::new();
     for part in [
-        "gitodile-update-candidate-v1",
-        match channel {
-            ReleaseChannel::Stable => "stable",
-            ReleaseChannel::Preview => "preview",
-        },
+        "gitodile-update-candidate-v2",
         version,
         target.as_str(),
         mode.as_str(),
@@ -1837,13 +1673,10 @@ fn target_list_contains(list: &str, target: UpdateTarget) -> bool {
 /// Two compile-time lists open automatic installation for a target:
 /// `GITODILE_QUALIFIED_UPDATE_TARGETS`, set only once real A-to-B evidence
 /// exists, and `GITODILE_TEST_UPDATE_TARGETS`, which the release pipeline
-/// supplies to every build while both channels publish in testing mode (a
-/// Tauri-signed package without platform qualification; see ADR 0010's
-/// 2026-09-15 amendment). The build channel is still recorded here so the
-/// test list can be narrowed to one channel again when stable leaves testing.
-fn production_target_is_enabled(channel: ReleaseChannel, target: UpdateTarget) -> bool {
+/// supplies to every build while releases publish in testing mode (a
+/// Tauri-signed package without platform qualification; see ADR 0019).
+fn production_target_is_enabled(target: UpdateTarget) -> bool {
     production_target_is_enabled_for_lists(
-        channel,
         target,
         option_env!("GITODILE_QUALIFIED_UPDATE_TARGETS").unwrap_or(""),
         option_env!("GITODILE_TEST_UPDATE_TARGETS").unwrap_or(""),
@@ -1851,12 +1684,10 @@ fn production_target_is_enabled(channel: ReleaseChannel, target: UpdateTarget) -
 }
 
 fn production_target_is_enabled_for_lists(
-    channel: ReleaseChannel,
     target: UpdateTarget,
     qualified_targets: &str,
     test_targets: &str,
 ) -> bool {
-    let _ = channel;
     target_list_contains(qualified_targets, target) || target_list_contains(test_targets, target)
 }
 
@@ -2132,44 +1963,6 @@ fn persist_handoff(path: &Path, record: &HandoffRecord) -> std::io::Result<()> {
     fs::rename(temporary, path)
 }
 
-/// A missing, oversized or malformed record is the default: the choice is a
-/// convenience, and a build that cannot read it behaves exactly as if it had
-/// never been made rather than refusing to check.
-fn read_channel_preference(path: &Path) -> ChannelPreference {
-    fs::read(path)
-        .ok()
-        .filter(|bytes| bytes.len() <= CHANNEL_PREFERENCE_BYTES_LIMIT)
-        .and_then(|bytes| serde_json::from_slice::<ChannelPreferenceRecord>(&bytes).ok())
-        .filter(|record| record.schema_version == 1)
-        .map_or(ChannelPreference::FollowBuild, |record| {
-            record.preferred_channel
-        })
-}
-
-fn persist_channel_preference(path: &Path, preferred: ChannelPreference) -> std::io::Result<()> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| std::io::Error::other("preference path has no parent"))?;
-    fs::create_dir_all(parent)?;
-    let bytes = serde_json::to_vec(&ChannelPreferenceRecord {
-        schema_version: 1,
-        preferred_channel: preferred,
-    })
-    .map_err(std::io::Error::other)?;
-    let temporary = parent.join(format!("{CHANNEL_PREFERENCE_FILE}.new"));
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(&temporary)?;
-    file.write_all(&bytes)?;
-    file.sync_all()?;
-    if path.exists() {
-        fs::remove_file(path)?;
-    }
-    fs::rename(temporary, path)
-}
-
 fn confirm_handoff(path: &Path, running_version: &str) -> StartupUpdateConfirmation {
     if !path.is_file() {
         return StartupUpdateConfirmation::None;
@@ -2212,9 +2005,9 @@ fn confirm_handoff(path: &Path, running_version: &str) -> StartupUpdateConfirmat
 }
 
 fn valid_handoff_record(record: &HandoffRecord) -> bool {
-    let versions = parse_release_version(&record.from_version)
+    let versions = parse_installed_version(&record.from_version)
         .zip(parse_release_version(&record.expected_version));
-    let forward = versions.is_some_and(|((from, _), (expected, _))| expected > from);
+    let forward = versions.is_some_and(|(from, expected)| expected > from);
     let timestamp_is_plausible = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -2257,188 +2050,57 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn strict_versions_and_preview_order_are_enforced() {
-        for valid in ["0.2.0", "0.2.0-preview.1", "10.20.30-preview.42"] {
-            assert!(parse_release_version(valid).is_some(), "{valid}");
-        }
+    fn releases_are_plain_versions_and_legacy_previews_stay_readable() {
+        assert!(parse_release_version("0.3.0").is_some());
+        assert!(parse_release_version("10.20.30").is_some());
         for invalid in [
             "v0.2.0",
             "01.2.0",
             "0.02.0",
             "0.2.00",
+            "0.2.0-preview.1",
+            "0.2.0-alpha.1",
+            "0.2.0+build.7",
+        ] {
+            assert!(parse_release_version(invalid).is_none(), "{invalid}");
+        }
+        for installed in ["0.3.0", "0.2.0-preview.1", "10.20.30-preview.42"] {
+            assert!(parse_installed_version(installed).is_some(), "{installed}");
+        }
+        for invalid in [
             "0.2.0-preview.0",
             "0.2.0-preview.01",
             "0.2.0-alpha.1",
             "0.2.0-preview.1+build.7",
         ] {
-            assert!(parse_release_version(invalid).is_none(), "{invalid}");
+            assert!(parse_installed_version(invalid).is_none(), "{invalid}");
         }
-        let a = parse_release_version("0.2.0-preview.2").unwrap().0;
-        let b = parse_release_version("0.2.0-preview.3").unwrap().0;
-        let stable = parse_release_version("0.2.0").unwrap().0;
-        assert!(a < b && b < stable);
+        let a = parse_installed_version("0.2.0-preview.2").unwrap();
+        let b = parse_installed_version("0.2.0-preview.3").unwrap();
+        let release = parse_installed_version("0.2.0").unwrap();
+        assert!(a < b && b < release);
     }
 
     #[test]
-    fn version_decisions_cover_equal_older_upgrade_and_channel_mismatch() {
-        use ReleaseChannel::{Preview, Stable};
-        let stable = Version::parse("1.2.3").unwrap();
-        assert_eq!(
-            version_decision(Stable, Stable, &stable, "1.2.3").unwrap(),
-            None
-        );
-        assert_eq!(
-            version_decision(Stable, Stable, &stable, "1.2.2").unwrap(),
-            None
-        );
-        assert_eq!(
-            version_decision(Stable, Stable, &stable, "1.2.4").unwrap(),
-            Some(Stable)
-        );
-        assert_eq!(
-            version_decision(Stable, Stable, &stable, "1.3.0-preview.1")
-                .unwrap_err()
-                .code,
-            UpdateErrorCode::ChannelMismatch
-        );
-        let preview = Version::parse("1.2.3-preview.2").unwrap();
-        assert_eq!(
-            version_decision(Preview, Preview, &preview, "1.2.3-preview.3").unwrap(),
-            Some(Preview)
-        );
-        assert_eq!(
-            version_decision(Preview, Preview, &preview, "1.2.3").unwrap(),
-            Some(Stable)
-        );
-    }
-
-    #[test]
-    fn a_preference_moves_the_effective_channel_without_allowing_downgrades() {
-        use ReleaseChannel::{Preview, Stable};
-        // A stable build that opted into previews is offered a newer preview
-        // and still refuses an older one.
-        let stable = Version::parse("0.2.0").unwrap();
-        assert_eq!(
-            version_decision(Stable, Preview, &stable, "0.3.0-preview.1").unwrap(),
-            Some(Preview)
-        );
-        assert_eq!(
-            version_decision(Stable, Preview, &stable, "0.2.0-preview.12").unwrap(),
-            None
-        );
-        assert_eq!(
-            version_decision(Stable, Preview, &stable, "0.2.1").unwrap(),
-            Some(Stable)
-        );
-        // A preview build restricted to stable is offered only stable
-        // successors and reports current otherwise, never an error.
-        let preview = Version::parse("0.2.0-preview.12").unwrap();
-        assert_eq!(
-            version_decision(Preview, Stable, &preview, "0.2.0").unwrap(),
-            Some(Stable)
-        );
-        assert_eq!(
-            version_decision(Preview, Stable, &preview, "0.1.0").unwrap(),
-            None
-        );
-        assert_eq!(
-            version_decision(Preview, Stable, &preview, "0.2.0-preview.13").unwrap(),
-            None
-        );
-        // The stable build's own feed carrying a preview is still a feed
-        // error, whatever the preference says.
-        assert_eq!(
-            version_decision(Stable, Stable, &stable, "0.2.1-preview.1")
-                .unwrap_err()
-                .code,
-            UpdateErrorCode::ChannelMismatch
-        );
-    }
-
-    #[test]
-    fn the_channel_preference_is_a_bounded_native_record_with_a_safe_default() {
-        let root = PathBuf::from(unique_temp_dir("update-channel-preference"));
-        fs::create_dir_all(&root).unwrap();
-        let path = root.join(CHANNEL_PREFERENCE_FILE);
-        assert_eq!(
-            read_channel_preference(&path),
-            ChannelPreference::FollowBuild
-        );
-        persist_channel_preference(&path, ChannelPreference::Preview).unwrap();
-        assert_eq!(read_channel_preference(&path), ChannelPreference::Preview);
-        persist_channel_preference(&path, ChannelPreference::Stable).unwrap();
-        assert_eq!(read_channel_preference(&path), ChannelPreference::Stable);
-        for malformed in [
-            "{}".to_string(),
-            r#"{"schemaVersion":2,"preferredChannel":"preview"}"#.to_string(),
-            r#"{"schemaVersion":1,"preferredChannel":"nightly"}"#.to_string(),
-            r#"{"schemaVersion":1,"preferredChannel":"https://evil.invalid/feed.json"}"#
-                .to_string(),
-            format!(
-                r#"{{"schemaVersion":1,"preferredChannel":"preview","padding":"{}"}}"#,
-                "x".repeat(CHANNEL_PREFERENCE_BYTES_LIMIT)
-            ),
-        ] {
-            fs::write(&path, malformed).unwrap();
+    fn only_a_newer_release_is_offered_to_release_and_legacy_builds() {
+        let release = Version::parse("0.3.0").unwrap();
+        assert!(!version_decision(&release, "0.3.0").unwrap());
+        assert!(!version_decision(&release, "0.2.9").unwrap());
+        assert!(version_decision(&release, "0.3.1").unwrap());
+        // An installed legacy preview is offered the release that follows it.
+        let legacy = Version::parse("0.2.0-preview.12").unwrap();
+        assert!(version_decision(&legacy, "0.3.1").unwrap());
+        assert!(version_decision(&legacy, "0.2.0").unwrap());
+        assert!(!version_decision(&legacy, "0.1.0").unwrap());
+        // A prerelease in the feed is never an offer, whoever is asking.
+        for installed in [&release, &legacy] {
             assert_eq!(
-                read_channel_preference(&path),
-                ChannelPreference::FollowBuild
+                version_decision(installed, "0.4.0-preview.1")
+                    .unwrap_err()
+                    .code,
+                UpdateErrorCode::InvalidVersion
             );
         }
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn changing_the_channel_is_refused_while_busy_and_forgets_the_candidate_otherwise() {
-        let root = PathBuf::from(unique_temp_dir("update-channel-service"));
-        fs::create_dir_all(&root).unwrap();
-        let service = AppUpdateService(Arc::new(ServiceInner {
-            next_operation: AtomicU64::new(0),
-            state: Mutex::new(ServiceState {
-                snapshot: UpdateState::Current {
-                    checked_at: "2026-09-15T00:00:00Z".into(),
-                },
-                candidate: None,
-                active: None,
-                startup_confirmation: StartupUpdateConfirmation::None,
-                preference: ChannelPreference::FollowBuild,
-            }),
-            handoff_path: root.join(HANDOFF_FILE),
-            preference_path: root.join(CHANNEL_PREFERENCE_FILE),
-        }));
-        let build = build_channel().unwrap();
-        assert_eq!(
-            service.channel_setting().preferred,
-            ChannelPreference::FollowBuild
-        );
-        assert_eq!(service.channel_setting().channel, build);
-
-        let id = service.install_test_operation(ActiveOperationKind::Check);
-        assert_eq!(
-            service
-                .set_channel(ReleaseChannel::Preview)
-                .unwrap_err()
-                .code,
-            AppErrorCode::UpdateOperationBusy
-        );
-        assert_eq!(
-            service.channel_setting().preferred,
-            ChannelPreference::FollowBuild
-        );
-        service.finish_check(&id, CheckOutcome::Current);
-
-        let setting = service.set_channel(ReleaseChannel::Preview).unwrap();
-        assert_eq!(setting.preferred, ChannelPreference::Preview);
-        assert_eq!(setting.channel, ReleaseChannel::Preview);
-        assert_eq!(setting.build_channel, build);
-        assert_eq!(service.snapshot(), UpdateState::Idle);
-        assert_eq!(
-            read_channel_preference(&root.join(CHANNEL_PREFERENCE_FILE)),
-            ChannelPreference::Preview
-        );
-        let stable = service.set_channel(ReleaseChannel::Stable).unwrap();
-        assert_eq!(stable.channel, ReleaseChannel::Stable);
-        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
@@ -2481,70 +2143,37 @@ mod tests {
     }
 
     #[test]
-    fn build_identity_is_derived_only_from_version_reviewed_key_and_closed_preference() {
-        let follow = ChannelPreference::FollowBuild;
-        let preview =
-            build_update_identity("0.2.0-preview.9", "public-key", "key-id", follow).unwrap();
-        assert_eq!(preview.build_channel, ReleaseChannel::Preview);
-        assert_eq!(preview.channel, ReleaseChannel::Preview);
-        assert_eq!(preview.feed, PREVIEW_FEED);
-        let stable = build_update_identity("0.2.0", "public-key", "key-id", follow).unwrap();
-        assert_eq!(stable.build_channel, ReleaseChannel::Stable);
-        assert_eq!(stable.channel, ReleaseChannel::Stable);
-        assert_eq!(stable.feed, STABLE_FEED);
-        // The preference picks between the two compiled feeds and never
-        // changes which channel the build belongs to.
-        let opted_in =
-            build_update_identity("0.2.0", "public-key", "key-id", ChannelPreference::Preview)
-                .unwrap();
-        assert_eq!(opted_in.build_channel, ReleaseChannel::Stable);
-        assert_eq!(opted_in.channel, ReleaseChannel::Preview);
-        assert_eq!(opted_in.feed, PREVIEW_FEED);
-        let restricted = build_update_identity(
-            "0.2.0-preview.9",
-            "public-key",
-            "key-id",
-            ChannelPreference::Stable,
-        )
-        .unwrap();
-        assert_eq!(restricted.build_channel, ReleaseChannel::Preview);
-        assert_eq!(restricted.channel, ReleaseChannel::Stable);
-        assert_eq!(restricted.feed, STABLE_FEED);
+    fn build_identity_is_derived_only_from_version_and_reviewed_key() {
+        for version in ["0.3.0", "0.2.0-preview.9"] {
+            let identity = build_update_identity(version, "public-key", "key-id").unwrap();
+            assert_eq!(identity.feed, FEED);
+        }
         for (version, key, key_id) in [
             ("0.2.0-alpha.1", "public-key", "key-id"),
-            ("0.2.0-preview.9", "", "key-id"),
-            ("0.2.0-preview.9", "public-key", ""),
-            ("0.2.0-preview.9", "public-key", "key id with spaces"),
+            ("0.3.0", "", "key-id"),
+            ("0.3.0", "public-key", ""),
+            ("0.3.0", "public-key", "key id with spaces"),
         ] {
             assert!(
-                build_update_identity(version, key, key_id, follow).is_err(),
+                build_update_identity(version, key, key_id).is_err(),
                 "{version}"
             );
         }
     }
 
     #[test]
-    fn test_targets_open_both_channels_and_never_imply_qualification() {
+    fn test_targets_open_installation_and_never_imply_qualification() {
         let targets = "windows-x86_64,linux-x86_64";
-        for channel in [ReleaseChannel::Preview, ReleaseChannel::Stable] {
-            for target in [UpdateTarget::WindowsX86_64, UpdateTarget::LinuxX86_64] {
-                assert!(production_target_is_enabled_for_lists(
-                    channel, target, "", targets
-                ));
-                assert!(production_target_is_enabled_for_lists(
-                    channel, target, targets, ""
-                ));
-                assert!(!production_target_is_enabled_for_lists(
-                    channel, target, "", ""
-                ));
-            }
-            assert!(!production_target_is_enabled_for_lists(
-                channel,
-                UpdateTarget::DarwinAarch64,
-                "",
-                targets,
-            ));
+        for target in [UpdateTarget::WindowsX86_64, UpdateTarget::LinuxX86_64] {
+            assert!(production_target_is_enabled_for_lists(target, "", targets));
+            assert!(production_target_is_enabled_for_lists(target, targets, ""));
+            assert!(!production_target_is_enabled_for_lists(target, "", ""));
         }
+        assert!(!production_target_is_enabled_for_lists(
+            UpdateTarget::DarwinAarch64,
+            "",
+            targets,
+        ));
     }
 
     #[test]
@@ -2987,33 +2616,33 @@ mod tests {
         let record = HandoffRecord {
             schema_version: 1,
             candidate_id: "a".repeat(64),
-            from_version: "0.2.0-preview.2".into(),
-            expected_version: "0.2.0-preview.3".into(),
+            from_version: "0.2.0-preview.12".into(),
+            expected_version: "0.3.0".into(),
             started_at_unix_seconds: 1,
         };
         persist_handoff(&path, &record).unwrap();
         assert!(matches!(
-            confirm_handoff(&path, "0.2.0-preview.3"),
+            confirm_handoff(&path, "0.3.0"),
             StartupUpdateConfirmation::Confirmed { .. }
         ));
         assert_eq!(
-            confirm_handoff(&path, "0.2.0-preview.3"),
+            confirm_handoff(&path, "0.3.0"),
             StartupUpdateConfirmation::None
         );
         persist_handoff(&path, &record).unwrap();
         assert!(matches!(
-            confirm_handoff(&path, "0.2.0-preview.2"),
+            confirm_handoff(&path, "0.2.0-preview.12"),
             StartupUpdateConfirmation::Unconfirmed { .. }
         ));
 
         let downgrade = HandoffRecord {
-            from_version: "0.2.0-preview.3".into(),
-            expected_version: "0.2.0-preview.2".into(),
+            from_version: "0.3.1".into(),
+            expected_version: "0.3.0".into(),
             ..record
         };
         persist_handoff(&path, &downgrade).unwrap();
         assert!(matches!(
-            confirm_handoff(&path, "0.2.0-preview.2"),
+            confirm_handoff(&path, "0.3.0"),
             StartupUpdateConfirmation::Unconfirmed { .. }
         ));
         let _ = fs::remove_dir_all(root);
@@ -3021,14 +2650,17 @@ mod tests {
 
     #[test]
     fn immutable_identity_includes_signature() {
-        let make =
-            |signature| {
-                candidate_identity(
-            ReleaseChannel::Preview, "0.2.0-preview.2", UpdateTarget::WindowsX86_64,
-            InstallationMode::WindowsNsisPerUser, "v0.2.0-preview.2", "manifest",
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/a.exe",
-            signature)
-            };
+        let make = |signature| {
+            candidate_identity(
+                "0.3.0",
+                UpdateTarget::WindowsX86_64,
+                InstallationMode::WindowsNsisPerUser,
+                "v0.3.0",
+                "manifest",
+                "https://github.com/martinezelx/gitodile/releases/download/v0.3.0/a.exe",
+                signature,
+            )
+        };
         assert_ne!(make("signature"), make("changed"));
     }
 

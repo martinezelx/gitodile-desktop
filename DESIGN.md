@@ -171,14 +171,14 @@ The main desktop window should broadly support:
      and History, do not use the global fade. Their panel edge is already the
      scroll boundary; fading it makes the surface appear not to end. They keep
      only a compact 8px gap above the status bar;
-   - the release metadata is grouped at the far right: the version is shown as
-     `v0.2.0-preview.1`; preview builds add a compact textual `preview` badge with
-     warning tint, while stable builds omit the default-channel badge. Color only
-     reinforces the visible word. The two channel names are `stable` and `preview`, kept the same in both locales.
-     Together they form one quiet button that opens the Changelog — the version the reader
+   - the release metadata is grouped at the far right: the version alone,
+     shown as `v0.3.0`. There is one release channel, so no badge qualifies it;
+     older entries in the changelog keep the `-preview.N` versions they
+     shipped as, which already say what they were.
+     It is one quiet button that opens the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About
-     dialog's shell and lists each release with its channel, publication date
+     dialog's shell and lists each release with its publication date
      when known, notes, and a
      marker for the build being run. Each version is a keyboard-accessible
      disclosure: its identity stays visible while its notes remain collapsed
@@ -246,23 +246,8 @@ The main desktop window should broadly support:
      actions and a dialog of its own, like Git — so it never shares General
      with the project-refresh group. It shows the installed version first,
      then one toned status line (the same `.status-line` scale the Git
-     installation row uses); under that row, a two-option segmented group,
-     Stable / Preview, chooses which channel to follow, with one sentence per
-     option (stable is what most people should run; previews arrive earlier
-     and may break). The group shows the channel a check will actually use —
-     a build that has never been told otherwise reads as its own channel, not
-     as a third "default" option — and is navigated like every other radio
-     group: arrows move focus, Enter or Space chooses. Choosing the other
-     channel is not yet a change: it opens a confirmation card under the
-     group, in the install confirmation's shape (question, consequence, "Not
-     now" and a focused confirm), whose consequence is the one every honest
-     channel switch states — the installed version stays put, because the
-     app never downgrades, so going back to Stable means waiting for the
-     next stable. Escape or "Not now" leaves the channel as it was. Only
-     confirming stores the choice; then whatever the old feed offered is
-     forgotten and a check of the new channel starts at once, because
-     choosing a channel is the question "what is there for me?". Nothing is
-     downloaded or installed by the choice.
+     installation row uses). There is no channel to choose: every
+     installation follows the one release feed (ADR 0019).
      Then it offers one switch, on by default, for the
      startup check — one bounded request when the app opens, repeated every
      24 hours only while it stays open — disclosing the GitHub contact, that
@@ -639,10 +624,9 @@ Brand identity (mark + name) appears in exactly one visible place at a time, nev
 
 The mark is the crocodile silhouette itself, not a silhouette knocked out of a green tile, and it is painted in `--accent-primary` — *not* `--accent-brand`. This follows the standing rule below rather than breaking it: the brand lime is a single fixed value in both themes, which works behind a tile it also supplies the contrast for, but a bare mark on the light app surface measures 1.95:1 with it. `--accent-primary` is the per-theme green and measures 5.09:1 on light and 11.46:1 on dark. The About dialog uses the same treatment at hero scale — one identity, one rendering.
 
-About places the running app version directly below the product promise.
-Preview builds repeat their textual channel badge there; stable builds show only
-the version. Both facts come from the same release model as the status bar and
-changelog, so these three surfaces cannot describe one build differently.
+About places the running app version directly below the product promise. It
+comes from the same release model as the status bar and changelog, so these
+three surfaces cannot describe one build differently.
 
 The titlebar mark is also the About affordance, as it is in every desktop application: clicking the identity is how you ask what the thing is. It is deliberately the *quiet* route — no tooltip and no hover plate, because a fill would turn the identity into the first button of the toolbar and advertise a shortcut nobody needs advertised. The signposted routes are the toolbar menu and the command palette; this one rewards knowing the convention. What it does keep: an accessible name, which is invisible to a sighted user and is the only thing naming the button to a screen reader; a 30px target around the 24px glyph, since nothing paints that box and an unadvertised control still has to be easy to hit once found; and a response on the silhouette itself — the mark deepens toward `--text-primary-color` on hover (6.85:1 on light, 12.97:1 on dark, from a resting 5.09:1 and 11.46:1) and presses with the same `scale(0.94)` the rail icons use. `data-tauri-drag-region` stays on the wrapper around it, so the chrome still drags the window while the button keeps its click.
 
@@ -1074,7 +1058,7 @@ that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, TypeScript, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and one row of equal tiles, mark above name above version, for the ones that do not. The tiles were capsules first, which is what a mark beside short text asks to be; four of them overflowed the dialog and wrapped three-and-one, which reads as an accident rather than a set. Stacking the mark fits them all on one row and settles the shape at the same time, since a capsule is a single-line control. Each tile is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. A credit is not a call to action, so the tile stays at rest until pointed at and withholds nothing at rest — mark, name and version are all readable without hovering. On hover it takes the app's neutral interactive treatment warmed by the accent that carries the identity a few lines above it (accent border, a tint of the resting fill, a one-pixel lift), and reveals the one fact the resting tile cannot state: a small outward arrow in the corner, saying the press leaves the app. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
-**About names the product together with its promise.** The correctly cased `GitOdile` name leads, followed by the mark and localized promise. Name and promise deliberately share one type scale; accent colour and weight establish hierarchy without making the row feel assembled from three unrelated sizes. The mark is a compact separator rather than a third typographic level, and the shared close control sits in the same flex row so its alignment cannot drift down beside the version. The signature wraps together on narrow windows. The `h2` contains the three identity pieces, with the decorative mark hidden from assistive technology, so the dialog's accessible name identifies the app before stating its promise. The `preview` pill beside the version is the same `.channel-badge` the status bar and the changelog use; those three surfaces exist to describe one build identically, and three hand-written copies of the recipe had already drifted. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control sits with those rows — between the label-and-value rows and the credits — because only its label used to tie it to its data, with the two things a bug reporter needs separated by an unrelated section.
+**About names the product together with its promise.** The correctly cased `GitOdile` name leads, followed by the mark and localized promise. Name and promise deliberately share one type scale; accent colour and weight establish hierarchy without making the row feel assembled from three unrelated sizes. The mark is a compact separator rather than a third typographic level, and the shared close control sits in the same flex row so its alignment cannot drift down beside the version. The signature wraps together on narrow windows. The `h2` contains the three identity pieces, with the decorative mark hidden from assistive technology, so the dialog's accessible name identifies the app before stating its promise. The version stands alone, as it does in the status bar and the changelog; those three surfaces exist to describe one build identically. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control sits with those rows — between the label-and-value rows and the credits — because only its label used to tie it to its data, with the two things a bug reporter needs separated by an unrelated section.
 
 Licence and source links close the dialog after the credits. They are durable project provenance, not part of the product pitch or machine diagnostics, so placing them beneath both keeps the introduction focused and makes the bottom edge the predictable place for legal information.
 

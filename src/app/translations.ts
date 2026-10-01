@@ -150,7 +150,7 @@ export interface AppTranslations {
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarVersion: (version: string) => string;
-  statusBarOpenChangelog: (version: string, channel: string) => string;
+  statusBarOpenChangelog: (version: string) => string;
   titlebarHideSidebar: string;
   titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
@@ -348,7 +348,7 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenChangelog: (version, channel) => `What's new in GitOdile v${version} ${channel}`,
+  statusBarOpenChangelog: (version) => `What's new in GitOdile v${version}`,
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -539,7 +539,7 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarVersion: (version) => `v${version}`,
-  statusBarOpenChangelog: (version, channel) => `Novedades de GitOdile v${version} ${channel}`,
+  statusBarOpenChangelog: (version) => `Novedades de GitOdile v${version}`,
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",

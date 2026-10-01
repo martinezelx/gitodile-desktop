@@ -143,24 +143,6 @@ describe("production style composition", () => {
     // beside it, at any width.
     expect(appShell).toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
-
-    // The channel badge — the pill naming which build the reader is running —
-    // is stated on three surfaces: the status bar, About and the changelog.
-    // Three hand-written copies had already drifted (6px of inline padding
-    // against 7px, and the tracking on two of them), and those three exist to
-    // describe one build identically, so exactly one sheet may define it.
-    expect(primitiveChrome).toContain(".channel-badge {");
-    expect(primitiveChrome).toContain(".channel-badge--preview {");
-    const channelSelectors = [
-      "status-bar__channel",
-      "about-dialog__release-channel",
-      "changelog-release__channel",
-    ];
-    const restated = readRules("app/app-shell.css")
-      .filter((rule) => channelSelectors.some((name) => rule.selector.includes(name)))
-      .filter((rule) => /padding:|border-radius:|font-size:\s*var\(--text-micro\)/.test(rule.body))
-      .map((rule) => rule.selector);
-    expect(restated).toEqual([]);
   });
 
   it("loads shared app menus before feature alignment overrides", () => {

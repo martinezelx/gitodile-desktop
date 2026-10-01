@@ -1,7 +1,16 @@
 # ADR 0010: Distribute signed app updates through public GitHub Releases
 
-- Status: accepted
+- Status: accepted; channel model superseded by
+  [ADR 0019](0019-publish-updates-through-one-channel.md)
 - Date: 2026-09-03
+
+[ADR 0019](0019-publish-updates-through-one-channel.md) (2026-10-01) replaces
+the two channels below with one: plain `X.Y.Z` releases, the single
+`updates/latest.json` feed, a legacy `preview.json` mirror, no channel choice,
+and the `testing` and `production` publication modes. Everything below about
+`stable`, `preview`, their feeds, the channel preference, prerelease flags and
+the four publication modes is historical; hosting, signing, publication order
+and the installed-update contract still apply.
 
 Implementation contracts fixed on 2026-09-09 are recorded in the
 [application update contracts](../architecture/app-update-contracts.md) and
