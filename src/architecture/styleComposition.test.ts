@@ -226,7 +226,7 @@ describe("production style composition", () => {
   // theme without color-scheme would leave native scrollbars on the old scheme.
   it("keeps the brand layer out of every theme block", () => {
     const themes = readSource("styles/themes.css");
-    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--avatar-", "--tooltip-"];
+    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--mascot-brand-crest:", "--avatar-", "--tooltip-"];
     const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
     expect(blocks.length).toBe(THEME_IDS.length);
     for (const [, body] of blocks) {

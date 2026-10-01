@@ -16,33 +16,50 @@
 }
 
 /* The in-app mascot (`branding.tsx`, drawn by `scripts/icons/mascot.mjs`).
-   The outline, crest, glasses, teeth and amber details keep their own colours;
-   only the body's green follows the theme (ADR 0013), so the silhouette is the
-   identity in every palette.
+   The outline, glasses, teeth and amber details keep their own colours; only
+   the body's green and the crest follow the theme (ADR 0013), so the
+   silhouette is the identity in every palette.
 
    The fill is the theme's accent fill, lifted to at least OKLCH lightness 0.72
    so the black outline and glasses keep a clear edge against it (about 8:1 or
    more). Most accents are already lighter; the dark accents of some light
    themes would otherwise swallow the glasses. A webview without relative
-   colour syntax drops that declaration and keeps the plain accent fill. The
-   GitOdile themes, and the system default that resolves to them, use the
-   brand green so the in-app mascot matches the application icon. */
+   colour syntax keeps the plain accent fill. The lift sits behind `@supports`
+   because a custom property keeps a value it cannot compute, and `fill` would
+   then fail where it reads it. The GitOdile themes, and the system default
+   that resolves to them, use the brand green so the in-app mascot matches the
+   application icon.
+
+   The crest is a deep shade of the same accent, at the brand crest's OKLCH
+   lightness (about 0.37) with its chroma held down, so it stays a step above
+   the ink outline and the white commits keep their contrast on it. Without
+   relative colour syntax it is the accent mixed into black. */
 .gitodile-mascot {
   /* An illustration, not text: forced-colours mode (Windows high contrast)
      would repaint its fill and outline into a solid block. It is decorative
      and the text beside it names the surface, so it keeps its own colours. */
   forced-color-adjust: none;
   --mascot-fill: var(--accent-primary-fill);
-  --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h);
+  --mascot-crest: color-mix(in srgb, var(--accent-primary-fill) 40%, #000);
   display: block;
   width: 100%;
   height: auto;
 }
+@supports (color: oklch(from red l c h)) {
+  .gitodile-mascot {
+    --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h);
+    --mascot-crest: oklch(from var(--accent-primary-fill) 0.37 min(c, 0.09) h);
+  }
+}
 :root:not([data-theme]) .gitodile-mascot,
-[data-theme|="gitodile"] .gitodile-mascot { --mascot-fill: var(--mascot-brand-fill); }
+[data-theme|="gitodile"] .gitodile-mascot {
+  --mascot-fill: var(--mascot-brand-fill);
+  --mascot-crest: var(--mascot-brand-crest);
+}
 .gitodile-mascot--body { aspect-ratio: 1215 / 1095; }
 .gitodile-mascot--head { aspect-ratio: 1000 / 540; }
 .gitodile-mascot__fill { fill: var(--mascot-fill); }
+.gitodile-mascot__crest { fill: var(--mascot-crest); }
 /* The mascot moves in the brand moments only (DESIGN.md § Motion).
 
    `--sweep` (About): two slanted bands cross the lenses in under a second,

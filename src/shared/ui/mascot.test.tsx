@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import { Mascot } from "./mascot";
 
 describe("Mascot", () => {
-  it("is decorative and marks the themed fill and the glasses as their own groups", () => {
+  it("is decorative and marks the themed fill, the crest and the glasses as their own groups", () => {
     const { container } = render(<Mascot />);
     const svg = container.querySelector("svg");
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(svg).toHaveClass("gitodile-mascot", "gitodile-mascot--body");
     expect(svg?.querySelector(".gitodile-mascot__fill")).not.toBeNull();
+    expect(svg?.querySelector(".gitodile-mascot__crest")).not.toBeNull();
     // The arm sits inside the glasses group so it moves with the frame.
     const glasses = svg?.querySelector(".gitodile-mascot__glasses");
     expect(glasses?.querySelector("path[d^='M478 432']")).not.toBeNull();

@@ -1220,7 +1220,7 @@ per-project choice is stored per machine, keyed by the project, never in the
 
 Brand identity is not window furniture. Neither the titlebar nor the rail carries a mark or a wordmark: a 40px lockup at the top of the rail once spent that column's most valuable real estate on something that never changes, and a mark in the titlebar corner later did the same to the toolbar. The mascot appears where the app is being introduced or described: the no-project welcome screen and About. The compact layout below 800px adds no wordmark either; the window title and the operating system name the app.
 
-The welcome screen shows the full mascot above its heading (144px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body follows the theme (ADR 0013) while the ink outline, crest, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
+The welcome screen shows the full mascot above its heading (144px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body and crest follow the theme (ADR 0013) while the ink outline, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640` and the deep teal crest `#0f4a43`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. Their crest is a deep shade of the same accent (OKLCH lightness 0.37, chroma at most 0.09). The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
 
 About leads with the mascot at hero scale, then the name, then the promise, all
 centred. The mascot is the full body with its theme fill, never a tile; the name
@@ -1251,7 +1251,8 @@ Colour is two layers, and a theme is a record that fills only the second one
 
 **Brand identity (never themed).** `--accent-brand` and
 `--accent-brand-contrast` — the fixed brand lime and its contrast — plus
-`--mascot-brand-fill` (the mascot's green in the GitOdile themes),
+`--mascot-brand-fill` and `--mascot-brand-crest` (the mascot's green and
+crest in the GitOdile themes),
 `--avatar-color-*`, `--avatar-foreground`, `--avatar-ring` and `--tooltip-*`,
 are declared once in `src/styles/tokens.css`. No theme may set them.
 `--avatar-ring` is a neutral dark edge the project chip carries so it stays

@@ -43,6 +43,7 @@ export const colors = {
   /** The body's green (the key predates v4). The in-app mark swaps it for the theme's accent outside the GitOdile themes. */
   lime: "#86b640",
   ink: "#13251f",
+  /** The crest's deep teal. The in-app mark swaps it for a deep shade of the theme's accent outside the GitOdile themes. */
   crest: "#0f4a43",
   amber: "#e7b448",
   white: "#ffffff",
@@ -54,7 +55,8 @@ export const colors = {
 const c = colors;
 
 /**
- * Groups the in-app mark addresses by class: `fill` is recoloured per theme,
+ * Groups the in-app mark addresses by class: `fill` is recoloured per theme
+ * and `crest` with it, as a deep shade of the same colour;
  * `outline` (the silhouette's ink, drawn first) is what the welcome's entrance
  * traces, `glasses` (frame, lenses, arm and glints) is what the About sweep crosses,
  * `commits` are the crest's white commits the welcome lights in turn, and
@@ -81,7 +83,7 @@ const DRAWING = [
     ["path", { d: "M456 1302 V1260 C456 1240 472 1230 496 1230 H654 C684 1230 700 1252 700 1276 V1302 Z" }],
     ["path", { d: "M736 1302 V1260 C736 1240 752 1230 776 1230 H926 C956 1230 972 1252 972 1276 V1302 Z" }],
   ]],
-  ["g", { fill: c.crest }, [
+  ["g", { part: "crest", fill: c.crest }, [
     ["path", { d: "M431 392 L371 384 C252 370 237 492 357 506 C246 492 231 614 342 628 C240 614 223 735 325 749 C232 733 211 854 304 870 C221 849 191 968 274 989 C216 939 136 1033 194 1082 C174 1018 58 1054 78 1118 L300 1180 L480 420 Z" }],
   ]],
   ["path", { d: "M318 441 L307 563 L295 685 L278 805 L261 927 L217 1019 L129 1081", fill: "none", stroke: c.amber, "stroke-width": 9, "stroke-linejoin": "round", "stroke-linecap": "round" }],
@@ -294,6 +296,7 @@ export function artworkModule() {
 // The mascot as SVG element nodes with React prop names. Classed groups:
 // \`${partClass("outline")}\` the silhouette's ink (its paths measure pathLength 1),
 // \`${THEMED_FILL_CLASS}\` is the lime the in-app mark recolours per theme,
+// \`${partClass("crest")}\` the crest, recoloured with it,
 // \`${partClass("glasses")}\` the frame, lenses, arm and glints, \`${partClass("glints")}\`
 // the white glints on each lens, \`${partClass("commits")}\` the crest's commits
 // and \`${partClass("head-node")}\` its HEAD.

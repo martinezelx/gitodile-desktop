@@ -49,6 +49,12 @@ inside themed content beside a different theme accent.
   green `#86b640` is the new `--mascot-brand-fill`, the console's ASCII
   mascot tints its body the same way, and the packaged icons are now the
   mascot on an amber tile rather than lime.
+
+  *Update (2026-10-01):* the crest follows the theme with the body. Left at
+  its fixed deep teal it read as the GitOdile palette inside every other
+  theme. It is a deep shade of the same accent (OKLCH lightness 0.37, chroma
+  at most 0.09), and the GitOdile themes show the brand teal `#0f4a43`
+  through `--mascot-brand-crest`.
 - The guard from ADR 0012 stands unchanged: a `[data-theme]` block still must
   not set a brand-layer token. `themeContrast.test.ts` now also covers
   `--accent-primary-contrast` on `--accent-primary-fill`, which is what a

@@ -3,6 +3,7 @@
 // The mascot as SVG element nodes with React prop names. Classed groups:
 // `gitodile-mascot__outline` the silhouette's ink (its paths measure pathLength 1),
 // `gitodile-mascot__fill` is the lime the in-app mark recolours per theme,
+// `gitodile-mascot__crest` the crest, recoloured with it,
 // `gitodile-mascot__glasses` the frame, lenses, arm and glints, `gitodile-mascot__glints`
 // the white glints on each lens, `gitodile-mascot__commits` the crest's commits
 // and `gitodile-mascot__head-node` its HEAD.
@@ -77,6 +78,7 @@ export const MASCOT_ARTWORK: Readonly<Record<"body" | "head", MascotArtwork>> = 
       [
         "g",
         {
+          "className": "gitodile-mascot__crest",
           "fill": "#0f4a43"
         },
         [
@@ -569,6 +571,7 @@ export const MASCOT_ARTWORK: Readonly<Record<"body" | "head", MascotArtwork>> = 
       [
         "g",
         {
+          "className": "gitodile-mascot__crest",
           "fill": "#0f4a43"
         },
         [
