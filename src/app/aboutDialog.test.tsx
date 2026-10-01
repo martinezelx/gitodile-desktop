@@ -325,7 +325,7 @@ describe("About dialog", () => {
     expect(dialog).toHaveTextContent("Turns version control into clear, worry-free steps.");
     expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
     expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
-      `GitOdile ${__APP_VERSION__} preview`,
+      `GitOdile ${__APP_VERSION__}`,
     );
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");
     expect(dialog).toHaveTextContent("10.0.26200");

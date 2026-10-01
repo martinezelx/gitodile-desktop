@@ -29,9 +29,10 @@ const file = (overrides = {}, entries = [line]) => JSON.stringify({ version: "0.
 
 test("a highlights file names its version, dates it and lists bilingual lines with known glyphs", () => {
   const parsed = parseHighlights("v0.2.0-preview.11.json", file());
-  assert.deepEqual(parsed, { version: "0.2.0-preview.11", channel: "preview", date: "2026-09-15", highlights: [line] });
+  // A legacy preview file is still history the app shows.
+  assert.deepEqual(parsed, { version: "0.2.0-preview.11", date: "2026-09-15", highlights: [line] });
   assert.deepEqual(JSON.parse(scaffoldHighlights("0.3.0", "2026-10-01")), { version: "0.3.0", date: "2026-10-01", highlights: [] });
-  assert.equal(parseHighlights("v0.3.0.json", scaffoldHighlights("0.3.0", "2026-10-01")).channel, "stable");
+  assert.equal(parseHighlights("v0.3.0.json", scaffoldHighlights("0.3.0", "2026-10-01")).version, "0.3.0");
   assert.equal(todayIsoDate(new Date(2026, 8, 5)), "2026-09-05");
   assert.ok(HIGHLIGHT_ICONS.includes("cloud-download"));
 });
@@ -97,32 +98,32 @@ test("the notes' Highlights section is rendered from the English lines, between 
   assert.equal(renderHighlightsBlock([]), `${HIGHLIGHTS_BLOCK_START}\n<!-- This version has no user-facing highlights; What's new lists it without lines. -->\n${HIGHLIGHTS_BLOCK_END}`);
   // Inserted under the title when absent; replaced in place when present;
   // everything outside the markers is left exactly as written.
-  const notes = "# GitOdile 0.2.0-preview.11\n\nAn intro paragraph.\n\n- A hand-written bullet.\n";
+  const notes = "# GitOdile 0.3.0\n\nAn intro paragraph.\n\n- A hand-written bullet.\n";
   const inserted = applyHighlightsBlock(notes, [line]);
-  assert.equal(inserted, `# GitOdile 0.2.0-preview.11\n\n${renderHighlightsBlock([line])}\n\nAn intro paragraph.\n\n- A hand-written bullet.\n`);
+  assert.equal(inserted, `# GitOdile 0.3.0\n\n${renderHighlightsBlock([line])}\n\nAn intro paragraph.\n\n- A hand-written bullet.\n`);
   assert.equal(extractHighlightsBlock(inserted), renderHighlightsBlock([line]));
   const moved = inserted.replace(`${renderHighlightsBlock([line])}\n\n`, "").replace("- A hand-written bullet.\n", `- A hand-written bullet.\n\n${renderHighlightsBlock([line])}\n`);
   const rerendered = applyHighlightsBlock(moved, [line, second]);
-  assert.equal(rerendered, `# GitOdile 0.2.0-preview.11\n\nAn intro paragraph.\n\n- A hand-written bullet.\n\n${block}\n`);
+  assert.equal(rerendered, `# GitOdile 0.3.0\n\nAn intro paragraph.\n\n- A hand-written bullet.\n\n${block}\n`);
   assert.equal(applyHighlightsBlock(rerendered, [line, second]), rerendered);
   const dollars = { id: "dollars", icon: "tag", en: "Costs $$ and $& and $1 less.", es: "Cuesta $$ menos." };
   assert.match(applyHighlightsBlock(rerendered, [dollars]), /- Costs \$\$ and \$& and \$1 less\./);
   assert.equal(applyHighlightsBlock(rerendered.replace(/\n/g, "\r\n"), [line, second]), rerendered);
   assert.equal(extractHighlightsBlock(notes), null);
-  expectCode("notes_invalid", () => extractHighlightsBlock(`# GitOdile 0.2.0-preview.11\n\n${HIGHLIGHTS_BLOCK_END}\n`));
+  expectCode("notes_invalid", () => extractHighlightsBlock(`# GitOdile 0.3.0\n\n${HIGHLIGHTS_BLOCK_END}\n`));
   expectCode("notes_invalid", () => applyHighlightsBlock("No title here.\n", [line]));
 
   // `release:notes` rewrites only the marked block of the version's notes.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-notes-"));
   fs.mkdirSync(path.join(root, "docs", "release", "highlights"), { recursive: true });
   fs.mkdirSync(path.join(root, "docs", "release", "notes"), { recursive: true });
-  expectCode("highlights_missing", () => renderReleaseNotes({ root, version: "0.2.0-preview.11" }));
-  fs.writeFileSync(path.join(root, "docs", "release", "highlights", "v0.2.0-preview.11.json"), file());
-  expectCode("notes_missing", () => renderReleaseNotes({ root, version: "0.2.0-preview.11" }));
-  fs.writeFileSync(path.join(root, "docs", "release", "notes", "v0.2.0-preview.11.md"), notes);
-  assert.deepEqual(renderReleaseNotes({ root, version: "0.2.0-preview.11" }), { notes: "docs/release/notes/v0.2.0-preview.11.md", lines: 1, changed: true });
-  assert.equal(fs.readFileSync(path.join(root, "docs", "release", "notes", "v0.2.0-preview.11.md"), "utf8"), inserted);
-  assert.equal(renderReleaseNotes({ root, version: "0.2.0-preview.11" }).changed, false);
+  expectCode("highlights_missing", () => renderReleaseNotes({ root, version: "0.3.0" }));
+  fs.writeFileSync(path.join(root, "docs", "release", "highlights", "v0.3.0.json"), file({ version: "0.3.0" }));
+  expectCode("notes_missing", () => renderReleaseNotes({ root, version: "0.3.0" }));
+  fs.writeFileSync(path.join(root, "docs", "release", "notes", "v0.3.0.md"), notes);
+  assert.deepEqual(renderReleaseNotes({ root, version: "0.3.0" }), { notes: "docs/release/notes/v0.3.0.md", lines: 1, changed: true });
+  assert.equal(fs.readFileSync(path.join(root, "docs", "release", "notes", "v0.3.0.md"), "utf8"), inserted);
+  assert.equal(renderReleaseNotes({ root, version: "0.3.0" }).changed, false);
   expectCode("invalid_tag", () => renderReleaseNotes({ root, version: "0.2.0-alpha.1" }));
 });
 

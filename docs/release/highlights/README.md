@@ -14,7 +14,7 @@ do this before opening the release pull request. `check:docs` validates every
 file and refuses notes whose rendered block is stale, and the merge
 coordinator refuses a release whose file is missing or malformed or whose
 notes do not carry the block its file renders. A version with an empty list
-is allowed — a pipeline-only preview has nothing to tell a user — and the app
+is allowed — a pipeline-only release has nothing to tell a user — and the app
 simply leaves it out of the list, except for the build being run.
 
 The `date` in the file is only a fallback. What's new dates each version by
@@ -25,7 +25,7 @@ published. A development checkout without the tag shows the file's date.
 
 ```json
 {
-  "version": "0.2.0-preview.11",
+  "version": "0.3.0",
   "date": "2026-09-15",
   "highlights": [
     { "id": "inAppUpdates", "icon": "cloud-download", "en": "…", "es": "…" }

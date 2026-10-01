@@ -1,5 +1,5 @@
 import type { Language } from "../../i18n";
-import type { UpdateChannel, UpdateError, UpdateState } from "./domain";
+import type { UpdateError, UpdateState } from "./domain";
 
 /* The product name appears nowhere in this copy: the window is already the
  * product, and every other surface follows that rule (DESIGN.md, status
@@ -36,22 +36,6 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} of ${total}`,
     installing: "Installing… The app will close.",
     cancelled: "Cancelled. Nothing was installed.",
-    channelLabel: "Channel",
-    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
-    channelStableDescription: "Stable is what most people should run.",
-    channelPreviewDescription: "Previews arrive earlier and may break.",
-    channelConfirm: {
-      preview: {
-        title: "Follow preview releases?",
-        explanation: "Previews arrive before the stable release and may have problems. You can go back to Stable at any time, but the version you have installed stays until the next stable version is out.",
-        confirm: "Follow previews",
-      },
-      stable: {
-        title: "Go back to stable releases?",
-        explanation: "You'll stop being offered previews. The version you have installed stays until a newer stable version is released.",
-        confirm: "Follow stable",
-      },
-    } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     automaticTitle: "Startup check",
     automaticLabel: "Check for updates at startup",
     automaticDescription: "Asks GitHub for a newer version when the app opens, and again every 24 hours if it stays open. Sends no project data and doesn't identify your installation. Downloading and installing is always up to you.",
@@ -69,7 +53,6 @@ const dictionaries = {
       feed_unavailable: "The update feed isn't available yet. Use the manual download if a release was announced.",
       invalid_manifest: "The update information was invalid and was rejected.",
       invalid_version: "The offered version was invalid and was rejected.",
-      channel_mismatch: "This release doesn't belong to the channel this build uses.",
       target_unavailable: "There's no update package for this system. Use the manual download.",
       unsupported_installation: "This installation is managed elsewhere (a store or package manager). Update it from there.",
       automatic_update_not_enabled: "This build can't install updates by itself. Get the new version with the manual download.",
@@ -113,23 +96,6 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} de ${total}`,
     installing: "Instalando… La aplicación se cerrará.",
     cancelled: "Cancelado. No se ha instalado nada.",
-    channelLabel: "Canal",
-    // The channel names stay `stable` and `preview` in both locales (DESIGN.md).
-    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
-    channelStableDescription: "Stable es la opción para casi todo el mundo.",
-    channelPreviewDescription: "Las versiones preview llegan antes y pueden fallar.",
-    channelConfirm: {
-      preview: {
-        title: "¿Seguir las versiones preview?",
-        explanation: "Las preview llegan antes que la versión estable y pueden tener problemas. Puedes volver a Stable cuando quieras, pero la versión que tienes instalada se queda hasta que salga la siguiente estable.",
-        confirm: "Seguir las preview",
-      },
-      stable: {
-        title: "¿Volver a las versiones estables?",
-        explanation: "Dejarás de recibir previews. La versión que tienes instalada se queda hasta que se publique una estable más nueva.",
-        confirm: "Seguir la estable",
-      },
-    } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     automaticTitle: "Comprobación al iniciar",
     automaticLabel: "Buscar actualizaciones al iniciar",
     automaticDescription: "Consulta GitHub al abrir la aplicación, y de nuevo cada 24 horas si la dejas abierta. No envía datos de tus proyectos ni identifica tu instalación. Descargar e instalar siempre lo decides tú.",
@@ -147,7 +113,6 @@ const dictionaries = {
       feed_unavailable: "El canal de actualizaciones todavía no está disponible. Usa la descarga manual si se anunció una versión.",
       invalid_manifest: "La información de la actualización no era válida y se rechazó.",
       invalid_version: "La versión ofrecida no era válida y se rechazó.",
-      channel_mismatch: "Esta versión no pertenece al canal que usa esta build.",
       target_unavailable: "No hay paquete de actualización para este sistema. Usa la descarga manual.",
       unsupported_installation: "Esta instalación se gestiona desde fuera (una tienda o un gestor de paquetes). Actualízala desde ahí.",
       automatic_update_not_enabled: "Esta build no puede instalar actualizaciones por sí misma. Obtén la nueva versión con la descarga manual.",

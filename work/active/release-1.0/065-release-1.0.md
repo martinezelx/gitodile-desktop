@@ -98,7 +98,7 @@ in each task and in the roadmap dependency map.
   the approved sequence visible.
 - ADR 0011 removes Authenticode and macOS delivery from the `1.0.0` gate; task
   065-10 retains its ID as post-1.0 work, and OS signing is now owned by
-  065-9-13 (SignPath Foundation for both channels, superseding 065-9-9).
+  065-9-13 (SignPath Foundation for every release, superseding 065-9-9).
 
 # Implementation notes
 

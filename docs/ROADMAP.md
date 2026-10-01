@@ -82,35 +82,37 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 037-1 | Establish conflict truth and recovery |
-| Q02 | 037-2 | Select the editor foundation |
-| Q03 | 037-3 | Add the read-only conflict workspace |
-| Q04 | 037-4 | Resolve text conflicts safely |
-| Q05 | 037-5 | Complete or abort a merge |
-| Q06 | 037-6 | Handle non-text and structural conflicts |
-| Q07 | 037-7 | Audit the conflict workflow |
-| Q08 | 065-4 | Integrate local lines and diverged project changes |
-| Q09 | 065-5 | Make recovery records visible/actionable |
-| Q10 | 065-6 | Undo or reverse a saved version |
-| Q11 | 064-1 | Discover and inspect saved sets |
-| Q12 | 064-2 | Set all or selected changes aside |
-| Q13 | 064-3 | Restore a saved set and keep its copy |
-| Q14 | 064-4 | Remove one saved set with recovery |
-| Q15 | 064-5 | Audit the set-aside workflow |
-| Q16 | 065-7 | Harden credential and remote diagnostics |
-| Q17 | 065-8 | Verify and distribute `1.0.0` |
-| Q18 | 102 | Refine the crocodile brand mark |
-| Q19 | 065-9-13 | Record the remaining updater evidence and add OS signing for both channels |
-| Q20 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
+| Q01 | 142 | Publish and update through one release channel |
+| Q02 | 143 | Ship `0.3.0` on the single channel |
+| Q03 | 037-1 | Establish conflict truth and recovery |
+| Q04 | 037-2 | Select the editor foundation |
+| Q05 | 037-3 | Add the read-only conflict workspace |
+| Q06 | 037-4 | Resolve text conflicts safely |
+| Q07 | 037-5 | Complete or abort a merge |
+| Q08 | 037-6 | Handle non-text and structural conflicts |
+| Q09 | 037-7 | Audit the conflict workflow |
+| Q10 | 065-4 | Integrate local lines and diverged project changes |
+| Q11 | 065-5 | Make recovery records visible/actionable |
+| Q12 | 065-6 | Undo or reverse a saved version |
+| Q13 | 064-1 | Discover and inspect saved sets |
+| Q14 | 064-2 | Set all or selected changes aside |
+| Q15 | 064-3 | Restore a saved set and keep its copy |
+| Q16 | 064-4 | Remove one saved set with recovery |
+| Q17 | 064-5 | Audit the set-aside workflow |
+| Q18 | 065-7 | Harden credential and remote diagnostics |
+| Q19 | 065-8 | Verify and distribute `1.0.0` |
+| Q20 | 102 | Refine the crocodile brand mark |
+| Q21 | 065-9-13 | Record the remaining updater evidence and add OS signing |
+| Q22 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
 
 ### Preview distribution — delivered
 
 - **065-9: Signed application updates** is closed
   ([epic 065-9](../work/done/065-9-signed-application-updates.md), 2026-09-16):
   contracts, install protection, the native updater and its interface, signed
-  builds, merge-driven releases, public publishing, the channel choice and
-  the release-notes automation are on `main` and proven by the public
-  previews. The evidence, production approval and OS-signing work still open
+  builds, merge-driven releases, public publishing and the release-notes
+  automation are on `main` and proven by the public previews; task 142
+  replaced the two channels with one (ADR 0019). The evidence, production approval and OS-signing work still open
   is [Q19 / 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
 - This enables preview distribution before the rest of the 1.0.0 feature set.
   New operations and drafts must integrate with install protection as they land.

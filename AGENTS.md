@@ -228,12 +228,14 @@ In summary:
 
 ## Development conventions
 
-- Develop the next version on a work branch (for example `feature/<topic>`),
-  not directly on `main`. When that branch holds everything the version ships,
-  run `pnpm run release:prepare <version>` on it: the branch must contain
-  `origin/main`, and it becomes `release/<version>` in place with the version
-  bump, notes and highlights. Merging its pull request tags and releases.
-  Do not create extra branches or worktrees beyond that unless the user asks.
+- There is one release channel and every release is a plain `X.Y.Z` version;
+  never prepare a `-preview.N` version (ADR 0019). Start the next version with
+  `pnpm run release:prepare <X.Y.Z>` from a clean, current `main` (or from a
+  work branch that already contains `origin/main`): it creates
+  `release/<X.Y.Z>` with the version bump, notes and highlights. Develop the
+  version on that branch, not directly on `main`; merging its pull request
+  tags and publishes it to every installation. Do not create extra branches
+  or worktrees beyond that unless the user asks.
 - Changes to `.github/` or `scripts/release/` never ride on a release branch;
   the release coordinator rejects them. Land them on `main` in their own pull
   request first.

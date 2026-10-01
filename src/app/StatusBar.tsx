@@ -231,13 +231,10 @@ export function StatusBar({
           className="status-bar__release status-bar__item--muted"
           type="button"
           onClick={onOpenChangelog}
-          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
-          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
+          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
+          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
-          {CURRENT_APP_RELEASE.channel === "preview" && (
-            <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
-          )}
         </button>
       </div>
     </footer>

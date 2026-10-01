@@ -78,9 +78,6 @@ function ReleaseNotes({
           </span>
           <span className="changelog-release__identity">
             <h3>{t.changelogVersionHeading(release.version)}</h3>
-            <span className={`channel-badge changelog-release__channel channel-badge--${release.channel}`}>
-              {release.channel}
-            </span>
             {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
           </span>
           {releaseDate && release.date && (
@@ -164,7 +161,7 @@ export function ChangelogDialog({
         <ol className="changelog" role="list">
           {APP_CHANGELOG.map((release, index) => (
             <ReleaseNotes
-              key={`${release.version}-${release.channel}`}
+              key={release.version}
               release={release}
               isCurrent={index === 0}
             />

@@ -42,7 +42,6 @@ jobs:
     outputs:
       tag: ${{ steps.identity.outputs.tag }}
       version: ${{ steps.identity.outputs.version }}
-      channel: ${{ steps.identity.outputs.channel }}
       sha: ${{ steps.identity.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -99,7 +98,7 @@ jobs:
           NODE
       - name: Fetch the approved main boundary
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-      - name: Validate tag, ancestry, revision, versions and channel
+      - name: Validate tag, ancestry, revision and versions
         env:
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_SHA: ${{ inputs.sha }}
@@ -116,7 +115,7 @@ jobs:
       - name: Export validated non-secret identity
         id: identity
         run: |
-          node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tag='+c.source.tag+'\nversion='+c.release.version+'\nchannel='+c.release.channel+'\nsha='+c.source.sha+'\n')"
+          node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tag='+c.source.tag+'\nversion='+c.release.version+'\nsha='+c.source.sha+'\n')"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: candidate-identity
@@ -142,14 +141,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     # This job compiles third-party code and runs package hooks. It references
     # no secret and enters no environment, so GitHub never passes it one.
-    # Both channels publish under the testing policy (Tauri-signed, no
-    # platform qualification) until the registry is complete, so every build
-    # carries the canonical test-target pair; the qualified list stays a
-    # separate repository variable that only real A-to-B evidence may set.
+    # Releases publish under the testing policy (Tauri-signed, no platform
+    # qualification) until the registry is complete, so every build carries
+    # the canonical test-target pair; the qualified list stays a separate
+    # repository variable that only real A-to-B evidence may set.
     env:
       GITODILE_UPDATER_PUBLIC_KEY: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}
       GITODILE_UPDATER_PUBLIC_KEY_ID: ${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID }}
-      GITODILE_RELEASE_CHANNEL: ${{ needs.validate.outputs.channel }}
       GITODILE_QUALIFIED_UPDATE_TARGETS: ${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}
       GITODILE_TEST_UPDATE_TARGETS: windows-x86_64,linux-x86_64
     steps:
@@ -472,17 +470,15 @@ jobs:
           import { derivePublicationMode } from "./scripts/release/public-release.mjs";
           const matrix = JSON.parse(fs.readFileSync("signed/matrix.json", "utf8"));
           const tag = matrix.source?.tag ?? "";
-          if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)?$/.test(tag) || !fs.existsSync(`docs/release/notes/${tag}.md`)) {
+          if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/.test(tag) || !fs.existsSync(`docs/release/notes/${tag}.md`)) {
             throw new Error("The signed matrix does not identify reviewed release notes.");
           }
-          // The mode is derived, never chosen: a candidate is production
-          // (stable) or preview-qualified (preview) only when the reviewed
-          // registry already proves every enabled target, and stable-testing
-          // or preview-testing otherwise. The publication time is not derived
-          // here: it is the instant GitHub records when the publish job
-          // publishes the release.
+          // The mode is derived, never chosen: production only when the
+          // reviewed registry already proves every enabled target, testing
+          // otherwise. The publication time is not derived here: it is the
+          // instant GitHub records when the publish job publishes the release.
           const qualification = JSON.parse(fs.readFileSync("docs/release/update-target-qualifications.json", "utf8"));
-          const mode = derivePublicationMode(matrix.release, qualification);
+          const mode = derivePublicationMode(qualification);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\nmode=${mode}\n`);
           NODE
       - name: Validate the full signed matrix and prepare public-only bytes
@@ -514,10 +510,9 @@ jobs:
     concurrency:
       group: gitodile-publication
       cancel-in-progress: false
-    # Only a stable candidate enters the reviewed stable environment, whether
-    # it publishes as production or under the testing policy; both preview
-    # modes publish through the preview environment.
-    environment: ${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}
+    # Every release, testing or production, publishes through the one
+    # reviewed publication environment.
+    environment: public-release
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

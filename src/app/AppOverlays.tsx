@@ -380,11 +380,8 @@ export function AppOverlays({
               </h2>
               <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
             </div>
-            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
+            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
               <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
-              {CURRENT_APP_RELEASE.channel === "preview" && (
-                <span className="channel-badge channel-badge--preview" aria-hidden="true">preview</span>
-              )}
             </p>
             <p>{t.aboutDescription}</p>
             {(systemInfo || webviewVersion || gitVersion) && (

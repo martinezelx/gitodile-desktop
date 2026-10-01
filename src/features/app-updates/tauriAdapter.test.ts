@@ -13,14 +13,10 @@ describe("app update Tauri adapter", () => {
     await appUpdatesPort.check("manual");
     await appUpdatesPort.download("candidate-opaque");
     await appUpdatesPort.cancel("operation-opaque");
-    await appUpdatesPort.readChannel();
-    await appUpdatesPort.setChannel("preview");
     expect(invoke.mock.calls).toEqual([
       ["check_app_update", { source: "manual" }],
       ["download_app_update", { candidateId: "candidate-opaque" }],
       ["cancel_app_update", { operationId: "operation-opaque" }],
-      ["get_app_update_channel"],
-      ["set_app_update_channel", { channel: "preview" }],
     ]);
     const serialized = JSON.stringify(invoke.mock.calls);
     for (const forbidden of ["url", "feed", "publicKey", "signature", "target", "path", "headers", "endpoint"]) {

@@ -36,12 +36,14 @@ function writeVersion(root, version, notes = null, highlights = scaffoldHighligh
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.toml"), `[package]\nname = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.lock"), `name = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), `${JSON.stringify({ version }, null, 2)}\n`);
-  fs.writeFileSync(path.join(root, "README.md"), `Current development version: **${version}**, **${version.includes("-preview.") ? "preview" : "stable"}** channel.\n`);
+  // A legacy preview baseline carries the README line the way main did
+  // before the single channel; release preparation rewrites either form.
+  fs.writeFileSync(path.join(root, "README.md"), `Current development version: **${version}**${version.includes("-preview.") ? ", **preview** channel" : ""}.\n`);
   if (notes !== null) fs.writeFileSync(path.join(root, "docs", "release", "notes", `v${version}.md`), notes);
   if (highlights !== null) fs.writeFileSync(path.join(root, "docs", "release", "highlights", `v${version}.json`), highlights);
 }
 
-function repository() {
+function repository(baseline = "0.2.0-preview.5") {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-merge-release-"));
   const bare = path.join(parent, "origin.git");
   const root = path.join(parent, "work");
@@ -49,7 +51,7 @@ function repository() {
   git(parent, "init", "-b", "main", root);
   git(root, "config", "user.email", "release@example.invalid");
   git(root, "config", "user.name", "Release Test");
-  writeVersion(root, "0.2.0-preview.5");
+  writeVersion(root, baseline);
   git(root, "add", ".");
   git(root, "commit", "-m", "baseline");
   git(root, "remote", "add", "origin", bare);
@@ -58,7 +60,7 @@ function repository() {
 }
 
 function pull(overrides = {}) {
-  const version = overrides.version ?? "0.2.0-preview.10";
+  const version = overrides.version ?? "0.3.0";
   const repository = { full_name: SOURCE_REPOSITORY };
   return {
     action: "closed",
@@ -75,24 +77,22 @@ function pull(overrides = {}) {
   };
 }
 
-test("release branch grammar accepts only canonical preview and stable forms", () => {
-  assert.deepEqual(parseReleaseBranch("release/0.2.0-preview.10"), {
-    version: "0.2.0-preview.10", channel: "preview", githubPrerelease: true,
-    branch: "release/0.2.0-preview.10", tag: "v0.2.0-preview.10",
+test("release branch grammar accepts only canonical X.Y.Z releases", () => {
+  assert.deepEqual(parseReleaseBranch("release/0.3.0"), {
+    version: "0.3.0", branch: "release/0.3.0", tag: "v0.3.0",
   });
-  assert.equal(parseReleaseBranch("release/1.0.0").channel, "stable");
-  for (const branch of ["0.2.0-preview.10", "release/v0.2.0-preview.10", "release/0.2.0preview.10", "release/0.2.0-preview.0", "feature/x"]) {
+  for (const branch of ["0.3.0", "release/v0.3.0", "release/0.3.0-preview.1", "release/0.2.0-preview.0", "release/03.0.0", "feature/x"]) {
     assert.throws(() => parseReleaseBranch(branch), ReleaseValidationError);
   }
 });
 
 test("merged PR validation rejects forks, wrong bases, unmerged events and renamed branches", () => {
-  assert.equal(validateMergedPullRequest(pull()).tag, "v0.2.0-preview.10");
+  assert.equal(validateMergedPullRequest(pull()).tag, "v0.3.0");
   expectCode("invalid_event", () => validateMergedPullRequest(pull({ event: { action: "opened" } })));
   expectCode("invalid_pull_request", () => validateMergedPullRequest(pull({ pull_request: { merged: false } })));
   expectCode("invalid_pull_request", () => validateMergedPullRequest(pull({ pull_request: { base: { ref: "develop", repo: { full_name: SOURCE_REPOSITORY } } } })));
-  expectCode("invalid_pull_request", () => validateMergedPullRequest(pull({ pull_request: { head: { ref: "release/0.2.0-preview.10", repo: { full_name: "someone/fork" } } } })));
-  assert.throws(() => validateMergedPullRequest(pull({ pull_request: { head: { ref: "releases/0.2.0-preview.10", repo: { full_name: SOURCE_REPOSITORY } } } })), ReleaseValidationError);
+  expectCode("invalid_pull_request", () => validateMergedPullRequest(pull({ pull_request: { head: { ref: "release/0.3.0", repo: { full_name: "someone/fork" } } } })));
+  assert.throws(() => validateMergedPullRequest(pull({ pull_request: { head: { ref: "releases/0.3.0", repo: { full_name: SOURCE_REPOSITORY } } } })), ReleaseValidationError);
 });
 
 test("every exact required check must complete successfully", () => {
@@ -115,32 +115,32 @@ test("tag reconciliation is idempotent only for the exact commit", () => {
 
 test("release preparation writes every authority on a new clean current branch and never pushes", () => {
   const repo = repository();
-  const result = prepareRelease({ root: repo.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: repo.bare });
-  assert.equal(result.branch, "release/0.2.0-preview.10");
+  const result = prepareRelease({ root: repo.root, version: "0.3.0", runChecks: false, expectedOrigin: repo.bare });
+  assert.equal(result.branch, "release/0.3.0");
   assert.equal(git(repo.root, "branch", "--show-current"), result.branch);
   const notes = fs.readFileSync(path.join(repo.root, result.notes), "utf8");
   assert.match(notes, new RegExp(NOTES_PLACEHOLDER));
   // The notes start with the block for the empty list, so the coordinator's
   // notes/highlights agreement holds from the first commit on the branch.
-  assert.equal(notes, `# GitOdile 0.2.0-preview.10\n\n${renderHighlightsBlock([])}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
+  assert.equal(notes, `# GitOdile 0.3.0\n\n${renderHighlightsBlock([])}\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
   const highlights = JSON.parse(fs.readFileSync(path.join(repo.root, result.highlights), "utf8"));
-  assert.equal(highlights.version, "0.2.0-preview.10");
+  assert.equal(highlights.version, "0.3.0");
   assert.match(highlights.date, /^\d{4}-\d{2}-\d{2}$/);
   assert.deepEqual(highlights.highlights, []);
   // The previous version was never tagged in this fixture, so no hint list.
   assert.deepEqual(result.changesSince, []);
   assert.equal(git(repo.root, "ls-remote", "--heads", "origin", result.branch), "");
   for (const file of ["package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "README.md"]) {
-    assert.match(fs.readFileSync(path.join(repo.root, file), "utf8"), /0\.2\.0-preview\.10/);
+    assert.match(fs.readFileSync(path.join(repo.root, file), "utf8"), /0\.3\.0/);
   }
 });
 
 test("release preparation takes one version, with or without pnpm's forwarded separator", () => {
-  assert.deepEqual(parseCommandLine(["0.2.0-preview.11"]), { version: "0.2.0-preview.11" });
-  assert.deepEqual(parseCommandLine(["--", "0.2.0-preview.11"]), { version: "0.2.0-preview.11" });
+  assert.deepEqual(parseCommandLine(["0.3.1"]), { version: "0.3.1" });
+  assert.deepEqual(parseCommandLine(["--", "0.3.1"]), { version: "0.3.1" });
   expectCode("usage", () => parseCommandLine([]));
   expectCode("usage", () => parseCommandLine(["--"]));
-  expectCode("usage", () => parseCommandLine(["0.2.0-preview.11", "extra"]));
+  expectCode("usage", () => parseCommandLine(["0.3.1", "extra"]));
 });
 
 test("release preparation turns a work branch into the release branch in place", () => {
@@ -150,78 +150,82 @@ test("release preparation turns a work branch into the release branch in place",
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "feat: product work");
   const work = git(repo.root, "rev-parse", "HEAD");
-  const result = prepareRelease({ root: repo.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: repo.bare });
-  assert.equal(result.branch, "release/0.2.0-preview.10");
+  const result = prepareRelease({ root: repo.root, version: "0.3.0", runChecks: false, expectedOrigin: repo.bare });
+  assert.equal(result.branch, "release/0.3.0");
   assert.equal(result.renamedFrom, "feature/work");
   assert.equal(git(repo.root, "branch", "--show-current"), result.branch);
   assert.equal(git(repo.root, "rev-parse", "HEAD"), work);
   assert.equal(git(repo.root, "branch", "--list", "feature/work"), "");
-  assert.match(fs.readFileSync(path.join(repo.root, "package.json"), "utf8"), /0\.2\.0-preview\.10/);
+  assert.match(fs.readFileSync(path.join(repo.root, "package.json"), "utf8"), /0\.3\.0/);
 });
 
 test("release preparation rejects dirty, detached, stale, automation-carrying and unchanged starts", () => {
   const dirty = repository();
   fs.writeFileSync(path.join(dirty.root, "dirty.txt"), "x");
-  expectCode("working_tree_dirty", () => prepareRelease({ root: dirty.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: dirty.bare }));
+  expectCode("working_tree_dirty", () => prepareRelease({ root: dirty.root, version: "0.3.0", runChecks: false, expectedOrigin: dirty.bare }));
   const detached = repository();
   git(detached.root, "switch", "--detach");
-  expectCode("wrong_branch", () => prepareRelease({ root: detached.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: detached.bare }));
+  expectCode("wrong_branch", () => prepareRelease({ root: detached.root, version: "0.3.0", runChecks: false, expectedOrigin: detached.bare }));
   const otherRelease = repository();
-  git(otherRelease.root, "switch", "-c", "release/0.2.0-preview.9");
-  expectCode("wrong_branch", () => prepareRelease({ root: otherRelease.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: otherRelease.bare }));
+  git(otherRelease.root, "switch", "-c", "release/0.2.1");
+  expectCode("wrong_branch", () => prepareRelease({ root: otherRelease.root, version: "0.3.0", runChecks: false, expectedOrigin: otherRelease.bare }));
   const stale = repository();
   git(stale.root, "switch", "-c", "feature/stale");
   git(stale.root, "switch", "main");
   fs.writeFileSync(path.join(stale.root, "main.txt"), "x");
   git(stale.root, "add", "."); git(stale.root, "commit", "-m", "main moves on"); git(stale.root, "push", "origin", "main");
   git(stale.root, "switch", "feature/stale");
-  expectCode("main_not_current", () => prepareRelease({ root: stale.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: stale.bare }));
+  expectCode("main_not_current", () => prepareRelease({ root: stale.root, version: "0.3.0", runChecks: false, expectedOrigin: stale.bare }));
   const automation = repository();
   git(automation.root, "switch", "-c", "feature/automation");
   fs.mkdirSync(path.join(automation.root, ".github", "workflows"), { recursive: true });
   fs.writeFileSync(path.join(automation.root, ".github", "workflows", "x.yml"), "name: x\n");
   git(automation.root, "add", "."); git(automation.root, "commit", "-m", "ci: change");
-  expectCode("release_scope_invalid", () => prepareRelease({ root: automation.root, version: "0.2.0-preview.10", runChecks: false, expectedOrigin: automation.bare }));
+  expectCode("release_scope_invalid", () => prepareRelease({ root: automation.root, version: "0.3.0", runChecks: false, expectedOrigin: automation.bare }));
   assert.equal(git(automation.root, "branch", "--show-current"), "feature/automation");
-  const same = repository();
-  expectCode("version_unchanged", () => prepareRelease({ root: same.root, version: "0.2.0-preview.5", runChecks: false, expectedOrigin: same.bare }));
+  const released = repository("0.3.0");
+  expectCode("version_unchanged", () => prepareRelease({ root: released.root, version: "0.3.0", runChecks: false, expectedOrigin: released.bare }));
   const older = repository();
-  expectCode("version_not_newer", () => prepareRelease({ root: older.root, version: "0.2.0-preview.4", runChecks: false, expectedOrigin: older.bare }));
+  expectCode("version_not_newer", () => prepareRelease({ root: older.root, version: "0.1.0", runChecks: false, expectedOrigin: older.bare }));
+  // There is one channel: a preview is never prepared again.
+  const preview = repository();
+  expectCode("invalid_tag", () => prepareRelease({ root: preview.root, version: "0.3.0-preview.1", runChecks: false, expectedOrigin: preview.bare }));
+  assert.equal(git(preview.root, "branch", "--show-current"), "main");
 });
 
 test("merge preparation binds metadata, scope, curated notes and authorization bytes", () => {
   const repo = repository();
-  git(repo.root, "switch", "-c", "release/0.2.0-preview.10");
-  const notes = applyHighlightsBlock("# GitOdile 0.2.0-preview.10\n\nA reviewed preview with safer release automation.\n", []);
-  writeVersion(repo.root, "0.2.0-preview.10", notes);
+  git(repo.root, "switch", "-c", "release/0.3.0");
+  const notes = applyHighlightsBlock("# GitOdile 0.3.0\n\nA reviewed preview with safer release automation.\n", []);
+  writeVersion(repo.root, "0.3.0", notes);
   git(repo.root, "add", ".");
-  git(repo.root, "commit", "-m", "chore(release): prepare 0.2.0-preview.10");
+  git(repo.root, "commit", "-m", "chore(release): prepare 0.3.0");
   const mergeSha = git(repo.root, "rev-parse", "HEAD");
-  const identity = { ...parseReleaseBranch("release/0.2.0-preview.10"), pullRequestNumber: 65, mergeSha };
-  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md", "docs/release/highlights/v0.2.0-preview.10.json"];
+  const identity = { ...parseReleaseBranch("release/0.3.0"), pullRequestNumber: 65, mergeSha };
+  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.3.0.md", "docs/release/highlights/v0.3.0.json"];
   assert.match(validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files }).notesSha256, /^[0-9a-f]{64}$/);
   // Highlights are part of the preparation contract: a release without its
   // file, or with one that does not parse, is not tagged.
   expectCode("release_scope_invalid", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files.filter((file) => !file.endsWith(".json")) }));
   git(repo.root, "switch", "-c", "release/broken");
-  writeVersion(repo.root, "0.2.0-preview.10", notes, `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [{ id: "x", icon: "nope", en: "a", es: "b" }] })}\n`);
+  writeVersion(repo.root, "0.3.0", notes, `${JSON.stringify({ version: "0.3.0", date: "2026-09-15", highlights: [{ id: "x", icon: "nope", en: "a", es: "b" }] })}\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "broken highlights");
   expectCode("highlights_invalid", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
   // The notes' Highlights section is rendered from the highlights file; a
   // release whose two descriptions disagree, or whose notes lack the block,
   // is not tagged.
   git(repo.root, "switch", "-c", "release/drifted");
-  const line = { id: "channelChoice", icon: "cloud-download", en: "Choose the update channel.", es: "Elige el canal de actualizaciones." };
-  writeVersion(repo.root, "0.2.0-preview.10", notes, `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  const line = { id: "inAppUpdates", icon: "cloud-download", en: "Update from inside the app.", es: "Actualiza desde la aplicación." };
+  writeVersion(repo.root, "0.3.0", notes, `${JSON.stringify({ version: "0.3.0", date: "2026-09-15", highlights: [line] })}\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "highlights without notes");
   expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
-  writeVersion(repo.root, "0.2.0-preview.10", applyHighlightsBlock(notes, [line]), `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  writeVersion(repo.root, "0.3.0", applyHighlightsBlock(notes, [line]), `${JSON.stringify({ version: "0.3.0", date: "2026-09-15", highlights: [line] })}\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "notes rendered");
   assert.match(validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }).notesSha256, /^[0-9a-f]{64}$/);
-  writeVersion(repo.root, "0.2.0-preview.10", "# GitOdile 0.2.0-preview.10\n\n## Highlights\n\n- Choose the update channel.\n", `${JSON.stringify({ version: "0.2.0-preview.10", date: "2026-09-15", highlights: [line] })}\n`);
+  writeVersion(repo.root, "0.3.0", "# GitOdile 0.3.0\n\n## Highlights\n\n- Update from inside the app.\n", `${JSON.stringify({ version: "0.3.0", date: "2026-09-15", highlights: [line] })}\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "block without markers");
   expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: { ...identity, mergeSha: git(repo.root, "rev-parse", "HEAD") }, changedFiles: files }));
-  git(repo.root, "switch", "release/0.2.0-preview.10");
+  git(repo.root, "switch", "release/0.3.0");
   // Product work may ride along, including removals and renames.
   assert.match(validateReleasePreparation({
     root: repo.root,
@@ -259,10 +263,10 @@ test("merge preparation binds metadata, scope, curated notes and authorization b
 
 test("placeholder notes and metadata mismatches fail before tag authorization", () => {
   const repo = repository();
-  git(repo.root, "switch", "-c", "release/0.2.0-preview.10");
-  writeVersion(repo.root, "0.2.0-preview.10", `# GitOdile 0.2.0-preview.10\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
+  git(repo.root, "switch", "-c", "release/0.3.0");
+  writeVersion(repo.root, "0.3.0", `# GitOdile 0.3.0\n\n<!-- ${NOTES_PLACEHOLDER} -->\n`);
   git(repo.root, "add", "."); git(repo.root, "commit", "-m", "placeholder");
-  const identity = { ...parseReleaseBranch("release/0.2.0-preview.10"), pullRequestNumber: 65, mergeSha: git(repo.root, "rev-parse", "HEAD") };
-  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.2.0-preview.10.md", "docs/release/highlights/v0.2.0-preview.10.json"];
+  const identity = { ...parseReleaseBranch("release/0.3.0"), pullRequestNumber: 65, mergeSha: git(repo.root, "rev-parse", "HEAD") };
+  const files = ["README.md", "package.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "docs/release/notes/v0.3.0.md", "docs/release/highlights/v0.3.0.json"];
   expectCode("notes_incomplete", () => validateReleasePreparation({ root: repo.root, authorization: identity, changedFiles: files }));
 });

@@ -10,27 +10,22 @@ const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 const qualificationPath = path.join(root, "docs", "release", "update-target-qualifications.json");
 const qualification = JSON.parse(fs.readFileSync(qualificationPath, "utf8"));
 
-const stablePattern = new RegExp(contract.version.stablePattern);
-const previewPattern = new RegExp(contract.version.previewPattern);
+const releasePattern = new RegExp(contract.version.releasePattern);
+const legacyPreviewPattern = new RegExp(contract.version.legacyPreviewPattern);
 
-function parseVersion(value) {
-  const stable = value.match(stablePattern);
-  if (stable) {
-    return {
-      channel: "stable",
-      core: stable.slice(1, 4).map(BigInt),
-      preview: null,
-    };
-  }
-  const preview = value.match(previewPattern);
-  if (preview) {
-    return {
-      channel: "preview",
-      core: preview.slice(1, 4).map(BigInt),
-      preview: BigInt(preview[4]),
-    };
-  }
-  return null;
+/** A version a feed may offer: plain `X.Y.Z`. */
+function parseRelease(value) {
+  const release = value.match(releasePattern);
+  return release ? { core: release.slice(1, 4).map(BigInt), preview: null } : null;
+}
+
+/** A version a build may be running: a release, or a legacy
+ * `X.Y.Z-preview.N` from before the single channel. */
+function parseInstalled(value) {
+  const release = parseRelease(value);
+  if (release) return release;
+  const preview = value.match(legacyPreviewPattern);
+  return preview ? { core: preview.slice(1, 4).map(BigInt), preview: BigInt(preview[4]) } : null;
 }
 
 function compareVersions(left, right) {
@@ -44,48 +39,31 @@ function compareVersions(left, right) {
   return left.preview < right.preview ? -1 : left.preview > right.preview ? 1 : 0;
 }
 
-/** Mirrors `version_decision` in `app_updates.rs`. The effective channel is
- * the stored preference when one is set, else the build's own; the feed a
- * case names must be that channel's, because Rust chooses the feed from it.
- * A preview candidate under an effective stable channel is a feed error on a
- * stable build and a non-offer on a preview build restricted to stable. */
+/** Mirrors `version_decision` in `app_updates.rs`: only a release newer than
+ * the running build is offered, and a prerelease in the feed is invalid. */
 function evaluateVersionCase(testCase) {
-  const installed = parseVersion(testCase.installedVersion);
-  const candidate = parseVersion(testCase.candidateVersion);
+  const installed = parseInstalled(testCase.installedVersion);
+  const candidate = parseRelease(testCase.candidateVersion);
   if (!installed || !candidate) return "invalid_version";
-  if (installed.channel !== testCase.installedChannel) return "channel_mismatch";
-  const preferred = testCase.preferredChannel ?? "follow_build";
-  assert.ok(contract.channelPreferences.includes(preferred), `${testCase.name}: unknown preference`);
-  const effective = preferred === "follow_build" ? installed.channel : preferred;
-  assert.equal(testCase.feedChannel, effective, `${testCase.name}: the feed is chosen from the effective channel`);
-  if (effective === "stable" && candidate.channel === "preview") {
-    return installed.channel === "stable" ? "channel_mismatch" : "current";
-  }
   if (!testCase.targetPresent) return "target_unavailable";
   return compareVersions(candidate, installed) > 0 ? "available" : "current";
 }
 
 function evaluateMetadataCase(testCase) {
   const version = testCase.versions[0];
-  const parsed = parseVersion(version);
-  if (!parsed) return "invalid_version";
+  if (!parseRelease(version)) return "invalid_version";
   const agrees =
     testCase.versions.length === contract.version.metadataFiles.length &&
     testCase.versions.every((candidate) => candidate === version) &&
     testCase.tag === `${contract.version.tagPrefix}${version}` &&
-    testCase.feedVersion === version &&
-    testCase.githubPrerelease === (parsed.channel === "preview");
+    testCase.feedVersion === version;
   return agrees ? "valid" : "metadata_mismatch";
 }
 
-assert.deepEqual(contract.channels, ["stable", "preview"]);
-assert.equal(new Set(contract.channels).size, 2);
-assert.deepEqual(contract.channelPreferences, ["follow_build", "stable", "preview"],
-  "the channel preference is a closed choice between the two compiled feeds");
-for (const preference of contract.channelPreferences) {
-  assert.ok(contract.versionCases.some((testCase) => testCase.preferredChannel === preference),
-    `the version cases exercise the ${preference} preference`);
+for (const retired of ["channels", "channelPreferences"]) {
+  assert.equal(Object.hasOwn(contract, retired), false, `there is one update channel; the contract carries no ${retired}`);
 }
+assert.deepEqual(Object.keys(contract.feeds), ["feed", "legacyMirrors"]);
 assert.equal(contract.bounds.retainedCandidates, 1);
 assert.equal(contract.bounds.artifactBytes, 256 * 1024 * 1024);
 assert.deepEqual(
@@ -158,7 +136,7 @@ const cargoVersion = cargoToml.match(/^\[package\][\s\S]*?^version\s*=\s*"([^"]+
 const lockVersion = cargoLock.match(/^name = "gitodile"\r?\nversion = "([^"]+)"/m)?.[1];
 const currentVersions = [packageJson.version, cargoVersion, lockVersion, tauriConfig.version];
 
-assert.ok(parseVersion(packageJson.version), `unsupported current version ${packageJson.version}`);
+assert.ok(parseInstalled(packageJson.version), `unsupported current version ${packageJson.version}`);
 assert.equal(currentVersions.every((version) => version === packageJson.version), true, "current metadata differs");
 assert.equal(tauriConfig.identifier, "app.gitodile.desktop");
 assert.equal(tauriConfig.bundle?.active, true);
@@ -207,24 +185,14 @@ assert.doesNotMatch(nativeUpdaterProduction, /fetch_bounded_manifest|bytes_strea
   "GitOdile must not restore a separate manifest fetch");
 assert.match(nativeUpdaterProduction, /validate_raw_manifest\(/,
   "the plugin's authoritative raw_json must still pass GitOdile's strict validation");
-// The preference is the one channel input that exists, and it is a closed
-// enum resolved to one of the two compiled feed constants: no URL, key or
-// target reaches native code from configuration or the renderer.
-const preferenceVariants = nativeUpdaterProduction
-  .match(/enum ChannelPreference \{([^}]*)\}/)[1]
-  .replace(/#\[[^\]]*\]/g, "")
-  .split(",")
-  .map((variant) => variant.trim())
-  .filter(Boolean)
-  .map((variant) => variant.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase());
-assert.deepEqual(preferenceVariants, contract.channelPreferences, "ChannelPreference variants differ from the contract");
-assert.equal((nativeUpdaterProduction.match(/raw\.githubusercontent\.com\/martinezelx\/gitodile\/main\/updates\//g) ?? []).length, 2,
-  "exactly the two compiled feed constants exist");
-assert.match(nativeUpdaterProduction, /let channel = preference\.resolve\(build_channel\);/,
-  "the feed is chosen from the preference resolved against the build channel");
+// One compiled feed: no URL, key or target reaches native code from
+// configuration or the renderer, and no channel choice exists to pick another.
+const compiledFeeds = nativeUpdaterProduction.match(/https:\/\/raw\.githubusercontent\.com\/martinezelx\/gitodile\/main\/updates\/[a-z]+\.json/g) ?? [];
+assert.deepEqual(compiledFeeds, [contract.feeds.feed], "exactly the one compiled feed constant exists");
+assert.doesNotMatch(nativeUpdaterProduction, /ChannelPreference|ReleaseChannel/,
+  "the native updater models no release channel");
 const ipcSource = fs.readFileSync(path.join(root, "src-tauri", "src", "ipc.rs"), "utf8");
-assert.match(ipcSource, /channel: ReleaseChannel,\r?\n\) -> Result<UpdateChannelSetting, AppError>/,
-  "the renderer sets the channel by closed enum only");
+assert.doesNotMatch(ipcSource, /app_update_channel/, "the renderer has no channel command");
 
 process.stdout.write(
   `App-update contract check passed (${contract.versionCases.length} version cases, ` +

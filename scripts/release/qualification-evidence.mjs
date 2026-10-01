@@ -1,6 +1,7 @@
 import {
   ALL_TARGETS,
   compareReleaseVersions,
+  parseKnownVersion,
   parseReleaseVersion,
   REQUIRED_TARGETS,
   TARGET_CONTRACTS,
@@ -9,7 +10,12 @@ import {
 
 export const QUALIFICATION_SCHEMA_VERSION = 4;
 export const PUBLIC_REPOSITORY = "martinezelx/gitodile";
-export const PREVIEW_FEED_URL = `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/preview.json`;
+/** The feeds an installed build can have read an update from: the one feed,
+ * and the legacy mirror that `0.2.0-preview.*` builds still follow. */
+export const PUBLIC_FEED_URLS = Object.freeze([
+  `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/latest.json`,
+  `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/preview.json`,
+]);
 
 export const REQUIRED_PRESERVATION_CHECKS = Object.freeze([
   "settings",
@@ -39,9 +45,9 @@ export const REQUIRED_FAILURE_CASES = Object.freeze([
 ]);
 
 /** Publisher behaviours a production approval must have observed on real
- * public preview publications before the first stable release. */
+ * public testing publications. */
 export const REQUIRED_PUBLISHER_CHECKS = Object.freeze([
-  "previewPublication",
+  "testingPublication",
   "interruptedRetry",
   "immutableAssets",
   "anonymousDownloads",
@@ -84,8 +90,9 @@ function validateArtifact(artifact, version, label) {
   ) fail("qualification_invalid", `${label} artifact identity is invalid`);
 }
 
-/** A qualified transition is proven by two real public preview releases, each
- * published by one release-pipeline run on protected main. */
+/** A qualified transition is proven by two real public releases, each
+ * published by one release-pipeline run on protected main. Build A may be a
+ * legacy preview: that is what the first installs to update were. */
 function validateBuild(build, expectedVersion, target, label) {
   if (
     build?.version !== expectedVersion || build?.tag !== `v${expectedVersion}` ||
@@ -131,8 +138,9 @@ function validateTransition(transition, label) {
   const to = transition?.toVersion;
   let ordered = false;
   try {
-    ordered = parseReleaseVersion(from).channel === "preview" && parseReleaseVersion(to).channel === "preview" &&
-      compareReleaseVersions(from, to) < 0;
+    parseKnownVersion(from);
+    parseReleaseVersion(to);
+    ordered = compareReleaseVersions(from, to) < 0;
   } catch (error) {
     if (!(error instanceof ReleaseValidationError)) throw error;
   }
@@ -140,13 +148,13 @@ function validateTransition(transition, label) {
     !ordered || transition?.runningVersionBefore !== from || transition?.runningVersionAfter !== to ||
     transition?.result !== "passed" || transition?.falseSuccessObserved !== false ||
     transition?.forcedDowngradeObserved !== false
-  ) fail("qualification_invalid", `${label} does not prove a real public preview A-to-B transition`);
+  ) fail("qualification_invalid", `${label} does not prove a real public A-to-B transition`);
   return { from, to };
 }
 
 function validateFeed(feed, toVersion, label) {
   if (
-    feed?.url !== PREVIEW_FEED_URL || feed?.version !== toVersion || !SHA256.test(feed?.sha256 ?? "") ||
+    !PUBLIC_FEED_URLS.includes(feed?.url) || feed?.version !== toVersion || !SHA256.test(feed?.sha256 ?? "") ||
     !SOURCE_SHA.test(feed?.commitSha ?? "") || !isCanonicalTimestamp(feed?.observedAt)
   ) fail("qualification_invalid", `${label} public feed evidence is incomplete`);
 }
@@ -281,46 +289,26 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
     const qualified = entry?.status === "qualified" && Array.isArray(entry.evidence) && entry.evidence.length === 1;
     if (!pending && !qualified) fail("qualification_invalid", `${target} has an invalid qualification state`);
   }
-  const preview = candidate.release.channel === "preview" && candidate.release.githubPrerelease === true;
-  const stable = candidate.release.channel === "stable" && candidate.release.githubPrerelease === false;
   const gate = (allowed, qualifiedTargets) => ({
-    productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: false, stableTestingAllowed: false,
+    productionAllowed: false, testingAllowed: false,
     ...allowed, qualifiedTargets,
   });
-  // The two testing modes deliberately accept `qualification_required`
-  // targets: they are publication-pipeline and channel testing with
-  // Tauri-signed bytes, never target qualification.
-  if (mode === "preview-testing") {
-    if (!preview) fail("profile_mismatch", "preview testing requires a preview candidate flagged as a GitHub prerelease");
-    return gate({ previewTestingAllowed: true }, []);
-  }
-  if (mode === "stable-testing") {
-    if (!stable) fail("profile_mismatch", "stable testing requires a stable candidate that is not a GitHub prerelease");
-    return gate({ stableTestingAllowed: true }, []);
-  }
-  if (mode !== "production" && mode !== "preview-qualified") {
-    fail("invalid_mode", "mode must be preview-testing, preview-qualified, stable-testing or production");
-  }
-  if (mode === "preview-qualified" && !preview) {
-    fail("profile_mismatch", "a qualified preview requires a preview candidate flagged as a GitHub prerelease");
-  }
-  if (mode === "production" && !stable) {
-    fail("profile_mismatch", "production requires a stable candidate that is not a GitHub prerelease");
-  }
-  const qualifiedTargets = requireQualifiedTargets(qualification, candidate.matrix.requiredTargets, byTarget);
-  return mode === "production"
-    ? gate({ productionAllowed: true }, qualifiedTargets)
-    : gate({ previewQualifiedAllowed: true }, qualifiedTargets);
+  // Testing deliberately accepts `qualification_required` targets: it is
+  // publication-pipeline testing with Tauri-signed bytes, never target
+  // qualification.
+  if (mode === "testing") return gate({ testingAllowed: true }, []);
+  if (mode !== "production") fail("invalid_mode", "mode must be testing or production");
+  return gate({ productionAllowed: true }, requireQualifiedTargets(qualification, candidate.matrix.requiredTargets, byTarget));
 }
 
-/** The one proof both qualified modes share: production approval plus a
- * valid A-to-B record for every required target, all under one updater key. */
+/** What production requires: production approval plus a valid A-to-B
+ * record for every required target, all under one updater key. */
 function requireQualifiedTargets(qualification, requiredTargets, byTarget) {
   const approvedKeyId = validateProductionApproval(qualification.productionPromotion);
   const keyIds = new Map(requiredTargets.map((target) => [target, validateTargetEvidence(byTarget.get(target), target)]));
   const missing = [...keyIds].filter(([, keyId]) => keyId === null).map(([target]) => target);
   if (missing.length > 0) {
-    fail("qualification_required", `targets still require real public preview A-to-B evidence: ${missing.join(", ")}`);
+    fail("qualification_required", `targets still require real public A-to-B evidence: ${missing.join(", ")}`);
   }
   if (new Set([...keyIds.values(), approvedKeyId]).size !== 1) {
     fail("qualification_invalid", "qualified targets and the production approval must share one updater key identity");
@@ -329,11 +317,10 @@ function requireQualifiedTargets(qualification, requiredTargets, byTarget) {
 }
 
 /** Whether the registry already proves every enabled target and production
- * approval — what lets a preview publish without the testing notice and a
- * stable candidate publish as `production` rather than `stable-testing`.
- * Deny by default — a malformed or partial registry answers `false`, and the
+ * approval — what lets a release publish as `production`, without the
+ * testing notice, rather than as `testing`. Deny by default — a malformed or partial registry answers `false`, and the
  * full validation still runs when the plan is prepared. */
-export function qualifiedPreviewAllowed(qualification) {
+export function productionAllowed(qualification) {
   try {
     if (qualification?.schemaVersion !== QUALIFICATION_SCHEMA_VERSION || !Array.isArray(qualification.targets)) return false;
     const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));

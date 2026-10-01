@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { HIGHLIGHTS_DIRECTORY, applyHighlightsBlock, highlightsFileName, scaffoldHighlights, todayIsoDate } from "./highlights.mjs";
-import { parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
+import { compareReleaseVersions, parseKnownVersion, parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
 
 const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 const SOURCE_REMOTE = `https://github.com/${SOURCE_REPOSITORY}.git`;
@@ -37,22 +37,6 @@ function replaceExactly(source, expression, replacement, owner) {
 
 function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-}
-
-function compareVersions(left, right) {
-  const parse = (value) => {
-    const [core, preview] = value.split("-preview.");
-    return { core: core.split(".").map(BigInt), preview: preview === undefined ? null : BigInt(preview) };
-  };
-  const a = parse(left);
-  const b = parse(right);
-  for (let index = 0; index < 3; index += 1) {
-    if (a.core[index] !== b.core[index]) return a.core[index] < b.core[index] ? -1 : 1;
-  }
-  if (a.preview === b.preview) return 0;
-  if (a.preview === null) return 1;
-  if (b.preview === null) return -1;
-  return a.preview < b.preview ? -1 : 1;
 }
 
 export function prepareRelease({ root, version, runChecks = true, expectedOrigin = SOURCE_REMOTE }) {
@@ -100,8 +84,8 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   if (currentVersions.size !== 1 || currentVersions.has(undefined)) fail("metadata_mismatch", "current version metadata is inconsistent");
   if (currentVersions.has(version)) fail("version_unchanged", "the requested version is already current");
   const currentVersion = [...currentVersions][0];
-  parseReleaseVersion(currentVersion);
-  if (compareVersions(version, currentVersion) <= 0) fail("version_not_newer", "the requested release version must advance the current version");
+  parseKnownVersion(currentVersion);
+  if (compareReleaseVersions(version, currentVersion) <= 0) fail("version_not_newer", "the requested release version must advance the current version");
 
   const files = {
     package: path.join(repositoryRoot, "package.json"),
@@ -136,8 +120,8 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   ));
   fs.writeFileSync(files.readme, replaceExactly(
     fs.readFileSync(files.readme, "utf8"),
-    /^Current development version: \*\*[^*]+\*\*, \*\*(?:stable|preview)\*\* channel\.$/m,
-    `Current development version: **${version}**, **${release.channel}** channel.`,
+    /^Current development version: \*\*[^*]+\*\*(?:, \*\*(?:stable|preview)\*\* channel)?\.$/m,
+    `Current development version: **${version}**.`,
     "README.md",
   ));
   // The notes start with the highlights block already in place, rendered
@@ -162,7 +146,6 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
     branch,
     renamedFrom: startBranch === "main" || startBranch === branch ? null : startBranch,
     version,
-    channel: release.channel,
     notes: path.relative(repositoryRoot, files.notes).replaceAll("\\", "/"),
     highlights: path.relative(repositoryRoot, files.highlights).replaceAll("\\", "/"),
     // What changed since the previous release, as a reminder for whoever
