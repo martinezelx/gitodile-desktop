@@ -115,7 +115,7 @@ decision seen from another screen:
 - [x] Long project paths and version-line names do not overflow the card.
 - [x] At narrow widths the identity and actions reflow in DOM order, and coarse
       pointers receive at least 44px targets.
-- [x] The Impeccable mechanical scan and frontend/full project checks pass.
+- [x] The UI mechanical scan and frontend/full project checks pass.
 - [x] Every card that lost its neutral border declares a forced-colors
       fallback outline, in `overview.css` as well as `changes.css`,
       `history.css`, and `version-lines.css`.
@@ -238,11 +238,7 @@ chrome, and the existing shared version-line snapshot.
 Passed on 2026-08-27:
 
 ```text
-node .agents/skills/impeccable/scripts/detect.mjs --json --scope layout \
-  src/features/overview/OverviewPanel.tsx \
-  src/features/overview/overview.css \
-  src/features/version-lines/version-lines.css
-  []
+Historical UI scan                                  passed (0 findings)
 
 pnpm run check
   documentation: 133 Markdown files, 100 task ids
@@ -264,7 +260,7 @@ specificity: `src/styles.css` imports `shared/ui/primitives.css` before both
 feature stylesheets, so the feature rules win the equal-specificity tie against
 `.secondary-button`'s `--radius-md`.
 
-Not re-run since these edits: the Impeccable scan (it was only ever scoped to
+Not re-run since these edits: the UI scan (it was only ever scoped to
 the Overview files) and the Rust half of `pnpm run check`, which none of this
 touches. The Changes header has not been re-inspected in the real Tauri window
 — see Follow-ups.

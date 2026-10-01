@@ -185,12 +185,7 @@ pnpm exec vitest run src/features/repository/readCoordinator.test.ts \
   src/features/sync/TeamChangesSection.test.tsx src/main.test.tsx
   4 files, 43 tests passed
 
-node .agents/skills/impeccable/scripts/detect.mjs --json --scope layout \
-  src/features/overview/OverviewPanel.tsx \
-  src/features/overview/overview.css \
-  src/features/sync/TeamChangesSection.tsx \
-  src/features/sync/sync.css
-  []
+Historical UI scan                                  passed (0 findings)
 
 pnpm run check
   documentation: 127 Markdown files, 95 task ids

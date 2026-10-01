@@ -124,7 +124,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   document for the selected file, an explicit "copy/open full diff" action,
   or a non-virtualized accessibility mode selected when needed. Define and
   test the intended copy and Find behavior rather than leaving it accidental.
-- **Suggested command:** `$impeccable harden`
 
 ### 2. Custom popups announce menu/dialog semantics they do not implement
 
@@ -145,7 +144,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   dialog/popover with focus entry and return, or stop announcing it as a
   dialog. Add interaction tests for open, Arrow keys, Home/End, Escape,
   selection, outside dismissal, and focus restoration.
-- **Suggested command:** `$impeccable harden`
 
 ## P2 — Include in the bounded closure pass
 
@@ -160,7 +158,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 - **Recommendation:** reserve the live status for the active refresh and its
   completion. Render the passive age without a live role; the explicit refresh
   result can be announced once through the screen's existing status channel.
-- **Suggested command:** `$impeccable harden`
 
 ### 4. "Not published first" only means "has no upstream"
 
@@ -174,7 +171,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   `upstreamAhead > 0`, and the chosen policy for a gone upstream), or rename
   the choice to "Local-only first" / "Solo locales primero". Add a test with
   one local-only line and one tracked-but-ahead line.
-- **Suggested command:** `$impeccable clarify`
 
 ### 5. The Version lines filter popup is unbounded for real branch sets
 
@@ -187,7 +183,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 - **Recommendation:** constrain the popup to the available viewport, give its
   options region an auto scrollbar, keep the clear action reachable, and test
   it at the supported minimum window height.
-- **Suggested command:** `$impeccable adapt`
 
 ### 6. Full diff warm-up starts because Changes mounted
 
@@ -203,7 +198,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   invalidation should own the snapshot, speculative warming should be
   idle-deferred, and the screen should consume the cache. Capture current
   timing/process-count baselines before moving it.
-- **Suggested command:** `$impeccable optimize`
 - **Closure policy:** accepted refactor input; it does not block the visual
   freeze if it is added to the architecture acceptance criteria.
 
@@ -217,7 +211,6 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   the component is now a custom popup. This can mislead the architecture/style
   extraction in task 030.
 - **Recommendation:** update the comment while touching the popup styles.
-- **Suggested command:** `$impeccable polish`
 
 # Systemic patterns
 
@@ -232,7 +225,7 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 # Positive findings to preserve
 
-- The rework uses semantic tokens; the mechanical Impeccable detector returned
+- The rework uses semantic tokens; the mechanical UI detector returned
   no findings for the changed UI targets.
 - Light and dark themes retain readable semantic status colors without adding
   component-local raw colors.
@@ -254,18 +247,18 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 # Recommended closure sequence
 
-1. **[P1] `$impeccable harden`:** fix the accessible diff representation and
+1. **[P1] Accessibility:** fix the accessible diff representation and
    unify keyboard/focus semantics for the three popup variants.
-2. **[P2] `$impeccable clarify`:** resolve the meaning of "Not published
+2. **[P2] Content clarity:** resolve the meaning of "Not published
    first" and cover it with data-driven tests.
-3. **[P2] `$impeccable adapt`:** bound and scroll the multi-select filter at
+3. **[P2] Responsive layout:** bound and scroll the multi-select filter at
    minimum supported window sizes.
-4. **[P2] `$impeccable optimize`:** add the screen-owned diff warm-up to the
+4. **[P2] Performance:** add the screen-owned diff warm-up to the
    architecture baseline and acceptance criteria; move it during tasks
    026/028 rather than before them.
-5. **[P3] `$impeccable polish`:** update stale comments and run the final
+5. **[P3] Visual polish:** update stale comments and run the final
    two-theme, keyboard, and narrow-window inspection.
-6. Re-run `$impeccable audit`; close this task only when both P1 findings and
+6. Repeat the UI audit; close this task only when both P1 findings and
    the non-deferred P2 findings are resolved.
 
 # Closure acceptance criteria
@@ -298,9 +291,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
                                                         passed
 cargo clippy --manifest-path src-tauri/Cargo.toml \
   --all-targets --all-features -- -D warnings           passed
-node .agents/skills/impeccable/scripts/detect.mjs \
-  src/changes.tsx src/versionLinesPanel.tsx src/styles.css
-                                                        passed (0 findings)
+Historical UI scan                                  passed (0 findings)
 git diff --check                                        passed
 ```
 
@@ -335,7 +326,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
                                                         passed
 cargo clippy --manifest-path src-tauri/Cargo.toml \
   --all-targets --all-features -- -D warnings           passed
-node .agents/skills/impeccable/scripts/detect.mjs ...   passed (0 findings)
+Historical UI scan                                  passed (0 findings)
 git diff --check fbae51f..HEAD                          passed
 ```
 
@@ -345,7 +336,7 @@ git diff --check fbae51f..HEAD                          passed
   target screens had already been reviewed interactively during tasks 033–035;
   this audit therefore treats their recorded DOM measurements as supporting
   evidence and focuses the new pass on source-level correctness and contracts.
-- `impeccable` reported that this project has no `PRODUCT.md`. That does not
+- The UI review tool reported that this project has no `PRODUCT.md`. That does not
   block this narrow audit because `DESIGN.md`, the product strategy, and the
   incumbent implementation provide the required authority. Creating one is an
   optional documentation follow-up, not part of closing these screens.

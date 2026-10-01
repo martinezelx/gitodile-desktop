@@ -35,7 +35,7 @@ and visually distinct from screen destinations. That separation works and must
 remain. Its recorded follow-up was to add tooltips if pointer discoverability
 proved weak.
 
-An Impeccable review on 2026-08-26 confirmed that it is weak: the controls have
+A UI review on 2026-08-26 confirmed that it is weak: the controls have
 accessible names, but a pointer user receives no visible name. The disabled
 Login button reserves its future position but does not explain that it is
 merely upcoming and optional in a local-first product. Disabled destinations
@@ -49,8 +49,7 @@ surface. Together those effects make frequent navigation feel buoyant and can
 make hover resemble selection. The selected destination treatment itself is
 clear and should remain.
 
-The full review is archived at
-[`../../.impeccable/critique/2026-08-26T21-11-26Z__src-app.md`](../../.impeccable/critique/2026-08-26T21-11-26Z__src-app.md).
+The relevant findings from the review are summarized above.
 
 # Scope
 

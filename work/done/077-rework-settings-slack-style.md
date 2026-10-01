@@ -245,7 +245,7 @@ reordering. The category intro and reset footer remain absent; every other
 option family renders with its original treatment.
 The final follow-ups grouped the explicit order arrows beside the drag grip,
 then unified every selected setting around neutral surfaces after an
-independent Impeccable critique found that green was carrying too many roles.
+independent UI critique found that green was carrying too many roles.
 Bounded reviews confirmed the softer selection hierarchy in light Interface
 and dark Navigation, the quieter resting arrows, and the reduced Git alert.
 At 760px the dialog measured 734px for both `clientWidth` and `scrollWidth`; the
@@ -253,4 +253,4 @@ document measured 760px for both, so neither introduced horizontal overflow.
 All six Spanish categories fit in the horizontal strip and the default browser
 viewport was restored after review.
 
-The Impeccable layout detector returned no findings before or after the change.
+The UI layout detector returned no findings before or after the change.

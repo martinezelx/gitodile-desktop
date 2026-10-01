@@ -518,7 +518,7 @@ rather than treating an empty hunk array as unexplained success.
     --all-features -- -D warnings` — pass;
   - `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 57 tests,
     including capped process output and unsupported path encoding;
-  - Impeccable detector over `src/main.tsx`, `src/styles.css`,
+  - UI detector over `src/main.tsx`, `src/styles.css`,
     `src/changes.tsx`, and `src/i18n.tsx` — no findings;
   - `git diff --check` — pass.
 
@@ -534,6 +534,6 @@ rather than treating an empty hunk array as unexplained success.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
   --all-features -- -D warnings` — pass.
 - `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 57 tests.
-- Impeccable detector over the changed frontend surface — no findings.
+- UI detector over the changed frontend surface — no findings.
 - The user approved closing the read-only slice with component-harness and
   exhaustive visual-matrix work deferred as documented above.

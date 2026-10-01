@@ -323,7 +323,7 @@ Use local bare remotes and separate clones/worktrees for:
   repository-write exclusion by shared `commonGitDir`, including linked
   worktrees; Git runner tests cover bounded timeout/cancellation and diagnostic
   redaction.
-- `impeccable` detector reported no craft-floor violations. Its independent
+- `UI` detector reported no craft-floor violations. Its independent
   finish review passed thesis, visual world, hierarchy, semantics, and the
   disabled future action; the one action-policy finding was corrected by
   deriving buttons from `TeamSyncStatus.nextActions` and covered by a test.

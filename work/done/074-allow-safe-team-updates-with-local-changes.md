@@ -84,7 +84,7 @@ remediation was written specifically for version-line switching.
 
 # Validation
 
-- `node .agents/skills/impeccable/scripts/detect.mjs --json` returned no
+- Historical UI scan returned no
   findings.
 - `pnpm run check` passed: documentation and architecture checks, TypeScript,
   420 frontend tests, production build, Rust formatting, Clippy, and 297 Rust
