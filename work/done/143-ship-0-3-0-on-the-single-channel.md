@@ -1,7 +1,7 @@
 ---
 id: 143
 title: Turn release/0.3.0-preview.1 into release/0.3.0 and ship it on the single channel
-status: active
+status: done
 priority: high
 type: release
 areas:
@@ -9,9 +9,9 @@ areas:
   - frontend
   - documentation
 created: 2026-10-01
-completed:
+completed: 2026-10-01
 parent:
-queue: "02"
+queue:
 ---
 
 # Goal
@@ -65,15 +65,15 @@ version, so the branch is first renamed back to a work branch.
 
 # Acceptance criteria
 
-- [ ] `release/0.3.0` contains `origin/main`, carries no `.github/` or
+- [x] `release/0.3.0` contains `origin/main`, carries no `.github/` or
       `scripts/release/` change, and `release/0.3.0-preview.1` no longer exists
       locally (remote only if the maintainer confirmed).
-- [ ] No preview-channel UI or copy remains on the branch.
-- [ ] Notes and highlights for `v0.3.0` are curated and agree
+- [x] No preview-channel UI or copy remains on the branch.
+- [x] Notes and highlights for `v0.3.0` are curated and agree
       (`release:notes`); the preview.1 files are gone.
-- [ ] `pnpm run check` passes on `release/0.3.0`.
-- [ ] Publication verified as in scope step 6.
-- [ ] `0.2.0-preview.12` → `0.3.0` verified on a real Windows install.
+- [x] `pnpm run check` passes on `release/0.3.0`.
+- [x] Publication verified as in scope step 6.
+- [x] `0.2.0-preview.12` → `0.3.0` verified on a real Windows install.
 
 # Relevant files
 
@@ -94,4 +94,45 @@ version, so the branch is first renamed back to a work branch.
 
 # Implementation notes
 
+- `origin/main` (task 142) merged into `release/0.3.0-preview.1` with 22
+  conflicted files: the release branch's `ChannelGlyph`, its Stable / Preview
+  control in the reworked Updates section and the matching CSS, copy and
+  tests were removed; "How you get updates" keeps only the startup check.
+  The active queue was renumbered with 142/143 first.
+- Renamed to `feature/0.3.0`, then `pnpm run release:prepare 0.3.0` produced
+  `release/0.3.0`; the never-published `0.3.0-preview.1` notes and highlights
+  became `v0.3.0`'s, rewritten for one channel.
+- CI on the PR exposed a Unix-only console test bug: its blocking
+  `pre-commit` hook lacked the executable bit, so Git ignored it. The test now
+  uses `test_support::write_failing_hook`.
+- Release PR martinezelx/gitodile-desktop#49, squash-merged as `df1ddb9`.
+- The first coordinator run was rejected because "Frontend checks" failed
+  intermittently on the merge commit (`App.test.tsx`, keep-alive Work screen);
+  a re-run passed, and the flaky test went to a separate task.
+- The publish job twice found `GITODILE_PUBLIC_RELEASE_TOKEN` empty: a secret
+  set with `gh secret set` without an interactive terminal stores an empty
+  value. A new fine-grained token (Contents read/write on
+  `martinezelx/gitodile` only) piped from the clipboard fixed it.
+- The maintainer deferred the offline updater-key backup to `1.0.0` (065-8).
+- Clean-up: remote `release/0.3.0-preview.1`, local `release/0.3.0` and
+  `feature/single-update-channel`, the stale `wt-preview12` worktree and the
+  `public-release-preview` / `public-release-stable` environments deleted.
+
 # Validation
+
+- `pnpm run check` passed on `release/0.3.0` (480 Rust tests).
+- Release pipeline run 36886321347 (attempt 3) succeeded: tag `v0.3.0`,
+  public release published 2026-10-01T16:21:07Z, not a prerelease, with the
+  Windows NSIS installer, Linux AppImage, both `.sig`, `latest.json`,
+  `SHA256SUMS`, `LICENSE` and `THIRD_PARTY_LICENSES.md`.
+- `updates/latest.json` and `updates/preview.json` carry byte-identical
+  manifests (`0.3.0`, Windows and Linux entries, the same `pub_date`); no
+  `stable.json`. Both served `0.3.0` anonymously from
+  `raw.githubusercontent.com`.
+- A Windows install of the published `0.2.0-preview.12` was offered `0.3.0`,
+  the maintainer downloaded and installed it, and the installed `0.3.0`
+  executable embeds `updates/latest.json` and the production key ID; the
+  install handoff record was consumed on startup. An earlier local install
+  without the updater key reported "Update verification is not configured
+  for this build", as designed. That the restarted `0.3.0` reports
+  "current" was not separately observed.

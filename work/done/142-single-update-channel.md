@@ -1,7 +1,7 @@
 ---
 id: 142
 title: Publish and update through one release channel
-status: active
+status: done
 priority: high
 type: refactor
 areas:
@@ -11,9 +11,9 @@ areas:
   - frontend
   - documentation
 created: 2026-10-01
-completed:
+completed: 2026-10-01
 parent:
-queue: "01"
+queue:
 ---
 
 # Goal
@@ -227,5 +227,7 @@ Implemented 2026-10-01 on `feature/single-update-channel` (from `origin/main`).
 - Settings → Updates and the update dialog rendered in a throwaway browser
   harness (since deleted): no channel group or chip; installed
   `v0.2.0-preview.12` and candidate `v0.3.0` shown plainly.
-- Not validated in the running Tauri app or against GitHub; the publication
-  path is exercised for real by task 143.
+- Not validated in the running Tauri app or against GitHub here; task 143
+  then published `0.3.0` through this pipeline and updated a real
+  `0.2.0-preview.12` install to it. Merged as
+  martinezelx/gitodile-desktop#48 (`20080a6`).
