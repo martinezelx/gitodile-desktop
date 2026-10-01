@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareReleaseVersions, parseKnownVersion, ReleaseValidationError } from "./release-candidate.mjs";
+import { compareReleaseVersions, parseReleaseVersion, ReleaseValidationError } from "./release-candidate.mjs";
 
 /**
  * Release highlights: the two-to-five sentences a version shows in the app's
@@ -118,7 +118,7 @@ export function parseHighlights(name, text) {
   if (typeof value.version !== "string") fail("highlights_invalid", `${name}: "version" must be a string`);
   const release = (() => {
     try {
-      return parseKnownVersion(value.version);
+      return parseReleaseVersion(value.version);
     } catch (error) {
       return fail("highlights_invalid", `${name}: ${error.message}`);
     }

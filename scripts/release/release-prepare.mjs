@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { HIGHLIGHTS_DIRECTORY, applyHighlightsBlock, highlightsFileName, scaffoldHighlights, todayIsoDate } from "./highlights.mjs";
-import { compareReleaseVersions, parseKnownVersion, parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
+import { compareReleaseVersions, parseReleaseVersion, readReleaseMetadata, ReleaseValidationError } from "./release-candidate.mjs";
 
 const SOURCE_REPOSITORY = "martinezelx/gitodile-desktop";
 const SOURCE_REMOTE = `https://github.com/${SOURCE_REPOSITORY}.git`;
@@ -84,7 +84,7 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   if (currentVersions.size !== 1 || currentVersions.has(undefined)) fail("metadata_mismatch", "current version metadata is inconsistent");
   if (currentVersions.has(version)) fail("version_unchanged", "the requested version is already current");
   const currentVersion = [...currentVersions][0];
-  parseKnownVersion(currentVersion);
+  parseReleaseVersion(currentVersion);
   if (compareReleaseVersions(version, currentVersion) <= 0) fail("version_not_newer", "the requested release version must advance the current version");
 
   const files = {
@@ -120,7 +120,7 @@ export function prepareRelease({ root, version, runChecks = true, expectedOrigin
   ));
   fs.writeFileSync(files.readme, replaceExactly(
     fs.readFileSync(files.readme, "utf8"),
-    /^Current development version: \*\*[^*]+\*\*(?:, \*\*(?:stable|preview)\*\* channel)?\.$/m,
+    /^Current development version: \*\*[^*]+\*\*\.$/m,
     `Current development version: **${version}**.`,
     "README.md",
   ));

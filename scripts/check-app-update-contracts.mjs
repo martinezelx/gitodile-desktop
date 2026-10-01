@@ -11,38 +11,25 @@ const qualificationPath = path.join(root, "docs", "release", "update-target-qual
 const qualification = JSON.parse(fs.readFileSync(qualificationPath, "utf8"));
 
 const releasePattern = new RegExp(contract.version.releasePattern);
-const legacyPreviewPattern = new RegExp(contract.version.legacyPreviewPattern);
 
-/** A version a feed may offer: plain `X.Y.Z`. */
+/** A release version, the only shape a build or a feed may carry. */
 function parseRelease(value) {
   const release = value.match(releasePattern);
-  return release ? { core: release.slice(1, 4).map(BigInt), preview: null } : null;
-}
-
-/** A version a build may be running: a release, or a legacy
- * `X.Y.Z-preview.N` from before the single channel. */
-function parseInstalled(value) {
-  const release = parseRelease(value);
-  if (release) return release;
-  const preview = value.match(legacyPreviewPattern);
-  return preview ? { core: preview.slice(1, 4).map(BigInt), preview: BigInt(preview[4]) } : null;
+  return release ? release.slice(1, 4).map(BigInt) : null;
 }
 
 function compareVersions(left, right) {
-  for (let index = 0; index < left.core.length; index += 1) {
-    if (left.core[index] < right.core[index]) return -1;
-    if (left.core[index] > right.core[index]) return 1;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] < right[index]) return -1;
+    if (left[index] > right[index]) return 1;
   }
-  if (left.preview === null && right.preview !== null) return 1;
-  if (left.preview !== null && right.preview === null) return -1;
-  if (left.preview === null) return 0;
-  return left.preview < right.preview ? -1 : left.preview > right.preview ? 1 : 0;
+  return 0;
 }
 
 /** Mirrors `version_decision` in `app_updates.rs`: only a release newer than
  * the running build is offered, and a prerelease in the feed is invalid. */
 function evaluateVersionCase(testCase) {
-  const installed = parseInstalled(testCase.installedVersion);
+  const installed = parseRelease(testCase.installedVersion);
   const candidate = parseRelease(testCase.candidateVersion);
   if (!installed || !candidate) return "invalid_version";
   if (!testCase.targetPresent) return "target_unavailable";
@@ -63,7 +50,7 @@ function evaluateMetadataCase(testCase) {
 for (const retired of ["channels", "channelPreferences"]) {
   assert.equal(Object.hasOwn(contract, retired), false, `there is one update channel; the contract carries no ${retired}`);
 }
-assert.deepEqual(Object.keys(contract.feeds), ["feed", "legacyMirrors"]);
+assert.deepEqual(Object.keys(contract.feeds), ["feed"]);
 assert.equal(contract.bounds.retainedCandidates, 1);
 assert.equal(contract.bounds.artifactBytes, 256 * 1024 * 1024);
 assert.deepEqual(
@@ -83,7 +70,7 @@ assert.equal(
 assert.equal(new Set(contract.targets.map((target) => target.key)).size, contract.targets.length);
 assert.equal(Object.hasOwn(contract, "validationBuilds"), false, "the contract carries no fixed test-build versions");
 assert.equal(qualification.schemaVersion, QUALIFICATION_SCHEMA_VERSION);
-for (const retired of ["validationQualification", "publicPreviewQualification"]) {
+for (const retired of ["validationQualification"]) {
   assert.equal(Object.hasOwn(qualification, retired), false, `the registry no longer carries ${retired}`);
 }
 const enabledTargets = contract.targets.filter((target) => target.releaseEnabled).map((target) => target.key);
@@ -136,7 +123,7 @@ const cargoVersion = cargoToml.match(/^\[package\][\s\S]*?^version\s*=\s*"([^"]+
 const lockVersion = cargoLock.match(/^name = "gitodile"\r?\nversion = "([^"]+)"/m)?.[1];
 const currentVersions = [packageJson.version, cargoVersion, lockVersion, tauriConfig.version];
 
-assert.ok(parseInstalled(packageJson.version), `unsupported current version ${packageJson.version}`);
+assert.ok(parseRelease(packageJson.version), `unsupported current version ${packageJson.version}`);
 assert.equal(currentVersions.every((version) => version === packageJson.version), true, "current metadata differs");
 assert.equal(tauriConfig.identifier, "app.gitodile.desktop");
 assert.equal(tauriConfig.bundle?.active, true);

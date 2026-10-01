@@ -251,8 +251,7 @@ The main desktop window should broadly support:
      the project facts than they are from each other and a size smaller: it
      is the one thing on the strip that is not about the project. The
      version is shown alone, as `v0.3.0`: there is one release channel, so
-     nothing qualifies it, and older changelog entries keep the
-     `-preview.N` versions they shipped as. It is one quiet button that opens
+     nothing qualifies it. It is one quiet button that opens
      the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About

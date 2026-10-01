@@ -37,15 +37,13 @@ integration.
 
 On 2026-09-16 the maintainer closed epic 065-9 and its children 065-9-5 through
 065-9-11 as done: the signed-build pipeline, merge-driven coordinator, public
-publisher, native updater, channel choice, tag-dated What's new and
-notes-from-highlights automation are all on `main`, and `0.2.0-preview.10`,
-`.11` and `.12` were built, published and installed through the public
-`preview.json`. Their unchecked acceptance criteria were evidence and
+publisher, native updater, tag-dated What's new and
+notes-from-highlights automation are all on `main`, and `0.2.10`, `.11` and
+`.12` were built, published and installed through the public feed. Their unchecked acceptance criteria were evidence and
 operations items, not code, and are consolidated here so the epic's history
 stays honest. Task 142 (2026-10-01, ADR 0019) then replaced the two channels
-with one: every release is `X.Y.Z`, publishes under the `testing` policy —
-Tauri updater signature only — until this task completes, and is mirrored to
-the legacy `preview.json` for installed `0.2.0-preview.*` builds.
+with one: every release is `X.Y.Z` and publishes under the `testing` policy
+— Tauri updater signature only — until this task completes.
 
 The plan for OS signing changed with that decision: instead of Authenticode
 only after `1.0.0` (task 065-9-9, ADR 0011), the maintainer intends to apply
@@ -63,8 +61,7 @@ registry described in `docs/release/updater-qualification.md`.
 
 - For each enabled target (Windows x86-64 per-user NSIS, Linux x86-64
   AppImage), record one real A-to-B transition between two consecutive public
-  releases served through the public feed (a legacy `0.2.0-preview.*` A reads
-  B from the `preview.json` mirror): OS version, architecture, install
+  releases served through the public feed: OS version, architecture, install
   path class (including one path with spaces/non-ASCII), settings, sessions,
   volatile drafts, dirty tracked and untracked files, another open project, an
   active operation and a helper all preserved; Git history unchanged.
@@ -84,8 +81,7 @@ registry described in `docs/release/updater-qualification.md`.
   anonymous downloads with hashes, and the advanced feed — the five
   `REQUIRED_PUBLISHER_CHECKS`.
 - Record the first single-channel release (task 143) end to end as pipeline
-  evidence: `public-release` environment, `latest.json` created and
-  `preview.json` advanced with identical bytes.
+  evidence: `public-release` environment and `latest.json` created.
 - Obtain and record written working-name clearance.
 - Enable `productionPromotion` in the registry with the updater key identity
   it covers; from then on releases publish as `production`, without the
@@ -121,8 +117,8 @@ registry described in `docs/release/updater-qualification.md`.
 
 ## E. Pending evidence from 065-9-11
 
-- Record that a preview built from 065-9-11 (`0.2.0-preview.12`) updated an
-  installed `0.2.0-preview.11` through the public feed, if it did; otherwise
+- Record that a build from 065-9-11 (`0.2.12`) updated an installed `0.2.11`
+  through the public feed, if it did; otherwise
   record the first transition that proves the check-time gate reporting and
   forward-compatible manifest on a real installation.
 

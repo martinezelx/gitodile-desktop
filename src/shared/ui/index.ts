@@ -112,9 +112,6 @@ export {
   type TechnologyId,
   type TechnologySource,
 } from "./projectIdentity";
-/* ADR 0003's two-consumer bar: the status bar, About, the changelog and the
-   update dialog all mark a preview build beside its version, and had drifted
-   into three pill recipes — two of them naming classes no sheet defined. */
 /* ADR 0003's two-consumer bar: What's new lists the bundled releases'
    highlights and the update dialog lists the offered release's, from the
    feed. Both say the same thing about a version, so both draw it one way. */
@@ -127,7 +124,7 @@ export {
 /* ADR 0003's two-consumer bar: the Lines rows drew their states as glyphs
    first, and the History timeline needed the same vocabulary for whether a
    version has left the machine — two glyph recipes for one idea would drift
-   the way the preview pills did. The glyphs are shared; which states a row
+   the way the old version pills did. The glyphs are shared; which states a row
    flags stays with the screen that knows its rows. */
 export { StateGlyph, StateGlyphs, type StateGlyphTone } from "./stateGlyph";
 /* ADR 0003's two-consumer bar, passed by three: the app keeps a render error

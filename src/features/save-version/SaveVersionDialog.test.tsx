@@ -264,13 +264,13 @@ describe("SaveVersionDialog", () => {
   });
 
   it("names the version line this version will be saved to, from the plan", async () => {
-    mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.0-preview.1" }));
+    mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.1" }));
     renderDialog();
 
     expect(await screen.findByText("2 files")).toBeInTheDocument();
-    expect(screen.getByText("0.2.0-preview.1").closest(".save-version-branch")).toHaveAttribute(
+    expect(screen.getByText("0.2.1").closest(".save-version-branch")).toHaveAttribute(
       "data-tooltip",
-      "0.2.0-preview.1",
+      "0.2.1",
     );
   });
 

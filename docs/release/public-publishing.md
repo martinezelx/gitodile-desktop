@@ -11,7 +11,7 @@ job.
 No qualified production publication is currently authorized. The narrow
 `testing` policy automatically publishes a Tauri-signed `X.Y.Z` release
 without platform qualification, as a non-prerelease GitHub release that
-advances `updates/latest.json` and its legacy mirror `updates/preview.json`.
+advances `updates/latest.json`.
 It changes no qualification state and claims no installation succeeded.
 The qualification registry
 [`update-target-qualifications.json`](update-target-qualifications.json) is
@@ -117,8 +117,7 @@ before any destination request.
    ID.
 3. On the first single-channel publication, inspect the published release,
    asset names, hashes, the prerelease flag (false), public tag and curated
-   notes, and confirm that `latest.json` and `preview.json` carry identical
-   bytes; re-run the `publish` job once to prove reconciliation without
+   notes, and confirm that `latest.json` carries the release manifest; re-run the `publish` job once to prove reconciliation without
    change. This is publisher evidence for the production approval, not target
    qualification.
 4. Before target qualification is complete, a signed release automatically
@@ -158,12 +157,10 @@ before any destination request.
    immutable release.
 
 Every manifest URL names `/releases/download/v<version>/<asset>`. A
-`-preview.N` version is refused before any feed is touched, and no release is
-a GitHub prerelease. Each publication writes the same manifest to
-`latest.json` and to the legacy `preview.json` mirror, which installed
-`0.2.0-preview.*` builds still read; each file follows the same rule: equal
-versions must have byte-identical manifests, and an older version fails
-closed. No file named `stable.json` is ever written.
+prerelease version is refused before any feed is touched, and no release is a
+GitHub prerelease. Each publication writes the manifest to `latest.json`:
+equal versions must have byte-identical manifests, and an older version fails
+closed. It is the only feed file.
 
 The asset and manifest set is exactly Windows x86-64 NSIS plus Linux x86-64
 AppImage. A Darwin target or macOS-looking asset is an error while task 065-10

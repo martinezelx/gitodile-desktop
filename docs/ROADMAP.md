@@ -73,7 +73,7 @@ product specification.
 ## Ordered path to `1.0.0`
 
 The release epic is [`065`](../work/active/release-1.0/065-release-1.0.md).
-The order below prioritizes the updater for preview distribution, followed by
+The order below prioritizes the updater for public distribution, followed by
 the remaining product dependencies. Only one active implementation task should
 be worked at a time.
 
@@ -108,16 +108,16 @@ references and therefore do not change when priorities move.
 | Q24 | 131 | Replace the app icon with the mascot |
 | Q25 | 140 | Build the account sign-in screens against a functional mock |
 
-### Preview distribution — delivered
+### Public distribution — delivered
 
 - **065-9: Signed application updates** is closed
   ([epic 065-9](../work/done/065-9-signed-application-updates.md), 2026-09-16):
   contracts, install protection, the native updater and its interface, signed
   builds, merge-driven releases, public publishing and the release-notes
-  automation are on `main` and proven by the public previews; task 142
-  replaced the two channels with one (ADR 0019). The evidence, production approval and OS-signing work still open
+  automation are on `main` and proven by public releases, all on one update
+  channel (ADR 0019). The evidence, production approval and OS-signing work still open
   is [Q19 / 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
-- This enables preview distribution before the rest of the 1.0.0 feature set.
+- This enables public distribution before the rest of the 1.0.0 feature set.
   New operations and drafts must integrate with install protection as they land.
   Git credential diagnostics remain Q16 / 065-7; final product qualification
   remains Q18 / 065-8. Completing this epic does not establish 1.0.0 readiness.
