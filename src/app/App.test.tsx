@@ -1663,8 +1663,14 @@ describe("App project restoration", () => {
     // The tabs never leave the screen, not even while History's chunk loads.
     expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
     // The history port is not mocked here, so the panel lands in its error
-    // state — still inside the tab's slot, still under the same tabs.
-    await waitFor(() => expect(document.querySelector(".history-screen")).not.toBeNull(), { timeout: 5000 });
+    // state — still inside the tab's slot, still under the same tabs. That
+    // state answers the project-activation read, which is deferred to idle (a
+    // one-second timer under jsdom) and can still be ahead of the test here.
+    // Waiting for the panel alone let the tab clicks below race it: the read's
+    // loading and error renders rebuild the timeline header, so a click that
+    // straddled them landed on a detached tab and did nothing.
+    expect(await screen.findByRole("heading", { name: "Couldn't read history" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "read_history_page")).toHaveLength(1);
     expect(document.querySelector(".history-screen")?.closest(".workbench__view")).not.toHaveAttribute("hidden");
     expect(document.querySelector(".changes-view")?.closest(".workbench__view")).toHaveAttribute("hidden");
     expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
