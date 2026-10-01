@@ -258,11 +258,11 @@ hardcoded list:
 | Node.js | `>=24` |
 | pnpm | `pnpm@11.17.0` |
 | Rust | stable (`rust-toolchain.toml`) |
-| Tauri runtime / CLI | `2.11.5` / `2.11.4` |
+| Tauri runtime / CLI | `2.11.6` / `2.11.5` |
 | React / React DOM | `19.3.0` |
 | TypeScript | `6.0.3` (intentionally pinned; see ADR 0005) |
-| Vite / Vitest | `8.3.0` / `5.0.0` |
-| TanStack Virtual | `3.14.12` |
+| Vite / Vitest | `8.3.1` / `5.0.1` |
+| TanStack Virtual | `3.14.13` |
 | notify | `8.2.0` |
 
 GitOdile uses the system Git executable. Git **2.23 or newer** is required for

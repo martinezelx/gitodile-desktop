@@ -37,7 +37,7 @@ runtime evidence:
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
   settings select the intended package families without claiming that either
   installed updater path is already qualified;
-- resolved Tauri runtime / CLI versions are `2.11.5` / `2.11.4`;
+- resolved Tauri runtime / CLI versions are `2.11.6` / `2.11.5`;
 - at the original planning baseline neither updater plugin was installed, updater artifacts were
   disabled, no public key or endpoint was embedded, and the WebView had no
   updater or process capability;
