@@ -53,10 +53,10 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "dependency-cruiser": "18.4.0",
-    "js-yaml": "4.3.2",
+    "js-yaml": "5.4.2",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
-    "unplugin-icons": "^23.0.1",
+    "unplugin-icons": "^24.0.0",
     "vite": "^8.3.1",
     "vitest": "^5.0.1"
   }

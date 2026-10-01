@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 import { REQUIRED_RELEASE_CHECKS } from "./merge-release.mjs";
 import {
   ReleaseValidationError,
