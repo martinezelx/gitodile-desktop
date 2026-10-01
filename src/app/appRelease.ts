@@ -37,31 +37,22 @@ type ReleaseHighlightsFile = Readonly<{
   highlights: readonly ReleaseHighlight[];
 }>;
 
-/** SemVer order over the release shape `X.Y.Z` and the legacy
- * `X.Y.Z-preview.N` that older entries in the changelog still carry: every
- * preview precedes its release. Mirrors the release scripts'
+/** Numeric order over `X.Y.Z` release versions. Mirrors the release scripts'
  * `compareReleaseVersions`, which the frontend cannot import. */
 export function compareAppReleaseVersions(left: string, right: string): number {
-  const parse = (version: string) => {
-    const [core, preview] = version.split("-preview.");
-    return { core: core.split(".").map(Number), preview: preview === undefined ? null : Number(preview) };
-  };
-  const a = parse(left);
-  const b = parse(right);
+  const a = left.split(".").map(Number);
+  const b = right.split(".").map(Number);
   for (let index = 0; index < 3; index += 1) {
-    if (a.core[index] !== b.core[index]) return a.core[index] < b.core[index] ? -1 : 1;
+    if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
   }
-  if (a.preview === b.preview) return 0;
-  if (a.preview === null) return 1;
-  if (b.preview === null) return -1;
-  return a.preview < b.preview ? -1 : 1;
+  return 0;
 }
 
 /**
  * The changelog, newest first, from every highlights file plus the running
  * build.
  *
- * A version with nothing to tell a user — a pipeline-only preview — is left
+ * A version with nothing to tell a user — a pipeline-only release — is left
  * out rather than shown as an empty disclosure, with one exception: the build
  * being run is always listed, because the dialog's "you are running this"
  * marker is the one fact it has to state before any note means anything. A

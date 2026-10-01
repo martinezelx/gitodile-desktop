@@ -25,12 +25,11 @@ function expectCode(code, callback) {
 }
 
 const line = { id: "inAppUpdates", icon: "cloud-download", en: "Update from inside the app.", es: "Actualiza desde la aplicación." };
-const file = (overrides = {}, entries = [line]) => JSON.stringify({ version: "0.2.0-preview.11", date: "2026-09-15", highlights: entries, ...overrides });
+const file = (overrides = {}, entries = [line]) => JSON.stringify({ version: "0.2.11", date: "2026-09-15", highlights: entries, ...overrides });
 
 test("a highlights file names its version, dates it and lists bilingual lines with known glyphs", () => {
-  const parsed = parseHighlights("v0.2.0-preview.11.json", file());
-  // A legacy preview file is still history the app shows.
-  assert.deepEqual(parsed, { version: "0.2.0-preview.11", date: "2026-09-15", highlights: [line] });
+  const parsed = parseHighlights("v0.2.11.json", file());
+  assert.deepEqual(parsed, { version: "0.2.11", date: "2026-09-15", highlights: [line] });
   assert.deepEqual(JSON.parse(scaffoldHighlights("0.3.0", "2026-10-01")), { version: "0.3.0", date: "2026-10-01", highlights: [] });
   assert.equal(parseHighlights("v0.3.0.json", scaffoldHighlights("0.3.0", "2026-10-01")).version, "0.3.0");
   assert.equal(todayIsoDate(new Date(2026, 8, 5)), "2026-09-05");
@@ -38,21 +37,21 @@ test("a highlights file names its version, dates it and lists bilingual lines wi
 });
 
 test("every malformed shape is refused with a message naming the file and the field", () => {
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", "{"));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", "[]"));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.12.json", file()));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", "{"));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", "[]"));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.12.json", file()));
   expectCode("highlights_invalid", () => parseHighlights("v0.2.0-alpha.1.json", file({ version: "0.2.0-alpha.1" })));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({ date: "2026-13-01" })));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({ date: "2026-02-30" })));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({ extra: true })));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, icon: "rocket" }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, id: "In-App" }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [line, line])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, es: "" }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, en: " padded" }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, en: "x".repeat(HIGHLIGHT_TEXT_LIMIT + 1) }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, en: "<b>bold</b>" }])));
-  expectCode("highlights_invalid", () => parseHighlights("v0.2.0-preview.11.json", file({}, [{ ...line, fr: "non" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({ date: "2026-13-01" })));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({ date: "2026-02-30" })));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({ extra: true })));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, icon: "rocket" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, id: "In-App" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [line, line])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, es: "" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, en: " padded" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, en: "x".repeat(HIGHLIGHT_TEXT_LIMIT + 1) }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, en: "<b>bold</b>" }])));
+  expectCode("highlights_invalid", () => parseHighlights("v0.2.11.json", file({}, [{ ...line, fr: "non" }])));
 });
 
 test("the directory check orders versions, requires the current one and refuses orphans", () => {
@@ -61,30 +60,30 @@ test("the directory check orders versions, requires the current one and refuses 
   const notes = path.join(root, "docs", "release", "notes");
   fs.mkdirSync(highlights, { recursive: true });
   fs.mkdirSync(notes, { recursive: true });
-  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.2.0-preview.11" }));
-  for (const version of ["0.1.0", "0.2.0-preview.9", "0.2.0-preview.11"]) {
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.2.11" }));
+  for (const version of ["0.1.0", "0.2.9", "0.2.11"]) {
     fs.writeFileSync(path.join(highlights, `v${version}.json`), scaffoldHighlights(version, "2026-09-15"));
     fs.writeFileSync(path.join(notes, `v${version}.md`), `# GitOdile ${version}\n`);
   }
   fs.writeFileSync(path.join(highlights, "icons.json"), JSON.stringify(HIGHLIGHT_ICONS));
   fs.writeFileSync(path.join(highlights, "README.md"), "# notes\n");
 
-  assert.deepEqual(readHighlightsDirectory(root).map((entry) => entry.version), ["0.2.0-preview.11", "0.2.0-preview.9", "0.1.0"]);
+  assert.deepEqual(readHighlightsDirectory(root).map((entry) => entry.version), ["0.2.11", "0.2.9", "0.1.0"]);
   assert.equal(checkHighlights(root).length, 3);
 
-  fs.writeFileSync(path.join(highlights, "v0.2.0-preview.10.json"), scaffoldHighlights("0.2.0-preview.10", "2026-09-15"));
+  fs.writeFileSync(path.join(highlights, "v0.2.10.json"), scaffoldHighlights("0.2.10", "2026-09-15"));
   expectCode("highlights_invalid", () => checkHighlights(root));
-  fs.rmSync(path.join(highlights, "v0.2.0-preview.10.json"));
+  fs.rmSync(path.join(highlights, "v0.2.10.json"));
 
   // Notes that carry the block must carry the one their file renders; notes
   // written before the block existed have no markers and are left alone.
-  fs.writeFileSync(path.join(highlights, "v0.2.0-preview.11.json"), file());
-  fs.writeFileSync(path.join(notes, "v0.2.0-preview.11.md"), applyHighlightsBlock("# GitOdile 0.2.0-preview.11\n", []));
+  fs.writeFileSync(path.join(highlights, "v0.2.11.json"), file());
+  fs.writeFileSync(path.join(notes, "v0.2.11.md"), applyHighlightsBlock("# GitOdile 0.2.11\n", []));
   expectCode("notes_stale", () => checkHighlights(root));
-  fs.writeFileSync(path.join(notes, "v0.2.0-preview.11.md"), applyHighlightsBlock("# GitOdile 0.2.0-preview.11\n", [line]));
+  fs.writeFileSync(path.join(notes, "v0.2.11.md"), applyHighlightsBlock("# GitOdile 0.2.11\n", [line]));
   assert.equal(checkHighlights(root).length, 3);
 
-  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.2.0-preview.12" }));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "0.2.12" }));
   expectCode("highlights_missing", () => checkHighlights(root));
 
   fs.writeFileSync(path.join(highlights, "stray.json"), "{}");

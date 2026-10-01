@@ -39,13 +39,13 @@ describe("an address GitHub will accept", () => {
       { length: events },
       (_, index) => `+00:0${index % 10}.000  git  read-only  read_working_tree_status  status  exit 0  12 ms`,
     );
-    return `Environment\n-----------\nGitOdile 0.2.0-preview.1\nSystem: Windows 11 (x86_64)\nGit: 2.55.0.windows.3\n\nSession activity\n----------------\nStarted: 2026-09-04T20:54:10Z\nDuration: 4 min 1 sec\nEvents: ${events} retained of ${events}\n\n${activity.join("\n")}\n`;
+    return `Environment\n-----------\nGitOdile 0.2.1\nSystem: Windows 11 (x86_64)\nGit: 2.55.0.windows.3\n\nSession activity\n----------------\nStarted: 2026-09-04T20:54:10Z\nDuration: 4 min 1 sec\nEvents: ${events} retained of ${events}\n\n${activity.join("\n")}\n`;
   }
 
   it("prefills the versions alone, without the report's own headings", () => {
     const sent = new URL(buildIssueReportUrl(report(3))).searchParams.get("diagnostics");
 
-    expect(sent).toBe("GitOdile 0.2.0-preview.1\nSystem: Windows 11 (x86_64)\nGit: 2.55.0.windows.3");
+    expect(sent).toBe("GitOdile 0.2.1\nSystem: Windows 11 (x86_64)\nGit: 2.55.0.windows.3");
   });
 
   it("stays short whatever the session did", () => {

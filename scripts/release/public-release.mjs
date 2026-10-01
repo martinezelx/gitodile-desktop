@@ -16,12 +16,9 @@ const SECRET_NAME = /(?:private[-_.]?key|certificate|credential|secret|token|sou
  * updater-signed by Tauri, no platform qualification, no Authenticode. The
  * notes say so. */
 export const TESTING_NOTICE = "> Testing release: Windows and Linux installed-update qualification is not complete. This release does not claim platform qualification. Windows Authenticode is deferred.\n\n> Versión de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión no declara cualificación de plataforma. Authenticode de Windows está aplazado.";
-/** The public feed files a publication advances, under `updates/`. `latest`
- * is the one feed every build from this source follows. `preview` is a
- * mirror for installed `0.2.0-preview.*` builds, which know only that URL;
- * retire it only after a release note has announced it, accepting that any
- * such install left then needs a manual reinstall (ADR 0019). */
-export const FEED_FILES = Object.freeze(["latest", "preview"]);
+/** The public feed files a publication advances, under `updates/`: the one
+ * feed every build follows (ADR 0019). */
+export const FEED_FILES = Object.freeze(["latest"]);
 
 function fail(code, message) {
   throw new ReleaseValidationError(code, message);
@@ -250,7 +247,7 @@ export function renderPublication(plan, publishedAt) {
 /** The feed files to write, keyed by `FEED_FILES` name, each either the new
  * manifest bytes or `null` when that file already serves this version. A
  * feed never regresses and never takes different bytes for the same
- * version; the legacy mirror follows the same rule. */
+ * version. */
 export function feedsForPromotion(plan, current = {}) {
   const testing = plan.mode === "testing" && plan.qualification.testingAllowed === true;
   const production = plan.mode === "production" && plan.qualification.productionAllowed === true;

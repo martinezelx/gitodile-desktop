@@ -628,8 +628,7 @@ join that contract before it can ship.
 
 `app_updates.rs` is the one process-wide native owner. It compiles the one
 feed constant and the updater public-key identity; offers only a plain `X.Y.Z`
-release newer than the running build (which may still be a legacy
-`X.Y.Z-preview.N` install); detects the native target and installation mode; and retains at most one
+release newer than the running build; detects the native target and installation mode; and retains at most one
 immutable candidate and one verified payload. The exact `tauri-plugin-updater = 2.11.0` Rust API owns the
 single feed request and authoritative check; GitOdile strictly validates its
 returned `raw_json` before retaining the candidate. The plugin also owns the
@@ -681,8 +680,7 @@ artifact, runs the public feedback contract and stages a package-only bundle.
 Its serialized privileged half receives the destination-scoped credential but
 does not check out application source. It reconciles immutable draft
 assets, anonymously verifies every finalized download, then writes the one
-feed manifest — and the same bytes to the legacy `preview.json` mirror that
-`0.2.0-preview.*` installs still read — with one compare-and-swap commit. The
+feed manifest with one compare-and-swap commit. The
 publication mode and versioned URLs are derived rather than supplied as
 independent operator choices, and no release is a GitHub prerelease. The source-controlled qualification registry is
 deny-by-default; validation drafts cannot finalize or write production feeds,

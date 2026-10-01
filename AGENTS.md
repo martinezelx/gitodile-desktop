@@ -229,7 +229,7 @@ In summary:
 ## Development conventions
 
 - There is one release channel and every release is a plain `X.Y.Z` version;
-  never prepare a `-preview.N` version (ADR 0019). Start the next version with
+  never prepare a prerelease version (ADR 0019). Start the next version with
   `pnpm run release:prepare <X.Y.Z>` from a clean, current `main` (or from a
   work branch that already contains `origin/main`): it creates
   `release/<X.Y.Z>` with the version bump, notes and highlights. Develop the

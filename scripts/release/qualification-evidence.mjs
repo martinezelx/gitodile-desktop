@@ -1,7 +1,6 @@
 import {
   ALL_TARGETS,
   compareReleaseVersions,
-  parseKnownVersion,
   parseReleaseVersion,
   REQUIRED_TARGETS,
   TARGET_CONTRACTS,
@@ -10,12 +9,8 @@ import {
 
 export const QUALIFICATION_SCHEMA_VERSION = 4;
 export const PUBLIC_REPOSITORY = "martinezelx/gitodile";
-/** The feeds an installed build can have read an update from: the one feed,
- * and the legacy mirror that `0.2.0-preview.*` builds still follow. */
-export const PUBLIC_FEED_URLS = Object.freeze([
-  `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/latest.json`,
-  `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/preview.json`,
-]);
+/** The one public feed every installed build reads its updates from. */
+export const PUBLIC_FEED_URL = `https://raw.githubusercontent.com/${PUBLIC_REPOSITORY}/main/updates/latest.json`;
 
 export const REQUIRED_PRESERVATION_CHECKS = Object.freeze([
   "settings",
@@ -91,8 +86,7 @@ function validateArtifact(artifact, version, label) {
 }
 
 /** A qualified transition is proven by two real public releases, each
- * published by one release-pipeline run on protected main. Build A may be a
- * legacy preview: that is what the first installs to update were. */
+ * published by one release-pipeline run on protected main. */
 function validateBuild(build, expectedVersion, target, label) {
   if (
     build?.version !== expectedVersion || build?.tag !== `v${expectedVersion}` ||
@@ -138,8 +132,6 @@ function validateTransition(transition, label) {
   const to = transition?.toVersion;
   let ordered = false;
   try {
-    parseKnownVersion(from);
-    parseReleaseVersion(to);
     ordered = compareReleaseVersions(from, to) < 0;
   } catch (error) {
     if (!(error instanceof ReleaseValidationError)) throw error;
@@ -154,7 +146,7 @@ function validateTransition(transition, label) {
 
 function validateFeed(feed, toVersion, label) {
   if (
-    !PUBLIC_FEED_URLS.includes(feed?.url) || feed?.version !== toVersion || !SHA256.test(feed?.sha256 ?? "") ||
+    feed?.url !== PUBLIC_FEED_URL || feed?.version !== toVersion || !SHA256.test(feed?.sha256 ?? "") ||
     !SOURCE_SHA.test(feed?.commitSha ?? "") || !isCanonicalTimestamp(feed?.observedAt)
   ) fail("qualification_invalid", `${label} public feed evidence is incomplete`);
 }
@@ -260,7 +252,7 @@ export function validateQualificationRegistry(qualification, candidate, mode) {
   if (qualification?.schemaVersion !== QUALIFICATION_SCHEMA_VERSION || !Array.isArray(qualification.targets)) {
     fail("qualification_invalid", "qualification registry is malformed");
   }
-  for (const legacy of ["validationQualification", "publicPreviewQualification"]) {
+  for (const legacy of ["validationQualification"]) {
     if (Object.hasOwn(qualification, legacy)) fail("qualification_invalid", `qualification registry carries the retired ${legacy} record`);
   }
   const byTarget = new Map(qualification.targets.map((item) => [item.key, item]));

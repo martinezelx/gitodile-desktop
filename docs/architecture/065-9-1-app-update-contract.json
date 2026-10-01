@@ -2,7 +2,6 @@
   "schemaVersion": 3,
   "version": {
     "releasePattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
-    "legacyPreviewPattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)-preview\\.([1-9][0-9]*)$",
     "tagPrefix": "v",
     "metadataFiles": [
       "package.json",
@@ -12,10 +11,7 @@
     ]
   },
   "feeds": {
-    "feed": "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json",
-    "legacyMirrors": [
-      "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json"
-    ]
+    "feed": "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json"
   },
   "targets": [
     {
@@ -145,20 +141,6 @@
       "expected": "available"
     },
     {
-      "name": "a legacy preview install is offered the release that follows it",
-      "installedVersion": "0.2.0-preview.12",
-      "candidateVersion": "0.3.0",
-      "targetPresent": true,
-      "expected": "available"
-    },
-    {
-      "name": "a legacy preview install refuses an older release",
-      "installedVersion": "0.2.0-preview.12",
-      "candidateVersion": "0.1.0",
-      "targetPresent": true,
-      "expected": "current"
-    },
-    {
       "name": "missing target is not current",
       "installedVersion": "0.3.0",
       "candidateVersion": "0.3.1",
@@ -168,14 +150,7 @@
     {
       "name": "a prerelease in the feed is rejected",
       "installedVersion": "0.3.0",
-      "candidateVersion": "0.4.0-preview.1",
-      "targetPresent": true,
-      "expected": "invalid_version"
-    },
-    {
-      "name": "a legacy preview install rejects a prerelease too",
-      "installedVersion": "0.2.0-preview.12",
-      "candidateVersion": "0.2.0-preview.13",
+      "candidateVersion": "0.4.0-beta.1",
       "targetPresent": true,
       "expected": "invalid_version"
     },
@@ -194,8 +169,8 @@
       "expected": "invalid_version"
     },
     {
-      "name": "an installed preview zero is not a version",
-      "installedVersion": "0.3.0-preview.0",
+      "name": "an installed prerelease is not a release",
+      "installedVersion": "0.3.0-beta.1",
       "candidateVersion": "0.3.1",
       "targetPresent": true,
       "expected": "invalid_version"
@@ -251,15 +226,15 @@
       "expected": "metadata_mismatch"
     },
     {
-      "name": "a preview is never released",
+      "name": "a prerelease is never released",
       "versions": [
-        "0.3.0-preview.2",
-        "0.3.0-preview.2",
-        "0.3.0-preview.2",
-        "0.3.0-preview.2"
+        "0.3.0-beta.2",
+        "0.3.0-beta.2",
+        "0.3.0-beta.2",
+        "0.3.0-beta.2"
       ],
-      "tag": "v0.3.0-preview.2",
-      "feedVersion": "0.3.0-preview.2",
+      "tag": "v0.3.0-beta.2",
+      "feedVersion": "0.3.0-beta.2",
       "expected": "invalid_version"
     }
   ]

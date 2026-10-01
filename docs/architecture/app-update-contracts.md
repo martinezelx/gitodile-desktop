@@ -134,15 +134,10 @@ tag:     v<exact version>
 ```
 
 Every numeric identifier is decimal without a leading zero unless it is exactly
-`0`. Build metadata and every prerelease suffix (`preview.N`, `alpha`, `beta`,
-`rc`, `nightly`, or compound suffixes) are rejected before signing. There is
-one release channel and no channel name.
-
-Builds up to `0.3.0-preview.1` carried the legacy shape
-`X.Y.Z-preview.N` (N >= 1). It stays readable wherever history meets it: an
-installed build's own version, the highlights catalogue, the legacy feed and
-SemVer ordering, in which every `X.Y.Z-preview.N` precedes `X.Y.Z`. It is never
-prepared, tagged or published again.
+`0`. Build metadata and every prerelease suffix (`alpha`, `beta`, `rc`,
+`nightly`, or compound suffixes) are rejected before signing, and a running
+build or a feed with any other shape is refused. There is one release channel
+and no channel name.
 
 For a release, one exact string must match all of these identities:
 
@@ -173,11 +168,6 @@ The one production feed identity is fixed in native build metadata:
 | Feed | URL |
 | --- | --- |
 | feed | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json` |
-| legacy mirror (publisher only) | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` |
-
-Every publication writes the same manifest bytes to both files. No build from
-this source reads the mirror; it exists because installed `0.2.0-preview.*`
-builds know only that URL, and it can be retired only as ADR 0019 describes.
 
 `BuildUpdateIdentity` is generated and validated for every check:
 
@@ -460,8 +450,7 @@ loss response are owned by the [runbook](../release/signed-builds.md).
 
 Qualification proves one forward transition between two real, consecutive
 public releases (A then B) built, signed and published by the normal release
-pipeline with the production key and the public feed. A may be a legacy
-`0.2.0-preview.*` install, which reads B from the `preview.json` mirror.
+pipeline with the production key and the public feed.
 The versions are recorded in the evidence, not fixed in code. For each enabled
 target:
 

@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0-preview.9",
+  "version": "0.2.9",
   "date": "2026-09-14",
   "highlights": [
     {
@@ -9,10 +9,10 @@
       "es": "Informa de un problema desde Más acciones. Revisa los datos de la aplicación y del sistema antes de enviar el informe en GitHub."
     },
     {
-      "id": "previewVersions",
+      "id": "fullVersions",
       "icon": "tag",
-      "en": "Preview builds now show their full version number so you can identify the build you are using.",
-      "es": "Las versiones preview muestran ahora su número completo para que puedas identificar la build que estás usando."
+      "en": "Builds now show their full version number so you can identify the build you are using.",
+      "es": "Las versiones muestran ahora su número completo para que puedas identificar la build que estás usando."
     },
     {
       "id": "releaseDetails",
