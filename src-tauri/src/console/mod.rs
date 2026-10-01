@@ -1493,13 +1493,9 @@ mod change_tests {
     fn hooks_run_unless_settings_or_the_command_skip_them() {
         let (path, _) = repository("console-change-hooks");
         let settings = advanced("console-change-hooks-settings");
-        let hooks = Path::new(&path).join(".git/hooks");
-        std::fs::create_dir_all(&hooks).unwrap();
-        std::fs::write(
-            hooks.join("pre-commit"),
-            "#!/bin/sh\necho 'blocked by the project' >&2\nexit 1\n",
-        )
-        .unwrap();
+        // The shared fixture sets the executable bit on Unix, without which
+        // Git ignores the hook and the commit is never blocked.
+        crate::test_support::write_failing_hook(&Path::new(&path).join(".git"), "pre-commit");
         write_file(&path, "file.txt", "second\n");
         git(&path, &["add", "file.txt"]);
 
@@ -1511,7 +1507,7 @@ mod change_tests {
         let result = change(&settings, &path, blocked);
         assert!(!result.success);
         assert_eq!(result.failure, Some(RunFailure::HookRejected));
-        assert!(result.stderr.contains("blocked by the project"));
+        assert!(result.stderr.contains("rejected by test hook"));
 
         // Hooks turned off in Settings: the plan adds and states `--no-verify`.
         let skipped = plan_with(&settings, &path, "git commit -m skipped", false);
