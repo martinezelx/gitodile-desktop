@@ -36,14 +36,12 @@ function writeVersion(root, version, notes = null, highlights = scaffoldHighligh
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.toml"), `[package]\nname = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "Cargo.lock"), `name = "gitodile"\nversion = "${version}"\n`);
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), `${JSON.stringify({ version }, null, 2)}\n`);
-  // A legacy preview baseline carries the README line the way main did
-  // before the single channel; release preparation rewrites either form.
-  fs.writeFileSync(path.join(root, "README.md"), `Current development version: **${version}**${version.includes("-preview.") ? ", **preview** channel" : ""}.\n`);
+  fs.writeFileSync(path.join(root, "README.md"), `Current development version: **${version}**.\n`);
   if (notes !== null) fs.writeFileSync(path.join(root, "docs", "release", "notes", `v${version}.md`), notes);
   if (highlights !== null) fs.writeFileSync(path.join(root, "docs", "release", "highlights", `v${version}.json`), highlights);
 }
 
-function repository(baseline = "0.2.0-preview.5") {
+function repository(baseline = "0.2.5") {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-merge-release-"));
   const bare = path.join(parent, "origin.git");
   const root = path.join(parent, "work");
@@ -81,7 +79,7 @@ test("release branch grammar accepts only canonical X.Y.Z releases", () => {
   assert.deepEqual(parseReleaseBranch("release/0.3.0"), {
     version: "0.3.0", branch: "release/0.3.0", tag: "v0.3.0",
   });
-  for (const branch of ["0.3.0", "release/v0.3.0", "release/0.3.0-preview.1", "release/0.2.0-preview.0", "release/03.0.0", "feature/x"]) {
+  for (const branch of ["0.3.0", "release/v0.3.0", "release/0.3.0-beta.1", "release/0.2.0-rc.0", "release/03.0.0", "feature/x"]) {
     assert.throws(() => parseReleaseBranch(branch), ReleaseValidationError);
   }
 });
@@ -187,16 +185,16 @@ test("release preparation rejects dirty, detached, stale, automation-carrying an
   expectCode("version_unchanged", () => prepareRelease({ root: released.root, version: "0.3.0", runChecks: false, expectedOrigin: released.bare }));
   const older = repository();
   expectCode("version_not_newer", () => prepareRelease({ root: older.root, version: "0.1.0", runChecks: false, expectedOrigin: older.bare }));
-  // There is one channel: a preview is never prepared again.
-  const preview = repository();
-  expectCode("invalid_tag", () => prepareRelease({ root: preview.root, version: "0.3.0-preview.1", runChecks: false, expectedOrigin: preview.bare }));
-  assert.equal(git(preview.root, "branch", "--show-current"), "main");
+  // There is one channel: a prerelease is never prepared.
+  const prerelease = repository();
+  expectCode("invalid_tag", () => prepareRelease({ root: prerelease.root, version: "0.3.0-beta.1", runChecks: false, expectedOrigin: prerelease.bare }));
+  assert.equal(git(prerelease.root, "branch", "--show-current"), "main");
 });
 
 test("merge preparation binds metadata, scope, curated notes and authorization bytes", () => {
   const repo = repository();
   git(repo.root, "switch", "-c", "release/0.3.0");
-  const notes = applyHighlightsBlock("# GitOdile 0.3.0\n\nA reviewed preview with safer release automation.\n", []);
+  const notes = applyHighlightsBlock("# GitOdile 0.3.0\n\nA reviewed release with safer release automation.\n", []);
   writeVersion(repo.root, "0.3.0", notes);
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "chore(release): prepare 0.3.0");

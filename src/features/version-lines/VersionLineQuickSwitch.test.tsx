@@ -224,7 +224,7 @@ describe("VersionLineQuickSwitch", () => {
         <VersionLineQuickSwitch
           snapshot={snapshot}
           isLoadingSnapshot={false}
-          currentValue="0.2.0-preview.1"
+          currentValue="0.2.1"
           contextLabel="Working on"
           canSwitch
           variant="status"
@@ -239,7 +239,7 @@ describe("VersionLineQuickSwitch", () => {
     // name already says what pressing it does, so they are not announced twice.
     expect(screen.getByText("Working on")).toHaveAttribute("aria-hidden", "true");
     expect(
-      screen.getByRole("button", { name: "Change version line (0.2.0-preview.1)" }),
+      screen.getByRole("button", { name: "Change version line (0.2.1)" }),
     ).toBeInTheDocument();
   });
 

@@ -18,9 +18,8 @@ A qualified target is proven by one **A-to-B transition between two real,
 consecutive public releases** published by the release pipeline in `testing`
 mode. Which two versions form the pair is data recorded in the evidence, not
 a value in code: the validator only requires that B is an `X.Y.Z` release
-newer than A, and that B was served to the installed A through a public feed.
-A may be a legacy `0.2.0-preview.*` install; it reads B from the
-`preview.json` mirror, and its evidence names that URL.
+newer than A, and that B was served to the installed A through the public
+feed.
 
 Every build carries the compile-time
 `GITODILE_TEST_UPDATE_TARGETS=windows-x86_64,linux-x86_64` gate so an
@@ -107,7 +106,7 @@ authorized publication.
 No public release pair has completed the procedure above. Windows and Linux
 remain `qualification_required`; both Darwin targets are deliberately
 `planned_disabled`; production promotion remains disabled. Earlier internal
-test builds (`0.2.0-preview.2` through `0.2.0-preview.5`) used a now-retired
+test builds (`0.2.2` through `0.2.5`) used a now-retired
 validation key and controlled feed; their tags remain in the source repository
 as history, but they are not qualification evidence and nothing in the
 release contract refers to them. This document must not be read as a

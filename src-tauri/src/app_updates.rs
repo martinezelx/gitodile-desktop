@@ -42,9 +42,7 @@ const DOWNLOAD_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 const DOWNLOAD_TOTAL_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const READ_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
 const REDIRECT_LIMIT: usize = 5;
-/// The one feed every build follows. The publisher also mirrors each release
-/// into the retired `preview.json`, the only feed `0.2.0-preview.*` builds
-/// know; no build from this source reads it.
+/// The one feed every build follows.
 const FEED: &str =
     "https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json";
 const RELEASE_PREFIX: &str = "/martinezelx/gitodile/releases/download/";
@@ -1066,7 +1064,7 @@ fn build_update_identity(
     public_key: &str,
     public_key_id: &str,
 ) -> Result<BuildUpdateIdentity, UpdateError> {
-    let version = parse_installed_version(version_text).ok_or_else(|| {
+    let version = parse_release_version(version_text).ok_or_else(|| {
         UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false)
     })?;
     if public_key.is_empty()
@@ -1318,39 +1316,17 @@ fn valid_artifact_url(url: &reqwest::Url, version: &str) -> bool {
 }
 
 /// A release version: plain `X.Y.Z` without leading zeros, prerelease or
-/// build metadata. It is the only shape a feed may offer.
+/// build metadata. It is the only shape a build or a feed may carry.
 fn parse_release_version(value: &str) -> Option<Version> {
-    parse_installed_version(value).filter(|version| version.pre.is_empty())
-}
-
-/// The version of a running build: a release version, or the legacy
-/// `X.Y.Z-preview.N` shape that every build up to `0.2.0-preview.12` (and
-/// `main` until it releases `0.3.0`) carries. It is read so those installs
-/// can be offered a release; that shape is never published again.
-fn parse_installed_version(value: &str) -> Option<Version> {
     if value.is_empty() || value.starts_with('v') || value.contains('+') {
         return None;
     }
     let version = Version::parse(value).ok()?;
-    for component in value.split(['.', '-']) {
-        if component.len() > 1
-            && component.starts_with('0')
-            && component.bytes().all(|byte| byte.is_ascii_digit())
-        {
-            return None;
-        }
-    }
     if !version.pre.is_empty() {
-        let prefix = format!(
-            "{}.{}.{}-preview.",
-            version.major, version.minor, version.patch
-        );
-        let number = value.strip_prefix(&prefix)?;
-        if number.is_empty()
-            || number == "0"
-            || (number.len() > 1 && number.starts_with('0'))
-            || !number.bytes().all(|byte| byte.is_ascii_digit())
-        {
+        return None;
+    }
+    for component in value.split('.') {
+        if component.len() > 1 && component.starts_with('0') {
             return None;
         }
     }
@@ -2080,7 +2056,7 @@ fn confirm_handoff(path: &Path, running_version: &str) -> StartupUpdateConfirmat
 }
 
 fn valid_handoff_record(record: &HandoffRecord) -> bool {
-    let versions = parse_installed_version(&record.from_version)
+    let versions = parse_release_version(&record.from_version)
         .zip(parse_release_version(&record.expected_version));
     let forward = versions.is_some_and(|(from, expected)| expected > from);
     let timestamp_is_plausible = SystemTime::now()
@@ -2125,105 +2101,38 @@ mod tests {
     use std::sync::Arc;
 
     #[test]
-    fn releases_are_plain_versions_and_legacy_previews_stay_readable() {
-        assert!(parse_release_version("0.3.0").is_some());
-        assert!(parse_release_version("10.20.30").is_some());
+    fn releases_are_plain_versions() {
+        for valid in ["0.2.12", "0.3.0", "10.20.30"] {
+            assert!(parse_release_version(valid).is_some(), "{valid}");
+        }
         for invalid in [
+            "",
             "v0.2.0",
             "01.2.0",
             "0.02.0",
             "0.2.00",
-            "0.2.0-preview.1",
-            "0.2.0-alpha.1",
+            "0.2.0-beta.1",
+            "0.2.0-rc.1",
             "0.2.0+build.7",
         ] {
             assert!(parse_release_version(invalid).is_none(), "{invalid}");
         }
-        for installed in ["0.3.0", "0.2.0-preview.1", "10.20.30-preview.42"] {
-            assert!(parse_installed_version(installed).is_some(), "{installed}");
-        }
-        for invalid in [
-            "0.2.0-preview.0",
-            "0.2.0-preview.01",
-            "0.2.0-alpha.1",
-            "0.2.0-preview.1+build.7",
-        ] {
-            assert!(parse_installed_version(invalid).is_none(), "{invalid}");
-        }
-        let a = parse_installed_version("0.2.0-preview.2").unwrap();
-        let b = parse_installed_version("0.2.0-preview.3").unwrap();
-        let release = parse_installed_version("0.2.0").unwrap();
-        assert!(a < b && b < release);
+        let a = parse_release_version("0.2.9").unwrap();
+        let b = parse_release_version("0.2.12").unwrap();
+        let c = parse_release_version("0.3.0").unwrap();
+        assert!(a < b && b < c);
     }
 
     #[test]
-    fn only_a_newer_release_is_offered_to_release_and_legacy_builds() {
+    fn only_a_newer_release_is_offered() {
         let release = Version::parse("0.3.0").unwrap();
         assert!(!version_decision(&release, "0.3.0").unwrap());
-        assert!(!version_decision(&release, "0.2.9").unwrap());
+        assert!(!version_decision(&release, "0.2.12").unwrap());
         assert!(version_decision(&release, "0.3.1").unwrap());
-        // An installed legacy preview is offered the release that follows it.
-        let legacy = Version::parse("0.2.0-preview.12").unwrap();
-        assert!(version_decision(&legacy, "0.3.1").unwrap());
-        assert!(version_decision(&legacy, "0.2.0").unwrap());
-        assert!(!version_decision(&legacy, "0.1.0").unwrap());
-        // A prerelease in the feed is never an offer, whoever is asking.
-        for installed in [&release, &legacy] {
-            assert_eq!(
-                version_decision(installed, "0.4.0-preview.1")
-                    .unwrap_err()
-                    .code,
-                UpdateErrorCode::InvalidVersion
-            );
-        }
-    }
-
-    #[test]
-    fn feed_highlights_are_optional_bounded_and_taken_whole() {
-        let line = |id: &str| serde_json::json!({ "id": id, "icon": "cloud-download", "en": "Faster updates.", "es": "Actualizaciones más rápidas." });
+        // A prerelease in the feed is never an offer.
         assert_eq!(
-            feed_highlights(&serde_json::json!({ "version": "1.0.0" })),
-            vec![]
-        );
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": [line("fasterUpdates")] })),
-            vec![CandidateHighlight {
-                id: "fasterUpdates".into(),
-                icon: "cloud-download".into(),
-                en: "Faster updates.".into(),
-                es: "Actualizaciones más rápidas.".into(),
-            }]
-        );
-        // An icon this build does not know still passes; the renderer draws a generic glyph.
-        let mut future = line("future");
-        future["icon"] = "rocket".into();
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": [future] })).len(),
-            1
-        );
-        // One malformed line drops the whole list rather than a part of it.
-        let mut markup = line("markup");
-        markup["en"] = "<b>bold</b>".into();
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": [line("ok"), markup] })),
-            vec![]
-        );
-        let mut long = line("long");
-        long["es"] = "x".repeat(HIGHLIGHT_TEXT_CHARS_LIMIT + 1).into();
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": [long] })),
-            vec![]
-        );
-        let too_many: Vec<_> = (0..=HIGHLIGHTS_LIMIT)
-            .map(|index| line(&format!("line{index}")))
-            .collect();
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": too_many })),
-            vec![]
-        );
-        assert_eq!(
-            feed_highlights(&serde_json::json!({ "highlights": "Faster" })),
-            vec![]
+            version_decision(&release, "0.4.0-beta.1").unwrap_err().code,
+            UpdateErrorCode::InvalidVersion
         );
     }
 
@@ -2248,19 +2157,21 @@ mod tests {
     #[test]
     fn artifact_origin_and_version_are_locked() {
         let valid = reqwest::Url::parse(
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/GitOdile.exe").unwrap();
-        assert!(valid_artifact_url(&valid, "0.2.0-preview.2"));
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.2/GitOdile.exe",
+        )
+        .unwrap();
+        assert!(valid_artifact_url(&valid, "0.2.2"));
         for invalid in [
-            "http://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
-            "https://evil.invalid/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
+            "http://github.com/martinezelx/gitodile/releases/download/v0.2.2/x",
+            "https://evil.invalid/martinezelx/gitodile/releases/download/v0.2.2/x",
             "https://github.com/martinezelx/gitodile/releases/latest/download/x",
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.3/x",
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/",
-            "https://user:pw@github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x",
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.2/x?token=1",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.3/x",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.2/",
+            "https://user:pw@github.com/martinezelx/gitodile/releases/download/v0.2.2/x",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.2/x?token=1",
         ] {
             assert!(
-                !valid_artifact_url(&reqwest::Url::parse(invalid).unwrap(), "0.2.0-preview.2"),
+                !valid_artifact_url(&reqwest::Url::parse(invalid).unwrap(), "0.2.2"),
                 "{invalid}"
             );
         }
@@ -2268,12 +2179,13 @@ mod tests {
 
     #[test]
     fn build_identity_is_derived_only_from_version_and_reviewed_key() {
-        for version in ["0.3.0", "0.2.0-preview.9"] {
+        for version in ["0.3.0", "0.2.9"] {
             let identity = build_update_identity(version, "public-key", "key-id").unwrap();
             assert_eq!(identity.feed, FEED);
         }
         for (version, key, key_id) in [
             ("0.2.0-alpha.1", "public-key", "key-id"),
+            ("0.2.0-beta.9", "public-key", "key-id"),
             ("0.3.0", "", "key-id"),
             ("0.3.0", "public-key", ""),
             ("0.3.0", "public-key", "key id with spaces"),
@@ -2313,15 +2225,15 @@ mod tests {
             })
         ));
         let url = reqwest::Url::parse(
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_x64-setup.exe",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.10/GitOdile_0.2.10_x64-setup.exe",
         )
         .unwrap();
         let linux_url = reqwest::Url::parse(
-            "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_0.2.0-preview.10_amd64.AppImage",
+            "https://github.com/martinezelx/gitodile/releases/download/v0.2.10/GitOdile_0.2.10_amd64.AppImage",
         )
         .unwrap();
         let manifest = serde_json::json!({
-            "version": "0.2.0-preview.10",
+            "version": "0.2.10",
             "notes": "Corrected updater path",
             "pub_date": null,
             "platforms": {
@@ -2342,7 +2254,7 @@ mod tests {
                 UpdateTarget::WindowsX86_64,
                 manifest,
                 PluginManifestSelection {
-                    version: "0.2.0-preview.10",
+                    version: "0.2.10",
                     target: "windows-x86_64",
                     notes: Some("Corrected updater path"),
                     date: None,
@@ -2358,12 +2270,12 @@ mod tests {
         // clients already installed: each one still selects its own entry.
         let mut tolerant = manifest.clone();
         tolerant["platforms"]["darwin-aarch64"] = serde_json::json!({
-            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile.app.tar.gz",
+            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.10/GitOdile.app.tar.gz",
             "signature": "mac-signature",
             "size": 9
         });
         tolerant["platforms"]["darwin-x86_64"] = serde_json::json!({
-            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.10/GitOdile_x64.app.tar.gz",
+            "url": "https://github.com/martinezelx/gitodile/releases/download/v0.2.10/GitOdile_x64.app.tar.gz",
             "signature": "mac-signature",
             "size": 9
         });
@@ -2375,7 +2287,7 @@ mod tests {
             UpdateTarget::LinuxX86_64,
             &tolerant,
             PluginManifestSelection {
-                version: "0.2.0-preview.10",
+                version: "0.2.10",
                 target: "linux-x86_64",
                 notes: Some("Corrected updater path"),
                 date: None,
@@ -2401,7 +2313,8 @@ mod tests {
             {
                 let mut value = manifest.clone();
                 value["platforms"]["windows-x86_64"]["url"] =
-                    "https://github.com/martinezelx/gitodile/releases/download/v0.2.0-preview.9/GitOdile.exe".into();
+                    "https://github.com/martinezelx/gitodile/releases/download/v0.2.9/GitOdile.exe"
+                        .into();
                 value
             },
             {
@@ -2740,7 +2653,7 @@ mod tests {
         let record = HandoffRecord {
             schema_version: 1,
             candidate_id: "a".repeat(64),
-            from_version: "0.2.0-preview.12".into(),
+            from_version: "0.2.12".into(),
             expected_version: "0.3.0".into(),
             started_at_unix_seconds: 1,
         };
@@ -2755,7 +2668,7 @@ mod tests {
         );
         persist_handoff(&path, &record).unwrap();
         assert!(matches!(
-            confirm_handoff(&path, "0.2.0-preview.12"),
+            confirm_handoff(&path, "0.2.12"),
             StartupUpdateConfirmation::Unconfirmed { .. }
         ));
 

@@ -16,10 +16,6 @@ export const TARGET_CONTRACTS = Object.freeze(
 );
 
 const RELEASE = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-/** Every version up to `0.3.0-preview.1` was a preview of the retired
- * two-channel model. History, installed builds and the legacy feed still
- * carry the shape, so it stays readable; it is never released again. */
-const LEGACY_PREVIEW = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-preview\.([1-9][0-9]*)$/;
 const RELEASE_TAG = /^v((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/;
 
 export class ReleaseValidationError extends Error {
@@ -37,32 +33,15 @@ export function parseReleaseVersion(version) {
   throw new ReleaseValidationError("invalid_tag", `unsupported release version: ${version} (releases are X.Y.Z)`);
 }
 
-/** A version the scripts may meet in history: a release, or a legacy
- * `X.Y.Z-preview.N` from before the single channel. */
-export function parseKnownVersion(version) {
-  if (RELEASE.test(version)) return { version, legacyPreview: false };
-  if (LEGACY_PREVIEW.test(version)) return { version, legacyPreview: true };
-  throw new ReleaseValidationError("invalid_tag", `unsupported version: ${version}`);
-}
-
-/** SemVer order over releases and legacy previews: every `X.Y.Z-preview.N`
- * precedes its `X.Y.Z` release. */
+/** Numeric order over `X.Y.Z` release versions. */
 export function compareReleaseVersions(left, right) {
-  const parse = (version) => {
-    parseKnownVersion(version);
-    const [core, prerelease] = version.split("-preview.");
-    return { core: core.split(".").map(BigInt), preview: prerelease ? BigInt(prerelease) : null };
-  };
-  const a = parse(left);
-  const b = parse(right);
+  const a = parseReleaseVersion(left).version.split(".").map(BigInt);
+  const b = parseReleaseVersion(right).version.split(".").map(BigInt);
   for (let index = 0; index < 3; index += 1) {
-    if (a.core[index] < b.core[index]) return -1;
-    if (a.core[index] > b.core[index]) return 1;
+    if (a[index] < b[index]) return -1;
+    if (a[index] > b[index]) return 1;
   }
-  if (a.preview === b.preview) return 0;
-  if (a.preview === null) return 1;
-  if (b.preview === null) return -1;
-  return a.preview < b.preview ? -1 : 1;
+  return 0;
 }
 
 export function parseReleaseTag(tag) {

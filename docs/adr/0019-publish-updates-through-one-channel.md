@@ -10,6 +10,16 @@ added by its 2026-09-15 amendment, and the four publication modes. Hosting,
 signing, the merge-driven pipeline, publication order, the installed-update
 contract and the target matrix in ADR 0010 are unchanged.
 
+Amendment, 2026-10-01 (same day, after `0.3.0` shipped and updated a real
+install): the maintainer retired every remaining trace of the old shape. The
+`0.2.0-preview.N` versions are renumbered `0.2.N` in tags, notes and
+highlights; their public prereleases are deleted; the legacy feed mirror is
+no longer written and its file is removed from the public repository; and no
+code reads the old version shape any more. Builds older than `0.3.0` are no
+longer offered updates and need a manual reinstall, which the maintainer
+accepted because no one relies on them. The decisions below about the mirror
+and legacy versions are historical.
+
 ## Context
 
 ADR 0010 published two channels from one `main`: `X.Y.Z-preview.N` versions to

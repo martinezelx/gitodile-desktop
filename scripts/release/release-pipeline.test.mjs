@@ -59,8 +59,8 @@ function expectCode(code, callback) {
   assert.throws(callback, (error) => error instanceof ReleaseValidationError && error.code === code);
 }
 
-test("rejects malformed tags and every prerelease suffix, including the retired preview", () => {
-  for (const tag of ["0.2.0", "v01.2.0", "v0.2.0-preview.1", "v0.2.0-preview.0", "v0.2.0-beta.1", "v0.2.0-preview.01"]) {
+test("rejects malformed tags and every prerelease suffix", () => {
+  for (const tag of ["0.2.0", "v01.2.0", "v0.2.0-rc.1", "v0.2.0-alpha.0", "v0.2.0-beta.1", "v0.2.0+build.1"]) {
     expectCode("invalid_tag", () => parseReleaseTag(tag));
   }
 });
@@ -404,7 +404,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.equal(pipeline.parsed.jobs["updater-sign"].environment, "production-updater-signing");
   assert.equal(pipeline.parsed.jobs.publish.environment, "public-release",
     "every release publishes through the one reviewed publication environment");
-  assert.doesNotMatch(pipeline.source, /public-release-(?:production|stable|preview)|GITODILE_RELEASE_CHANNEL/);
+  assert.doesNotMatch(pipeline.source, /environment: public-release-|GITODILE_RELEASE_CHANNEL/);
   assert.deepEqual(pipeline.parsed.jobs.publish.concurrency, { group: "gitodile-publication", "cancel-in-progress": false });
   for (const jobName of ["validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "stage"]) {
     assert.doesNotMatch(JSON.stringify(pipeline.parsed.jobs[jobName]), /GITODILE_PUBLIC_RELEASE_TOKEN|TAURI_SIGNING_PRIVATE_KEY|contents.:.write/,
