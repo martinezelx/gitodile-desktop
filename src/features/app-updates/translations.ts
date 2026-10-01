@@ -1,5 +1,5 @@
 import type { Language } from "../../i18n";
-import type { UpdateChannel, UpdateError, UpdateState } from "./domain";
+import type { UpdateError, UpdateState } from "./domain";
 
 /* The product name appears nowhere in this copy: the window is already the
  * product, and every other surface follows that rule (DESIGN.md, status
@@ -41,22 +41,6 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} of ${total}`,
     installing: "Installing… The app will close.",
     cancelled: "Cancelled before anything was installed.",
-    channelLabel: "Channel",
-    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
-    channelStableDescription: "Stable suits most people.",
-    channelPreviewDescription: "Preview gets new features sooner, but may break.",
-    channelConfirm: {
-      preview: {
-        title: "Follow preview releases?",
-        explanation: "Previews arrive before stable releases and may have problems. You can switch back anytime and keep your current version until a newer stable one is out.",
-        confirm: "Follow previews",
-      },
-      stable: {
-        title: "Go back to stable releases?",
-        explanation: "You'll stop getting previews and keep your current version until a newer stable one is out.",
-        confirm: "Follow stable",
-      },
-    } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     receivingTitle: "How you get updates",
     automaticLabel: "Check for updates at startup",
     automaticDescription: "Checks GitHub at startup and every 24 hours, without sending project data or downloading anything by itself.",
@@ -74,7 +58,6 @@ const dictionaries = {
       feed_unavailable: "Updates aren't available yet. Use the manual download if a release was announced.",
       invalid_manifest: "The update information was invalid, so it was ignored.",
       invalid_version: "The offered version was invalid, so it was ignored.",
-      channel_mismatch: "This release belongs to a different channel.",
       target_unavailable: "There's no update package for this system. Use the manual download.",
       unsupported_installation: "A store or package manager manages this installation. Update it from there.",
       automatic_update_not_enabled: "This build can't update itself. Use the manual download.",
@@ -124,23 +107,6 @@ const dictionaries = {
     progress: (received: string, total: string) => `${received} de ${total}`,
     installing: "Instalando… La aplicación se cerrará.",
     cancelled: "Cancelado antes de instalar nada.",
-    channelLabel: "Canal",
-    // The channel names stay `stable` and `preview` in both locales (DESIGN.md).
-    channel: { stable: "Stable", preview: "Preview" } satisfies Record<UpdateChannel, string>,
-    channelStableDescription: "Stable es la opción para casi todo el mundo.",
-    channelPreviewDescription: "Preview trae novedades antes, pero puede fallar.",
-    channelConfirm: {
-      preview: {
-        title: "¿Seguir las versiones preview?",
-        explanation: "Las preview llegan antes que las estables y pueden tener problemas. Puedes volver cuando quieras y conservarás tu versión actual hasta que salga una estable más nueva.",
-        confirm: "Seguir las preview",
-      },
-      stable: {
-        title: "¿Volver a las versiones estables?",
-        explanation: "Dejarás de recibir preview y conservarás tu versión actual hasta que salga una estable más nueva.",
-        confirm: "Seguir la estable",
-      },
-    } satisfies Record<UpdateChannel, { title: string; explanation: string; confirm: string }>,
     receivingTitle: "Cómo recibes las actualizaciones",
     automaticLabel: "Buscar actualizaciones al iniciar",
     automaticDescription: "Consulta GitHub al iniciar y cada 24 horas, sin enviar datos ni descargar nada por su cuenta.",
@@ -158,7 +124,6 @@ const dictionaries = {
       feed_unavailable: "Las actualizaciones aún no están disponibles. Usa la descarga manual si se anunció una versión.",
       invalid_manifest: "La información de la actualización no era válida, así que se ignoró.",
       invalid_version: "La versión ofrecida no era válida, así que se ignoró.",
-      channel_mismatch: "Esta versión es de otro canal.",
       target_unavailable: "No hay paquete de actualización para este sistema. Usa la descarga manual.",
       unsupported_installation: "Esta instalación la gestiona una tienda o un gestor de paquetes. Actualízala desde ahí.",
       automatic_update_not_enabled: "Esta build no puede actualizarse sola. Usa la descarga manual.",

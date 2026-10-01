@@ -148,25 +148,6 @@ describe("production style composition", () => {
     // (DESIGN.md § Brand). The mascot lives in the welcome screen and About.
     expect(appShell).not.toContain(".window-titlebar__mark");
     expect(appShell).not.toContain(".window-titlebar__name");
-
-    // The preview glyph beside a build's version is stated on the status bar,
-    // About, the changelog and the update dialog. Hand-written channel pills
-    // had drifted across those surfaces, which exist to describe one build
-    // identically, so exactly one sheet may define the mark and no surface
-    // may bring a textual pill back.
-    expect(primitiveChrome).toContain(".channel-glyph {");
-    expect(primitiveChrome).not.toContain(".channel-badge");
-    const channelSelectors = [
-      "channel-badge",
-      "status-bar__channel",
-      "about-dialog__release-channel",
-      "changelog-release__channel",
-    ];
-    const restated = readRules("app/app-shell.css")
-      .filter((rule) => channelSelectors.some((name) => rule.selector.includes(name)))
-      .filter((rule) => /padding:|border-radius:|font-size:\s*var\(--text-micro\)/.test(rule.body))
-      .map((rule) => rule.selector);
-    expect(restated).toEqual([]);
   });
 
   it("loads shared app menus before feature alignment overrides", () => {

@@ -250,15 +250,13 @@ The main desktop window should broadly support:
    - the release metadata is grouped at the far right, a step further from
      the project facts than they are from each other and a size smaller: it
      is the one thing on the strip that is not about the project. The
-     version is shown in full as `v0.2.0-preview.1`; the string already names
-     the channel, so a preview build adds only a flask glyph (`.channel-glyph`)
-     in warning tint to the right of it, never the word a second time. Stable
-     builds draw nothing. The glyph is decorative — the version text and the
-     control's accessible name carry the channel. The two channel names are `stable` and `preview`, kept the same in both locales.
-     Together they form one quiet button that opens the Changelog — the version the reader
+     version is shown alone, as `v0.3.0`: there is one release channel, so
+     nothing qualifies it, and older changelog entries keep the
+     `-preview.N` versions they shipped as. It is one quiet button that opens
+     the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
      notes and not to the product description. The changelog shares the About
-     dialog's shell and lists each release with its version (and the preview glyph), publication date
+     dialog's shell and lists each release with its version, publication date
      when known, notes, and a
      marker for the build being run. Its header is the glyph mark beside the
      title and, under the title, an update line that follows the state —
@@ -269,7 +267,7 @@ The main desktop window should broadly support:
      notes already open on the one tinted panel in the dialog — it is what the
      reader opened the dialog to learn. Every earlier version follows under
      "Earlier versions" as a one-line keyboard-accessible disclosure — bare
-     chevron, version, preview glyph, how many notes it carries, date — whose
+     chevron, version, how many notes it carries, date — whose
      notes stay collapsed until requested, so a long history still scans.
      Each release's lines come from its own `docs/release/highlights/v<version>.json`
      — bilingual, one glyph per line, scaffolded by `release:prepare`, validated
@@ -341,24 +339,9 @@ The main desktop window should broadly support:
      something the row cannot say: a release, a transfer or an install to
      confirm. The dialog says the same thing the same way: mark beside the
      title, everything on one left edge, one status line that is the cause
-     when there is one. "How you get updates" holds a two-option segmented
-     group, Stable / Preview, that chooses which channel to follow, with one
-     sentence per option (stable is what most people should run; previews arrive earlier
-     and may break). The group shows the channel a check will actually use —
-     a build that has never been told otherwise reads as its own channel, not
-     as a third "default" option — and is navigated like every other radio
-     group: arrows move focus, Enter or Space chooses. Choosing the other
-     channel is not yet a change: it opens a confirmation card under the
-     group, in the install confirmation's shape (question, consequence, "Not
-     now" and a focused confirm), whose consequence is the one every honest
-     channel switch states — the installed version stays put, because the
-     app never downgrades, so going back to Stable means waiting for the
-     next stable. Escape or "Not now" leaves the channel as it was. Only
-     confirming stores the choice; then whatever the old feed offered is
-     forgotten and a check of the new channel starts at once, because
-     choosing a channel is the question "what is there for me?". Nothing is
-     downloaded or installed by the choice.
-     Under it, in the same group, one switch, on by default, for the
+     when there is one. "How you get updates" holds
+     no channel choice: every installation follows the one release feed
+     (ADR 0019). It holds one switch, on by default, for the
      startup check — one bounded request when the app opens, repeated every
      24 hours only while it stays open — disclosing the GitHub contact, that
      repeat and the transmitted-data boundary beside it. A startup check that
@@ -1228,9 +1211,8 @@ takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from
 the scale rather than from three ad-hoc sizes. The running app version sits
 directly below the promise, and the line under it is the one thing About can
 honestly say about updates — "Up to date", or whichever state
-the release model is in — with the link to the changelog beside it. Preview
-builds repeat the flask glyph after the version there; stable builds show only
-the version. Version, channel and update line all come from the same release model
+the release model is in — with the link to the changelog beside it. Version
+and update line come from the same release model
 as the status bar and changelog, so these surfaces cannot describe one build
 differently. The line names the state it is in — "Up to date" when the build is
 current, "Not checked yet" before the first check, "Updates unavailable" when
@@ -2331,7 +2313,7 @@ that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and a left-aligned inline line of mark, name and number, all three together, for the ones that do not. The credits were capsules first, then bordered tiles (a mark above a name above a version), and then rows that pushed each version to the right edge; the first two gave a fact nobody reads down a surface of its own, and the third tore the number away from its name. The inline lockup keeps them together; the heading stays on the section's left edge with "Your system" above it, and the row centres as a set under it, so a short row reads as one balanced line instead of clustering against the edge. Three credits fit one line without shrinking type or tearing a version away from its name, which is why the fourth (the build tool's own language) was dropped. Each credit is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. A credit is not a call to action, so it stays at rest until pointed at and withholds nothing at rest — mark, name and version are all readable without hovering. On hover the name takes the accent and the one fact the resting credit cannot state appears: a small outward arrow, saying the press leaves the app. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
-**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The flask glyph after a preview version is the same `.channel-glyph` the status bar, the changelog and the update dialog use; those surfaces exist to describe one build identically, and hand-written channel pills had already drifted between them. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
+**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version stands alone, as it does in the status bar, the changelog and the update dialog; those surfaces exist to describe one build identically. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
 
 Licence and source links close the dialog after the credits. They are durable project provenance, not part of the product pitch or machine diagnostics, so placing them beneath both keeps the introduction focused and makes the bottom edge the predictable place for legal information.
 

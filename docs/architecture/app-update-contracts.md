@@ -3,7 +3,9 @@
 This document is the implementation boundary established by task 065-9-1 and
 scoped for public Windows/Linux qualification by task 065-9-8.
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md)
-owns the durable decision; this document fixes the values and bounded types that
+owns the durable decision and
+[ADR 0019](../adr/0019-publish-updates-through-one-channel.md) its single
+channel; this document fixes the values and bounded types that
 tasks 065-9-2 through 065-9-8 must implement and qualify. The executable cases
 live in [`065-9-1-app-update-contract.json`](065-9-1-app-update-contract.json).
 
@@ -31,7 +33,7 @@ The repository was inspected rather than treating the planning documents as
 runtime evidence:
 
 - npm, Cargo, Cargo's root lock entry, and Tauri all contain the current
-  preview version; the release pipeline refuses any disagreement between them;
+  version; the release pipeline refuses any disagreement between them;
 - the Tauri identity is `app.gitodile.desktop` and bundling is active. The base
   `bundle.targets` remains `all`, but the mandatory platform overlays restrict
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
@@ -94,16 +96,14 @@ from the check itself, downloads nothing and offers the manual download.
 `unsupported_installation` is reserved for installations the updater may never
 replace (managed packages, stores, mounted images).
 
-Task 065-9-12 (2026-09-15) added the one channel input that exists: a stored
-choice between the two compiled feeds. See "Channel preference" under
-"Version and release identity". The same task put stable releases under the
-testing publication policy that previews already use (`stable-testing`, a
-Tauri-signed release with the testing notice and without platform
-qualification), so both channels can be exercised end to end before the
-qualification registry is complete; the compile-time test-target gate
-therefore applies to both channels.
+Task 065-9-12 (2026-09-15) added a stored choice between a `stable` and a
+`preview` feed. Task 142 (2026-10-01, ADR 0019) removed both channels and the
+choice: there is one feed, every release is `X.Y.Z`, and every release
+publishes under the `testing` policy (a Tauri-signed release with the testing
+notice and without platform qualification) until the registry proves the
+enabled targets, then as `production`.
 
-The production feeds are fixed constants. The public key and key ID are build-
+The production feed is a fixed constant. The public key and key ID are build-
 time values (`GITODILE_UPDATER_PUBLIC_KEY` and
 `GITODILE_UPDATER_PUBLIC_KEY_ID`); when absent, checking is truthfully
 unavailable rather than accepting a placeholder. Automatic installation is a
@@ -112,12 +112,10 @@ second compile-time deny-by-default gate,
 until task 065-9-7 qualifies an exact target/mode with real signed packages.
 Testing builds use the separate compile-time `GITODILE_TEST_UPDATE_TARGETS`
 gate for the canonical Windows/Linux pair. The release pipeline supplies it
-to every build on both channels while both publish under the testing policy;
-it enables real feed A-to-B testing without changing or claiming
-qualification, and the build channel stays available to the gate so the list
-can be narrowed to one channel again when stable leaves testing. There is no
-other build profile: every build embeds the one reviewed public key and can
-only be routed to the two public feeds.
+to every build while releases publish under the testing policy; it enables
+real feed A-to-B testing without changing or claiming qualification. There is
+no other build profile: every build embeds the one reviewed public key and
+can only be routed to the one public feed.
 
 The renderer-facing feature exposes only typed GitOdile commands and opaque
 candidate/operation IDs. There is no JavaScript updater dependency and the
@@ -128,18 +126,23 @@ suspends watchers, revalidates the candidate and path, and invokes handoff.
 
 ## Version and release identity
 
-Only these version forms are releaseable:
+Only this version form is releasable:
 
 ```text
-stable:  X.Y.Z
-preview: X.Y.Z-preview.N, where N >= 1
+release: X.Y.Z
 tag:     v<exact version>
 ```
 
 Every numeric identifier is decimal without a leading zero unless it is exactly
-`0`. Build metadata and every other prerelease suffix (`alpha`, `beta`, `rc`,
-`nightly`, `preview.0`, or compound suffixes) are rejected before signing. The
-only channel names are `stable` and `preview`.
+`0`. Build metadata and every prerelease suffix (`preview.N`, `alpha`, `beta`,
+`rc`, `nightly`, or compound suffixes) are rejected before signing. There is
+one release channel and no channel name.
+
+Builds up to `0.3.0-preview.1` carried the legacy shape
+`X.Y.Z-preview.N` (N >= 1). It stays readable wherever history meets it: an
+installed build's own version, the highlights catalogue, the legacy feed and
+SemVer ordering, in which every `X.Y.Z-preview.N` precedes `X.Y.Z`. It is never
+prepared, tagged or published again.
 
 For a release, one exact string must match all of these identities:
 
@@ -151,94 +154,47 @@ For a release, one exact string must match all of these identities:
 | `src-tauri/tauri.conf.json` | `version = V` |
 | source tag | `vV`, at the exact checked merge commit in `main` history |
 | public release tag | `vV`, on an intentionally public feedback-repository commit |
-| archived and channel manifests | top-level `version = V` |
-| GitHub prerelease flag | `true` only for `preview`; `false` for `stable` |
+| archived and feed manifests | top-level `version = V` |
+| GitHub prerelease flag | always `false` |
 
 The source and public tags share a name, not a commit identity. Protected build
 evidence binds the source tag/SHA to the public release; a public tag must never
 point at a source-repository commit. The release workflow receives the tag only,
 proves its exact commit is reachable from `main`, then derives all other values.
-There is no independent channel or prerelease input.
+There is no channel or prerelease input.
 
-SemVer precedence is numeric across `major.minor.patch`, then preview number;
-for the same core version every preview precedes stable. Equal and older
-candidates yield `current`, not an error. A missing feed or target yields
-`unavailable`, never `current`. A check that follows the stable channel
-rejects a preview candidate as `channel_mismatch` on a stable build (a
-preview in `stable.json` is a feed error) and treats it as not an offer,
-`current`, on a preview build whose person asked for stable only. A check
-that follows the preview channel accepts a newer preview on either build. A
-preview feed may contain the next preview or a newer stable successor, and a
-stable candidate is acceptable on either channel. No preference allows a
-downgrade.
+A candidate is offered only when it is a release version newer than the
+running build. Equal and older candidates yield `current`, not an error; a
+prerelease candidate in the feed is `invalid_version`. A missing feed or
+target yields `unavailable`, never `current`. No path allows a downgrade.
 
-The two production feed identities are fixed in native build metadata:
+The one production feed identity is fixed in native build metadata:
 
-| Build channel | Feed |
+| Feed | URL |
 | --- | --- |
-| `stable` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/stable.json` |
-| `preview` | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` |
+| feed | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/latest.json` |
+| legacy mirror (publisher only) | `https://raw.githubusercontent.com/martinezelx/gitodile/main/updates/preview.json` |
+
+Every publication writes the same manifest bytes to both files. No build from
+this source reads the mirror; it exists because installed `0.2.0-preview.*`
+builds know only that URL, and it can be retired only as ADR 0019 describes.
 
 `BuildUpdateIdentity` is generated and validated for every check:
 
 ```rust
 struct BuildUpdateIdentity {
-    version: ReleaseVersion,
-    build_channel: ReleaseChannel,
-    channel: ReleaseChannel,
-    feed: KnownFeed,
+    version: Version,
+    feed: &'static str,
     public_key_id: UpdaterPublicKeyId,
 }
 ```
 
-`ReleaseChannel` and `KnownFeed` are closed enums. `build_channel` comes from
-the validated version; `channel` is the channel the check follows (see
-below); `feed` is chosen from `channel` between the two constants; the key
-comes from the reviewed public key compiled into the build. The renderer can
-request a check and choose between the two compiled feeds by closed enum; it
-cannot provide a URL, public key, installer path, target, or arbitrary
-request headers.
-
-### Channel preference
-
-```rust
-enum ChannelPreference { FollowBuild, Stable, Preview }
-
-struct UpdateChannelSetting {
-    preferred: ChannelPreference,
-    build_channel: ReleaseChannel,
-    channel: ReleaseChannel, // the one a check follows
-}
-```
-
-The preference is stored natively as `app-update-channel-v1.json` in the
-app-local data directory beside the install handoff record, never in renderer
-storage. `follow_build` is the default and reproduces the behaviour every
-build had before the preference existed. A missing, oversized (over 256
-bytes) or malformed record is `follow_build`. The effective `channel` is the
-preference when set, else `build_channel`.
-
-Two commands exist: `get_app_update_channel` returns the setting, and
-`set_app_update_channel(channel: "stable" | "preview")` stores the choice.
-The renderer never sends `follow_build`, a feed, a URL, a key or a target. A
-change is refused with `update_operation_busy` while a check, download or
-install is running. Otherwise it forgets the pending candidate and returns the
-snapshot to `idle`: whatever was offered was found on the other feed and must
-not be installed under the new choice. The candidate identity is rebuilt
-under the channel in force when an install is revalidated, so a candidate
-found under another preference is stale at install time as well. Compile-time
-target gates key on `build_channel`, because they describe the build.
-
-In Settings → Updates the choice is a two-option group, Stable / Preview, that
-shows the effective channel; `follow_build` is presented as whichever it
-resolves to, not as a third option. Picking the other option opens a
-confirmation that states the consequence (the installed version stays; the
-app never downgrades) before anything is stored; on confirmation the
-renderer stores the choice, mirrors the native `idle` reset and starts a
-manual check of the new channel at once. The check follows the same
-lifecycle as any other; the choice itself downloads and installs nothing. The executable cases carry
-`preferredChannel` and `scripts/check-app-update-contracts.mjs` evaluates
-them the way `version_decision` does.
+`version` is the running build's validated version, `feed` is the one
+constant, and the key comes from the reviewed public key compiled into the
+build. The renderer can request a check; it cannot provide a URL, public key,
+installer path, target, or arbitrary request headers, and there is no channel
+for it to choose. A `app-update-channel-v1.json` record left in app data by an
+unreleased build of the two-channel model is ignored.
 
 ## Target and installation matrix
 
@@ -320,7 +276,6 @@ type TransferProgress =
 type UpdateCandidate = Readonly<{
   candidateId: string;
   version: string;
-  channel: "stable" | "preview";
   target: "windows-x86_64" | "darwin-aarch64" | "darwin-x86_64" | "linux-x86_64";
   publishedAt: string | null;
   notes: string;
@@ -329,16 +284,10 @@ type UpdateCandidate = Readonly<{
 }>;
 
 type UpdateHighlight = Readonly<{ id: string; icon: string; en: string; es: string }>;
-
-type UpdateChannelSetting = Readonly<{
-  preferred: "follow_build" | "stable" | "preview";
-  buildChannel: "stable" | "preview";
-  channel: "stable" | "preview";
-}>;
 ```
 
 `candidateId` is the hex SHA-256 of a versioned canonical encoding of the
-validated build channel, candidate version, target, detected installer mode,
+candidate version, target, detected installer mode,
 release tag, manifest digest, artifact URL, and artifact signature. It excludes
 mutable UI state. The native pending object retains those exact validated
 values and the verified bytes; later commands accept only `candidateId` and an
@@ -368,7 +317,7 @@ Errors are closed, stage-aware data rather than raw library strings:
 type UpdateError = Readonly<{
   code:
     | "offline" | "timeout" | "http_status" | "feed_unavailable"
-    | "invalid_manifest" | "invalid_version" | "channel_mismatch"
+    | "invalid_manifest" | "invalid_version"
     | "target_unavailable" | "unsupported_installation" | "automatic_update_not_enabled"
     | "read_only_installation"
     | "notes_too_large" | "payload_too_large" | "truncated_download"
@@ -384,7 +333,7 @@ type UpdateError = Readonly<{
 `safeDetail` is redacted and capped at 512 UTF-8 bytes. It contains no URL,
 filesystem path, signature, key, response body, credential, installer output,
 or repository data. `offline`, `timeout`, non-success HTTP, malformed manifest,
-missing feed, missing target, bad version/channel, truncated data, and invalid
+missing feed, missing target, bad version, truncated data, and invalid
 signature remain distinct. Cancellation is a normal `cancelled` state, not a
 failure and never an installable result.
 
@@ -423,8 +372,8 @@ native handoff. Late events for a cancelled/superseded operation are inert.
 | Redirects | 5 |
 | Retained candidates | 1 |
 
-Only HTTPS is allowed. Production feed origins are the two compiled constants
-above; selected asset URLs must be version-specific GitHub Release URLs for
+Only HTTPS is allowed. The production feed origin is the one compiled
+constant above; selected asset URLs must be version-specific GitHub Release URLs for
 `martinezelx/gitodile`, with the exact validated `vV` path. Standard
 GitHub HTTPS redirects may be followed within the cap. The app sends no project
 data, cookies, authentication token, persistent installation identifier, or
@@ -510,8 +459,9 @@ loss response are owned by the [runbook](../release/signed-builds.md).
 ## Two-build qualification plan
 
 Qualification proves one forward transition between two real, consecutive
-public preview releases (A then B) built, signed and published by the normal
-release pipeline with the production key and the public `preview.json` feed.
+public releases (A then B) built, signed and published by the normal release
+pipeline with the production key and the public feed. A may be a legacy
+`0.2.0-preview.*` install, which reads B from the `preview.json` mirror.
 The versions are recorded in the evidence, not fixed in code. For each enabled
 target:
 
@@ -519,10 +469,10 @@ target:
    the required `release/<version>` branch, merge its reviewed pull request into
    `main`, let the protected coordinator tag that exact checked merge commit,
    and prove npm/Cargo/lock/Tauri,
-   tag, manifest, target, and GitHub prerelease agreement;
+   tag, manifest and target agreement;
 2. let the pipeline build final packages, record the OS-trust boundary,
-   updater-sign the final bytes and publish the prerelease with its advanced
-   `preview.json`;
+   updater-sign the final bytes and publish the release with its advanced
+   feed;
 3. install A through its normal first-install artifact in the normal location,
    including one path with spaces/non-ASCII characters;
 4. create settings/session/draft evidence and dirty tracked and untracked files,

@@ -388,7 +388,7 @@ describe("About dialog", () => {
     expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
     expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
     expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
-      `GitOdile ${__APP_VERSION__} preview`,
+      `GitOdile ${__APP_VERSION__}`,
     );
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");
     expect(dialog).toHaveTextContent("10.0.26200");
@@ -405,7 +405,6 @@ describe("About dialog", () => {
         state: { kind: "current", checkedAt: "2026-09-22T10:00:00Z" },
         startupConfirmation: { kind: "none" },
         automaticEnabled: true,
-        channel: null,
       },
     });
 
@@ -434,7 +433,6 @@ describe("About dialog", () => {
         state: { kind: "unavailable", error: { code: "feed_unavailable", stage: "check", retryable: false } },
         startupConfirmation: { kind: "none" },
         automaticEnabled: true,
-        channel: null,
       },
     });
 

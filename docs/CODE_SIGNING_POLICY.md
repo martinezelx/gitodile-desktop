@@ -11,21 +11,21 @@ delivery are deferred until after `1.0.0` by
 
 ## Pre-1.0 Windows policy
 
-Windows previews and the initial `1.0.0` may use NSIS packages without
+Windows releases up to and including `1.0.0` may use NSIS packages without
 Authenticode. Evidence must say `authenticode_deferred`, the updater signature
 must still verify, and download guidance must warn that Windows may show
 SmartScreen or unknown-publisher prompts. Such packages must never be described
 as Authenticode-signed or OS-trusted.
 
 [Task 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
-owns the provider choice and Authenticode qualification, now intended for both
-channels through SignPath Foundation rather than only after `1.0.0` (task
+owns the provider choice and Authenticode qualification, now intended for every
+release through SignPath Foundation rather than only after `1.0.0` (task
 065-9-9 was folded into it on 2026-09-16). The provider must remain suitable
 if future source development becomes private. No SignPath application has
 been submitted yet.
 
-Qualification between two public preview releases must preserve the same
-honest deferred state; no preview pair is evidence of Authenticode unless task
+Qualification between two public releases must preserve the same
+honest deferred state; no release pair is evidence of Authenticode unless task
 065-9-13 records the signing evidence.
 
 ## Authorized roles and source

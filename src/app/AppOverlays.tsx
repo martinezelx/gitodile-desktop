@@ -25,7 +25,6 @@ import {
   type ProjectSettingsTarget,
 } from "../features/project-settings";
 import {
-  ChannelGlyph,
   Dialog,
   DialogCloseButton,
   Mascot,
@@ -518,9 +517,8 @@ export function AppOverlays({
                 <span className="about-dialog__tagline">{t.aboutHeading}</span>
               </h2>
             </div>
-            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version} ${CURRENT_APP_RELEASE.channel}`}>
+            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
               <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
-              <ChannelGlyph channel={CURRENT_APP_RELEASE.channel} />
             </p>
             {/* The one line About can say about updates, and the way to the
                 release notes. The state is named whenever the release model has

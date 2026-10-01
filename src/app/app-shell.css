@@ -1193,8 +1193,6 @@
   color: var(--text-secondary-color);
 }
 .about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
-/* The preview mark is `.channel-glyph` (primitives), shared with the status
-   bar, the changelog and the update dialog. Only the spacing is About's. */
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
@@ -1359,9 +1357,6 @@
 .changelog-release__trigger:hover h3 { color: var(--text-primary-color); }
 .changelog-release__count { color: var(--text-secondary-color); font-size: var(--text-label); }
 .changelog-release__count::before { content: "· "; }
-/* The preview mark is `.channel-glyph` (primitives). The "you are running
-   this" marker is a different statement — it names no channel — so it keeps
-   its own neutral pill rather than borrowing the channel's colour. */
 .changelog-release__current {
   flex-shrink: 0;
   padding: 2px 7px;

@@ -11,7 +11,7 @@
 .app-update-dialog__state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 
 /* The offered release as a card: the changelog's identity row (version,
-   channel chip, date), then its notes as bounded plain text with their own
+   date), then its notes as bounded plain text with their own
    scroll so a long note never grows the dialog past the viewport. */
 .app-update-candidate {
   display: grid; gap: var(--space-2);
@@ -65,10 +65,6 @@
 .app-update-confirm p { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
 .app-update-actions { flex-wrap: wrap; margin-top: 24px; }
 
-/* The channel confirmation borrows the install confirmation's card and
-   spans the settings row it follows, so the question sits under the group
-   that asked it. */
-.app-update-confirm--channel { width: 100%; margin-top: 0; }
 
 /* Settings: the version, its status and the cause stack in the row's text
    column, the buttons keep to the right as in every other row. The group
@@ -87,5 +83,5 @@
   .app-update-progress > span { background: Highlight; }
 }
 
-/* The installed build as the dialog's subtitle, with the preview glyph. */
+/* The installed build as the dialog's subtitle. */
 .app-update-dialog__installed { display: inline-flex; align-items: center; gap: var(--space-1); }

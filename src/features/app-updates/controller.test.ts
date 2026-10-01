@@ -17,8 +17,6 @@ function createPort(overrides: Partial<AppUpdatesPort> = {}): AppUpdatesPort {
     cancel: vi.fn(),
     install: vi.fn(),
     openManualDownload: vi.fn(),
-    readChannel: vi.fn(async () => ({ preferred: "follow_build", buildChannel: "preview", channel: "preview" } as const)),
-    setChannel: vi.fn(),
     ...overrides,
   };
 }
@@ -69,7 +67,7 @@ describe("application update controller", () => {
   it("reports what a background check settled on, and nothing about manual checks", async () => {
     vi.useFakeTimers();
     const candidate = {
-      candidateId: "c1", version: "0.3.0", channel: "stable" as const, target: "windows-x86_64" as const,
+      candidateId: "c1", version: "0.3.0", target: "windows-x86_64" as const,
       publishedAt: null, notes: "", highlights: [], expectedBytes: null,
     };
     const port = createPort({ check: vi.fn(async () => action({ kind: "available", candidate })) });
@@ -89,49 +87,9 @@ describe("application update controller", () => {
     controller.dispose();
   });
 
-  it("switches channel only when idle, then mirrors the native reset instead of inventing one", async () => {
-    const candidate = {
-      candidateId: "c1", version: "0.3.0-preview.1", channel: "preview" as const, target: "windows-x86_64" as const,
-      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
-    };
-    const readState = vi.fn(async () => ({ kind: "available", candidate } as UpdateState));
-    const setChannel = vi.fn(async (channel: "stable" | "preview") => ({ preferred: channel, buildChannel: "stable" as const, channel }));
-    const port = createPort({
-      readState,
-      readChannel: vi.fn(async () => ({ preferred: "follow_build" as const, buildChannel: "stable" as const, channel: "stable" as const })),
-      setChannel,
-    });
-    const controller = createAppUpdatesController(port);
-    await controller.initialize();
-    expect(controller.getSnapshot().channel).toEqual({ preferred: "follow_build", buildChannel: "stable", channel: "stable" });
-
-    // The channel already in force is not re-sent.
-    await controller.setChannel("stable");
-    expect(setChannel).not.toHaveBeenCalled();
-
-    readState.mockResolvedValueOnce({ kind: "idle" });
-    await controller.setChannel("preview");
-    expect(setChannel).toHaveBeenCalledWith("preview");
-    expect(controller.getSnapshot().channel?.channel).toBe("preview");
-    // Choosing a channel asks it what it has, at once and as a manual check.
-    expect(port.check).toHaveBeenCalledWith("manual");
-    await vi.waitFor(() => expect(controller.getSnapshot().state).toMatchObject({ kind: "current" }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    // A change is not attempted while native work is in flight.
-    let resolveCheck!: (result: UpdateAction) => void;
-    port.check = vi.fn(() => new Promise<UpdateAction>((resolve) => { resolveCheck = resolve; }));
-    const checking = controller.check();
-    await controller.setChannel("stable");
-    expect(setChannel).toHaveBeenCalledTimes(1);
-    resolveCheck(action({ kind: "current", checkedAt: "2026-09-15T12:00:00Z" }));
-    await checking;
-    controller.dispose();
-  });
-
   it("uses the native operation id when cancelling a download", async () => {
     const candidate = {
-      candidateId: "candidate-1", version: "0.2.0-preview.2", channel: "preview" as const,
+      candidateId: "candidate-1", version: "0.3.0",
       target: "windows-x86_64" as const, publishedAt: null, notes: "Notes", highlights: [], expectedBytes: null,
     };
     const cancel = vi.fn(async () => ({ kind: "cancelled", stage: "downloading" } as UpdateState));

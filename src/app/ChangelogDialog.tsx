@@ -4,7 +4,7 @@ import { Check, ChevronDown, Sparkles } from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { ChannelGlyph, DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
+import { DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
@@ -36,7 +36,6 @@ function ReleaseIdentity({
     <>
       <span className="changelog-release__identity">
         <h3>{t.changelogVersionHeading(release.version)}</h3>
-        <ChannelGlyph channel={release.channel} />
         {isCurrent && <span className="changelog-release__current">{t.changelogCurrentRelease}</span>}
         {!isCurrent && release.highlights.length > 0 && (
           <span className="changelog-release__count">{t.changelogHighlightCount(release.highlights.length)}</span>
@@ -75,7 +74,7 @@ function CurrentRelease({ release }: { release: AppReleaseEntry }): React.JSX.El
   );
 }
 
-/** An earlier release: one compact line — version, channel, how many notes
+/** An earlier release: one compact line — version, how many notes
  * and when — that opens onto its notes on request. The count says whether a
  * release is worth opening before the reader spends the click. */
 function EarlierRelease({ release }: { release: AppReleaseEntry }): React.JSX.Element {
@@ -234,7 +233,7 @@ export function ChangelogDialog({
                 release" is what a screen-reader user is owed. */}
             <ol className="changelog" role="list">
               {earlierReleases.map((release) => (
-                <EarlierRelease key={`${release.version}-${release.channel}`} release={release} />
+                <EarlierRelease key={release.version} release={release} />
               ))}
             </ol>
           </section>

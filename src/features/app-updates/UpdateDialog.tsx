@@ -16,14 +16,14 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { ChannelGlyph, Dialog, ReleaseHighlights, autoHideScrollbarProps, moveFocusWithinRadioGroup, useModalFocus } from "../../shared/ui";
+import { Dialog, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
-import type { UpdateCandidate, UpdateChannel, UpdateError, UpdateState } from "./domain";
+import type { UpdateCandidate, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
 
 /** The build the reader is running. It lives in the app shell's release
  * model, which a feature may not import, so the shell passes it in. */
-export type InstalledRelease = Readonly<{ version: string; channel: UpdateChannel }>;
+export type InstalledRelease = Readonly<{ version: string }>;
 
 function formatBytes(value: number, language: string): string {
   return new Intl.NumberFormat(language, { style: "unit", unit: "megabyte", maximumFractionDigits: 1 })
@@ -147,7 +147,7 @@ function Progress({ state, language }: { state: UpdateState; language: Language 
 }
 
 /** The offered release as a card: identity row in the changelog's vocabulary
- * (version, preview glyph, date), then what it brings. A release whose feed
+ * (version, date), then what it brings. A release whose feed
  * carries highlights shows them the way What's new does, in the reader's
  * language; one that carries none (every release before the field existed)
  * falls back to its notes as bounded plain text. */
@@ -159,7 +159,6 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
     <section className="app-update-candidate" aria-labelledby="app-update-candidate-title">
       <div className="app-update-candidate__identity">
         <h3 id="app-update-candidate-title">v{candidate.version}</h3>
-        <ChannelGlyph channel={candidate.channel} />
         {publishedAt && candidate.publishedAt && (
           <time className="app-update-candidate__date" dateTime={candidate.publishedAt}>{publishedAt}</time>
         )}
@@ -179,115 +178,8 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
   );
 }
 
-const CHANNEL_OPTIONS: readonly UpdateChannel[] = ["stable", "preview"];
-
-/** Which feed to follow, as a two-option group under the installed build.
- * It shows the channel a check will actually use — a build that has never
- * been told otherwise reads as its own channel, not as a third "default"
- * option — and one sentence per option says what choosing it means.
- *
- * Choosing the other option is not yet a change: it opens a confirmation
- * card (the install confirmation's shape) that says what following that
- * channel means and, the part every good channel switch states, that the
- * installed version stays put — the app never downgrades, so going back to
- * Stable means waiting for the next stable. Only confirming stores the
- * choice; native memory then forgets whatever the old feed offered and a
- * check of the new channel starts at once. */
-function ChannelControl({
-  snapshot,
-  controller,
-  busy,
-  language,
-}: {
-  snapshot: AppUpdatesSnapshot;
-  controller: AppUpdatesController;
-  busy: boolean;
-  language: Language;
-}) {
-  const t = appUpdateTranslations(language);
-  const setting = snapshot.channel;
-  const [pending, setPending] = useState<UpdateChannel | null>(null);
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-  useEffect(() => {
-    if (pending) confirmButtonRef.current?.focus();
-  }, [pending]);
-  // A change that settles elsewhere (busy again, or the channel it asked
-  // for already in force) leaves nothing to confirm.
-  useEffect(() => {
-    if (busy || setting === null || setting.channel === pending) setPending(null);
-  }, [busy, setting, pending]);
-  const confirm = pending ? t.channelConfirm[pending] : null;
-  return (
-    <>
-      <div className="settings-row">
-        <div>
-          <strong>{t.channelLabel}</strong>
-          <p>{t.channelStableDescription} {t.channelPreviewDescription}</p>
-        </div>
-        <div
-          className="segmented-control"
-          role="radiogroup"
-          aria-label={t.channelLabel}
-          onKeyDown={moveFocusWithinRadioGroup}
-        >
-          {CHANNEL_OPTIONS.map((option, index) => {
-            const isActive = setting?.channel === option;
-            return (
-              <button
-                key={option}
-                className={`segmented-control__option${isActive ? " segmented-control__option--active" : ""}`}
-                type="button"
-                role="radio"
-                aria-checked={isActive}
-                disabled={busy || setting === null}
-                tabIndex={(setting ? isActive : index === 0) ? 0 : -1}
-                onClick={() => setPending(isActive ? null : option)}
-              >
-                {t.channel[option]}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      {pending && confirm && (
-        <div className="settings-row settings-row--stacked">
-          <div
-            className="app-update-confirm app-update-confirm--channel"
-            role="group"
-            aria-labelledby={titleId}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                setPending(null);
-              }
-            }}
-          >
-            <h3 id={titleId}>{confirm.title}</h3>
-            <p>{confirm.explanation}</p>
-            <div className="dialog-actions">
-              <button className="secondary-button" type="button" onClick={() => setPending(null)}>{t.notNow}</button>
-              <button
-                ref={confirmButtonRef}
-                className="primary-button"
-                type="button"
-                onClick={() => {
-                  setPending(null);
-                  void controller.setChannel(pending);
-                }}
-              >
-                {confirm.confirm}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 /** The Updates section of Settings: the installed build with its status and
- * actions, the channel to follow, then the one switch for the startup check
+ * actions, then the one switch for the startup check
  * — with the disclosure (GitHub, the 24-hour repeat for long sessions, what
  * is sent) beside it, as DESIGN.md requires. Checking is never started from
  * here on mount; only the button and the switch act. */
@@ -317,8 +209,7 @@ export function AppUpdateSettingsControl({
      is offered only when the dialog has something the row does not. */
   const hasDetails = onOpenDialog && DIALOG_STATES.has(state.kind);
   /* Two groups, neither named after the tab it sits in: the build you have,
-     and how the next one reaches you. The startup check is a way updates
-     reach you, so it joins the channel rather than heading a group of one. */
+     and how the next one reaches you — today only the startup check. */
   return (
     <div className="settings-groups">
       <section className="settings-group">
@@ -328,7 +219,6 @@ export function AppUpdateSettingsControl({
             <div className="app-update-settings__identity">
               <p className="version-line">
                 <span className="version-line__value">v{installed.version}</span>
-                <ChannelGlyph channel={installed.channel} />
               </p>
               <StatusLine line={line} cause={detail} />
             </div>
@@ -347,7 +237,6 @@ export function AppUpdateSettingsControl({
       <section className="settings-group">
         <header className="settings-group__header"><h3>{t.receivingTitle}</h3></header>
         <div className="settings-group__body">
-          <ChannelControl snapshot={snapshot} controller={controller} busy={busy} language={language} />
           <div className="settings-row">
             <div><strong>{t.automaticLabel}</strong><p>{t.automaticDescription}</p></div>
             <button
@@ -434,9 +323,8 @@ export function AppUpdateDialog({
       title={title}
       titleId="app-update-title"
       subtitle={
-        <span className="app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version} ${installed.channel}`}>
+        <span className="app-update-dialog__installed" aria-label={`${t.installedLabel} ${installed.version}`}>
           {t.installedSubtitle(installed.version)}
-          <ChannelGlyph channel={installed.channel} />
         </span>
       }
       descriptionId={descriptionId}

@@ -42,7 +42,7 @@ function writeMetadata(root, version, overrides = {}) {
   fs.writeFileSync(path.join(root, "src-tauri", "tauri.conf.json"), JSON.stringify({ version: versions.tauri }));
 }
 
-function repository(version = "0.2.0-preview.9", overrides = {}) {
+function repository(version = "0.3.0", overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-test-"));
   git(root, "init", "-b", "main");
   git(root, "config", "user.email", "release-test@example.invalid");
@@ -59,8 +59,8 @@ function expectCode(code, callback) {
   assert.throws(callback, (error) => error instanceof ReleaseValidationError && error.code === code);
 }
 
-test("rejects malformed tags and unsupported prerelease suffixes", () => {
-  for (const tag of ["0.2.0", "v01.2.0", "v0.2.0-preview.0", "v0.2.0-beta.1", "v0.2.0-preview.01"]) {
+test("rejects malformed tags and every prerelease suffix, including the retired preview", () => {
+  for (const tag of ["0.2.0", "v01.2.0", "v0.2.0-preview.1", "v0.2.0-preview.0", "v0.2.0-beta.1", "v0.2.0-preview.01"]) {
     expectCode("invalid_tag", () => parseReleaseTag(tag));
   }
 });
@@ -70,18 +70,18 @@ test("rejects a tagged commit outside approved main ancestry", () => {
   git(repo.root, "branch", "approved-main", repo.sha);
   git(repo.root, "checkout", "--orphan", "untrusted");
   git(repo.root, "rm", "-r", "--cached", ".");
-  writeMetadata(repo.root, "0.2.0-preview.10");
+  writeMetadata(repo.root, "0.3.1");
   git(repo.root, "add", ".");
   git(repo.root, "commit", "-m", "untrusted candidate");
   const sha = git(repo.root, "rev-parse", "HEAD");
-  git(repo.root, "tag", "v0.2.0-preview.10");
+  git(repo.root, "tag", "v0.3.1");
   expectCode("wrong_ancestry", () =>
-    validateReleaseCandidate({ root: repo.root, tag: "v0.2.0-preview.10", sha, mainRef: "approved-main" }),
+    validateReleaseCandidate({ root: repo.root, tag: "v0.3.1", sha, mainRef: "approved-main" }),
   );
 });
 
 test("rejects every version metadata mismatch", () => {
-  const repo = repository("0.2.0-preview.9", { cargo: "0.2.0-preview.10" });
+  const repo = repository("0.3.0", { cargo: "0.3.1" });
   expectCode("metadata_mismatch", () =>
     validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" }),
   );
@@ -98,27 +98,12 @@ test("rejects a requested revision that is not the exact tag commit", () => {
   );
 });
 
-test("derives channel from version and rejects disagreement", () => {
-  const repo = repository();
-  expectCode("channel_mismatch", () =>
-    validateReleaseCandidate({
-      root: repo.root,
-      tag: repo.tag,
-      sha: repo.sha,
-      mainRef: "main",
-      claimedChannel: "stable",
-    }),
-  );
-});
-
-test("binds tag, exact revision, metadata, channel and matrix", () => {
+test("binds tag, exact revision, metadata and matrix", () => {
   const repo = repository();
   const candidate = validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" });
   assert.equal(candidate.source.sha, repo.sha);
-  assert.equal(candidate.release.channel, "preview");
-  assert.equal(candidate.release.githubPrerelease, true);
-  assert.deepEqual(Object.keys(candidate.release).sort(), ["channel", "githubPrerelease", "publicPromotionAllowed", "version"],
-    "the release identity carries no build profile or purpose beyond the version-derived channel");
+  assert.deepEqual(Object.keys(candidate.release).sort(), ["publicPromotionAllowed", "version"],
+    "the release identity is its version: no channel, prerelease flag, build profile or purpose");
   assert.equal(candidate.release.publicPromotionAllowed, false);
   assert.deepEqual(candidate.matrix.requiredTargets, [
     "windows-x86_64",
@@ -302,7 +287,7 @@ test("Windows matrices remain explicitly authenticode_deferred through the initi
     },
   });
   const deferred = { result: "not_checked", reason: "authenticode_deferred", publicIdentity: null };
-  for (const version of ["0.2.0-preview.9", "0.2.0"]) {
+  for (const version of ["0.3.0", "1.0.0"]) {
     const repo = repository(version);
     const candidate = validateReleaseCandidate({ root: repo.root, tag: repo.tag, sha: repo.sha, mainRef: "main" });
     assert.equal(verifyCompleteMatrix([
@@ -372,13 +357,13 @@ test("workflows expose no branch publication path and pin external actions", () 
   // One build identity: the reviewed production updater key and the two
   // compile-time target gates. No alternate profile, feed or key exists.
   assert.deepEqual(Object.keys(pipeline.parsed.jobs.build.env).sort(), [
-    "GITODILE_QUALIFIED_UPDATE_TARGETS", "GITODILE_RELEASE_CHANNEL", "GITODILE_TEST_UPDATE_TARGETS",
+    "GITODILE_QUALIFIED_UPDATE_TARGETS", "GITODILE_TEST_UPDATE_TARGETS",
     "GITODILE_UPDATER_PUBLIC_KEY", "GITODILE_UPDATER_PUBLIC_KEY_ID",
   ]);
   assert.equal(pipeline.parsed.jobs.build.env.GITODILE_UPDATER_PUBLIC_KEY, "${{ vars.GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY }}");
   assert.equal(pipeline.parsed.jobs.build.env.GITODILE_QUALIFIED_UPDATE_TARGETS, "${{ vars.GITODILE_QUALIFIED_UPDATE_TARGETS }}");
-  // Both channels publish under the testing policy, so every build carries
-  // the canonical test pair; it is a constant, not a channel expression.
+  // Releases publish under the testing policy, so every build carries the
+  // canonical test pair; it is a constant, not an expression.
   assert.equal(pipeline.parsed.jobs.build.env.GITODILE_TEST_UPDATE_TARGETS, "windows-x86_64,linux-x86_64");
   assert.doesNotMatch(pipeline.source, /PREVIEW_TEST_UPDATE_TARGETS/);
   // The bundled changelog dates every version by its tag: the build checkout
@@ -400,7 +385,7 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.doesNotMatch(unsignedBuild.run, /--config\s+['"]?\{/,
     "inline JSON config is not shell-portable across the Windows and Linux matrix");
   const candidateValidation = pipeline.parsed.jobs.validate.steps.find(
-    (step) => step.name === "Validate tag, ancestry, revision, versions and channel",
+    (step) => step.name === "Validate tag, ancestry, revision and versions",
   );
   assert.match(candidateValidation.run, /--ref-type tag/);
   assert.match(candidateValidation.run, /--tag "\$RELEASE_TAG"/);
@@ -417,9 +402,9 @@ test("workflows expose no branch publication path and pin external actions", () 
     .map(([name]) => name);
   assert.deepEqual(environmentJobs, ["updater-sign", "publish"]);
   assert.equal(pipeline.parsed.jobs["updater-sign"].environment, "production-updater-signing");
-  assert.equal(pipeline.parsed.jobs.publish.environment, "${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}",
-    "only a stable candidate enters the reviewed stable environment, in either stable mode; both preview modes stay on the preview environment");
-  assert.doesNotMatch(pipeline.source, /public-release-production/);
+  assert.equal(pipeline.parsed.jobs.publish.environment, "public-release",
+    "every release publishes through the one reviewed publication environment");
+  assert.doesNotMatch(pipeline.source, /public-release-(?:production|stable|preview)|GITODILE_RELEASE_CHANNEL/);
   assert.deepEqual(pipeline.parsed.jobs.publish.concurrency, { group: "gitodile-publication", "cancel-in-progress": false });
   for (const jobName of ["validate", "build", "matrix-gate", "windows-deferred-boundary", "linux-os-boundary", "stage"]) {
     assert.doesNotMatch(JSON.stringify(pipeline.parsed.jobs[jobName]), /GITODILE_PUBLIC_RELEASE_TOKEN|TAURI_SIGNING_PRIVATE_KEY|contents.:.write/,
@@ -442,8 +427,8 @@ test("workflows expose no branch publication path and pin external actions", () 
   assert.doesNotMatch(updaterSigning.run, /require\(process\.argv\[1\]\)/,
     "filesystem paths from find must not be resolved as Node package names");
   const modeDerivation = pipeline.parsed.jobs.stage.steps.find((step) => step.id === "release");
-  assert.match(modeDerivation.run, /derivePublicationMode\(matrix\.release, qualification\)/,
-    "the mode comes from the version and the reviewed qualification registry, never from a dispatch input");
+  assert.match(modeDerivation.run, /derivePublicationMode\(qualification\)/,
+    "the mode comes from the reviewed qualification registry, never from a dispatch input");
   assert.match(modeDerivation.run, /docs\/release\/update-target-qualifications\.json/);
   assert.equal(modeDerivation.env, undefined, "mode derivation needs no token: the publication time is read by the publish job");
   assert.doesNotMatch(pipeline.source, /published_at|committer\.date|--published-at/,

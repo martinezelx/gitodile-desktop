@@ -14,15 +14,16 @@ import {
   parseReleaseVersion,
 } from "./release-candidate.mjs";
 import {
-  PREVIEW_FEED_URL,
+  PUBLIC_FEED_URLS,
   REQUIRED_FAILURE_CASES,
   REQUIRED_PRESERVATION_CHECKS,
   REQUIRED_PUBLISHER_CHECKS,
   validateTargetEvidence,
 } from "./qualification-evidence.mjs";
 import {
-  PREVIEW_TESTING_NOTICE,
-  STABLE_TESTING_NOTICE,
+  FEED_FILES,
+  PUBLICATION_MODES,
+  TESTING_NOTICE,
   compareReleaseVersions,
   derivePublicationMode,
   feedsForPromotion,
@@ -57,8 +58,8 @@ function candidate(version) {
   };
 }
 
-// The qualified pair is data: any two consecutive real public previews.
-const PAIR = Object.freeze({ from: "0.2.0-preview.9", to: "0.2.0-preview.10" });
+// The qualified pair is data: any two consecutive real public releases.
+const PAIR = Object.freeze({ from: "0.3.0", to: "0.3.1" });
 const KEY_ID = "production-key-1";
 
 function qualification(enabled = false, pair = PAIR) {
@@ -142,7 +143,7 @@ function qualification(enabled = false, pair = PAIR) {
           from: buildProof(key, pair.from, targetIndex * 2),
           to: buildProof(key, pair.to, targetIndex * 2 + 1),
         },
-        feed: { url: PREVIEW_FEED_URL, version: pair.to, sha256: "7".repeat(64), commitSha: "c".repeat(40), observedAt: "2026-09-12T12:00:00Z" },
+        feed: { url: PUBLIC_FEED_URLS[0], version: pair.to, sha256: "7".repeat(64), commitSha: "c".repeat(40), observedAt: "2026-09-12T12:00:00Z" },
         preservation: Object.fromEntries(REQUIRED_PRESERVATION_CHECKS.map((name) => [name, name === "gitHistory" ? "unchanged" : "passed"])),
         failureCases: REQUIRED_FAILURE_CASES.map((name) => ({ name, result: "passed", falseSuccessObserved: false, forcedDowngradeObserved: false })),
         replacementSafety: key.startsWith("darwin-")
@@ -188,8 +189,8 @@ function signedMatrix(version) {
 }
 
 test("the manifest is rendered from the release's real publication time and no draft-only mode exists", () => {
-  const root = signedMatrix("0.2.0-preview.9");
-  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "preview-testing" });
+  const root = signedMatrix("0.3.0");
+  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "testing" });
   assert.equal(Object.hasOwn(plan.manifest, "pub_date"), false, "the staged plan cannot know when the release will be published");
   assert.equal(Object.hasOwn(plan.release, "publishedAt"), false);
   assert.deepEqual(plan.assets.map((asset) => asset.fileName).filter((name) => name === "latest.json" || name === "SHA256SUMS"), [],
@@ -210,72 +211,63 @@ test("the manifest is rendered from the release's real publication time and no d
   expectCode("invalid_mode", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "validation-draft" }));
 });
 
-test("the publication mode is derived from the version and the qualification registry", () => {
-  const preview = { channel: "preview", githubPrerelease: true };
-  // A stable candidate is production only once the registry proves every
-  // enabled target and production approval; until then it publishes under
-  // the same testing policy as a preview.
-  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, qualification(false)), "stable-testing");
-  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, qualification(true)), "production");
-  assert.equal(derivePublicationMode({ channel: "stable", githubPrerelease: false }, null), "stable-testing");
-  assert.equal(derivePublicationMode(preview, qualification(false)), "preview-testing");
-  assert.equal(derivePublicationMode(preview, qualification(true)), "preview-qualified");
+test("the publication mode is derived from the qualification registry alone", () => {
+  // A release is production only once the registry proves every enabled
+  // target and production approval; until then it publishes as testing.
+  assert.equal(derivePublicationMode(qualification(false)), "testing");
+  assert.equal(derivePublicationMode(qualification(true)), "production");
   // Deny by default: anything short of a fully qualified registry keeps the notice.
   const partial = qualification(true);
   const linuxIndex = partial.targets.findIndex(({ key }) => key === "linux-x86_64");
   partial.targets[linuxIndex] = { key: "linux-x86_64", status: "qualification_required", evidence: [] };
-  assert.equal(derivePublicationMode(preview, partial), "preview-testing");
+  assert.equal(derivePublicationMode(partial), "testing");
   const unapproved = qualification(true);
   unapproved.productionPromotion = { enabled: false, workingNameClearance: "not_evidenced", approvedAt: null, evidence: null };
-  assert.equal(derivePublicationMode(preview, unapproved), "preview-testing");
+  assert.equal(derivePublicationMode(unapproved), "testing");
   const wrongKey = qualification(true);
   wrongKey.productionPromotion.evidence.updaterPublicKeyId = "another-key";
-  assert.equal(derivePublicationMode(preview, wrongKey), "preview-testing");
-  assert.equal(derivePublicationMode(preview, { schemaVersion: 3 }), "preview-testing");
-  assert.equal(derivePublicationMode(preview, null), "preview-testing");
+  assert.equal(derivePublicationMode(wrongKey), "testing");
+  assert.equal(derivePublicationMode({ schemaVersion: 3 }), "testing");
+  assert.equal(derivePublicationMode(null), "testing");
+  assert.deepEqual(PUBLICATION_MODES, ["testing", "production"]);
+});
 
-  // A qualified preview publishes as a prerelease without the testing
-  // notice, advances only preview.json, and is still not stable production.
-  const root = signedMatrix("0.2.0-preview.12");
-  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Qualified\n\nBoth targets proven.", qualification: qualification(true), mode: "preview-qualified" });
-  assert.equal(plan.mode, "preview-qualified");
-  assert.equal(plan.release.githubPrerelease, true);
-  assert.deepEqual(plan.qualification, { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: true, stableTestingAllowed: false, qualifiedTargets: [...REQUIRED_TARGETS] });
-  assert.doesNotMatch(plan.notesMarkdown, /Testing preview/);
-  assert.doesNotMatch(plan.manifest.notes, /does not claim platform qualification/);
-  assert.equal(plan.notesMarkdown, "# Qualified\n\nBoth targets proven.");
-  assert.deepEqual(Object.keys(feedsForPromotion(rendered(plan), { stable: { version: "0.1.0" } })), ["preview"]);
-  expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: partial, mode: "preview-qualified" }));
-  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0"), notesMarkdown: "Notes", qualification: qualification(true), mode: "preview-qualified" }));
-  // Today's registry still carries the notice.
-  const testing = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "preview-testing" });
-  assert.match(testing.notesMarkdown, /Testing preview/);
-  assert.match(testing.manifest.notes, /does not claim platform qualification/);
+test("a preview version is never published again", () => {
+  // The candidate fixture cannot even be built for a preview: the version is
+  // refused before any matrix, evidence or feed is involved.
+  expectCode("invalid_tag", () => signedMatrix("0.3.0-preview.2"));
+  const root = signedMatrix("0.3.0");
+  const matrixPath = path.join(root, "matrix.json");
+  const matrix = JSON.parse(fs.readFileSync(matrixPath, "utf8"));
+  matrix.release.version = "0.3.0-preview.2";
+  matrix.source.tag = "v0.3.0-preview.2";
+  fs.writeFileSync(matrixPath, JSON.stringify(matrix));
+  expectCode("invalid_tag", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "testing" }));
 });
 
 test("the manifest carries the release's bilingual highlights for the update dialog", () => {
-  const root = signedMatrix("0.2.0-preview.9");
+  const root = signedMatrix("0.3.0");
   const line = { id: "fasterUpdates", icon: "cloud-download", en: "Faster updates.", es: "Actualizaciones más rápidas." };
-  const highlights = { version: "0.2.0-preview.9", date: "2026-09-14", highlights: [line] };
-  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", highlights, qualification: qualification(false), mode: "preview-testing" });
+  const highlights = { version: "0.3.0", date: "2026-09-14", highlights: [line] };
+  const plan = preparePublication({ signedDirectory: root, notesMarkdown: "Notes", highlights, qualification: qualification(false), mode: "testing" });
   const rendered = renderPublication(plan, PUBLISHED_AT);
   assert.deepEqual(Object.keys(rendered.manifest), ["version", "notes", "highlights", "pub_date", "platforms"]);
   assert.deepEqual(rendered.manifest.highlights, [line]);
   // An empty list adds no field: the app then shows the notes.
-  const empty = preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.9"), notesMarkdown: "Notes", highlights: { ...highlights, highlights: [] }, qualification: qualification(false), mode: "preview-testing" });
+  const empty = preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "Notes", highlights: { ...highlights, highlights: [] }, qualification: qualification(false), mode: "testing" });
   assert.equal(Object.hasOwn(renderPublication(empty, PUBLISHED_AT).manifest, "highlights"), false);
-  assert.throws(() => manifestHighlights({ ...highlights, version: "0.2.0-preview.8" }, "0.2.0-preview.9"), /describes 0\.2\.0-preview\.8/);
-  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, en: "<b>Faster</b>" }] }, "0.2.0-preview.9"), /bounded plain-text line/);
-  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, es: "x".repeat(241) }] }, "0.2.0-preview.9"), /bounded plain-text line/);
-  assert.throws(() => manifestHighlights({ ...highlights, highlights: Array.from({ length: 9 }, (_, index) => ({ ...line, id: `line${index}` })) }, "0.2.0-preview.9"), /at most 8/);
+  assert.throws(() => manifestHighlights({ ...highlights, version: "0.2.9" }, "0.3.0"), /describes 0\.2\.9/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, en: "<b>Faster</b>" }] }, "0.3.0"), /bounded plain-text line/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: [{ ...line, es: "x".repeat(241) }] }, "0.3.0"), /bounded plain-text line/);
+  assert.throws(() => manifestHighlights({ ...highlights, highlights: Array.from({ length: 9 }, (_, index) => ({ ...line, id: `line${index}` })) }, "0.3.0"), /at most 8/);
 });
 
 test("manifest notes keep paragraphs and bullets, unwrap soft line breaks and stay bounded", () => {
   const markdown = [
-    "# GitOdile 0.2.0-preview.11",
+    "# GitOdile 0.3.0",
     "",
-    "This testing preview reworks how updating looks and reads inside the app. It",
-    "is the first preview whose notes describe a user-facing change.",
+    "This testing release reworks how updating looks and reads inside the app. It",
+    "is the first release whose notes describe a user-facing change.",
     "",
     "- Updates have their own section in Settings: the installed version, one",
     "  status line, and the switch for the startup check.",
@@ -283,28 +275,28 @@ test("manifest notes keep paragraphs and bullets, unwrap soft line breaks and st
     "",
     "",
     "",
-    "Publishing this preview does not declare either target qualified.",
+    "Publishing this release does not declare either target qualified.",
     "",
   ].join("\n");
   assert.equal(normalizeNotes(markdown), [
-    "GitOdile 0.2.0-preview.11",
+    "GitOdile 0.3.0",
     "",
-    "This testing preview reworks how updating looks and reads inside the app. It is the first preview whose notes describe a user-facing change.",
+    "This testing release reworks how updating looks and reads inside the app. It is the first release whose notes describe a user-facing change.",
     "",
     "- Updates have their own section in Settings: the installed version, one status line, and the switch for the startup check.",
     "- The startup check is on by default. See Settings.",
     "",
-    "Publishing this preview does not declare either target qualified.",
+    "Publishing this release does not declare either target qualified.",
   ].join("\n"));
-  assert.equal(normalizeNotes(`${PREVIEW_TESTING_NOTICE}\n\n# Title\n\nBody\r\nwrapped.\n`),
-    "Testing preview: Windows and Linux installed-update qualification is not complete. This prerelease does not claim platform qualification. Windows Authenticode is deferred.\n\nPreview de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión preliminar no declara cualificación de plataforma. Authenticode de Windows está aplazado.\n\nTitle\n\nBody wrapped.");
+  assert.equal(normalizeNotes(`${TESTING_NOTICE}\n\n# Title\n\nBody\r\nwrapped.\n`),
+    "Testing release: Windows and Linux installed-update qualification is not complete. This release does not claim platform qualification. Windows Authenticode is deferred.\n\nVersión de prueba: la cualificación de actualización instalada en Windows y Linux no está completa. Esta versión no declara cualificación de plataforma. Authenticode de Windows está aplazado.\n\nTitle\n\nBody wrapped.");
   assert.equal(normalizeNotes("Fenced:\n\n```sh\nrm -rf /\n```\n\nAfter \t  tabs   and   spaces\n---\n1. first\n2) second"), "Fenced:\n\nAfter tabs and spaces\n\n- first\n- second");
   expectCode("notes_too_large", () => normalizeNotes("x".repeat(16_385)));
   expectCode("secret_material", () => normalizeNotes("See https://user:token@example.invalid/private"));
 });
 
 test("production is denied while every enabled target remains qualification_required", () => {
-  const root = signedMatrix("0.2.0");
+  const root = signedMatrix("0.3.0");
   expectCode("production_not_approved", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(false), mode: "production" }));
   const partial = qualification(true);
   const linuxIndex = partial.targets.findIndex(({ key }) => key === "linux-x86_64");
@@ -312,103 +304,85 @@ test("production is denied while every enabled target remains qualification_requ
   expectCode("qualification_required", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: partial, mode: "production" }));
 });
 
-test("stable-testing publishes a Tauri-signed stable release without claiming qualification and advances both feeds", () => {
-  const root = signedMatrix("0.2.0");
+test("testing publishes a Tauri-signed release without claiming qualification and advances the feed and its legacy mirror", () => {
+  const root = signedMatrix("0.3.0");
   const plan = preparePublication({
     signedDirectory: root,
-    notesMarkdown: "# First stable test\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Channels can be chosen.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.",
+    notesMarkdown: "# First single-channel release\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Everyone gets every release.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.",
     qualification: qualification(false),
-    mode: "stable-testing",
+    mode: "testing",
   });
-  assert.equal(plan.mode, "stable-testing");
-  assert.equal(plan.release.channel, "stable");
-  assert.equal(plan.release.githubPrerelease, false);
-  assert.deepEqual(plan.qualification, { productionAllowed: false, previewTestingAllowed: false, previewQualifiedAllowed: false, stableTestingAllowed: true, qualifiedTargets: [] });
+  assert.equal(plan.mode, "testing");
+  assert.deepEqual(plan.release, { version: "0.3.0" });
+  assert.deepEqual(plan.qualification, { productionAllowed: false, testingAllowed: true, qualifiedTargets: [] });
   assert.deepEqual(Object.keys(plan.manifest.platforms), ["windows-x86_64", "linux-x86_64"]);
-  assert.equal(plan.notesMarkdown, `${STABLE_TESTING_NOTICE}\n\n# First stable test\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Channels can be chosen.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.`);
+  assert.equal(plan.notesMarkdown, `${TESTING_NOTICE}\n\n# First single-channel release\n\n<!-- gitodile-highlights:start -->\n## Highlights\n\n- Everyone gets every release.\n<!-- gitodile-highlights:end -->\n\nWindows and Linux remain unqualified testing downloads.`);
   assert.match(plan.manifest.notes, /^Testing release: .*does not claim platform qualification\. Windows Authenticode is deferred\.\n\nVersión de prueba/);
   // The block markers never reach the manifest; the rendered lines do.
   assert.doesNotMatch(plan.manifest.notes, /gitodile-highlights|<!--/);
-  assert.match(plan.manifest.notes, /Highlights\n\n- Channels can be chosen\.\n\nWindows and Linux/);
-  const feeds = feedsForPromotion(rendered(plan), { stable: { version: "0.1.0" }, preview: { version: "0.2.0-preview.12" } });
-  assert.deepEqual(Object.keys(feeds), ["stable", "preview"]);
-  assert.equal(typeof feeds.stable, "string");
-  assert.equal(typeof feeds.preview, "string");
-  assert.equal(JSON.parse(feeds.stable).pub_date, PUBLISHED_AT);
-  // A newer preview keeps its feed; an older stable is a regression.
-  assert.equal(feedsForPromotion(rendered(plan), { preview: { version: "0.3.0-preview.1" } }).preview, null);
-  expectCode("feed_regression", () => feedsForPromotion(rendered(plan), { stable: { version: "0.2.1" } }));
-  // Stable testing accepts only a stable candidate; a preview keeps its own modes.
-  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.12"), notesMarkdown: "Notes", qualification: qualification(false), mode: "stable-testing" }));
-  const forged = { ...rendered(plan), release: { ...plan.release, channel: "preview", githubPrerelease: true } };
-  expectCode("promotion_forbidden", () => feedsForPromotion(forged, {}));
+  assert.match(plan.manifest.notes, /Highlights\n\n- Everyone gets every release\.\n\nWindows and Linux/);
+  // The first release after the two-channel model: the legacy preview feed
+  // carries 0.2.0-preview.12 and the single feed does not exist yet. Both
+  // receive the same bytes, so installed previews are offered it too.
+  const feeds = feedsForPromotion(rendered(plan), { preview: { version: "0.2.0-preview.12" } });
+  assert.deepEqual(FEED_FILES, ["latest", "preview"]);
+  assert.deepEqual(Object.keys(feeds), ["latest", "preview"]);
+  assert.equal(typeof feeds.latest, "string");
+  assert.equal(feeds.preview, feeds.latest);
+  assert.equal(JSON.parse(feeds.latest).pub_date, PUBLISHED_AT);
+  expectCode("feed_regression", () => feedsForPromotion(rendered(plan), { latest: { version: "0.3.1" } }));
+  expectCode("feed_regression", () => feedsForPromotion(rendered(plan), { preview: { version: "0.3.1" } }));
+  expectCode("promotion_forbidden", () => feedsForPromotion({ ...rendered(plan), mode: "production" }, {}));
+  expectCode("promotion_forbidden", () => feedsForPromotion({ ...rendered(plan), mode: "stable-testing" }, {}));
 });
 
-test("preview-testing publishes only a Tauri-signed prerelease without claiming qualification", () => {
-  const root = signedMatrix("0.2.0-preview.9");
-  const plan = preparePublication({
-    signedDirectory: root,
-    notesMarkdown: "# Public preview test\n\nWindows and Linux remain unqualified testing downloads.",
-    qualification: qualification(false),
-    mode: "preview-testing",
-  });
-  assert.equal(plan.release.channel, "preview");
-  assert.equal(plan.release.githubPrerelease, true);
-  assert.equal(plan.qualification.productionAllowed, false);
-  assert.equal(plan.qualification.previewTestingAllowed, true);
-  assert.deepEqual(plan.qualification.qualifiedTargets, []);
-  assert.deepEqual(Object.keys(plan.manifest.platforms), ["windows-x86_64", "linux-x86_64"]);
-  assert.match(plan.notesMarkdown, /does not claim platform qualification/);
-  assert.match(plan.manifest.notes, /does not claim platform qualification/);
-  assert.match(plan.manifest.notes, /Windows Authenticode is deferred\.\n\nPreview de prueba/);
-  const feeds = feedsForPromotion(rendered(plan), { stable: { version: "0.1.0" } });
-  assert.deepEqual(Object.keys(feeds), ["preview"]);
-  assert.equal(typeof feeds.preview, "string");
-  assert.equal(JSON.parse(feeds.preview).pub_date, PUBLISHED_AT);
-  expectCode("feed_regression", () => feedsForPromotion(rendered(plan), { preview: { version: "0.2.0-preview.10" } }));
-});
-
-test("preview-testing rejects stable and macOS candidates", () => {
-  const options = { notesMarkdown: "Testing", qualification: qualification(false), mode: "preview-testing" };
-  expectCode("profile_mismatch", () => preparePublication({ signedDirectory: signedMatrix("0.2.0"), ...options }));
+test("testing rejects macOS candidates", () => {
   const advertisedMac = qualification(false);
   const macIndex = advertisedMac.releaseMatrix.disabledTargets.findIndex(({ key }) => key === "darwin-aarch64");
   advertisedMac.releaseMatrix.disabledTargets[macIndex] = { key: "darwin-aarch64", status: "qualified", evidence: [{}] };
-  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.2.0-preview.9"), ...options, qualification: advertisedMac }));
+  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "Testing", qualification: advertisedMac, mode: "testing" }));
+  for (const retired of ["preview-testing", "preview-qualified", "stable-testing"]) {
+    expectCode("invalid_mode", () => preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "Testing", qualification: qualification(false), mode: retired }));
+  }
 });
 
-test("qualification evidence is bound to real consecutive public previews, not to versions in code", () => {
-  for (const pair of [PAIR, { from: "0.3.0-preview.1", to: "0.3.0-preview.2" }, { from: "0.2.0-preview.9", to: "0.2.0-preview.12" }]) {
+test("qualification evidence is bound to real consecutive public releases, not to versions in code", () => {
+  for (const pair of [PAIR, { from: "0.2.0-preview.12", to: "0.3.0" }, { from: "0.3.0", to: "0.4.2" }]) {
     const registry = qualification(true, pair);
     for (const target of REQUIRED_TARGETS) {
       assert.equal(validateTargetEvidence(registry.targets.find(({ key }) => key === target), target), KEY_ID, `${pair.from} -> ${pair.to} ${target}`);
     }
   }
+  const legacyFeed = qualification(true, { from: "0.2.0-preview.12", to: "0.3.0" });
+  for (const entry of legacyFeed.targets.filter(({ evidence }) => evidence.length > 0)) {
+    entry.evidence[0].feed.url = PUBLIC_FEED_URLS[1];
+  }
+  assert.equal(validateTargetEvidence(legacyFeed.targets[0], "windows-x86_64"), KEY_ID, "a legacy install read the mirror");
   for (const pair of [
-    { from: "0.2.0-preview.10", to: "0.2.0-preview.9" },
-    { from: "0.2.0-preview.9", to: "0.2.0-preview.9" },
-    { from: "0.2.0-preview.9", to: "0.2.0" },
-    { from: "0.2.0", to: "0.2.1" },
-    { from: "0.2.0-alpha.1", to: "0.2.0-preview.2" },
+    { from: "0.3.1", to: "0.3.0" },
+    { from: "0.3.0", to: "0.3.0" },
+    { from: "0.2.0-preview.9", to: "0.2.0-preview.10" },
+    { from: "0.3.0", to: "0.4.0-preview.1" },
+    { from: "0.2.0-alpha.1", to: "0.3.0" },
   ]) {
     const registry = qualification(true, pair);
     assert.equal(validateTargetEvidence(registry.targets[0], "windows-x86_64"), null, `${pair.from} -> ${pair.to}`);
   }
   const retired = qualification(true);
   retired.validationQualification = { status: "pending" };
-  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.2.0"), notesMarkdown: "Notes", qualification: retired, mode: "production" }));
+  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "Notes", qualification: retired, mode: "production" }));
   const oldSchema = qualification(true);
   oldSchema.schemaVersion = 3;
-  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.2.0"), notesMarkdown: "Notes", qualification: oldSchema, mode: "production" }));
+  expectCode("qualification_invalid", () => preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "Notes", qualification: oldSchema, mode: "production" }));
 });
 
 test("production rejects shallow, cross-target, wrong-key, off-repository and incomplete qualification claims", () => {
-  const root = signedMatrix("0.2.0");
+  const root = signedMatrix("0.3.0");
   const production = (registry) => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: registry, mode: "production" });
   const shallow = qualification(true);
   shallow.targets[0].evidence = [{
-    version: "0.2.0-preview.9",
-    installedVersion: "0.2.0-preview.10",
+    version: "0.3.0",
+    installedVersion: "0.3.1",
     result: "passed",
     observedAt: "2026-09-11T12:00:00Z",
     installationMode: "windows_nsis_per_user",
@@ -435,7 +409,7 @@ test("production rejects shallow, cross-target, wrong-key, off-repository and in
   expectCode("qualification_required", () => production(foreignAsset));
 
   const foreignRelease = qualification(true);
-  foreignRelease.targets[0].evidence[0].builds.from.publicReleaseUrl = "https://github.com/martinezelx/gitodile-desktop/releases/tag/v0.2.0-preview.9";
+  foreignRelease.targets[0].evidence[0].builds.from.publicReleaseUrl = `https://github.com/martinezelx/gitodile-desktop/releases/tag/v${PAIR.from}`;
   expectCode("qualification_required", () => production(foreignRelease));
 
   const wrongFeed = qualification(true);
@@ -457,44 +431,47 @@ test("production rejects shallow, cross-target, wrong-key, off-repository and in
 });
 
 test("a complete qualified Windows and Linux matrix creates version-specific manifest entries", () => {
-  const root = signedMatrix("0.2.0");
+  const root = signedMatrix("0.3.0");
   const plan = preparePublication({ signedDirectory: root, notesMarkdown: "# Safer updates\n\nAll enabled targets.", qualification: qualification(true), mode: "production" });
-  assert.equal(plan.release.githubPrerelease, false);
-  assert.deepEqual(plan.qualification.qualifiedTargets, [...REQUIRED_TARGETS]);
+  assert.deepEqual(plan.qualification, { productionAllowed: true, testingAllowed: false, qualifiedTargets: [...REQUIRED_TARGETS] });
   assert.deepEqual(Object.keys(plan.manifest.platforms), REQUIRED_TARGETS);
-  assert.ok(Object.values(plan.manifest.platforms).every((entry) => entry.url.includes("/v0.2.0/")));
+  assert.ok(Object.values(plan.manifest.platforms).every((entry) => entry.url.includes("/v0.3.0/")));
   assert.equal(plan.manifest.notes, "Safer updates\n\nAll enabled targets.");
+  assert.doesNotMatch(plan.notesMarkdown, /Testing release/);
 });
 
 test("mixed provenance, incomplete matrices and tampered bytes fail closed", () => {
-  const root = signedMatrix("0.2.0");
+  const root = signedMatrix("0.3.0");
   const evidencePath = path.join(root, "windows-x86_64", "evidence.json");
   const evidence = JSON.parse(fs.readFileSync(evidencePath));
   evidence.source.sha = "b".repeat(40);
   fs.writeFileSync(evidencePath, JSON.stringify(evidence));
   expectCode("provenance_mismatch", () => preparePublication({ signedDirectory: root, notesMarkdown: "Notes", qualification: qualification(true), mode: "production" }));
 
-  const incomplete = signedMatrix("0.2.0");
+  const incomplete = signedMatrix("0.3.0");
   fs.rmSync(path.join(incomplete, "linux-x86_64"), { recursive: true });
   expectCode("matrix_incomplete", () => preparePublication({ signedDirectory: incomplete, notesMarkdown: "Notes", qualification: qualification(true), mode: "production" }));
 
-  const tampered = signedMatrix("0.2.0");
-  fs.appendFileSync(path.join(tampered, "windows-x86_64", "GitOdile_0.2.0_setup.exe"), "tampered");
+  const tampered = signedMatrix("0.3.0");
+  fs.appendFileSync(path.join(tampered, "windows-x86_64", "GitOdile_0.3.0_setup.exe"), "tampered");
   expectCode("hash_mismatch", () => preparePublication({ signedDirectory: tampered, notesMarkdown: "Notes", qualification: qualification(true), mode: "production" }));
 });
 
-test("feed promotion follows preview/stable ordering without regression or relabeling", () => {
-  const previewRoot = signedMatrix("0.2.0-preview.9");
-  const preview = preparePublication({ signedDirectory: previewRoot, notesMarkdown: "Preview", qualification: qualification(false), mode: "preview-testing" });
-  assert.deepEqual(Object.keys(feedsForPromotion(rendered(preview), {})), ["preview"]);
-  expectCode("feed_regression", () => feedsForPromotion(rendered(preview), { preview: { version: "0.2.0-preview.10" } }));
+test("feed promotion keeps release order without regression or relabeling", () => {
+  const first = preparePublication({ signedDirectory: signedMatrix("0.3.0"), notesMarkdown: "First", qualification: qualification(false), mode: "testing" });
+  const firstFeeds = feedsForPromotion(rendered(first), {});
+  assert.deepEqual(Object.keys(firstFeeds), ["latest", "preview"]);
+  // The same version with the same bytes is a no-op; different bytes conflict.
+  const current = { latest: JSON.parse(firstFeeds.latest), preview: JSON.parse(firstFeeds.preview) };
+  assert.deepEqual(feedsForPromotion(rendered(first), current), { latest: null, preview: null });
+  expectCode("feed_conflict", () => feedsForPromotion(rendered(first, "2026-09-14T11:13:06Z"), current));
 
-  const stableRoot = signedMatrix("0.2.0");
-  const stable = preparePublication({ signedDirectory: stableRoot, notesMarkdown: "Stable", qualification: qualification(true), mode: "production" });
-  const updates = feedsForPromotion(rendered(stable), { preview: renderPublication(preview, PUBLISHED_AT).manifest });
-  assert.equal(typeof updates.stable, "string");
-  assert.equal(typeof updates.preview, "string");
-  assert.equal(compareReleaseVersions("0.2.0", "0.2.0-preview.9"), 1);
+  const next = preparePublication({ signedDirectory: signedMatrix("0.3.1"), notesMarkdown: "Next", qualification: qualification(true), mode: "production" });
+  const updates = feedsForPromotion(rendered(next), current);
+  assert.equal(typeof updates.latest, "string");
+  assert.equal(updates.preview, updates.latest);
+  assert.equal(compareReleaseVersions("0.3.0", "0.2.0-preview.12"), 1);
+  assert.equal(compareReleaseVersions("0.3.0", "0.3.0-preview.1"), 1);
 });
 
 test("draft assets are uploaded or replaced; finalized releases are never repaired or overwritten", () => {
@@ -656,11 +633,11 @@ function stagedPublication(version, mode) {
   const signed = signedMatrix(version);
   const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-publish-")), "bundle");
   const notes = path.join(path.dirname(output), "notes.md");
-  fs.writeFileSync(notes, `# GitOdile ${version}\n\nFirst public preview.\n`);
+  fs.writeFileSync(notes, `# GitOdile ${version}\n\nFirst single-channel release.\n`);
   const qualificationFile = path.join(path.dirname(output), "qualification.json");
   fs.writeFileSync(qualificationFile, JSON.stringify(qualification(false)));
   const highlights = path.join(path.dirname(output), "highlights.json");
-  fs.writeFileSync(highlights, JSON.stringify({ version, date: "2026-09-14", highlights: [{ id: "firstPreview", icon: "sparkles", en: "First public preview.", es: "Primera preview pública." }] }));
+  fs.writeFileSync(highlights, JSON.stringify({ version, date: "2026-09-14", highlights: [{ id: "firstRelease", icon: "sparkles", en: "First single-channel release.", es: "Primera versión con un solo canal." }] }));
   runPrepareCli(["--signed", signed, "--notes", notes, "--highlights", highlights, "--qualification", qualificationFile, "--mode", mode, "--output", output]);
   assert.deepEqual(fs.readdirSync(output).filter((name) => name === "latest.json" || name === "SHA256SUMS"), []);
   return output;
@@ -672,7 +649,7 @@ function publishStaged(directory, fetchImpl, overrides = {}) {
 
 const SOURCE_RUN = {
   id: 34907058498,
-  name: "Release v0.2.0-preview.10 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
+  name: "Release v0.3.0 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
   event: "workflow_dispatch",
   status: "in_progress",
   conclusion: null,
@@ -682,27 +659,28 @@ const SOURCE_RUN = {
 };
 const README = "# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n";
 
-test("a first preview publication creates the draft, publishes it, verifies anonymous bytes and advances preview.json", async () => {
-  const directory = stagedPublication("0.2.0-preview.10", "preview-testing");
+test("a first publication creates the draft, publishes it, verifies anonymous bytes and advances the feed and its legacy mirror", async () => {
+  const directory = stagedPublication("0.3.0", "testing");
   const { state, fetchImpl } = fakeDestination({ initialFiles: { "README.md": README } });
   const result = await publishStaged(directory, fetchImpl, { token: "destination-token" });
   assert.equal(result.state, "published");
   assert.equal(result.publishedAt, PUBLISHED_AT);
-  assert.deepEqual(result.feedsChanged, ["preview"]);
+  assert.deepEqual(result.feedsChanged, ["latest", "preview"]);
   const [release] = state.releases;
   assert.equal(release.draft, false);
-  assert.equal(release.prerelease, true);
+  assert.equal(release.prerelease, false);
   assert.deepEqual(release.assets.map((asset) => asset.name).sort(), [
-    "GitOdile_0.2.0-preview.10.AppImage", "GitOdile_0.2.0-preview.10.AppImage.sig", "GitOdile_0.2.0-preview.10_setup.exe", "GitOdile_0.2.0-preview.10_setup.exe.sig", "SHA256SUMS", "latest.json",
+    "GitOdile_0.3.0.AppImage", "GitOdile_0.3.0.AppImage.sig", "GitOdile_0.3.0_setup.exe", "GitOdile_0.3.0_setup.exe.sig", "SHA256SUMS", "latest.json",
   ]);
   // The manifest asset, the hash list and the feed all carry the instant
   // GitHub published the release, not a build or commit time.
   const manifestAsset = release.assets.find((asset) => asset.name === "latest.json");
   assert.equal(JSON.parse(manifestAsset.bytes.toString("utf8")).pub_date, PUBLISHED_AT);
-  assert.equal(state.files["updates/preview.json"], manifestAsset.bytes.toString("utf8"));
+  assert.equal(state.files["updates/latest.json"], manifestAsset.bytes.toString("utf8"));
+  assert.equal(state.files["updates/preview.json"], state.files["updates/latest.json"], "the legacy mirror carries the same bytes");
   const sums = release.assets.find((asset) => asset.name === "SHA256SUMS").bytes.toString("utf8");
   assert.match(sums, new RegExp(`${(await import("node:crypto")).createHash("sha256").update(manifestAsset.bytes).digest("hex")}  latest\\.json`));
-  assert.equal(JSON.parse(state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+  assert.equal(JSON.parse(state.files["updates/preview.json"]).version, "0.3.0");
   assert.equal(JSON.parse(state.files["updates/preview.json"]).pub_date, PUBLISHED_AT);
   assert.equal(state.files["updates/stable.json"], undefined);
   assert.match(state.files["README.md"], /gitodile-downloads:start/);
@@ -713,7 +691,7 @@ test("a first preview publication creates the draft, publishes it, verifies anon
 test("an interrupted publication resumes from an existing draft that the tag lookup cannot see", async () => {
   // The exact state left by run 34907058498: the draft exists with every
   // asset uploaded, and GET /releases/tags/{tag} answers 404 for it.
-  const first = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const first = stagedPublication("0.3.0", "testing");
   const seeded = fakeDestination({ initialFiles: { "README.md": README } });
   await assert.rejects(publishStaged(first, async (url, options) => {
     if (String(url).includes("/releases/") && options?.method === "PATCH") throw new Error("network interrupted before publishing the draft");
@@ -725,13 +703,13 @@ test("an interrupted publication resumes from an existing draft that the tag loo
 
   const uploads = () => seeded.state.calls.filter((call) => call.includes("uploads.example") || call.startsWith("POST /releases/")).length;
   const uploadsBefore = uploads();
-  const retry = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const retry = stagedPublication("0.3.0", "testing");
   const result = await publishStaged(retry, seeded.fetchImpl);
   assert.equal(result.state, "published");
   assert.equal(seeded.state.releases.length, 1, "the retry reuses the draft instead of creating a second release");
   assert.equal(seeded.state.releases[0].draft, false);
   assert.equal(uploads(), uploadsBefore + 2, "only the two derived assets are uploaded when every fixed asset already matches");
-  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.3.0");
   assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).pub_date, PUBLISHED_AT);
 
   // A retry after publication reads the publication time back from the
@@ -739,7 +717,7 @@ test("an interrupted publication resumes from an existing draft that the tag loo
   const uploadsAfterPublish = uploads();
   const feedAfterPublish = seeded.state.files["updates/preview.json"];
   seeded.state.publishedAt = "2026-09-15T09:00:00Z";
-  const again = await publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl);
+  const again = await publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl);
   assert.equal(again.state, "published");
   assert.equal(again.publishedAt, PUBLISHED_AT);
   assert.deepEqual(again.feedsChanged, [], "a completed publication reconciles without changing the feed");
@@ -750,7 +728,7 @@ test("an interrupted publication resumes from an existing draft that the tag loo
 test("a publication interrupted after publishing but before the manifest upload completes it with the recorded time", async () => {
   const seeded = fakeDestination({ initialFiles: { "README.md": README } });
   let published = false;
-  await assert.rejects(publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), async (url, options) => {
+  await assert.rejects(publishStaged(stagedPublication("0.3.0", "testing"), async (url, options) => {
     if (published && String(url).startsWith("https://uploads.example/")) throw new Error("upload interrupted after publication");
     const response = await seeded.fetchImpl(url, options);
     if (String(url).includes("/releases/") && options?.method === "PATCH") published = true;
@@ -762,7 +740,7 @@ test("a publication interrupted after publishing but before the manifest upload 
   assert.equal(seeded.state.files["updates/preview.json"], undefined, "no feed moves before the release is complete");
 
   seeded.state.publishedAt = "2026-09-15T09:00:00Z";
-  const result = await publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl);
+  const result = await publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl);
   assert.equal(result.publishedAt, PUBLISHED_AT, "the manifest uses the time GitHub recorded, not the time of the retry");
   assert.equal(release.assets.length, 6);
   assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).pub_date, PUBLISHED_AT);
@@ -772,24 +750,24 @@ test("a stale manifest on a draft is rendered again, and a published manifest ca
   // A draft left by the previous publisher, which staged latest.json from
   // the commit date before publishing.
   const seeded = fakeDestination({ initialFiles: { "README.md": README } });
-  await assert.rejects(publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), async (url, options) => {
+  await assert.rejects(publishStaged(stagedPublication("0.3.0", "testing"), async (url, options) => {
     if (String(url).includes("/releases/") && options?.method === "PATCH") throw new Error("interrupted");
     return seeded.fetchImpl(url, options);
   }));
   const draft = seeded.state.releases[0];
-  const stale = Buffer.from(JSON.stringify({ version: "0.2.0-preview.10", notes: "", pub_date: "2026-09-14T10:51:00Z", platforms: {} }));
+  const stale = Buffer.from(JSON.stringify({ version: "0.3.0", notes: "", pub_date: "2026-09-14T10:51:00Z", platforms: {} }));
   draft.assets.push({ id: 4242, name: "latest.json", size: stale.length, bytes: stale, url: "https://api.example/assets/4242", browser_download_url: "https://public.example/assets/4242/latest.json" });
-  const result = await publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl);
+  const result = await publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl);
   assert.equal(result.state, "published");
   assert.equal(seeded.state.calls.filter((call) => call === "DELETE /repos/martinezelx/gitodile/releases/assets/4242").length, 1, "the stale draft manifest is removed before publishing");
   const manifest = draft.assets.find((asset) => asset.name === "latest.json");
   assert.equal(JSON.parse(manifest.bytes.toString("utf8")).pub_date, PUBLISHED_AT);
 
-  manifest.bytes = Buffer.from(JSON.stringify({ version: "0.2.0-preview.10", pub_date: "2026-09-14T10:51:00Z" }));
+  manifest.bytes = Buffer.from(JSON.stringify({ version: "0.3.0", pub_date: "2026-09-14T10:51:00Z" }));
   manifest.size = manifest.bytes.length;
   const feedBefore = seeded.state.files["updates/preview.json"];
   await assert.rejects(
-    publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl),
+    publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl),
     (error) => error instanceof ReleaseValidationError && error.code === "immutable_asset_conflict",
   );
   assert.equal(seeded.state.files["updates/preview.json"], feedBefore);
@@ -806,14 +784,14 @@ test("a CDN that answers 404 briefly after publication is retried; a persistent 
     }
     return seeded.fetchImpl(url, options);
   };
-  const result = await publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), flaky(2));
+  const result = await publishStaged(stagedPublication("0.3.0", "testing"), flaky(2));
   assert.equal(result.state, "published");
-  assert.deepEqual(result.feedsChanged, ["preview"]);
+  assert.deepEqual(result.feedsChanged, ["latest", "preview"]);
   assert.ok([...notFound.values()].every((seen) => seen > 2), "every anonymous download was retried past the 404s");
 
   const persistent = fakeDestination({ initialFiles: { "README.md": README } });
   await assert.rejects(
-    publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), async (url, options) => {
+    publishStaged(stagedPublication("0.3.0", "testing"), async (url, options) => {
       if (String(url).startsWith("https://public.example/assets/") && !options?.headers?.Authorization) return new Response("gone", { status: 404 });
       return persistent.fetchImpl(url, options);
     }),
@@ -827,7 +805,7 @@ test("a CDN that answers 404 briefly after publication is retried; a persistent 
 test("a re-dispatched pipeline replaces a draft's stale assets but can never touch a published release", async () => {
   // Run 34909190392 rebuilt v0.2.0-preview.10 from scratch and met the draft
   // that run 34907058498 had filled with different installer bytes.
-  const first = stagedPublication("0.2.0-preview.10", "preview-testing");
+  const first = stagedPublication("0.3.0", "testing");
   const seeded = fakeDestination({ initialFiles: { "README.md": README } });
   await assert.rejects(publishStaged(first, async (url, options) => {
     if (String(url).includes("/releases/") && options?.method === "PATCH") throw new Error("interrupted");
@@ -839,14 +817,14 @@ test("a re-dispatched pipeline replaces a draft's stale assets but can never tou
   staleExe.size = staleExe.bytes.length;
   const staleId = staleExe.id;
 
-  const result = await publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl);
+  const result = await publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl);
   assert.equal(result.state, "published");
   assert.equal(seeded.state.calls.filter((call) => call === `DELETE /repos/martinezelx/gitodile/releases/assets/${staleId}`).length, 1, "only the differing draft asset is deleted");
   const published = seeded.state.releases[0];
   assert.equal(published.draft, false);
   assert.equal(published.assets.length, 6);
   assert.equal(published.assets.some((asset) => asset.id === staleId), false);
-  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.2.0-preview.10");
+  assert.equal(JSON.parse(seeded.state.files["updates/preview.json"]).version, "0.3.0");
 
   // Once published, the same divergence is a hard conflict and the feed stays.
   const publishedExe = published.assets.find((asset) => asset.name.endsWith("_setup.exe"));
@@ -854,7 +832,7 @@ test("a re-dispatched pipeline replaces a draft's stale assets but can never tou
   publishedExe.size = publishedExe.bytes.length;
   const feedBefore = seeded.state.files["updates/preview.json"];
   await assert.rejects(
-    publishStaged(stagedPublication("0.2.0-preview.10", "preview-testing"), seeded.fetchImpl),
+    publishStaged(stagedPublication("0.3.0", "testing"), seeded.fetchImpl),
     (error) => error instanceof ReleaseValidationError && error.code === "immutable_asset_conflict",
   );
   assert.equal(seeded.state.calls.filter((call) => call.startsWith("DELETE ")).length, 1, "no published asset is ever deleted");
@@ -866,7 +844,7 @@ test("source workflow and public README contracts reject unsafe provenance and u
   // the API reports the per-run title in `name`, not the workflow name.
   const run = {
     id: 34905088346,
-    name: "Release v0.2.0-preview.10 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
+    name: "Release v0.3.0 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5",
     event: "workflow_dispatch",
     status: "in_progress",
     conclusion: null,
@@ -877,17 +855,19 @@ test("source workflow and public README contracts reject unsafe provenance and u
   assert.equal(validateSourceRun(run, "martinezelx/gitodile-desktop"), true);
   assert.equal(validateSourceRun({ ...run, name: "Release v0.2.0 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5" }, "martinezelx/gitodile-desktop"), true);
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, name: "Release pipeline" }, "martinezelx/gitodile-desktop"));
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, name: "Release v0.3.0-preview.1 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5" }, "martinezelx/gitodile-desktop"));
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, name: "Release v0.2.0-alpha.1 at 977aa58bd3fac28cfcdfa3826ad7074188f9cac5" }, "martinezelx/gitodile-desktop"));
   assert.equal(validateSourceRun({ ...run, status: "completed", conclusion: "success" }, "martinezelx/gitodile-desktop"), true);
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, status: "completed", conclusion: "failure" }, "martinezelx/gitodile-desktop"));
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, status: "completed", conclusion: null }, "martinezelx/gitodile-desktop"));
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, event: "workflow_run" }, "martinezelx/gitodile-desktop"));
-  expectCode("source_run_invalid", () => validateSourceRun({ ...run, head_branch: "release/0.2.0-preview.9" }, "martinezelx/gitodile-desktop"));
+  expectCode("source_run_invalid", () => validateSourceRun({ ...run, head_branch: "release/0.3.0" }, "martinezelx/gitodile-desktop"));
   expectCode("source_run_invalid", () => validateSourceRun({ ...run, path: ".github/workflows/ci.yml" }, "martinezelx/gitodile-desktop"));
   const first = updateFeedbackReadme("# GitOdile — feedback\n\nThere is no source code here, and there are no pull requests to send. Issues,\n\nEl código de la aplicación es privado. Este repositorio no contiene código de\nla aplicación ni descargas.\n");
   assert.match(first, /Tauri updater-signed Windows x86-64/);
   assert.match(first, /intentionally lack Authenticode/);
-  assert.match(first, /prerelease label is not a qualification claim/);
+  assert.match(first, /their notes then say so/);
+  assert.doesNotMatch(first, /prerelease|preview-testing/i);
   assert.match(first, /macOS is not yet qualified/);
   assert.equal(updateFeedbackReadme(first), first);
 });
@@ -911,11 +891,11 @@ test("publication is the final job of the single release pipeline, derives its m
   assert.doesNotMatch(JSON.stringify(workflow.jobs.stage), /check:publication|libwebkit2gtk/,
     "staging checks the live destination contract only; the repository gate ran on the merge SHA");
   assert.match(JSON.stringify(workflow.jobs.stage), /check-public-feedback\.mjs --publication-plan/);
-  assert.match(source, /derivePublicationMode\(matrix\.release, qualification\)/);
+  assert.match(source, /derivePublicationMode\(qualification\)/);
   assert.doesNotMatch(source, /published_at|committer\.date|--published-at/,
     "the publication time is GitHub's published_at, read by the publish job; staging must not invent one");
   assert.doesNotMatch(source, /validation-draft|validation-updater-signing|VALIDATION/,
     "no test-only publication mode, signing environment or feed routing may remain");
-  assert.equal(workflow.jobs.publish.environment, "${{ (needs.stage.outputs.mode == 'production' || needs.stage.outputs.mode == 'stable-testing') && 'public-release-stable' || 'public-release-preview' }}");
+  assert.equal(workflow.jobs.publish.environment, "public-release");
   for (const match of source.matchAll(/^\s*- uses:\s*([^\s#]+)/gm)) assert.match(match[1], /@[0-9a-f]{40}$/);
 });

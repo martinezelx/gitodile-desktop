@@ -21,7 +21,6 @@ import {
   type VersionLineCreateContext,
   type VersionLinesSnapshot,
 } from "../features/version-lines";
-import { ChannelGlyph } from "../shared/ui";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 
 const CLOCK_TICK_MS = 30_000;
@@ -339,11 +338,10 @@ export function StatusBar({
           className="status-bar__release status-bar__item--muted"
           type="button"
           onClick={onOpenChangelog}
-          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
-          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version, CURRENT_APP_RELEASE.channel)}
+          aria-label={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
+          data-tooltip={t.statusBarOpenChangelog(CURRENT_APP_RELEASE.version)}
         >
           <span className="status-bar__version">{t.statusBarVersion(CURRENT_APP_RELEASE.version)}</span>
-          <ChannelGlyph channel={CURRENT_APP_RELEASE.channel} />
         </button>
       </div>
     </footer>

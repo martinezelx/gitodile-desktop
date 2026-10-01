@@ -208,20 +208,6 @@
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
-/* Which build the reader is running is stated on several surfaces — the
-   status bar, About, the changelog and the update dialog — and DESIGN.md
-   requires them to be unable to describe one build differently. The version
-   string already names the channel (`v0.2.0-preview.12`), so a preview build
-   adds only this glyph to the right of it, never the word again. Sized from
-   the text it follows so it sits on the same line at every scale. */
-.channel-glyph {
-  flex-shrink: 0;
-  width: 1em;
-  height: 1em;
-  color: var(--status-warning);
-  vertical-align: -0.125em;
-}
-
 /* A state a list row flags as a glyph instead of a text chip — Lines' and
    History's rows speak one vocabulary: 14px, the caption's weight for a count
    beside it, and colour only where the state is good, needs a look, or is

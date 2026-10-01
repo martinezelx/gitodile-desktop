@@ -90,8 +90,6 @@ pub fn run() {
             ipc::download_app_update,
             ipc::cancel_app_update,
             ipc::install_app_update,
-            ipc::get_app_update_channel,
-            ipc::set_app_update_channel,
             ipc::reveal_project_file,
             ipc::open_repository,
             ipc::plan_clone,

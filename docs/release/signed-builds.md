@@ -3,8 +3,8 @@
 This runbook implements the protected build boundary from
 [ADR 0010](../adr/0010-distribute-signed-app-updates-through-public-github-releases.md).
 It prepares candidate artifacts and access-controlled evidence only. It does not create a
-GitHub Release, upload to `gitodile`, or write `stable.json` or
-`preview.json`; those remain task 065-9-6. Real A-to-B installation
+GitHub Release, upload to `gitodile`, or write a feed; that is the
+[public publishing](public-publishing.md) half. Real A-to-B installation
 qualification and automatic-target enablement remain tasks 065-9-7 and 065-9-8.
 
 ## Trust boundary
@@ -57,13 +57,13 @@ pipeline job has read-only source-repository permissions. The coordinator has
 only the Actions read/write access needed to inspect checks and dispatch the
 pipeline; protected-tag creation uses a repository-specific deploy key only
 inside `release-tagging`. The destination token is visible only to the
-`publish` job through its environment. `public-release-stable` requires a
-reviewer and must disallow administrator bypass; approve only after comparing
-the tag, SHA, version, matrix and run link. A rejected or absent environment
+`publish` job through the one `public-release` environment. When it requires
+a reviewer, it must disallow administrator bypass; approve only after
+comparing the tag, SHA, version, matrix and run link. A rejected or absent environment
 leaves the run blocked, not partially authorized.
 
 The final matrix gate requires both enabled target evidence records to have the
-same tag, source SHA, version, channel, signing profile and updater public-key
+same tag, source SHA, version, signing profile and updater public-key
 identity. It rehashes every
 file and requires updater verification plus the target-specific OS result.
 No per-target job can produce the matrix authorization record. A failed,
@@ -100,9 +100,9 @@ workflow inputs or logs:
 
 | Scope | Names | Current readiness (2026-09-12) |
 | --- | --- | --- |
-| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for the testing modes; the pipeline supplies the separate canonical `GITODILE_TEST_UPDATE_TARGETS` pair to every build so real updates on both channels can be tested without claiming qualification. |
+| Repository variables | `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY`, `GITODILE_PRODUCTION_UPDATER_PUBLIC_KEY_ID`; after real A-to-B qualification only, canonical `GITODILE_QUALIFIED_UPDATE_TARGETS=windows-x86_64,linux-x86_64` | The one reviewed public identity is configured. Empty qualified targets remain valid for the testing modes; the pipeline supplies the separate canonical `GITODILE_TEST_UPDATE_TARGETS` pair to every build so real updates can be tested without claiming qualification. |
 | `production-windows-signing` environment secrets and variable | Reserved post-1.0 names: secrets `GITODILE_WINDOWS_CERTIFICATE_BASE64`, `GITODILE_WINDOWS_CERTIFICATE_PASSWORD`; reviewed variable `GITODILE_WINDOWS_CERTIFICATE_SHA256` | Deliberately unconfigured until task 065-9-9 resumes after `1.0.0` |
-| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before the first stable release |
+| `production-updater-signing` environment secrets | `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Key configured; local encrypted restore/sign/verify passed; independent offline backup remains pending before `1.0.0` |
 
 There is exactly one updater signing identity. The earlier disposable
 validation key, its `validation-updater-signing` environment, the
@@ -151,8 +151,7 @@ that signing layer.
    release pipeline. A pre-existing tag at any other SHA fails closed.
 3. Where an environment requires a reviewer, review the unprivileged jobs
    before approving it. Compare the run's tag and full SHA with `main`;
-   confirm the derived channel (`preview` only for `-preview.N`) and both
-   unsigned evidence hashes. A signing job rehashes its input before using
+   confirm the version is a plain `X.Y.Z` and both unsigned evidence hashes. A signing job rehashes its input before using
    credentials.
 4. After the run, the single `private-signed-v<version>` Actions artifact
    remains available for 90 days. Its `matrix.json` says
@@ -164,7 +163,7 @@ that signing layer.
 
 Qualification uses these same builds: the installed A-to-B evidence described
 in [updater qualification](updater-qualification.md) comes from two real
-consecutive public previews, never from a separately keyed or separately fed
+consecutive public releases, never from a separately keyed or separately fed
 build.
 
 ## Independent verification
@@ -207,8 +206,9 @@ application's Rust verifier and its recorded public key. The key identity is
 `sha256-074b4317dbc734a346c9efcdcb0b1e075febcb6b711c8fe7adfbab732f0d2ff1`.
 
 This is not the required second offline, geographically separate recovery
-store. No stable release may run until that independent backup is made and its
-custody is recorded. The private key and password are deliberately absent from
+store. No `1.0.0` release may run until that independent backup is made and
+its custody is recorded; the maintainer deferred it to then on 2026-10-01,
+accepting that losing the key before it would strand installed builds. The private key and password are deliberately absent from
 this repository and its evidence. The disposable validation identity used by
 the retired internal test builds is no longer referenced anywhere; delete its
 environment and destroy its recovery copy once those builds are no longer

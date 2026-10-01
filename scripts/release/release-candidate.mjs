@@ -15,9 +15,12 @@ export const TARGET_CONTRACTS = Object.freeze(
   Object.fromEntries(updateContract.targets.map((target) => [target.key, Object.freeze({ ...target })])),
 );
 
-const STABLE = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
-const PREVIEW = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-preview\.([1-9][0-9]*)$/;
-const RELEASE_TAG = /^v((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-preview\.[1-9][0-9]*)?)$/;
+const RELEASE = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+/** Every version up to `0.3.0-preview.1` was a preview of the retired
+ * two-channel model. History, installed builds and the legacy feed still
+ * carry the shape, so it stays readable; it is never released again. */
+const LEGACY_PREVIEW = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-preview\.([1-9][0-9]*)$/;
+const RELEASE_TAG = /^v((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))$/;
 
 export class ReleaseValidationError extends Error {
   constructor(code, message) {
@@ -27,19 +30,28 @@ export class ReleaseValidationError extends Error {
   }
 }
 
+/** A version that may be released: plain `X.Y.Z`. There is one channel, so
+ * a release carries no channel and is never a GitHub prerelease. */
 export function parseReleaseVersion(version) {
-  if (STABLE.test(version)) return { version, channel: "stable", githubPrerelease: false };
-  if (PREVIEW.test(version)) return { version, channel: "preview", githubPrerelease: true };
-  throw new ReleaseValidationError("invalid_tag", `unsupported release version: ${version}`);
+  if (RELEASE.test(version)) return { version };
+  throw new ReleaseValidationError("invalid_tag", `unsupported release version: ${version} (releases are X.Y.Z)`);
 }
 
-/** SemVer order restricted to the two supported shapes: every `X.Y.Z-preview.N`
- * precedes its `X.Y.Z` stable successor. */
+/** A version the scripts may meet in history: a release, or a legacy
+ * `X.Y.Z-preview.N` from before the single channel. */
+export function parseKnownVersion(version) {
+  if (RELEASE.test(version)) return { version, legacyPreview: false };
+  if (LEGACY_PREVIEW.test(version)) return { version, legacyPreview: true };
+  throw new ReleaseValidationError("invalid_tag", `unsupported version: ${version}`);
+}
+
+/** SemVer order over releases and legacy previews: every `X.Y.Z-preview.N`
+ * precedes its `X.Y.Z` release. */
 export function compareReleaseVersions(left, right) {
   const parse = (version) => {
-    const release = parseReleaseVersion(version);
+    parseKnownVersion(version);
     const [core, prerelease] = version.split("-preview.");
-    return { release, core: core.split(".").map(BigInt), preview: prerelease ? BigInt(prerelease) : null };
+    return { core: core.split(".").map(BigInt), preview: prerelease ? BigInt(prerelease) : null };
   };
   const a = parse(left);
   const b = parse(right);
@@ -56,7 +68,7 @@ export function compareReleaseVersions(left, right) {
 export function parseReleaseTag(tag) {
   const match = RELEASE_TAG.exec(tag);
   if (!match) {
-    throw new ReleaseValidationError("invalid_tag", "tag must be exactly vX.Y.Z or vX.Y.Z-preview.N");
+    throw new ReleaseValidationError("invalid_tag", "tag must be exactly vX.Y.Z");
   }
   return parseReleaseVersion(match[1]);
 }
@@ -108,7 +120,6 @@ export function validateReleaseCandidate({
   mainRef = "refs/remotes/origin/main",
   metadataRevision = null,
   requireHead = true,
-  claimedChannel = null,
 }) {
   const release = parseReleaseTag(tag);
   if (!/^[0-9a-f]{40}(?:[0-9a-f]{24})?$/.test(sha)) {
@@ -134,9 +145,6 @@ export function validateReleaseCandidate({
         `${owner} version ${version ?? "<missing>"} differs from tag version ${release.version}`,
       );
     }
-  }
-  if (claimedChannel !== null && claimedChannel !== release.channel) {
-    throw new ReleaseValidationError("channel_mismatch", "claimed channel disagrees with the version-derived channel");
   }
 
   return {
@@ -195,7 +203,7 @@ if (isMain) {
   try {
     const candidate = runCandidateCli(process.argv.slice(2));
     process.stdout.write(
-      `Validated ${candidate.source.tag} at ${candidate.source.sha} for ${candidate.release.channel}.\n`,
+      `Validated ${candidate.source.tag} at ${candidate.source.sha}.\n`,
     );
   } catch (error) {
     const code = error instanceof ReleaseValidationError ? error.code : "internal";
