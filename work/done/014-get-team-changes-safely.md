@@ -416,7 +416,7 @@ perform local reads only, so no watcher can duplicate the fetch.
 
 # Validation
 
-- `node .agents/skills/impeccable/scripts/detect.mjs --json` — passed with no
+- Historical UI scan — passed with no
   findings for the completed UI.
 - Focused Vitest coverage passed for Team changes eligibility, the dialog's
   preview/phases/error/divergence/cancellation/success/uncertainty, controller

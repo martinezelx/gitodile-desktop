@@ -111,7 +111,7 @@ entry point without losing the existing previewed, state-checked switch flow.
 
 - `pnpm exec vitest run src/features/version-lines/VersionLineQuickSwitch.test.tsx src/features/version-lines/favourites.test.tsx src/app/StatusBar.test.tsx src/app/App.test.tsx`
   — 40 focused tests passed.
-- Impeccable layout detector over the touched switcher and surface styles — no
+- UI layout detector over the touched switcher and surface styles — no
   findings before or after implementation.
 - In-app browser inspection at 1280×720 and 900×620 confirmed Overview and
   status-bar placement, long-name ellipsis, bounded scrolling, search/favourite

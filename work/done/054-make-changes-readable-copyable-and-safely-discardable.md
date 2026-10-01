@@ -368,7 +368,7 @@ chunk, renders React text/token nodes only and falls back immediately to plain
 text. The discard dialog is independently lazy at 5.92 kB, and the contextual
 menu is interaction-loaded as its own 2.53 kB chunk.
 
-The Impeccable review kept Refresh and Save selected as the only full-width
+The UI review kept Refresh and Save selected as the only full-width
 header actions. Discard and restore live in one neutral overflow menu, with
 danger reserved for the destructive menu entries and final confirmation.
 Native Windows inspection at 1182×762 in dark theme confirmed the existing

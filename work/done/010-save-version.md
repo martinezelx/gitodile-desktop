@@ -497,7 +497,7 @@ the code path, not an automated counter.
   that scrolling to an arbitrary offset renders the correct lines for that
   position, and that the hunk-start separator only appears where a hunk
   boundary actually is.
-- Impeccable detector over the changed frontend surface — no findings.
+- UI detector over the changed frontend surface — no findings.
 - Live Tauri review in the current light theme — selection remains independent
   from diff inspection; the selected count, checkboxes, select-all/none
   controls, and partial-save confirmation are coherent. The dialog was

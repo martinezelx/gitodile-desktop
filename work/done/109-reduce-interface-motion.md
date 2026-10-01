@@ -121,7 +121,7 @@ attribute only at the end of one successful test body; cleanup now runs from
 
 # Validation
 
-- Impeccable detector over `src`: 0 findings.
+- UI detector over `src`: 0 findings.
 - Static motion inventory: 41 animation declarations, 92 transition
   declarations and 20 keyframe definitions, all covered by the root override.
 - Runtime browser inspection in Spanish: the switch renders off by default;

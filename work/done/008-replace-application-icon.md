@@ -100,8 +100,7 @@ None.
 
 # Validation
 
-- `node .agents/skills/impeccable/scripts/detect.mjs --json src/main.tsx
-  src/styles.css src/assets/gitodile-mark.svg` — passed with no findings.
+- Historical UI scan — passed with no findings.
 - `pnpm run typecheck` — passed.
 - `pnpm run test` — passed, 13 tests across 2 files.
 - `pnpm run build` — passed.

@@ -427,7 +427,7 @@ When later tasks add these modules:
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — pass, no warnings.
 - `cargo test --manifest-path src-tauri/Cargo.toml` — pass (15 tests).
-- Impeccable detector over the changed frontend targets — pass with no findings.
+- UI detector over the changed frontend targets — pass with no findings.
 - Real Tauri desktop validation — pass for native folder selection, a real
   repository, a real nested selection, root/selected-path disclosure, the
   worktree-classification regression, project menu/disclosure semantics,

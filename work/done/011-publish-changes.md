@@ -288,7 +288,7 @@ where a hermetic real integration is not practical.
 - `cargo test --manifest-path src-tauri/Cargo.toml` — pass, 129 tests,
   including differently named local/upstream branches, truncated pending
   lists, unsafe remote names, and remote URL query-token redaction.
-- `node .agents/skills/impeccable/scripts/detect.mjs --json src` — pass,
+- Historical UI scan — pass,
   no findings.
 - Live Tauri desktop verification — pass against
   `C:\workspace\gitodile-sandbox\repo` in dark and light themes:

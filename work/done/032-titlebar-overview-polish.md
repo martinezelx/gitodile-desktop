@@ -274,7 +274,7 @@ Final validation after the visual follow-up:
 - `pnpm run build` — clean.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — clean.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — clean.
-- Impeccable detector over `src/main.tsx` — 0 findings.
+- UI detector over `src/main.tsx` — 0 findings.
 
 ## Post-audit hardening
 
@@ -297,7 +297,7 @@ Revalidated after this follow-up:
 - `pnpm run build` — clean.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — clean.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — clean.
-- Impeccable detector over the changed TSX targets — 0 findings.
+- UI detector over the changed TSX targets — 0 findings.
 
 ## Settings modal and sidebar refinements
 
@@ -337,4 +337,4 @@ Final validation after all Settings and sidebar refinements:
 - `pnpm run build` — clean.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — clean.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` — clean.
-- Impeccable layout detector over the final Settings/sidebar targets — 0 findings.
+- UI layout detector over the final Settings/sidebar targets — 0 findings.

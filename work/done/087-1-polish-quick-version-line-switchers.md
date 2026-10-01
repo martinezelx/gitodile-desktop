@@ -65,7 +65,7 @@ Finish three interaction and consistency details discovered while using task
 - `pnpm exec vitest run src/features/version-lines/VersionLineQuickSwitch.test.tsx src/app/StatusBar.test.tsx src/app/App.test.tsx`
   — 40 focused tests passed, including internal-scroll retention, external-
   scroll dismissal, and status commit context.
-- Impeccable layout detector — no findings.
+- UI layout detector — no findings.
 - `pnpm run check` — documentation and architecture checks passed; 467 frontend
   tests passed; the production build completed; Rust formatting and Clippy
   passed; 306 Rust tests passed.

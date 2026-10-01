@@ -291,5 +291,5 @@ request can neither populate the new session nor clear its replacement.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
   --all-features -- -D warnings` — pass.
-- Impeccable manual detector on `src/main.tsx` and `src/screens.tsx` — no
+- UI manual detector on `src/main.tsx` and `src/screens.tsx` — no
   findings.

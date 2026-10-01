@@ -125,6 +125,6 @@ Tasks 026, 027, 028 and 029.
   --all-features -- -D warnings` passed.
 - `cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
   -- --test-threads=1` passed: 195 library tests and 0 binary tests.
-- `node .agents/skills/impeccable/scripts/detect.mjs ...` passed with zero
+- Historical UI scan passed with zero
   findings across the composition and owned CSS files.
 - `git diff --check` passed before task closeout.
