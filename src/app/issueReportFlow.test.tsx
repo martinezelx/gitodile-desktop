@@ -70,6 +70,17 @@ it("reviews the exact report before copying, saving or opening GitHub", async ()
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
+it("leads the review header with the same mark as the menu's Report an issue", async () => {
+  const user = userEvent.setup();
+  render(<LanguageProvider><ReportHarness port={makePort()} /></LanguageProvider>);
+
+  await openReview(user);
+  const dialog = screen.getByRole("dialog", { name: "Review the report before sending it" });
+  const glyph = dialog.querySelector(".app-dialog__glyph");
+  expect(glyph).toHaveClass("app-dialog__glyph--accent");
+  expect(glyph?.querySelector("svg")).toBeInTheDocument();
+});
+
 it("keeps browser failure, retry and manual-link recovery in the same dialog", async () => {
   const user = userEvent.setup();
   const port = makePort({

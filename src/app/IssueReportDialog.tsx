@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { CircleAlert, Copy, ExternalLink, LoaderCircle, Save } from "lucide-react";
+import { Bug, CircleAlert, Copy, ExternalLink, LoaderCircle, Save } from "lucide-react";
 import { useLanguage } from "../i18n";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
 import { Dialog } from "../shared/ui/dialog";
@@ -32,8 +32,8 @@ export function IssueReportDialog({ report }: { report: IssueReportState }): Rea
       titleId="issue-report-title"
       subtitle={reviewing ? <span id="issue-report-description">{t.issueReportReviewMessage}</span> : undefined}
       descriptionId={isFailed ? "issue-report-error-message" : "issue-report-description"}
-      icon={isFailed ? <CircleAlert /> : undefined}
-      tone="warning"
+      icon={isFailed ? <CircleAlert /> : <Bug />}
+      tone={isFailed ? "warning" : "accent"}
       onClose={report.dismiss}
       closeLabel={t.commonClose}
       dialogRef={ref}
