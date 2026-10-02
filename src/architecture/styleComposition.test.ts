@@ -735,15 +735,17 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Five controls qualify,
-    // all text actions styled as links: the update link and the licence/source
-    // pair in About, Save version's detail toggle, a dialog's inline way out
-    // ("Add in Settings", "Save without hooks just this once") and a toast's
-    // action. Anything else appearing here is the drift this guard exists to
-    // catch.
+    // ordinary button keeps the platform arrow cursor. Seven controls qualify:
+    // the update link and the licence/source pair in About, About's copy
+    // control, About's stack credits (they leave the app for another site),
+    // Save version's detail toggle, a dialog's inline way out ("Add in
+    // Settings", "Save without hooks just this once") and a toast's action.
+    // Anything else appearing here is the drift this guard exists to catch.
     expect(pointerRules).toEqual([
       "app/app-shell.css: .about-dialog__update-link",
+      "app/app-shell.css: .about-technical__copy",
       "app/app-shell.css: .about-dialog__legal button",
+      "app/app-shell.css: .about-stack__item",
       "shared/ui/primitives.css: .app-dialog__link",
       "shared/ui/primitives.css: .app-toast__action",
       "features/save-version/save-version.css: .save-version-detail__toggle",

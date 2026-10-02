@@ -172,9 +172,6 @@ export interface AppTranslations {
   titlebarSwitchToLightTheme: string;
   titlebarSwitchToDarkTheme: string;
   startupRestoreSkippedNotice: (count: number) => string;
-  /* The dialog's own name, in words. It shares the About heading with the
-     localized product promise, while the decorative mark stays unannounced. */
-  aboutProductName: string;
   /* The titlebar menu item that opens it. */
   aboutGitOdile: string;
   aboutHeading: string;
@@ -399,7 +396,6 @@ const en: AppTranslations = {
     count === 1
       ? "1 project from your last session couldn't be reopened."
       : `${count} projects from your last session couldn't be reopened.`,
-  aboutProductName: "GitOdile",
   aboutGitOdile: "About",
   aboutHeading: "Git without the fear.",
   aboutDescription: "Version control in clear, worry-free steps.",
@@ -609,7 +605,6 @@ const es: AppTranslations = {
     count === 1
       ? "1 proyecto de tu última sesión no se pudo volver a abrir."
       : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
-  aboutProductName: "GitOdile",
   aboutGitOdile: "Acerca de",
   aboutHeading: "Git sin miedo.",
   aboutDescription: "El control de versiones, en pasos claros y sin sustos.",

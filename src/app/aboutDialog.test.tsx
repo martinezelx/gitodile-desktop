@@ -331,6 +331,9 @@ describe("About dialog", () => {
     const tagline = heading?.querySelector(".about-dialog__tagline");
     expect(heading).toHaveTextContent("GitOdile Git without the fear.");
     expect(productName).toHaveTextContent("GitOdile");
+    // The "Odile" half is the one that carries the brand sweep; the name still
+    // reads as one word because the halves are adjacent text.
+    expect(productName?.querySelector(".about-dialog__odile")).toHaveTextContent("Odile");
     expect(mark).toBeInTheDocument();
     expect(tagline).toHaveTextContent("Git without the fear.");
     // The mark leads the identity at hero scale, then the h2 names the product
@@ -370,11 +373,15 @@ describe("About dialog", () => {
   it("shows the project license and opens its license and source in the browser", async () => {
     renderOverlays();
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
-    const legal = dialog.querySelector(".about-dialog__legal");
+    const licence = dialog.querySelector(".about-dialog__legal--bare");
     const stack = dialog.querySelector(".about-stack");
-    expect(legal).toBeInTheDocument();
+    const credit = dialog.querySelector(".about-dialog__legal--stacked");
+    expect(licence).toBeInTheDocument();
     expect(stack).toBeInTheDocument();
-    expect(stack!.compareDocumentPosition(legal!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(credit).toBeInTheDocument();
+    // The licence leads the facts; the credit closes the dialog under them.
+    expect(licence!.compareDocumentPosition(stack!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(licence!.compareDocumentPosition(credit!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(dialog).toHaveTextContent("GNU AGPL v3.0 only");
     await userEvent.click(screen.getByRole("button", { name: "View license" }));
     await userEvent.click(screen.getByRole("button", { name: "View source code" }));
@@ -387,7 +394,7 @@ describe("About dialog", () => {
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
     expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
-    expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
+    expect(dialog.querySelector(".about-dialog__version")).toHaveAccessibleName(
       `GitOdile ${__APP_VERSION__}`,
     );
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");

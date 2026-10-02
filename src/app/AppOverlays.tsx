@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { ArrowUpRight, Check, CircleAlert, Copy, Keyboard } from "lucide-react";
+import { Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
@@ -34,7 +34,7 @@ import {
   type TechnologyId,
 } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
-import { modifierKeyLabels } from "./branding";
+import { PRODUCT_NAME_PARTS, modifierKeyLabels } from "./branding";
 import { CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
@@ -519,6 +519,12 @@ export function AppOverlays({
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
           >
+            {/* The build's version, parked in the corner the close control
+                occupies, so the identity block below is only the mark, the name
+                and the promise. */}
+            <p className="about-dialog__version" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
+              v{CURRENT_APP_RELEASE.version}
+            </p>
             <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
             {/* The mark at hero scale, then the name, then the promise. The
                 mark is decorative and stays out of the accessibility tree, and
@@ -527,13 +533,13 @@ export function AppOverlays({
             <div className="about-dialog__hero">
               <span className="about-dialog__mark"><Mascot motion="sweep" /></span>
               <h2 id="about-title">
-                <span className="about-dialog__product-name">{t.aboutProductName}</span>{" "}
+                <span className="about-dialog__product-name">
+                  {PRODUCT_NAME_PARTS.lead}
+                  <span className="about-dialog__odile">{PRODUCT_NAME_PARTS.tail}</span>
+                </span>{" "}
                 <span className="about-dialog__tagline">{t.aboutHeading}</span>
               </h2>
             </div>
-            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
-              <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
-            </p>
             {/* The one line About can say about updates, and the way to the
                 release notes. The state is named whenever the release model has
                 one, so the slot is never blank and never an alarm About cannot
@@ -557,6 +563,15 @@ export function AppOverlays({
               </button>
             </p>
             <p className="about-dialog__description">{t.aboutDescription}</p>
+            {/* The licence leads the facts: it names what the build is and
+                where its text and source live. It keeps the plain link style
+                and drops its own rule, because one separator now closes it
+                against the diagnostics below. */}
+            <div className="about-dialog__legal about-dialog__legal--bare">
+              <span>{t.aboutLicense}</span>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
+            </div>
             <div className="about-dialog__rule" aria-hidden="true" />
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
@@ -602,14 +617,17 @@ export function AppOverlays({
                 </dl>
               </section>
             )}
+            <div className="about-dialog__rule about-dialog__rule--section" aria-hidden="true" />
             {/* Credits, kept apart from the diagnostics above because they are
                 not diagnostics: every user on this build runs these same
                 versions, so none of them can explain a machine-specific bug.
-                One inline line rather than a row of tiles — a name and a number
-                do not need a surface of their own. */}
+                One row per layer rather than a row of tiles — the mark beside
+                the name and number, which stack so a credit is wide, not tall. */}
             {stack.length > 0 && (
               <section className="about-stack" aria-labelledby="about-stack-title">
-                <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>
+                {/* The credits are recognisable as marks and names, so the
+                    heading only names the section for assistive technology. */}
+                <h3 id="about-stack-title" className="visually-hidden">{t.aboutBuiltWith}</h3>
                 <ul className="about-stack__list">
                   {stack.map((layer) => (
                     <li key={layer.id}>
@@ -624,26 +642,24 @@ export function AppOverlays({
                         onClick={() => void openUrl(layer.url).catch(() => undefined)}
                       >
                         <StackMark layer={layer.id} />
-                        <span className="about-stack__name">{layer.name}</span>
-                        <span className="about-stack__version">{layer.version}</span>
-                        <ArrowUpRight className="about-stack__go" aria-hidden="true" />
+                        <span className="about-stack__text">
+                          <span className="about-stack__name">{layer.name}</span>
+                          <span className="about-stack__version">{layer.version}</span>
+                        </span>
                       </button>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-            <p className="about-dialog__footer">
-              {t.aboutFooterMadeWith}{" "}
-              <span className="about-dialog__heart" role="img" aria-label={t.aboutHeartLabel}>♥</span>{" "}
-              {t.aboutFooterByAuthor}
-            </p>
-            <div className="about-dialog__legal">
-              <span>{t.aboutLicense}</span>
-              <span className="about-dialog__legal-links">
-                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
-                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
-              </span>
+            {/* The credit closes the dialog, under the licence it used to sit
+                above. */}
+            <div className="about-dialog__legal about-dialog__legal--stacked">
+              <p className="about-dialog__made-with">
+                {t.aboutFooterMadeWith}{" "}
+                <span className="about-dialog__heart" role="img" aria-label={t.aboutHeartLabel}>♥</span>{" "}
+                {t.aboutFooterByAuthor}
+              </p>
             </div>
           </div>
         </div>
