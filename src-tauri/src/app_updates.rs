@@ -25,7 +25,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tokio::sync::watch;
 
-pub(crate) const UPDATER_PLUGIN_VERSION: &str = "2.11.0";
+pub(crate) const UPDATER_PLUGIN_VERSION: &str = "2.13.1";
 pub(crate) const MANIFEST_BYTES_LIMIT: u64 = 256 * 1024;
 pub(crate) const NOTES_BYTES_LIMIT: usize = 16 * 1024;
 const HIGHLIGHTS_LIMIT: usize = 8;
@@ -1043,7 +1043,7 @@ async fn perform_check<R: Runtime>(app: &AppHandle<R>) -> CheckOutcome {
 
 impl BuildUpdateIdentity {
     fn current() -> Result<Self, UpdateError> {
-        debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.11.0");
+        debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.13.1");
         build_update_identity(
             env!("CARGO_PKG_VERSION"),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY").unwrap_or(""),
@@ -1820,7 +1820,11 @@ fn map_download_error(
         );
     }
     match error {
-        Error::Minisign(_) | Error::SignatureUtf8(_) | Error::Base64(_) => UpdateError::new(
+        Error::Minisign(_)
+        | Error::SignatureUtf8(_)
+        | Error::Base64(_)
+        | Error::SignedVersionMismatch { .. }
+        | Error::MissingSignedVersion => UpdateError::new(
             UpdateErrorCode::SignatureInvalid,
             UpdateStage::Verify,
             false,
@@ -2619,6 +2623,25 @@ mod tests {
             .code,
             UpdateErrorCode::PayloadTooLarge
         );
+    }
+
+    #[test]
+    fn signed_version_failures_are_verification_errors_without_untrusted_details() {
+        use tauri_plugin_updater::Error;
+
+        for error in [
+            Error::SignedVersionMismatch {
+                signed: "untrusted signed version".into(),
+                announced: "untrusted announced version".into(),
+            },
+            Error::MissingSignedVersion,
+        ] {
+            let mapped = map_download_error(error, 7, Some(7));
+            assert_eq!(mapped.code, UpdateErrorCode::SignatureInvalid);
+            assert_eq!(mapped.stage, UpdateStage::Verify);
+            assert!(!mapped.retryable);
+            assert!(mapped.safe_detail.is_none());
+        }
     }
 
     #[test]

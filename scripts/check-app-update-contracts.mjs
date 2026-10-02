@@ -140,7 +140,7 @@ assert.deepEqual(
   { endpoints: [], pubkey: "" },
   "the registered updater plugin needs a non-null config while release identity stays Rust-owned",
 );
-assert.match(cargoToml, /tauri-plugin-updater\s*=\s*"=2\.11\.0"/,
+assert.match(cargoToml, /tauri-plugin-updater\s*=\s*"=2\.13\.1"/,
   "the configured updater client API requires the exact reviewed plugin version");
 assert.match(cargoToml, /reqwest\s*=\s*\{[^\n]*default-features\s*=\s*false[^\n]*\}/,
   "GitOdile may name the plugin client's Reqwest types without enabling another default client");

@@ -39,7 +39,7 @@ runtime evidence:
   Windows to `nsis`, Linux to `appimage`, and disable macOS bundling. These
   settings select the intended package families without claiming that either
   installed updater path is already qualified;
-- resolved Tauri runtime / CLI versions are `2.11.6` / `2.11.5`;
+- resolved Tauri runtime / CLI versions are `2.12.1` / `2.12.1`;
 - at the original planning baseline neither updater plugin was installed, updater artifacts were
   disabled, no public key or endpoint was embedded, and the WebView had no
   updater or process capability;
@@ -54,15 +54,23 @@ runtime evidence:
   environments to the authenticated maintainer query on 2026-09-09. Its
   visibility is not a release trust boundary.
 
-The native implementation pins `tauri-plugin-updater` exactly at `2.11.0`
+The native implementation pins `tauri-plugin-updater` exactly at `2.13.1`
 and uses only its Rust API. No `@tauri-apps/plugin-updater` or process guest
 binding exists in the renderer. The pin is intentional because the plugin's
 official source warns that its HTTP dependency may change in minor releases
-when configuring the client. Task 065-9-3 re-reviewed that exact source; any
-future upgrade remains deliberate.
+when configuring the client. Task 145 reviewed the 2.13.1 source: Reqwest
+remains on 0.13, and the client callback still configures both checks and
+downloads after the plugin's defaults. The HTTPS/redirect/time limits, strict
+manifest validation, cancellation and installation admission remain app-owned.
+The plugin now verifies an artifact's signed version when its trusted comment
+contains one; a mismatch is reported as `signature_invalid` at verification.
+`requireSignedVersion` retains its default of false to accept signatures from
+earlier published releases. Requiring it needs a separate release-compatibility
+decision; no signing workflow is changed by this dependency update. Any future
+upgrade remains deliberate.
 
 Evidence: the current [Tauri updater guide](https://v2.tauri.app/plugin/updater/),
-the official [`updater-v2.11.0` source](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.11.0/plugins/updater/src/updater.rs),
+the official [`updater-v2.13.1` source](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.13.1/plugins/updater/src/updater.rs),
 and the repository lockfiles.
 
 ## Delivered native lifecycle
@@ -328,7 +336,7 @@ signature remain distinct. Cancellation is a normal `cancelled` state, not a
 failure and never an installable result.
 
 `http_status` is reachable only from a download. With the pinned
-`tauri-plugin-updater 2.11.0`, `check()` logs and discards a non-2xx feed
+`tauri-plugin-updater 2.13.1`, `check()` logs and discards a non-2xx feed
 response and ends in `ReleaseNotFound`, which GitOdile reports as
 `feed_unavailable` (retryable); the status code never reaches the app. The UI
 must not promise a status code for a failed check. The contract check and

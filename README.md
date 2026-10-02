@@ -280,7 +280,7 @@ hardcoded list:
 | Node.js | `>=24` |
 | pnpm | `pnpm@11.17.0` |
 | Rust | stable (`rust-toolchain.toml`) |
-| Tauri runtime / CLI | `2.11.6` / `2.11.5` |
+| Tauri runtime / CLI | `2.12.1` / `2.12.1` |
 | React / React DOM | `19.3.0` |
 | TypeScript | `6.0.3` (intentionally pinned; see ADR 0005) |
 | Vite / Vitest | `8.3.1` / `5.0.1` |
