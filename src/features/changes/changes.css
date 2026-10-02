@@ -656,12 +656,40 @@
   border-left: 1px solid var(--border-divider);
 }
 /* The diff's find, shared with History: an icon until it is asked for, then a
-   pill that grows into the room the strip has, up to a ceiling, and shrinks to
-   a floor before the path has to give up its last characters. The box follows
-   the wrapper's used width, so a tight strip narrows the find instead of
-   pushing the arrows and the picker off. */
-.changes-diff-find { display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 110px; max-width: clamp(160px, 20vw, 260px); }
-.changes-diff-find__box { flex: 0 1 auto; width: clamp(160px, 20vw, 260px); max-width: 100%; min-width: 0; }
+   field that drops below its magnifier in a popover. It is portalled to the
+   body by `usePortalFlyout`, so it escapes the header's clip and the strip it
+   left behind keeps its width — the arrows and the reading picker stay put
+   instead of being shoved sideways. */
+.changes-diff-find {
+  width: min(320px, calc(100vw - 24px));
+  min-width: 0;
+  max-width: none;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  z-index: 5;
+  /* It grows out of the magnifier it belongs to, wearing the same settle the
+     app's menus use. The shared `.search-box` colour transition is dropped
+     here: a field that lights up over 120ms while it is still arriving reads
+     as a slow double gesture rather than one pop. */
+  transform-origin: top right;
+  transition: none;
+  animation: titlebar-menu-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* The reverse, and deliberately shorter than the entrance: leaving should feel
+   like releasing the control, not a second thing to watch. The portal is kept
+   mounted for exactly this by `DiffFind`. */
+.changes-diff-find[data-state="closed"] {
+  animation: changes-diff-find-out 100ms ease-in both;
+  pointer-events: none;
+}
+@keyframes changes-diff-find-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.98) translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .changes-diff-find,
+  .changes-diff-find[data-state="closed"] { animation: none; }
+}
 /* Each pair reads as a pair: the arrows inside one sit closer to each other
    than the two pairs do to each other, which is the only thing left telling
    "previous/next file" from "previous/next change" now that neither carries a

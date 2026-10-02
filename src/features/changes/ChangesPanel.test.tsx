@@ -839,9 +839,12 @@ describe("ChangesPanel review controls", () => {
       expect(document.querySelector(".diff-search-match")).toHaveTextContent("fifty"),
     );
 
-    // The pill's single X ends the find and clears the highlight with it.
+    // The pill's single X ends the find and clears the highlight with it. The
+    // field plays a short exit before it unmounts, so the absence is awaited.
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "Search in the selected file's changes" })).toBeInTheDocument();
     expect(document.querySelector(".diff-search-match")).toBeNull();
   });

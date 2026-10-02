@@ -16,10 +16,12 @@ type Alignment = Parameters<typeof usePortalFlyout>[3];
 function Flyout({
   focusTarget,
   alignment = "below",
+  dismissOnViewportChange,
   children,
 }: {
   focusTarget?: FocusTarget;
   alignment?: Alignment;
+  dismissOnViewportChange?: boolean;
   children: ReactNode;
 }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,6 +32,7 @@ function Flyout({
     () => setIsOpen(false),
     alignment,
     focusTarget,
+    dismissOnViewportChange,
   );
 
   return (
@@ -194,5 +197,52 @@ describe("usePortalFlyout focus", () => {
     open();
 
     expect(seen).toEqual(["visible", "visible"]);
+  });
+});
+
+describe("usePortalFlyout viewport changes", () => {
+  it("dismisses on a scroll outside the popup by default", () => {
+    render(
+      <Flyout>
+        <button type="button" role="menuitem">
+          First item
+        </button>
+      </Flyout>,
+    );
+
+    open();
+    fireEvent.scroll(window);
+
+    expect(screen.queryByTestId("popup")).toBeNull();
+  });
+
+  it("dismisses on a resize by default", () => {
+    render(
+      <Flyout>
+        <button type="button" role="menuitem">
+          First item
+        </button>
+      </Flyout>,
+    );
+
+    open();
+    fireEvent(window, new Event("resize"));
+
+    expect(screen.queryByTestId("popup")).toBeNull();
+  });
+
+  it("outlives the scroll and re-anchors on a resize for a find box", () => {
+    render(
+      <Flyout focusTarget="first-control" dismissOnViewportChange={false}>
+        <input aria-label="Search" />
+      </Flyout>,
+    );
+
+    open();
+    fireEvent.scroll(window);
+    fireEvent(window, new Event("resize"));
+
+    expect(screen.getByTestId("popup")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Search" })).toHaveFocus();
   });
 });
