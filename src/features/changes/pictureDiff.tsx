@@ -446,7 +446,7 @@ export function PictureDiffBody({
               } as React.CSSProperties
             }
           >
-            <div className="image-diff__layer">
+            <div className="image-diff__layer image-diff__layer--before">
               <SideBody side={before} alt={beforeAlt} onMeasure={setBeforeSize} t={t} />
             </div>
             <div className="image-diff__layer image-diff__layer--after">

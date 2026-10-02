@@ -283,6 +283,28 @@ describe("changed images", () => {
     });
   });
 
+  it("marks the original layer so the overlay modes can share one picture box", async () => {
+    renderImage(imageDiff(), {
+      before: ready(PNG_BASE64, "image/png"),
+      after: ready(PNG_BASE64, "image/png"),
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "How to compare (Side by side)" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Swipe" }));
+
+    // The overlay styles size the stage from the updated picture and lay the
+    // original across that same box
+    // (`.image-diff__stage--swipe .image-diff__layer--before`). Without the
+    // class the original sizes the stage instead, and a change whose two
+    // versions measure differently lets the bigger one show through on the far
+    // side and the divider run past the picture. jsdom cannot measure layout,
+    // so this pins the hook the fix hangs on.
+    const stage = document.querySelector(".image-diff__stage--swipe");
+    expect(stage).not.toBeNull();
+    expect(stage?.querySelector(".image-diff__layer--after")).not.toBeNull();
+    expect(stage?.querySelector(".image-diff__layer--before")).not.toBeNull();
+  });
+
   it("says a version is too large instead of drawing an empty frame", async () => {
     renderImage(imageDiff(), {
       before: { kind: "too-large", byteLength: 20 * 1024 * 1024, limitBytes: 10 * 1024 * 1024 },

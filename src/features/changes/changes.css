@@ -908,12 +908,25 @@
 }
 .image-diff__status svg { width: 22px; height: 22px; }
 .image-diff__status--error { color: var(--status-danger); }
-/* The stage hugs the pictures: it is a grid item of the frame, so it is sized
-   by its content rather than stretched to the frame's width. Both layers then
-   fill that one cell — overlaying exactly, whatever the two pictures measure —
-   and the divider and the clip below are percentages of the same box. */
+/* The stage hugs the picture: it is a grid item of the frame, so it is sized by
+   its content rather than stretched to the frame's width, and the divider and
+   the clip below are percentages of that one box. */
 .image-diff__stage { position: relative; display: grid; max-width: 100%; }
 .image-diff__layer { grid-area: 1 / 1; display: grid; place-items: center; min-width: 0; }
+/* The updated picture is the one the divider reveals, so it is what sizes the
+   stage; the original is laid across that same box and fitted into it. Fitting
+   the two independently (each centred in a cell the *larger* picture sized)
+   left the smaller one short of the edges: the bigger picture showed through on
+   the far side and the divider could be dragged past the picture it was meant
+   to cut. Now both share one box, so the cut and the clip stay on the picture
+   whichever way the two versions measure. The original is only ever scaled
+   down, never up, so a picture that already fitted keeps its size. */
+.image-diff__stage--swipe .image-diff__layer--before,
+.image-diff__stage--fade .image-diff__layer--before { position: absolute; inset: 0; }
+.image-diff__stage--swipe .image-diff__layer--before .image-diff__image,
+.image-diff__stage--fade .image-diff__layer--before .image-diff__image {
+  max-width: 100%; max-height: 100%;
+}
 .image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
 /* The one piece of movement in this view, and it is a cross-fade of state,
    not decoration. The app-wide reduced-motion rule removes it. */
