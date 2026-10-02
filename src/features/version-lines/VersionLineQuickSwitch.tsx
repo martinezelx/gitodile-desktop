@@ -127,11 +127,15 @@ export function VersionLineQuickSwitch({
   useEffect(() => {
     if (actionLine) backRef.current?.focus();
   }, [actionLine]);
+  // The status-bar trigger sits at the left of its strip, so its menu grows
+  // right; Overview's control sits at the trailing end of the page header, so
+  // its menu backs off the trigger's right edge and grows left over the page
+  // instead of past the header. One component, two anchors.
   const { popupRef, style } = usePortalFlyout(
     isOpen,
     triggerRef,
     close,
-    "below",
+    variant === "status" ? "below" : "below-end",
     "first-control",
   );
   const Chevron = variant === "status" ? ChevronUp : ChevronDown;

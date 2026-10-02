@@ -40,14 +40,14 @@ export function DiffOptionPicker<Value extends string>({
   // a long path cannot push the reading controls off the strip. Absolute
   // positioning inside that clip cut the open menu down to the header's own
   // height, so it escaped the panel the way every other clipped trigger in
-  // the app does — `usePortalFlyout`. It opens below the trigger, left-aligned
-  // to it and clamped to the window, so at the strip's right edge it lands
-  // back over the diff.
+  // the app does — `usePortalFlyout`. It opens below the trigger, its right
+  // edge on the trigger's own, so at the strip's trailing end it grows back
+  // over the diff instead of spilling past the panel.
   const { popupRef: menuRef, style: menuStyle } = usePortalFlyout(
     isOpen,
     triggerRef,
     closeMenu,
-    "below",
+    "below-end",
   );
   const selected = options.find((option) => option.value === value) ?? options[0];
 
