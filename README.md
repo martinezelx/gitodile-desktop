@@ -291,6 +291,19 @@ GitOdile uses the system Git executable. Git **2.23 or newer** is required for
 version-line switching; diagnostics remain available when Git is missing or
 unusable.
 
+Settings → GitHub offers optional **GitHub CLI (`gh`)** diagnostics,
+installation and update guidance. Windows starts WinGet for the exact
+`GitHub.cli` package, with official instructions as a fallback; macOS and Linux
+open the official platform instructions. Local version checks require no
+GitHub account or network request. On macOS/Linux, detection checks `PATH`
+first, then standard Homebrew/local installation paths when the executable is
+missing. Windows update checks are explicit and
+cached for five minutes; other platforms use the official update instructions.
+An installer being started is not proof of installation: reopen GitOdile after
+installing to inherit the updated `PATH`. This prepares the dependency for
+future PRs and Actions; those screens and GitHub authentication are not yet
+implemented. `gh` is never required for ordinary local Git workflows.
+
 ## Requirements
 
 All platforms need Node.js 24+, Corepack/pnpm 11.17.0, Rust stable with

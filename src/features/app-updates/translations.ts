@@ -59,6 +59,22 @@ const dictionaries = {
       unavailable: "Not available for this installation",
       blocked: "Can't install yet",
     },
+    /* The short state word in the update row's chip, beside the app name; the
+       full sentence stays in the status line below it. */
+    chip: {
+      idle: "Not checked",
+      checking: "Checking",
+      current: "Up to date",
+      available: "Update available",
+      downloading: "Downloading",
+      verifying: "Verifying",
+      ready: "Ready to install",
+      blocked: "Can't install yet",
+      installing: "Installing",
+      cancelled: "Cancelled",
+      unavailable: "Not available",
+      failed: "Needs attention",
+    },
     errors: {
       offline: "Couldn't reach GitHub. Check your connection and try again.",
       timeout: "GitHub took too long to answer. Try again later.",
@@ -132,6 +148,22 @@ const dictionaries = {
       idle: "Sin comprobar",
       unavailable: "No disponible para esta instalación",
       blocked: "Todavía no se puede instalar",
+    },
+    /* The short state word in the update row's chip, beside the app name; the
+       full sentence stays in the status line below it. */
+    chip: {
+      idle: "Sin comprobar",
+      checking: "Comprobando",
+      current: "Al día",
+      available: "Actualización disponible",
+      downloading: "Descargando",
+      verifying: "Verificando",
+      ready: "Lista para instalar",
+      blocked: "No se puede instalar",
+      installing: "Instalando",
+      cancelled: "Cancelada",
+      unavailable: "No disponible",
+      failed: "Revisar",
     },
     errors: {
       offline: "No se pudo contactar con GitHub. Comprueba la conexión y reinténtalo.",

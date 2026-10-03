@@ -1315,8 +1315,8 @@
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .settings-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
-/* Only the two tones the identity notice can actually take. The Git action
-   notice uses the `git-install__status--*` scale instead. */
+/* Only the two tones the identity notice can actually take. The installation
+   rows use the `status-line--*` scale instead. */
 .settings-row__hint--success { color: var(--status-success); }
 .settings-row__hint--danger { color: var(--status-danger); }
 /* Not an error: the hooks switch uses this to say what "off" costs, which is a
@@ -1324,6 +1324,56 @@
 .settings-row__hint--warning { color: var(--status-warning); }
 .settings-row__hint--warning p { color: inherit; }
 .settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+
+/* The installable-or-updatable row, shared by Git, the optional GitHub CLI and
+   the application update. One skeleton per state so nothing moves between
+   them: a tile, the name and a state chip; a detail line; a status line and a
+   consequence hint (both collapse when empty, so the group separator follows
+   the real content); an optional recheck beside one contextual primary; and an
+   optional official guide under them. See DESIGN.md § Shape and § Size. */
+.tool-row { align-items: flex-start; }
+.tool-row__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.tool-row__head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; min-height: 28px; }
+.tool-row__tile {
+  width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-control); color: var(--text-primary-color);
+}
+.tool-row__tile svg { width: 16px; height: 16px; }
+/* The app's own mark is a wide head, so it sits a touch larger in the same
+   circle without the tile changing size; its aspect ratio sets the height. */
+.tool-row__tile .gitodile-mascot { width: 24px; height: auto; }
+.tool-row__name { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
+.tool-row__chip {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 1px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong);
+  line-height: var(--leading-snug); white-space: nowrap;
+}
+.tool-row__chip svg { width: 11px; height: 11px; }
+.tool-row__chip--success { color: var(--status-success); }
+.tool-row__chip--accent { color: var(--accent-primary); }
+.tool-row__chip--warning { color: var(--status-warning); }
+.tool-row__chip--danger { color: var(--status-danger); }
+.tool-row__detail { display: flex; align-items: center; min-height: 20px; }
+.tool-row__status { display: flex; align-items: center; }
+.tool-row__hint {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug);
+}
+.tool-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
+.tool-row__status:empty,
+.tool-row__hint:empty { display: none; }
+.tool-row__actions { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3); flex-shrink: 0; }
+.tool-row__buttons { padding-top: 2px; }
+.tool-row__buttons .primary-button { min-width: 176px; }
+.tool-row__docs-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: var(--accent-primary); font: inherit; font-size: var(--text-label); font-weight: var(--weight-strong);
+}
+.tool-row__docs-link:hover { text-decoration: underline; }
+.tool-row__docs-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
+.tool-row__docs-link svg { width: 13px; height: 13px; }
 
 /* A label-and-value row whose value is a version: "Installed version 2.47.0",
    Git's in its section and the app's own in Updates. The value is monospace
@@ -1407,6 +1457,9 @@
   .settings-view .segmented-control { flex-flow: row wrap; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
+  /* The tool row stacks too; its action column goes full width so the buttons
+     and the guide keep their order under the text. */
+  .tool-row__actions { width: 100%; align-items: flex-start; }
 }
 
 @media (pointer: coarse) {

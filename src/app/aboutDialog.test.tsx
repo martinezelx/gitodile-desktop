@@ -73,6 +73,10 @@ function buildProps(
       setReducedMotion: vi.fn(),
       section: "general",
       setSection: vi.fn(),
+      ghTooling: {
+        diagnostics: null, isRefreshingDiagnostics: false, updateStatus: null,
+        isCheckingUpdate: false, refreshDiagnostics: vi.fn(), checkUpdate: vi.fn(),
+      },
       gitTooling: {
         diagnostics: gitDiagnostics,
         updateStatus: null,

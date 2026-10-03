@@ -1717,3 +1717,23 @@ mod contract_tests {
         );
     }
 }
+
+#[tauri::command(async)]
+pub(crate) fn gh_diagnostics() -> GitDiagnostics {
+    report_value("gh_diagnostics", tooling::gh_diagnostics())
+}
+
+#[tauri::command(async)]
+pub(crate) fn install_gh() -> GitInstallationResult {
+    report_value("install_gh", tooling::install_gh())
+}
+
+#[tauri::command(async)]
+pub(crate) fn update_gh() -> GitUpdateLaunchResult {
+    report_value("update_gh", tooling::update_gh())
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_gh_update() -> GitUpdateStatus {
+    report_value("check_gh_update", tooling::check_gh_update())
+}

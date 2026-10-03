@@ -16,7 +16,7 @@ import {
 
 import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
-import { Dialog, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
+import { Dialog, Mascot, ReleaseHighlights, ToolInstallationRow, autoHideScrollbarProps, useModalFocus, type ToolChip } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
 import type { StartupUpdateConfirmation, UpdateCandidate, UpdateError, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
@@ -44,8 +44,6 @@ function formatPublishedAt(publishedAt: string | null, formats: LocaleFormats): 
 
 type StatusTone = "neutral" | "progress" | "success" | "accent" | "warning" | "danger";
 type StatusLine = { tone: StatusTone; icon: React.JSX.Element; message: string };
-
-const BUSY_STATES: ReadonlySet<UpdateState["kind"]> = new Set(["checking", "downloading", "verifying", "installing"]);
 
 /* The codes whose sentence sends the reader to the manual download. Anywhere
    else the download page cannot help — it is unreachable offline, and it does
@@ -205,6 +203,27 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
   );
 }
 
+/** The chip's short state word, so the row answers "what is this?" at a glance
+ * while the status line below says it in full. */
+function describeChip(state: UpdateState, language: Language): ToolChip {
+  const t = appUpdateTranslations(language);
+  const spinner = <LoaderCircle aria-hidden="true" className="icon--spinning" />;
+  switch (state.kind) {
+    case "idle": return { label: t.chip.idle, tone: "neutral" };
+    case "checking": return { label: t.chip.checking, tone: "neutral", icon: spinner };
+    case "current": return { label: t.chip.current, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> };
+    case "available": return { label: t.chip.available, tone: "accent", icon: <CircleArrowUp aria-hidden="true" /> };
+    case "downloading": return { label: t.chip.downloading, tone: "neutral", icon: spinner };
+    case "verifying": return { label: t.chip.verifying, tone: "neutral", icon: spinner };
+    case "ready": return { label: t.chip.ready, tone: "accent", icon: <ShieldCheck aria-hidden="true" /> };
+    case "blocked": return { label: t.chip.blocked, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> };
+    case "installing": return { label: t.chip.installing, tone: "neutral", icon: spinner };
+    case "cancelled": return { label: t.chip.cancelled, tone: "neutral" };
+    case "unavailable": return { label: t.chip.unavailable, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> };
+    case "failed": return { label: t.chip.failed, tone: "danger", icon: <CircleAlert aria-hidden="true" /> };
+  }
+}
+
 /** The Updates section of Settings: the installed build with its status and
  * actions, then the one switch for the startup check
  * — with the disclosure (GitHub, the 24-hour repeat for long sessions, what
@@ -214,6 +233,7 @@ export function AppUpdateSettingsControl({
   snapshot,
   controller,
   installed,
+  name,
   enabled,
   setEnabled,
   onOpenDialog,
@@ -221,6 +241,8 @@ export function AppUpdateSettingsControl({
   snapshot: AppUpdatesSnapshot;
   controller: AppUpdatesController;
   installed: InstalledRelease;
+  /** The product name for the row's identity line; the shell owns it. */
+  name: string;
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   onOpenDialog?: () => void;
@@ -228,37 +250,51 @@ export function AppUpdateSettingsControl({
   const { language } = useLanguage();
   const t = appUpdateTranslations(language);
   const state = snapshot.state;
-  const busy = BUSY_STATES.has(state.kind);
   const line = describeState(state, language);
   const detail = describeDetail(state, language);
-  /* "Details" opens the dialog, where the notes, the progress and the install
-     confirmation live. The cause of a failure is already in the row, so it
-     is offered only when the dialog has something the row does not. */
-  const hasDetails = onOpenDialog && DIALOG_STATES.has(state.kind);
+  /* Details opens the dialog, where the notes, the progress and the install
+     confirmation live. The cause of a failure is already in the row, so it is
+     offered only when the dialog has something the row does not. */
+  const hasDetails = onOpenDialog !== undefined && DIALOG_STATES.has(state.kind);
+  /* One contextual primary: the state's next step, always in the same place.
+     "Download" starts the transfer and opens the dialog, so the progress and
+     the cancel stay reachable. While a transfer or install runs, "Details"
+     reopens that dialog without starting another operation. Without a dialog
+     host, the busy state stays disabled. */
+  const primary =
+    state.kind === "checking"
+      ? { label: t.chip.checking, disabled: true, run: () => undefined, spinner: true }
+      : state.kind === "available"
+        ? { label: t.download, disabled: false, run: () => { onOpenDialog?.(); void controller.download(); }, spinner: false }
+        : hasDetails
+          ? { label: t.details, disabled: false, run: onOpenDialog, spinner: false }
+          : state.kind === "downloading" || state.kind === "verifying" || state.kind === "installing"
+            ? { label: t.chip[state.kind], disabled: true, run: () => undefined, spinner: true }
+            : { label: t.check, disabled: false, run: () => void controller.check(), spinner: false };
   /* Two groups, neither named after the tab it sits in: the build you have,
      and how the next one reaches you — today only the startup check. */
   return (
     <div className="settings-groups">
       <section className="settings-group">
-        <header className="settings-group__header"><h3>{t.installedLabel}</h3></header>
         <div className="settings-group__body">
-          <div className="settings-row">
-            <div className="app-update-settings__identity">
+          <ToolInstallationRow
+            mark={<Mascot variant="head" />}
+            name={name}
+            chip={describeChip(state, language)}
+            detail={
               <p className="version-line">
-                <span className="version-line__value">v{installed.version}</span>
+                <span className="version-line__label">{t.installedLabel}</span>
+                <span className="version-line__value">{installed.version}</span>
               </p>
-              <StatusLine line={line} cause={detail} />
-            </div>
-            <div className="settings-row__actions">
-              {hasDetails && (
-                <button className="secondary-button" type="button" onClick={onOpenDialog}>{t.details}</button>
-              )}
-              <button className="secondary-button" type="button" disabled={busy} onClick={() => void controller.check()}>
-                {state.kind === "checking" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <RotateCw aria-hidden="true" />}
-                {t.check}
+            }
+            status={<StatusLine line={line} cause={detail} />}
+            primaryAction={
+              <button className="primary-button" type="button" disabled={primary.disabled} onClick={primary.run}>
+                {primary.spinner && <LoaderCircle aria-hidden="true" className="icon--spinning" />}
+                {primary.label}
               </button>
-            </div>
-          </div>
+            }
+          />
         </div>
       </section>
       <section className="settings-group">

@@ -105,6 +105,7 @@ export type AppOverlaysProps = {
     section: SettingsSection;
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
+    ghTooling: GitToolingState;
     reopenLastProject: boolean;
     setReopenLastProject: BooleanSetter;
     confirmCloseProject: boolean;
@@ -409,6 +410,7 @@ export function AppOverlays({
               setProjectAvatarStyle={settings.setProjectAvatarStyle}
               activeSection={settings.section}
               onSectionChange={settings.setSection}
+              ghTooling={settings.ghTooling}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}
               onCheckGitUpdate={settings.gitTooling.checkUpdate}
@@ -445,6 +447,7 @@ export function AppOverlays({
                   snapshot={settings.appUpdates}
                   controller={settings.appUpdatesController}
                   installed={CURRENT_APP_RELEASE}
+                  name={`${PRODUCT_NAME_PARTS.lead}${PRODUCT_NAME_PARTS.tail}`}
                   enabled={settings.automaticAppUpdates ?? false}
                   setEnabled={settings.setAutomaticAppUpdates}
                   onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}

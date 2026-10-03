@@ -246,7 +246,7 @@ src-tauri/src/
   watch.rs                # filtered/debounced typed invalidation
   app_updates.rs          # bounded signed-update lifecycle and install handoff
   desktop.rs              # desktop-shell services
-  tooling.rs              # Git diagnostics, install/update, identity, line endings
+  tooling.rs              # Git/gh diagnostics, install/update; Git identity/line endings
   project_settings.rs     # one project's own identity and ignore files
   repository.rs
   clone.rs                # staged provider-neutral acquisition and verification
@@ -710,6 +710,43 @@ Performance comparison protocol and retained budgets live in the
 absent from normal development and production builds.
 
 ## Platform and security constraints
+
+### Optional GitHub CLI tooling
+
+The GitHub section of Settings owns machine-level `gh` readiness through its
+typed port and adapter. Git configuration stays in the separate Git section.
+`tooling.rs` shares fixed platform installation/update plans with Git while
+keeping each tool's launch guards and update cache independent. The renderer
+cannot provide executable paths, package IDs or command arguments. `gh --version`
+is a bounded, cancellable local probe with prompts/update notifications disabled;
+it never checks authentication or contacts GitHub. It first uses `PATH`; only
+a missing executable permits fixed fallbacks for standard Homebrew/local
+installation paths on macOS/Linux. A broken executable on `PATH` remains an
+error. No shell startup files are executed and process-wide `PATH` is unchanged.
+WinGet queries drain both
+output pipes concurrently with bounded retention and a 15-second deadline.
+Install/update helpers keep the native app-install blocker until their child
+exits. macOS/Linux provide official guidance rather than privileged package
+manager execution.
+
+The Settings tooling hook serializes local diagnostics and update checks. A
+changed version or unsuccessful local check invalidates its previous update
+answer. Manual checks supersede earlier action receipts, including responses
+from actions still in flight.
+
+Windows installs, upgrades and update queries pin the exact package to the
+`winget` source. Installation and upgrade share a per-tool launch guard until
+the helper exits. Git repair instructions remain available even when the
+executable is unusable; a browser failure can be retried. The macOS and Linux
+plans point to Git's current official installation pages, leaving package
+manager and privilege choices to the user.
+
+This is dependency readiness only. Future PRs/Actions need their own feature
+ports and GitHub domain, repository/session authorization, explicit network
+consent, bounded structured responses and authentication/error handling. They
+must not extend Settings into a generic `gh` execution endpoint or equate an
+installed CLI with an authenticated account. See
+[ADR 0020](adr/0020-prepare-optional-github-cli-tooling.md).
 
 ### Canonical product identity
 

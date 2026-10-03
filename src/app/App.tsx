@@ -651,6 +651,7 @@ export function App(): React.JSX.Element {
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
+  const ghTooling = useGitTooling(settingsPort, "gh");
   const issueReport = useIssueReport(readGitVersion(gitTooling.diagnostics));
   /* Read once after first paint and kept, like the Git diagnostics above.
      Owned here rather than inside the panel because the shell unmounts the
@@ -2925,6 +2926,7 @@ export function App(): React.JSX.Element {
           section: settingsSection,
           setSection: setSettingsSection,
           gitTooling,
+          ghTooling,
           reopenLastProject,
           setReopenLastProject,
           confirmCloseProject,

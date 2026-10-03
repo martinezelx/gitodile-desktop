@@ -79,13 +79,16 @@ describe("production style composition", () => {
     expect(versionLines).toContain("@media (max-width: 1024px)");
 
     const settings = readSource("features/settings/settings.css");
-    expect(settings).toContain(".git-install__status");
     expect(settings).toContain("@media (max-width: 800px)");
     // The panel chrome is shared by both settings panels (task 098), so it
     // belongs to the primitives sheet; only one of them may define it.
     expect(settings).not.toContain(".settings-layout {");
+    // The tool row is shared by Settings (Git, GitHub) and the app update row,
+    // so it lives in the primitives sheet, not in either feature.
+    expect(settings).not.toContain(".tool-row");
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
+    expect(primitiveChrome).toContain(".tool-row__chip");
     // No screen opens on a page row any more: Changes, History and Lines head
     // their list panels instead, so the shared row is gone and must not come
     // back as a private copy either.
@@ -735,17 +738,19 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Seven controls qualify:
+    // ordinary button keeps the platform arrow cursor. Eight controls qualify:
     // the update link and the licence/source pair in About, About's copy
     // control, About's stack credits (they leave the app for another site),
     // Save version's detail toggle, a dialog's inline way out ("Add in
-    // Settings", "Save without hooks just this once") and a toast's action.
-    // Anything else appearing here is the drift this guard exists to catch.
+    // Settings", "Save without hooks just this once"), a toast's action, and
+    // the installation row's official guide. Anything else appearing here is
+    // the drift this guard exists to catch.
     expect(pointerRules).toEqual([
       "app/app-shell.css: .about-dialog__update-link",
       "app/app-shell.css: .about-technical__copy",
       "app/app-shell.css: .about-dialog__legal button",
       "app/app-shell.css: .about-stack__item",
+      "shared/ui/primitives.css: .tool-row__docs-link",
       "shared/ui/primitives.css: .app-dialog__link",
       "shared/ui/primitives.css: .app-toast__action",
       "features/save-version/save-version.css: .save-version-detail__toggle",

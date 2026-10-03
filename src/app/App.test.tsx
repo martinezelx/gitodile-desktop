@@ -1079,7 +1079,7 @@ describe("App project restoration", () => {
     await user.type(screen.getByRole("combobox"), "Settings: Git");
     await user.keyboard("{Enter}");
     expect(
-      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: /Git/ }),
+      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: "Git" }),
     ).toHaveAttribute("aria-selected", "true");
 
     await user.keyboard("{Escape}");

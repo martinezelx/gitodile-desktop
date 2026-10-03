@@ -101,6 +101,18 @@ describe("desktop link permissions", () => {
     }
   });
 
+  it("lets Settings open the GitHub CLI instructions from Rust and the repair button", () => {
+    const sources = [
+      readSource("src-tauri/src/tooling.rs"),
+      readSource("src/features/settings/GhToolingSection.tsx"),
+    ];
+    const urls = sources.flatMap((source) => [...source.matchAll(/"(https:\/\/github\.com\/cli\/cli[^"\s]*)"/g)].map((match) => match[1]));
+    expect(new Set(urls).size).toBe(4);
+    for (const url of urls) {
+      expect(scopeAllows(openerScope(), url), url).toBe(true);
+    }
+  });
+
   it("lets About open the home page of every layer it credits", () => {
     // The chips are a claim the reader should be able to check, and an
     // unlisted host fails silently: the scope is where a new credit is most
@@ -134,7 +146,13 @@ describe("desktop link permissions", () => {
         { url: "https://github.com/martinezelx/gitodile/*" },
         { url: "https://github.com/martinezelx/gitodile-desktop" },
         { url: "https://github.com/martinezelx/gitodile-desktop/*" },
-        { url: "https://git-scm.com/download/*" },
+        { url: "https://git-scm.com/install/windows" },
+        { url: "https://git-scm.com/install/mac" },
+        { url: "https://git-scm.com/install/linux" },
+        { url: "https://github.com/cli/cli#installation" },
+        { url: "https://github.com/cli/cli#windows" },
+        { url: "https://github.com/cli/cli#macos" },
+        { url: "https://github.com/cli/cli/blob/trunk/docs/install_linux.md" },
         { url: "https://tauri.app/*" },
         { url: "https://react.dev/*" },
         { url: "https://www.rust-lang.org/*" },
@@ -143,6 +161,7 @@ describe("desktop link permissions", () => {
     for (const url of [
       "https://example.com/", "http://github.com/martinezelx/gitodile/issues/new",
       "https://github.com/other/tracker/issues/new", "file:///C:/private.txt", "mailto:user@example.com",
+      "https://github.com/cli/cli/issues/new", "https://git-scm.com/other",
     ]) {
       expect(scopeAllows(openerScope(), url)).toBe(false);
     }

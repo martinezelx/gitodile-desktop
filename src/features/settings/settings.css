@@ -206,13 +206,6 @@
   color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.git-install { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
-/* The version row and the toned status line moved to the primitives sheet
-   (`.version-line`, `.status-line`) when the application updater needed the
-   same two things about the app itself. What stays here is only Git's own
-   layout: the status hugs its text instead of stretching across the row. */
-.git-install .git-install__status { align-self: flex-start; }
-
 /* One stacked card per choice: each option is a sentence about what happens to
    files, which a segmented control has nowhere to put. */
 /* Provenance is context, not an alert: it reads as a caption under the list,

@@ -31,6 +31,10 @@ export interface SettingsTranslations {
   formatsNumberSpaceComma: string;
   formatsPreviewLabel: string;
   settingsGitTitle: string;
+  settingsGitHubTitle: string;
+  settingsGitToolDescription: string;
+  gitOfficialInstructions: string;
+  gitGuidanceFailed: string;
   settingsGitNeedsAttention: string;
   themeAriaLabel: string;
   settingsThemeDescription: string;
@@ -72,7 +76,7 @@ export interface SettingsTranslations {
   notificationsEventPublishedDescription: string;
   notificationsEventAppUpdateLabel: string;
   notificationsEventAppUpdateDescription: string;
-  settingsGitInstallationTitle: string;
+  settingsGitToolTitle: string;
   settingsGitInstalledVersionLabel: string;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
@@ -83,6 +87,41 @@ export interface SettingsTranslations {
   settingsGeneralInstallGit: string;
   settingsGeneralUpdate: string;
   gitStartingInstaller: string;
+  ghTitle: string;
+  ghDescription: string;
+  ghMissing: string;
+  ghUnusable: string;
+  ghCheckFailed: string;
+  ghInstall: string;
+  ghGuidanceOpened: string;
+  ghActionFailed: string;
+  ghInstallerLaunched: string;
+  ghUpdateUnavailable: string;
+  ghInstructions: string;
+  ghUpdateChecking: string;
+  ghUpdateUpToDate: string;
+  ghUpdateCheckFailed: string;
+  ghUpdateCheckTimedOut: string;
+  /** The shared installation row, used by Git and by the optional GitHub CLI. */
+  ghName: string;
+  ghChipMissing: string;
+  ghChipUnusable: string;
+  ghChipCheckFailed: string;
+  ghChipInstalled: string;
+  ghAccountTitle: string;
+  ghAccountDescription: string;
+  gitChipMissing: string;
+  gitChipUnusable: string;
+  gitChipCheckFailed: string;
+  gitChipInstalled: string;
+  settingsToolChipChecking: string;
+  settingsToolCheckingDetail: string;
+  settingsToolSearching: string;
+  settingsToolUpdateAvailableDetail: string;
+  settingsInstallGuided: string;
+  settingsInstallHintWindows: string;
+  settingsInstallHintGuided: string;
+  settingsUpdateHintWindows: string;
   gitInstallerLaunched: string;
   gitInstallerAlreadyStarting: string;
   gitInstallerFailedWithGuidance: string;
@@ -240,6 +279,10 @@ const en: SettingsTranslations = {
   formatsNumberSpaceComma: "Space groups",
   formatsPreviewLabel: "Example",
   settingsGitTitle: "Git",
+  settingsGitHubTitle: "GitHub",
+  settingsGitToolDescription: "Git saves your projects' versions; GitOdile uses this computer's installation.",
+  gitOfficialInstructions: "Official Git instructions",
+  gitGuidanceFailed: "Couldn't open the official Git instructions. Try again.",
   settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
   settingsThemeDescription: "Pick a theme, or follow your system.",
@@ -278,7 +321,7 @@ const en: SettingsTranslations = {
   notificationsEventPublishedDescription: "A receipt of what you sent.",
   notificationsEventAppUpdateLabel: "A newer version of the app is out",
   notificationsEventAppUpdateDescription: "Found at startup, and nothing downloads on its own.",
-  settingsGitInstallationTitle: "Installation",
+  settingsGitToolTitle: "Git on your computer",
   settingsGitInstalledVersionLabel: "Installed version",
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
@@ -289,6 +332,40 @@ const en: SettingsTranslations = {
   settingsGeneralInstallGit: "Install Git",
   settingsGeneralUpdate: "Update",
   gitStartingInstaller: "Starting…",
+  ghTitle: "GitHub on your computer",
+  ghDescription: "Optional. It will support pull requests and other GitHub features. Installing it does not sign you in.",
+  ghMissing: "Not installed on this computer.",
+  ghUnusable: "It was found, but it is not responding as expected.",
+  ghCheckFailed: "Couldn't check whether it is installed.",
+  ghInstall: "Install",
+  ghGuidanceOpened: "The official GitHub CLI instructions were opened.",
+  ghActionFailed: "The GitHub CLI action could not be completed. You can open the official instructions and try again.",
+  ghInstallerLaunched: "The installer has opened. Reopen GitOdile when it finishes.",
+  ghUpdateUnavailable: "Automatic update checks are unavailable here. Use the official instructions to update GitHub CLI.",
+  ghInstructions: "Official GitHub CLI guide",
+  ghUpdateChecking: "Checking for a GitHub CLI update…",
+  ghUpdateUpToDate: "GitHub CLI is up to date.",
+  ghUpdateCheckFailed: "Couldn't check for a GitHub CLI update. Try again later.",
+  ghUpdateCheckTimedOut: "The GitHub CLI update check took too long. Try again later.",
+  ghName: "GitHub tool",
+  ghChipMissing: "Not installed",
+  ghChipUnusable: "Not responding",
+  ghChipCheckFailed: "Unchecked",
+  ghChipInstalled: "Installed",
+  ghAccountTitle: "GitHub account",
+  ghAccountDescription: "Later you will be able to connect your account for pull requests. It is not needed to save versions or publish.",
+  gitChipMissing: "Not installed",
+  gitChipUnusable: "Not working",
+  gitChipCheckFailed: "Unchecked",
+  gitChipInstalled: "Installed",
+  settingsToolChipChecking: "Checking",
+  settingsToolCheckingDetail: "Checking the installation on this computer…",
+  settingsToolSearching: "Searching…",
+  settingsToolUpdateAvailableDetail: "A newer version is available.",
+  settingsInstallGuided: "How to install",
+  settingsInstallHintWindows: "The Windows installer opens and may ask for administrator permission.",
+  settingsInstallHintGuided: "The instructions open in your browser.",
+  settingsUpdateHintWindows: "The Windows installer opens to update it.",
   gitInstallerLaunched: "Installer started and may take a moment to appear. Reopen GitOdile when it's done.",
   gitInstallerAlreadyStarting: "The installer is already starting.",
   gitInstallerFailedWithGuidance: "The installer couldn't start, so the official Windows instructions were opened.",
@@ -444,6 +521,10 @@ const es: SettingsTranslations = {
   formatsNumberSpaceComma: "Grupos con espacio",
   formatsPreviewLabel: "Ejemplo",
   settingsGitTitle: "Git",
+  settingsGitHubTitle: "GitHub",
+  settingsGitToolDescription: "Git guarda las versiones de tus proyectos; GitOdile usa la instalación de este ordenador.",
+  gitOfficialInstructions: "Instrucciones oficiales de Git",
+  gitGuidanceFailed: "No se pudieron abrir las instrucciones oficiales de Git. Vuelve a intentarlo.",
   settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
   settingsThemeDescription: "Elige un tema o usa el del sistema.",
@@ -482,7 +563,7 @@ const es: SettingsTranslations = {
   notificationsEventPublishedDescription: "Un recibo de lo que enviaste.",
   notificationsEventAppUpdateLabel: "Versiones nuevas de la aplicación",
   notificationsEventAppUpdateDescription: "Se detecta al iniciar y no se descarga nada solo.",
-  settingsGitInstallationTitle: "Instalación",
+  settingsGitToolTitle: "Git en tu ordenador",
   settingsGitInstalledVersionLabel: "Versión instalada",
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
@@ -493,6 +574,40 @@ const es: SettingsTranslations = {
   settingsGeneralInstallGit: "Instalar Git",
   settingsGeneralUpdate: "Actualizar",
   gitStartingInstaller: "Iniciando…",
+  ghTitle: "GitHub en tu ordenador",
+  ghDescription: "Opcional. Servirá para las solicitudes de cambios y otras funciones de GitHub. Instalarla no inicia sesión.",
+  ghMissing: "No está instalada en este ordenador.",
+  ghUnusable: "Se encontró, pero no responde como se espera.",
+  ghCheckFailed: "No se pudo comprobar si está instalada.",
+  ghInstall: "Instalar",
+  ghGuidanceOpened: "Se abrieron las instrucciones oficiales de GitHub CLI.",
+  ghActionFailed: "No se pudo completar la acción de GitHub CLI. Puedes abrir las instrucciones oficiales y volver a intentarlo.",
+  ghInstallerLaunched: "Se ha abierto el instalador. Vuelve a abrir GitOdile al terminar.",
+  ghUpdateUnavailable: "Aquí no están disponibles las comprobaciones automáticas de actualizaciones. Usa las instrucciones oficiales para actualizar GitHub CLI.",
+  ghInstructions: "Guía oficial de GitHub CLI",
+  ghUpdateChecking: "Buscando una actualización de GitHub CLI…",
+  ghUpdateUpToDate: "GitHub CLI está al día.",
+  ghUpdateCheckFailed: "No se pudo buscar una actualización de GitHub CLI. Inténtalo más tarde.",
+  ghUpdateCheckTimedOut: "La búsqueda de una actualización de GitHub CLI tardó demasiado. Inténtalo más tarde.",
+  ghName: "Herramienta de GitHub",
+  ghChipMissing: "No instalada",
+  ghChipUnusable: "No responde",
+  ghChipCheckFailed: "Sin comprobar",
+  ghChipInstalled: "Instalada",
+  ghAccountTitle: "Cuenta de GitHub",
+  ghAccountDescription: "Más adelante podrás conectar tu cuenta para las solicitudes de cambios. No hace falta para guardar versiones ni publicar.",
+  gitChipMissing: "No instalado",
+  gitChipUnusable: "No funciona",
+  gitChipCheckFailed: "Sin comprobar",
+  gitChipInstalled: "Instalado",
+  settingsToolChipChecking: "Comprobando",
+  settingsToolCheckingDetail: "Comprobando la instalación en este ordenador…",
+  settingsToolSearching: "Buscando…",
+  settingsToolUpdateAvailableDetail: "Hay una versión más reciente.",
+  settingsInstallGuided: "Cómo instalar",
+  settingsInstallHintWindows: "Se abrirá el instalador de Windows y puede pedir permisos.",
+  settingsInstallHintGuided: "Se abrirán las instrucciones en tu navegador.",
+  settingsUpdateHintWindows: "Se abrirá el instalador de Windows para actualizar.",
   gitInstallerLaunched: "El instalador se ha iniciado y puede tardar un momento en aparecer. Vuelve a abrir GitOdile cuando termine.",
   gitInstallerAlreadyStarting: "El instalador ya se está iniciando.",
   gitInstallerFailedWithGuidance: "El instalador no pudo iniciarse, así que se abrieron las instrucciones oficiales para Windows.",

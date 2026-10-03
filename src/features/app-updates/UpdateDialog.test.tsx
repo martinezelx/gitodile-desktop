@@ -286,16 +286,50 @@ describe("application update dialog", () => {
           snapshot={{ state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false }}
           controller={controller()}
           installed={installed}
+          name="GitOdile"
           enabled={false}
           setEnabled={vi.fn()}
           onOpenDialog={vi.fn()}
         />
       </LanguageProvider>,
     );
-    expect(screen.getByRole("heading", { name: "Installed version" })).toBeInTheDocument();
+    expect(screen.getByText("Installed version")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "How you get updates" })).toBeInTheDocument();
     expect(screen.getByText("Updates aren't set up for this build.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+  });
+
+  it.each(["downloading", "verifying", "installing"] as const)("reopens update details during %s after closing the dialog", async (kind) => {
+    const user = userEvent.setup();
+    const appController = controller();
+    const state: AppUpdatesSnapshot["state"] = kind === "downloading"
+      ? { kind, candidate, transfer: { length: "unknown", receivedBytes: 100 } }
+      : kind === "verifying" ? { kind, candidate, receivedBytes: 100 }
+        : { kind, candidateId: candidate.candidateId };
+    function SettingsHarness() {
+      const [open, setOpen] = useState(true);
+      const snapshot = snapshotOf(state);
+      return <LanguageProvider>
+        <AppUpdateSettingsControl snapshot={snapshot} controller={appController}
+          installed={installed} name="GitOdile" enabled={false} setEnabled={vi.fn()}
+          onOpenDialog={() => setOpen(true)} />
+        <AppUpdateDialog isOpen={open} setOpen={setOpen} snapshot={snapshot}
+          controller={appController} installed={installed} />
+      </LanguageProvider>;
+    }
+    render(<SettingsHarness />);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    const dialog = screen.getByRole("dialog");
+    if (kind === "downloading") {
+      expect(within(dialog).getByRole("progressbar")).toBeInTheDocument();
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      expect(appController.cancel).toHaveBeenCalledOnce();
+    }
+    expect(appController.download).not.toHaveBeenCalled();
+    expect(appController.install).not.toHaveBeenCalled();
+    expect(appController.check).not.toHaveBeenCalled();
   });
 
   it("enables background checks only from the disclosed Settings switch", async () => {
@@ -308,13 +342,14 @@ describe("application update dialog", () => {
           snapshot={{ state: { kind: "idle" }, startupConfirmation: { kind: "none" }, automaticEnabled: false }}
           controller={appController}
           installed={installed}
+          name="GitOdile"
           enabled={false}
           setEnabled={setEnabled}
         />
       </LanguageProvider>,
     );
     expect(screen.getByText(/every 24 hours/)).toBeInTheDocument();
-    expect(screen.getByText("v0.3.0")).toBeInTheDocument();
+    expect(screen.getByText("0.3.0")).toBeInTheDocument();
     expect(appController.check).not.toHaveBeenCalled();
     await user.click(screen.getByRole("switch", { name: "Check for updates at startup" }));
     expect(setEnabled).toHaveBeenCalledWith(true);

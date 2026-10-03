@@ -355,7 +355,9 @@ The main desktop window should broadly support:
      specific cause the line says the cause instead — so "why is it
      unavailable" needs no click. "Details" opens the dialog only when it has
      something the row cannot say: a release, a transfer or an install to
-     confirm. The dialog says the same thing the same way: mark beside the
+     confirm. Details stays available during a download, verification or
+     installation, so closing the dialog never removes the way back to progress
+     and, while downloading, cancellation. The dialog says the same thing the same way: mark beside the
      title, everything on one left edge, one status line that is the cause
      when there is one. "How you get updates" holds
      no channel choice: every installation follows the one release feed
@@ -1680,6 +1682,15 @@ Rules:
   keeping every state change immediately visible; the operating-system
   preference is respected independently and never needs this switch to be on;
 - never delay an operation solely to show an animation;
+- Git and GitHub CLI installation cards use an icon-only recheck with a
+  localized tooltip and accessible name. A manual check spins the icon for
+  at least one 500ms turn, or while the probe remains active; results appear
+  immediately in the card. Reduced motion removes the spin and cosmetic delay.
+  Starting a new local or update check clears previous installation/guidance
+  receipts so they cannot hide its progress or result, including late responses
+  from earlier actions. While local diagnostics run, the primary action waits
+  for their result. An update answer belongs to the installed version that was
+  checked and is discarded when that version changes or cannot be established.
 - **one animation asks for attention, everywhere it is asked for:**
   `.attention-breathe` (primitives.css, tuned by `--attention-duration`,
   `--attention-spread` and `--attention-color` in tokens.css). A halo leaves

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,7 @@ import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
 import { SettingsPanel } from "./SettingsPanel";
+import { useGitTooling } from "./useGitTooling";
 import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
 import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection, ThemePreference } from "./domain";
@@ -14,8 +15,203 @@ import type { NavigationPreferences } from "./domain";
 
 afterEach(cleanup);
 
+describe("optional GitHub CLI tooling", () => {
+  it.each(["git", "github"] as const)("waits for %s diagnostics before offering an old version's update", async (section) => {
+    let finishRead!: (result: GitDiagnostics) => void;
+    const read = vi.fn<SettingsPort["readDiagnostics"]>()
+      .mockResolvedValueOnce({ state: "available", version: "2.80.0" })
+      .mockImplementationOnce(() => new Promise<GitDiagnostics>((resolve) => { finishRead = resolve; }));
+    const check = vi.fn<SettingsPort["checkUpdate"]>(async () => ({ state: "update_available", cached: false }));
+    const port = createPort(section === "git"
+      ? { readDiagnostics: read, checkUpdate: check }
+      : { readGhDiagnostics: read, checkGhUpdate: check });
+    renderToolingPanel(port, section);
+    await screen.findByText("2.80.0");
+    fireEvent.click(screen.getByRole("button", { name: "Check for updates" }));
+    const update = await screen.findByRole("button", { name: "Update" });
+    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    expect(update).toBeDisabled();
+    await act(async () => { finishRead({ state: "available", version: "2.81.0" }); });
+    expect(screen.queryByRole("button", { name: "Update" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Check for updates" })).toBeEnabled();
+    expect(port.updateGit).not.toHaveBeenCalled();
+    expect(port.updateGh).not.toHaveBeenCalled();
+  });
+
+  it.each(["git", "github"] as const)("ignores a late %s guide receipt after a newer update check", async (section) => {
+    let finishGuide: () => void = () => { throw new Error("guide not opened"); };
+    const port = createPort({
+      openGuidance: vi.fn(() => new Promise<void>((resolve, reject) => {
+        finishGuide = () => section === "git" ? reject(new Error("browser failed")) : resolve();
+      })),
+    });
+    renderToolingPanel(port, section);
+    await screen.findByText(section === "git" ? "2.45.0" : "2.80.0");
+    fireEvent.click(screen.getByRole("button", { name: section === "git" ? "Official Git instructions" : "Official GitHub CLI guide" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check for updates" }));
+    const currentResult = await screen.findByText(section === "git" ? "Git is up to date." : "GitHub CLI is up to date.");
+    await act(async () => { finishGuide(); });
+    expect(currentResult).toBeInTheDocument();
+    expect(screen.queryByText(section === "git"
+      ? "Couldn't open the official Git instructions. Try again."
+      : "The official GitHub CLI instructions were opened.")).toBeNull();
+  });
+
+  it.each([
+    ["git", "failed"], ["github", "failed"],
+    ["git", "up_to_date"], ["github", "up_to_date"],
+  ] as const)("replaces the previous %s guide notice with a %s update result", async (section, resultState) => {
+    let finishCheck: (result: GitUpdateStatus) => void = () => { throw new Error("check not started"); };
+    const check = vi.fn(() => new Promise<GitUpdateStatus>((resolve) => { finishCheck = resolve; }));
+    const port = createPort({
+      checkUpdate: check, checkGhUpdate: check,
+      openGuidance: section === "git"
+        ? vi.fn().mockRejectedValue(new Error("browser failed"))
+        : vi.fn(async () => undefined),
+    });
+    renderToolingPanel(port, section);
+    await screen.findByText(section === "git" ? "2.45.0" : "2.80.0");
+    fireEvent.click(screen.getByRole("button", { name: section === "git" ? "Official Git instructions" : "Official GitHub CLI guide" }));
+    const oldNotice = section === "git"
+      ? "Couldn't open the official Git instructions. Try again."
+      : "The official GitHub CLI instructions were opened.";
+    await screen.findByText(oldNotice);
+    fireEvent.click(screen.getByRole("button", { name: "Check for updates" }));
+    await screen.findByText(section === "git" ? "Checking for a Git update…" : "Checking for a GitHub CLI update…");
+    expect(screen.queryByText(oldNotice)).toBeNull();
+    finishCheck({ state: resultState, cached: false });
+    await screen.findByText(resultState === "failed"
+      ? section === "git" ? "Couldn't check for a Git update. Try again later." : "Couldn't check for a GitHub CLI update. Try again later."
+      : section === "git" ? "Git is up to date." : "GitHub CLI is up to date.");
+    expect(screen.queryByText(oldNotice)).toBeNull();
+    expect(check).toHaveBeenCalledOnce();
+  });
+
+  it.each(["git", "github"] as const)("clears the %s installer receipt when rechecking the local version", async (section) => {
+    const read = vi.fn<SettingsPort["readDiagnostics"]>()
+      .mockResolvedValueOnce({ state: "missing", version: null })
+      .mockResolvedValueOnce({ state: "check_failed", version: null });
+    const port = createPort(section === "git" ? { readDiagnostics: read } : { readGhDiagnostics: read });
+    renderToolingPanel(port, section);
+    fireEvent.click(await screen.findByRole("button", { name: section === "git" ? "Install Git" : "Install" }));
+    const receipt = await screen.findByText(section === "git"
+      ? "Installer started and may take a moment to appear. Reopen GitOdile when it's done."
+      : "The installer has opened. Reopen GitOdile when it finishes.");
+    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+    await screen.findByText(section === "git" ? "Couldn't check Git." : "Couldn't check whether it is installed.");
+    expect(receipt).not.toBeInTheDocument();
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["git", "github"] as const)("uses an icon-only recheck in the %s installation card", async (section) => {
+    const port = createPort();
+    renderPanel(port, { initialSection: section });
+    if (section === "github") await screen.findByText("2.80.0");
+    const button = screen.getByRole("button", { name: "Check again" });
+    expect(button.textContent).toBe("");
+    expect(button).toHaveAttribute("data-tooltip", "Check again");
+    expect(button.querySelector("svg")).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(button.querySelector("svg")).toHaveClass("icon--spinning");
+    if (section === "github") {
+      await waitFor(() => expect(port.readGhDiagnostics).toHaveBeenCalledTimes(2));
+    }
+  });
+
+  it("keeps GitHub in its own section and supports keyboard navigation", async () => {
+    renderPanel(createPort(), { initialSection: "git" });
+    expect(screen.queryByRole("region", { name: "GitHub on your computer" })).not.toBeInTheDocument();
+    const gitTab = screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ });
+    gitTab.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("tab", { name: "GitHub" })).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("region", { name: "GitHub on your computer" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "main" })).not.toBeInTheDocument();
+  });
+
+  it.each(["windows", "macos", "linux"] as const)("offers Git repair guidance for %s and retries browser failures", async (platform) => {
+    const port = createPort({
+      readPlatform: vi.fn(() => platform),
+      readDiagnostics: vi.fn(async () => ({ state: "unusable", version: null }) as GitDiagnostics),
+      openGuidance: vi.fn().mockRejectedValueOnce(new Error("browser failed")).mockResolvedValue(undefined),
+    });
+    renderPanel(port, { initialSection: "git" });
+    const button = screen.getByRole("button", { name: "Official Git instructions" });
+    fireEvent.click(button);
+    expect(await screen.findByText("Couldn't open the official Git instructions. Try again.")).toBeInTheDocument();
+    fireEvent.click(button);
+    const os = platform === "macos" ? "mac" : platform;
+    await waitFor(() => expect(port.openGuidance).toHaveBeenLastCalledWith(`https://git-scm.com/install/${os}`));
+    expect(port.installGit).not.toHaveBeenCalled();
+  });
+
+  it("reads only the local version on startup and keeps GitHub optional", async () => {
+    const port = createPort();
+    renderPanel(port, { initialSection: "github" });
+    const section = screen.getByRole("region", { name: "GitHub on your computer" });
+    expect(await within(section).findByText("2.80.0")).toBeInTheDocument();
+    expect(port.readGhDiagnostics).toHaveBeenCalledTimes(1);
+    expect(port.checkGhUpdate).not.toHaveBeenCalled();
+    expect(port.installGh).not.toHaveBeenCalled();
+  });
+
+  it("starts only the GitHub installer and does not claim installation finished", async () => {
+    const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
+    renderPanel(port, { initialSection: "github" });
+    const section = screen.getByRole("region", { name: "GitHub on your computer" });
+    fireEvent.click(await within(section).findByRole("button", { name: "Install" }));
+    await waitFor(() => expect(port.installGh).toHaveBeenCalledTimes(1));
+    expect(await within(section).findByText(/The installer has opened/)).toBeInTheDocument();
+    expect(port.installGit).not.toHaveBeenCalled();
+    expect(port.openGuidance).not.toHaveBeenCalled();
+  });
+
+  it.each(["macos", "linux"] as const)("opens native official instructions for %s", async (platform) => {
+    const url = platform === "macos" ? "https://github.com/cli/cli#macos" : "https://github.com/cli/cli/blob/trunk/docs/install_linux.md";
+    const port = createPort({
+      readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })),
+      installGh: vi.fn<SettingsPort["installGh"]>(async () => ({ outcome: "guidance", platform, guidanceUrl: url })),
+    });
+    renderPanel(port, { initialSection: "github" });
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+    await waitFor(() => expect(port.openGuidance).toHaveBeenCalledWith(url));
+    expect(await screen.findByText("The official GitHub CLI instructions were opened.")).toBeInTheDocument();
+  });
+
+  it("reports a browser failure and allows retrying official guidance", async () => {
+    const port = createPort({
+      readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })),
+      installGh: vi.fn<SettingsPort["installGh"]>(async () => ({ outcome: "guidance", platform: "linux", guidanceUrl: "https://github.com/cli/cli/blob/trunk/docs/install_linux.md" })),
+      openGuidance: vi.fn().mockRejectedValueOnce(new Error("browser failed")).mockResolvedValue(undefined),
+    });
+    renderPanel(port, { initialSection: "github" });
+    fireEvent.click(await screen.findByRole("button", { name: "Install" }));
+    expect(await screen.findByText(/The GitHub CLI action could not be completed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Official GitHub CLI guide" }));
+    expect(await screen.findByText("The official GitHub CLI instructions were opened.")).toBeInTheDocument();
+  });
+
+  it("checks and updates gh without triggering Git update actions", async () => {
+    const port = createPort({ checkGhUpdate: vi.fn<SettingsPort["checkGhUpdate"]>(async () => ({ state: "update_available", cached: false })) });
+    renderPanel(port, { initialSection: "github" });
+    const section = screen.getByRole("region", { name: "GitHub on your computer" });
+    await within(section).findByText("2.80.0");
+    fireEvent.click(within(section).getByRole("button", { name: "Check for updates" }));
+    fireEvent.click(await within(section).findByRole("button", { name: "Update" }));
+    await waitFor(() => expect(port.updateGh).toHaveBeenCalledTimes(1));
+    expect(port.checkUpdate).not.toHaveBeenCalled();
+    expect(port.updateGit).not.toHaveBeenCalled();
+  });
+});
+
 function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
   return {
+    readGhDiagnostics: vi.fn(async () => ({ state: "available", version: "2.80.0" }) as GitDiagnostics),
+    checkGhUpdate: vi.fn(async () => ({ state: "up_to_date", cached: false }) as GitUpdateStatus),
+    installGh: vi.fn(async () => ({ outcome: "started" as const, platform: "windows" as const, guidanceUrl: null })),
+    updateGh: vi.fn(async () => ({ outcome: "started" as const })),
     readDiagnostics: vi.fn(async () => ({ state: "available", version: "2.45.0" }) as GitDiagnostics),
     checkUpdate: vi.fn(async () => ({ state: "up_to_date", cached: false }) as GitUpdateStatus),
     installGit: vi.fn(async () => ({ outcome: "started" as const, platform: "windows" as const, guidanceUrl: null })),
@@ -36,6 +232,10 @@ function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
 }
 
 type PanelOverrides = Partial<{
+  onCheckGitUpdate: () => Promise<void>;
+  onRefreshGitDiagnostics: () => Promise<void>;
+  isCheckingGitUpdate: boolean;
+  isRefreshingGitDiagnostics: boolean;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
@@ -75,6 +275,7 @@ type PanelOverrides = Partial<{
 function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOverrides }): React.JSX.Element {
   const [section, setSection] = useState<SettingsSection>(overrides.initialSection ?? "general");
   const identity = useGitIdentity(port);
+  const ghTooling = useGitTooling(port, "gh");
   const defaultBranch = useDefaultBranch(port);
   const lineEndings = useLineEndings(
     port,
@@ -87,18 +288,19 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
   const [runGitHooks, setRunGitHooks] = useState(overrides.runGitHooks ?? false);
   return (
     <SettingsPanel
+      ghTooling={ghTooling}
       theme={overrides.theme ?? "system"}
       setTheme={overrides.setTheme ?? vi.fn()}
       reducedMotion={overrides.reducedMotion ?? false}
       setReducedMotion={overrides.setReducedMotion ?? vi.fn()}
       activeSection={section}
       onSectionChange={setSection}
-      gitDiagnostics={overrides.gitDiagnostics ?? { state: "available", version: "2.45.0" }}
+      gitDiagnostics={overrides.gitDiagnostics === undefined ? { state: "available", version: "2.45.0" } : overrides.gitDiagnostics}
       gitUpdateStatus={overrides.gitUpdateStatus ?? null}
-      onCheckGitUpdate={vi.fn(async () => undefined)}
-      isCheckingGitUpdate={false}
-      onRefreshGitDiagnostics={vi.fn(async () => undefined)}
-      isRefreshingGitDiagnostics={false}
+      onCheckGitUpdate={overrides.onCheckGitUpdate ?? vi.fn(async () => undefined)}
+      isCheckingGitUpdate={overrides.isCheckingGitUpdate ?? false}
+      onRefreshGitDiagnostics={overrides.onRefreshGitDiagnostics ?? vi.fn(async () => undefined)}
+      isRefreshingGitDiagnostics={overrides.isRefreshingGitDiagnostics ?? false}
       reopenLastProject={false}
       setReopenLastProject={overrides.setReopenLastProject ?? vi.fn()}
       confirmCloseProject={overrides.confirmCloseProject ?? false}
@@ -148,6 +350,23 @@ function renderPanel(port: SettingsPort, overrides: PanelOverrides = {}) {
   );
 }
 
+/** Use the shell's real Git tooling hook for checks whose result changes over time. */
+function renderToolingPanel(port: SettingsPort, section: "git" | "github") {
+  function ToolingHarness() {
+    const tooling = useGitTooling(port);
+    return <Harness port={port} overrides={{
+      initialSection: section,
+      gitDiagnostics: tooling.diagnostics,
+      gitUpdateStatus: tooling.updateStatus,
+      onCheckGitUpdate: tooling.checkUpdate,
+      onRefreshGitDiagnostics: tooling.refreshDiagnostics,
+      isCheckingGitUpdate: tooling.isCheckingUpdate,
+      isRefreshingGitDiagnostics: tooling.isRefreshingDiagnostics,
+    }} />;
+  }
+  return render(<LanguageProvider><ToolingHarness /></LanguageProvider>);
+}
+
 describe("Settings panel console section", () => {
   it("changes the console preferences it shows", async () => {
     const user = userEvent.setup();
@@ -189,6 +408,7 @@ describe("Settings panel native boundary", () => {
     function Shell(): React.JSX.Element {
       const [isOpen, setIsOpen] = useState(true);
       const identity = useGitIdentity(port);
+  const ghTooling = useGitTooling(port, "gh");
       const defaultBranch = useDefaultBranch(port);
       const lineEndings = useLineEndings(port, null, null);
       return (
@@ -197,7 +417,7 @@ describe("Settings panel native boundary", () => {
             toggle
           </button>
           {isOpen && (
-            <SettingsPanel
+            <SettingsPanel ghTooling={ghTooling}
               theme="system"
               setTheme={vi.fn()}
               reducedMotion={false}
@@ -271,16 +491,16 @@ describe("Settings panel native boundary", () => {
       installGit: vi.fn(async () => ({
         outcome: "guidance" as const,
         platform: "linux" as const,
-        guidanceUrl: "https://git-scm.com/download/linux",
+        guidanceUrl: "https://git-scm.com/install/linux",
       })),
     });
     renderPanel(port, { gitDiagnostics: { state: "missing", version: null } });
 
-    await userEvent.click(screen.getByRole("tab", { name: /Git/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Install Git" }));
 
     await waitFor(() => expect(port.installGit).toHaveBeenCalledTimes(1));
-    expect(port.openGuidance).toHaveBeenCalledWith("https://git-scm.com/download/linux");
+    expect(port.openGuidance).toHaveBeenCalledWith("https://git-scm.com/install/linux");
   });
 });
 
@@ -348,7 +568,7 @@ describe("Settings panel identity draft", () => {
       },
     });
 
-    await userEvent.click(screen.getByRole("tab", { name: /Git/ }));
+    await userEvent.click(screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ }));
     await userEvent.type(await screen.findByRole("textbox", { name: "Name" }), "Ada");
 
     // An email is still missing, so there is nothing to save and nothing to
@@ -1000,7 +1220,7 @@ describe("Settings panel section rail", () => {
   it("marks the Git section when the installation needs attention", () => {
     renderPanel(createPort(), { gitDiagnostics: { state: "missing", version: null } });
 
-    expect(screen.getByRole("tab", { name: /Git/ })).toContainElement(
+    expect(screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ })).toContainElement(
       screen.getByRole("img", { name: "Git needs attention" }),
     );
   });

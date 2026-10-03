@@ -49,7 +49,9 @@ terminated for app installation. Clone/create are global blockers even before
 a project exists, and the registry covers unrelated projects at once.
 
 `tooling.rs` is the only other production process owner. Read-only `winget`
-checks receive the ordinary drain token. A Windows Git install/update launches a
+checks and `gh --version` receive the ordinary drain token. `gh_diagnostics`
+and `check_gh_update` use `Drain`; `install_gh` and `update_gh` use `Block`, just
+like their Git counterparts. A Windows Git or GitHub CLI install/update launches a
 visible `winget` process that outlives its IPC response, so its reaper thread
 holds a second background `Block` guard until the child exits. No successful
 install admission can overlap that helper.

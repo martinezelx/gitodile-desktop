@@ -96,6 +96,7 @@ export const SETTINGS_SECTIONS = [
   "reading",
   "console",
   "git",
+  "github",
   "line-endings",
   "updates",
 ] as const;
@@ -118,6 +119,7 @@ export function settingsSectionLabel(
     settingsReadingTitle: string;
     settingsConsoleTitle: string;
     settingsGitTitle: string;
+    settingsGitHubTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
   },
@@ -130,6 +132,7 @@ export function settingsSectionLabel(
     reading: t.settingsReadingTitle,
     console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
+    github: t.settingsGitHubTitle,
     "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,
   };

@@ -131,3 +131,9 @@ export { StateGlyph, StateGlyphs, type StateGlyphTone } from "./stateGlyph";
    in the screen it happened in, the Work screen in the tab it happened in,
    and the root in a window that can still be reloaded — all with one notice. */
 export { ErrorBoundary, ViewErrorNotice, type ViewErrorLabels } from "./errorBoundary";
+/* ADR 0003's two-consumer bar (task 065): Settings' Git and GitHub installation
+   rows authored the skeleton — tile, name, state chip, detail, status, hint and
+   one contextual action — and the application update row needs the same
+   geometry so the three read as one grammar. What is shared is the surface;
+   which states and actions each tool has stays with its feature. */
+export { ToolInstallationRow, type ToolChip, type ToolChipTone } from "./toolInstallationRow";
