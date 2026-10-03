@@ -301,4 +301,21 @@ describe("theme contrast contract", () => {
     }
     expect(failures).toEqual([]);
   });
+
+  // A control sits *on* a raised card (DESIGN.md § semantic colors). If the two
+  // paint the same colour the control has no step of its own and disappears
+  // into the card it is part of - Solarized Dark and Catppuccin Frappé both
+  // shipped with that collision. The RGB distance is a rough perceptual step;
+  // the tightest passing theme (GitOdile Dark) measures about 8.
+  it("keeps the control surface a visible step from the raised surface", () => {
+    const failures: string[] = [];
+    for (const block of blocks) {
+      const { hex } = paletteOf(block);
+      const raised = hex("--surface-raised");
+      const control = hex("--surface-control");
+      const step = Math.hypot(raised[0] - control[0], raised[1] - control[1], raised[2] - control[2]);
+      if (step < 6) failures.push(`${block.id}: --surface-control is only ${step.toFixed(1)} from --surface-raised`);
+    }
+    expect(failures).toEqual([]);
+  });
 });
