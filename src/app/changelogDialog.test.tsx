@@ -33,7 +33,7 @@ function TriggerAndDialog(): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <LanguageProvider>
-      <button type="button" onClick={() => setIsOpen(true)}>v{__APP_VERSION__}</button>
+      <button type="button" onClick={() => setIsOpen(true)}>{__APP_VERSION__}</button>
       <ChangelogDialog isOpen={isOpen} setOpen={setIsOpen} />
     </LanguageProvider>
   );
@@ -132,7 +132,7 @@ describe("Changelog dialog", () => {
     const releases = [CURRENT_APP_RELEASE, ...APP_CHANGELOG.filter((release) => release !== CURRENT_APP_RELEASE)];
     for (const [index, release] of releases.entries()) {
       const element = rendered[index]!;
-      expect(within(element).getByRole("heading", { name: `v${release.version}` })).toBeInTheDocument();
+      expect(within(element).getByRole("heading", { name: release.version })).toBeInTheDocument();
       if (release.date === null) {
         expect(element.querySelector("time")).toBeNull();
       } else {
@@ -153,18 +153,18 @@ describe("Changelog dialog", () => {
 
     const current = screen.getByText("Your version");
     expect(current).toHaveClass("changelog-release__current");
-    expect(current.closest(".changelog-current")).toHaveTextContent(`v${CURRENT_APP_RELEASE.version}`);
+    expect(current.closest(".changelog-current")).toHaveTextContent(CURRENT_APP_RELEASE.version);
   });
 
   it("opens the running build's notes and keeps earlier releases to one counted line", async () => {
     renderDialog();
-    const currentHeading = screen.getByRole("heading", { name: `v${CURRENT_APP_RELEASE.version}` });
+    const currentHeading = screen.getByRole("heading", { name: CURRENT_APP_RELEASE.version });
     // The running build is not a disclosure: its notes are the answer.
     expect(currentHeading.closest("button")).toBeNull();
 
     const earlier = APP_CHANGELOG.find((release) => release !== CURRENT_APP_RELEASE && release.highlights.length > 1);
     if (earlier === undefined) return;
-    const disclosure = screen.getByRole("heading", { name: `v${earlier.version}` }).closest("button") as HTMLElement;
+    const disclosure = screen.getByRole("heading", { name: earlier.version }).closest("button") as HTMLElement;
     expect(disclosure).toHaveTextContent(`${earlier.highlights.length} changes`);
     expect(disclosure).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(disclosure);
@@ -182,7 +182,7 @@ describe("Changelog dialog", () => {
     const first = APP_CHANGELOG.find((entry) => entry.version === "0.1.0")!;
     if (first !== CURRENT_APP_RELEASE) {
       await userEvent.click(within(dialog).getByRole("button", {
-        name: (accessibleName) => accessibleName.includes("v0.1.0"),
+        name: (accessibleName) => accessibleName.includes("0.1.0"),
       }));
     }
     expect(within(dialog).getByText(first.highlights[0]!.es)).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe("Changelog dialog", () => {
 
   it("returns focus to whatever opened it", async () => {
     render(<TriggerAndDialog />);
-    const trigger = screen.getByRole("button", { name: `v${__APP_VERSION__}` });
+    const trigger = screen.getByRole("button", { name: __APP_VERSION__ });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("dialog", { name: "What's new" })).toBeInTheDocument();

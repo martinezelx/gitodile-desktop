@@ -397,7 +397,7 @@ describe("About dialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
-    expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
+    expect(dialog.querySelector(".about-dialog__version")?.textContent).toBe(__APP_VERSION__);
     expect(dialog.querySelector(".about-dialog__version")).toHaveAccessibleName(
       `GitOdile ${__APP_VERSION__}`,
     );

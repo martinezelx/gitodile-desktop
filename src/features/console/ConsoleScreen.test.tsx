@@ -106,6 +106,7 @@ describe("ConsoleScreen", () => {
     expect(welcome?.querySelector(".console-art")).toHaveAttribute("aria-hidden", "true");
     expect(welcome).toHaveTextContent(/projectDemo/);
     expect(welcome).toHaveTextContent(/linemain/);
+    expect(within(welcome as HTMLElement).getByText(__APP_VERSION__, { exact: true })).toBeInTheDocument();
     expect(welcome).toHaveTextContent(/git2\.47\.1/);
     expect(welcome).toHaveTextContent(/moderead-only/);
     expect(welcome).not.toHaveTextContent(/look · diff/);

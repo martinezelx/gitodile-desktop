@@ -61,7 +61,7 @@ function isUnconfirmedRestart(state: UpdateState): boolean {
 }
 
 /** The native side sends an empty expected version when the handoff record
- * itself could not be read; the sentence then says so without a bare "v". */
+ * itself could not be read; the sentence then omits the unknown version. */
 function unconfirmedMessage(confirmation: StartupUpdateConfirmation, language: Language): string {
   const t = appUpdateTranslations(language);
   const version = confirmation.kind === "unconfirmed" ? confirmation.expectedVersion.trim() : "";
@@ -183,7 +183,7 @@ function CandidateDetails({ candidate, language }: { candidate: UpdateCandidate;
   return (
     <section className="app-update-candidate" aria-labelledby="app-update-candidate-title">
       <div className="app-update-candidate__identity">
-        <h3 id="app-update-candidate-title">v{candidate.version}</h3>
+        <h3 id="app-update-candidate-title">{candidate.version}</h3>
         {publishedAt && candidate.publishedAt && (
           <time className="app-update-candidate__date" dateTime={candidate.publishedAt}>{publishedAt}</time>
         )}

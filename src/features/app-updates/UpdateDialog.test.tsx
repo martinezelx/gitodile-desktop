@@ -56,6 +56,8 @@ describe("application update dialog", () => {
       render(<Harness snapshot={{ state: { kind: "available", candidate: { ...candidate, highlights } }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} />);
       await user.click(screen.getByRole("button", { name: "Open" }));
       const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText("Versión instalada: 0.3.0")).toBeInTheDocument();
+      expect(within(dialog).getByRole("heading", { name: "0.3.1" })).toBeInTheDocument();
       const list = within(dialog).getByRole("list");
       expect(within(list).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
         "Actualizaciones más rápidas.",
@@ -95,8 +97,8 @@ describe("application update dialog", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
     // The title is the state, and the installed build is the line under it.
     const dialog = screen.getByRole("dialog", { name: "A new version is available" });
-    expect(within(dialog).getByText("You have v0.3.0")).toBeInTheDocument();
-    expect(within(dialog).getByRole("heading", { name: "v0.3.1" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Installed version: 0.3.0")).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "0.3.1" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Download (38 MB)" })).toBeInTheDocument();
   });
 
@@ -146,7 +148,7 @@ describe("application update dialog", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
     const dialog = screen.getByRole("dialog", { name: "The update didn't finish" });
     expect(within(dialog).getAllByRole("status")).toHaveLength(1);
-    expect(within(dialog).getByRole("status")).toHaveTextContent("The app restarted, but not on v0.3.1. Check again or use the manual download.");
+    expect(within(dialog).getByRole("status")).toHaveTextContent("The app restarted, but not on version 0.3.1. Check again or use the manual download.");
     expect(within(dialog).queryByText(/Updated to/)).toBeNull();
     expect(within(dialog).queryByText(/did not confirm/)).toBeNull();
     expect(within(dialog).getByRole("button", { name: "Manual download" })).toBeInTheDocument();
@@ -221,7 +223,7 @@ describe("application update dialog", () => {
     const user = userEvent.setup();
     render(<Harness snapshot={snapshotOf({ kind: "verifying", candidate, receivedBytes: 1_048_576 })} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    const dialog = screen.getByRole("dialog", { name: "Verifying v0.3.1" });
+    const dialog = screen.getByRole("dialog", { name: "Verifying 0.3.1" });
     expect(within(dialog).getByRole("progressbar", { name: "Verifying the download…" })).toBeInTheDocument();
     expect(within(dialog).getByText("Verifying the download…", { selector: "span" })).toBeVisible();
   });

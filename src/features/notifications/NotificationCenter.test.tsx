@@ -116,7 +116,7 @@ describe("the titlebar notification centre", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("v0.3.0 is available")).toBeInTheDocument();
+    expect(within(panel).getByText("New version available: 0.3.0")).toBeInTheDocument();
     expect(within(panel).getByText("Found at startup, and nothing has been downloaded.")).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "View update" }));
 

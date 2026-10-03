@@ -526,7 +526,7 @@ export function AppOverlays({
                 occupies, so the identity block below is only the mark, the name
                 and the promise. */}
             <p className="about-dialog__version" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
-              v{CURRENT_APP_RELEASE.version}
+              {CURRENT_APP_RELEASE.version}
             </p>
             <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
             {/* The mark at hero scale, then the name, then the promise. The

@@ -762,7 +762,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                       </>] : null,
                     ]} />
                     <WelcomeSection title={t.consoleWelcomeEnvironmentSection} tone="environment" rows={[
-                      [<SquareTerminal key="i" />, "gitodile", `v${__APP_VERSION__}`],
+                      [<SquareTerminal key="i" />, "gitodile", __APP_VERSION__],
                       gitVersion ? [<GitCommitHorizontal key="i" />, t.consoleWelcomeGit, gitVersion] : null,
                       [<Palette key="i" />, t.consoleWelcomeTheme, activeThemeName(theme)],
                       [<Eye key="i" />, t.consoleWelcomeMode, mode === "read-only" ? modeLabel : <span className={`console-welcome__mode console-welcome__mode--${mode}`}>{modeLabel}</span>],

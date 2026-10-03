@@ -381,7 +381,7 @@ The main desktop window should broadly support:
      offered only where the cause's sentence recommends it — never offline,
      after a timeout or for an edit the reader can finish. The first launch
      after an install reports how it went without asking for anything when
-     it worked: a toast says "Updated to vX.Y.Z" and, when that version has
+     it worked: a toast says "Updated to X.Y.Z" and, when that version has
      highlights, offers "See what's new". Only a restart on the wrong version
      opens the dialog, under its own title, with one sentence, a fresh check
      and the manual download. Determinate and indeterminate progress use the
@@ -1963,6 +1963,15 @@ honestly ("continues in your browser") and never say "securely" or "seamless".
 ## Content design
 
 The interface should explain Git in plain language while preserving technical truth.
+
+**Application versions use the plain number.** Show `X.Y.Z` without a `v`
+prefix in About, What's new, the status bar, Settings, update dialogs,
+notifications, Console, tooltips and accessible names. Badges and release
+headings need only the number where their context identifies it. Prose uses
+"version" / "versión" when needed: "Installed version: 0.3.1" / "Versión
+instalada: 0.3.1", never "You have v0.3.1" / "Tienes la v0.3.1". Technical
+identifiers such as Git tags, release URLs and highlights filenames retain
+their exact format; this rule concerns app-owned presentation text.
 
 Good:
 

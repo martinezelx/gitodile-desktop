@@ -34,7 +34,7 @@ describe("startup update receipt", () => {
     const onOpenWhatsNew = vi.fn();
     const onOpenDialog = vi.fn();
     renderReceipt({ confirmation: { kind: "confirmed", version: "0.3.1" }, onOpenWhatsNew, onOpenDialog });
-    expect(screen.getByText("Updated to v0.3.1")).toBeInTheDocument();
+    expect(screen.getByText("Updated to 0.3.1")).toBeInTheDocument();
     expect(onOpenDialog).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "See what's new" }));
     expect(onOpenWhatsNew).toHaveBeenCalledOnce();
@@ -42,7 +42,7 @@ describe("startup update receipt", () => {
 
   it("offers nothing to open when the version has no highlights", () => {
     renderReceipt({ confirmation: { kind: "confirmed", version: "0.3.1" }, onOpenDialog: vi.fn() });
-    expect(screen.getByText("Updated to v0.3.1")).toBeInTheDocument();
+    expect(screen.getByText("Updated to 0.3.1")).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
   });
 

@@ -137,9 +137,9 @@ describe("StatusBar", () => {
       const onOpenAppUpdate = vi.fn();
       renderBar({ appUpdate: { kind: "current", checkedAt: "2026-10-01T00:00:00Z" }, onOpenChangelog, onOpenAppUpdate });
 
-      const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__}` });
+      const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` });
       expect(release).toHaveClass("status-bar__release--quiet");
-      expect(release).toHaveTextContent(`v${__APP_VERSION__}`);
+      expect(release).toHaveTextContent(__APP_VERSION__);
       await userEvent.click(release);
       expect(onOpenChangelog).toHaveBeenCalledOnce();
       expect(onOpenAppUpdate).not.toHaveBeenCalled();
@@ -150,9 +150,9 @@ describe("StatusBar", () => {
       const onOpenAppUpdate = vi.fn();
       renderBar({ appUpdate: { kind: "available", candidate }, onOpenChangelog, onOpenAppUpdate });
 
-      const release = screen.getByRole("button", { name: "New version: v9.9.9 · Open updates" });
+      const release = screen.getByRole("button", { name: "New version: 9.9.9 · Open updates" });
       expect(release).toHaveClass("status-bar__release--action");
-      expect(release).toHaveTextContent("New version: v9.9.9");
+      expect(release).toHaveTextContent("New version: 9.9.9");
       await userEvent.click(release);
       expect(onOpenAppUpdate).toHaveBeenCalledOnce();
       expect(onOpenChangelog).not.toHaveBeenCalled();
@@ -161,7 +161,7 @@ describe("StatusBar", () => {
     it("asks for the restart once the download is ready", () => {
       renderBar({ appUpdate: { kind: "ready", candidate }, onOpenAppUpdate: vi.fn() });
 
-      const release = screen.getByRole("button", { name: "Ready to install · New version: v9.9.9" });
+      const release = screen.getByRole("button", { name: "Ready to install · New version: 9.9.9" });
       expect(release).toHaveTextContent("Ready to install");
     });
 
@@ -171,9 +171,9 @@ describe("StatusBar", () => {
         onOpenAppUpdate: vi.fn(),
       });
 
-      const release = screen.getByRole("button", { name: `v${__APP_VERSION__} · Downloading v9.9.9 · 42%` });
-      expect(release).toHaveAttribute("data-tooltip", "Downloading v9.9.9 · 42%");
-      expect(release).toHaveTextContent(`v${__APP_VERSION__}`);
+      const release = screen.getByRole("button", { name: `${__APP_VERSION__} · Downloading 9.9.9 · 42%` });
+      expect(release).toHaveAttribute("data-tooltip", "Downloading 9.9.9 · 42%");
+      expect(release).toHaveTextContent(__APP_VERSION__);
     });
 
     it("never reports more than the whole download", () => {
@@ -182,13 +182,13 @@ describe("StatusBar", () => {
         onOpenAppUpdate: vi.fn(),
       });
 
-      expect(screen.getByRole("button", { name: /Downloading v9\.9\.9 · 100%$/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Downloading 9\.9\.9 · 100%$/ })).toBeInTheDocument();
     });
 
     it("keeps a build without updates looking at rest", () => {
       renderBar({ appUpdate: { kind: "unavailable", error: { code: "not_configured", stage: "check", retryable: false } } });
 
-      const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__} · Updates unavailable` });
+      const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__} · Updates unavailable` });
       expect(release).toHaveClass("status-bar__release--quiet");
     });
 
@@ -196,14 +196,14 @@ describe("StatusBar", () => {
       renderBar({ appUpdate: { kind: "current", checkedAt: "2026-10-01T00:00:00Z" }, hasUnseenWhatsNew: true });
 
       expect(
-        screen.getByRole("button", { name: `Updated to v${__APP_VERSION__} · See what's new` }),
-      ).toHaveTextContent(`v${__APP_VERSION__}`);
+        screen.getByRole("button", { name: `Updated to ${__APP_VERSION__} · See what's new` }),
+      ).toHaveTextContent(__APP_VERSION__);
     });
 
     it("lets an action outrank unseen notes", () => {
       renderBar({ appUpdate: { kind: "available", candidate }, hasUnseenWhatsNew: true, onOpenAppUpdate: vi.fn() });
 
-      expect(screen.getByRole("button", { name: "New version: v9.9.9 · Open updates" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "New version: 9.9.9 · Open updates" })).toBeInTheDocument();
     });
   });
 
@@ -217,8 +217,8 @@ describe("StatusBar", () => {
     });
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__}` });
-    expect(release).toHaveTextContent(`v${__APP_VERSION__}`);
+    const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` });
+    expect(release).toHaveTextContent(__APP_VERSION__);
     await userEvent.click(release);
     expect(onOpenChangelog).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();

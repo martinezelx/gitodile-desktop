@@ -498,10 +498,10 @@ describe("App project restoration", () => {
 
     // The version tag is the changelog's entry point; About is in the menu.
     await userEvent.click(
-      within(statusBar).getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__}` }),
+      within(statusBar).getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` }),
     );
     const changelog = screen.getByRole("dialog", { name: "What's new" });
-    expect(within(changelog).getByRole("heading", { name: `v${__APP_VERSION__}` })).toBeInTheDocument();
+    expect(within(changelog).getByRole("heading", { name: __APP_VERSION__ })).toBeInTheDocument();
     expect(within(changelog).getByText("Your version")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 

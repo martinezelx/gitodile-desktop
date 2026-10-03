@@ -55,7 +55,7 @@ const en: NotificationsTranslations = {
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
-  notificationAppUpdateTitle: (version) => `v${version} is available`,
+  notificationAppUpdateTitle: (version) => `New version available: ${version}`,
   notificationAppUpdateDescription: "Found at startup, and nothing has been downloaded.",
   notificationAppUpdateAction: "View update",
 };
@@ -88,7 +88,7 @@ const es: NotificationsTranslations = {
   notificationChangesPublishedTitle: (count) =>
     count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
-  notificationAppUpdateTitle: (version) => `Nueva versión disponible: v${version}`,
+  notificationAppUpdateTitle: (version) => `Nueva versión disponible: ${version}`,
   notificationAppUpdateDescription: "Detectada al iniciar, sin descargar nada.",
   notificationAppUpdateAction: "Ver actualización",
 };

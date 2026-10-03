@@ -309,7 +309,7 @@ export function StatusBar({
   const { t, formats, language } = useLanguage();
   const release = releaseTag(appUpdate, hasUnseenWhatsNew, language, t);
   const releaseText = release.label ?? t.statusBarVersion(CURRENT_APP_RELEASE.version);
-  // The accessible name keeps the visible words, so "click v0.3.1" still
+  // The accessible name keeps the visible words, so "click 0.3.1" still
   // finds the button while the tooltip talks about a download.
   const releaseName = release.description.includes(releaseText)
     ? release.description
