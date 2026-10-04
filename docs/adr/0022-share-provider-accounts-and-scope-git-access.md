@@ -48,8 +48,10 @@ Each Git transfer uses process-only, exact-HTTPS-host credential-helper settings
 The helper validates protocol, exact host, username and bounded input before
 secret lookup. Repeated array attributes such as `capability[]` and `wwwauth[]`
 are valid in [Git's credential wire format](https://git-scm.com/docs/git-credential#IOFMT)
-and are ignored by this password-only helper; duplicate scalar fields still fail
-closed. Its store/erase operations do nothing. Failure sends `quit=true`
+and are ignored by this password-only helper. Unused attributes are discarded
+without interpreting opaque bytes; duplicate protocol, host or username fields
+still fail closed, as do NUL bytes or invalid identity values. Its store/erase
+operations do nothing. Failure sends `quit=true`
 using [Git's helper protocol](https://git-scm.com/docs/gitcredentials) so other
 helpers and askpass cannot silently replace the selected identity. Query only
 HTTP configuration key names and mask matching path-specific extra headers for
@@ -57,6 +59,8 @@ the process; unsupported wildcard header scopes fail closed. No global/project G
 configuration is written, and SSH/other hosts retain their configured access.
 Existing provider remote URLs with embedded sign-in details are refused when a
 project account is selected, because those URLs would bypass Git's helper.
+HTTP and nonstandard HTTPS ports for that same provider are also refused because
+they do not match the helper's standard HTTPS scope. SSH retains configured keys.
 The common Git runner disables inherited Git trace output. Clone plans bind the
 selected identity to their fingerprint and save its binding only after the
 verified destination is published; a preference failure reports the completed

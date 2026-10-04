@@ -1,11 +1,59 @@
 //! Real Git's helper protocol against the actual desktop binary, with a fake
 //! gh executable. No real account, network, keychain or configuration is used.
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+/// A loopback-only Git endpoint that challenges authentication, then advertises an empty
+/// repository. It accepts only the fixture account; no real secret is involved.
+fn serve_auth_challenge(listener: TcpListener) -> bool {
+    listener.set_nonblocking(true).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while Instant::now() < deadline {
+        let (mut stream, _) = match listener.accept() {
+            Ok(connection) => connection,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            Err(_) => return false,
+        };
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let mut request = Vec::new();
+        let mut chunk = [0; 1024];
+        while request.len() < 8192 && !request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+            let count = stream.read(&mut chunk).unwrap();
+            if count == 0 {
+                return false;
+            }
+            request.extend_from_slice(&chunk[..count]);
+        }
+        let authenticated = String::from_utf8_lossy(&request).lines().any(|line| {
+            line.split_once(':').is_some_and(|(name, value)| {
+                name.eq_ignore_ascii_case("Authorization")
+                    && value.trim()
+                        == "Basic SW5hY3RpdmVVc2VyOmZpeHR1cmVfc2VjcmV0X2Zvcl9pbmFjdGl2ZV9hY2NvdW50"
+            })
+        });
+        if authenticated {
+            let body = "001e# service=git-upload-pack\n00000000";
+            write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/x-git-upload-pack-advertisement\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            return true;
+        }
+        stream.write_all(b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=fixture\r\nWWW-Authenticate: Basic\trealm=second-fixture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+    }
+    false
 }
 
 #[test]
@@ -91,6 +139,48 @@ fn main() {
         .windows(b"password=fixture_secret_for_inactive_account".len())
         .any(|w| w == b"password=fixture_secret_for_inactive_account"));
     assert!(!root.join("empty.gitconfig").exists());
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = std::thread::spawn(move || serve_auth_challenge(listener));
+    // Only this fixture translates loopback HTTP into the adapter's fixed HTTPS
+    // host. Real Git generates capabilities and WWW-Authenticate attributes;
+    // production's host/protocol checks remain unchanged.
+    let http_helper = format!(
+        "!sed -e 's/^protocol=http$/protocol=https/' -e 's/^host=127[.]0[.]0[.]1:{port}$/host=github.com/' | {} --gitodile-credential-helper github:InactiveUser",
+        quote(&executable.to_string_lossy().replace('\\', "/"))
+    );
+    let http = Command::new("git")
+        .args([
+            "-c",
+            "credential.helper=",
+            "-c",
+            &format!("credential.helper={http_helper}"),
+            "-c",
+            "credential.username=InactiveUser",
+            "-c",
+            "credential.useHttpPath=true",
+            "-c",
+            "http.proxy=",
+            "ls-remote",
+            &format!("http://127.0.0.1:{port}/fixture.git"),
+        ])
+        .env("PATH", &path)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", root.join("empty.gitconfig"))
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .current_dir(&root)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(
+        server.join().unwrap(),
+        "Git did not authenticate with the fixture identity"
+    );
+    assert!(
+        http.status.success(),
+        "Loopback Git challenge failed: {}",
+        String::from_utf8_lossy(&http.stderr)
+    );
     // HTTP authentication (unlike a basic `credential fill`) supplies multiple
     // capabilities. Exercise the actual desktop parser with that wire request.
     let mut challenged = Command::new(&executable)
@@ -104,7 +194,7 @@ fn main() {
         .spawn()
         .unwrap();
     challenged.stdin.take().unwrap().write_all(
-        b"capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nusername=InactiveUser\nwwwauth[]=Basic realm=GitHub\n\n",
+        b"capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nusername=InactiveUser\nwwwauth[]=Basic\trealm=GitHub\nfuture=first\nfuture=second\nstate[]=opaque-\xff\n\n",
     ).unwrap();
     let challenged = challenged.wait_with_output().unwrap();
     assert!(challenged.status.success());
@@ -121,6 +211,10 @@ fn main() {
         (
             helper.replace("github:InactiveUser", "github:MissingUser"),
             "protocol=https\nhost=github.com\nusername=MissingUser\n\n",
+        ),
+        (
+            helper.clone(),
+            "protocol=https\nhost=github.com\nusername=other-user\n\n",
         ),
     ] {
         let mut denied = Command::new("git")

@@ -406,11 +406,17 @@ fn validate_url(raw_url: &str, hosts: &[&str]) -> Result<(), AppError> {
     let Ok(url) = reqwest::Url::parse(raw_url) else {
         return Ok(());
     };
-    if url.scheme() == "https"
-        && url.host_str().is_some_and(|host| hosts.contains(&host))
-        && (!url.username().is_empty() || url.password().is_some() || url.query().is_some())
-    {
-        return Err(error().with_remediation("Remove embedded sign-in details from the remote address before using this project's selected account."));
+    if url.host_str().is_some_and(|host| hosts.contains(&host)) {
+        if url.scheme() == "http" || (url.scheme() == "https" && url.port().is_some()) {
+            // Git's exact HTTPS helper scope does not match HTTP or other ports.
+            // Refuse those URLs instead of falling back to another account.
+            return Err(error().with_remediation("Use this provider's standard HTTPS address to access it with the selected account."));
+        }
+        if url.scheme() == "https"
+            && (!url.username().is_empty() || url.password().is_some() || url.query().is_some())
+        {
+            return Err(error().with_remediation("Remove embedded sign-in details from the remote address before using this project's selected account."));
+        }
     }
     Ok(())
 }
@@ -575,20 +581,29 @@ pub(crate) fn helper(
     let adapter = providers.iter().find(|p| p.id() == provider).ok_or(())?;
     let mut bytes = Vec::new();
     input.take(8193).read_to_end(&mut bytes).map_err(|_| ())?;
-    if bytes.len() > 8192 {
+    if bytes.len() > 8192 || bytes.contains(&0) {
         return Err(());
     }
-    let input = std::str::from_utf8(&bytes).map_err(|_| ())?;
     let mut fields = BTreeMap::new();
-    for line in input.lines().take_while(|line| !line.is_empty()) {
-        let (key, value) = line.split_once('=').ok_or(())?;
+    for line in bytes
+        .split(|byte| *byte == b'\n')
+        .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
+        .take_while(|line| !line.is_empty())
+    {
+        let separator = line.iter().position(|byte| *byte == b'=').ok_or(())?;
+        let (key, value) = (&line[..separator], &line[separator + 1..]);
+        // Git discards unsupported attributes. Only these scalar fields govern
+        // our password lookup; opaque extensions and HTTP challenges may repeat
+        // and need not be UTF-8. Never interpret them as identity or echo them.
+        if !matches!(key, b"protocol" | b"host" | b"username") {
+            continue;
+        }
+        let key = std::str::from_utf8(key).map_err(|_| ())?;
+        let value = std::str::from_utf8(value).map_err(|_| ())?;
         if value.chars().any(char::is_control) {
             return Err(());
         }
-        // Git's array attributes (capability[], wwwauth[], state[]) may repeat.
-        // This password-only helper does not negotiate those extensions. Ignore
-        // their values, but keep scalar identity fields unambiguous and bounded.
-        if !key.ends_with("[]") && fields.insert(key, value).is_some() {
+        if fields.insert(key, value).is_some() {
             return Err(());
         }
     }
@@ -788,6 +803,11 @@ mod tests {
             "protocol=https\nhost=gitlab.com\n\n",
             "protocol=https\nhost=github.com\nusername=someone-else\n\n",
             "protocol=https\nhost=github.com\nhost=evil.test\n\n",
+            "protocol=https\nprotocol=https\nhost=github.com\n\n",
+            "protocol=https\nhost=github.com\nusername=Personal\nusername=Personal\n\n",
+            "protocol=https\nhost=github.com\nusername=Personal\t\n\n",
+            "protocol=https\nhost=github.com\nextension=bad\0value\n\n",
+            "protocol[]=https\nhost=github.com\n\n",
             "capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nhost=evil.test\n\n",
             "url=https://github.com\n\n",
         ] {
@@ -832,6 +852,23 @@ mod tests {
             output,
             b"username=Personal\npassword=test-secret-for-Personal\n\n"
         );
+    }
+
+    #[test]
+    fn git_wire_variants_ignore_opaque_extensions_without_changing_identity() {
+        let adapter = provider("github", "github.com");
+        let adapters: Vec<Arc<dyn AccessProvider>> = vec![adapter.clone()];
+        for input in [
+            &b"protocol=https\nhost=github.com\n"[..],
+            &b"protocol=https\r\nhost=GITHUB.COM:443\r\nusername=personal\r\n\r\n"[..],
+            &b"protocol=https\nhost=github.com\nusername=\npath=team/repo.git\n\n"[..],
+            &b"protocol=https\nhost=github.com\nwwwauth[]=Basic\trealm=GitHub\nfuture=value\nfuture=another\nstate[]=opaque-\xff\n\n"[..],
+        ] {
+            let mut output = Vec::new();
+            helper(&adapters, "github:Personal", OsStr::new("get"), input, &mut output).unwrap();
+            assert_eq!(output, b"username=Personal\npassword=test-secret-for-Personal\n\n");
+        }
+        assert_eq!(adapter.reads.load(Ordering::SeqCst), 4);
     }
 
     #[test]
@@ -934,6 +971,8 @@ mod tests {
             "https://user:fixture_secret@github.com/team/repo.git",
             "https://user@github.com/team/repo.git",
             "https://github.com/team/repo.git?token=fixture_secret",
+            "https://github.com:8443/team/repo.git",
+            "http://github.com/team/repo.git",
         ] {
             assert!(validate_transfer_urls(
                 &[OsString::from("fetch"), OsString::from(url)],
@@ -947,6 +986,7 @@ mod tests {
         }
         for url in [
             "https://github.com/team/repo.git",
+            "https://github.com:443/team/repo.git",
             "git@github.com:team/repo.git",
             "https://other:fixture_secret@gitlab.com/team/repo.git",
         ] {
