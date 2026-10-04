@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
-  "description": "Minimal permissions for the main GitOdile window. `opener:allow-open-url` enables the command but carries no scope of its own, so every destination the app can actually open is listed explicitly: the public issue tracker, the source repository and licence, the official Git and GitHub CLI installation pages, and the home pages of the four projects About credits in \"Built with\".",
+  "description": "Minimal permissions for the main GitOdile window. `opener:allow-open-url` enables the command but carries no scope of its own, so every destination the app can actually open is listed explicitly: the public issue tracker, the source repository and licence, the official Git and GitHub CLI installation pages, GitHub device authorization, and the home pages of the four projects About credits in \"Built with\".",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -21,6 +21,7 @@
         { "url": "https://git-scm.com/install/mac" },
         { "url": "https://git-scm.com/install/linux" },
         { "url": "https://github.com/cli/cli#installation" },
+        { "url": "https://github.com/login/device" },
         { "url": "https://github.com/cli/cli#windows" },
         { "url": "https://github.com/cli/cli#macos" },
         { "url": "https://github.com/cli/cli/blob/trunk/docs/install_linux.md" },

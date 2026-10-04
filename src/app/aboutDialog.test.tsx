@@ -66,6 +66,7 @@ function buildProps(
       copyLink: vi.fn(),
     },
     settings: {
+      githubAuth: { snapshot: { state: "unchecked", account: null, accounts: [], operationId: null, deviceCode: null, verificationUrl: null, needsCheck: false, signedOutAccount: null }, pending: false, browserFailed: false, check: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), activate: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn() },
       ...closedOverlay,
       theme: "system",
       setTheme: vi.fn(),

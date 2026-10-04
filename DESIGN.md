@@ -1905,6 +1905,42 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
+**GitHub integration is a separate connection.** Settings → GitHub keeps the
+account body first and the tooling row below it. Detection explicitly contacts GitHub;
+opening the section renders cached state only. List saved accounts with the
+active account first. Reuse the installation row: a small circular cached avatar,
+username and status chip on the left, actions aligned to the far right, and the
+host beneath the identity. Use a neutral person glyph if the image fails;
+retain a known identity on network failure without labeling it connected, and
+offer explicit checks. Label the active verified account Connected and inactive
+verified accounts Saved. Use account selects a saved account without another
+browser login; each row offers targeted sign-out, and Connect another account
+appears below the list. Explain that selecting or removing an account changes
+the shared gh session. Browser connection first explains the shared gh session,
+repository permissions and possible plaintext fallback. Its inline waiting panel
+has a selectable device code, Copy, Open GitHub and Cancel, with keyboard focus
+on Continue when consent opens. Cancellation does not promise unchanged
+authorization: gh may already have persisted it.
+
+Cloning a registered provider's HTTPS URL and the project's remote settings
+share an accessible account selector. Default to existing Git credentials and
+require an explicit choice to bind a saved account. Show the chosen identity in
+the clone preview and preserve an unavailable selection visibly rather than
+switching to another account. Explain that project access does not switch gh's
+active account, alter commit authorship or configure SSH. Detect/check buttons
+are explicit network actions; opening the selector reads cached state only.
+
+Sign out opens an inline confirmation naming the exact account and explaining
+that other gh consumers lose that local credential, while browser sessions and
+GitHub authorization remain active. Another saved account may be activated by gh.
+Initially focus Not now; dismissal returns focus to its row's Sign out. Escape
+dismisses an inline confirmation before closing Settings. Restore actionable
+focus after account changes. Disable mutation
+for environment-controlled credentials. After removal, show the actual next
+account or offer Connect GitHub. Never use this button as an OAuth-revocation action.
+See
+[ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md).
+
 A GitOdile account is optional and only unlocks Pro or connected services
 ([`BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md)); the mechanism is
 [ADR 0016](docs/adr/0016-sign-in-through-the-system-browser.md). The design

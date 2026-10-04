@@ -9,12 +9,16 @@ mod architecture;
 mod changes;
 mod clone;
 mod console;
+mod credentials;
 mod desktop;
 mod diagnostics;
+mod encoding;
 mod error;
 mod git;
 mod git_command;
+mod github_auth;
 mod history;
+pub mod hosting;
 mod index;
 mod initialize;
 mod ipc;
@@ -72,11 +76,20 @@ pub fn run() {
         .manage(watch::WatcherRegistry::default())
         .manage(clone::CloneOperationRegistry::default())
         .manage(history::HistoryReadCache::default())
+        .manage(github_auth::GitHubAuthService::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            let github = app
+                .state::<github_auth::GitHubAuthService>()
+                .inner()
+                .clone();
+            app.manage(credentials::install(
+                app.path().app_config_dir()?.join("account-selections.json"),
+                hosting::providers(github),
+            ));
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
             Ok(())
@@ -118,6 +131,16 @@ pub fn run() {
             ipc::restore_discarded_changes,
             ipc::delete_discard_recovery,
             ipc::gh_diagnostics,
+            ipc::get_account_catalog,
+            ipc::check_account_catalog,
+            ipc::read_project_account,
+            ipc::set_project_account,
+            ipc::get_github_auth_state,
+            ipc::check_github_auth,
+            ipc::start_github_login,
+            ipc::cancel_github_auth,
+            ipc::logout_github_account,
+            ipc::switch_github_account,
             ipc::install_gh,
             ipc::update_gh,
             ipc::check_gh_update,

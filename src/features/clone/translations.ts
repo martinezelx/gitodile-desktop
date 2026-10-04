@@ -43,6 +43,8 @@ export interface CloneTranslations {
   cloneOpenFailedTitle: string;
   cloneOpenFailedDescription: string;
   cloneRetryOpen: string;
+  cloneAccountNotSavedTitle: string;
+  cloneAccountNotSavedDescription: string;
   cloneProgressTitleNamed: (name: string) => string;
   cloneStep: (step: "downloading" | "checking" | "opening") => string;
   cloneCancelledDescription: string;
@@ -105,6 +107,8 @@ const en: CloneTranslations = {
   cloneOpenFailedTitle: "The project was cloned but couldn't be opened",
   cloneOpenFailedDescription: "It's safe on disk, so retry opening it without cloning again.",
   cloneRetryOpen: "Retry opening",
+  cloneAccountNotSavedTitle: "The project was cloned; its account needs setup",
+  cloneAccountNotSavedDescription: "Your project is complete in the folder below, but its account selection could not be saved. Do not clone it again. Open this folder from Projects and select its account in project settings before getting or publishing changes.",
   cloneDependencyNotice: (submodules, lfs) =>
     submodules === "not-detected" && lfs === "not-detected"
       ? "No submodules or Git LFS found."
@@ -167,6 +171,8 @@ const es: CloneTranslations = {
   cloneOpenFailedTitle: "El proyecto se clonó, pero no se pudo abrir",
   cloneOpenFailedDescription: "Está a salvo en el disco, así que reintenta abrirlo sin volver a clonar.",
   cloneRetryOpen: "Reintentar apertura",
+  cloneAccountNotSavedTitle: "El proyecto se clonó; falta configurar su cuenta",
+  cloneAccountNotSavedDescription: "Tu proyecto está completo en la carpeta indicada, pero no se pudo guardar la cuenta elegida. No vuelvas a clonarlo. Abre esta carpeta desde Proyectos y selecciona su cuenta en los ajustes del proyecto antes de obtener o publicar cambios.",
   cloneDependencyNotice: (submodules, lfs) =>
     submodules === "not-detected" && lfs === "not-detected"
       ? "No se encontraron submódulos ni Git LFS."

@@ -8,6 +8,7 @@ import { CloneDialog } from "./CloneDialog";
 import { createCloneController } from "./controller";
 import type { ClonePlan, CloneResult } from "./domain";
 import type { ClonePort } from "./port";
+import type { AccountsPort } from "../accounts";
 
 const planFixture: ClonePlan = {
   operationKind: "local-mutation",
@@ -41,7 +42,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderDialog(portOverrides: Partial<ClonePort> = {}) {
+function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: AccountsPort) {
   const port: ClonePort = {
     chooseParent: async () => null,
     plan: async () => planFixture,
@@ -59,6 +60,7 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}) {
     <LanguageProvider>
       <CloneDialog
         isOpen
+        accountPort={accountPort}
         controller={createCloneController(port)}
         onClose={onClose}
         onVerifiedClone={onVerifiedClone}
@@ -82,6 +84,45 @@ afterEach(() => {
 });
 
 describe("CloneDialog", () => {
+  it.each([false, true])("keeps a completed clone when account persistence fails (cleanup: %s)", async (needsCleanup) => {
+    const execute = vi.fn<ClonePort["execute"]>(async () => ({ ...result, accountSelectionSaved: false,
+      outcome: needsCleanup ? "cleanup-required" : "completed", cleanupPath: needsCleanup ? "C:\\projects\\temporary" : null }));
+    const cleanup = vi.fn<ClonePort["cleanup"]>(async () => undefined);
+    const { onVerifiedClone } = renderDialog({ execute, cleanup });
+    await enterAndReview();
+    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
+    if (needsCleanup) await userEvent.click(await screen.findByRole("button", { name: "Retry cleanup" }));
+    expect(await screen.findByRole("heading", { name: "The project was cloned; its account needs setup" })).toBeInTheDocument();
+    expect(screen.getByText(/Do not clone it again/)).toBeInTheDocument();
+    expect(screen.getByText(result.destinationPath)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(onVerifiedClone).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledTimes(needsCleanup ? 1 : 0);
+  });
+
+  it("binds the reviewed identity through execution and explains its project access", async () => {
+    const accountPort: AccountsPort = {
+      readCatalog: vi.fn().mockResolvedValue({ providers: [{id: "github", host: "github.com"}], busy: false,
+        accounts: [{id: "github:work", provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true}] }),
+      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn(),
+    };
+    const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, sourceDisplay: "https://github.com/team/project.git", accountId: "github:work" }));
+    const execute = vi.fn<ClonePort["execute"]>(async () => result);
+    renderDialog({ plan, execute }, accountPort);
+    await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://github.com/team/project.git");
+    await userEvent.selectOptions(await screen.findByRole("combobox"), "github:work");
+    await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
+    await userEvent.click(screen.getByRole("button", {name: "Review"}));
+    expect(await screen.findByText("@work")).toBeInTheDocument();
+    expect(plan.mock.calls[0][0]).toMatchObject({accountId: "github:work"});
+    expect(screen.getByText(/GitOdile uses the selected account/, {ignore: false})).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", {name: "Clone and open"}));
+    await waitFor(() => expect(execute).toHaveBeenCalled());
+    expect(execute.mock.calls[0][0]).toMatchObject({accountId: "github:work"});
+    expect(accountPort.check).not.toHaveBeenCalled();
+  });
+
   it("previews consequences, verifies, then hands the destination to the normal open lifecycle", async () => {
     const { onClose, onVerifiedClone } = renderDialog();
     await waitFor(() => expect(screen.getByPlaceholderText("https://example.com/team/project.git")).toHaveFocus());

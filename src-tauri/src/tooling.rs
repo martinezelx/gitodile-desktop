@@ -207,6 +207,11 @@ fn gh_probe_programs(platform: GitInstallationPlatform) -> &'static [&'static st
     }
 }
 
+/// Shared fixed discovery policy for machine-level GitHub authentication.
+pub(crate) fn gh_program_candidates() -> &'static [&'static str] {
+    gh_probe_programs(current_installation_platform())
+}
+
 fn probe_gh(programs: &[&str], mut probe: impl FnMut(&str) -> ProcessAttempt) -> ProcessAttempt {
     for program in programs {
         let attempt = probe(program);

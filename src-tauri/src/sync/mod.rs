@@ -805,7 +805,13 @@ pub(crate) fn run_git_networked(
     let started = Instant::now();
     let result = git::run_with_env(
         Some(Path::new(repo_path)),
-        args,
+        crate::git_command::prepare_transfer_args(
+            Some(Path::new(repo_path)),
+            &args
+                .iter()
+                .map(std::ffi::OsString::from)
+                .collect::<Vec<_>>(),
+        )?,
         &[("GIT_TERMINAL_PROMPT", "0")],
         policy,
         cancellation.as_ref(),
@@ -870,6 +876,7 @@ pub(crate) fn looks_like_authentication_failure(stderr_lower: &str) -> bool {
         || stderr_lower.contains("could not read password")
         || stderr_lower.contains("permission denied (publickey")
         || stderr_lower.contains("terminal prompts disabled")
+        || stderr_lower.contains("told us to quit")
         || stderr_lower.contains("403")
         || stderr_lower.contains("401")
 }
@@ -893,7 +900,9 @@ pub(crate) fn classify_remote_failure(stderr: &str) -> AppError {
             AppErrorCode::AuthenticationFailed,
             "GitOdile couldn't sign in to the remote project.",
         )
-        .with_remediation("Check your Git credentials for this remote, then try again.")
+        .with_remediation(
+            "Check the project's selected account or existing Git credentials, then try again.",
+        )
         .with_detail(truncate_detail(stderr));
     }
     AppError::new(

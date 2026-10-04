@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { AccountPicker, accountsPort, providerForSource, useAccounts, type AccountsPort } from "../accounts";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { Dialog, DialogFacts, FieldError, useFieldErrors, useModalFocus } from "../../shared/ui";
@@ -40,6 +41,7 @@ type DialogStep =
   | "cancelled"
   | "error"
   | "cleanup"
+  | "account-warning"
   | "opening"
   | "open-error";
 
@@ -48,16 +50,22 @@ export function CloneDialog({
   controller,
   onClose,
   onVerifiedClone,
+  accountPort = accountsPort,
 }: {
   isOpen: boolean;
   controller: CloneController;
   onClose: () => void;
   onVerifiedClone: (result: CloneResult) => Promise<void>;
+  accountPort?: AccountsPort;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeAfterCancelRef = useRef(false);
   const [source, setSource] = useState("");
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const { catalog, failed: accountsFailed, pending: checkingAccounts, check: checkAccounts } = useAccounts(accountPort, isOpen);
+  const provider = providerForSource(source, catalog.providers);
+  useEffect(() => { setAccountId(null); }, [provider]);
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
   const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
@@ -74,6 +82,7 @@ export function CloneDialog({
     t.cloneDialogTitle,
     isOpen &&
       (source.trim() !== "" ||
+        accountId !== null ||
         destinationName.trim() !== "" ||
         destinationParent !== initialDestinationParent.current),
   );
@@ -123,7 +132,7 @@ export function CloneDialog({
 
   useModalFocus(isOpen, dialogRef, requestOpenChange);
 
-  const request: CloneRequest = { source, destinationParent, destinationName };
+  const request: CloneRequest = { source, destinationParent, destinationName, ...(accountId ? { accountId } : {}) };
 
   const validateInput = (): boolean => validate([
     { field: "clone-source", invalid: !source.trim(), message: t.commonRequiredField },
@@ -179,6 +188,8 @@ export function CloneDialog({
       setResult(cloneResult);
       if (cloneResult.outcome === "cleanup-required") {
         setStep("cleanup");
+      } else if (cloneResult.accountSelectionSaved === false) {
+        setStep("account-warning");
       } else {
         await openVerified(cloneResult);
       }
@@ -212,7 +223,10 @@ export function CloneDialog({
     setError(null);
     try {
       await controller.cleanup(attempt);
-      await openVerified({ ...result, outcome: "completed", cleanupPath: null });
+      const completed = { ...result, outcome: "completed" as const, cleanupPath: null };
+      setResult(completed);
+      if (completed.accountSelectionSaved === false) setStep("account-warning");
+      else await openVerified(completed);
     } catch (cleanupError) {
       setError(cleanupError);
     } finally {
@@ -228,7 +242,7 @@ export function CloneDialog({
   const technicalDetail = isAppError(error) ? error.detail : null;
   const credentialsCopy = attempt
     ? attempt.plan.credentialExpectation === "git-credential-helper"
-      ? t.cloneCredentialsHelper
+      ? attempt.plan.accountId ? t.accountsCloneCredentials : t.cloneCredentialsHelper
       : attempt.plan.credentialExpectation === "ssh-agent-or-key"
         ? t.cloneCredentialsSsh
         : t.cloneCredentialsNone
@@ -238,9 +252,9 @@ export function CloneDialog({
 
   // A result is a short message: the small shell, a status glyph and the way
   // out. The flow itself — form, review, progress — keeps the large one.
-  if (step === "error" || step === "cancelled" || step === "cleanup" || step === "open-error") {
+  if (step === "error" || step === "cancelled" || step === "cleanup" || step === "open-error" || step === "account-warning") {
     const isError = step === "error" || step === "open-error";
-    const title = step === "error" ? t.cloneErrorTitle
+    const title = step === "account-warning" ? t.cloneAccountNotSavedTitle : step === "error" ? t.cloneErrorTitle
       : step === "cancelled" ? t.cloneCancelled
         : step === "cleanup" ? t.cloneCleanupTitle
           : t.cloneOpenFailedTitle;
@@ -251,7 +265,7 @@ export function CloneDialog({
         title={title}
         titleId="clone-dialog-title"
         icon={isError ? <CircleAlert /> : step === "cleanup" ? <ShieldCheck /> : <Info />}
-        tone={isError ? "danger" : step === "cleanup" ? "warning" : "neutral"}
+        tone={isError ? "danger" : step === "cleanup" || step === "account-warning" ? "warning" : "neutral"}
         onClose={step === "cleanup" ? undefined : close}
         closeLabel={t.commonClose}
         dialogRef={dialogRef}
@@ -259,6 +273,10 @@ export function CloneDialog({
         {step === "cancelled" && <p className="app-dialog__text">{t.cloneCancelledDescription}</p>}
         {step === "cleanup" && <p className="app-dialog__text">{t.cloneCleanupDescription}</p>}
         {step === "open-error" && <p className="app-dialog__text">{t.cloneOpenFailedDescription}</p>}
+        {step === "account-warning" && <>
+          <p className="app-dialog__text">{t.cloneAccountNotSavedDescription}</p>
+          <dl className="app-dialog__kv"><dt>{t.cloneDestinationLabel}</dt><dd><code>{result?.destinationPath}</code></dd></dl>
+        </>}
         {localizedError && <p className="app-dialog__text">{localizedError}</p>}
         {step === "open-error" && result && (
           <p className="app-dialog__text">{t.cloneDependencyNotice(result.submodules, result.gitLfs)}</p>
@@ -278,7 +296,7 @@ export function CloneDialog({
           ) : (
             <>
               <button className="secondary-button" type="button" onClick={finishClose}>{t.commonClose}</button>
-              {step === "open-error" && result ? (
+              {step === "account-warning" ? null : step === "open-error" && result ? (
                 <button className="primary-button" type="button" onClick={() => void openVerified(result)}>{t.cloneRetryOpen}</button>
               ) : (
                 <button className="primary-button" type="button" onClick={() => void retryClone()}>{t.cloneRetryAction}</button>
@@ -337,6 +355,8 @@ export function CloneDialog({
             <small id="clone-source-help">{t.cloneSourceHelp}</small>
             <FieldError field="clone-source" errors={errors} />
           </label>
+          {provider && <AccountPicker catalog={catalog} provider={provider} value={accountId}
+            onChange={setAccountId} onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
           <label className="text-field clone-dialog__field">
             <span id="clone-parent-label">{t.cloneParentLabel}</span>
             <span className="clone-dialog__path-picker">
@@ -383,6 +403,7 @@ export function CloneDialog({
           <dl className="app-dialog__kv">
             <dt>{t.cloneRemoteLabel}</dt><dd><code>{attempt.plan.sourceDisplay}</code></dd>
             <dt>{t.cloneDestinationLabel}</dt><dd><code>{attempt.plan.destinationPath}</code></dd>
+            {attempt.plan.accountId && <><dt>{t.accountsProjectLabel}</dt><dd>@{attempt.plan.accountId.split(":")[1]}</dd></>}
           </dl>
           <DialogFacts
             facts={[

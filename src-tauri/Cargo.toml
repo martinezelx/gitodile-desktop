@@ -24,10 +24,13 @@ serde_json = "1"
 semver = "1"
 sha2 = "0.11"
 tokio = { version = "1", features = ["macros", "sync", "time"] }
-# The exact updater plugin owns the only HTTP client. This direct dependency is
-# type-level only: it lets GitOdile retain the plugin client's redirect/timeout
-# policy and classify its errors without selecting a second TLS provider.
+# The updater plugin supplies the TLS provider. This direct dependency retains
+# its redirect/timeout policy and supports a separate, unauthenticated, bounded
+# GitHub avatar client without selecting another TLS provider or new features.
 reqwest = { version = "0.13", default-features = false }
+# Already supplied transitively by the updater. Initialize its existing ring
+# provider when an avatar is the first HTTPS request in this app session.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 time = { version = "0.3", features = ["formatting"] }
 # Filesystem watching for live working-tree updates (task 020). Default
 # features off: only the platform backends are wanted, not `serde` (events are

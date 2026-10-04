@@ -15,9 +15,11 @@ use crate::{
     console::{
         self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
     },
+    credentials::{self, AccountCatalog, AccountService, ProjectAccount},
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
+    github_auth::{GitHubAuthService, GitHubAuthSnapshot},
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
@@ -45,6 +47,60 @@ use crate::{
     },
     watch,
 };
+
+#[tauri::command]
+pub(crate) fn get_account_catalog(
+    service: tauri::State<'_, std::sync::Arc<AccountService>>,
+) -> AccountCatalog {
+    let _command = application::enter("get_account_catalog");
+    report_value("get_account_catalog", service.catalog())
+}
+
+#[tauri::command]
+pub(crate) fn check_account_catalog(
+    service: tauri::State<'_, std::sync::Arc<AccountService>>,
+    provider: String,
+) -> Result<AccountCatalog, AppError> {
+    let _command = application::enter("check_account_catalog");
+    report_result("check_account_catalog", service.check(&provider))
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_project_account(
+    path: String,
+    session_epoch: String,
+    provider: String,
+) -> Result<ProjectAccount, AppError> {
+    report_result(
+        "read_project_account",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            credentials::read_project(&path, &provider)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_project_account(
+    path: String,
+    session_epoch: String,
+    provider: String,
+    account_id: Option<String>,
+    expected_account_id: Option<String>,
+) -> Result<ProjectAccount, AppError> {
+    report_result(
+        "set_project_account",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            credentials::set_project(
+                &path,
+                &provider,
+                account_id.as_deref(),
+                expected_account_id.as_deref(),
+            )
+        })(),
+    )
+}
 
 #[tauri::command]
 pub(crate) fn get_app_update_state(service: tauri::State<'_, AppUpdateService>) -> UpdateState {
@@ -162,10 +218,11 @@ pub(crate) fn plan_clone(
     source: String,
     destination_parent: String,
     destination_name: String,
+    account_id: Option<String>,
 ) -> Result<ClonePlan, AppError> {
     report_result(
         "plan_clone",
-        clone::plan_clone(source, destination_parent, destination_name),
+        clone::plan_clone_with_account(source, destination_parent, destination_name, account_id),
     )
 }
 
@@ -178,17 +235,19 @@ pub(crate) fn clone_repository(
     destination_name: String,
     operation_id: String,
     state_token: String,
+    account_id: Option<String>,
     on_progress: tauri::ipc::Channel<CloneProgressPhase>,
 ) -> Result<CloneResult, AppError> {
     report_result(
         "clone_repository",
-        clone::clone_repository(
+        clone::clone_repository_with_account(
             &registry,
             source,
             destination_parent,
             destination_name,
             operation_id,
             state_token,
+            account_id,
             |phase| {
                 let _ = on_progress.send(phase);
             },
@@ -1723,9 +1782,55 @@ pub(crate) fn gh_diagnostics() -> GitDiagnostics {
     report_value("gh_diagnostics", tooling::gh_diagnostics())
 }
 
+#[tauri::command]
+pub(crate) fn get_github_auth_state(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    // Frequent cached reads need not fill the diagnostic ring buffer.
+    service.snapshot()
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_github_auth(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    report_value("check_github_auth", service.check())
+}
+
+#[tauri::command(async)]
+pub(crate) fn start_github_login(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    report_value("start_github_login", service.login())
+}
+
+#[tauri::command]
+pub(crate) fn cancel_github_auth(
+    service: tauri::State<'_, GitHubAuthService>,
+    operation_id: String,
+) -> GitHubAuthSnapshot {
+    report_value("cancel_github_auth", service.cancel(&operation_id))
+}
+
 #[tauri::command(async)]
 pub(crate) fn install_gh() -> GitInstallationResult {
     report_value("install_gh", tooling::install_gh())
+}
+
+#[tauri::command(async)]
+pub(crate) fn logout_github_account(
+    service: tauri::State<'_, GitHubAuthService>,
+    login: String,
+) -> GitHubAuthSnapshot {
+    report_value("logout_github_account", service.logout(login))
+}
+
+#[tauri::command(async)]
+pub(crate) fn switch_github_account(
+    service: tauri::State<'_, GitHubAuthService>,
+    login: String,
+) -> GitHubAuthSnapshot {
+    report_value("switch_github_account", service.switch(login))
 }
 
 #[tauri::command(async)]

@@ -480,13 +480,15 @@
    two to read as one family, and the Clone and Initialize path pickers put one
    of each in a single grid row, where any difference is visible. It keeps its
    own slightly larger type: the user's text is the content here, not a label. */
-.text-field input {
+.text-field input,
+.text-field select {
   min-height: var(--control-height-md);
   padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
-.text-field input:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
+.text-field input:focus-visible,
+.text-field select:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 .text-field input[aria-invalid="true"],
 .text-field textarea[aria-invalid="true"] { border-color: var(--status-danger); }
 
@@ -971,7 +973,8 @@
   .app-menu__item,
   .segmented-control__option,
   .choice-list__option,
-  .text-field input {
+  .text-field input,
+  .text-field select {
     min-height: var(--control-height-lg);
   }
   .dialog-close-button { width: var(--control-height-lg); height: var(--control-height-lg); }

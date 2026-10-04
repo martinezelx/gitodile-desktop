@@ -1,3 +1,4 @@
+import { githubAuthPort, useGitHubAuth } from "../features/github";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -670,6 +671,7 @@ export function App(): React.JSX.Element {
      create-project identity link — says so by passing it, so remembering the
      last visit only made the plain open unpredictable. */
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
+  const githubAuth = useGitHubAuth(githubAuthPort, isSettingsOpen && settingsSection === "github");
   /** The one way to open Settings. Callers that want a particular section name
    * it; everyone else gets General. */
   const openSettings = (section: SettingsSection = "general"): void => {
@@ -2927,6 +2929,7 @@ export function App(): React.JSX.Element {
           setSection: setSettingsSection,
           gitTooling,
           ghTooling,
+          githubAuth,
           reopenLastProject,
           setReopenLastProject,
           confirmCloseProject,

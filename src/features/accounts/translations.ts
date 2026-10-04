@@ -1,0 +1,29 @@
+const en = {
+  accountsProjectLabel: "Account for HTTPS access",
+  accountsUseGit: "Use existing Git credentials",
+  accountsProjectHelp: "This account is used inside GitOdile for HTTPS. SSH uses your configured keys. Your commit name and email are separate.",
+  accountsUnavailable: "{account} · unavailable", accountsNeedsCheck: "Check connection",
+  accountsCheck: "Detect and check accounts", accountsChecking: "Checking accounts",
+  accountsFailed: "The account could not be checked or saved. Check the connection and try again.",
+  accountsEmpty: "Connect an account in Settings, then detect it here. Detection contacts the provider.",
+  accountsProjectTitle: "Project account",
+  accountsProjectDescription: "Choose the account for cloning, getting changes and publishing over HTTPS. This selection is saved only in GitOdile and does not switch GitHub CLI's active account.",
+  accountsSaved: "Project account saved.", accountsLoading: "Reading project account…",
+  accountsCloneAccount: "Account: {account}",
+  accountsCloneCredentials: "If it's private, GitOdile uses the selected account. This account is also saved for this project's HTTPS access.",
+};
+const es: Record<keyof typeof en, string> = {
+  accountsProjectLabel: "Cuenta para el acceso HTTPS",
+  accountsUseGit: "Usar las credenciales existentes de Git",
+  accountsProjectHelp: "Esta cuenta se usa dentro de GitOdile para HTTPS. SSH utiliza tus claves configuradas. El nombre y correo de tus versiones guardadas son independientes.",
+  accountsUnavailable: "{account} · no disponible", accountsNeedsCheck: "Comprobar conexión",
+  accountsCheck: "Detectar y comprobar cuentas", accountsChecking: "Comprobando cuentas",
+  accountsFailed: "No se ha podido comprobar o guardar la cuenta. Comprueba la conexión e inténtalo de nuevo.",
+  accountsEmpty: "Conecta una cuenta en Ajustes y detéctala aquí. La detección contacta con el proveedor.",
+  accountsProjectTitle: "Cuenta del proyecto",
+  accountsProjectDescription: "Elige la cuenta para clonar, obtener cambios y publicar por HTTPS. Esta selección se guarda solo en GitOdile y no cambia la cuenta activa de GitHub CLI.",
+  accountsSaved: "Cuenta del proyecto guardada.", accountsLoading: "Leyendo la cuenta del proyecto…",
+  accountsCloneAccount: "Cuenta: {account}",
+  accountsCloneCredentials: "Si es privado, GitOdile utiliza la cuenta seleccionada. Esta cuenta también se guarda para el acceso HTTPS de este proyecto.",
+};
+export const accountsTranslations = { en, es };

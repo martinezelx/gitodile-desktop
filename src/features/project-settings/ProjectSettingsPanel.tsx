@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { ProjectAccountSection } from "../accounts";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
 import {
@@ -1263,7 +1264,8 @@ export function ProjectSettingsPanel({
         )}
 
         {activeSection === "remote" && (
-          <RemoteSection project={project} port={port} resource={remotes} />
+          <><ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project} />
+          <RemoteSection project={project} port={port} resource={remotes} /></>
         )}
         {activeSection === "ignored" && (
           <IgnoredSection

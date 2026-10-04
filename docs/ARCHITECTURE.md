@@ -741,12 +741,69 @@ executable is unusable; a browser failure can be retried. The macOS and Linux
 plans point to Git's current official installation pages, leaving package
 manager and privilege choices to the user.
 
-This is dependency readiness only. Future PRs/Actions need their own feature
-ports and GitHub domain, repository/session authorization, explicit network
-consent, bounded structured responses and authentication/error handling. They
-must not extend Settings into a generic `gh` execution endpoint or equate an
-installed CLI with an authenticated account. See
+Machine authentication is separate: `github_auth.rs` owns the saved github.com
+accounts, their active selection and one bounded worker for explicit checks,
+browser login, switching or targeted local sign-out. Cached
+reads never start a process or contact GitHub. Status requires gh's JSON support;
+login streams only a validated temporary code. Tokens remain with gh; raw output
+and credentials never enter IPC or diagnostics. Checks drain for installation;
+login, switching and sign-out block it until their workers exit, including cancellation reaping.
+Cancellation can race with session persistence, so its result offers a check.
+Sign-out validates the confirmed username against the cached accounts, passes
+`--hostname github.com --user <login>` as separate arguments, and clears the
+removed identity even when follow-up verification fails. gh can select another
+stored account; its actual checked state replaces the previous one. Switching
+uses `gh auth switch --hostname github.com --user <login>` and checks the actual
+selected identity afterwards. An uncertain mutation requires another check before
+switching or removal. Status decodes every github.com JSON entry (at most 32),
+retains per-account authorization errors and orders the active account first.
+Environment-controlled sessions cannot be changed by these account commands.
+
+Explicit account actions can enrich a verified identity through a bounded gh
+`api users/<login>` public profile query with a validated username. Up to four
+accounts receive optional avatar enrichment concurrently; a newly activated
+account is first, and other cached images remain available. A separate native
+HTTP client with no credentials and
+no redirects downloads only a fixed GitHub avatar CDN URL derived from that
+profile's numeric id. The optional PNG/JPEG response is capped at 256 KiB,
+encoded through the shared `encoding.rs` helper and cached in memory. Renderer
+CSP and browser opener scopes remain unchanged; image failure never changes
+authentication status. Cached reads and Settings visibility cause no downloads.
+
+`features/github` owns the authentication port, controller and eager account
+body. The composition root injects it into Settings without cross-feature
+imports. The root retains the memory cache and hidden Settings suspends cached
+polling. Shared sessions, environment credentials and plaintext fallback are
+disclosed. See [ADR 0021](adr/0021-reuse-github-cli-authentication.md).
+
+Future PRs/Actions need their own feature ports, repository/session authorization,
+explicit network consent, bounded responses and permission handling. They must
+not extend Settings into generic gh execution or equate authentication with
+repository/action access. Discovery stays defined by
 [ADR 0020](adr/0020-prepare-optional-github-cli-tooling.md).
+
+### Shared hosting accounts and Git access
+
+`credentials.rs` owns provider-neutral metadata, bounded persistent project
+bindings and the internal Git credential protocol. `hosting.rs` registers
+adapters for both the desktop and helper process; `main.rs` dispatches helper
+mode before Tauri starts. `github_auth.rs` supplies the current gh adapter.
+`features/accounts` owns the typed account port, cached receipt controller and
+picker shared by clone and project settings. Providers implement adapters rather
+than duplicating the selection store, picker or Git access policy.
+
+`git_command.rs` applies process-only HTTPS helper configuration at the policy
+facade; the bounded runner in `git.rs` stays independent of hosting. Explicit
+account lookup is native-only and exact (`gh auth token --user`), never a gh
+switch or a persistent Git configuration change. Local preference reads and
+writes retain repository/session authorization. Clone fingerprints include the
+selected identity and publish its project binding after destination verification.
+Failure to save that binding preserves the completed clone result and reports
+manual account setup without a clone retry or automatic opening. A failed account
+check retains identities/avatars while marking old verified rows as unchecked.
+Git helper failure stops fallback to another identity. See
+[ADR 0022](adr/0022-share-provider-accounts-and-scope-git-access.md) for the narrow
+native-token exception to ADR 0021, scope isolation and platform qualification.
 
 ### Canonical product identity
 

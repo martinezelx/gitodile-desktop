@@ -38,7 +38,8 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
   provider-neutral flow. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
-  lifecycle; configured Git credential helpers and SSH setup remain in control.
+  lifecycle; select a saved account for GitOdile's HTTPS access or use existing
+  Git credential helpers. SSH retains the user's configured keys.
 - Create a named local project or turn an ordinary existing folder into one
   through a previewed, revalidated flow. Existing files are never replaced;
   README creation and the first saved version require explicit consent, and a
@@ -301,8 +302,39 @@ missing. Windows update checks are explicit and
 cached for five minutes; other platforms use the official update instructions.
 An installer being started is not proof of installation: reopen GitOdile after
 installing to inherit the updated `PATH`. This prepares the dependency for
-future PRs and Actions; those screens and GitHub authentication are not yet
-implemented. `gh` is never required for ordinary local Git workflows.
+future PRs and Actions; those screens are not yet implemented. Settings → GitHub
+offers explicit account detection and browser connection through gh. It shows
+the saved github.com accounts and cached avatars, with the active account first,
+and retains their last known identities when offline,
+with a temporary device code, browser retry and cancellation during login.
+Opening Settings never checks authentication over the network. A gh version with
+JSON authentication-status support is required; older versions request update.
+The session is shared with GitHub CLI. Before connecting, GitOdile explains gh's
+repository permissions and possible plaintext credential fallback; file-backed
+and environment-provided credentials are disclosed afterwards. GitOdile never
+stores a second token or changes persistent Git credentials/SSH keys. Sign-out first explains
+that it removes the selected account from the shared local gh session; it does
+not revoke GitHub authorization or close the browser session. Another saved
+account may become active. Users can activate a saved account, connect another
+through the browser, or sign out an individual account. Switching also changes
+the active account for other tools using the shared gh session. Each row uses
+the same status chip and right-aligned actions as the installation settings.
+Avatars are retrieved only during explicit account actions and cached in memory.
+See
+[ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
+for ordinary local Git workflows.
+
+The account section appears before gh installation. Cloning a GitHub HTTPS URL
+and Project settings → Remote offer a shared account selector. Different projects
+can use different saved accounts without switching gh's active account. The
+native credential helper retrieves the exact saved account only when Git needs
+it; credentials never enter the frontend or command arguments/environment.
+Selections persist as local metadata, and a missing credential fails instead
+of silently choosing another account. Choosing existing Git credentials preserves
+the system's normal authentication. Account selection does not change commit
+authorship, configure SSH or prove publishing permissions. The shared provider
+contract prepares GitLab/Bitbucket adapters; only GitHub is implemented today.
+See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
 ## Requirements
 

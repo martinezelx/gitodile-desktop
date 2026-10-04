@@ -10,12 +10,14 @@ export type CloneProgressPhase =
 export type DependencyDiscovery = "detected" | "not-detected" | "unknown";
 
 export type CloneRequest = {
+  accountId?: string | null;
   source: string;
   destinationParent: string;
   destinationName: string;
 };
 
 export type ClonePlan = {
+  accountId?: string | null;
   operationKind: "local-mutation";
   requiresConfirmation: true;
   operationId: string;
@@ -34,6 +36,8 @@ export type ClonePlan = {
 };
 
 export type CloneResult = {
+  /** False means the verified clone exists, but its chosen account needs setup. */
+  accountSelectionSaved?: boolean | null;
   outcome: "completed" | "cleanup-required";
   operationId: string;
   destinationPath: string;

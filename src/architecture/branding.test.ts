@@ -150,6 +150,7 @@ describe("desktop link permissions", () => {
         { url: "https://git-scm.com/install/mac" },
         { url: "https://git-scm.com/install/linux" },
         { url: "https://github.com/cli/cli#installation" },
+        { url: "https://github.com/login/device" },
         { url: "https://github.com/cli/cli#windows" },
         { url: "https://github.com/cli/cli#macos" },
         { url: "https://github.com/cli/cli/blob/trunk/docs/install_linux.md" },
@@ -162,6 +163,7 @@ describe("desktop link permissions", () => {
       "https://example.com/", "http://github.com/martinezelx/gitodile/issues/new",
       "https://github.com/other/tracker/issues/new", "file:///C:/private.txt", "mailto:user@example.com",
       "https://github.com/cli/cli/issues/new", "https://git-scm.com/other",
+      "https://github.com/login/device/other", "https://github.com/login/device?next=https://example.com",
     ]) {
       expect(scopeAllows(openerScope(), url)).toBe(false);
     }

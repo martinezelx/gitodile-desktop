@@ -1,0 +1,7 @@
+.hosting-account-picker { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
+.hosting-account-picker > .text-field { flex: 1; min-width: 220px; }
+.hosting-account-picker > .text-field small { white-space: normal; line-height: var(--leading-normal); }
+.hosting-account-picker > .refresh-icon-button { margin-top: var(--space-5); }
+.settings-group__body > .hosting-account-picker,
+.settings-group__body > div:has(> .hosting-account-picker) { margin-bottom: var(--space-6); }
+.hosting-account-picker > p { flex-basis: 100%; }

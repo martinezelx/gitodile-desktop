@@ -1376,6 +1376,7 @@ dependencies = [
  "minisign-verify",
  "notify",
  "reqwest",
+ "rustls",
  "semver",
  "serde",
  "serde_json",

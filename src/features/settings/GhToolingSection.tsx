@@ -34,9 +34,10 @@ const UPDATE_ICONS: Record<string, ReactNode> = {
 };
 
 /** Optional machine tooling. Installation never implies GitHub authentication. */
-export function GhToolingSection({ port, tooling }: {
+export function GhToolingSection({ port, tooling, account }: {
   port: SettingsPort;
   tooling: GitToolingState;
+  account?: ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const { notice, clear: clearNotice, begin: beginNotice } = useToolNotice();
@@ -201,6 +202,13 @@ export function GhToolingSection({ port, tooling }: {
 
   return (
     <>
+      <section className="settings-group">
+        <header className="settings-group__header">
+          <h3>{t.ghAccountTitle}</h3>
+          <p>{t.ghAccountDescription}</p>
+        </header>
+        {account && <div className="settings-group__body">{account}</div>}
+      </section>
       <section className="settings-group" aria-label={t.ghTitle}>
         <header className="settings-group__header">
           <h3>{t.ghTitle}</h3>
@@ -220,12 +228,7 @@ export function GhToolingSection({ port, tooling }: {
           />
         </div>
       </section>
-      <section className="settings-group">
-        <header className="settings-group__header">
-          <h3>{t.ghAccountTitle}</h3>
-          <p>{t.ghAccountDescription}</p>
-        </header>
-      </section>
+
     </>
   );
 }

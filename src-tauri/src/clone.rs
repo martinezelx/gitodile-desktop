@@ -69,6 +69,7 @@ pub(crate) enum DependencyDiscovery {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ClonePlan {
+    pub(crate) account_id: Option<String>,
     pub(crate) operation_kind: &'static str,
     pub(crate) requires_confirmation: bool,
     pub(crate) operation_id: String,
@@ -95,6 +96,7 @@ pub(crate) enum CloneOutcome {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloneResult {
+    pub(crate) account_selection_saved: Option<bool>,
     pub(crate) outcome: CloneOutcome,
     pub(crate) operation_id: String,
     pub(crate) destination_path: String,
@@ -617,18 +619,31 @@ fn validate_clone(source: &str, parent: &str, name: &str) -> Result<ValidatedClo
     })
 }
 
+#[cfg(test)]
 pub(crate) fn plan_clone(
     source: String,
     destination_parent: String,
     destination_name: String,
 ) -> Result<ClonePlan, AppError> {
+    plan_clone_with_account(source, destination_parent, destination_name, None)
+}
+
+pub(crate) fn plan_clone_with_account(
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+    account_id: Option<String>,
+) -> Result<ClonePlan, AppError> {
     let _command = application::enter("plan_clone");
     let validated = validate_clone(&source, &destination_parent, &destination_name)?;
+    crate::credentials::validate_clone_account(account_id.as_deref(), &validated.source.argument)?;
+    let state_token = account_state_token(&validated.state_token, account_id.as_deref());
     Ok(ClonePlan {
+        account_id,
         operation_kind: "local-mutation",
         requires_confirmation: true,
         operation_id: new_operation_id(),
-        state_token: validated.state_token,
+        state_token,
         source_kind: validated.source.kind,
         source_display: validated.source.safe_display,
         destination_parent: display_path(validated.parent),
@@ -640,6 +655,17 @@ pub(crate) fn plan_clone(
         checks_out_remote_default: true,
         uses_staging: true,
     })
+}
+
+fn account_state_token(base: &str, account: Option<&str>) -> String {
+    let Some(account) = account else {
+        return base.to_owned();
+    };
+    use sha2::{Digest, Sha256};
+    Sha256::digest(format!("{base}\0{account}"))
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn staging_paths(parent: &Path, operation_id: &str) -> Result<Staging, AppError> {
@@ -804,13 +830,14 @@ fn classify_clone_failure(stderr: &[u8]) -> AppError {
         || lower.contains("could not read password")
         || lower.contains("permission denied (publickey")
         || lower.contains("terminal prompts disabled")
+        || lower.contains("told us to quit")
         || lower.contains("http 401")
         || lower.contains("http 403")
     {
         return clone_error(
             AppErrorCode::AuthenticationFailed,
             "GitOdile couldn't authenticate with the remote project.",
-            "Check your configured Git credential helper, SSH key, or access rights, then retry.",
+            "Check the selected account, existing Git credentials, SSH key, or access rights, then retry.",
         )
         .with_detail(detail());
     }
@@ -1160,6 +1187,7 @@ fn clone_with_token(
         Err(_) => CloneOutcome::CleanupRequired,
     };
     Ok(CloneResult {
+        account_selection_saved: None,
         outcome,
         operation_id: operation_id.to_string(),
         destination_path: display_path(validated.destination),
@@ -1170,6 +1198,7 @@ fn clone_with_token(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) fn clone_repository(
     registry: &CloneOperationRegistry,
     source: String,
@@ -1179,21 +1208,74 @@ pub(crate) fn clone_repository(
     state_token: String,
     mut progress: impl FnMut(CloneProgressPhase),
 ) -> Result<CloneResult, AppError> {
+    clone_repository_with_account(
+        registry,
+        source,
+        destination_parent,
+        destination_name,
+        operation_id,
+        state_token,
+        None,
+        &mut progress,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn clone_repository_with_account(
+    registry: &CloneOperationRegistry,
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+    operation_id: String,
+    state_token: String,
+    account_id: Option<String>,
+    mut progress: impl FnMut(CloneProgressPhase),
+) -> Result<CloneResult, AppError> {
     let validated = validate_clone(&source, &destination_parent, &destination_name)?;
-    if validated.state_token != state_token {
+    crate::credentials::validate_clone_account(account_id.as_deref(), &validated.source.argument)?;
+    if account_state_token(&validated.state_token, account_id.as_deref()) != state_token {
         return Err(clone_error(
             AppErrorCode::StaleClonePlan,
             "The clone details changed since the preview.",
             "Review the destination and remote again.",
         ));
     }
+    let destination = validated.destination.clone();
     let token = registry.begin(&operation_id)?;
     let result = {
         let _command = application::enter_with_cancellation("clone_repository", token.clone());
-        clone_with_token(validated, &operation_id, &token, &mut progress)
+        let cloned =
+            crate::credentials::with_accounts(account_id.iter().cloned().collect(), || {
+                clone_with_token(validated, &operation_id, &token, &mut progress)
+            });
+        cloned.map(|mut result| {
+            // Publication already succeeded. A metadata failure must not turn
+            // the completed clone into an error that invites another clone.
+            result.account_selection_saved = account_id
+                .as_deref()
+                .map(|account| retain_clone_account(&destination, Some(account)).is_ok());
+            result
+        })
     };
     registry.finish(&operation_id, &token);
     result
+}
+
+fn retain_clone_account(destination: &Path, account: Option<&str>) -> Result<(), AppError> {
+    let Some(account) = account else {
+        return Ok(());
+    };
+    let provider = account
+        .split_once(':')
+        .map(|(provider, _)| provider)
+        .unwrap_or("");
+    crate::credentials::global().and_then(|service| service.select(destination, provider, Some(account), None))
+        .map(|_| ())
+        .map_err(|_| clone_error(
+            AppErrorCode::ClonePublishUncertain,
+            "The project was cloned, but its account selection could not be saved.",
+            "Open the completed project and select its account in project settings. Do not clone again into this folder.",
+        ))
 }
 
 pub(crate) fn cancel_clone(
@@ -1260,6 +1342,23 @@ mod tests {
             assert!(validate_destination_name(invalid).is_err(), "{invalid}");
         }
         validate_destination_name("répô-friendly").unwrap();
+    }
+
+    #[test]
+    fn clone_preview_fingerprint_binds_its_account_without_changing_existing_plans() {
+        assert_eq!(account_state_token("plan", None), "plan");
+        assert_ne!(
+            account_state_token("plan", Some("github:Personal")),
+            account_state_token("plan", Some("github:work"))
+        );
+        assert_ne!(
+            account_state_token("plan", Some("github:Personal")),
+            account_state_token("changed", Some("github:Personal"))
+        );
+        assert_eq!(
+            classify_clone_failure(b"credential helper told us to quit").code,
+            AppErrorCode::AuthenticationFailed
+        );
     }
 
     #[test]

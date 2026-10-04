@@ -142,6 +142,19 @@ pub(crate) fn command() -> Command {
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .env("GIT_OPTIONAL_LOCKS", "0");
+    // App diagnostics are bounded and redacted. Inherited Git trace modes can
+    // dump credential/cURL traffic before that boundary has a chance to redact.
+    for name in [
+        "GIT_TRACE",
+        "GIT_TRACE_CURL",
+        "GIT_CURL_VERBOSE",
+        "GIT_TRACE_PACKET",
+        "GIT_TRACE2",
+        "GIT_TRACE2_EVENT",
+        "GIT_TRACE2_PERF",
+    ] {
+        command.env_remove(name);
+    }
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
     command

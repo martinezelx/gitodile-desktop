@@ -1,12 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
+import { accountsTranslations } from "../features/accounts/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
 import { consoleTranslations } from "../features/console/translations";
 import { initializeProjectTranslations } from "../features/initialize-project/translations";
 import { notificationsTranslations } from "../features/notifications/translations";
 import { historyTranslations } from "../features/history/translations";
+import { githubTranslations } from "../features/github/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
 import { publishTranslations } from "../features/publish/translations";
@@ -55,6 +57,8 @@ export const translationNamespaces = {
   initializeProject: initializeProjectTranslations,
   notifications: notificationsTranslations,
   history: historyTranslations,
+  github: githubTranslations,
+  accounts: accountsTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
   sync: syncTranslations,
@@ -75,6 +79,8 @@ const en = {
   ...initializeProjectTranslations.en,
   ...notificationsTranslations.en,
   ...historyTranslations.en,
+  ...githubTranslations.en,
+  ...accountsTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
   ...syncTranslations.en,
@@ -97,6 +103,8 @@ const es: Translations = {
   ...initializeProjectTranslations.es,
   ...notificationsTranslations.es,
   ...historyTranslations.es,
+  ...githubTranslations.es,
+  ...accountsTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
   ...syncTranslations.es,
