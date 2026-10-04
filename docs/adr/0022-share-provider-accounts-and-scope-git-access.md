@@ -46,7 +46,10 @@ shared gh action; it does not erase project bindings or silently switch them.
 
 Each Git transfer uses process-only, exact-HTTPS-host credential-helper settings.
 The helper validates protocol, exact host, username and bounded input before
-secret lookup. Its store/erase operations do nothing. Failure sends `quit=true`
+secret lookup. Repeated array attributes such as `capability[]` and `wwwauth[]`
+are valid in [Git's credential wire format](https://git-scm.com/docs/git-credential#IOFMT)
+and are ignored by this password-only helper; duplicate scalar fields still fail
+closed. Its store/erase operations do nothing. Failure sends `quit=true`
 using [Git's helper protocol](https://git-scm.com/docs/gitcredentials) so other
 helpers and askpass cannot silently replace the selected identity. Query only
 HTTP configuration key names and mask matching path-specific extra headers for

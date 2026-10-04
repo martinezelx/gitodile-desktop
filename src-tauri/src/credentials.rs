@@ -582,7 +582,13 @@ pub(crate) fn helper(
     let mut fields = BTreeMap::new();
     for line in input.lines().take_while(|line| !line.is_empty()) {
         let (key, value) = line.split_once('=').ok_or(())?;
-        if value.chars().any(char::is_control) || fields.insert(key, value).is_some() {
+        if value.chars().any(char::is_control) {
+            return Err(());
+        }
+        // Git's array attributes (capability[], wwwauth[], state[]) may repeat.
+        // This password-only helper does not negotiate those extensions. Ignore
+        // their values, but keep scalar identity fields unambiguous and bounded.
+        if !key.ends_with("[]") && fields.insert(key, value).is_some() {
             return Err(());
         }
     }
@@ -782,6 +788,7 @@ mod tests {
             "protocol=https\nhost=gitlab.com\n\n",
             "protocol=https\nhost=github.com\nusername=someone-else\n\n",
             "protocol=https\nhost=github.com\nhost=evil.test\n\n",
+            "capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nhost=evil.test\n\n",
             "url=https://github.com\n\n",
         ] {
             assert!(helper(
@@ -805,6 +812,26 @@ mod tests {
             .unwrap();
         }
         assert_eq!(adapter.reads.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn repeated_git_capabilities_and_auth_challenges_allow_exact_account_lookup() {
+        let adapter = provider("github", "github.com");
+        let adapters: Vec<Arc<dyn AccessProvider>> = vec![adapter.clone()];
+        let mut output = Vec::new();
+        helper(
+            &adapters,
+            "github:Personal",
+            OsStr::new("get"),
+            &b"capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nusername=Personal\nwwwauth[]=Basic realm=GitHub\nwwwauth[]=Bearer\nstate[]=previous\nstate[]=\n\n"[..],
+            &mut output,
+        )
+        .unwrap();
+        assert_eq!(adapter.reads.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            output,
+            b"username=Personal\npassword=test-secret-for-Personal\n\n"
+        );
     }
 
     #[test]

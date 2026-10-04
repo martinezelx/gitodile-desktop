@@ -217,3 +217,24 @@ and failure variants are covered by isolated automated UI/native fixtures.
 
 Exploratory root HTML files and the mock screenshot stay in the workspace,
 outside the production implementation commit. No remote push is requested.
+
+# HTTP credential challenge regression (2026-10-04)
+
+The first real publish attempt exposed a parser incompatibility: Git 2.55.0 on
+Windows supplies both `capability[]=authtype` and `capability[]=state` when an
+HTTP endpoint challenges authentication. Rejecting every duplicate key caused
+the helper to return `quit=true` before consulting gh. Basic credential-fill
+fixtures and public repository reads did not exercise that challenge.
+
+Accept repeated array attributes according to Git's wire protocol and ignore
+unsupported extension values. Keep the input bound and exact protocol, host and
+account validation, including rejection of duplicate scalar identity fields.
+Cover the HTTP request in both a provider unit test and the actual desktop
+binary integration fixture. Verification uses a non-publishing dry run; no
+remote branch is changed and no credential is exposed in diagnostic output.
+
+Validation: `pnpm run check` passed (1,220 frontend tests, 523 native library
+tests and the actual-binary helper integration test). Against the real origin,
+the exact-account `git push --dry-run --no-verify` reproduced `quit=true` before
+the fix and exited successfully with the corrected binary. No push was executed;
+the dry run does not run the project's pre-push hook or publish changes.

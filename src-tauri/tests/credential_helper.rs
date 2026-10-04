@@ -91,6 +91,27 @@ fn main() {
         .windows(b"password=fixture_secret_for_inactive_account".len())
         .any(|w| w == b"password=fixture_secret_for_inactive_account"));
     assert!(!root.join("empty.gitconfig").exists());
+    // HTTP authentication (unlike a basic `credential fill`) supplies multiple
+    // capabilities. Exercise the actual desktop parser with that wire request.
+    let mut challenged = Command::new(&executable)
+        .args(["--gitodile-credential-helper", "github:InactiveUser", "get"])
+        .env("PATH", &path)
+        .env("GH_TOKEN", "must_not_override_selected_account")
+        .env("GH_DEBUG", "api")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    challenged.stdin.take().unwrap().write_all(
+        b"capability[]=authtype\ncapability[]=state\nprotocol=https\nhost=github.com\nusername=InactiveUser\nwwwauth[]=Basic realm=GitHub\n\n",
+    ).unwrap();
+    let challenged = challenged.wait_with_output().unwrap();
+    assert!(challenged.status.success());
+    assert_eq!(
+        challenged.stdout,
+        b"username=InactiveUser\npassword=fixture_secret_for_inactive_account\n\n"
+    );
     let fallback = "!printf 'username=other-user\\npassword=other_user_secret\\n\\n'";
     for (denied_helper, input) in [
         (
