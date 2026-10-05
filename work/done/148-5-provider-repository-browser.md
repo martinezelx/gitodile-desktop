@@ -1,7 +1,7 @@
 ---
 id: 148-5
 title: Browse and clone GitHub projects through the shared hosting contract
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,9 +9,9 @@ areas:
   - repository
   - credentials
 created: 2026-10-04
-completed:
+completed: 2026-10-05
 parent: "148"
-queue: "02"
+queue:
 ---
 
 # Goal
@@ -19,7 +19,7 @@ queue: "02"
 Finish GitHub discovery and clone handoff before starting GitLab. This task's
 ID is retained from the original two-provider browser plan. The user narrowed
 this implementation to GitHub on 2026-10-04; GitLab extends the same browser in
-[148-4](148-4-gitlab-accounts.md). PRs and Actions follow separately.
+[148-4](../active/148-4-gitlab-accounts.md). PRs and Actions follow separately.
 
 # User outcome
 
@@ -142,3 +142,25 @@ or account preference mutation was performed. The aggregate completion gate
 passed: documentation and architecture contracts, 1,236 frontend tests in 127
 files, production build, Rust formatting and Clippy, 534 native library tests
 (one ignored) and the actual-binary/system-Git helper test.
+
+## Owner-confirmed closure — 2026-10-05
+
+The owner tested the repository browser, confirmed it works correctly and
+explicitly requested closing 148-5. All acceptance criteria are met for this
+GitHub discovery and clone-handoff scope; real token/private-clone qualification
+remains owned by active task 148-9.
+
+The reviewed implementation was committed as 3aa6d9a. Its final aggregate
+pnpm run check passed: 127 frontend files / 1,241 tests, production build,
+documentation/architecture contracts, Rust formatting/Clippy, 536 native library
+tests and the actual-binary/system-Git helper test (537 native tests passed,
+one optional OS-store test ignored). The Windows review also exercised the
+native account selector, real discovery, wheel scrolling, virtualized Tab entry,
+Home/End, Enter selection and Escape dismissal. See the epic's pending integration
+review for the corrections and evidence limits.
+
+Closing this task does not close 148-9 or the epic, and does not start GitLab.
+
+The subsequent real token/private-clone qualification passed on 2026-10-05; see
+[148-9](148-9-github-token-connections.md). Both GitHub integration children are
+now complete. GitLab and PR/Actions remain separate.

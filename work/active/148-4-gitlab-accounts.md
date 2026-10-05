@@ -11,14 +11,14 @@ areas:
 created: 2026-10-04
 completed:
 parent: "148"
-queue: "03"
+queue: "01"
 ---
 
 # GitHub-first sequencing (2026-10-04)
 
 The user approved finishing GitHub connection and repository discovery before
-GitLab. Complete [148-9](148-9-github-token-connections.md) and
-[148-5](148-5-provider-repository-browser.md) first. PR/Actions screens are later
+GitLab. Complete [148-9](../done/148-9-github-token-connections.md) and
+[148-5](../done/148-5-provider-repository-browser.md) first. PR/Actions screens are later
 work and do not block starting GitLab once that integration is closed.
 
 Extend the same repository-browser port/controller with GitLab discovery and
@@ -73,7 +73,7 @@ GitLab.com CLI identity; the shared contracts remain capable of later adapters.
   undisclosed plaintext fallback. Document permissions and shared CLI sessions.
 - Reuse clone/project account selection, with explicit provider/host validation,
   no fallback to another identity and no global Git or SSH changes.
-- Extend the typed repository-browser API from [148-5](148-5-provider-repository-browser.md)
+- Extend the typed repository-browser API from [148-5](../done/148-5-provider-repository-browser.md)
   using the same verified identity as HTTPS access. Retain bounded output,
   cancellation, permission handling and explicit network actions.
 - Detect changed external glab identity and retain an unavailable project binding;

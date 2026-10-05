@@ -37,8 +37,8 @@ Milestones, in dependency order:
 - [x] Avatars and targeted sign-out ([148-1](../done/148-1-github-avatar-and-sign-out.md)).
 - [x] Saved account rows and shared gh switching ([148-2](../done/148-2-github-account-rows-and-switching.md)).
 - [x] Shared accounts and project-scoped Git access ([148-3](../done/148-3-shared-accounts-and-git-access.md)).
-- [ ] Native GitHub token connections ([148-9](148-9-github-token-connections.md)).
-- [ ] GitHub repository discovery and clone handoff ([148-5](148-5-provider-repository-browser.md)).
+- [x] Native GitHub token connections ([148-9](../done/148-9-github-token-connections.md)).
+- [x] GitHub repository discovery and clone handoff ([148-5](../done/148-5-provider-repository-browser.md)).
 - [ ] GitLab.com accounts/access and browser extension ([148-4](148-4-gitlab-accounts.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
@@ -84,7 +84,7 @@ It does not block completion of the current account/HTTPS-access foundation.
   platforms, and update the security/architecture decision before implementation.
 
 The account/HTTPS-access foundation is complete in task 148-3. The current
-integration remains open for five active children and their platform qualification;
+integration remains open for three active children and their platform qualification;
 Bitbucket and independently branded authorization remain later scope.
 
 ## Provider task split (2026-10-04)
@@ -294,8 +294,8 @@ the dry run does not run the project's pre-push hook or publish changes.
 The user approved finishing GitHub connection and discovery before GitLab, and
 explicitly excluded PR/Actions screens from this closure. Native token access
 and the clone repository browser are implemented in
-[148-9](148-9-github-token-connections.md) and
-[148-5](148-5-provider-repository-browser.md), under
+[148-9](../done/148-9-github-token-connections.md) and
+[148-5](../done/148-5-provider-repository-browser.md), under
 [ADR 0023](../../docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
 
 `pnpm run check` passed: 1,228 frontend tests, production build, architecture and
@@ -360,3 +360,18 @@ helper test (537 native tests passed; the disposable OS-store test is ignored
 by default). It used the isolated Cargo target directory to avoid the running
 Windows executable lock and six frontend/native test workers. Documentation
 and staged `git diff --check` passed again after recording the result.
+
+## GitHub integration closure — 2026-10-05
+
+The owner confirmed the repository browser works and authorized closing 148-5.
+The subsequent real Windows qualification completed 148-9: a temporary
+fine-grained read-only token was verified and saved through Settings, listed
+permitted repositories, and successfully cloned a private project through the
+selected Token connection. The clone opened cleanly and retained that exact
+connection in Project Settings. The token expires on 2026-10-06; no publishing
+was attempted. Details and limits are recorded in the completed child tasks.
+
+The aggregate `pnpm run check` passed again (1,241 frontend tests, 536 native
+library tests and one actual-binary helper test). GitHub connection and discovery
+are now complete for the accepted scope. GitLab 148-4 is next in the active
+queue; PR/Actions 148-6/148-7 remain later work. The epic itself stays active.

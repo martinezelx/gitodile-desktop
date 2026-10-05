@@ -1,7 +1,7 @@
 ---
 id: 148-9
 title: Add native GitHub token connections alongside browser authorization
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,9 +9,9 @@ areas:
   - frontend
   - platform
 created: 2026-10-04
-completed:
+completed: 2026-10-05
 parent: "148"
-queue: "01"
+queue:
 ---
 
 # Goal
@@ -33,8 +33,8 @@ browsing and GitLab; PRs and Actions remain separate later screens.
 - [x] Parser/identity/storage/helper, cancellation and UI fixtures pass, including
   a disposable Windows Credential Manager roundtrip.
 - [x] Aggregate completion gate recorded below.
-- [ ] Finish the real Windows UI flow for token connection and selected-account
-  access. Computer Use was stopped with Escape before this qualification.
+- [x] Finish the real Windows UI flow for token connection and selected-account
+  access. Real token ingestion, discovery and private clone qualified below.
 
 # Architecture
 
@@ -98,3 +98,37 @@ tests passed, with the separately qualified OS-store test still ignored by
 default. It reused the isolated Cargo target and six Vitest workers described
 above. Documentation and `git diff --check` were checked again after recording
 this evidence.
+
+## Real Windows token qualification and closure — 2026-10-05
+
+At the user's request, created a temporary fine-grained token in their GitHub
+account after they manually completed GitHub's access confirmation. The token
+expires on 2026-10-06, has Contents/Metadata read access, no account permissions,
+and access to one selected private repository. The secret was inserted into the
+masked native Settings form without placing plaintext in commands, files or
+logs. GitOdile verified the exact identity, reported Connected, saved it in the
+OS secure store, and cleared the input.
+
+With the browser/CLI connection excluded, the clone picker explicitly selected
+the Token connection. Repository discovery returned 17 accessible projects,
+including the permitted private repository; the other private project was
+excluded. Filtering and selecting that repository led to the destination screen.
+The real Tauri application successfully cloned it into a new temporary folder,
+opened it, and reported everything saved. System Git confirmed a clean working
+tree and a credential-free HTTPS origin. Project Settings retained the exact
+Token connection, exercising the separate Git helper's secure-store retrieval.
+
+No publishing was attempted with this read-only token. Missing-gh behavior is
+covered by existing fixtures; this real run retained the installed gh tool.
+macOS/Linux runtime qualification remains deferred under ADR 0006. The temporary
+token remains connected until its expiry; it was not remotely revoked.
+
+The aggregate `pnpm run check` passed: 127 frontend files / 1,241 tests,
+production build, architecture/documentation checks, Rust formatting, Clippy,
+536 native library tests and one actual-binary/system-Git helper test. The
+optional disposable OS-store test remains ignored in the aggregate suite and
+was previously qualified separately. This run reused the isolated Cargo target
+and six frontend/native workers to avoid the running Windows executable lock.
+
+All acceptance criteria are met for this task. GitLab and PR/Actions remain
+separate active children of epic 148.

@@ -11,7 +11,7 @@ areas:
 created: 2026-10-04
 completed:
 parent: "148"
-queue: "04"
+queue: "02"
 ---
 
 # Goal
@@ -77,7 +77,7 @@ a reviewed proposal, and safely open its branch in the local project.
 # Dependencies
 
 Complete [148-4](148-4-gitlab-accounts.md) and
-[148-5](148-5-provider-repository-browser.md) first, reusing their provider API
+[148-5](../done/148-5-provider-repository-browser.md) first, reusing their provider API
 access and remote identity contracts instead of adding another auth path.
 
 # Execution handoff
