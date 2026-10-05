@@ -1,7 +1,9 @@
+import type { AppError } from "../../shared/i18n";
 /** Shared account/access contract. Secrets never cross this boundary. */
 export type HostingAccount = {
   id: string; provider: string; host: string; login: string;
   avatarDataUrl: string | null; available: boolean;
+  unavailableReason?: AppError["code"] | null;
 };
 export type AccountCatalog = {
   providers: { id: string; host: string }[];

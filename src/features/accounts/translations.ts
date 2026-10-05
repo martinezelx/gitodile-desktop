@@ -1,4 +1,5 @@
 const en = {
+  accountsChoose: "Choose a connection", accountsTokenMethod: "Token", accountsBrowserMethod: "Browser · GitHub CLI",
   accountsProjectLabel: "Account for HTTPS access",
   accountsUseGit: "Use existing Git credentials",
   accountsProjectHelp: "This account is used inside GitOdile for HTTPS. SSH uses your configured keys. Your commit name and email are separate.",
@@ -13,6 +14,7 @@ const en = {
   accountsCloneCredentials: "If it's private, GitOdile uses the selected account. This account is also saved for this project's HTTPS access.",
 };
 const es: Record<keyof typeof en, string> = {
+  accountsChoose: "Elige una conexión", accountsTokenMethod: "Token", accountsBrowserMethod: "Navegador · GitHub CLI",
   accountsProjectLabel: "Cuenta para el acceso HTTPS",
   accountsUseGit: "Usar las credenciales existentes de Git",
   accountsProjectHelp: "Esta cuenta se usa dentro de GitOdile para HTTPS. SSH utiliza tus claves configuradas. El nombre y correo de tus versiones guardadas son independientes.",

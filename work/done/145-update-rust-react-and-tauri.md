@@ -1,7 +1,7 @@
 ---
 id: 145
 title: Update Rust and the React and Tauri dependencies to current stable releases
-status: active
+status: done
 priority: normal
 type: maintenance
 areas:
@@ -9,9 +9,9 @@ areas:
   - desktop
   - tooling
 created: 2026-10-02
-completed:
+completed: 2026-10-05
 parent:
-queue: "28"
+queue:
 ---
 
 # Goal
@@ -117,8 +117,9 @@ Upgrade it only after reviewing the target source and testing those contracts.
       checking behave as expected. Relevant errors, disabled states and keyboard
       interactions are checked without publishing or mutating user projects.
 - [x] `pnpm run check` passes on the selected toolchain.
-- [ ] The existing CI matrix confirms supported platform compilation/tests.
-      Missing evidence is recorded honestly.
+- [x] The owner confirms validation and accepts closure (2026-10-05).
+      This supersedes the previous requirement to obtain CI evidence before
+      task closure; no additional CI evidence was independently verified.
 
 # Relevant files
 
@@ -217,3 +218,26 @@ and their types, which remain at the already-current 19.3.0.
   installation evidence are unavailable locally; no remote push or release
   publication was performed. This task remains active while its final
   validation criterion is incomplete.
+
+## Status review (2026-10-05)
+
+The dependency update is implemented and has recorded local Windows
+validation. No CI run was found for release/0.3.1. The successful
+[main run](https://github.com/martinezelx/gitodile-desktop/actions/runs/36919059133)
+and [recent Dependabot run](https://github.com/martinezelx/gitodile-desktop/actions/runs/37267470925)
+do not validate this update: the latter still pins the updater to 2.11.0,
+whereas this task selected 2.13.1. Keep the cross-platform CI criterion
+unchecked and the task active until evidence covers the upgraded versions.
+
+## Owner-confirmed closure (2026-10-05)
+
+The owner explicitly confirmed that tasks 131 and 145 are validated and
+requested moving both to done. This confirmation supersedes the active-status
+conclusion in the review above. No new platform or CI results are claimed
+by the agent; historical evidence and its limitations remain recorded.
+
+Closure checks: documentation, icon contracts, architecture, TypeScript,
+1,236 frontend tests, frontend production build, Rust formatting and Clippy
+passed. The aggregate `pnpm run check` stopped during Rust test compilation:
+Windows denied removal of `src-tauri/target/debug/gitodile.exe` (OS error 5).
+The Rust tests were not completed in this closure run.

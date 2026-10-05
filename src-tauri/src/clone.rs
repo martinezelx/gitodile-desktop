@@ -12,7 +12,7 @@ use crate::git_command::{git_stdout, run_git, run_global_git_with_env};
 use crate::operation::truncate_detail;
 use crate::platform;
 use crate::repository::display_path;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
@@ -108,6 +108,161 @@ pub(crate) struct CloneResult {
 #[derive(Default)]
 pub(crate) struct CloneOperationRegistry {
     active: Mutex<HashMap<String, CancellationToken>>,
+    checks: Mutex<SourceChecks>,
+}
+
+#[derive(Default)]
+struct SourceChecks {
+    active: HashMap<String, CancellationToken>,
+    cancelled: VecDeque<String>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum CloneSourceAccess {
+    Accessible,
+    Unavailable,
+}
+
+/// GitHub-only for this iteration. Parse before reaching credentials or Git:
+/// no other hosts, local paths, URL secrets or executable-looking inputs.
+fn checked_github_source(raw: &str) -> Result<NormalizedSource, AppError> {
+    let raw = raw.trim();
+    let path = if let Some(path) = raw.strip_prefix("git@github.com:") {
+        path.to_string()
+    } else {
+        let url = reqwest::Url::parse(raw).map_err(|_| invalid_check_source())?;
+        if url.host_str() != Some("github.com")
+            || url.port().is_some()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || !((url.scheme() == "https" && url.username().is_empty())
+                || (url.scheme() == "ssh" && url.username() == "git"))
+        {
+            return Err(invalid_check_source());
+        }
+        url.path().trim_start_matches('/').to_string()
+    };
+    let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
+    if parts.len() != 2
+        || parts.iter().any(|part| {
+            part.is_empty()
+                || *part == "."
+                || *part == ".."
+                || !part
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
+        })
+        || parts[1] == ".git"
+    {
+        return Err(invalid_check_source());
+    }
+    normalize_source(raw)
+}
+
+fn invalid_check_source() -> AppError {
+    AppError::new(
+        AppErrorCode::InvalidCloneSource,
+        "Enter a complete GitHub project address.",
+    )
+}
+
+fn read_source_access(source: &NormalizedSource) -> Result<CloneSourceAccess, AppError> {
+    // Existing Git credential helpers and SSH configuration remain scoped to
+    // the user's Git. No browser/prompt is launched during a speculative read.
+    let output = run_global_git_with_env(
+        ["ls-remote", "--quiet", "--", &source.argument, "HEAD"],
+        &[
+            ("GIT_TERMINAL_PROMPT", "0"),
+            ("GCM_INTERACTIVE", "never"),
+            ("SSH_ASKPASS_REQUIRE", "never"),
+        ],
+    )
+    .map_err(|error| AppError::new(error.code, "The project access check could not finish."))?;
+    if output.status.success() {
+        // A repository with no saved versions also returns success with no refs.
+        return Ok(CloneSourceAccess::Accessible);
+    }
+    let code = classify_clone_failure(&output.stderr).code;
+    match code {
+        AppErrorCode::AuthenticationFailed
+        | AppErrorCode::RemoteNotFound
+        | AppErrorCode::PermissionDenied => Ok(CloneSourceAccess::Unavailable),
+        _ => Err(AppError::new(
+            code,
+            "The project access check could not finish.",
+        )),
+    }
+}
+
+pub(crate) fn check_clone_source(
+    registry: &CloneOperationRegistry,
+    source: String,
+    account_id: Option<String>,
+    request_id: String,
+) -> Result<CloneSourceAccess, AppError> {
+    validate_operation_id(&request_id)?;
+    let source = checked_github_source(&source)?;
+    crate::credentials::validate_clone_account(account_id.as_deref(), &source.argument)?;
+    let token = CancellationToken::default();
+    {
+        let mut checks = registry.checks.lock().unwrap_or_else(|e| e.into_inner());
+        if checks.cancelled.contains(&request_id) {
+            return Err(AppError::new(
+                AppErrorCode::OperationCancelled,
+                "The access check was cancelled.",
+            ));
+        }
+        if checks.active.len() >= 16 || checks.active.contains_key(&request_id) {
+            return Err(AppError::new(
+                AppErrorCode::CloneOperationBusy,
+                "An access check is already running.",
+            ));
+        }
+        checks.active.insert(request_id.clone(), token.clone());
+    }
+    let result = {
+        let _command = application::enter_with_cancellation("check_clone_source", token.clone());
+        crate::credentials::with_accounts(account_id.iter().cloned().collect(), || {
+            read_source_access(&source)
+        })
+    };
+    registry
+        .checks
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .active
+        .remove(&request_id);
+    if token.is_cancelled() {
+        Err(AppError::new(
+            AppErrorCode::OperationCancelled,
+            "The access check was cancelled.",
+        ))
+    } else {
+        result
+    }
+}
+
+pub(crate) fn cancel_clone_source_check(
+    registry: &CloneOperationRegistry,
+    request_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("cancel_clone_source_check");
+    validate_operation_id(&request_id)?;
+    let mut checks = registry.checks.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(token) = checks.active.get(&request_id) {
+        token.cancel();
+    }
+    // A cancellation can reach IPC before registration. Bound those tombstones
+    // so abandoned edits cannot grow the process registry indefinitely.
+    if !checks.cancelled.contains(&request_id) {
+        checks.cancelled.push_back(request_id);
+    }
+    while checks.cancelled.len() > 64 {
+        checks.cancelled.pop_front();
+    }
+    Ok(())
 }
 
 impl CloneOperationRegistry {
@@ -1299,6 +1454,67 @@ pub(crate) fn cleanup_clone(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_checks_accept_only_safe_github_addresses() {
+        for value in [
+            "https://github.com/team/project.git",
+            "git@github.com:team/project.git",
+            "ssh://git@github.com/team/project",
+        ] {
+            assert!(checked_github_source(value).is_ok(), "{value}");
+        }
+        for value in [
+            "https://github.com/team",
+            "https://github.com.evil.test/team/project",
+            "https://token@github.com/team/project",
+            "https://github.com/team/project?token=secret",
+            "https://github.com/team/project#secret",
+            "https://github.com:444/team/project",
+            "--upload-pack=evil",
+            "C:\\projects",
+        ] {
+            assert!(checked_github_source(value).is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn source_check_cancellation_can_arrive_before_registration() {
+        let registry = CloneOperationRegistry::default();
+        cancel_clone_source_check(&registry, "abc123".into()).unwrap();
+        assert_eq!(
+            check_clone_source(
+                &registry,
+                "https://github.com/team/project".into(),
+                None,
+                "abc123".into()
+            )
+            .unwrap_err()
+            .code,
+            AppErrorCode::OperationCancelled
+        );
+        assert!(registry.checks.lock().unwrap().active.is_empty());
+        for value in 0..100 {
+            cancel_clone_source_check(&registry, format!("{value:x}")).unwrap();
+        }
+        assert_eq!(registry.checks.lock().unwrap().cancelled.len(), 64);
+    }
+
+    #[test]
+    fn access_read_accepts_an_empty_repository_without_creating_a_clone() {
+        use crate::test_support::{git_init, unique_temp_dir};
+        let path = unique_temp_dir("empty-source-check");
+        git_init(&path);
+        let source = normalize_source(&path).unwrap();
+        let before = fs::read_dir(&path).unwrap().count();
+        let _frame = application::enter("check_clone_source");
+        assert_eq!(
+            read_source_access(&source).unwrap(),
+            CloneSourceAccess::Accessible
+        );
+        assert_eq!(fs::read_dir(&path).unwrap().count(), before);
+        assert!(!Path::new(&path).join("project").exists());
+    }
 
     #[test]
     fn supported_remote_grammar_is_provider_neutral_and_secret_safe() {

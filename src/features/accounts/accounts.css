@@ -1,6 +1,10 @@
 .hosting-account-picker { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
 .hosting-account-picker > .text-field { flex: 1; min-width: 220px; }
 .hosting-account-picker > .text-field small { white-space: normal; line-height: var(--leading-normal); }
+.hosting-account-picker__select { position: relative; display: block; min-width: 0; }
+.hosting-account-picker__select select { width: 100%; appearance: none; padding-inline-end: calc(var(--space-4) * 2 + 16px); }
+.hosting-account-picker__select > svg { position: absolute; inset-inline-end: var(--space-4); top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--text-primary-color); pointer-events: none; }
+.hosting-account-picker__select:has(select:disabled) > svg { opacity: 0.5; }
 .hosting-account-picker > .refresh-icon-button { margin-top: var(--space-5); }
 .settings-group__body > .hosting-account-picker,
 .settings-group__body > div:has(> .hosting-account-picker) { margin-bottom: var(--space-6); }

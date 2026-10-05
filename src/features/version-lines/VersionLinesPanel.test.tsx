@@ -1012,15 +1012,16 @@ describe("VersionLinesPanel", () => {
 
   it("keeps the route's place while the line's history is read, then draws it there", async () => {
     const user = userEvent.setup();
-    let answer: (history: VersionLineHistory) => void = () => undefined;
+    let answer!: (history: VersionLineHistory) => void;
+    // Hover prefetch and selection may both request this line. Resolve the
+    // same receipt for either call instead of overwriting a pending resolver.
+    const pendingHistory = new Promise<VersionLineHistory>((resolve) => { answer = resolve; });
     const [main, feature] = snapshot().lines;
     renderPanel({
       snapshot: snapshot({ lines: [{ ...main, isDefault: true }, feature] }),
       readHistory: (name: string) =>
         name === "feature/new-thing"
-          ? new Promise<VersionLineHistory>((resolve) => {
-              answer = resolve;
-            })
+          ? pendingHistory
           : Promise.resolve(history(name)),
     });
 

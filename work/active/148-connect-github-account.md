@@ -1,6 +1,6 @@
 ---
 id: 148
-title: Complete GitHub integration with reusable provider accounts
+title: Complete GitHub and GitLab integration with reusable provider accounts
 status: active
 priority: high
 type: epic
@@ -25,16 +25,24 @@ without registering GitOdile as another OAuth client. The GitHub adapter therefo
 continues to reuse gh, behind the shared contract in
 [ADR 0022](../../docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
+Current milestone scope, clarified by the user on 2026-10-04: finish GitHub
+browser/gh plus native token connections and its repository browser first;
+then GitLab.com through glab and the shared browser. PRs and Actions are later
+screens and do not block the account/discovery closure. Other
+provider adapters are deferred; generic Git remote URL access remains available.
+
 Milestones, in dependency order:
 
 - [x] Browser connection and cached account status (original task 148).
 - [x] Avatars and targeted sign-out ([148-1](../done/148-1-github-avatar-and-sign-out.md)).
 - [x] Saved account rows and shared gh switching ([148-2](../done/148-2-github-account-rows-and-switching.md)).
 - [x] Shared accounts and project-scoped Git access ([148-3](../done/148-3-shared-accounts-and-git-access.md)).
-- [ ] GitLab.com and Bitbucket Cloud accounts/access ([148-4](148-4-gitlab-and-bitbucket-accounts.md)).
-- [ ] Repository discovery across all three providers ([148-5](148-5-provider-repository-browser.md)).
+- [ ] Native GitHub token connections ([148-9](148-9-github-token-connections.md)).
+- [ ] GitHub repository discovery and clone handoff ([148-5](148-5-provider-repository-browser.md)).
+- [ ] GitLab.com accounts/access and browser extension ([148-4](148-4-gitlab-accounts.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
+- [ ] Deferred provider scope: Bitbucket Cloud accounts/access ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
 - [ ] Subsequent scope: GitOdile-owned GitHub authorization, with browser sign-in independent of gh (see below).
 
 Each child owns qualification of its account/access/API behavior across supported
@@ -75,9 +83,51 @@ It does not block completion of the current account/HTTPS-access foundation.
 - [ ] Verify browser sign-in and HTTPS access with gh absent, including supported
   platforms, and update the security/architecture decision before implementation.
 
-The account/HTTPS-access foundation is complete in task 148-3. The expanded
-integration remains open for the four linked children and their platform
-qualification; independently branded authorization is a later enhancement.
+The account/HTTPS-access foundation is complete in task 148-3. The current
+integration remains open for five active children and their platform qualification;
+Bitbucket and independently branded authorization remain later scope.
+
+## Provider task split (2026-10-04)
+
+The user approved separate GitLab and Bitbucket tasks after reviewing feasibility.
+148-4 retains its permanent ID for GitLab; new child 148-8 owns Bitbucket and
+follows GitLab before discovery, PRs and CI. Existing task IDs and historical
+validation remain unchanged; later queue positions shift by one.
+Authorization choices remain pending: glab installation is needed only if its
+adapter is chosen, and neither its default session nor GCM Git access alone
+proves the required multiple-account management. See the provider task handoffs.
+
+Split validation: documentation/link/queue checks and `git diff --check` passed.
+`pnpm run check` passed documentation/release/icon contracts, architecture,
+strict TypeScript, 123 frontend files / 1,220 tests, production build, Rust
+formatting and Clippy. The aggregate gate then failed before native tests:
+the running development GitOdile held `target/debug/gitodile.exe`, so Cargo
+could not replace it on Windows (access denied, OS error 5). No native-test
+pass is claimed for this split; the existing application was left running.
+
+## Two-provider scope and comparative review (2026-10-04)
+
+The user chose gh for GitHub and glab for GitLab.com, with both available in
+148-5's repository browser. Bitbucket 148-8 is deferred under `work/blocked/`,
+removed from the active queue and from 148-5/148-6/148-7 dependencies/scope.
+Later queue positions return to their prior relative order; IDs stay permanent.
+GitHub keeps multiple accounts; the first glab adapter supports its current
+verified identity, and a changed external identity invalidates old bindings.
+No GitOdile-owned OAuth registration is part of this milestone.
+
+The user also requested a source comparison with AngkorGit. The dated,
+commit-pinned evidence and limits are recorded in
+[the hosting comparison](../../docs/architecture/hosting-integration-comparison.md).
+The review does not authorize adopting its token-entry or account-fallback flows.
+
+Scope/research validation: `pnpm run check` passed documentation/release/icon
+contracts, frontend architecture, strict TypeScript, 123 frontend files / 1,220
+tests, production build, Rust formatting, Clippy and 524 native library tests
+plus the actual-binary/system-Git helper integration test (525 native tests).
+The earlier executable-lock limitation above describes the first task-split
+attempt, not this successful run. `git diff --check` and documentation checks
+passed after recording the evidence. GitLab/discovery implementation remains
+pending; no real provider login, account mutation or publishing was performed.
 
 # Original completed goal
 
@@ -238,3 +288,75 @@ tests and the actual-binary helper integration test). Against the real origin,
 the exact-account `git push --dry-run --no-verify` reproduced `quit=true` before
 the fix and exited successfully with the corrected binary. No push was executed;
 the dry run does not run the project's pre-push hook or publish changes.
+
+# GitHub token and discovery implementation (2026-10-05)
+
+The user approved finishing GitHub connection and discovery before GitLab, and
+explicitly excluded PR/Actions screens from this closure. Native token access
+and the clone repository browser are implemented in
+[148-9](148-9-github-token-connections.md) and
+[148-5](148-5-provider-repository-browser.md), under
+[ADR 0023](../../docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
+
+`pnpm run check` passed: 1,228 frontend tests, production build, architecture and
+documentation contracts, Rust formatting, Clippy, 531 native library tests and
+one actual-binary/system-Git helper integration test. The disposable Windows
+credential-store roundtrip also passed separately. The gate used an isolated
+Cargo target directory to avoid the running application's Windows file lock,
+with six frontend test workers. Validation also corrected the error-code
+contract fixture and an existing Version Lines hover/selection test race.
+
+The token alternative was visible in real Windows Settings. Computer Use was
+stopped by the user with Escape while entering the clone flow, so no further UI
+control was attempted. Token entry and real repository-browser/selected-account
+clone qualification remain pending; the two tasks stay active and GitLab has
+not started. macOS/Linux runtime limits remain governed by ADR 0006.
+
+# Pending integration review (2026-10-05)
+
+The user requested a review of the entire pending implementation and a local
+commit after verification. Reviewed native token storage, identity selection,
+API discovery, credential helpers, source checks, clone planning, IPC contracts,
+frontend controllers, Settings, virtual rows, styling, translations and task
+documentation. The existing owner-approved task closures and queue changes are
+preserved; exploratory root HTML/JPG files remain outside the production commit.
+
+Corrections and regression coverage:
+
+- Recheck cancellation after waiting for the secure-store mutation lock, before
+  starting a token write. A cancelled queued connection must not be saved.
+- Fence discovery success and failure receipts by the token metadata revision.
+  A request using a removed token cannot show an old page or invalidate a newly
+  reconnected token with the same account identifier.
+- Reload the cached catalog after both successful and failed token mutations.
+  Lost IPC receipts and partial removal failures must display the actual local
+  connection state while preserving the error instead of claiming success.
+- Keep a rendered tab stop after virtual scrolling and reset row focus on a
+  same-page refresh. Keyboard entry must not disappear with an unmounted row.
+- Redact credentials in incomplete Git URL summaries while preserving local
+  Windows paths and filenames containing punctuation.
+- Restore blocking mode on accepted sockets in the actual-binary helper's HTTP
+  fixture. Windows inherits the nonblocking listener mode; its first read raced
+  Git's send despite the configured read timeout. The original aggregate run
+  passed 1,241 frontend and 536 native library tests, then exposed this fixture
+  failure. The corrected actual-binary test passed separately.
+
+Focused validation: 32 frontend tests and nine GitHub access native tests pass;
+the disposable OS-store test remains ignored in the default suite. Read-only
+Windows Tauri validation detected the existing gh connection, opened its native
+selector, loaded 18 projects and exercised scrolling, Tab entry after scrolling,
+Home/End, Enter selection and Escape dismissal. Header/search/footer stayed
+fixed; selecting a row enabled Choose destination without executing a clone.
+
+These checks do not qualify a real personal token, private clone, new OAuth
+grant, publishing or macOS/Linux runtime behavior. Task 148-9 retains its real
+token qualification item; GitLab and PR/Actions implementation remain separate.
+
+Final aggregate `pnpm run check` passed after the fixture correction:
+documentation/release/icon contracts, frontend architecture, strict TypeScript,
+127 frontend files / 1,241 tests, production build, Rust formatting, Clippy with
+warnings denied, 536 native library tests and the actual-binary/system-Git
+helper test (537 native tests passed; the disposable OS-store test is ignored
+by default). It used the isolated Cargo target directory to avoid the running
+Windows executable lock and six frontend/native test workers. Documentation
+and staged `git diff --check` passed again after recording the result.

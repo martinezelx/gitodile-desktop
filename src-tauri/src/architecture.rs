@@ -74,6 +74,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "git",
         "git_command",
         "github_auth",
+        "github_access",
         "history",
         "hosting",
         "index",
@@ -112,6 +113,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
     for (owner, entry) in [
         ("repository", "repository.rs"),
         ("github_auth", "github_auth.rs"),
+        ("github_access", "github_access.rs"),
         ("credentials", "credentials.rs"),
         ("hosting", "hosting.rs"),
         ("status", "status.rs"),

@@ -24,6 +24,9 @@ fn serve_auth_challenge(listener: TcpListener) -> bool {
             }
             Err(_) => return false,
         };
+        // Windows accepted sockets inherit the listener's nonblocking mode.
+        // Wait for Git's request under the timeout rather than racing its send.
+        stream.set_nonblocking(false).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(2)))
             .unwrap();

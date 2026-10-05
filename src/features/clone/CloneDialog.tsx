@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   Check,
   CircleAlert,
@@ -8,13 +8,17 @@ import {
   Laptop,
   LoaderCircle,
   ShieldCheck,
+  Link,
+  ArrowRight,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { AccountPicker, accountsPort, providerForSource, useAccounts, type AccountsPort } from "../accounts";
+import { RepositoryBrowser, createRepositoryBrowserController, repositoryBrowserPort, type RepositoryBrowserPort, type RepositoryChoice } from "../repository-browser";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
-import { Dialog, DialogFacts, FieldError, useFieldErrors, useModalFocus } from "../../shared/ui";
+import { Dialog, DialogFacts, FieldError, HostingProviderIcon, useFieldErrors, useModalFocus } from "../../shared/ui";
+import { cloneSourceSummary, cloneSuggestedName } from "./sourceAccess";
 import type { CloneAttempt, CloneController } from "./controller";
 import {
   readLastCloneParent,
@@ -35,8 +39,7 @@ const PROGRESS_STEPS: { step: "downloading" | "checking" | "opening"; phases: Cl
 
 type DialogStep =
   | "input"
-  | "planning"
-  | "preview"
+  | "destination"
   | "executing"
   | "cancelled"
   | "error"
@@ -51,25 +54,33 @@ export function CloneDialog({
   onClose,
   onVerifiedClone,
   accountPort = accountsPort,
+  repositoryPort = repositoryBrowserPort,
 }: {
   isOpen: boolean;
   controller: CloneController;
   onClose: () => void;
   onVerifiedClone: (result: CloneResult) => Promise<void>;
   accountPort?: AccountsPort;
+  repositoryPort?: RepositoryBrowserPort;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeAfterCancelRef = useRef(false);
   const [source, setSource] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [sourceMode, setSourceMode] = useState<"url" | "github">("url");
+  const [selectedRepository, setSelectedRepository] = useState<RepositoryChoice | null>(null);
+  const [repositoryBrowser] = useState(() => createRepositoryBrowserController(repositoryPort));
+  const browserState = useSyncExternalStore(repositoryBrowser.subscribe, repositoryBrowser.snapshot);
+  const access = useSyncExternalStore(controller.sourceAccess.subscribe, controller.sourceAccess.snapshot);
   const { catalog, failed: accountsFailed, pending: checkingAccounts, check: checkAccounts } = useAccounts(accountPort, isOpen);
   const provider = providerForSource(source, catalog.providers);
-  useEffect(() => { setAccountId(null); }, [provider]);
+  useEffect(() => { setAccountId(current => provider && current?.startsWith(`${provider}:`) ? current : null); }, [provider]);
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
   const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
   const [step, setStep] = useState<DialogStep>("input");
+  const [isPlanning, setIsPlanning] = useState(false);
   const [attempt, setAttempt] = useState<CloneAttempt | null>(null);
   const [result, setResult] = useState<CloneResult | null>(null);
   const [phase, setPhase] = useState<CloneProgressPhase>("preparing");
@@ -95,19 +106,49 @@ export function CloneDialog({
     setError(null);
     setIsCancelling(false);
     setIsCleaning(false);
+    setIsPlanning(false);
     resetFieldErrors();
     closeAfterCancelRef.current = false;
   };
 
   useEffect(() => {
     if (isOpen) resetTransientState();
+    else { controller.sourceAccess.reset(); repositoryBrowser.cancel(); }
   }, [isOpen]);
+  useEffect(() => () => { controller.sourceAccess.reset(); repositoryBrowser.cancel(); controller.supersede(); }, [controller, repositoryBrowser]);
+
+  // Planning stays local; an edit invalidates the preceding destination plan.
+  // Its preview is rendered beside the fields, never on a third screen.
+  useEffect(() => {
+    if (!isOpen || step !== "destination") return;
+    let current = true;
+    controller.supersede();
+    setAttempt(null); setError(null);
+    setIsPlanning(Boolean(destinationParent.trim()));
+    if (!destinationParent.trim()) return;
+    const timer = setTimeout(() => {
+      void controller.plan({ source, destinationParent, destinationName, ...(accountId ? { accountId } : {}) }).then(planned => {
+        if (current && planned) setAttempt(planned);
+      }, failure => { if (current) setError(failure); }).finally(() => { if (current) setIsPlanning(false); });
+    }, 200);
+    return () => { current = false; clearTimeout(timer); };
+  }, [isOpen, step, source, destinationParent, destinationName, accountId, controller]);
+
+  useEffect(() => {
+    if (step === "destination") dialogRef.current?.querySelector<HTMLInputElement>("#clone-parent")?.focus();
+    if (step === "input" && sourceMode === "url") dialogRef.current?.querySelector<HTMLInputElement>("#clone-source")?.focus();
+  }, [step, sourceMode]);
 
   const finishClose = (): void => {
     controller.supersede();
     // Keep only the local parent convenience setting. A remote can contain
     // sensitive user-info even before Rust has had a chance to redact it.
     setSource("");
+    setAccountId(null);
+    setSourceMode("url");
+    setSelectedRepository(null);
+    controller.sourceAccess.reset();
+    repositoryBrowser.cancel();
     setDestinationName("");
     resetTransientState();
     onClose();
@@ -140,19 +181,37 @@ export function CloneDialog({
   ]);
 
   const planAttempt = async (): Promise<CloneAttempt | null> => {
-    setStep("planning");
     setError(null);
     try {
       const planned = await controller.plan(request);
       if (!planned) return null;
       setAttempt(planned);
-      setStep("preview");
       return planned;
     } catch (planError) {
       setError(planError);
       setStep("error");
       return null;
     }
+  };
+
+  const chooseDestination = (): void => {
+    if (!validate([{ field: "clone-source", invalid: !source.trim(), message: t.commonRequiredField }])) return;
+    controller.sourceAccess.cancel();
+    repositoryBrowser.cancel();
+    if (!destinationName.trim()) setDestinationName(cloneSuggestedName(source));
+    setStep("destination");
+  };
+
+  const editSource = (value: string): void => {
+    const nextProvider = providerForSource(value, catalog.providers);
+    const nextAccount = nextProvider && accountId?.startsWith(nextProvider + ":") ? accountId : null;
+    setSource(value); setAccountId(nextAccount); setDestinationName(""); setSelectedRepository(null);
+    controller.sourceAccess.update(value, nextAccount);
+  };
+
+  const changeSourceMode = (mode: "url" | "github"): void => {
+    controller.sourceAccess.cancel(); repositoryBrowser.cancel();
+    setSourceMode(mode); resetFieldErrors();
   };
 
   const openVerified = async (cloneResult: CloneResult): Promise<void> => {
@@ -240,13 +299,6 @@ export function CloneDialog({
     ? localizeAppError(error, t, t.cloneErrorTitle)
     : null;
   const technicalDetail = isAppError(error) ? error.detail : null;
-  const credentialsCopy = attempt
-    ? attempt.plan.credentialExpectation === "git-credential-helper"
-      ? attempt.plan.accountId ? t.accountsCloneCredentials : t.cloneCredentialsHelper
-      : attempt.plan.credentialExpectation === "ssh-agent-or-key"
-        ? t.cloneCredentialsSsh
-        : t.cloneCredentialsNone
-    : "";
   const currentStepIndex = PROGRESS_STEPS.findIndex((item) => item.phases.includes(phase));
   const close = (): void => requestOpenChange(false);
 
@@ -308,14 +360,26 @@ export function CloneDialog({
     );
   }
 
-  const isForm = step === "input" || step === "planning";
-  const title = step === "preview" ? t.cloneReviewTitle
+  const isForm = step === "input";
+  const title = step === "destination" ? t.cloneReviewTitle
     : step === "executing" && attempt ? t.cloneProgressTitleNamed(attempt.plan.destinationName)
       : step === "opening" ? t.cloneOpeningTitle
         : t.cloneDialogTitle;
   // The subtitle belongs to the step it describes: the form says what cloning
   // is, the review that nothing has happened yet, and progress says nothing.
-  const subtitle = isForm ? t.cloneDialogDescription : step === "preview" ? t.cloneReviewDescription : undefined;
+  const subtitle = isForm ? t.cloneDialogDescription : step === "destination" ? t.cloneReviewDescription : undefined;
+  const browserChoiceValid = selectedRepository && selectedRepository.accountId === browserState.accountId &&
+    catalog.accounts.some(account => account.id === selectedRepository.accountId && account.available);
+  const accessCurrent = access.source === source && access.accountId === accountId;
+  const accessStatus = accessCurrent ? access.status : "idle";
+  const accessTitle = accessStatus === "checking" ? t.cloneAccessChecking : accessStatus === "accessible"
+    ? t.cloneAccessConfirmed : accessStatus === "unavailable" ? t.cloneAccessUnavailable : t.cloneAccessUnconfirmed;
+  const selectedAccount = catalog.accounts.find(account => account.id === accountId);
+  const connectionLabel = selectedAccount
+    ? "@" + selectedAccount.login + " · " + (accountId?.startsWith("github:token.") ? t.accountsTokenMethod : t.accountsBrowserMethod)
+    : t.accountsUseGit;
+  const reviewedRequestMatches = attempt?.request.source === source && attempt.request.destinationParent === destinationParent &&
+    attempt.request.destinationName === destinationName && (attempt.request.accountId ?? null) === accountId;
 
   return (
     <Dialog
@@ -327,107 +391,91 @@ export function CloneDialog({
       onClose={step === "opening" ? undefined : close}
       closeLabel={t.commonClose}
       dialogRef={dialogRef}
-      className="clone-dialog auto-hide-scrollbar"
+      className={`clone-dialog auto-hide-scrollbar${isForm && sourceMode === "github" ? " clone-dialog--repositories" : ""}`}
     >
       {isForm && (
-        <form
-          className="clone-dialog__form"
-          {...formProps}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!validateInput()) return;
-            void planAttempt();
-          }}
-        >
-          <label className="text-field clone-dialog__field">
-            <span id="clone-source-label">{t.cloneSourceLabel}</span>
-            <input
-              {...fieldProps("clone-source", "clone-source-help")}
-              aria-labelledby="clone-source-label"
-              data-autofocus
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              placeholder={t.cloneSourcePlaceholder}
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-            <small id="clone-source-help">{t.cloneSourceHelp}</small>
-            <FieldError field="clone-source" errors={errors} />
-          </label>
-          {provider && <AccountPicker catalog={catalog} provider={provider} value={accountId}
-            onChange={setAccountId} onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
+        <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (sourceMode === "url" || browserChoiceValid) chooseDestination(); }}>
+          <nav className="clone-dialog__sources" aria-label={t.cloneSourceTabs}>
+            <button type="button" aria-pressed={sourceMode === "url"} onClick={() => changeSourceMode("url")}><Link aria-hidden="true" />{t.cloneGitAddress}</button>
+            <button type="button" aria-pressed={sourceMode === "github"} onClick={() => changeSourceMode("github")}><HostingProviderIcon provider="github" />GitHub</button>
+            <button type="button" disabled><HostingProviderIcon provider="gitlab" />GitLab <small>{t.cloneComingSoon}</small></button>
+          </nav>
+          {sourceMode === "github" ? <RepositoryBrowser controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
+            onCheck={() => void checkAccounts("github")} selected={selectedRepository} onClearSelection={() => setSelectedRepository(null)}
+            onChoose={choice => { setSelectedRepository(choice); setSource(choice.repository.cloneUrl); setAccountId(choice.accountId); setDestinationName(choice.repository.name); }} /> : <>
+            <label className="text-field clone-dialog__field">
+              <span id="clone-source-label">{t.cloneSourceLabel}</span>
+              <span className="clone-dialog__address-input">
+                <input {...fieldProps("clone-source", "clone-source-help")} id="clone-source" aria-labelledby="clone-source-label" data-autofocus
+                  value={source} onChange={event => editSource(event.target.value)} placeholder={t.cloneSourcePlaceholder} autoComplete="off" spellCheck={false} required />
+                {accessStatus === "checking" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
+                {accessStatus === "accessible" && <Check className="clone-dialog__access-ok" aria-hidden="true" />}
+                {accessStatus === "unavailable" && <CircleAlert className="clone-dialog__access-warning" aria-hidden="true" />}
+              </span>
+              <small id="clone-source-help">{t.cloneSourceHelp}</small>
+              <FieldError field="clone-source" errors={errors} />
+            </label>
+            {provider && <AccountPicker catalog={catalog} provider={provider} value={accountId} label={t.cloneConnectionLabel}
+              onChange={id => { setAccountId(id); controller.sourceAccess.update(source, id); }}
+              onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
+            {accessStatus !== "idle" && <div className={"clone-dialog__access clone-dialog__access--" + accessStatus} role="status" aria-live="polite">
+              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider="github" />}
+              <div><strong>{accessTitle}</strong><small>{accessStatus === "unavailable" ? t.cloneAccessUnavailableHelp : accessStatus === "unconfirmed" ? t.cloneAccessUnconfirmedHelp : t.cloneAccessConnection(connectionLabel)}</small></div>
+              <button type="button" className="clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId)}>
+                {accessStatus === "checking" ? t.commonCancel : t.cloneAccessRetry}
+              </button>
+            </div>}
+          </>}
+          <footer className="clone-dialog__footer">
+            <p className="app-dialog__note">{sourceMode === "github" && browserChoiceValid ? <><strong>{selectedRepository?.repository.fullName}</strong><span>{t.cloneNextDestination}</span></> : t.cloneNextDestination}</p>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
+              <button className="primary-button" type="submit" disabled={sourceMode === "github" ? !browserChoiceValid : accessStatus === "unavailable"}>
+                {accessStatus === "checking" || accessStatus === "unconfirmed" ? t.cloneContinueUnchecked : t.cloneReviewAction}<ArrowRight aria-hidden="true" />
+              </button>
+            </div>
+          </footer>
+        </form>
+      )}
+
+      {step === "destination" && (
+        <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (validateInput() && attempt && reviewedRequestMatches && !isPlanning) void executeAttempt(attempt); }}>
+          <div className="clone-dialog__picked">
+            {sourceMode === "github" ? <HostingProviderIcon provider="github" /> : <Link aria-hidden="true" />}
+            <div><strong>{sourceMode === "github" ? selectedRepository?.repository.fullName : t.cloneGitAddress}</strong>
+              <small>{attempt?.plan.sourceDisplay ?? cloneSourceSummary(source)}</small>
+              <small>{connectionLabel}</small></div>
+            <button className="clone-dialog__text-action" type="button" onClick={() => { controller.supersede(); setStep("input"); }}>{t.cloneChangeSource}</button>
+          </div>
           <label className="text-field clone-dialog__field">
             <span id="clone-parent-label">{t.cloneParentLabel}</span>
             <span className="clone-dialog__path-picker">
-              <input
-                {...fieldProps("clone-parent")}
-                aria-labelledby="clone-parent-label"
-                value={destinationParent}
-                onChange={(event) => setDestinationParent(event.target.value)}
-                placeholder={t.cloneParentPlaceholder}
-                autoComplete="off"
-                spellCheck={false}
-                required
-              />
-              <button className="secondary-button" type="button" onClick={() => void chooseParent()}>
-                <FolderOpen aria-hidden="true" />
-                {t.cloneChooseParent}
-              </button>
+              <input {...fieldProps("clone-parent")} id="clone-parent" aria-labelledby="clone-parent-label" value={destinationParent}
+                onChange={event => setDestinationParent(event.target.value)} placeholder={t.cloneParentPlaceholder} autoComplete="off" spellCheck={false} required />
+              <button className="secondary-button" type="button" onClick={() => void chooseParent()}><FolderOpen aria-hidden="true" />{t.cloneChooseParent}</button>
             </span>
             <FieldError field="clone-parent" errors={errors} />
           </label>
           <label className="text-field clone-dialog__field">
             <span id="clone-name-label">{t.cloneNameLabel}</span>
-            <input
-              aria-labelledby="clone-name-label"
-              value={destinationName}
-              onChange={(event) => setDestinationName(event.target.value)}
-              placeholder={t.cloneNamePlaceholder}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            <input id="clone-name" aria-labelledby="clone-name-label" value={destinationName} onChange={event => setDestinationName(event.target.value)} placeholder={t.cloneNamePlaceholder} autoComplete="off" spellCheck={false} />
+            <small>{t.cloneNameHelp}</small>
           </label>
-          <div className="dialog-actions">
-            <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
-            <button className="primary-button" type="submit" disabled={step === "planning"}>
-              {step === "planning" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
-              {t.cloneReviewAction}
-            </button>
-          </div>
+          {isPlanning && <p className="app-dialog__note" role="status"><LoaderCircle className="icon--spinning" aria-hidden="true" />{t.cloneCheckingDestination}</p>}
+          {attempt && reviewedRequestMatches && <p className="app-dialog__note clone-dialog__destination"><FolderOpen aria-hidden="true" /><span>{t.cloneDestinationLabel}: <code>{attempt.plan.destinationPath}</code></span></p>}
+          {localizedError && <p className="app-dialog__text" role="alert">{localizedError}</p>}
+          <DialogFacts facts={[
+            { icon: <Laptop />, text: t.cloneLocalEffects },
+            { icon: <ShieldCheck />, text: attempt?.plan.contactsNetwork === false ? t.cloneRemoteEffectsLocal : t.cloneRemoteEffectsNetwork, safe: true },
+          ]} />
+          <footer className="clone-dialog__footer">
+            <p className="app-dialog__note">{t.cloneNothingUntilConfirm}</p>
+            <div className="dialog-actions">
+              <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
+              <button className="primary-button" type="submit" disabled={!attempt || !reviewedRequestMatches || isPlanning}><CloudDownload aria-hidden="true" />{t.cloneConfirmAction}</button>
+            </div>
+          </footer>
         </form>
-      )}
-
-      {step === "preview" && attempt && (
-        <>
-          <dl className="app-dialog__kv">
-            <dt>{t.cloneRemoteLabel}</dt><dd><code>{attempt.plan.sourceDisplay}</code></dd>
-            <dt>{t.cloneDestinationLabel}</dt><dd><code>{attempt.plan.destinationPath}</code></dd>
-            {attempt.plan.accountId && <><dt>{t.accountsProjectLabel}</dt><dd>@{attempt.plan.accountId.split(":")[1]}</dd></>}
-          </dl>
-          <DialogFacts
-            facts={[
-              { icon: <Laptop />, text: t.cloneLocalEffects },
-              {
-                icon: <ShieldCheck />,
-                text: attempt.plan.contactsNetwork ? t.cloneRemoteEffectsNetwork : t.cloneRemoteEffectsLocal,
-                safe: true,
-              },
-            ]}
-          />
-          {/* Sign-in and what cancelling does are true and worth finding, but
-              not what decides whether to clone. */}
-          <details className="app-dialog__details">
-            <summary>{t.cloneTechnicalDetails}</summary>
-            <pre>{`${credentialsCopy}\n${t.cloneSafetyBody}`}</pre>
-          </details>
-          <div className="dialog-actions">
-            <button className="secondary-button" type="button" onClick={() => setStep("input")}>{t.cloneEditAction}</button>
-            <button className="primary-button" type="button" onClick={() => void executeAttempt(attempt)}>
-              <CloudDownload aria-hidden="true" />{t.cloneConfirmAction}
-            </button>
-          </div>
-        </>
       )}
 
       {step === "executing" && (

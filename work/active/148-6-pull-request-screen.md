@@ -11,13 +11,13 @@ areas:
 created: 2026-10-04
 completed:
 parent: "148"
-queue: "03"
+queue: "04"
 ---
 
 # Goal
 
 Implement a project-scoped collaboration screen in
-[epic 148](148-connect-github-account.md) for GitHub/Bitbucket pull requests and
+[epic 148](148-connect-github-account.md) for GitHub pull requests and
 GitLab merge requests, with shared UI and provider-specific API adapters.
 
 # User outcome
@@ -45,10 +45,11 @@ a reviewed proposal, and safely open its branch in the local project.
 - Full diff review/comment/approval suite, merges, closing proposals and branch deletion.
 - Implicit publishing or history rewriting to create/open a proposal.
 - CI logs/rerun/cancel/dispatch (148-7 owns the Actions screen).
+- Bitbucket and other providers, deferred by the user on 2026-10-04.
 
 # Acceptance criteria
 
-- [ ] GitHub, GitLab and Bitbucket projects use the same selected account for
+- [ ] GitHub and GitLab projects use the same selected account for
   discovery/details/creation, independently of another project's account.
 - [ ] Lists/details and checks represent the provider's actual states and pagination.
 - [ ] Creation requires an explicit reviewed plan with permissions, branch and
@@ -75,7 +76,7 @@ a reviewed proposal, and safely open its branch in the local project.
 
 # Dependencies
 
-Complete [148-4](148-4-gitlab-and-bitbucket-accounts.md) and
+Complete [148-4](148-4-gitlab-accounts.md) and
 [148-5](148-5-provider-repository-browser.md) first, reusing their provider API
 access and remote identity contracts instead of adding another auth path.
 

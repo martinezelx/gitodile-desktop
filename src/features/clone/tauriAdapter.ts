@@ -5,6 +5,8 @@ import type { CloneProgressPhase } from "./domain";
 import type { ClonePort } from "./port";
 
 export const clonePort: ClonePort = {
+  checkSource: (source, accountId, requestId) => invoke("check_clone_source", { source, accountId, requestId }),
+  cancelSourceCheck: (requestId) => invoke("cancel_clone_source_check", { requestId }),
   async chooseParent(initialParent) {
     const selected = await open({
       directory: true,

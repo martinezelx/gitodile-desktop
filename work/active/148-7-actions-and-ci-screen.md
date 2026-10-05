@@ -11,13 +11,13 @@ areas:
 created: 2026-10-04
 completed:
 parent: "148"
-queue: "04"
+queue: "05"
 ---
 
 # Goal
 
 Implement the Actions/CI screen in [epic 148](148-connect-github-account.md):
-GitHub Actions, GitLab CI/CD and Bitbucket Pipelines through reusable account
+GitHub Actions and GitLab CI/CD through reusable account
 and project identity contracts, preserving each provider's actual capabilities.
 
 # User outcome
@@ -48,10 +48,11 @@ deliberately request a supported rerun, cancellation or manual execution.
 - Editing workflow YAML, managing secrets/variables/runners or arbitrary API/CLI calls.
 - Downloading/executing build artifacts, changing billing or approving deployments.
 - PR review/merge, self-hosted providers and automatic reruns/dispatch.
+- Bitbucket Pipelines and other providers, deferred by the user on 2026-10-04.
 
 # Acceptance criteria
 
-- [ ] Runs/jobs/logs work for the three providers where the account/project has
+- [ ] Runs/jobs/logs work for GitHub and GitLab where the account/project has
   CI enabled; unsupported/missing/disabled capabilities have truthful states.
 - [ ] Provider/host/account/project/session keys isolate caches and stale replies.
 - [ ] Read operations are bounded/cancellable, cached arrival is network-free,
@@ -78,7 +79,7 @@ deliberately request a supported rerun, cancellation or manual execution.
 
 # Dependencies
 
-Complete [148-4](148-4-gitlab-and-bitbucket-accounts.md) and
+Complete [148-4](148-4-gitlab-accounts.md) and
 [148-5](148-5-provider-repository-browser.md). Execution follows
 [148-6](148-6-pull-request-screen.md) in the agreed queue; reuse its resolved
 remote/project account contract, but keep CI ownership separate.

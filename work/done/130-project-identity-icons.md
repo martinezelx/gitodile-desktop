@@ -1,7 +1,7 @@
 ---
 id: 130
 title: Show each project a detected or chosen identity icon
-status: active
+status: done
 priority: normal
 type: feature
 areas:
@@ -10,9 +10,9 @@ areas:
   - design
   - accessibility
 created: 2026-09-22
-completed:
+completed: 2026-10-05
 parent:
-queue: "25"
+queue:
 ---
 
 # Goal
@@ -333,3 +333,17 @@ skips a session with no epoch instead of manufacturing a failing read.
   `project-settings`, `settings`, `appShell`, `overview`, `styleComposition`).
 - `node scripts/check-docs.mjs` — passed.
 - `pnpm run check` (docs, frontend, Rust fmt/clippy/tests) — passed.
+
+## Closure review (2026-10-05)
+
+Reviewed the implementation, acceptance criteria and recorded validation.
+The approved feature scope is implemented; historical validation above is
+preserved. Closed during the requested task-status review.
+
+Closure checks: `node scripts/check-docs.mjs` passed. Focused theme contrast,
+project identity, avatar and session-technology tests passed (4 files, 29 tests).
+The current `pnpm run check` passed documentation/icon and architecture checks
+but stopped in TypeScript: the existing, untracked RepositoryBrowser.tsx uses
+missing `repositoriesLoadHint` and `repositoriesConnectionHint` translation keys.
+This task-status change does not alter that parallel implementation; the
+historical full-gate pass above is not a claim that the current full tree passes.

@@ -19,6 +19,11 @@
 .github-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .github-account__authorization { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-code); }
 .github-account__code { font-family: var(--font-mono); font-size: var(--text-display); letter-spacing: var(--tracking-caps); user-select: text; }
+.github-token__editor { display: grid; gap: var(--space-3); padding-block: var(--space-2); }
+.github-token__permissions { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.github-token__permissions summary { width: fit-content; color: var(--text-primary-color); font-weight: var(--weight-strong); border-radius: var(--radius-item); }
+.github-token__permissions summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--space-1); }
+.github-token__permissions p { margin-top: var(--space-2); }
 @media (max-width: 800px) {
   .github-account__row .tool-row__actions { align-items: flex-end; }
   .github-account__row .tool-row__buttons { width: auto; }

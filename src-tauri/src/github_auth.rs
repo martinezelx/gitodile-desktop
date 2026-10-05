@@ -161,6 +161,7 @@ impl AccessProvider for GhAccessProvider {
                 available: !snapshot.needs_check
                     && !snapshot.state.busy()
                     && entry.state == AuthState::Connected,
+                unavailable_reason: None,
             })
             .collect()
     }

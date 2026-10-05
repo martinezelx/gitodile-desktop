@@ -42,7 +42,7 @@ forget). Reaching it today means closing everything.
 The user asked for a discreet way back, not a permanent destination: an
 entry in the ··· menu keeps it out of the rail and the titlebar while still
 letting people navigate there. This follows the brand and titlebar decisions
-of task [131](../active/131-mascot-app-icon.md), which left the titlebar as controls
+of task [131](../done/131-mascot-app-icon.md), which left the titlebar as controls
 only.
 
 # Scope
@@ -119,7 +119,7 @@ only.
 
 # Dependencies
 
-Task [131](../active/131-mascot-app-icon.md) (committed): the welcome screen's mascot
+Task [131](../done/131-mascot-app-icon.md) (committed): the welcome screen's mascot
 and the titlebar layout this task builds on.
 
 # Decisions

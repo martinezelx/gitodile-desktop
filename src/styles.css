@@ -21,6 +21,7 @@
 @import "./features/workbench/workbench.css";
 @import "./features/settings/settings.css";
 @import "./features/github/github.css";
+@import "./features/repository-browser/repository-browser.css";
 @import "./features/accounts/accounts.css";
 @import "./features/project-settings/project-settings.css";
 @import "./features/notifications/notifications.css";

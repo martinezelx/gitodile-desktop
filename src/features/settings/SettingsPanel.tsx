@@ -350,6 +350,7 @@ export function SettingsPanel({
   onSectionChange,
   ghTooling,
   githubAccount,
+  githubToken,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -397,6 +398,7 @@ export function SettingsPanel({
   onSectionChange: (section: SettingsSection) => void;
   ghTooling: GitToolingState;
   githubAccount?: React.ReactNode;
+  githubToken?: React.ReactNode;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -2134,6 +2136,7 @@ export function SettingsPanel({
 
         {activeSection === "github" && (
           <div className="settings-groups">
+            {githubToken}
             <GhToolingSection port={port} tooling={ghTooling} account={githubAccount} />
           </div>
         )}

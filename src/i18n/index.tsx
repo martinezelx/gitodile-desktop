@@ -9,6 +9,8 @@ import { initializeProjectTranslations } from "../features/initialize-project/tr
 import { notificationsTranslations } from "../features/notifications/translations";
 import { historyTranslations } from "../features/history/translations";
 import { githubTranslations } from "../features/github/translations";
+import { githubTokenTranslations } from "../features/github/tokenTranslations";
+import { repositoryBrowserTranslations } from "../features/repository-browser/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
 import { publishTranslations } from "../features/publish/translations";
@@ -58,6 +60,8 @@ export const translationNamespaces = {
   notifications: notificationsTranslations,
   history: historyTranslations,
   github: githubTranslations,
+  githubToken: githubTokenTranslations,
+  repositoryBrowser: repositoryBrowserTranslations,
   accounts: accountsTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
@@ -80,6 +84,8 @@ const en = {
   ...notificationsTranslations.en,
   ...historyTranslations.en,
   ...githubTranslations.en,
+  ...githubTokenTranslations.en,
+  ...repositoryBrowserTranslations.en,
   ...accountsTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
@@ -104,6 +110,8 @@ const es: Translations = {
   ...notificationsTranslations.es,
   ...historyTranslations.es,
   ...githubTranslations.es,
+  ...githubTokenTranslations.es,
+  ...repositoryBrowserTranslations.es,
   ...accountsTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,

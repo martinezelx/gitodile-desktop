@@ -35,7 +35,7 @@ renders (eyes, teeth, crest, plates, sunglasses, poses, tiles and crops) until
 choosing "r14": the seated crocodile with arms and legs, big wayfarer
 sunglasses without a brow bar, a white belly with amber plates, and a crest
 drawn as a commit graph — white commits along an amber line ending in an
-amber HEAD at the neck. Task [131](../active/131-mascot-app-icon.md)
+amber HEAD at the neck. Task [131](../done/131-mascot-app-icon.md)
 introduced the v3 drawing and the pipeline this task rebuilds; its remaining
 native-rendering check now applies to the v4 icon.
 
@@ -184,5 +184,5 @@ A full review of the diff found and fixed:
   and wave sampled at several times in the dark theme; reduced motion leaves
   the mascot still and complete; the console ASCII viewed in all 12 themes;
   the rain's edge fade and the palette alignment measured.
-- Not done: the new icon in a real Windows, macOS or Linux install (tracked
-  by task 131's open criterion).
+- Installed-icon qualification was closed by the owner in task 131 on
+  2026-10-05; that task records the confirmation and the agent's evidence limits.

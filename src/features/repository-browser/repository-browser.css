@@ -1,0 +1,30 @@
+.repository-browser { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; }
+.repository-browser__list { height: 320px; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.repository-browser__row { padding-bottom: var(--space-1); }
+.repository-browser__row button { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 54px; padding: var(--space-2) var(--space-3); border: 0; color: var(--text-primary-color); background: transparent; text-align: left; border-radius: var(--radius-item); font: inherit; }
+.repository-browser__row button:hover { background: var(--surface-hover); }
+.repository-browser__row button[aria-pressed="true"] { background: var(--surface-active); }
+.repository-browser__row button > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--text-secondary-color); }
+.repository-browser__row button > .repository-browser__selected { color: var(--accent-primary); }
+.repository-browser__project-text { flex: 1; min-width: 0; }
+.repository-browser__project-heading { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.repository-browser__row .repository-browser__owner { font-weight: normal; font-size: inherit; color: var(--text-secondary-color); }
+.repository-browser__badge { display: inline-flex; gap: var(--space-1); align-items: center; border: 1px solid var(--border-control); padding: 0 var(--space-1); border-radius: var(--radius-pill); }
+.repository-browser__badge svg { width: 10px; height: 10px; }
+.repository-browser__connection { display: flex; gap: var(--space-3); align-items: flex-start; }
+.repository-browser__connection > svg { width: 20px; height: 20px; margin-top: 28px; flex-shrink: 0; }
+.repository-browser__connection .hosting-account-picker { flex: 1; min-width: 0; }
+.repository-browser__search { display: flex; align-items: center; gap: var(--space-1); background: var(--surface-control); border: 1px solid var(--border-control); border-radius: var(--radius-pill); padding-right: var(--space-1); }
+.repository-browser__search:focus-within { border-color: var(--focus-ring); }
+.repository-browser__search > label { position: relative; flex: 1; min-width: 0; }
+.repository-browser__search label > svg { position: absolute; width: 16px; height: 16px; top: 50%; left: 14px; margin-top: -8px; color: var(--text-secondary-color); pointer-events: none; }
+.repository-browser__search input { padding-left: 38px; border: 0; background: transparent; box-shadow: none; }
+.repository-browser__search .refresh-icon-button { width: 30px; min-width: 30px; min-height: 30px; height: 30px; border-color: transparent; background: transparent; }
+.repository-browser__row strong { overflow-wrap: anywhere; font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
+.repository-browser__badge, .repository-browser__row small { font-size: var(--text-label); color: var(--text-secondary-color); }
+.repository-browser__row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: var(--leading-normal); }
+.repository-browser__message { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
+.repository-browser__pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 30px; }
+.repository-browser__pagination p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
+.repository-browser__pagination > div { display: flex; gap: var(--space-1); }
+.repository-browser__pagination .refresh-icon-button { width: 30px; min-width: 30px; min-height: 30px; height: 30px; }

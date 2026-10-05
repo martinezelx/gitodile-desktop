@@ -202,7 +202,7 @@ export function GhToolingSection({ port, tooling, account }: {
 
   return (
     <>
-      <section className="settings-group">
+      <section className="settings-group" aria-label={t.ghAccountTitle}>
         <header className="settings-group__header">
           <h3>{t.ghAccountTitle}</h3>
           <p>{t.ghAccountDescription}</p>

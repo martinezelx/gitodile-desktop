@@ -11,7 +11,9 @@ use crate::{
     },
     application,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
-    clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
+    clone::{
+        self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
+    },
     console::{
         self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
     },
@@ -19,6 +21,7 @@ use crate::{
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
+    github_access::{GitHubAccessService, RepositoryPage},
     github_auth::{GitHubAuthService, GitHubAuthSnapshot},
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
@@ -47,6 +50,46 @@ use crate::{
     },
     watch,
 };
+
+#[tauri::command]
+pub(crate) async fn add_github_token(
+    service: tauri::State<'_, GitHubAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_github_token", service.add(token, request_id).await)
+}
+
+#[tauri::command(async)]
+pub(crate) fn remove_github_token(
+    service: tauri::State<'_, GitHubAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_github_token");
+    report_result("remove_github_token", service.remove(&account_id))
+}
+
+#[tauri::command]
+pub(crate) async fn list_hosting_repositories(
+    service: tauri::State<'_, GitHubAccessService>,
+    account_id: String,
+    page: u32,
+    request_id: String,
+) -> Result<RepositoryPage, AppError> {
+    report_result(
+        "list_hosting_repositories",
+        service.repositories(account_id, page, request_id).await,
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cancel_hosting_request(
+    service: tauri::State<'_, GitHubAccessService>,
+    request_id: String,
+) {
+    let _command = application::enter("cancel_hosting_request");
+    service.cancel(&request_id);
+}
 
 #[tauri::command]
 pub(crate) fn get_account_catalog(
@@ -223,6 +266,30 @@ pub(crate) fn plan_clone(
     report_result(
         "plan_clone",
         clone::plan_clone_with_account(source, destination_parent, destination_name, account_id),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_clone_source(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    source: String,
+    account_id: Option<String>,
+    request_id: String,
+) -> Result<CloneSourceAccess, AppError> {
+    report_result(
+        "check_clone_source",
+        clone::check_clone_source(&registry, source, account_id, request_id),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cancel_clone_source_check(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    request_id: String,
+) -> Result<(), AppError> {
+    report_result(
+        "cancel_clone_source_check",
+        clone::cancel_clone_source_check(&registry, request_id),
     )
 }
 
@@ -1644,6 +1711,8 @@ mod contract_tests {
             AppErrorCode::StaleGetTeamChangesPlan,
             AppErrorCode::InvalidRefName,
             AppErrorCode::AuthenticationFailed,
+            AppErrorCode::SecureStorageUnavailable,
+            AppErrorCode::ProviderRateLimited,
             AppErrorCode::NetworkTimeout,
             AppErrorCode::OperationCancelled,
             AppErrorCode::InvalidRemoteConfiguration,

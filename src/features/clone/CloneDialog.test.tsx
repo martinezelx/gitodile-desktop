@@ -9,6 +9,8 @@ import { createCloneController } from "./controller";
 import type { ClonePlan, CloneResult } from "./domain";
 import type { ClonePort } from "./port";
 import type { AccountsPort } from "../accounts";
+import type { RepositoryBrowserPort } from "../repository-browser";
+const originalResizeObserver = globalThis.ResizeObserver;
 
 const planFixture: ClonePlan = {
   operationKind: "local-mutation",
@@ -42,8 +44,10 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: AccountsPort) {
+function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: AccountsPort, repositoryPort?: RepositoryBrowserPort) {
   const port: ClonePort = {
+    checkSource: async () => "accessible",
+    cancelSourceCheck: async () => undefined,
     chooseParent: async () => null,
     plan: async () => planFixture,
     execute: async (_request, _plan, onProgress) => {
@@ -61,6 +65,7 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: Acco
       <CloneDialog
         isOpen
         accountPort={accountPort}
+        repositoryPort={repositoryPort}
         controller={createCloneController(port)}
         onClose={onClose}
         onVerifiedClone={onVerifiedClone}
@@ -72,25 +77,51 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: Acco
 
 async function enterAndReview(): Promise<void> {
   await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://alice:secret@example.test/team/project.git?token=hidden");
+  await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
   await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
-  await userEvent.click(screen.getByRole("button", { name: "Review" }));
   expect(await screen.findByText("https://example.test/team/project.git")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Clone project" })).toBeEnabled());
 }
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
+  globalThis.ResizeObserver = originalResizeObserver;
 });
 
 describe("CloneDialog", () => {
+  it("hands a discovered repository and its token connection to the existing clone review", async () => {
+    globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
+    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: "github", host: "github.com" }], busy: false,
+      accounts: ["github:work", "github:token.work"].map(id => ({ id, provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true })) }),
+      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
+    const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
+      repositories: [{ id: 1, name: "project", fullName: "team/project", owner: "team", private: true, archived: false, description: null, cloneUrl: "https://github.com/team/project.git" }] }));
+    const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId: "github:token.work" }));
+    renderDialog({ plan }, accounts, { list, cancel: vi.fn(async () => undefined) });
+    await userEvent.click(screen.getByRole("button", { name: "GitHub" }));
+    await userEvent.selectOptions(screen.getByRole("combobox"), "github:token.work");
+    expect(list).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Find projects" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Choose team/project" }));
+    expect(screen.getByRole("button", { name: "Choose team/project" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("combobox")).toHaveValue("github:token.work");
+    await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
+    await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
+    await waitFor(() => expect(plan).toHaveBeenCalled());
+    expect(plan.mock.calls[0][0]).toMatchObject({ source: "https://github.com/team/project.git", accountId: "github:token.work", destinationName: "project" });
+  });
   it.each([false, true])("keeps a completed clone when account persistence fails (cleanup: %s)", async (needsCleanup) => {
     const execute = vi.fn<ClonePort["execute"]>(async () => ({ ...result, accountSelectionSaved: false,
       outcome: needsCleanup ? "cleanup-required" : "completed", cleanupPath: needsCleanup ? "C:\\projects\\temporary" : null }));
     const cleanup = vi.fn<ClonePort["cleanup"]>(async () => undefined);
     const { onVerifiedClone } = renderDialog({ execute, cleanup });
     await enterAndReview();
-    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
+    await userEvent.click(screen.getByRole("button", { name: "Clone project" }));
     if (needsCleanup) await userEvent.click(await screen.findByRole("button", { name: "Retry cleanup" }));
     expect(await screen.findByRole("heading", { name: "The project was cloned; its account needs setup" })).toBeInTheDocument();
     expect(screen.getByText(/Do not clone it again/)).toBeInTheDocument();
@@ -112,12 +143,12 @@ describe("CloneDialog", () => {
     renderDialog({ plan, execute }, accountPort);
     await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://github.com/team/project.git");
     await userEvent.selectOptions(await screen.findByRole("combobox"), "github:work");
+    await userEvent.click(screen.getByRole("button", {name: /Choose destination|Continue without checking/}));
     await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
-    await userEvent.click(screen.getByRole("button", {name: "Review"}));
-    expect(await screen.findByText("@work")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", {name: "Clone project"})).toBeEnabled());
+    expect(await screen.findByText(/@work · Browser/)).toBeInTheDocument();
     expect(plan.mock.calls[0][0]).toMatchObject({accountId: "github:work"});
-    expect(screen.getByText(/GitOdile uses the selected account/, {ignore: false})).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", {name: "Clone and open"}));
+    await userEvent.click(screen.getByRole("button", {name: "Clone project"}));
     await waitFor(() => expect(execute).toHaveBeenCalled());
     expect(execute.mock.calls[0][0]).toMatchObject({accountId: "github:work"});
     expect(accountPort.check).not.toHaveBeenCalled();
@@ -129,10 +160,8 @@ describe("CloneDialog", () => {
     await enterAndReview();
 
     expect(screen.getByText("The original project doesn't change.")).toBeInTheDocument();
-    // Sign-in is true and findable, but behind the details rather than beside
-    // the decision.
-    expect(screen.getByText(/your existing Git sign-in is used/i, { ignore: false })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
+    expect(screen.queryByText("Technical details")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clone project" }));
 
     await waitFor(() => expect(onVerifiedClone).toHaveBeenCalledWith(result));
     expect(onClose).toHaveBeenCalledOnce();
@@ -143,20 +172,44 @@ describe("CloneDialog", () => {
   it("answers an empty required field inline and closes from the header button", async () => {
     const plan = vi.fn(async () => planFixture);
     const { onClose } = renderDialog({ plan });
-    await userEvent.click(screen.getByRole("button", { name: "Review" }));
+    await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
 
     expect(plan).not.toHaveBeenCalled();
-    expect(await screen.findAllByText("Fill in this field.")).toHaveLength(2);
+    expect(await screen.findAllByText("Fill in this field.")).toHaveLength(1);
     const source = screen.getByPlaceholderText("https://example.com/team/project.git");
     expect(source).toHaveAttribute("aria-invalid", "true");
     expect(source).toHaveFocus();
 
     await userEvent.type(source, "https://example.test/team/project.git");
     expect(source).not.toHaveAttribute("aria-invalid");
-    expect(screen.getAllByText("Fill in this field.")).toHaveLength(1);
+    expect(screen.queryByText("Fill in this field.")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("invalidates a destination plan on edits and never executes an older response", async () => {
+    const oldPlan = deferred<ClonePlan>();
+    const newPlan = deferred<ClonePlan>();
+    const plan = vi.fn<ClonePort["plan"]>().mockImplementationOnce(() => oldPlan.promise).mockImplementationOnce(() => newPlan.promise);
+    const execute = vi.fn<ClonePort["execute"]>(async () => result);
+    renderDialog({ plan, execute });
+    await userEvent.type(screen.getByLabelText("Project address"), "https://example.test/team/project.git");
+    await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
+    expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Save inside")).toHaveFocus();
+    await userEvent.type(screen.getByLabelText("Save inside"), "C:\\\\first");
+    await waitFor(() => expect(plan).toHaveBeenCalledTimes(1));
+    await userEvent.clear(screen.getByLabelText("Save inside"));
+    await userEvent.type(screen.getByLabelText("Save inside"), "C:\\\\second");
+    await waitFor(() => expect(plan).toHaveBeenCalledTimes(2));
+    oldPlan.resolve(planFixture);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Clone project" })).toBeDisabled());
+    newPlan.resolve({ ...planFixture, destinationParent: "C:\\\\second", destinationPath: "C:\\\\second\\project" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Clone project" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Clone project" }));
+    await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    expect(execute.mock.calls[0][0].destinationParent).toBe("C:\\\\second");
   });
 
   it("makes a late success inert when cancellation replaces the attempt", async () => {
@@ -164,7 +217,7 @@ describe("CloneDialog", () => {
     const cancel = vi.fn(async () => undefined);
     const { onVerifiedClone } = renderDialog({ execute: () => execution.promise, cancel });
     await enterAndReview();
-    await userEvent.click(screen.getByRole("button", { name: "Clone and open" }));
+    await userEvent.click(screen.getByRole("button", { name: "Clone project" }));
     await userEvent.click(await screen.findByRole("button", { name: "Cancel clone" }));
 
     expect(cancel).toHaveBeenCalledWith("op-1");

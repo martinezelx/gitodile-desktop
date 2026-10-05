@@ -36,7 +36,9 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Open a local project from its root or any nested folder, validate it in Rust,
   and switch between recent projects.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
-  provider-neutral flow. GitOdile stages privately, verifies the worktree,
+  provider-neutral two-screen flow: choose an address or GitHub project, then
+  choose the destination and clone. Complete GitHub addresses get a cancellable
+  read-only access check using the chosen connection. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
   lifecycle; select a saved account for GitOdile's HTTPS access or use existing
   Git credential helpers. SSH retains the user's configured keys.
@@ -311,8 +313,9 @@ Opening Settings never checks authentication over the network. A gh version with
 JSON authentication-status support is required; older versions request update.
 The session is shared with GitHub CLI. Before connecting, GitOdile explains gh's
 repository permissions and possible plaintext credential fallback; file-backed
-and environment-provided credentials are disclosed afterwards. GitOdile never
-stores a second token or changes persistent Git credentials/SSH keys. Sign-out first explains
+and environment-provided credentials are disclosed afterwards. This browser
+connection keeps credentials owned by gh and does not change persistent Git
+credentials/SSH keys. Sign-out first explains
 that it removes the selected account from the shared local gh session; it does
 not revoke GitHub authorization or close the browser session. Another saved
 account may become active. Users can activate a saved account, connect another
@@ -324,17 +327,38 @@ See
 [ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
 for ordinary local Git workflows.
 
-The account section appears before gh installation. Cloning a GitHub HTTPS URL
+Settings presents token connections first, browser connections second and gh
+installation last. Browser connections and saved gh accounts require the CLI;
+token connections work with or without it. Cloning a GitHub HTTPS URL
 and Project settings → Remote offer a shared account selector. Different projects
 can use different saved accounts without switching gh's active account. The
 native credential helper retrieves the exact saved account only when Git needs
-it; credentials never enter the frontend or command arguments/environment.
+it; retrieved credentials never return to the frontend or enter command arguments/environment.
 Selections persist as local metadata, and a missing credential fails instead
 of silently choosing another account. Choosing existing Git credentials preserves
 the system's normal authentication. Account selection does not change commit
 authorship, configure SSH or prove publishing permissions. The shared provider
-contract prepares GitLab/Bitbucket adapters; only GitHub is implemented today.
+contract prepares later GitLab adapters; only GitHub is implemented today.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
+
+Settings → GitHub offers **Token connection** in the same grouped rows as other
+settings. Add token opens a masked field with storage guidance and expandable
+permission details. GitOdile verifies the token's identity and saves it only
+in the system's secure credential store, with no plaintext fallback. Up to eight
+token connections coexist with browser connections; even the same username has
+separate connection choices. Removing one deletes its local secret, leaves its
+project selections unavailable and does not revoke the token on GitHub. After
+restart, detect/check accounts explicitly before choosing them. Metadata stores
+only usernames, and the token input clears when sent to Rust.
+
+Clone a project → **GitHub** lets you choose a connection
+and explicitly find its personal/team projects. Pages contain up to 100 projects
+with private/archive metadata and a filter for the current page. Permissions and
+organization/SSO approval may limit the inventory. Choosing a project fills its
+HTTPS address and account into the existing destination review; nothing is
+cloned until you confirm. Discovery uses exactly that connection without changing
+gh's active account. Its private results are cached only for the app session.
+See [ADR 0023](docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
 
 ## Requirements
 

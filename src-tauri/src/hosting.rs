@@ -1,14 +1,11 @@
 //! Desktop composition of hosting adapters, including the internal Git helper.
-use crate::{
-    credentials,
-    github_auth::{GhAccessProvider, GitHubAuthService},
-};
+use crate::{credentials, github_access::GitHubAccessService, github_auth::GitHubAuthService};
 use std::io::Write;
 use std::sync::Arc;
 
 /// One registry serves the desktop catalog and the internal helper process.
-pub(crate) fn providers(github: GitHubAuthService) -> Vec<Arc<dyn credentials::AccessProvider>> {
-    vec![Arc::new(GhAccessProvider(github))]
+pub(crate) fn providers(github: GitHubAccessService) -> Vec<Arc<dyn credentials::AccessProvider>> {
+    vec![Arc::new(github)]
 }
 
 /// Returns Some only in helper mode, before Tauri or its WebView starts.
@@ -23,7 +20,10 @@ pub fn credential_helper_entry() -> Option<i32> {
     let result = if args.len() == 4 {
         args[2].to_str().ok_or(()).and_then(|id| {
             credentials::helper(
-                &providers(GitHubAuthService::default()),
+                &providers(GitHubAccessService::new(
+                    GitHubAuthService::default(),
+                    Default::default(),
+                )),
                 id,
                 &args[3],
                 std::io::stdin().lock(),

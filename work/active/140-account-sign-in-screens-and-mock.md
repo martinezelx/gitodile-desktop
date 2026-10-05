@@ -10,7 +10,7 @@ areas:
 created: 2026-09-29
 completed:
 parent:
-queue: "27"
+queue: "25"
 ---
 
 # Goal

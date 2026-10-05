@@ -16,6 +16,7 @@ mod encoding;
 mod error;
 mod git;
 mod git_command;
+mod github_access;
 mod github_auth;
 mod history;
 pub mod hosting;
@@ -86,9 +87,16 @@ pub fn run() {
                 .state::<github_auth::GitHubAuthService>()
                 .inner()
                 .clone();
+            let access = github_access::GitHubAccessService::new(
+                github,
+                app.path()
+                    .app_config_dir()?
+                    .join("github-token-accounts.json"),
+            );
+            app.manage(access.clone());
             app.manage(credentials::install(
                 app.path().app_config_dir()?.join("account-selections.json"),
-                hosting::providers(github),
+                hosting::providers(access),
             ));
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
@@ -106,6 +114,8 @@ pub fn run() {
             ipc::reveal_project_file,
             ipc::open_repository,
             ipc::plan_clone,
+            ipc::check_clone_source,
+            ipc::cancel_clone_source_check,
             ipc::clone_repository,
             ipc::cancel_clone,
             ipc::cleanup_clone,
@@ -132,6 +142,10 @@ pub fn run() {
             ipc::delete_discard_recovery,
             ipc::gh_diagnostics,
             ipc::get_account_catalog,
+            ipc::add_github_token,
+            ipc::remove_github_token,
+            ipc::list_hosting_repositories,
+            ipc::cancel_hosting_request,
             ipc::check_account_catalog,
             ipc::read_project_account,
             ipc::set_project_account,

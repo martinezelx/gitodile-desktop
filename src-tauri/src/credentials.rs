@@ -12,6 +12,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex, OnceLock};
+use zeroize::Zeroize;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +23,8 @@ pub(crate) struct Account {
     pub(crate) login: String,
     pub(crate) avatar_data_url: Option<String>,
     pub(crate) available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) unavailable_reason: Option<AppErrorCode>,
 }
 
 #[derive(Serialize)]
@@ -47,12 +50,18 @@ pub(crate) trait AccessProvider: Send + Sync {
     fn busy(&self) -> bool;
     fn check(&self);
     fn credential(&self, login: &str) -> Option<Secret>;
+    fn username(&self, account_key: &str) -> Option<String> {
+        Some(account_key.to_owned())
+    }
 }
 
-/// Intentionally neither Debug nor Serialize. Only the helper writes this to
-/// its private pipe to Git. Provider-owned persistence remains authoritative.
+/// Intentionally neither Debug nor Serialize. Native helpers use this in their
+/// private Git pipe or HTTP headers; provider-owned storage is authoritative.
 pub(crate) struct Secret(Vec<u8>);
 impl Secret {
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.0
+    }
     pub(crate) fn from_bytes(mut bytes: Vec<u8>) -> Option<Self> {
         while bytes.last().is_some_and(u8::is_ascii_whitespace) {
             bytes.pop();
@@ -61,7 +70,7 @@ impl Secret {
             || bytes.len() > 4096
             || !bytes.iter().all(|b| (0x21..=0x7e).contains(b))
         {
-            bytes.fill(0);
+            bytes.zeroize();
             return None;
         }
         Some(Self(bytes))
@@ -69,7 +78,7 @@ impl Secret {
 }
 impl Drop for Secret {
     fn drop(&mut self) {
-        self.0.fill(0);
+        self.0.zeroize();
     }
 }
 
@@ -504,6 +513,7 @@ pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<()
             .find(|p| p.id() == provider)
             .ok_or_else(error)?;
         let host = adapter.host();
+        let username = adapter.username(login).ok_or_else(error)?;
         let helper = format!(
             "!{} --gitodile-credential-helper {}",
             shell_quote(&exe),
@@ -514,7 +524,7 @@ pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<()
         for setting in [
             format!("credential.https://{host}.helper="),
             format!("credential.https://{host}.helper={helper}"),
-            format!("credential.https://{host}.username={login}"),
+            format!("credential.https://{host}.username={username}"),
             format!("http.https://{host}/.extraHeader="),
         ] {
             process.arg("-c").arg(setting);
@@ -611,16 +621,17 @@ pub(crate) fn helper(
         host.eq_ignore_ascii_case(adapter.host())
             || host.eq_ignore_ascii_case(&format!("{}:443", adapter.host()))
     });
+    let username = adapter.username(login).ok_or(())?;
     if fields.get("protocol") != Some(&"https")
         || !matches_host
         || fields
             .get("username")
-            .is_some_and(|u| !u.is_empty() && !u.eq_ignore_ascii_case(login))
+            .is_some_and(|u| !u.is_empty() && !u.eq_ignore_ascii_case(&username))
     {
         return Err(());
     }
     let secret = adapter.credential(login).ok_or(())?;
-    write!(output, "username={login}\npassword=").map_err(|_| ())?;
+    write!(output, "username={username}\npassword=").map_err(|_| ())?;
     output
         .write_all(&secret.0)
         .and_then(|_| output.write_all(b"\n\n"))
@@ -654,6 +665,7 @@ mod tests {
                     login: (*login).into(),
                     avatar_data_url: None,
                     available: true,
+                    unavailable_reason: None,
                 })
                 .collect()
         }

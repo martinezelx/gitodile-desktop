@@ -805,6 +805,16 @@ Git helper failure stops fallback to another identity. See
 [ADR 0022](adr/0022-share-provider-accounts-and-scope-git-access.md) for the narrow
 native-token exception to ADR 0021, scope isolation and platform qualification.
 
+`github_access.rs` now composes gh and native OS-stored token connections behind
+that same provider. Credential-source IDs and HTTP usernames are separate, so
+the same login can explicitly choose browser or token. `features/github` owns
+the one-way token ingestion UI; `features/repository-browser` owns the typed
+paginated discovery port/controller and eager clone-overlay browser. Native API
+access verifies the exact selected identity and validates every clone URL.
+Visibility only reads local receipts; network checks and pages require clicks.
+See [ADR 0023](adr/0023-add-native-github-tokens-and-repository-discovery.md) for
+storage, cancellation, limits, caching and platform consequences.
+
 ### Canonical product identity
 
 The shipped product, npm/Cargo packages, Rust crate, executable, frontend
@@ -912,3 +922,28 @@ Add an ADR before changing a durable decision such as the Git backend, state
 management model, credential storage, updates, telemetry, AI providers, WSL
 support, or extension architecture. Small ownership-preserving refactors do
 not need an ADR; update this document when the current architecture changes.
+
+## Clone source access and destination preview
+
+The eager clone overlay owns two input screens. Source selection hands the exact
+repository/connection to the editable destination. Its local native plan is
+refreshed on destination edits; only the matching plan can execute. The existing
+state-token, staging, verification, exclusive publication and recovery/error
+paths remain the mutation boundary.
+
+`features/clone/sourceAccess.ts` owns debounced source checks and generations.
+Editing a complete GitHub address/account explicitly starts a read; visibility
+does not. A typed clone port invokes `check_clone_source`, which validates the
+GitHub host, protocol, complete path and absence of URL secrets before credentials
+are read. `clone.rs` executes bounded, cancellable `git ls-remote --quiet -- URL
+HEAD` under the same process-scoped credentials as cloning. Success with zero
+refs is valid for an empty project. Failure never exposes stderr or tokens in
+the response, and lack of access is not labelled a definitely nonexistent repo.
+Checks have bounded cancellation tombstones for cancel-before-registration races.
+The default Git credential helpers and SSH configuration remain owned by Git;
+transient/authentication-tool failures can be checked during the actual clone.
+
+The reference inspected was GitButler's small remote transport representation
+(`crates/gitbutler-repo/src/remote.rs`): keep structured source metadata separate
+from the workflow. GitOdile keeps its existing system-Git/process policy instead
+of adopting GitButler's gix repository implementation. No code was adapted.

@@ -137,3 +137,5 @@ export { ErrorBoundary, ViewErrorNotice, type ViewErrorLabels } from "./errorBou
    geometry so the three read as one grammar. What is shared is the surface;
    which states and actions each tool has stays with its feature. */
 export { ToolInstallationRow, type ToolChip, type ToolChipTone } from "./toolInstallationRow";
+
+export { GitHubIcon, HostingProviderIcon } from "./hostingProviderIcon";

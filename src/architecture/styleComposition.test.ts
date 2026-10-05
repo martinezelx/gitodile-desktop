@@ -26,6 +26,7 @@ const EXPECTED_IMPORTS = [
   "./features/workbench/workbench.css",
   "./features/settings/settings.css",
   "./features/github/github.css",
+  "./features/repository-browser/repository-browser.css",
   "./features/accounts/accounts.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",

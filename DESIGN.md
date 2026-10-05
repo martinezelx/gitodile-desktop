@@ -1,5 +1,41 @@
 # GitOdile Design Direction
 
+GitHub connections offer personal tokens first, browser authorization second,
+and GitHub CLI tooling last in Settings. Tokens work with or without gh; browser
+authorization and its saved accounts require gh. The token field is hidden until asked
+for, masks its contents, explains secure storage/permissions before submission
+and clears immediately when sent. Labels distinguish connection methods even
+for the same username. Removing a local connection explains affected project
+access and that it does not revoke authorization on GitHub.
+
+Repository browsing belongs to the clone overlay. Account selection and an
+explicit Find action precede network access. Show page scope, private/archive
+metadata, permission-limited results and keyboard-accessible virtual rows.
+Choosing a project populates the normal destination review without starting a
+clone. A filter must say which page it searches; a partial list cannot read as
+the full account inventory. Opening a cached view does not refresh remotely.
+
+The clone overlay uses two screens: Git address first, GitHub second and a
+GitLab Coming soon tab; then the editable destination and native preview with
+Clone project. There is no numbered step bar or separate confirmation screen.
+Selecting a repository stays on the list and highlights the selection until
+Choose destination. Retain virtualized rows and invalidate selection on account
+or page changes. Editing a complete GitHub address or its connection starts a
+debounced, cancellable read-only Git access check; opening the overlay or a
+cached list never does. Confirm only read access, keep missing/private ambiguity,
+and offer continuing without checking for transient failures. Use the same
+exact connection as cloning. The input explains the network check before entry.
+
+GitHub browsing gives the remaining dialog height to its virtualized project
+list. The heading, source tabs, connection, search and destination action stay
+fixed; only the list scrolls. Refresh belongs inside the search capsule, with
+an accessible name and busy/cancel feedback. Compact rows show the project name
+in primary ink, the owner in secondary ink and at most one description line.
+The list uses the app's shared auto-hiding scrollbar and normal keyboard controls.
+Page scope stays in the filter label and compact counter; page arrows appear
+only when there is another page to reach. Permissions guidance belongs to empty
+and denied-access states rather than a paragraph above every populated list.
+
 This document owns GitOdile's visual and interaction direction. See
 [`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the product thesis,
 audience, positioning, and detailed competitive context.
@@ -1905,8 +1941,16 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
-**GitHub integration is a separate connection.** Settings → GitHub keeps the
-account body first and the tooling row below it. Detection explicitly contacts GitHub;
+**GitHub integration is a separate connection.** Settings → GitHub uses standard
+Settings groups in this order: token connections, browser connections, and gh
+tooling. Each method explains its own dependency: tokens work with or without
+gh, while browser authorization and its saved accounts require it. Token rows
+reuse the installation row with identity, state and right-aligned actions. Add
+token opens a flat masked field; storage guidance stays visible and detailed
+permissions use a disclosure. Cancellation restores the initiating control's
+focus; removal restores Add token after the catalog changes.
+
+Browser account detection explicitly contacts GitHub;
 opening the section renders cached state only. List saved accounts with the
 active account first. Reuse the installation row: a small circular cached avatar,
 username and status chip on the left, actions aligned to the far right, and the

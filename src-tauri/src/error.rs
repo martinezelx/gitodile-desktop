@@ -9,7 +9,7 @@ pub(crate) struct AppError {
     pub(crate) detail: Option<String>,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(Clone, serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AppErrorCode {
     StaleSession,
@@ -84,6 +84,8 @@ pub(crate) enum AppErrorCode {
     StaleGetTeamChangesPlan,
     InvalidRefName,
     AuthenticationFailed,
+    SecureStorageUnavailable,
+    ProviderRateLimited,
     NetworkTimeout,
     OperationCancelled,
     InvalidRemoteConfiguration,

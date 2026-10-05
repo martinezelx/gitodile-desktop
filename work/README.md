@@ -47,9 +47,15 @@ Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 by explicit request. The next unused top-level ID after the
 current plan is `149`.
 
-The current GitHub epic is [148](active/148-connect-github-account.md). Its
+The current GitHub/GitLab epic is [148](active/148-connect-github-account.md). Its
 original browser connection and completed follow-ups remain historical evidence;
 the expanded epic tracks shared access, discovery, PRs and Actions separately.
+The user chose to close GitHub first: browser/CLI plus native tokens
+([148-9](active/148-9-github-token-connections.md)), then repository discovery
+([148-5](active/148-5-provider-repository-browser.md)), followed by GitLab/glab
+([148-4](active/148-4-gitlab-accounts.md)). PR/Actions screens come later and
+do not gate this integration closure. Bitbucket [148-8](blocked/148-8-bitbucket-accounts.md)
+is deferred outside the active queue.
 
 A multi-task epic may group its child task files in a subfolder under
 `active/` (e.g. `active/architecture/`) to signal priority and keep the

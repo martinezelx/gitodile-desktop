@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
-import { GitHubAccountSection, type GitHubAuthController } from "../features/github";
+import { GitHubAccountSection, GitHubTokenSection, type GitHubAuthController } from "../features/github";
 import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -413,6 +413,7 @@ export function AppOverlays({
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               ghTooling={settings.ghTooling}
+              githubToken={<GitHubTokenSection />}
               githubAccount={<GitHubAccountSection controller={settings.githubAuth} available={settings.ghTooling.diagnostics === null ? null : settings.ghTooling.diagnostics.state === "available"} />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}

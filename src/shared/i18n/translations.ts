@@ -71,6 +71,8 @@ export interface SharedTranslations {
   errorStaleGetTeamChangesPlan: string;
   errorInvalidRefName: string;
   errorAuthenticationFailed: string;
+  errorSecureStorageUnavailable: string;
+  errorProviderRateLimited: string;
   errorNetworkTimeout: string;
   errorOperationCancelled: string;
   errorInvalidRemoteConfiguration: string;
@@ -194,6 +196,8 @@ const en: SharedTranslations = {
   errorStaleGetTeamChangesPlan: "The project or the remote changed since the preview. Review it again.",
   errorInvalidRefName: "That version line name isn't valid in Git.",
   errorAuthenticationFailed: "Couldn't sign in to the remote. Check your Git credentials.",
+  errorSecureStorageUnavailable: "The system's secure credential store is unavailable. Unlock it and try again. The token is never saved as plain text.",
+  errorProviderRateLimited: "GitHub has temporarily limited requests. Wait before trying again.",
   errorNetworkTimeout: "The remote took too long to answer. Check your connection and retry.",
   errorOperationCancelled: "The check was cancelled. Try again whenever you're ready.",
   errorInvalidRemoteConfiguration: "This line's remote setup is incomplete. Fix its tracking branch in Git.",
@@ -317,6 +321,8 @@ const es: SharedTranslations = {
   errorStaleGetTeamChangesPlan: "El proyecto o el remoto han cambiado desde la vista previa. Revísala de nuevo.",
   errorInvalidRefName: "Ese nombre de línea de versión no es válido en Git.",
   errorAuthenticationFailed: "No se pudo iniciar sesión en el remoto. Revisa tus credenciales de Git.",
+  errorSecureStorageUnavailable: "El almacén seguro del sistema no está disponible. Desbloquéalo e inténtalo de nuevo. El token nunca se guarda como texto plano.",
+  errorProviderRateLimited: "GitHub ha limitado temporalmente las solicitudes. Espera antes de volver a intentarlo.",
   errorNetworkTimeout: "El remoto tardó demasiado en responder. Revisa la conexión y reintenta.",
   errorOperationCancelled: "Se canceló la comprobación. Reinténtalo cuando quieras.",
   errorInvalidRemoteConfiguration: "La configuración remota de esta línea está incompleta. Corrige su rama de seguimiento en Git.",

@@ -1,7 +1,7 @@
 ---
 id: 131
 title: Replace the app icon with the full-colour sunglasses mascot
-status: active
+status: done
 priority: normal
 type: design
 areas:
@@ -9,9 +9,9 @@ areas:
   - desktop
   - branding
 created: 2026-09-26
-completed:
+completed: 2026-10-05
 parent:
-queue: "26"
+queue:
 ---
 
 # Goal
@@ -163,7 +163,7 @@ both variants.
       the ··· menu and the palette once the titlebar mark is gone.
 - [x] `DESIGN.md` describes the new mascot, colours, variants and
       thresholds; stale guidance about the old mark is removed.
-- [ ] Native rendering is checked on Windows; macOS and Linux checks are done
+- [x] Native rendering is checked on Windows; macOS and Linux checks are done
       or recorded as not done.
 - [x] Task 102 is closed as superseded.
 - [x] `pnpm run check` passes.
@@ -335,3 +335,24 @@ In the app:
   unique clip ids and the star.
 - Not yet done: the icon in a real Windows install (taskbar, Start, Explorer,
   installer) and any macOS or Linux rendering, so the task stays active.
+
+## Status review (2026-10-05)
+
+The implementation was superseded by completed task 141, but that task
+explicitly delegates real installed-icon validation back here. Windows
+taskbar, Start, Explorer and installer rendering is still unverified;
+macOS/Linux rendering is also not recorded. Keep this task active for
+its remaining native-rendering criterion.
+
+## Owner-confirmed closure (2026-10-05)
+
+The owner explicitly confirmed that tasks 131 and 145 are validated and
+requested moving both to done. This confirmation supersedes the active-status
+conclusion in the review above. No new platform or CI results are claimed
+by the agent; historical evidence and its limitations remain recorded.
+
+Closure checks: documentation, icon contracts, architecture, TypeScript,
+1,236 frontend tests, frontend production build, Rust formatting and Clippy
+passed. The aggregate `pnpm run check` stopped during Rust test compilation:
+Windows denied removal of `src-tauri/target/debug/gitodile.exe` (OS error 5).
+The Rust tests were not completed in this closure run.

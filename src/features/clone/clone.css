@@ -1,12 +1,50 @@
 .clone-dialog__form { display: grid; gap: var(--space-4); }
+/* The project list gets the remaining space; the shell and action never scroll. */
+.clone-dialog--repositories { height: min(760px, calc(100dvh - 48px)); overflow: hidden; }
+.clone-dialog--repositories > .app-dialog__head { flex-shrink: 0; }
+.clone-dialog--repositories > form { flex: 1; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+.clone-dialog--repositories .repository-browser__connection,
+.clone-dialog--repositories .repository-browser__search,
+.clone-dialog--repositories .repository-browser__pagination { flex-shrink: 0; }
+.clone-dialog--repositories .repository-browser__list { flex: 1; height: auto; }
 .clone-dialog__field small { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 .clone-dialog__field input { font-family: var(--font-mono); }
 .clone-dialog__field input::placeholder { font-family: var(--font-sans); }
 .clone-dialog__path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
 .clone-dialog__path-picker .secondary-button { white-space: nowrap; }
 .clone-dialog__path-picker svg { width: 16px; height: 16px; }
+.clone-dialog__sources { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.clone-dialog__sources button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 38px; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: inherit; }
+.clone-dialog__sources button:hover:not(:disabled) { background: var(--surface-hover); }
+.clone-dialog__sources button[aria-pressed="true"] { background: var(--surface-active); color: var(--text-primary-color); }
+.clone-dialog__sources button:disabled { opacity: .5; }
+.clone-dialog__sources svg { width: 18px; height: 18px; flex-shrink: 0; }
+.clone-dialog__sources small { font-size: var(--text-label); }
+.clone-dialog__address-input { position: relative; }
+.clone-dialog__address-input input { width: 100%; padding-right: 40px; }
+.clone-dialog__address-input > svg { position: absolute; right: 14px; top: 50%; margin-top: -8px; width: 16px; height: 16px; color: var(--text-secondary-color); pointer-events: none; }
+.clone-dialog__address-input > .clone-dialog__access-ok { color: var(--status-success); }
+.clone-dialog__address-input > .clone-dialog__access-warning { color: var(--status-warning); }
+.clone-dialog__access { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-body); }
+.clone-dialog__access > svg { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; }
+.clone-dialog__access > div { flex: 1; min-width: 0; }
+.clone-dialog__access strong, .clone-dialog__access small { display: block; }
+.clone-dialog__access small { color: var(--text-secondary-color); font-size: var(--text-label); margin-top: var(--space-1); }
+.clone-dialog__access--accessible > svg { color: var(--status-success); }
+.clone-dialog__access--unavailable > svg { color: var(--status-warning); }
+.clone-dialog__text-action { border: 0; background: transparent; color: var(--accent-primary); padding: 0; font: inherit; font-size: var(--text-label); white-space: nowrap; }
+.clone-dialog__text-action:hover { text-decoration: underline; }
+.clone-dialog__picked { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3); background: var(--surface-hover); border-radius: var(--radius-item); }
+.clone-dialog__picked > svg { width: 24px; height: 24px; flex-shrink: 0; }
+.clone-dialog__picked > div { flex: 1; min-width: 0; }
+.clone-dialog__picked small { display: block; color: var(--text-secondary-color); overflow-wrap: anywhere; margin-top: var(--space-1); }
+.clone-dialog__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-top: 1px solid var(--border-subtle); padding-top: var(--space-4); }
+.clone-dialog__footer .app-dialog__note { display: grid; gap: var(--space-1); font-size: var(--text-label); }
+.clone-dialog__footer .app-dialog__note strong { color: var(--text-primary-color); overflow-wrap: anywhere; }
+.clone-dialog__footer .dialog-actions { margin: 0 0 0 auto; flex-shrink: 0; }
+.clone-dialog__destination code { overflow-wrap: anywhere; }
 
 @media (max-width: 720px) {
   .clone-dialog__path-picker { grid-template-columns: 1fr; }
+  .clone-dialog__footer { flex-wrap: wrap; }
 }
-
