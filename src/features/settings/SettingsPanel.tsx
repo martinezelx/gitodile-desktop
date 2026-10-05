@@ -37,6 +37,7 @@ import {
 import {
   autoHideScrollbarProps,
   LoadingPlaceholder,
+  HostingProviderIcon,
   moveFocusWithinRadioGroup,
   TextPlaceholder,
   ToggleSwitch,
@@ -88,7 +89,7 @@ import {
   type SettingsSection,
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
-import { GhToolingSection } from "./GhToolingSection";
+import { GhToolingSection, type HostingToolingCopy, type HostingToolingPort } from "./GhToolingSection";
 import { GitIcon } from "./GitIcon";
 import { GitHubIcon } from "./GitHubIcon";
 import { ToolRecheckButton } from "./ToolRecheckButton";
@@ -161,6 +162,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   console: <SquareTerminal />,
   git: <GitIcon />,
   github: <GitHubIcon />,
+  gitlab: <HostingProviderIcon provider="gitlab" />,
   "line-endings": <CornerDownLeft />,
   updates: <CloudDownload />,
 };
@@ -351,6 +353,7 @@ export function SettingsPanel({
   ghTooling,
   githubAccount,
   githubToken,
+  gitlabToken, gitlabAccount, glabTooling, glabActions, glabCopy,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -399,6 +402,7 @@ export function SettingsPanel({
   ghTooling: GitToolingState;
   githubAccount?: React.ReactNode;
   githubToken?: React.ReactNode;
+  gitlabToken?: React.ReactNode; gitlabAccount?: React.ReactNode; glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -2134,6 +2138,10 @@ export function SettingsPanel({
           </div>
         )}
 
+        {activeSection === "gitlab" && glabTooling && (<>
+          {gitlabToken}
+          <GhToolingSection port={port} tooling={glabTooling} account={gitlabAccount} actions={glabActions} copy={glabCopy} mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl="https://gitlab.com/gitlab-org/cli#installation" />
+        </>)}
         {activeSection === "github" && (
           <div className="settings-groups">
             {githubToken}

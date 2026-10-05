@@ -1,3 +1,6 @@
+import { gitlabTranslations } from "../features/gitlab/translations";
+import { gitlabTokenTranslations } from "../features/gitlab/tokenTranslations";
+import { gitlabToolingTranslations } from "../features/gitlab/toolingTranslations";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
@@ -59,6 +62,9 @@ export const translationNamespaces = {
   initializeProject: initializeProjectTranslations,
   notifications: notificationsTranslations,
   history: historyTranslations,
+  gitlab: gitlabTranslations,
+  gitlabToken: gitlabTokenTranslations,
+  gitlabTooling: gitlabToolingTranslations,
   github: githubTranslations,
   githubToken: githubTokenTranslations,
   repositoryBrowser: repositoryBrowserTranslations,
@@ -83,6 +89,9 @@ const en = {
   ...initializeProjectTranslations.en,
   ...notificationsTranslations.en,
   ...historyTranslations.en,
+  ...gitlabTranslations.en,
+  ...gitlabTokenTranslations.en,
+  ...gitlabToolingTranslations.en,
   ...githubTranslations.en,
   ...githubTokenTranslations.en,
   ...repositoryBrowserTranslations.en,
@@ -109,6 +118,9 @@ const es: Translations = {
   ...initializeProjectTranslations.es,
   ...notificationsTranslations.es,
   ...historyTranslations.es,
+  ...gitlabTranslations.es,
+  ...gitlabTokenTranslations.es,
+  ...gitlabToolingTranslations.es,
   ...githubTranslations.es,
   ...githubTokenTranslations.es,
   ...repositoryBrowserTranslations.es,

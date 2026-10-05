@@ -23,6 +23,8 @@ use crate::{
     error::AppError,
     github_access::{GitHubAccessService, RepositoryPage},
     github_auth::{GitHubAuthService, GitHubAuthSnapshot},
+    gitlab_access::GitLabAccessService,
+    gitlab_auth::{GitLabAuthService, GitLabAuthSnapshot},
     history::{self, HistoryPage, SavedVersionDetail},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
@@ -72,23 +74,26 @@ pub(crate) fn remove_github_token(
 #[tauri::command]
 pub(crate) async fn list_hosting_repositories(
     service: tauri::State<'_, GitHubAccessService>,
+    gitlab: tauri::State<'_, GitLabAccessService>,
     account_id: String,
     page: u32,
     request_id: String,
 ) -> Result<RepositoryPage, AppError> {
     report_result(
         "list_hosting_repositories",
-        service.repositories(account_id, page, request_id).await,
+        crate::hosting::repositories(&service, &gitlab, account_id, page, request_id).await,
     )
 }
 
 #[tauri::command]
 pub(crate) fn cancel_hosting_request(
     service: tauri::State<'_, GitHubAccessService>,
+    gitlab: tauri::State<'_, GitLabAccessService>,
     request_id: String,
 ) {
     let _command = application::enter("cancel_hosting_request");
     service.cancel(&request_id);
+    gitlab.cancel(&request_id);
 }
 
 #[tauri::command]
@@ -1910,4 +1915,71 @@ pub(crate) fn update_gh() -> GitUpdateLaunchResult {
 #[tauri::command(async)]
 pub(crate) fn check_gh_update() -> GitUpdateStatus {
     report_value("check_gh_update", tooling::check_gh_update())
+}
+
+#[tauri::command]
+pub(crate) fn glab_diagnostics() -> GitDiagnostics {
+    report_value("glab_diagnostics", tooling::glab_diagnostics())
+}
+#[tauri::command]
+pub(crate) fn install_glab() -> GitInstallationResult {
+    report_value("install_glab", tooling::install_glab())
+}
+#[tauri::command]
+pub(crate) fn update_glab() -> GitUpdateLaunchResult {
+    report_value("update_glab", tooling::update_glab())
+}
+#[tauri::command(async)]
+pub(crate) fn check_glab_update() -> GitUpdateStatus {
+    report_value("check_glab_update", tooling::check_glab_update())
+}
+#[tauri::command]
+pub(crate) fn get_gitlab_auth_state(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    let _command = application::enter("get_gitlab_auth_state");
+    report_value("get_gitlab_auth_state", service.snapshot())
+}
+#[tauri::command]
+pub(crate) fn check_gitlab_auth(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    report_value("check_gitlab_auth", service.check_state())
+}
+#[tauri::command]
+pub(crate) fn start_gitlab_login(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    report_value("start_gitlab_login", service.login())
+}
+#[tauri::command]
+pub(crate) fn logout_gitlab_account(
+    service: tauri::State<'_, GitLabAuthService>,
+    account_id: String,
+) -> GitLabAuthSnapshot {
+    report_value("logout_gitlab_account", service.logout(account_id))
+}
+#[tauri::command]
+pub(crate) fn cancel_gitlab_auth(
+    service: tauri::State<'_, GitLabAuthService>,
+    operation_id: String,
+) -> GitLabAuthSnapshot {
+    let _command = application::enter("cancel_gitlab_auth");
+    report_value("cancel_gitlab_auth", service.cancel(&operation_id))
+}
+#[tauri::command]
+pub(crate) async fn add_gitlab_token(
+    service: tauri::State<'_, GitLabAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_gitlab_token", service.add(token, request_id).await)
+}
+#[tauri::command(async)]
+pub(crate) fn remove_gitlab_token(
+    service: tauri::State<'_, GitLabAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_gitlab_token");
+    report_result("remove_gitlab_token", service.remove(&account_id))
 }

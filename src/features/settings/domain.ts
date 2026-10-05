@@ -97,6 +97,7 @@ export const SETTINGS_SECTIONS = [
   "console",
   "git",
   "github",
+  "gitlab",
   "line-endings",
   "updates",
 ] as const;
@@ -120,6 +121,7 @@ export function settingsSectionLabel(
     settingsConsoleTitle: string;
     settingsGitTitle: string;
     settingsGitHubTitle: string;
+    settingsGitLabTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
   },
@@ -133,6 +135,7 @@ export function settingsSectionLabel(
     console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
     github: t.settingsGitHubTitle,
+    gitlab: t.settingsGitLabTitle,
     "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,
   };

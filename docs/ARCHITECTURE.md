@@ -246,7 +246,7 @@ src-tauri/src/
   watch.rs                # filtered/debounced typed invalidation
   app_updates.rs          # bounded signed-update lifecycle and install handoff
   desktop.rs              # desktop-shell services
-  tooling.rs              # Git/gh diagnostics, install/update; Git identity/line endings
+  tooling.rs              # Git/gh/glab diagnostics, install/update; Git identity/line endings
   project_settings.rs     # one project's own identity and ignore files
   repository.rs
   clone.rs                # staged provider-neutral acquisition and verification
@@ -782,20 +782,57 @@ not extend Settings into generic gh execution or equate authentication with
 repository/action access. Discovery stays defined by
 [ADR 0020](adr/0020-prepare-optional-github-cli-tooling.md).
 
+### GitLab.com accounts and discovery
+
+`hosting_access.rs` owns the shared native token store lifecycle, verification,
+bounded fixed-origin HTTP reads and repository pagination. `github_access.rs`
+keeps its existing public adapter surface; `gitlab_access.rs` supplies a distinct
+Tauri state type over that owner. GitHub's persisted usernames and secure-store
+namespace are unchanged. GitLab metadata stores numeric user IDs and display
+usernames separately; `token.<id>` and `cli.<id>` are distinct connection keys.
+GitLab tokens live under `GitOdile/GitLab.com/token/v1`, never glab configuration.
+
+`gitlab_auth.rs` owns a single cached GitLab.com CLI identity and serialized
+check/login/logout worker. `cli_auth.rs` shares bounded process drainage,
+timeouts, cancellation/reaping and wiping with gh. glab 1.120.0+ provides a
+native credential receipt; the secret is captured and checked through the fixed
+`/api/v4/user` API before GitOdile supplies that same credential. No default-host,
+environment-token or identity fallback is allowed. Logout verifies the confirmed
+numeric ID immediately before glab's host-level removal. A concurrent external
+glab mutation cannot be made atomic; offline/invalid verification fails closed.
+
+`tooling.rs` gives glab separate launch/update state and the fixed WinGet package
+`GLab.GLab`. Diagnostics and authentication share PATH-first glab discovery;
+only a missing executable permits fallback to standard installation paths.
+On Windows these include per-user LocalAppData/Programs and Program Files,
+so a completed installer is detectable without refreshing the process environment.
+Both readers accept the released `glab X.Y.Z` version output and the labelled
+`glab version X.Y.Z` spelling. The neutral tooling hook and grouped Settings rows accept injected
+ports/copy. `features/gitlab` owns its typed adapter, cached controller and eager
+account/token bodies; hidden Settings suspends polling. Token/browser/tooling
+order, permission/storage consent and single CLI identity limitations are explicit.
+Visibility never authenticates or fetches projects. Identity avatars use a local
+fallback. Shared clone discovery dispatches by registered provider and rechecks
+`/user` before `/projects?membership=true` with bounded 100-row pages. Nested
+namespace URLs must match the fixed provider host before entering the existing
+source-access/destination/credential-helper boundary. See
+[ADR 0024](adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
+
 ### Shared hosting accounts and Git access
 
 `credentials.rs` owns provider-neutral metadata, bounded persistent project
 bindings and the internal Git credential protocol. `hosting.rs` registers
 adapters for both the desktop and helper process; `main.rs` dispatches helper
-mode before Tauri starts. `github_auth.rs` supplies the current gh adapter.
+mode before Tauri starts. `github_auth.rs` and `gitlab_auth.rs` supply the CLI adapters.
 `features/accounts` owns the typed account port, cached receipt controller and
 picker shared by clone and project settings. Providers implement adapters rather
 than duplicating the selection store, picker or Git access policy.
 
 `git_command.rs` applies process-only HTTPS helper configuration at the policy
 facade; the bounded runner in `git.rs` stays independent of hosting. Explicit
-account lookup is native-only and exact (`gh auth token --user`), never a gh
-switch or a persistent Git configuration change. Local preference reads and
+account lookup is native-only and exact (saved-user lookup for gh, numeric
+identity verification for glab), without switching a CLI session or changing
+persistent Git configuration. Local preference reads and
 writes retain repository/session authorization. Clone fingerprints include the
 selected identity and publish its project binding after destination verification.
 Failure to save that binding preserves the completed clone result and reports
@@ -805,10 +842,10 @@ Git helper failure stops fallback to another identity. See
 [ADR 0022](adr/0022-share-provider-accounts-and-scope-git-access.md) for the narrow
 native-token exception to ADR 0021, scope isolation and platform qualification.
 
-`github_access.rs` now composes gh and native OS-stored token connections behind
-that same provider. Credential-source IDs and HTTP usernames are separate, so
-the same login can explicitly choose browser or token. `features/github` owns
-the one-way token ingestion UI; `features/repository-browser` owns the typed
+`hosting_access.rs` composes CLI and native OS-stored token connections behind
+each provider adapter. Credential-source IDs and HTTP usernames are separate, so
+the same person can explicitly choose browser or token. `features/github` and
+`features/gitlab` inject their copy/ports into the shared one-way token form; `features/repository-browser` owns the typed
 paginated discovery port/controller and eager clone-overlay browser. Native API
 access verifies the exact selected identity and validates every clone URL.
 Visibility only reads local receipts; network checks and pages require clicks.
@@ -932,9 +969,9 @@ state-token, staging, verification, exclusive publication and recovery/error
 paths remain the mutation boundary.
 
 `features/clone/sourceAccess.ts` owns debounced source checks and generations.
-Editing a complete GitHub address/account explicitly starts a read; visibility
+Editing a complete GitHub/GitLab address/account explicitly starts a read; visibility
 does not. A typed clone port invokes `check_clone_source`, which validates the
-GitHub host, protocol, complete path and absence of URL secrets before credentials
+fixed GitHub/GitLab host, protocol, complete (possibly nested) path and absence of URL secrets before credentials
 are read. `clone.rs` executes bounded, cancellable `git ls-remote --quiet -- URL
 HEAD` under the same process-scoped credentials as cloning. Success with zero
 refs is valid for an empty project. Failure never exposes stderr or tokens in

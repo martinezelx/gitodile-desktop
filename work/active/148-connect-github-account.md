@@ -39,7 +39,7 @@ Milestones, in dependency order:
 - [x] Shared accounts and project-scoped Git access ([148-3](../done/148-3-shared-accounts-and-git-access.md)).
 - [x] Native GitHub token connections ([148-9](../done/148-9-github-token-connections.md)).
 - [x] GitHub repository discovery and clone handoff ([148-5](../done/148-5-provider-repository-browser.md)).
-- [ ] GitLab.com accounts/access and browser extension ([148-4](148-4-gitlab-accounts.md)).
+- [x] GitLab.com accounts/access and browser extension ([148-4](../done/148-4-gitlab-accounts.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
 - [ ] Deferred provider scope: Bitbucket Cloud accounts/access ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
@@ -375,3 +375,10 @@ The aggregate `pnpm run check` passed again (1,241 frontend tests, 536 native
 library tests and one actual-binary helper test). GitHub connection and discovery
 are now complete for the accepted scope. GitLab 148-4 is next in the active
 queue; PR/Actions 148-6/148-7 remain later work. The epic itself stays active.
+## GitLab integration closure — 2026-10-05
+
+The owner accepted and closed [148-4](../done/148-4-gitlab-accounts.md) after
+real Windows token discovery/private cloning and browser-account qualification.
+GitHub and GitLab integration are complete for the accepted scope; PR/Actions
+148-6/148-7 remain in the active queue. Platform qualification limits and review
+results are recorded in the completed GitLab task.

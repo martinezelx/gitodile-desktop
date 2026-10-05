@@ -68,7 +68,7 @@ export function CloneDialog({
   const closeAfterCancelRef = useRef(false);
   const [source, setSource] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
-  const [sourceMode, setSourceMode] = useState<"url" | "github">("url");
+  const [sourceMode, setSourceMode] = useState<"url" | "github" | "gitlab">("url");
   const [selectedRepository, setSelectedRepository] = useState<RepositoryChoice | null>(null);
   const [repositoryBrowser] = useState(() => createRepositoryBrowserController(repositoryPort));
   const browserState = useSyncExternalStore(repositoryBrowser.subscribe, repositoryBrowser.snapshot);
@@ -209,8 +209,9 @@ export function CloneDialog({
     controller.sourceAccess.update(value, nextAccount);
   };
 
-  const changeSourceMode = (mode: "url" | "github"): void => {
+  const changeSourceMode = (mode: "url" | "github" | "gitlab"): void => {
     controller.sourceAccess.cancel(); repositoryBrowser.cancel();
+    if (mode !== sourceMode) { repositoryBrowser.select(null); setSelectedRepository(null); setSource(""); setAccountId(null); setDestinationName(""); }
     setSourceMode(mode); resetFieldErrors();
   };
 
@@ -376,7 +377,7 @@ export function CloneDialog({
     ? t.cloneAccessConfirmed : accessStatus === "unavailable" ? t.cloneAccessUnavailable : t.cloneAccessUnconfirmed;
   const selectedAccount = catalog.accounts.find(account => account.id === accountId);
   const connectionLabel = selectedAccount
-    ? "@" + selectedAccount.login + " · " + (accountId?.startsWith("github:token.") ? t.accountsTokenMethod : t.accountsBrowserMethod)
+    ? "@" + selectedAccount.login + " · " + (accountId?.includes(":token.") ? t.accountsTokenMethod : t.accountsBrowserMethod)
     : t.accountsUseGit;
   const reviewedRequestMatches = attempt?.request.source === source && attempt.request.destinationParent === destinationParent &&
     attempt.request.destinationName === destinationName && (attempt.request.accountId ?? null) === accountId;
@@ -391,17 +392,17 @@ export function CloneDialog({
       onClose={step === "opening" ? undefined : close}
       closeLabel={t.commonClose}
       dialogRef={dialogRef}
-      className={`clone-dialog auto-hide-scrollbar${isForm && sourceMode === "github" ? " clone-dialog--repositories" : ""}`}
+      className={`clone-dialog auto-hide-scrollbar${isForm && sourceMode !== "url" ? " clone-dialog--repositories" : ""}`}
     >
       {isForm && (
         <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (sourceMode === "url" || browserChoiceValid) chooseDestination(); }}>
           <nav className="clone-dialog__sources" aria-label={t.cloneSourceTabs}>
             <button type="button" aria-pressed={sourceMode === "url"} onClick={() => changeSourceMode("url")}><Link aria-hidden="true" />{t.cloneGitAddress}</button>
             <button type="button" aria-pressed={sourceMode === "github"} onClick={() => changeSourceMode("github")}><HostingProviderIcon provider="github" />GitHub</button>
-            <button type="button" disabled><HostingProviderIcon provider="gitlab" />GitLab <small>{t.cloneComingSoon}</small></button>
+            <button type="button" aria-pressed={sourceMode === "gitlab"} onClick={() => changeSourceMode("gitlab")}><HostingProviderIcon provider="gitlab" />GitLab</button>
           </nav>
-          {sourceMode === "github" ? <RepositoryBrowser controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
-            onCheck={() => void checkAccounts("github")} selected={selectedRepository} onClearSelection={() => setSelectedRepository(null)}
+          {sourceMode !== "url" ? <RepositoryBrowser provider={sourceMode} controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
+            onCheck={() => void checkAccounts(sourceMode)} selected={selectedRepository} onClearSelection={() => setSelectedRepository(null)}
             onChoose={choice => { setSelectedRepository(choice); setSource(choice.repository.cloneUrl); setAccountId(choice.accountId); setDestinationName(choice.repository.name); }} /> : <>
             <label className="text-field clone-dialog__field">
               <span id="clone-source-label">{t.cloneSourceLabel}</span>
@@ -419,7 +420,7 @@ export function CloneDialog({
               onChange={id => { setAccountId(id); controller.sourceAccess.update(source, id); }}
               onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
             {accessStatus !== "idle" && <div className={"clone-dialog__access clone-dialog__access--" + accessStatus} role="status" aria-live="polite">
-              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider="github" />}
+              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ?? "github"} />}
               <div><strong>{accessTitle}</strong><small>{accessStatus === "unavailable" ? t.cloneAccessUnavailableHelp : accessStatus === "unconfirmed" ? t.cloneAccessUnconfirmedHelp : t.cloneAccessConnection(connectionLabel)}</small></div>
               <button type="button" className="clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId)}>
                 {accessStatus === "checking" ? t.commonCancel : t.cloneAccessRetry}
@@ -427,10 +428,10 @@ export function CloneDialog({
             </div>}
           </>}
           <footer className="clone-dialog__footer">
-            <p className="app-dialog__note">{sourceMode === "github" && browserChoiceValid ? <><strong>{selectedRepository?.repository.fullName}</strong><span>{t.cloneNextDestination}</span></> : t.cloneNextDestination}</p>
+            <p className="app-dialog__note">{sourceMode !== "url" && browserChoiceValid ? <><strong>{selectedRepository?.repository.fullName}</strong><span>{t.cloneNextDestination}</span></> : t.cloneNextDestination}</p>
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
-              <button className="primary-button" type="submit" disabled={sourceMode === "github" ? !browserChoiceValid : accessStatus === "unavailable"}>
+              <button className="primary-button" type="submit" disabled={sourceMode !== "url" ? !browserChoiceValid : accessStatus === "unavailable"}>
                 {accessStatus === "checking" || accessStatus === "unconfirmed" ? t.cloneContinueUnchecked : t.cloneReviewAction}<ArrowRight aria-hidden="true" />
               </button>
             </div>
@@ -441,8 +442,8 @@ export function CloneDialog({
       {step === "destination" && (
         <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (validateInput() && attempt && reviewedRequestMatches && !isPlanning) void executeAttempt(attempt); }}>
           <div className="clone-dialog__picked">
-            {sourceMode === "github" ? <HostingProviderIcon provider="github" /> : <Link aria-hidden="true" />}
-            <div><strong>{sourceMode === "github" ? selectedRepository?.repository.fullName : t.cloneGitAddress}</strong>
+            {sourceMode !== "url" ? <HostingProviderIcon provider={sourceMode} /> : <Link aria-hidden="true" />}
+            <div><strong>{sourceMode !== "url" ? selectedRepository?.repository.fullName : t.cloneGitAddress}</strong>
               <small>{attempt?.plan.sourceDisplay ?? cloneSourceSummary(source)}</small>
               <small>{connectionLabel}</small></div>
             <button className="clone-dialog__text-action" type="button" onClick={() => { controller.supersede(); setStep("input"); }}>{t.cloneChangeSource}</button>

@@ -1,11 +1,17 @@
 //! Desktop composition of hosting adapters, including the internal Git helper.
-use crate::{credentials, github_access::GitHubAccessService, github_auth::GitHubAuthService};
+use crate::{
+    credentials, github_access::GitHubAccessService, github_auth::GitHubAuthService,
+    gitlab_access::GitLabAccessService, gitlab_auth::GitLabAuthService,
+};
 use std::io::Write;
 use std::sync::Arc;
 
 /// One registry serves the desktop catalog and the internal helper process.
-pub(crate) fn providers(github: GitHubAccessService) -> Vec<Arc<dyn credentials::AccessProvider>> {
-    vec![Arc::new(github)]
+pub(crate) fn providers(
+    github: GitHubAccessService,
+    gitlab: GitLabAccessService,
+) -> Vec<Arc<dyn credentials::AccessProvider>> {
+    vec![Arc::new(github), Arc::new(gitlab)]
 }
 
 /// Returns Some only in helper mode, before Tauri or its WebView starts.
@@ -20,10 +26,10 @@ pub fn credential_helper_entry() -> Option<i32> {
     let result = if args.len() == 4 {
         args[2].to_str().ok_or(()).and_then(|id| {
             credentials::helper(
-                &providers(GitHubAccessService::new(
-                    GitHubAuthService::default(),
-                    Default::default(),
-                )),
+                &providers(
+                    GitHubAccessService::new(GitHubAuthService::default(), Default::default()),
+                    GitLabAccessService::new(GitLabAuthService::default(), Default::default()),
+                ),
                 id,
                 &args[3],
                 std::io::stdin().lock(),
@@ -39,4 +45,24 @@ pub fn credential_helper_entry() -> Option<i32> {
         let _ = std::io::stdout().lock().write_all(b"quit=true\n\n");
     }
     Some(if result.is_ok() { 0 } else { 1 })
+}
+
+/// Dispatch only registered providers; malformed IDs never reach credentials.
+pub(crate) async fn repositories(
+    github: &GitHubAccessService,
+    gitlab: &GitLabAccessService,
+    account_id: String,
+    page: u32,
+    request_id: String,
+) -> Result<crate::hosting_access::RepositoryPage, crate::error::AppError> {
+    if account_id.starts_with("github:") {
+        github.repositories(account_id, page, request_id).await
+    } else if account_id.starts_with("gitlab:") {
+        gitlab.repositories(account_id, page, request_id).await
+    } else {
+        Err(crate::error::AppError::new(
+            crate::error::AppErrorCode::InvalidSelection,
+            "Choose a supported project connection.",
+        ))
+    }
 }

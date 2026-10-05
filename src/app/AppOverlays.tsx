@@ -1,3 +1,4 @@
+import { GitLabAccountSection, GitLabTokenSection, gitlabToolingPort, useGitLabToolingCopy, type GitLabAuthController } from "../features/gitlab";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
@@ -107,6 +108,8 @@ export type AppOverlaysProps = {
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
     ghTooling: GitToolingState;
+    glabTooling: GitToolingState;
+    gitlabAuth: GitLabAuthController;
     githubAuth: GitHubAuthController;
     reopenLastProject: boolean;
     setReopenLastProject: BooleanSetter;
@@ -199,6 +202,7 @@ export function AppOverlays({
   error,
 }: AppOverlaysProps): React.JSX.Element {
   const { t, language } = useLanguage();
+  const glabCopy = useGitLabToolingCopy();
   const systemInfo = useSystemInfo();
   const [didCopyDiagnostics, setDidCopyDiagnostics] = useState(false);
   /* The rail badges Updates only while there is something the reader can act
@@ -414,6 +418,9 @@ export function AppOverlays({
               onSectionChange={settings.setSection}
               ghTooling={settings.ghTooling}
               githubToken={<GitHubTokenSection />}
+              glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
+              gitlabToken={<GitLabTokenSection />}
+              gitlabAccount={<GitLabAccountSection controller={settings.gitlabAuth} available={settings.glabTooling.diagnostics === null ? null : settings.glabTooling.diagnostics.state === "available"} />}
               githubAccount={<GitHubAccountSection controller={settings.githubAuth} available={settings.ghTooling.diagnostics === null ? null : settings.ghTooling.diagnostics.state === "available"} />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}

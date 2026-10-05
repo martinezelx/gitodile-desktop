@@ -66,6 +66,8 @@ function buildProps(
       copyLink: vi.fn(),
     },
     settings: {
+      glabTooling: { diagnostics: null, isRefreshingDiagnostics: false, updateStatus: null, isCheckingUpdate: false, refreshDiagnostics: vi.fn(), checkUpdate: vi.fn() },
+      gitlabAuth: { snapshot: { state: "unchecked", account: null, operationId: null, needsCheck: false }, pending: false, check: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), cancel: vi.fn() },
       githubAuth: { snapshot: { state: "unchecked", account: null, accounts: [], operationId: null, deviceCode: null, verificationUrl: null, needsCheck: false, signedOutAccount: null }, pending: false, browserFailed: false, check: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), activate: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn() },
       ...closedOverlay,
       theme: "system",

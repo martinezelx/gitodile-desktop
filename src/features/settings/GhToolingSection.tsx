@@ -12,10 +12,14 @@ import {
 import { useLanguage } from "../../i18n";
 import { ToolInstallationRow, type ToolChip } from "../../shared/ui";
 import { GitHubIcon } from "./GitHubIcon";
+import type { GitDiagnostics, GitInstallationResult, GitUpdateLaunchResult, GitUpdateStatus } from "./domain";
 import { ToolRecheckButton } from "./ToolRecheckButton";
 import type { SettingsPort } from "./port";
 import type { GitToolingState } from "./useGitTooling";
 import { useToolNotice, type ToolNotice } from "./useToolNotice";
+
+export type HostingToolingCopy = { ghAccountDescription: string; ghAccountTitle: string; ghActionFailed: string; ghCheckFailed: string; ghChipCheckFailed: string; ghChipInstalled: string; ghChipMissing: string; ghChipUnusable: string; ghDescription: string; ghGuidanceOpened: string; ghInstall: string; ghInstallerLaunched: string; ghInstructions: string; ghMissing: string; ghName: string; ghTitle: string; ghUnusable: string; ghUpdateCheckFailed: string; ghUpdateCheckTimedOut: string; ghUpdateChecking: string; ghUpdateUnavailable: string; ghUpdateUpToDate: string;  };
+export interface HostingToolingPort { readDiagnostics(): Promise<GitDiagnostics>; checkUpdate(): Promise<GitUpdateStatus>; install(): Promise<GitInstallationResult>; update(): Promise<GitUpdateLaunchResult> }
 
 type NoticeTone = ToolNotice["tone"];
 
@@ -34,12 +38,14 @@ const UPDATE_ICONS: Record<string, ReactNode> = {
 };
 
 /** Optional machine tooling. Installation never implies GitHub authentication. */
-export function GhToolingSection({ port, tooling, account }: {
+export function GhToolingSection({ port, tooling, account, copy, mark, actions, guidanceUrl = "https://github.com/cli/cli#installation" }: {
   port: SettingsPort;
   tooling: GitToolingState;
   account?: ReactNode;
+  copy?: HostingToolingCopy; mark?: ReactNode; actions?: HostingToolingPort; guidanceUrl?: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  const text = copy ?? t;
   const { notice, clear: clearNotice, begin: beginNotice } = useToolNotice();
   const [isStarting, setIsStarting] = useState(false);
   const starting = useRef(false);
@@ -53,10 +59,10 @@ export function GhToolingSection({ port, tooling, account }: {
     const report = beginNotice();
     try {
       // A fixed official URL; the renderer never chooses an installer or command.
-      await port.openGuidance("https://github.com/cli/cli#installation");
-      report({ tone: "neutral", message: t.ghGuidanceOpened });
+      await port.openGuidance(guidanceUrl);
+      report({ tone: "neutral", message: text.ghGuidanceOpened });
     } catch {
-      report({ tone: "danger", message: t.ghActionFailed });
+      report({ tone: "danger", message: text.ghActionFailed });
     }
   };
 
@@ -67,21 +73,21 @@ export function GhToolingSection({ port, tooling, account }: {
     const report = beginNotice();
     try {
       if (action === "install") {
-        const result = await port.installGh();
+        const result = await (actions ? actions.install() : port.installGh());
         if (result.guidanceUrl) await port.openGuidance(result.guidanceUrl);
-        report(result.outcome === "started" ? { tone: "success", message: t.ghInstallerLaunched }
-          : result.outcome === "guidance" ? { tone: "neutral", message: t.ghGuidanceOpened }
+        report(result.outcome === "started" ? { tone: "success", message: text.ghInstallerLaunched }
+          : result.outcome === "guidance" ? { tone: "neutral", message: text.ghGuidanceOpened }
             : result.outcome === "already_starting" ? { tone: "neutral", message: t.gitInstallerAlreadyStarting }
-              : { tone: "danger", message: t.ghActionFailed });
+              : { tone: "danger", message: text.ghActionFailed });
       } else {
-        const result = await port.updateGh();
-        report(result.outcome === "started" ? { tone: "success", message: t.ghInstallerLaunched }
+        const result = await (actions ? actions.update() : port.updateGh());
+        report(result.outcome === "started" ? { tone: "success", message: text.ghInstallerLaunched }
           : result.outcome === "already_starting" ? { tone: "neutral", message: t.gitInstallerAlreadyStarting }
-            : result.outcome === "unavailable" ? { tone: "warning", message: t.ghUpdateUnavailable }
-              : { tone: "danger", message: t.ghActionFailed });
+            : result.outcome === "unavailable" ? { tone: "warning", message: text.ghUpdateUnavailable }
+              : { tone: "danger", message: text.ghActionFailed });
       }
     } catch {
-      report({ tone: "danger", message: t.ghActionFailed });
+      report({ tone: "danger", message: text.ghActionFailed });
     } finally {
       starting.current = false;
       setIsStarting(false);
@@ -92,29 +98,29 @@ export function GhToolingSection({ port, tooling, account }: {
     diagnostics === null
       ? { label: t.settingsToolChipChecking, tone: "neutral", icon: <LoaderCircle aria-hidden="true" className="icon--spinning" /> }
       : diagnostics.state === "missing"
-        ? { label: t.ghChipMissing, tone: "neutral" }
+        ? { label: text.ghChipMissing, tone: "neutral" }
         : diagnostics.state === "unusable"
-          ? { label: t.ghChipUnusable, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> }
+          ? { label: text.ghChipUnusable, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> }
           : diagnostics.state === "check_failed"
-            ? { label: t.ghChipCheckFailed, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> }
+            ? { label: text.ghChipCheckFailed, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> }
             : update === "update_available"
               ? { label: t.settingsGeneralUpdateAvailable, tone: "accent", icon: <CircleArrowUp aria-hidden="true" /> }
-              : { label: t.ghChipInstalled, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> };
+              : { label: text.ghChipInstalled, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> };
 
   const detail =
     diagnostics === null ? (
       <span>{t.settingsToolCheckingDetail}</span>
     ) : diagnostics.state === "missing" ? (
-      <strong>{t.ghMissing}</strong>
+      <strong>{text.ghMissing}</strong>
     ) : diagnostics.state === "unusable" ? (
       <p className="status-line status-line--warning">
         <TriangleAlert aria-hidden="true" />
-        <span>{t.ghUnusable}</span>
+        <span>{text.ghUnusable}</span>
       </p>
     ) : diagnostics.state === "check_failed" ? (
       <p className="status-line status-line--warning">
         <TriangleAlert aria-hidden="true" />
-        <span>{t.ghCheckFailed}</span>
+        <span>{text.ghCheckFailed}</span>
       </p>
     ) : (
       <p className="version-line">
@@ -133,12 +139,12 @@ export function GhToolingSection({ port, tooling, account }: {
       <p className={`status-line status-line--${update === "checking" ? "progress" : update === "update_available" ? "accent" : update === "up_to_date" ? "success" : "warning"}`} role="status">
         {UPDATE_ICONS[update === "checking" ? "checking" : update === "update_available" ? "accent" : update === "up_to_date" ? "success" : "warning"]}
         <span>
-          {update === "checking" ? t.ghUpdateChecking
+          {update === "checking" ? text.ghUpdateChecking
             : update === "update_available" ? t.settingsToolUpdateAvailableDetail
-              : update === "up_to_date" ? t.ghUpdateUpToDate
-                : update === "unavailable" ? t.ghUpdateUnavailable
-                  : update === "timed_out" ? t.ghUpdateCheckTimedOut
-                    : t.ghUpdateCheckFailed}
+              : update === "up_to_date" ? text.ghUpdateUpToDate
+                : update === "unavailable" ? text.ghUpdateUnavailable
+                  : update === "timed_out" ? text.ghUpdateCheckTimedOut
+                    : text.ghUpdateCheckFailed}
         </span>
       </p>
     ) : null;
@@ -178,7 +184,7 @@ export function GhToolingSection({ port, tooling, account }: {
       </button>
     ) : installable ? (
       <button className="primary-button" type="button" disabled={isStarting || tooling.isRefreshingDiagnostics} onClick={() => void start("install")}>
-        {isStarting ? t.gitStartingInstaller : isWindows ? t.ghInstall : t.settingsInstallGuided}
+        {isStarting ? t.gitStartingInstaller : isWindows ? text.ghInstall : t.settingsInstallGuided}
       </button>
     ) : update === "update_available" ? (
       <button className="primary-button" type="button" disabled={isStarting || tooling.isRefreshingDiagnostics} onClick={() => void start("update")}>
@@ -195,29 +201,29 @@ export function GhToolingSection({ port, tooling, account }: {
 
   const docs = (
     <button className="tool-row__docs-link" type="button" onClick={() => void instructions()}>
-      {t.ghInstructions}
+      {text.ghInstructions}
       <ExternalLink aria-hidden="true" />
     </button>
   );
 
   return (
     <>
-      <section className="settings-group" aria-label={t.ghAccountTitle}>
+      <section className="settings-group" aria-label={text.ghAccountTitle}>
         <header className="settings-group__header">
-          <h3>{t.ghAccountTitle}</h3>
-          <p>{t.ghAccountDescription}</p>
+          <h3>{text.ghAccountTitle}</h3>
+          <p>{text.ghAccountDescription}</p>
         </header>
         {account && <div className="settings-group__body">{account}</div>}
       </section>
-      <section className="settings-group" aria-label={t.ghTitle}>
+      <section className="settings-group" aria-label={text.ghTitle}>
         <header className="settings-group__header">
-          <h3>{t.ghTitle}</h3>
-          <p>{t.ghDescription}</p>
+          <h3>{text.ghTitle}</h3>
+          <p>{text.ghDescription}</p>
         </header>
         <div className="settings-group__body">
           <ToolInstallationRow
-            mark={<GitHubIcon />}
-            name={t.ghName}
+            mark={mark ?? <GitHubIcon />}
+            name={text.ghName}
             chip={chip}
             detail={detail}
             status={status}

@@ -52,8 +52,8 @@ original browser connection and completed follow-ups remain historical evidence;
 the expanded epic tracks shared access, discovery, PRs and Actions separately.
 GitHub integration is complete: browser/CLI plus native tokens
 ([148-9](done/148-9-github-token-connections.md)) and repository discovery
-([148-5](done/148-5-provider-repository-browser.md)). Next is GitLab/glab
-([148-4](active/148-4-gitlab-accounts.md)). PR/Actions screens come later and
+([148-5](done/148-5-provider-repository-browser.md)). GitLab/glab is also complete
+([148-4](done/148-4-gitlab-accounts.md)). PR/Actions screens come later and
 do not gate this integration closure. Bitbucket [148-8](blocked/148-8-bitbucket-accounts.md)
 is deferred outside the active queue.
 

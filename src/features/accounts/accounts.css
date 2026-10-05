@@ -1,10 +1,24 @@
 .hosting-account-picker { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
 .hosting-account-picker > .text-field { flex: 1; min-width: 220px; }
-.hosting-account-picker > .text-field small { white-space: normal; line-height: var(--leading-normal); }
-.hosting-account-picker__select { position: relative; display: block; min-width: 0; }
-.hosting-account-picker__select select { width: 100%; appearance: none; padding-inline-end: calc(var(--space-4) * 2 + 16px); }
-.hosting-account-picker__select > svg { position: absolute; inset-inline-end: var(--space-4); top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--text-primary-color); pointer-events: none; }
-.hosting-account-picker__select:has(select:disabled) > svg { opacity: 0.5; }
+.hosting-account-picker > .text-field > small { white-space: normal; line-height: var(--leading-normal); }
+.hosting-account-picker__trigger { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0; min-height: var(--control-height-md); padding: var(--space-2) var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-hover); color: var(--text-primary-color); font: inherit; text-align: left; cursor: default; }
+.hosting-account-picker__trigger:hover:not(:disabled), .hosting-account-picker__trigger[aria-expanded="true"] { background: var(--surface-raised); border-color: var(--border-control); }
+.hosting-account-picker__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.hosting-account-picker__trigger:disabled { opacity: 0.5; cursor: default; }
+.hosting-account-picker__glyph { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: var(--radius-pill); background: var(--surface-control); color: var(--text-secondary-color); }
+.hosting-account-picker__glyph svg { width: 16px; height: 16px; }
+.hosting-account-picker__identity { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.hosting-account-picker__identity > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary-color); font-size: var(--text-body); }
+.hosting-account-picker__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal); }
+.hosting-account-picker__method { flex-shrink: 0; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--surface-control); color: var(--text-secondary-color); font-size: var(--text-caption); }
+.hosting-account-picker__chevron, .hosting-account-picker__selection svg { width: 16px; height: 16px; flex-shrink: 0; }
+.hosting-account-picker__chevron { color: var(--text-secondary-color); }
+.hosting-account-picker__popup { z-index: 60; max-width: calc(100vw - 16px); max-height: min(320px, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain; }
+.hosting-account-picker__option { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-height-md); padding: var(--space-2) var(--space-3); border-radius: var(--radius-item); cursor: default; }
+.hosting-account-picker__option--active { background: var(--surface-hover); }
+.hosting-account-picker__option[aria-selected="true"] .hosting-account-picker__identity > span { font-weight: var(--weight-strong); }
+.hosting-account-picker__option[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.hosting-account-picker__selection { display: flex; width: 16px; flex-shrink: 0; color: var(--accent-primary); }
 .hosting-account-picker > .refresh-icon-button { margin-top: var(--space-5); }
 .settings-group__body > .hosting-account-picker,
 .settings-group__body > div:has(> .hosting-account-picker) { margin-bottom: var(--space-6); }

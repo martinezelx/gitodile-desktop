@@ -4,50 +4,20 @@
 use crate::credentials::{AccessProvider, Account, Secret};
 use crate::{application, encoding::base64_encode, git::CancellationToken, tooling};
 use serde::Serialize;
-use std::io::{ErrorKind, Read};
+
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
 const DEVICE_URL: &str = "https://github.com/login/device";
-const OUTPUT_CAP: usize = 64 * 1024;
 const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum AuthState {
-    Unchecked,
-    Checking,
-    SignedOut,
-    Connected,
-    Invalid,
-    Offline,
-    LoginStarting,
-    SigningOut,
-    Switching,
-    AwaitingBrowser,
-    Cancelling,
-    Cancelled,
-    TimedOut,
-    Failed,
-    CliMissing,
-    CliUnsupported,
-    EnvironmentControlled,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum CredentialStorage {
-    Secure,
-    File,
-    Environment,
-    Unknown,
-}
+pub(crate) use crate::cli_auth::{AuthState, CredentialStorage};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -504,109 +474,26 @@ fn gh_command(program: &str, args: &[&str]) -> Command {
     command
 }
 
-struct ProcessOutput {
-    success: bool,
-    stdout: Vec<u8>,
-}
-
-/// Drain both streams; stderr is never retained or exposed. A bounded rolling
-/// line parser extracts only the temporary device code from gh's English output.
 fn run(
-    mut command: Command,
+    command: Command,
     token: &CancellationToken,
     timeout: Duration,
     on_code: impl Fn(String) + Send + Sync,
-) -> Result<ProcessOutput, AuthState> {
-    if token.is_cancelled() {
-        return Err(AuthState::Cancelled);
-    }
-    let mut child = command.spawn().map_err(|e| {
-        if e.kind() == ErrorKind::NotFound {
-            AuthState::CliMissing
-        } else {
-            AuthState::Failed
+) -> Result<crate::cli_auth::ProcessOutput, AuthState> {
+    crate::cli_auth::run(command, token, timeout, |line| {
+        if let Some(code) = parse_device_code(line) {
+            on_code(code);
         }
-    })?;
-    let stdout = child.stdout.take().ok_or(AuthState::Failed)?;
-    let stderr = child.stderr.take().ok_or(AuthState::Failed)?;
-    thread::scope(|scope| {
-        let out = scope.spawn(|| read_stdout(stdout));
-        let err = scope.spawn(|| read_login_lines(stderr, on_code));
-        let started = Instant::now();
-        let result = loop {
-            if token.is_cancelled() || started.elapsed() >= timeout {
-                let _ = child.kill();
-                let _ = child.wait();
-                break Err(if token.is_cancelled() {
-                    AuthState::Cancelled
-                } else {
-                    AuthState::TimedOut
-                });
-            }
-            match child.try_wait() {
-                Ok(Some(status)) => break Ok(status.success()),
-                Ok(None) => thread::sleep(Duration::from_millis(25)),
-                Err(_) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break Err(AuthState::Failed);
-                }
-            }
-        };
-        let stdout = out.join().map_err(|_| AuthState::Failed)??;
-        err.join().map_err(|_| AuthState::Failed)?;
-        Ok(ProcessOutput {
-            success: result?,
-            stdout,
-        })
     })
 }
 
-fn read_stdout(mut reader: impl Read) -> Result<Vec<u8>, AuthState> {
-    let mut retained = Vec::new();
-    let mut overflow = false;
-    let mut chunk = [0u8; 4096];
-    loop {
-        let count = reader.read(&mut chunk).map_err(|_| AuthState::Failed)?;
-        if count == 0 {
-            break;
+#[cfg(test)]
+fn read_login_lines(reader: impl std::io::Read, on_code: impl Fn(String)) {
+    crate::cli_auth::read_login_lines(reader, |line| {
+        if let Some(code) = parse_device_code(line) {
+            on_code(code);
         }
-        let keep = count.min(OUTPUT_CAP.saturating_sub(retained.len()));
-        retained.extend_from_slice(&chunk[..keep]);
-        overflow |= keep < count;
-    }
-    if overflow {
-        Err(AuthState::Failed)
-    } else {
-        Ok(retained)
-    }
-}
-
-fn read_login_lines(mut reader: impl Read, on_code: impl Fn(String)) {
-    let mut line = Vec::new();
-    let mut discard = false;
-    let mut chunk = [0u8; 1024];
-    while let Ok(count) = reader.read(&mut chunk) {
-        if count == 0 {
-            break;
-        }
-        for byte in &chunk[..count] {
-            if *byte == b'\n' {
-                if !discard {
-                    if let Some(code) = parse_device_code(&String::from_utf8_lossy(&line)) {
-                        on_code(code);
-                    }
-                }
-                line.clear();
-                discard = false;
-            } else if line.len() < 4096 && !discard {
-                line.push(*byte);
-            } else {
-                line.clear();
-                discard = true;
-            }
-        }
-    }
+    });
 }
 
 fn parse_device_code(line: &str) -> Option<String> {

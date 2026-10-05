@@ -39,7 +39,7 @@ The approved GitLab route will similarly reuse glab, initially with one verified
 GitLab.com identity; it is not implemented or qualified yet. See
 [github_auth.rs](../../src-tauri/src/github_auth.rs),
 [credentials.rs](../../src-tauri/src/credentials.rs) and
-[task 148-4](../../work/active/148-4-gitlab-accounts.md).
+[task 148-4](../../work/done/148-4-gitlab-accounts.md).
 
 ## Chosen identity and API ownership
 

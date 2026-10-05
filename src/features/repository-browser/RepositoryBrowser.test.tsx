@@ -24,7 +24,8 @@ it("keeps keyboard entry when a refresh removes the previously focused row", asy
   const controller = createRepositoryBrowserController({ list, cancel: vi.fn(async () => undefined) });
   const choose = vi.fn();
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={choose} /></LanguageProvider>);
-  await user.selectOptions(screen.getByRole("combobox"), "github:token.octocat");
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: /@octocat/ }));
   await user.click(screen.getByRole("button", { name: "Find projects" }));
   await user.click(await screen.findByRole("button", { name: "Choose team/project-5" }));
   await user.click(screen.getByRole("button", { name: "Refresh projects" }));
@@ -39,9 +40,10 @@ it("keeps a tabbable project when wheel scrolling virtualizes the active row awa
   const list = vi.fn(async () => ({ accountId: "github:token.octocat", page: 1, repositories: projects(100), nextPage: null }));
   const controller = createRepositoryBrowserController({ list, cancel: vi.fn(async () => undefined) });
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={vi.fn()} /></LanguageProvider>);
-  await user.selectOptions(screen.getByRole("combobox"), "github:token.octocat");
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: /@octocat/ }));
   await user.click(screen.getByRole("button", { name: "Find projects" }));
-  const listElement = await screen.findByRole("list", { name: "Browse GitHub projects" });
+  const listElement = await screen.findByRole("list", { name: "Browse projects" });
   const viewport = listElement.parentElement!;
   viewport.scrollTop = 1500;
   fireEvent.scroll(viewport);
@@ -60,7 +62,8 @@ it("virtualizes a page, shows permissions/partial-search semantics, and hands of
   const controller = createRepositoryBrowserController({ list, cancel: vi.fn(async () => undefined) });
   const choose = vi.fn();
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={choose} /></LanguageProvider>);
-  await userEvent.selectOptions(screen.getByRole("combobox"), "github:token.octocat");
+  await userEvent.click(screen.getByRole("combobox"));
+  await userEvent.click(screen.getByRole("option", { name: /@octocat/ }));
   expect(list).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Find projects" }));
   expect(await screen.findByText("Page 1 · 100 projects")).toBeInTheDocument();
@@ -89,7 +92,8 @@ it("cancels from the search toolbar, ignores a late page and allows an explicit 
   const controller = createRepositoryBrowserController({ list, cancel });
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={vi.fn()} /></LanguageProvider>);
   expect(screen.getByRole("button", { name: "Find projects" })).toBeDisabled();
-  await user.selectOptions(screen.getByRole("combobox"), "github:token.octocat");
+  await user.click(screen.getByRole("combobox"));
+  await user.click(screen.getByRole("option", { name: /@octocat/ }));
   expect(list).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Find projects" }));
   expect(screen.getByRole("button", { name: "Finding projects…" })).toBeDisabled();

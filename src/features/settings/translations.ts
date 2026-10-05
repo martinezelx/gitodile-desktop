@@ -32,6 +32,7 @@ export interface SettingsTranslations {
   formatsPreviewLabel: string;
   settingsGitTitle: string;
   settingsGitHubTitle: string;
+  settingsGitLabTitle: string;
   settingsGitToolDescription: string;
   gitOfficialInstructions: string;
   gitGuidanceFailed: string;
@@ -280,6 +281,7 @@ const en: SettingsTranslations = {
   formatsPreviewLabel: "Example",
   settingsGitTitle: "Git",
   settingsGitHubTitle: "GitHub",
+  settingsGitLabTitle: "GitLab",
   settingsGitToolDescription: "Git saves your projects' versions; GitOdile uses this computer's installation.",
   gitOfficialInstructions: "Official Git instructions",
   gitGuidanceFailed: "Couldn't open the official Git instructions. Try again.",
@@ -522,6 +524,7 @@ const es: SettingsTranslations = {
   formatsPreviewLabel: "Ejemplo",
   settingsGitTitle: "Git",
   settingsGitHubTitle: "GitHub",
+  settingsGitLabTitle: "GitLab",
   settingsGitToolDescription: "Git guarda las versiones de tus proyectos; GitOdile usa la instalación de este ordenador.",
   gitOfficialInstructions: "Instrucciones oficiales de Git",
   gitGuidanceFailed: "No se pudieron abrir las instrucciones oficiales de Git. Vuelve a intentarlo.",

@@ -149,6 +149,7 @@ describe("desktop link permissions", () => {
         { url: "https://git-scm.com/install/windows" },
         { url: "https://git-scm.com/install/mac" },
         { url: "https://git-scm.com/install/linux" },
+        { url: "https://gitlab.com/gitlab-org/cli#installation" },
         { url: "https://github.com/cli/cli#installation" },
         { url: "https://github.com/login/device" },
         { url: "https://github.com/cli/cli#windows" },

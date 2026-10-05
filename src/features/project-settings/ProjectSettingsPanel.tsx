@@ -1264,7 +1264,8 @@ export function ProjectSettingsPanel({
         )}
 
         {activeSection === "remote" && (
-          <><ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project} />
+          <>{remotes.data && <ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project}
+            remoteUrls={remotes.data.remotes.flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])} />}
           <RemoteSection project={project} port={port} resource={remotes} /></>
         )}
         {activeSection === "ignored" && (

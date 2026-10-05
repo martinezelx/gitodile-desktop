@@ -21,7 +21,7 @@ export type GitToolingState = {
  * `null` diagnostics mean "not answered yet" and render as checking; they are
  * not an error state. A failed check is reported as `check_failed` so the panel
  * never has to distinguish a rejected promise from a negative answer. */
-export function useGitTooling(port: SettingsPort, tool: "git" | "gh" = "git"): GitToolingState {
+export function useGitTooling(port: SettingsPort, tool: "git" | "gh" | { readDiagnostics(): Promise<GitDiagnostics>; checkUpdate(): Promise<GitUpdateStatus> } = "git"): GitToolingState {
   const [diagnostics, setDiagnostics] = useState<GitDiagnostics | null>(null);
   const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<GitUpdateStatus | null>(null);
@@ -35,7 +35,7 @@ export function useGitTooling(port: SettingsPort, tool: "git" | "gh" = "git"): G
     refreshing.current = true;
     setIsRefreshingDiagnostics(true);
     try {
-      const result = await (tool === "git" ? port.readDiagnostics() : port.readGhDiagnostics());
+      const result = await (typeof tool === "object" ? tool.readDiagnostics() : tool === "git" ? port.readDiagnostics() : port.readGhDiagnostics());
       setDiagnostics(result);
       // Update answers describe one installed version; a new version or a
       // failed local check must not retain the previous version's action.
@@ -63,7 +63,7 @@ export function useGitTooling(port: SettingsPort, tool: "git" | "gh" = "git"): G
     setIsCheckingUpdate(true);
     setUpdateStatus({ state: "checking", cached: false });
     try {
-      setUpdateStatus(await (tool === "git" ? port.checkUpdate() : port.checkGhUpdate()));
+      setUpdateStatus(await (typeof tool === "object" ? tool.checkUpdate() : tool === "git" ? port.checkUpdate() : port.checkGhUpdate()));
     } catch {
       setUpdateStatus({ state: "failed", cached: false });
     } finally {

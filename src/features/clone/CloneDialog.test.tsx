@@ -92,28 +92,33 @@ afterEach(() => {
 });
 
 describe("CloneDialog", () => {
-  it("hands a discovered repository and its token connection to the existing clone review", async () => {
+  it.each(["github", "gitlab"] as const)("hands a %s project and its token connection to the existing clone review", async provider => {
+    const accountId = provider === "github" ? "github:token.work" : "gitlab:token.42";
+    const browserId = provider === "github" ? "github:work" : "gitlab:cli.42";
+    const fullName = provider === "github" ? "team/project" : "team/subgroup/project";
+    const cloneUrl = `https://${provider}.com/${fullName}.git`;
     globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
-    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: "github", host: "github.com" }], busy: false,
-      accounts: ["github:work", "github:token.work"].map(id => ({ id, provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true })) }),
+    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: provider, host: `${provider}.com` }], busy: false,
+      accounts: [browserId, accountId].map(id => ({ id, provider, host: `${provider}.com`, login: "work", avatarDataUrl: null, available: true })) }),
       check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
     const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
-      repositories: [{ id: 1, name: "project", fullName: "team/project", owner: "team", private: true, archived: false, description: null, cloneUrl: "https://github.com/team/project.git" }] }));
-    const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId: "github:token.work" }));
+      repositories: [{ id: 1, name: "project", fullName, owner: provider === "github" ? "team" : "team/subgroup", private: true, archived: false, description: null, cloneUrl }] }));
+    const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId }));
     renderDialog({ plan }, accounts, { list, cancel: vi.fn(async () => undefined) });
-    await userEvent.click(screen.getByRole("button", { name: "GitHub" }));
-    await userEvent.selectOptions(screen.getByRole("combobox"), "github:token.work");
+    await userEvent.click(screen.getByRole("button", { name: provider === "github" ? "GitHub" : "GitLab" }));
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: /@work.*Token/ }));
     expect(list).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Find projects" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Choose team/project" }));
-    expect(screen.getByRole("button", { name: "Choose team/project" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("combobox")).toHaveValue("github:token.work");
+    await userEvent.click(await screen.findByRole("button", { name: `Choose ${fullName}` }));
+    expect(screen.getByRole("button", { name: `Choose ${fullName}` })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("combobox")).toHaveTextContent("Token");
     await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
     await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
     await waitFor(() => expect(plan).toHaveBeenCalled());
-    expect(plan.mock.calls[0][0]).toMatchObject({ source: "https://github.com/team/project.git", accountId: "github:token.work", destinationName: "project" });
+    expect(plan.mock.calls[0][0]).toMatchObject({ source: cloneUrl, accountId, destinationName: "project" });
   });
   it.each([false, true])("keeps a completed clone when account persistence fails (cleanup: %s)", async (needsCleanup) => {
     const execute = vi.fn<ClonePort["execute"]>(async () => ({ ...result, accountSelectionSaved: false,
@@ -142,7 +147,8 @@ describe("CloneDialog", () => {
     const execute = vi.fn<ClonePort["execute"]>(async () => result);
     renderDialog({ plan, execute }, accountPort);
     await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://github.com/team/project.git");
-    await userEvent.selectOptions(await screen.findByRole("combobox"), "github:work");
+    await userEvent.click(await screen.findByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: /@work/ }));
     await userEvent.click(screen.getByRole("button", {name: /Choose destination|Continue without checking/}));
     await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
     await waitFor(() => expect(screen.getByRole("button", {name: "Clone project"})).toBeEnabled());

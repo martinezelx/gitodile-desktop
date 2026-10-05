@@ -1,4 +1,4 @@
-//! System Git/GitHub CLI diagnostics, installation/update guidance and Git identity.
+//! System Git/GitHub/GitLab CLI diagnostics, installation/update guidance and Git identity.
 //!
 //! These application services back the Settings feature. Platform process
 //! details stay here rather than accumulating in the Tauri composition root.
@@ -212,9 +212,12 @@ pub(crate) fn gh_program_candidates() -> &'static [&'static str] {
     gh_probe_programs(current_installation_platform())
 }
 
-fn probe_gh(programs: &[&str], mut probe: impl FnMut(&str) -> ProcessAttempt) -> ProcessAttempt {
+fn probe_gh(
+    programs: &[impl AsRef<str>],
+    mut probe: impl FnMut(&str) -> ProcessAttempt,
+) -> ProcessAttempt {
     for program in programs {
-        let attempt = probe(program);
+        let attempt = probe(program.as_ref());
         if !matches!(attempt, ProcessAttempt::Missing) {
             return attempt;
         }
@@ -240,6 +243,100 @@ pub(crate) fn gh_diagnostics() -> GitDiagnostics {
     gh_diagnostics_from_attempt(attempt)
 }
 
+/// Same fixed PATH-first policy as gh, with independent process/update state.
+fn glab_probe_programs(
+    platform: GitInstallationPlatform,
+    windows_roots: &[std::path::PathBuf],
+) -> Vec<String> {
+    let programs: &[&str] = match platform {
+        GitInstallationPlatform::Macos => {
+            &["glab", "/opt/homebrew/bin/glab", "/usr/local/bin/glab"]
+        }
+        GitInstallationPlatform::Linux => &[
+            "glab",
+            "/usr/local/bin/glab",
+            "/usr/bin/glab",
+            "/home/linuxbrew/.linuxbrew/bin/glab",
+        ],
+        _ => &["glab"],
+    };
+    let mut programs: Vec<String> = programs.iter().map(|program| (*program).into()).collect();
+    if platform == GitInstallationPlatform::Windows {
+        for root in windows_roots.iter().filter(|root| root.is_absolute()) {
+            let program = root
+                .join("glab")
+                .join("glab.exe")
+                .to_string_lossy()
+                .into_owned();
+            if !programs.contains(&program) {
+                programs.push(program);
+            }
+        }
+    }
+    programs
+}
+
+pub(crate) fn glab_program_candidates() -> Vec<String> {
+    // Installers update the user's PATH, not the environment of an already
+    // running desktop process. Both diagnostics and authentication must find
+    // the same executable without mutating the app's global environment.
+    let mut roots = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        roots.push(std::path::PathBuf::from(local).join("Programs"));
+    }
+    for key in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(root) = std::env::var_os(key) {
+            roots.push(std::path::PathBuf::from(root));
+        }
+    }
+    glab_probe_programs(current_installation_platform(), &roots)
+}
+
+/// glab's released binary prints `glab X.Y.Z`; retain the labelled
+/// spelling too, while each caller validates the numeric version it needs.
+pub(crate) fn glab_version(stdout: &str) -> Option<&str> {
+    let line = stdout.lines().next()?.strip_prefix("glab ")?;
+    line.strip_prefix("version ")
+        .unwrap_or(line)
+        .split_whitespace()
+        .next()
+}
+pub(crate) fn glab_diagnostics() -> GitDiagnostics {
+    let _command = application::enter("glab_diagnostics");
+    let attempt = probe_gh(&glab_program_candidates(), |program| {
+        let mut command = Command::new(program);
+        command
+            .arg("--version")
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("GLAB_CHECK_UPDATE", "false");
+        run_tool_probe(command, Duration::from_secs(15))
+    });
+    glab_diagnostics_from_attempt(attempt)
+}
+
+fn glab_diagnostics_from_attempt(attempt: ProcessAttempt) -> GitDiagnostics {
+    let attempt = match attempt {
+        ProcessAttempt::Completed { success, stdout } => ProcessAttempt::Completed {
+            success,
+            stdout: glab_version(&stdout)
+                .map(|version| format!("gh version {version}"))
+                .unwrap_or_default(),
+        },
+        other => other,
+    };
+    gh_diagnostics_from_attempt(attempt)
+}
+pub(crate) fn install_glab() -> GitInstallationResult {
+    install_tool(SystemTool::GitLabCli, "install_glab")
+}
+pub(crate) fn update_glab() -> GitUpdateLaunchResult {
+    update_tool(SystemTool::GitLabCli, "update_glab")
+}
+pub(crate) fn check_glab_update() -> GitUpdateStatus {
+    check_tool_update(SystemTool::GitLabCli, "check_glab_update")
+}
+
 const GIT_WINDOWS_DOWNLOAD_URL: &str = "https://git-scm.com/install/windows";
 const GIT_MACOS_DOWNLOAD_URL: &str = "https://git-scm.com/install/mac";
 const GIT_LINUX_DOWNLOAD_URL: &str = "https://git-scm.com/install/linux";
@@ -263,11 +360,13 @@ impl ToolState {
 
 static GIT_STATE: ToolState = ToolState::new();
 static GH_STATE: ToolState = ToolState::new();
+static GLAB_STATE: ToolState = ToolState::new();
 
 #[derive(Clone, Copy)]
 enum SystemTool {
     Git,
     GitHubCli,
+    GitLabCli,
 }
 
 impl SystemTool {
@@ -275,17 +374,20 @@ impl SystemTool {
         match self {
             Self::Git => &GIT_STATE,
             Self::GitHubCli => &GH_STATE,
+            Self::GitLabCli => &GLAB_STATE,
         }
     }
     fn package_id(self) -> &'static str {
         match self {
             Self::Git => "Git.Git",
             Self::GitHubCli => "GitHub.cli",
+            Self::GitLabCli => "GLab.GLab",
         }
     }
     fn guidance_url(self, platform: GitInstallationPlatform) -> Option<&'static str> {
         match (self, platform) {
             (_, GitInstallationPlatform::Unsupported) => None,
+            (Self::GitLabCli, _) => Some("https://gitlab.com/gitlab-org/cli#installation"),
             (Self::Git, GitInstallationPlatform::Windows) => Some(GIT_WINDOWS_DOWNLOAD_URL),
             (Self::Git, GitInstallationPlatform::Macos) => Some(GIT_MACOS_DOWNLOAD_URL),
             (Self::Git, GitInstallationPlatform::Linux) => Some(GIT_LINUX_DOWNLOAD_URL),
@@ -1108,6 +1210,92 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn glab_finds_windows_installations_without_a_refreshed_path() {
+        let root = std::env::temp_dir().join("glab-discovery-fixture");
+        let roots = [
+            root.join("Local Programs"),
+            root.join("Program Files"),
+            std::path::PathBuf::from("relative"),
+        ];
+        let programs = glab_probe_programs(GitInstallationPlatform::Windows, &roots);
+        assert_eq!(programs[0], "glab");
+        assert_eq!(programs.len(), 3);
+        for installed in programs.iter().skip(1) {
+            let mut attempts = Vec::new();
+            let result = probe_gh(&programs, |program| {
+                attempts.push(program.to_owned());
+                if program == installed {
+                    ProcessAttempt::Completed {
+                        success: true,
+                        stdout: "glab 1.120.0 (7879011)\r\n".into(),
+                    }
+                } else {
+                    ProcessAttempt::Missing
+                }
+            });
+            assert_eq!(attempts.last(), Some(installed));
+            let diagnostics = glab_diagnostics_from_attempt(result);
+            assert_eq!(diagnostics.state, GitDiagnosticState::Available);
+            assert_eq!(diagnostics.version.as_deref(), Some("1.120.0"));
+        }
+        // A present but broken PATH executable must not be silently replaced.
+        let mut attempts = 0;
+        let result = probe_gh(&programs, |_| {
+            attempts += 1;
+            ProcessAttempt::FailedToStart
+        });
+        assert_eq!(attempts, 1);
+        assert_eq!(
+            glab_diagnostics_from_attempt(result).state,
+            GitDiagnosticState::CheckFailed
+        );
+        assert_eq!(
+            glab_probe_programs(GitInstallationPlatform::Macos, &roots),
+            ["glab", "/opt/homebrew/bin/glab", "/usr/local/bin/glab"]
+        );
+        assert_eq!(
+            glab_probe_programs(GitInstallationPlatform::Linux, &roots),
+            [
+                "glab",
+                "/usr/local/bin/glab",
+                "/usr/bin/glab",
+                "/home/linuxbrew/.linuxbrew/bin/glab"
+            ]
+        );
+    }
+
+    #[test]
+    fn glab_diagnostics_accept_the_released_version_output_and_reject_bad_versions() {
+        for stdout in [
+            "glab 1.120.0 (7879011)\r\n",
+            "glab version 1.120.0 (fixture)\n",
+        ] {
+            let result = glab_diagnostics_from_attempt(ProcessAttempt::Completed {
+                success: true,
+                stdout: stdout.into(),
+            });
+            assert_eq!(result.state, GitDiagnosticState::Available);
+            assert_eq!(result.version.as_deref(), Some("1.120.0"));
+        }
+        for stdout in [
+            "gh version 2.80.0",
+            "glab 1.120.bad",
+            "glab",
+            "glab version",
+            "untrusted 1.120.0",
+        ] {
+            assert_eq!(
+                glab_diagnostics_from_attempt(ProcessAttempt::Completed {
+                    success: true,
+                    stdout: stdout.into()
+                })
+                .state,
+                GitDiagnosticState::Unusable
+            );
+        }
+    }
+
+    #[test]
     fn gh_probe_paths_cover_default_gui_installations() {
         assert_eq!(gh_probe_programs(GitInstallationPlatform::Windows), &["gh"]);
         assert_eq!(
@@ -1465,10 +1653,69 @@ mod tests {
     }
 
     #[test]
+    fn glab_tooling_is_independent_and_uses_its_official_package_and_guidance() {
+        assert!(!std::ptr::eq(
+            SystemTool::GitLabCli.state(),
+            SystemTool::GitHubCli.state()
+        ));
+        assert!(!std::ptr::eq(
+            SystemTool::GitLabCli.state(),
+            SystemTool::Git.state()
+        ));
+        for platform in [
+            GitInstallationPlatform::Windows,
+            GitInstallationPlatform::Macos,
+            GitInstallationPlatform::Linux,
+        ] {
+            assert_eq!(
+                installation_result(
+                    SystemTool::GitLabCli,
+                    platform,
+                    Some(InstallSpawnResult::Missing)
+                )
+                .guidance_url
+                .as_deref(),
+                Some("https://gitlab.com/gitlab-org/cli#installation")
+            );
+        }
+        assert_eq!(update_check_args(SystemTool::GitLabCli)[2], "GLab.GLab");
+        for (success, output, expected) in [
+            (
+                true,
+                "GitLab CLI GLab.GLab 1.119.0 1.120.0 winget",
+                GitUpdateState::UpdateAvailable,
+            ),
+            (
+                true,
+                "GitHub CLI GitHub.cli 2.80.0 2.81.0 winget",
+                GitUpdateState::UpToDate,
+            ),
+            (
+                false,
+                "GLab.GLab source query failed",
+                GitUpdateState::Failed,
+            ),
+        ] {
+            assert_eq!(
+                update_status_from_attempt(
+                    SystemTool::GitLabCli,
+                    UpdateCheckAttempt::Completed {
+                        success,
+                        output: output.into()
+                    }
+                )
+                .state,
+                expected
+            );
+        }
+    }
+
+    #[test]
     fn installers_pin_exact_package_and_official_source() {
         for (tool, package) in [
             (SystemTool::Git, "Git.Git"),
             (SystemTool::GitHubCli, "GitHub.cli"),
+            (SystemTool::GitLabCli, "GLab.GLab"),
         ] {
             for upgrade in [false, true] {
                 assert_eq!(

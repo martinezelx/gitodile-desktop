@@ -37,7 +37,7 @@ export function RepositoryBrowser({ controller, catalog, checking, failed, onChe
   useEffect(() => { setQuery(""); scrollRef.current?.scrollTo?.({ top: 0 }); }, [state.accountId, state.page?.page]);
   useEffect(() => () => controller.cancel(), [controller]);
   return <div className="repository-browser">
-    <div className="repository-browser__connection"><HostingProviderIcon provider={provider} />
+    <div className="repository-browser__connection">
       <AccountPicker catalog={catalog} provider={provider} value={state.accountId} onChange={id => { onClearSelection?.(); controller.select(id); }}
         label={t.cloneConnectionLabel} showHelp={false} onCheck={onCheck} disabled={checking} failed={failed} required />
     </div>

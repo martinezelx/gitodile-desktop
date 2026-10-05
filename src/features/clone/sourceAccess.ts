@@ -10,19 +10,23 @@ export type CloneSourceAccessPort = {
   cancelSourceCheck(requestId: string): Promise<void>;
 };
 
-export function githubCloneAddress(source: string): { https: boolean } | null {
+export function hostingCloneAddress(source: string): { https: boolean; provider: "github" | "gitlab" } | null {
   const value = source.trim();
-  const validPath = (path: string): boolean => {
+  const validPath = (path: string, provider: "github" | "gitlab"): boolean => {
     const parts = path.replace(/\/+$/, "").split("/");
-    return parts.length === 2 && parts.every(p => /^[\w.-]+$/.test(p) && p !== "." && p !== "..") && parts[1] !== ".git";
+    return parts.length >= 2 && parts.length <= 32 && (provider === "gitlab" || parts.length === 2) && parts.every(p => /^[\w.-]+$/.test(p) && p !== "." && p !== "..") && parts.at(-1) !== ".git";
   };
-  if (value.startsWith("git@github.com:")) return validPath(value.slice(15)) ? { https: false } : null;
+  for (const provider of ["github", "gitlab"] as const) {
+    const prefix = `git@${provider}.com:`;
+    if (value.startsWith(prefix)) return validPath(value.slice(prefix.length), provider) ? { https: false, provider } : null;
+  }
   try {
     const url = new URL(value);
-    if (url.hostname !== "github.com" || url.port || url.password || url.search || url.hash ||
-        !validPath(url.pathname.slice(1))) return null;
-    if (url.protocol === "https:" && !url.username) return { https: true };
-    if (url.protocol === "ssh:" && url.username === "git") return { https: false };
+    const provider = url.hostname === "github.com" ? "github" : url.hostname === "gitlab.com" ? "gitlab" : null;
+    if (!provider || url.port || url.password || url.search || url.hash ||
+        !validPath(url.pathname.slice(1), provider)) return null;
+    if (url.protocol === "https:" && !url.username) return { https: true, provider };
+    if (url.protocol === "ssh:" && url.username === "git") return { https: false, provider };
   } catch { /* Local paths and incomplete addresses never contact a provider. */ }
   return null;
 }
@@ -70,9 +74,9 @@ export function createCloneSourceAccess(port: CloneSourceAccessPort) {
     reset: (): void => { stop(); publish({ source: "", accountId: null, status: "idle" }); },
     update: (source: string, accountId: string | null): void => {
       stop();
-      const address = githubCloneAddress(source);
+      const address = hostingCloneAddress(source);
       // A saved HTTPS identity cannot be applied to SSH.
-      if (!address || (!address.https && accountId)) { publish({ source, accountId, status: "idle" }); return; }
+      if (!address || (!address.https && accountId) || (accountId && !accountId.startsWith(`${address.provider}:`))) { publish({ source, accountId, status: "idle" }); return; }
       const current = generation;
       publish({ source, accountId, status: "checking" });
       timer = setTimeout(() => {
@@ -87,3 +91,5 @@ export function createCloneSourceAccess(port: CloneSourceAccessPort) {
     },
   };
 }
+
+export function githubCloneAddress(source: string): { https: boolean } | null { const address = hostingCloneAddress(source); return address?.provider === "github" ? { https: address.https } : null; }

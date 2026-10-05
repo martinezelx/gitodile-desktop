@@ -36,8 +36,8 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Open a local project from its root or any nested folder, validate it in Rust,
   and switch between recent projects.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
-  provider-neutral two-screen flow: choose an address or GitHub project, then
-  choose the destination and clone. Complete GitHub addresses get a cancellable
+  provider-neutral two-screen flow: choose an address or GitHub/GitLab project, then
+  choose the destination and clone. Complete GitHub/GitLab addresses get a cancellable
   read-only access check using the chosen connection. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
   lifecycle; select a saved account for GitOdile's HTTPS access or use existing
@@ -329,7 +329,7 @@ for ordinary local Git workflows.
 
 Settings presents token connections first, browser connections second and gh
 installation last. Browser connections and saved gh accounts require the CLI;
-token connections work with or without it. Cloning a GitHub HTTPS URL
+token connections work with or without it. Cloning a GitHub or GitLab.com HTTPS URL
 and Project settings → Remote offer a shared account selector. Different projects
 can use different saved accounts without switching gh's active account. The
 native credential helper retrieves the exact saved account only when Git needs
@@ -337,8 +337,7 @@ it; retrieved credentials never return to the frontend or enter command argument
 Selections persist as local metadata, and a missing credential fails instead
 of silently choosing another account. Choosing existing Git credentials preserves
 the system's normal authentication. Account selection does not change commit
-authorship, configure SSH or prove publishing permissions. The shared provider
-contract prepares later GitLab adapters; only GitHub is implemented today.
+authorship, configure SSH or prove publishing permissions. GitHub and GitLab.com share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
 Settings → GitHub offers **Token connection** in the same grouped rows as other
@@ -359,6 +358,38 @@ HTTPS address and account into the existing destination review; nothing is
 cloned until you confirm. Discovery uses exactly that connection without changing
 gh's active account. Its private results are cached only for the app session.
 See [ADR 0023](docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
+
+Settings → GitLab follows the same order: native **Token connection**, browser
+connection, then optional **GitLab CLI (`glab`)** tooling. Tokens work without
+glab and stay in a separate OS secure-store namespace, with no plaintext fallback.
+Use `read_api` for identity/project discovery, plus `read_repository` for clone/get
+changes or `write_repository` to publish too; the broader `api` scope covers both.
+Project membership still determines access. Expired/revoked tokens need replacing.
+Up to eight token connections coexist independently of the single glab session.
+Numeric GitLab user IDs keep selections stable after username changes.
+
+Browser connection requires **glab 1.120.0+** and an explicit connection check.
+It uses glab’s registered application and browser OAuth. Its GitLab.com session
+is shared with other tools and supports one account at a time. GitOdile requests
+system keyring storage; glab may fall back to a plaintext configuration file and
+owns OAuth refresh. Sign-out rechecks the confirmed numeric identity first;
+offline/invalid sessions must be repaired with glab rather than risking removal
+of another account. External identity changes make old project selections
+unavailable. Windows offers the exact WinGet package `GLab.GLab`; macOS/Linux
+provide official installation/update instructions. Local diagnostics need no account.
+After the Windows installer finishes, use the tooling card's recheck button.
+GitOdile also checks the standard user/system installation locations, so the
+running app can find glab even before its inherited PATH has been refreshed.
+
+Clone a project → **GitLab** reuses the connection selector and project browser,
+including group/subgroup names, current-page filters and explicit pagination.
+Discovery and HTTPS transfers use the exact token or CLI connection selected;
+there is no fallback to another source. API calls use only GitLab.com without
+redirects. SSH and self-hosted GitLab are outside this account adapter’s scope.
+See [ADR 0024](docs/adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
+Automated fixtures and Windows UI/secure-store checks cover the implementation;
+real GitLab OAuth, private clone/publishing and macOS/Linux runtime qualification
+remain unclaimed until exercised with an authorized account and environment.
 
 ## Requirements
 

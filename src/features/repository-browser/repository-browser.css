@@ -12,7 +12,6 @@
 .repository-browser__badge { display: inline-flex; gap: var(--space-1); align-items: center; border: 1px solid var(--border-control); padding: 0 var(--space-1); border-radius: var(--radius-pill); }
 .repository-browser__badge svg { width: 10px; height: 10px; }
 .repository-browser__connection { display: flex; gap: var(--space-3); align-items: flex-start; }
-.repository-browser__connection > svg { width: 20px; height: 20px; margin-top: 28px; flex-shrink: 0; }
 .repository-browser__connection .hosting-account-picker { flex: 1; min-width: 0; }
 .repository-browser__search { display: flex; align-items: center; gap: var(--space-1); background: var(--surface-control); border: 1px solid var(--border-control); border-radius: var(--radius-pill); padding-right: var(--space-1); }
 .repository-browser__search:focus-within { border-color: var(--focus-ring); }

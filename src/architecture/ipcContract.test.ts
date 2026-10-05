@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(105);
+    expect(contract.commands).toHaveLength(116);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "get_app_update_state", "get_startup_update_confirmation",
       "check_app_update", "download_app_update", "cancel_app_update", "install_app_update",
@@ -17,6 +17,17 @@ describe("IPC contract snapshot", () => {
       "plan_discard_changes",
       "discard_changes", "get_discard_recovery", "list_discard_recoveries",
       "restore_discarded_changes", "delete_discard_recovery",
+      "glab_diagnostics",
+      "install_glab",
+      "update_glab",
+      "check_glab_update",
+      "get_gitlab_auth_state",
+      "check_gitlab_auth",
+      "start_gitlab_login",
+      "logout_gitlab_account",
+      "cancel_gitlab_auth",
+      "add_gitlab_token",
+      "remove_gitlab_token",
       "gh_diagnostics", "get_account_catalog", "add_github_token", "remove_github_token", "list_hosting_repositories", "cancel_hosting_request", "check_account_catalog", "read_project_account", "set_project_account", "get_github_auth_state", "check_github_auth", "start_github_login", "cancel_github_auth",
       "logout_github_account",
       "switch_github_account",

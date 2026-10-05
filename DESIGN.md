@@ -15,18 +15,17 @@ Choosing a project populates the normal destination review without starting a
 clone. A filter must say which page it searches; a partial list cannot read as
 the full account inventory. Opening a cached view does not refresh remotely.
 
-The clone overlay uses two screens: Git address first, GitHub second and a
-GitLab Coming soon tab; then the editable destination and native preview with
+The clone overlay uses two screens: Git address, GitHub and GitLab source tabs first; then the editable destination and native preview with
 Clone project. There is no numbered step bar or separate confirmation screen.
 Selecting a repository stays on the list and highlights the selection until
 Choose destination. Retain virtualized rows and invalidate selection on account
-or page changes. Editing a complete GitHub address or its connection starts a
+or page changes. Editing a complete GitHub or GitLab address or its connection starts a
 debounced, cancellable read-only Git access check; opening the overlay or a
 cached list never does. Confirm only read access, keep missing/private ambiguity,
 and offer continuing without checking for transient failures. Use the same
 exact connection as cloning. The input explains the network check before entry.
 
-GitHub browsing gives the remaining dialog height to its virtualized project
+Provider browsing gives the remaining dialog height to its virtualized project
 list. The heading, source tabs, connection, search and destination action stay
 fixed; only the list scrolls. Refresh belongs inside the search capsule, with
 an accessible name and busy/cancel feedback. Compact rows show the project name
@@ -64,6 +63,21 @@ The visual language uses:
 - generous spacing around primary actions;
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
+
+Hosting connection selectors share one app-styled list in clone and project
+settings. Show username, host and a separate Token/Browser badge, with a check
+for the selected connection. Project settings shows only providers used by its
+configured HTTPS fetch or push addresses, once those remotes are known. Multiple
+providers appear only when the project actually uses both; local, SSH-only and
+other-host projects have no provider account selector.
+Retain unavailable saved identities and explain
+that they need checking. Arrow keys preview choices; Enter confirms; Escape
+closes only the list and Tab continues through the surrounding form. Opening
+the list uses cached connections and never checks them remotely.
+
+Hosting provider icons use monochrome silhouettes with `currentColor`, including
+GitHub and GitLab. They follow the surrounding ink in light/dark themes and
+selected states, rather than introducing provider brand colours into navigation.
 
 Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserve it, if used at all, for genuinely transient overlays (a modal scrim) — never for a panel that sits on screen the whole session. Code, diffs, file lists, conflict editors, forms, and long-form content must sit on fully opaque surfaces.
 

@@ -2,17 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../../i18n";
 import { RefreshIconButton } from "../../shared/ui";
 import { AccountPicker } from "./AccountPicker";
-import type { AccountCatalog, AccountProject } from "./domain";
+import { providerForSource, type AccountCatalog, type AccountProject } from "./domain";
 import type { AccountsPort } from "./port";
 import { accountsPort } from "./tauriAdapter";
 import { useAccounts } from "./useAccounts";
-export function ProjectAccountSection({ project, port = accountsPort }: { project: AccountProject; port?: AccountsPort }): React.JSX.Element {
+export function ProjectAccountSection({ project, remoteUrls, port = accountsPort }: {
+  project: AccountProject; remoteUrls: readonly string[]; port?: AccountsPort;
+}): React.JSX.Element | null {
   const { t } = useLanguage();
-  const { catalog, pending, failed, check, reload } = useAccounts(port, true);
+  const { catalog, pending, failed, check, reload } = useAccounts(port, remoteUrls.length > 0);
+  const usedProviders = new Set(remoteUrls.map(url => providerForSource(url, catalog.providers)));
+  const providers = catalog.providers.filter(provider => usedProviders.has(provider.id));
+  if (remoteUrls.length === 0 || (catalog.providers.length > 0 && providers.length === 0)) return null;
   return <section className="settings-group">
     <header className="settings-group__header"><h3>{t.accountsProjectTitle}</h3><p>{t.accountsProjectDescription}</p></header>
     <div className="settings-group__body">
-      {catalog.providers.map(provider => <ProviderAccount key={`${provider.id}:${project.path}:${project.sessionEpoch}`}
+      {providers.map(provider => <ProviderAccount key={`${provider.id}:${project.path}:${project.sessionEpoch}`}
         project={project} port={port} provider={provider.id} catalog={catalog} pending={pending} failed={failed} check={check} />)}
       {catalog.providers.length === 0 && <p className="settings-row__hint">{failed ? t.accountsFailed : t.accountsLoading}</p>}
       {catalog.providers.length === 0 && failed && <RefreshIconButton label={t.settingsGeneralCheckAgain} busyLabel={t.accountsLoading} busy={false} onClick={reload} />}

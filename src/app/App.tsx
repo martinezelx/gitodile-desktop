@@ -1,3 +1,4 @@
+import { gitlabAuthPort, gitlabToolingPort, useGitLabAuth } from "../features/gitlab";
 import { githubAuthPort, useGitHubAuth } from "../features/github";
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -653,6 +654,7 @@ export function App(): React.JSX.Element {
   const [closeTargetId, setCloseTargetId] = useState<string | null>(null);
   const gitTooling = useGitTooling(settingsPort);
   const ghTooling = useGitTooling(settingsPort, "gh");
+  const glabTooling = useGitTooling(settingsPort, gitlabToolingPort);
   const issueReport = useIssueReport(readGitVersion(gitTooling.diagnostics));
   /* Read once after first paint and kept, like the Git diagnostics above.
      Owned here rather than inside the panel because the shell unmounts the
@@ -671,6 +673,7 @@ export function App(): React.JSX.Element {
      create-project identity link — says so by passing it, so remembering the
      last visit only made the plain open unpredictable. */
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
+  const gitlabAuth = useGitLabAuth(gitlabAuthPort, isSettingsOpen && settingsSection === "gitlab");
   const githubAuth = useGitHubAuth(githubAuthPort, isSettingsOpen && settingsSection === "github");
   /** The one way to open Settings. Callers that want a particular section name
    * it; everyone else gets General. */
@@ -2929,7 +2932,7 @@ export function App(): React.JSX.Element {
           setSection: setSettingsSection,
           gitTooling,
           ghTooling,
-          githubAuth,
+          githubAuth, gitlabAuth, glabTooling,
           reopenLastProject,
           setReopenLastProject,
           confirmCloseProject,

@@ -20,6 +20,7 @@
 @import "./features/history/history.css";
 @import "./features/workbench/workbench.css";
 @import "./features/settings/settings.css";
+@import "./features/accounts/hosting-connections.css";
 @import "./features/github/github.css";
 @import "./features/repository-browser/repository-browser.css";
 @import "./features/accounts/accounts.css";

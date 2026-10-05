@@ -13,3 +13,5 @@ export {
 } from "./useGitConfig";
 export { SettingsPanel, isGitInstallationBroken } from "./SettingsPanel";
 export { settingsOverlayModule } from "./overlay";
+
+export type { HostingToolingCopy, HostingToolingPort } from "./GhToolingSection";

@@ -7,6 +7,7 @@ mod application;
 #[cfg(test)]
 mod architecture;
 mod changes;
+mod cli_auth;
 mod clone;
 mod console;
 mod credentials;
@@ -18,8 +19,11 @@ mod git;
 mod git_command;
 mod github_access;
 mod github_auth;
+mod gitlab_access;
+mod gitlab_auth;
 mod history;
 pub mod hosting;
+mod hosting_access;
 mod index;
 mod initialize;
 mod ipc;
@@ -78,6 +82,7 @@ pub fn run() {
         .manage(clone::CloneOperationRegistry::default())
         .manage(history::HistoryReadCache::default())
         .manage(github_auth::GitHubAuthService::default())
+        .manage(gitlab_auth::GitLabAuthService::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
@@ -94,9 +99,18 @@ pub fn run() {
                     .join("github-token-accounts.json"),
             );
             app.manage(access.clone());
+            let gitlab = gitlab_access::GitLabAccessService::new(
+                app.state::<gitlab_auth::GitLabAuthService>()
+                    .inner()
+                    .clone(),
+                app.path()
+                    .app_config_dir()?
+                    .join("gitlab-token-accounts.json"),
+            );
+            app.manage(gitlab.clone());
             app.manage(credentials::install(
                 app.path().app_config_dir()?.join("account-selections.json"),
-                hosting::providers(access),
+                hosting::providers(access, gitlab),
             ));
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
@@ -140,6 +154,17 @@ pub fn run() {
             ipc::list_discard_recoveries,
             ipc::restore_discarded_changes,
             ipc::delete_discard_recovery,
+            ipc::glab_diagnostics,
+            ipc::install_glab,
+            ipc::update_glab,
+            ipc::check_glab_update,
+            ipc::get_gitlab_auth_state,
+            ipc::check_gitlab_auth,
+            ipc::start_gitlab_login,
+            ipc::logout_gitlab_account,
+            ipc::cancel_gitlab_auth,
+            ipc::add_gitlab_token,
+            ipc::remove_gitlab_token,
             ipc::gh_diagnostics,
             ipc::get_account_catalog,
             ipc::add_github_token,

@@ -124,15 +124,17 @@ pub(crate) enum CloneSourceAccess {
     Unavailable,
 }
 
-/// GitHub-only for this iteration. Parse before reaching credentials or Git:
+/// Supported provider addresses only. Parse before reaching credentials or Git:
 /// no other hosts, local paths, URL secrets or executable-looking inputs.
-fn checked_github_source(raw: &str) -> Result<NormalizedSource, AppError> {
+fn checked_hosting_source(raw: &str) -> Result<NormalizedSource, AppError> {
     let raw = raw.trim();
-    let path = if let Some(path) = raw.strip_prefix("git@github.com:") {
-        path.to_string()
+    let (host, path) = if let Some(path) = raw.strip_prefix("git@github.com:") {
+        ("github.com".to_string(), path.to_string())
+    } else if let Some(path) = raw.strip_prefix("git@gitlab.com:") {
+        ("gitlab.com".to_string(), path.to_string())
     } else {
         let url = reqwest::Url::parse(raw).map_err(|_| invalid_check_source())?;
-        if url.host_str() != Some("github.com")
+        if !matches!(url.host_str(), Some("github.com" | "gitlab.com"))
             || url.port().is_some()
             || url.password().is_some()
             || url.query().is_some()
@@ -142,10 +144,15 @@ fn checked_github_source(raw: &str) -> Result<NormalizedSource, AppError> {
         {
             return Err(invalid_check_source());
         }
-        url.path().trim_start_matches('/').to_string()
+        (
+            url.host_str().unwrap().to_string(),
+            url.path().trim_start_matches('/').to_string(),
+        )
     };
     let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
-    if parts.len() != 2
+    if (host == "github.com" && parts.len() != 2)
+        || parts.len() < 2
+        || parts.len() > 32
         || parts.iter().any(|part| {
             part.is_empty()
                 || *part == "."
@@ -154,7 +161,7 @@ fn checked_github_source(raw: &str) -> Result<NormalizedSource, AppError> {
                     .bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
         })
-        || parts[1] == ".git"
+        || parts.last() == Some(&".git")
     {
         return Err(invalid_check_source());
     }
@@ -164,7 +171,7 @@ fn checked_github_source(raw: &str) -> Result<NormalizedSource, AppError> {
 fn invalid_check_source() -> AppError {
     AppError::new(
         AppErrorCode::InvalidCloneSource,
-        "Enter a complete GitHub project address.",
+        "Enter a complete GitHub or GitLab project address.",
     )
 }
 
@@ -203,7 +210,7 @@ pub(crate) fn check_clone_source(
     request_id: String,
 ) -> Result<CloneSourceAccess, AppError> {
     validate_operation_id(&request_id)?;
-    let source = checked_github_source(&source)?;
+    let source = checked_hosting_source(&source)?;
     crate::credentials::validate_clone_account(account_id.as_deref(), &source.argument)?;
     let token = CancellationToken::default();
     {
@@ -1456,16 +1463,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_checks_accept_only_safe_github_addresses() {
+    fn source_checks_accept_only_safe_hosting_addresses() {
         for value in [
             "https://github.com/team/project.git",
             "git@github.com:team/project.git",
             "ssh://git@github.com/team/project",
+            "https://gitlab.com/team/subgroup/project.git",
+            "git@gitlab.com:team/subgroup/project.git",
+            "ssh://git@gitlab.com/team/project",
         ] {
-            assert!(checked_github_source(value).is_ok(), "{value}");
+            assert!(checked_hosting_source(value).is_ok(), "{value}");
         }
         for value in [
             "https://github.com/team",
+            "https://gitlab.com/team",
+            "https://gitlab.com.evil.test/team/project",
+            "https://token@gitlab.com/team/project",
+            "https://gitlab.com/team/project?token=secret",
+            "https://gitlab.com:444/team/project",
             "https://github.com.evil.test/team/project",
             "https://token@github.com/team/project",
             "https://github.com/team/project?token=secret",
@@ -1474,7 +1489,7 @@ mod tests {
             "--upload-pack=evil",
             "C:\\projects",
         ] {
-            assert!(checked_github_source(value).is_err(), "{value}");
+            assert!(checked_hosting_source(value).is_err(), "{value}");
         }
     }
 

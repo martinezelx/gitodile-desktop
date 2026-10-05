@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cloneSourceSummary, cloneSuggestedName, createCloneSourceAccess, githubCloneAddress } from "./sourceAccess";
+import { cloneSourceSummary, cloneSuggestedName, createCloneSourceAccess, githubCloneAddress, hostingCloneAddress } from "./sourceAccess";
 
 afterEach(() => vi.useRealTimers());
 it("only probes complete, secret-free GitHub addresses", () => {
@@ -67,4 +67,18 @@ it("keeps transient failures unconfirmed and never runs from mere subscription",
   expect(controller.snapshot().status).toBe("idle");
   controller.reset();
   expect(controller.snapshot()).toEqual({ source: "", accountId: null, status: "idle" });
+});
+
+it("accepts nested GitLab sources and refuses cross-provider account reads", async () => {
+  expect(hostingCloneAddress("https://gitlab.com/group/subgroup/project.git")).toEqual({ https: true, provider: "gitlab" });
+  expect(hostingCloneAddress("git@gitlab.com:group/subgroup/project.git")).toEqual({ https: false, provider: "gitlab" });
+  for (const source of ["https://gitlab.com.evil.test/team/project", "https://token@gitlab.com/team/project", "https://gitlab.com/team/project?token=x", "http://gitlab.com/team/project", "https://gitlab.com/group"]) expect(hostingCloneAddress(source)).toBeNull();
+  vi.useFakeTimers();
+  const checkSource = vi.fn(async () => "accessible" as const);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  controller.update("https://gitlab.com/team/subgroup/project", "github:token.work");
+  await vi.advanceTimersByTimeAsync(1000); expect(checkSource).not.toHaveBeenCalled();
+  controller.update("https://gitlab.com/team/subgroup/project", "gitlab:token.42");
+  await vi.advanceTimersByTimeAsync(550);
+  expect(checkSource).toHaveBeenCalledWith("https://gitlab.com/team/subgroup/project", "gitlab:token.42", expect.any(String));
 });

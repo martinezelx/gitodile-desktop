@@ -19,7 +19,7 @@ queue:
 Finish GitHub discovery and clone handoff before starting GitLab. This task's
 ID is retained from the original two-provider browser plan. The user narrowed
 this implementation to GitHub on 2026-10-04; GitLab extends the same browser in
-[148-4](../active/148-4-gitlab-accounts.md). PRs and Actions follow separately.
+[148-4](../done/148-4-gitlab-accounts.md). PRs and Actions follow separately.
 
 # User outcome
 
