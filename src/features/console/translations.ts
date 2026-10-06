@@ -11,7 +11,9 @@ export interface ConsoleTranslations {
   consoleWelcomeProject: string;
   consoleWelcomeLine: string;
   consoleWelcomeGit: string;
-  consoleWelcomeMode: string;
+  consoleWelcomeConfirm: string;
+  consoleWelcomeConfirmOn: string;
+  consoleWelcomeConfirmOff: string;
   consoleWelcomeProjectSection: string;
   consoleWelcomeEnvironmentSection: string;
   consoleWelcomeChanges: string;
@@ -37,7 +39,8 @@ export interface ConsoleTranslations {
   consoleOpenSettings: string;
   consoleCompletions: string;
   consoleStatusLine: string;
-  consoleReadOnly: string;
+  consoleStatusConfirm: string;
+  consoleStatusNoConfirm: string;
   consoleCopy: string;
   consoleCopied: string;
   consoleRerun: string;
@@ -79,30 +82,16 @@ export interface ConsoleTranslations {
   consoleHelpGitFooter: string;
   consoleGitCommands: Record<GitReadCommand, string>;
   consoleRefusal: (reason: Exclude<ConsoleRefusalReason, "tier_not_allowed">, subject: string | null) => string;
-  consoleTierNotAllowed: (subcommand: string, tier: ConsoleTier, advancedMode: boolean) => string;
-  consoleHelpGitAdvanced: string;
-  consoleAdvancedMode: string;
-  consoleRootMode: string;
-  consoleSettingsModeTitle: string;
-  consoleSettingsModeIntro: string;
-  consoleModeReadOnly: string;
-  consoleModeAdvanced: string;
-  consoleModeRoot: string;
-  consoleModeReadOnlyDescription: string;
-  consoleModeAdvancedDescription: string;
-  consoleModeRootDescription: string;
-  consoleRootDialogTitle: string;
-  consoleRootDialogBody: string;
-  consoleRootDialogStillShown: string;
-  consoleRootDialogStillChecked: string;
-  consoleRootDialogConfirm: string;
-  consoleAdvancedSaveFailed: string;
-  consoleAdvancedDialogTitle: string;
-  consoleAdvancedDialogBody: string;
-  consoleAdvancedDialogPreview: string;
-  consoleAdvancedDialogLimits: string;
-  consoleAdvancedDialogGuided: string;
-  consoleAdvancedDialogConfirm: string;
+  consoleTierNotAllowed: (subcommand: string, tier: ConsoleTier) => string;
+  consoleConfirmChangesLabel: string;
+  consoleConfirmChangesDescription: string;
+  consoleConfirmOffDialogTitle: string;
+  consoleConfirmOffDialogBody: string;
+  consoleConfirmOffDialogStillShown: string;
+  consoleConfirmOffDialogLimits: string;
+  consoleConfirmOffDialogStillChecked: string;
+  consoleConfirmOffDialogConfirm: string;
+  consoleConfirmSaveFailed: string;
   consoleConfirmQuestion: string;
   consoleConfirmLabel: string;
   consoleAwaitingAnswer: string;
@@ -142,8 +131,9 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTitle: "Console", consoleShortcuts: "Shortcuts",
     consolePromptLabel: "Console command", consolePromptOn: "on",
     consoleHint: "Tab completes · Enter runs · ↑↓ history · Ctrl+L clears",
-    consoleEmpty: "Type help to see the shortcuts, or a read-only Git command such as git log --oneline.",
-    consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeMode: "mode",
+    consoleEmpty: "Type help to see the shortcuts, or a Git command such as git log --oneline.",
+    consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
+    consoleWelcomeConfirmOn: "before each change", consoleWelcomeConfirmOff: "off",
     consoleWelcomeProjectSection: "project", consoleWelcomeEnvironmentSection: "environment",
     consoleWelcomeChanges: "changes", consoleWelcomePublish: "publish", consoleWelcomeTheme: "theme",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "version" : "versions"}`, consoleWelcomeUpToDate: "up to date",
@@ -162,7 +152,8 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     }, consoleHelpActions: "Also: help git lists the Git commands you can type, clear empties the view, shortcuts edits the names, settings opens the console settings.",
     consoleControlHelp: "List the shortcuts", consoleControlClear: "Clear the view", consoleControlShortcuts: "Edit shortcut names",
     consoleControlSettings: "Open the console settings", consoleOpenSettings: "Console settings",
-    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleReadOnly: "read-only",
+    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleStatusConfirm: "confirms changes",
+    consoleStatusNoConfirm: "no confirmation",
     consoleCopy: "Copy output", consoleCopied: "Copied", consoleRerun: "Run again",
     consoleDuration: (ms) => formatDuration(ms, "en"), consoleTruncatedShort: "Shortened", consoleSucceeded: "Finished",
     consoleUnknown: (input) => `“${input}” isn't a shortcut or a Git command. Type help to see the names, or help git for Git commands.`,
@@ -183,8 +174,8 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleShortcutLineInvalid: "Write a Git command that starts with git, such as git log --oneline -20.",
     consoleShortcutChecking: "Checking the command…",
     consoleShortcutWidened: (name) => `“${name}” was saved as a read-only command and now asks for more, so it didn't run. Edit the shortcut to keep using it.`,
-    consoleHelpGitIntro: "Git commands you can type (read-only)", consoleHelpGitCommand: "Command",
-    consoleHelpGitFooter: "Commands that change the project, reach the remote copy, open an editor or run another program aren't available here.",
+    consoleHelpGitIntro: "Git commands that only read the project", consoleHelpGitCommand: "Command",
+    consoleHelpGitFooter: "Commands that change the project or reach the remote copy, such as git add, git commit -m, git switch, git fetch and git push, run here too, each shown first. Commands that rewrite saved history, can discard work, open an editor or run another program aren't available here.",
     consoleGitCommands: {
       status: "Project status", log: "Saved versions, newest first", show: "A saved version, or a file in it",
       diff: "Changes between versions or files", blame: "Who last changed each line", grep: "Search the project's files",
@@ -217,33 +208,16 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
           : `“${word}” needs an interactive terminal, which the console doesn't have.`;
       }
     },
-    consoleTierNotAllowed: (subcommand, tier, advancedMode) => {
-      const does = `git ${subcommand} ${EN_TIER_EFFECTS[tier]}`;
-      if (tier === "history_change" || tier === "destructive") return `${does}, which the console can't do yet. Use the guided actions for it.`;
-      if (!advancedMode && (tier === "local_change" || tier === "remote")) return `${does}. Choose the advanced console mode in Settings › Console to run it here, or use the guided actions.`;
-      return `${does}, and the console only runs read-only commands. Use the guided actions for it.`;
-    },
-    consoleHelpGitAdvanced: "Advanced mode is on: commands that change the project or reach the remote copy run here too, each shown first and run only when you answer yes.",
-    consoleAdvancedMode: "advanced",
-    consoleRootMode: "root",
-    consoleSettingsModeTitle: "Console mode",
-    consoleSettingsModeIntro: "What the console may do beyond reading, without changing how the guided actions work.",
-    consoleModeReadOnly: "Read-only", consoleModeAdvanced: "Advanced", consoleModeRoot: "Root",
-    consoleModeReadOnlyDescription: "Only reads the project, so nothing you type can change it.",
-    consoleModeAdvancedDescription: "Can also change the project and its remote copy, showing each change and asking before it runs.",
-    consoleModeRootDescription: "Changes the project and its remote copy like advanced, but runs each change as soon as you press Enter.",
-    consoleRootDialogTitle: "Switch to root mode?",
-    consoleRootDialogBody: "Commands that change the project or its remote copy will run as soon as you press Enter, including git push, without asking first.",
-    consoleRootDialogStillShown: "The console still prints what each one does before it runs.",
-    consoleRootDialogStillChecked: "A command still doesn't run if the project changed while it was being prepared.",
-    consoleRootDialogConfirm: "Switch to root",
-    consoleAdvancedSaveFailed: "The setting couldn't be saved. Try again.",
-    consoleAdvancedDialogTitle: "Switch to advanced mode?",
-    consoleAdvancedDialogBody: "The console will also run Git commands that change this project or its remote copy, such as git add, git commit -m, git switch, git stash, git fetch and git push.",
-    consoleAdvancedDialogPreview: "Every change is shown first and runs only when you answer yes. If the project moves in between, it doesn't run.",
-    consoleAdvancedDialogLimits: "Commands that rewrite saved history or can discard work stay unavailable.",
-    consoleAdvancedDialogGuided: "The guided actions remain the simplest and safest way to do all of this.",
-    consoleAdvancedDialogConfirm: "Switch to advanced",
+    consoleTierNotAllowed: (subcommand, tier) => `git ${subcommand} ${EN_TIER_EFFECTS[tier]}, which the console can't do yet. Use the guided actions for it.`,
+    consoleConfirmChangesLabel: "Confirm each change",
+    consoleConfirmChangesDescription: "Show what a command will change in the project or its remote copy and ask before it runs. Off, the console still shows it but runs it as soon as you press Enter.",
+    consoleConfirmOffDialogTitle: "Turn off change confirmations?",
+    consoleConfirmOffDialogBody: "Commands that change the project or its remote copy will run as soon as you press Enter, including git push, without asking first.",
+    consoleConfirmOffDialogStillShown: "The console still prints what each one does before it runs.",
+    consoleConfirmOffDialogLimits: "Commands that rewrite saved history or can discard work stay unavailable.",
+    consoleConfirmOffDialogStillChecked: "A command still doesn't run if the project changed while it was being prepared.",
+    consoleConfirmOffDialogConfirm: "Turn off",
+    consoleConfirmSaveFailed: "The setting couldn't be saved. Try again.",
     consoleConfirmQuestion: "Continue? [y/N]",
     consoleConfirmLabel: "Answer y to run the command, anything else to cancel",
     consoleAwaitingAnswer: "Waiting for your answer.",
@@ -290,8 +264,9 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTitle: "Consola", consoleShortcuts: "Atajos",
     consolePromptLabel: "Comando de consola", consolePromptOn: "en",
     consoleHint: "Tab completa · Intro ejecuta · ↑↓ historial · Ctrl+L limpia",
-    consoleEmpty: "Escribe help para ver los atajos, o un comando Git de solo lectura como git log --oneline.",
-    consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeMode: "modo",
+    consoleEmpty: "Escribe help para ver los atajos, o un comando Git como git log --oneline.",
+    consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
+    consoleWelcomeConfirmOn: "antes de cada cambio", consoleWelcomeConfirmOff: "desactivada",
     consoleWelcomeProjectSection: "proyecto", consoleWelcomeEnvironmentSection: "entorno",
     consoleWelcomeChanges: "cambios", consoleWelcomePublish: "publicar", consoleWelcomeTheme: "tema",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "versión" : "versiones"}`, consoleWelcomeUpToDate: "al día",
@@ -310,7 +285,8 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     }, consoleHelpActions: "Además: help git lista los comandos Git que puedes escribir, clear vacía la vista, shortcuts edita los nombres y settings abre los ajustes de la consola.",
     consoleControlHelp: "Ver los atajos", consoleControlClear: "Limpiar la vista", consoleControlShortcuts: "Editar los nombres",
     consoleControlSettings: "Abrir los ajustes de la consola", consoleOpenSettings: "Ajustes de la consola",
-    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleReadOnly: "solo lectura",
+    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleStatusConfirm: "confirma cambios",
+    consoleStatusNoConfirm: "sin confirmación",
     consoleCopy: "Copiar salida", consoleCopied: "Copiado", consoleRerun: "Repetir",
     consoleDuration: (ms) => formatDuration(ms, "es"), consoleTruncatedShort: "Acortada", consoleSucceeded: "Terminada",
     consoleUnknown: (input) => `«${input}» no es un atajo ni un comando Git. Escribe help para ver los nombres, o help git para los comandos Git.`,
@@ -331,8 +307,8 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleShortcutLineInvalid: "Escribe un comando Git que empiece por git, como git log --oneline -20.",
     consoleShortcutChecking: "Comprobando el comando…",
     consoleShortcutWidened: (name) => `«${name}» se guardó como un comando de solo lectura y ahora pide más, así que no se ha ejecutado. Edita el atajo para seguir usándolo.`,
-    consoleHelpGitIntro: "Comandos Git que puedes escribir (solo lectura)", consoleHelpGitCommand: "Comando",
-    consoleHelpGitFooter: "Los comandos que cambian el proyecto, se comunican con la copia remota, abren un editor o ejecutan otro programa no están disponibles aquí.",
+    consoleHelpGitIntro: "Comandos Git que solo consultan el proyecto", consoleHelpGitCommand: "Comando",
+    consoleHelpGitFooter: "Los comandos que cambian el proyecto o se comunican con la copia remota, como git add, git commit -m, git switch, git fetch y git push, también se ejecutan aquí, cada uno mostrado antes. Los que reescriben el historial guardado, pueden descartar trabajo, abren un editor o ejecutan otro programa no están disponibles aquí.",
     consoleGitCommands: {
       status: "Estado del proyecto", log: "Versiones guardadas, de la más reciente", show: "Una versión guardada, o un archivo en ella",
       diff: "Cambios entre versiones o archivos", blame: "Quién cambió por última vez cada línea", grep: "Buscar en los archivos del proyecto",
@@ -365,33 +341,16 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
           : `«${word}» necesita un terminal interactivo, que la consola no tiene.`;
       }
     },
-    consoleTierNotAllowed: (subcommand, tier, advancedMode) => {
-      const does = `git ${subcommand} ${ES_TIER_EFFECTS[tier]}`;
-      if (tier === "history_change" || tier === "destructive") return `${does}, y la consola aún no puede hacerlo. Usa las acciones guiadas para ello.`;
-      if (!advancedMode && (tier === "local_change" || tier === "remote")) return `${does}. Elige el modo avanzado de la consola en Ajustes › Consola para ejecutarlo aquí, o usa las acciones guiadas.`;
-      return `${does}, y la consola solo ejecuta comandos de solo lectura. Usa las acciones guiadas para ello.`;
-    },
-    consoleHelpGitAdvanced: "El modo avanzado está activado: los comandos que cambian el proyecto o se comunican con la copia remota también se ejecutan aquí, cada uno se muestra antes y solo se ejecuta si respondes que sí.",
-    consoleAdvancedMode: "avanzado",
-    consoleRootMode: "root",
-    consoleSettingsModeTitle: "Modo de la consola",
-    consoleSettingsModeIntro: "Lo que la consola puede hacer además de leer, sin cambiar cómo funcionan las acciones guiadas.",
-    consoleModeReadOnly: "Solo lectura", consoleModeAdvanced: "Avanzado", consoleModeRoot: "Root",
-    consoleModeReadOnlyDescription: "Solo consulta el proyecto, así que nada de lo que escribas puede cambiarlo.",
-    consoleModeAdvancedDescription: "También puede cambiar el proyecto y su copia remota, mostrando cada cambio y preguntando antes de ejecutarlo.",
-    consoleModeRootDescription: "Cambia el proyecto y su copia remota como el avanzado, pero ejecuta cada cambio en cuanto pulsas Intro.",
-    consoleRootDialogTitle: "¿Pasar al modo root?",
-    consoleRootDialogBody: "Los comandos que cambian el proyecto o su copia remota se ejecutarán en cuanto pulses Intro, git push incluido, sin preguntar antes.",
-    consoleRootDialogStillShown: "La consola sigue mostrando qué hace cada uno antes de ejecutarlo.",
-    consoleRootDialogStillChecked: "Un comando sigue sin ejecutarse si el proyecto cambió mientras se preparaba.",
-    consoleRootDialogConfirm: "Pasar a root",
-    consoleAdvancedSaveFailed: "No se pudo guardar el ajuste. Inténtalo de nuevo.",
-    consoleAdvancedDialogTitle: "¿Pasar al modo avanzado?",
-    consoleAdvancedDialogBody: "La consola ejecutará también comandos Git que cambian este proyecto o su copia remota, como git add, git commit -m, git switch, git stash, git fetch y git push.",
-    consoleAdvancedDialogPreview: "Cada cambio se muestra antes y solo se ejecuta si respondes que sí. Si el proyecto cambia entretanto, no se ejecuta.",
-    consoleAdvancedDialogLimits: "Los comandos que reescriben el historial guardado o pueden descartar trabajo siguen sin estar disponibles.",
-    consoleAdvancedDialogGuided: "Las acciones guiadas siguen siendo la forma más sencilla y segura de hacer todo esto.",
-    consoleAdvancedDialogConfirm: "Pasar a avanzado",
+    consoleTierNotAllowed: (subcommand, tier) => `git ${subcommand} ${ES_TIER_EFFECTS[tier]}, y la consola aún no puede hacerlo. Usa las acciones guiadas para ello.`,
+    consoleConfirmChangesLabel: "Confirmar cada cambio",
+    consoleConfirmChangesDescription: "Muestra qué va a cambiar un comando en el proyecto o su copia remota y pregunta antes de ejecutarlo. Desactivado, la consola lo sigue mostrando pero lo ejecuta en cuanto pulsas Intro.",
+    consoleConfirmOffDialogTitle: "¿Desactivar la confirmación de cambios?",
+    consoleConfirmOffDialogBody: "Los comandos que cambian el proyecto o su copia remota se ejecutarán en cuanto pulses Intro, git push incluido, sin preguntar antes.",
+    consoleConfirmOffDialogStillShown: "La consola sigue mostrando qué hace cada uno antes de ejecutarlo.",
+    consoleConfirmOffDialogLimits: "Los comandos que reescriben el historial guardado o pueden descartar trabajo siguen sin estar disponibles.",
+    consoleConfirmOffDialogStillChecked: "Un comando sigue sin ejecutarse si el proyecto cambió mientras se preparaba.",
+    consoleConfirmOffDialogConfirm: "Desactivar",
+    consoleConfirmSaveFailed: "No se pudo guardar el ajuste. Inténtalo de nuevo.",
     consoleConfirmQuestion: "¿Continuar? [s/N]",
     consoleConfirmLabel: "Responde s para ejecutar el comando, cualquier otra cosa para cancelar",
     consoleAwaitingAnswer: "Esperando tu respuesta.",

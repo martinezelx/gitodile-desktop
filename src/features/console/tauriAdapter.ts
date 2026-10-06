@@ -11,6 +11,5 @@ export const consolePort: ConsolePort = {
   runChange: ({ projectId: path, sessionEpoch, planId, answer }) =>
     invoke("run_console_change", { path, sessionEpoch, planId, answer }),
   getSettings: () => invoke("get_console_settings"),
-  setAdvancedMode: ({ enabled, confirmed }) => invoke("set_console_advanced_mode", { enabled, confirmed }),
   setConfirmChanges: ({ enabled, confirmed }) => invoke("set_console_confirm_changes", { enabled, confirmed }),
 };

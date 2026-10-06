@@ -51,8 +51,6 @@ export type ConsolePlan = {
   shape: OutputShape;
   facts: PlanFact[];
   refusal: { reason: ConsoleRefusalReason; subject: string | null } | null;
-  /** The mode Rust planned under, which decides what a refusal suggests. */
-  advancedMode: boolean;
 };
 
 /** Rust's reading of why a change failed; the output is still shown as is. */
@@ -82,11 +80,9 @@ export interface ConsolePort {
   /** Runs a change plan with the person's answer, which Rust checks too. */
   runChange(request: Session & { planId: string; answer: string }): Promise<ConsoleRunResult>;
   getSettings(): Promise<ConsoleModes>;
-  /** Turning it on needs `confirmed`: the person accepted the dialog. */
-  setAdvancedMode(request: { enabled: boolean; confirmed: boolean }): Promise<ConsoleModes>;
-  /** Turning confirmations off needs `confirmed`, as above. */
+  /** Turning confirmations off needs `confirmed`: the person accepted the dialog. */
   setConfirmChanges(request: { enabled: boolean; confirmed: boolean }): Promise<ConsoleModes>;
 }
 
-/** The console's two settings, which Rust holds and checks on every plan. */
-export type ConsoleModes = { advancedMode: boolean; confirmChanges: boolean };
+/** The console's setting, which Rust holds and checks on every plan. */
+export type ConsoleModes = { confirmChanges: boolean };

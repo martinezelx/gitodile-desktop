@@ -225,13 +225,14 @@
   padding: 0 calc(var(--workspace-inset-right) - 6px) 0 var(--workspace-inset-left);
   color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono);
 }
-/* The mode leads the line as a chip: tinted for read-only and advanced, solid
-   only for root, so the most permissive mode is the one that stands out. */
+/* The confirmation setting leads the line as a chip: tinted while changes
+   are confirmed, solid when they run without asking, so the more permissive
+   setting is the one that stands out. */
 .console-statusline__state {
   display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; height: 20px; padding: 0 9px;
   border-radius: var(--radius-pill); font-weight: var(--weight-strong);
 }
-.console-statusline__state--read-only { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
+.console-statusline__state--confirm { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
 .console-statusline__dot { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--status-success); }
 .console-statusline__added { color: var(--diff-added); }
 .console-statusline__removed { color: var(--diff-removed); }
@@ -331,42 +332,11 @@
 .console-plan__answer { color: var(--text-secondary-color); }
 .console-plan__answer span { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .console-prompt__question { color: var(--status-warning); font-weight: var(--weight-strong); white-space: nowrap; }
-/* The three modes. Root, where changes run without asking, wears
-   `--console-root`, a colour no status tone uses. */
-.console-statusline__state--advanced { background: color-mix(in srgb, var(--status-warning) 16%, transparent); color: var(--status-warning); }
-.console-statusline__state--advanced .console-statusline__dot { background: var(--status-warning); }
-.console-statusline__state--root { background: var(--console-root); color: var(--console-root-contrast); }
-.console-statusline__state--root .console-statusline__dot { background: var(--console-root-contrast); }
-.console-welcome__mode { font-weight: var(--weight-strong); }
-.console-welcome__mode--advanced { color: var(--status-warning); }
-.console-welcome__mode--root { color: var(--console-root); }
-/* Settings › Console mode: one card per mode. The chosen card takes its mode's
-   colour on the border and a check; root chosen is the one solid card. */
-.console-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-3); }
-.console-mode {
-  --mode-colour: var(--status-success);
-  display: grid; align-content: start; gap: var(--space-1); min-width: 0; padding: var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  background: var(--surface-raised); color: var(--text-primary-color); font: inherit; text-align: left;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
-}
-.console-mode--advanced { --mode-colour: var(--status-warning); }
-.console-mode--root { --mode-colour: var(--console-root); }
-.console-mode:hover { background: var(--surface-hover); }
-.console-mode:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.console-mode__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.console-mode__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: var(--radius-round); background: var(--mode-colour); }
-.console-mode__name { min-width: 0; font-weight: var(--weight-strong); }
-.console-mode__check { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--mode-colour); }
-.console-mode__text { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
-.console-mode[aria-checked="true"] {
-  border-color: var(--mode-colour); box-shadow: inset 0 0 0 1px var(--mode-colour);
-  background: color-mix(in srgb, var(--mode-colour) 8%, var(--surface-raised));
-}
-.console-mode--root[aria-checked="true"] { background: var(--console-root); color: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__dot { background: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__check { color: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__text { color: var(--console-root-contrast); opacity: .85; }
+/* Changes that run without asking wear `--console-root`, a colour no status
+   tone uses. */
+.console-statusline__state--unconfirmed { background: var(--console-root); color: var(--console-root-contrast); }
+.console-statusline__state--unconfirmed .console-statusline__dot { background: var(--console-root-contrast); }
+.console-welcome__unconfirmed { color: var(--console-root); font-weight: var(--weight-strong); }
 /* The Git command a shortcut runs, beside what it shows. */
 .console-shortcuts__command {
   grid-area: command; min-width: 0; overflow: hidden; color: var(--text-primary-color); font: inherit;

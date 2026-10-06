@@ -3,13 +3,12 @@
 //! A typed line crosses IPC once, as text, to [`plan_console_command`]. Rust
 //! tokenizes it without a shell ([`tokenize`]), classifies it into a
 //! permission tier ([`classify`]) and keeps the resulting argument vector as a
-//! single-use plan. A read runs through [`run_console_plan`]; a change,
-//! allowed only in advanced mode ([`settings`]), runs through
-//! [`run_console_change`] after the person answers yes (unless they turned
-//! change confirmations off) and only while the
+//! single-use plan. A read runs through [`run_console_plan`]; a change runs
+//! through [`run_console_change`] after the person answers yes (unless they
+//! turned change confirmations off, [`settings`]) and only while the
 //! repository still matches what the plan's pre-flight read saw
 //! ([`preview`]). The renderer never decides what is safe and never hands Git
-//! an argument of its own. See ADR 0017.
+//! an argument of its own. See ADR 0017 and ADR 0028.
 //!
 //! Each submodule is a separate owner: the tokenizer and the classifier work
 //! on text alone, the preview only reads the repository, and the settings
@@ -83,12 +82,11 @@ impl Tier {
         }
     }
 
-    /// Read runs for everyone; Local change and Remote only in advanced
-    /// mode. History and Destructive wait for recovery points (task 139).
-    fn allowed(self, advanced_mode: bool) -> bool {
+    /// Read, Local change and Remote run; History and Destructive wait for
+    /// recovery points (task 139).
+    fn allowed(self) -> bool {
         match self {
-            Self::Read => true,
-            Self::LocalChange | Self::Remote => advanced_mode,
+            Self::Read | Self::LocalChange | Self::Remote => true,
             Self::HistoryChange | Self::Destructive | Self::Never => false,
         }
     }
@@ -262,8 +260,6 @@ pub(crate) struct ConsolePlan {
     pub(crate) shape: OutputShape,
     pub(crate) facts: Vec<PlanFact>,
     pub(crate) refusal: Option<Refusal>,
-    /// The mode Rust planned under, so the console can say what to change.
-    pub(crate) advanced_mode: bool,
 }
 
 /// What Git's free-text answer most likely means when a change failed. A
@@ -370,12 +366,7 @@ fn stale_plan_error() -> AppError {
     .with_remediation("Type the command again.")
 }
 
-fn refused(
-    command: Option<String>,
-    tier: Option<Tier>,
-    refusal: Refusal,
-    advanced_mode: bool,
-) -> ConsolePlan {
+fn refused(command: Option<String>, tier: Option<Tier>, refusal: Refusal) -> ConsolePlan {
     ConsolePlan {
         plan_id: None,
         command,
@@ -385,7 +376,6 @@ fn refused(
         shape: OutputShape::Plain,
         facts: Vec::new(),
         refusal: Some(refusal),
-        advanced_mode,
     }
 }
 
@@ -425,10 +415,9 @@ pub(crate) fn plan_console_command(
     run_hooks: bool,
 ) -> Result<ConsolePlan, AppError> {
     let modes = settings.modes();
-    let advanced_mode = modes.advanced_mode;
     let tokens = match tokenize::tokenize(&line) {
         Ok(tokens) => tokens,
-        Err(refusal) => return Ok(refused(None, None, refusal, advanced_mode)),
+        Err(refusal) => return Ok(refused(None, None, refusal)),
     };
     let mut classified = match classify::classify(&tokens) {
         Ok(classified) => classified,
@@ -442,12 +431,7 @@ pub(crate) fn plan_console_command(
             } else {
                 Some(Tier::Never)
             };
-            return Ok(refused(
-                Some(tokenize::display(&tokens)),
-                tier,
-                refusal,
-                advanced_mode,
-            ));
+            return Ok(refused(Some(tokenize::display(&tokens)), tier, refusal));
         }
     };
     // Repository access is taken only for the pre-flight reads below; a line
@@ -468,12 +452,11 @@ pub(crate) fn plan_console_command(
         }
     }
     let subcommand = classified.arguments.first().cloned().unwrap_or_default();
-    if !classified.tier.allowed(advanced_mode) {
+    if !classified.tier.allowed() {
         return Ok(refused(
             Some(with_git(&classified.arguments)),
             Some(classified.tier),
             Refusal::new(RefusalReason::TierNotAllowed, Some(subcommand)),
-            advanced_mode,
         ));
     }
     let (confirmation, fingerprint, facts) = if classified.tier == Tier::Read {
@@ -523,7 +506,6 @@ pub(crate) fn plan_console_command(
         shape: classified.shape,
         facts,
         refusal: None,
-        advanced_mode,
     })
 }
 
@@ -553,9 +535,8 @@ fn is_yes(answer: &str) -> bool {
 }
 
 /// Runs a change plan after the person answered yes, or at once when change
-/// confirmations are off: only in advanced mode, only under the confirmation
-/// setting the plan was made with, and only while the repository still
-/// matches the plan's preview.
+/// confirmations are off: only under the confirmation setting the plan was
+/// made with, and only while the repository still matches the plan's preview.
 pub(crate) fn run_console_change(
     settings: &ConsoleSettings,
     path: String,
@@ -584,15 +565,6 @@ pub(crate) fn run_console_change(
             .with_remediation("Type the command again to confirm it."));
         }
         _ => {}
-    }
-    if !plan.tier.allowed(modes.advanced_mode) {
-        return Err(AppError::new(
-            AppErrorCode::StalePreview,
-            "Advanced console mode was turned off, so this command no longer runs.",
-        )
-        .with_remediation(
-            "Choose advanced or root in Settings › Console › Console mode to run it.",
-        ));
     }
     let (_repository, _access) =
         application::authorize_repository(&path, "run_console_change", None)?;
@@ -727,11 +699,11 @@ mod tests {
     const EPOCH: &str = "epoch-1";
 
     fn plan(path: &str, line: &str) -> ConsolePlan {
-        plan_console_command(&read_only(), path.into(), EPOCH.into(), line.into(), true).unwrap()
+        plan_console_command(&defaults(), path.into(), EPOCH.into(), line.into(), true).unwrap()
     }
 
-    /// Settings with advanced mode off, as a new install has them.
-    fn read_only() -> ConsoleSettings {
+    /// Settings as a new install has them: confirmations on.
+    fn defaults() -> ConsoleSettings {
         ConsoleSettings::load(Path::new(&unique_temp_dir("console-settings-off")))
     }
 
@@ -1031,18 +1003,6 @@ mod tests {
         std::fs::remove_dir_all(&nowhere).unwrap();
         for (line, tier, reason, subject) in [
             (
-                "git push",
-                Some(Tier::Remote),
-                RefusalReason::TierNotAllowed,
-                Some("push"),
-            ),
-            (
-                "git commit -m 'save'",
-                Some(Tier::LocalChange),
-                RefusalReason::TierNotAllowed,
-                Some("commit"),
-            ),
-            (
                 "git rebase main",
                 Some(Tier::HistoryChange),
                 RefusalReason::TierNotAllowed,
@@ -1085,9 +1045,12 @@ mod tests {
             );
             assert_eq!(plan.effect, tier.and_then(Tier::effect), "{line}");
         }
-        let push = plan(&nowhere, "git push origin main");
-        assert_eq!(push.command.as_deref(), Some("git push origin main"));
-        assert_eq!(push.effect, Some(Effect::ReachesRemote));
+        let push = plan(&nowhere, "git push --force origin main");
+        assert_eq!(
+            push.command.as_deref(),
+            Some("git push --force origin main")
+        );
+        assert_eq!(push.effect, Some(Effect::CanLoseWork));
         assert!(!Path::new(&nowhere).exists());
     }
 
@@ -1156,10 +1119,8 @@ mod change_tests {
 
     const EPOCH: &str = "epoch-changes";
 
-    fn advanced(label: &str) -> ConsoleSettings {
-        let settings = ConsoleSettings::load(Path::new(&unique_temp_dir(label)));
-        settings.set_advanced_mode(true, true).unwrap();
-        settings
+    fn defaults(label: &str) -> ConsoleSettings {
+        ConsoleSettings::load(Path::new(&unique_temp_dir(label)))
     }
 
     fn git(path: &str, args: &[&str]) -> String {
@@ -1215,25 +1176,13 @@ mod change_tests {
     }
 
     #[test]
-    fn only_advanced_mode_plans_a_change_and_only_yes_runs_it() {
+    fn a_new_install_plans_a_change_and_only_yes_runs_it() {
         let (path, _) = repository("console-change-gate");
-        let off = ConsoleSettings::load(Path::new(&unique_temp_dir("console-change-off")));
-        let refused = plan_with(&off, &path, "git add .", true);
-        assert!(refused.plan_id.is_none());
-        assert!(!refused.advanced_mode);
-        assert_eq!(refused.tier, Some(Tier::LocalChange));
-        assert_eq!(
-            refused.refusal,
-            Some(Refusal::new(
-                RefusalReason::TierNotAllowed,
-                Some("add".into())
-            ))
-        );
-
-        let settings = advanced("console-change-on");
+        let settings = defaults("console-change-on");
         write_file(&path, "new.txt", "new\n");
         let issued = plan_with(&settings, &path, "git add .", true);
-        assert!(issued.advanced_mode);
+        assert_eq!(issued.tier, Some(Tier::LocalChange));
+        assert_eq!(issued.confirmation, Confirmation::YesNo);
         assert_eq!(issued.effect, Some(Effect::ChangesProject));
         // A change never runs through the read path, nor on anything but yes.
         let id = issued.plan_id.unwrap();
@@ -1252,21 +1201,9 @@ mod change_tests {
                 .code,
             AppErrorCode::InvalidSelection
         );
-        // Turning the mode off stops a plan issued while it was on.
-        let id = plan_with(&settings, &path, "git add .", true)
-            .plan_id
-            .unwrap();
-        settings.set_advanced_mode(false, false).unwrap();
-        assert_eq!(
-            run_console_change(&settings, path.clone(), EPOCH.into(), id, "s".into())
-                .unwrap_err()
-                .code,
-            AppErrorCode::StalePreview
-        );
         assert!(git(&path, &["diff", "--cached", "--name-only"]).is_empty());
 
         // History and destructive commands wait for recovery points.
-        settings.set_advanced_mode(true, true).unwrap();
         for (line, tier) in [
             ("git commit --amend -m x", Tier::HistoryChange),
             ("git reset --hard", Tier::Destructive),
@@ -1289,7 +1226,7 @@ mod change_tests {
     #[test]
     fn with_confirmations_off_a_change_runs_without_an_answer() {
         let (path, _) = repository("console-change-unconfirmed");
-        let settings = advanced("console-change-unconfirmed-settings");
+        let settings = defaults("console-change-unconfirmed-settings");
         settings.set_confirm_changes(false, true).unwrap();
         write_file(
             &path, "a.txt", "a
@@ -1349,7 +1286,7 @@ mod change_tests {
     #[test]
     fn each_local_change_previews_then_runs() {
         let (path, main) = repository("console-change-local");
-        let settings = advanced("console-change-local-settings");
+        let settings = defaults("console-change-local-settings");
 
         write_file(&path, "new.txt", "new\n");
         let (facts, _) = apply(&settings, &path, "git add new.txt");
@@ -1457,7 +1394,7 @@ mod change_tests {
     #[test]
     fn a_plan_is_refused_once_the_repository_moves() {
         let (path, _) = repository("console-change-stale");
-        let settings = advanced("console-change-stale-settings");
+        let settings = defaults("console-change-stale-settings");
         write_file(&path, "a.txt", "a\n");
         let staged = plan_with(&settings, &path, "git add a.txt", true);
         // Something else changes the project between preview and yes.
@@ -1492,7 +1429,7 @@ mod change_tests {
     #[test]
     fn hooks_run_unless_settings_or_the_command_skip_them() {
         let (path, _) = repository("console-change-hooks");
-        let settings = advanced("console-change-hooks-settings");
+        let settings = defaults("console-change-hooks-settings");
         // The shared fixture sets the executable bit on Unix, without which
         // Git ignores the hook and the commit is never blocked.
         crate::test_support::write_failing_hook(&Path::new(&path).join(".git"), "pre-commit");
@@ -1533,7 +1470,7 @@ mod change_tests {
     #[test]
     fn remote_changes_reach_a_local_bare_remote() {
         let (path, main) = repository("console-change-remote");
-        let settings = advanced("console-change-remote-settings");
+        let settings = defaults("console-change-remote-settings");
         let bare = unique_temp_dir("console-change-remote-bare");
         git(&bare, &["init", "-q", "--bare"]);
         git(&path, &["remote", "add", "origin", &bare]);

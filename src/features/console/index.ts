@@ -7,4 +7,4 @@ export {
   type ConsoleTextSize,
 } from "./preferences";
 export type { ConsoleProjectStatus } from "./domain";
-export { ConsoleAdvancedModeSetting, useConsoleAdvancedMode, type ConsoleAdvancedModeState } from "./advancedMode";
+export { ConsoleConfirmChangesSetting, useConsoleConfirmChanges, type ConsoleConfirmChangesState } from "./confirmChanges";

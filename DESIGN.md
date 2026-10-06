@@ -898,7 +898,7 @@ place — 34px, the workspace insets, flush with the window's foot — so nothin
 below moves on the way in. Unlike the bar it has no fade above it: the
 transcript simply ends against it, and the suggestions under the prompt are
 never veiled. It stands in for
-the app status bar, which is hidden on this screen alone: read-only state, unsaved files with
+the app status bar, which is hidden on this screen alone: whether changes are confirmed (tinted in the success tone, or solid in the console's own violet when they run without asking), unsaved files with
 their added and removed lines, versions to publish, newer versions available
 and the Git version on the left, the keyboard hint and an icon for the shortcut
 editor on the right. The line is left out because every prompt already shows
@@ -933,8 +933,8 @@ commit hashes, falling in the body's colour and passing behind the silhouette
 each titled in its frame and drawn in its own theme colour — "project" in the
 accent (name, line, unsaved changes with added and removed lines, versions to
 publish and newer ones available) and "environment" in the keyword colour
-(GitOdile version, Git version, the theme actually drawn and the read-only
-mode) — with a Lucide icon on every row, then a row of round dots in the
+(GitOdile version, Git version, the theme actually drawn and whether changes
+are confirmed, in violet when they are not) — with a Lucide icon on every row, then a row of round dots in the
 theme's accent, status and syntax colours, as a terminal's welcome shows its
 ANSI palette. The dots stay loose rather than framed, since they are
 decoration next to two groups of facts, but start where the frames' rows

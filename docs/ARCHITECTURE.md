@@ -414,16 +414,17 @@ the same budget as the catalogue, with `--no-ext-diff`, `--no-textconv` and
 `--no-show-signature` added where the subcommand takes them. The renderer never
 splits the line or chooses an argument.
 
-Local change and Remote plans exist only in advanced mode, a GitOdile setting
-`console/settings.rs` keeps in the app's local data folder with a second one,
-change confirmations, and reads on every plan and run; the renderer can ask to
-change them but never passes them with a command. Their plan comes from a pre-flight read (`console/preview.rs`): plain
+Local change and Remote plans run for everyone ([ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md)).
+Whether they ask first is change confirmations, a GitOdile setting
+`console/settings.rs` keeps in the app's local data folder and reads on every
+plan and run; the renderer can ask to change it but never passes it with a
+command. Their plan comes from a pre-flight read (`console/preview.rs`): plain
 facts such as the files `git add` would stage or the versions `git push` would
 publish, and a fingerprint of HEAD, every ref and the `status` of the index and
 working tree. `run_console_change` runs under the exclusive write policy only
-after the person answered yes (or at once when confirmations are off, the
-console's "root" mode, and still off), only while advanced mode is still on, and only while the
-fingerprint still matches; otherwise it answers `stale_preview`.
+after the person answered yes (or at once when change confirmations were
+turned off in Settings and are still off), and only while the fingerprint still
+matches; otherwise it answers `stale_preview`.
 `pull` runs as `--no-rebase --ff-only`, `revert` with `--no-edit`, and the
 Settings hooks switch reaches the plan like the guided flows' `runHooks`: off,
 the plan adds `--no-verify` to `commit` and `push` and says so. A completed

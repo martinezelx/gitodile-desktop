@@ -105,6 +105,12 @@ not implied by the `1.0.0` merge and restore workflows.
 - Extend accessibility audits to additional assistive technologies and desktop
   environments after the release matrix is established.
 
+- Open the system terminal at the project folder from the console (proposed
+  with task 149, 2026-10-06): an escape hatch for everything the console
+  deliberately refuses. Needs a per-platform launcher decision (Windows
+  Terminal or PowerShell, macOS Terminal, the Linux desktop's terminal) and
+  must never pass a shell string built from the path.
+
 ## Later hypotheses
 
 - Optional local commit-message suggestions.

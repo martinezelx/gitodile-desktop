@@ -8,7 +8,7 @@ import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
 import { ProviderConnectionsSettings } from "../features/hosting-servers";
 import { BitbucketConnectionsSettings } from "../features/bitbucket";
-import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
+import { ConsoleConfirmChangesSetting, type ConsoleConfirmChangesState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
   isGitInstallationBroken,
@@ -134,7 +134,7 @@ export type AppOverlaysProps = {
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
     consolePreferences: ConsolePreferences;
     setConsolePreferences: Dispatch<SetStateAction<ConsolePreferences>>;
-    consoleAdvancedMode?: ConsoleAdvancedModeState;
+    consoleConfirmChanges?: ConsoleConfirmChangesState;
     /** Both read once after first paint and kept above this dialog, which is
      * unmounted on every close. The line-endings state already knows about the
      * open project, so the overlay never has to pass one down. */
@@ -452,7 +452,7 @@ export function AppOverlays({
               setDiffPreferences={settings.setDiffPreferences}
               consolePreferences={settings.consolePreferences}
               setConsolePreferences={settings.setConsolePreferences}
-              consoleAdvancedMode={settings.consoleAdvancedMode ? <ConsoleAdvancedModeSetting state={settings.consoleAdvancedMode} /> : null}
+              consoleConfirmChanges={settings.consoleConfirmChanges ? <ConsoleConfirmChangesSetting state={settings.consoleConfirmChanges} /> : null}
               identity={settings.identity}
               defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}

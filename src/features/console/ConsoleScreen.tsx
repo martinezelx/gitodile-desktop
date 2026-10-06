@@ -1,5 +1,5 @@
 import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, CloudUpload, Copy, Diff, Eye, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Settings, SquareTerminal, X } from "lucide-react";
+import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Settings, ShieldCheck, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
 import { localizeAppError } from "../../shared/i18n";
@@ -7,7 +7,6 @@ import { themeById, type ThemePreference } from "../../shared/theme";
 import { copyTextToClipboard } from "../../shared/ui";
 import {
   completionsFor,
-  consoleModeOf,
   DEFAULT_SHORTCUTS,
   defaultLineName,
   QUERY_COMMANDS,
@@ -103,7 +102,7 @@ function outputLabel(id: ShortcutTarget, t: Translations): string {
 function refusalText(plan: ConsolePlan, t: Translations): string {
   const refusal = plan.refusal;
   if (!refusal) return t.consoleRequestFailed;
-  if (refusal.reason === "tier_not_allowed") return t.consoleTierNotAllowed(refusal.subject ?? "", plan.tier ?? "never", plan.advancedMode);
+  if (refusal.reason === "tier_not_allowed") return t.consoleTierNotAllowed(refusal.subject ?? "", plan.tier ?? "never");
   return t.consoleRefusal(refusal.reason, refusal.subject);
 }
 
@@ -380,7 +379,7 @@ function PromptContext({ projectName, branch, on }: { projectName: string; branc
 /** The answers that run a change; anything else, an empty line included, cancels. */
 const YES = /^(s|si|sí|y|yes)$/i;
 
-export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", advancedMode = false, confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings }: {
+export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings }: {
   projectPath: string;
   projectName: string;
   branch: string | null;
@@ -391,9 +390,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   preferences?: ConsolePreferences;
   /** The theme preference, named in the welcome. */
   theme?: ThemePreference;
-  /** Rust's advanced-mode setting, shown in the status line and welcome. */
-  advancedMode?: boolean;
-  /** Rust's change-confirmation setting; off with advanced mode on is root. */
+  /** Rust's change-confirmation setting, shown in the status line and welcome. */
   confirmChanges?: boolean;
   /** The Settings switch for the project's hooks, passed with every plan. */
   runHooks?: boolean;
@@ -416,8 +413,6 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const [menuDismissed, setMenuDismissed] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
-  const mode = consoleModeOf({ advancedMode, confirmChanges });
-  const modeLabel = { "read-only": t.consoleReadOnly, advanced: t.consoleAdvancedMode, root: t.consoleRootMode }[mode];
   /** The change plan the prompt is answering, if any. */
   const [pending, setPending] = useState<{ id: number; planId: string } | null>(null);
   const nextId = useRef(0);
@@ -765,7 +760,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                       [<SquareTerminal key="i" />, "gitodile", __APP_VERSION__],
                       gitVersion ? [<GitCommitHorizontal key="i" />, t.consoleWelcomeGit, gitVersion] : null,
                       [<Palette key="i" />, t.consoleWelcomeTheme, activeThemeName(theme)],
-                      [<Eye key="i" />, t.consoleWelcomeMode, mode === "read-only" ? modeLabel : <span className={`console-welcome__mode console-welcome__mode--${mode}`}>{modeLabel}</span>],
+                      [<ShieldCheck key="i" />, t.consoleWelcomeConfirm, confirmChanges ? t.consoleWelcomeConfirmOn : <span className="console-welcome__unconfirmed">{t.consoleWelcomeConfirmOff}</span>],
                     ]} />
                     <span className="console-welcome__palette" aria-hidden="true">{WELCOME_PALETTE.map((tone) => <span key={tone} className={`console-welcome__dot console-welcome__dot--${tone}`} />)}</span>
                   </div>
@@ -844,7 +839,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                         <tbody>{GIT_READ_COMMANDS.map((command) => (
                           <tr key={command}><td><code>git {command}</code></td><td>{t.consoleGitCommands[command]}</td></tr>
                         ))}</tbody>
-                        <tfoot><tr><td colSpan={2}>{advancedMode ? t.consoleHelpGitAdvanced : t.consoleHelpGitFooter}</td></tr></tfoot>
+                        <tfoot><tr><td colSpan={2}>{t.consoleHelpGitFooter}</td></tr></tfoot>
                       </table>
                     )}
                     {entry.message && <pre className="console-block__text console-block__message">{entry.message}</pre>}
@@ -905,7 +900,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
         </p>
         {managerOpen && <ShortcutsManager shortcuts={shortcuts} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
         <footer className="console-statusline" aria-label={t.consoleStatusLine}>
-          <span className={`console-statusline__state console-statusline__state--${mode}`}><span className="console-statusline__dot" aria-hidden="true" />{modeLabel}</span>
+          <span className={`console-statusline__state console-statusline__state--${confirmChanges ? "confirm" : "unconfirmed"}`}><span className="console-statusline__dot" aria-hidden="true" />{confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}</span>
           <span className="console-statusline__hint">{t.consoleHint}</span>
           {projectStatus?.changes === 0 && <span>{t.consoleStatusSaved}</span>}
           {projectStatus && projectStatus.changes !== null && projectStatus.changes > 0 && (

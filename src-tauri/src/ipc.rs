@@ -512,7 +512,7 @@ pub(crate) fn run_console_plan(
 }
 
 /// Runs a change plan once the person answered its `[s/N]`; Rust checks the
-/// answer, advanced mode and the repository against the plan again.
+/// answer, the confirmation setting and the repository against the plan again.
 #[tauri::command(async)]
 pub(crate) fn run_console_change(
     settings: tauri::State<'_, ConsoleSettings>,
@@ -533,20 +533,6 @@ pub(crate) fn run_console_change(
 #[tauri::command]
 pub(crate) fn get_console_settings(settings: tauri::State<'_, ConsoleSettings>) -> ConsoleModes {
     report_value("get_console_settings", settings.modes())
-}
-
-/// Turning advanced mode on needs `confirmed`, the renderer's word that the
-/// person accepted the dialog explaining it; turning it off does not.
-#[tauri::command]
-pub(crate) fn set_console_advanced_mode(
-    settings: tauri::State<'_, ConsoleSettings>,
-    enabled: bool,
-    confirmed: bool,
-) -> Result<ConsoleModes, AppError> {
-    report_result(
-        "set_console_advanced_mode",
-        settings.set_advanced_mode(enabled, confirmed),
-    )
 }
 
 /// Turning change confirmations off needs `confirmed`, the renderer's word

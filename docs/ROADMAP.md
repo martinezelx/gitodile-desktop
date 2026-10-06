@@ -192,10 +192,12 @@ restored safely.
    guided workflows or expose a system shell; see [task 134](../work/done/134-project-git-console.md).
 - **Q25–Q26 / 138: Git commands in the console.** Typed Git commands, parsed
    and classified in Rust into permission tiers
-   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read-only
-   commands for everyone, then an advanced mode, off by default, for local and
-   remote changes that are previewed and, unless the person turns that off,
-   confirmed; see [epic 138](../work/done/138-console-git-commands.md).
+   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read
+   commands, and local and remote changes that are previewed and, unless the
+   person turns that off, confirmed. The advanced mode that first gated changes
+   was removed by [ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md)
+   ([task 149](../work/done/149-single-console-mode.md)); see
+   [epic 138](../work/done/138-console-git-commands.md).
    138-1 is independent. History and destructive commands moved to
    [task 139](../work/blocked/139-console-history-and-destructive-commands.md),
    blocked on the Recovery Center (065-5).

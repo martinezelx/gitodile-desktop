@@ -5,6 +5,9 @@
 - Implemented by: [epic 138](../../work/done/138-console-git-commands.md)
   (Read, Local change and Remote tiers). The History and Destructive tiers,
   and section 5, are [task 139](../../work/blocked/139-console-history-and-destructive-commands.md).
+- Section 4 (advanced mode and the read-only default) is replaced by
+  [ADR 0028](0028-console-runs-changes-without-a-read-only-mode.md): changes
+  run for everyone, and change confirmations are the console's only setting.
 
 ## Context
 
@@ -139,6 +142,9 @@ Rust checks the answer again. Someone who chooses the **root** console mode
 prints, and the fingerprint still refuses a moved repository.
 
 ### 4. Advanced mode is a Rust-held setting, off by default
+
+> Replaced by [ADR 0028](0028-console-runs-changes-without-a-read-only-mode.md).
+> Kept as the record of the original decision.
 
 Only the **Read** tier runs by default. Everything above it requires advanced
 mode. Rust holds two settings, advanced mode and change confirmations (on by

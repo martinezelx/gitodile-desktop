@@ -382,7 +382,7 @@ export function SettingsPanel({
   setDiffPreferences,
   consolePreferences = DEFAULT_CONSOLE_PREFERENCES,
   setConsolePreferences = () => undefined,
-  consoleAdvancedMode = null,
+  consoleConfirmChanges = null,
   identity,
   defaultBranch,
   lineEndingsState,
@@ -433,10 +433,10 @@ export function SettingsPanel({
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   consolePreferences?: ConsolePreferences;
   setConsolePreferences?: (update: (previous: ConsolePreferences) => ConsolePreferences) => void;
-  /** The console feature's own Console mode group, with its three mode cards
-   * and dialogs: Rust holds those settings, so this panel only places it, first
-   * in the Console section: what the console may do comes before how it looks. */
-  consoleAdvancedMode?: React.ReactNode;
+  /** The console feature's own Confirm each change row and its dialog: Rust
+   * holds that setting, so this panel only places it, first in the Console
+   * group: what the console may do comes before how it looks. */
+  consoleConfirmChanges?: React.ReactNode;
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
    * still owns the draft, the notices and the close guard: those are the parts
@@ -1746,13 +1746,13 @@ export function SettingsPanel({
 
         {activeSection === "console" && (
           <div className="settings-groups">
-            {consoleAdvancedMode}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsConsoleTitle}</h3>
                 <p>{t.settingsConsoleDescription}</p>
               </header>
               <div className="settings-group__body">
+                {consoleConfirmChanges}
                 <div className="settings-row">
                   <div>
                     <strong>{t.consoleSettingsAutocompleteLabel}</strong>

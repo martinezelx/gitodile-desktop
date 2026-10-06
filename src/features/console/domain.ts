@@ -47,19 +47,6 @@ export const GIT_READ_COMMANDS = [
 ] as const;
 export type GitReadCommand = (typeof GIT_READ_COMMANDS)[number];
 
-/**
- * What the console may do, from least to most: reads only; changes, each
- * confirmed; changes that run without asking ("root"). Rust holds the two
- * settings they come from and checks them on every plan.
- */
-export const CONSOLE_MODES = ["read-only", "advanced", "root"] as const;
-export type ConsoleMode = (typeof CONSOLE_MODES)[number];
-
-export function consoleModeOf(settings: { advancedMode: boolean; confirmChanges: boolean }): ConsoleMode {
-  if (!settings.advancedMode) return "read-only";
-  return settings.confirmChanges ? "advanced" : "root";
-}
-
 /** Long enough for any command a person types; Rust enforces its own limit. */
 export const MAX_LINE_LENGTH = 4096;
 const TIER_ORDER: readonly ConsoleTier[] = ["read", "local_change", "history_change", "remote", "destructive", "never"];

@@ -65,8 +65,8 @@ is the authoritative release sequence and capability cut.
       evidence it still owes is tracked by
       [065-9-13](../app-updates/065-9-13-updater-evidence-and-os-signing.md).
 - [ ] The project console (task 134 and epic 138) is validated on the
-      supported platforms: read-only by default, with advanced mode off until
-      the person turns it on and covered by the release qualification matrix.
+      supported platforms: changes previewed and confirmed by default, with
+      changes without confirmation covered by the release qualification matrix (ADR 0028).
       History and destructive console commands (task 139) are not part of
       `1.0.0`.
 - [ ] The release capability matrix has no unsupported path presented as

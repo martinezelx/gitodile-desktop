@@ -44,6 +44,7 @@ Milestones, in dependency order:
 - [ ] Bitbucket Cloud token connections and repository discovery ([148-11](148-11-bitbucket-token-connections.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
+- [ ] Read-only gh/glab shortcuts in the project console ([148-12](148-12-console-gh-and-glab-shortcuts.md)).
 - [ ] Deferred provider scope: Bitbucket Cloud browser authorization ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
 - [ ] Subsequent scope: GitOdile-owned GitHub authorization, with browser sign-in independent of gh (see below).
 
@@ -445,3 +446,11 @@ three seconds after launch, as GitHub Desktop does
 ([ADR 0027](../../docs/adr/0027-verify-saved-accounts-after-launch.md)).
 Provider sections also render the last account receipt at once when shown
 again, and never show an unread catalog as empty.
+
+## gh and glab in the console (2026-10-06)
+
+The owner asked for gh/glab commands in the project console. Typed gh/glab
+lines would need a classifier of their own (`api`, `extension`, `alias` and
+`auth token` run programs, reach anything or print secrets), so the first step
+is a closed set of read-only shortcuts using the CLI's own login:
+[148-12](148-12-console-gh-and-glab-shortcuts.md), queued after 148-7.

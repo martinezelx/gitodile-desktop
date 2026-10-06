@@ -25,8 +25,9 @@ must be settled before this task is picked up.
 
 # Goal
 
-Run the **History change** and **Destructive** tiers of ADR 0017 in advanced
-mode, each only after its exact effects are shown and a verified recovery point
+Run the **History change** and **Destructive** tiers of ADR 0017 (there is
+no advanced mode since [ADR 0028](../../docs/adr/0028-console-runs-changes-without-a-read-only-mode.md)),
+each only after its exact effects are shown and a verified recovery point
 exists, with a typed confirmation for anything that discards work.
 
 # User outcome
@@ -115,14 +116,16 @@ user with its recovery point.
 # Decisions
 
 - Typed confirmation of the target's name for every destructive command.
-- `stash clear` and the other Never commands stay refused even in advanced mode.
+- `stash clear` and the other Never commands stay refused whatever the console's settings.
 - Open, from 2026-09-29: the user wants to go ahead without recovery points
   while task 065-5 is not implemented, so a discard from the console is final,
   and wants the "Confirm each change" switch of 138-2 to cover these tiers as
   well. Both conflict with the AGENTS.md rule that destructive operations need
   explicit confirmation and a recovery strategy, and with ADR 0017 section 5.
   Before this task starts, either AGENTS.md and the ADR are amended for the
-  console's advanced mode, or the scope above stands.
+  console, or the scope above stands. Since 2026-10-06 (ADR 0028, task 149)
+  every change tier runs without an advanced mode, so lifting this would make
+  final discards available to everyone, not only to people who opted in.
 
 # Validation
 

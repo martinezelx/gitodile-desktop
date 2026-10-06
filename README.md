@@ -86,19 +86,18 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - See one version line's recent saved versions, its saved-version count and
   where it stands against its remote, read on demand for the line you select
   rather than for every branch on every refresh.
-- Use a project-scoped Console to type read-only Git commands such as
+- Use a project-scoped Console to type Git commands such as
   `git log --graph --oneline -- src/`, `git show HEAD~2:README.md` or
-  `git blame -L 10,20 file`; `help git` lists them. GitOdile reads the line
-  itself, without a shell, and refuses anything that would change the project,
-  reach the remote, run another program or leave the project, saying why.
-  Settings › Console › Console mode offers three modes: read-only (the
-  default), advanced and root, each move up behind a confirmation. Advanced
-  also runs commands such as `git add`, `git commit -m`,
-  `git switch`, `git stash push`, `git fetch`, `git pull` (fast-forward only)
-  and `git push`: each prints what it will change and asks `[s/N]` first, and
-  does not run if the project changed in between. Root drops the question,
-  and the console's status line shows it in a colour of its own. Commands that rewrite history
-  or can discard work stay unavailable.
+  `git blame -L 10,20 file`; `help git` lists the read commands. GitOdile reads
+  the line itself, without a shell, and refuses anything that would run another
+  program, leave the project or need a terminal, saying why. Commands such as
+  `git add`, `git commit -m`, `git switch`, `git stash push`, `git fetch`,
+  `git pull` (fast-forward only) and `git push` run too: each prints what it
+  will change and asks `[s/N]` first, and does not run if the project changed
+  in between. Settings › Console › **Confirm each change** (on by default)
+  can drop the question, behind a confirmation; the console's status line and
+  welcome then say so in a colour of their own. Commands that
+  rewrite history or can discard work stay unavailable.
   Twenty built-in read-only shortcuts, such as `look` (`git status`), `graph`,
   `today` or `unpublished`, are listed with the Git command each runs in
   [docs/console-shortcuts.md](docs/console-shortcuts.md) and in the console's

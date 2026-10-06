@@ -108,7 +108,7 @@ describe("ConsoleScreen", () => {
     expect(welcome).toHaveTextContent(/linemain/);
     expect(within(welcome as HTMLElement).getByText(__APP_VERSION__, { exact: true })).toBeInTheDocument();
     expect(welcome).toHaveTextContent(/git2\.47\.1/);
-    expect(welcome).toHaveTextContent(/moderead-only/);
+    expect(welcome).toHaveTextContent(/confirmbefore each change/);
     expect(welcome).not.toHaveTextContent(/look · diff/);
     expect(screen.getByRole("combobox", { name: "Console command" })).toHaveFocus();
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "log{Enter}");
@@ -125,7 +125,7 @@ describe("ConsoleScreen", () => {
   it("carries the project facts in its status line, as the app status bar does elsewhere", () => {
     renderConsole();
     const status = screen.getByRole("contentinfo", { name: "Console status" });
-    expect(status).toHaveTextContent("read-only");
+    expect(status).toHaveTextContent("confirms changes");
     expect(status).not.toHaveTextContent("main");
     expect(status).toHaveTextContent("3 unsaved +12 −4");
     expect(status).toHaveTextContent("↑2 to publish");
@@ -206,7 +206,7 @@ describe("ConsoleScreen", () => {
 const READ_PLAN = {
   planId: "plan-1", command: "git log --no-ext-diff --no-textconv --no-show-signature --oneline", tier: "read" as const,
   effect: "reads_only" as const, confirmation: "none" as const, shape: "commits" as const, refusal: null,
-  facts: [], advancedMode: false,
+  facts: [],
 };
 
 describe("ConsoleScreen typed Git commands", () => {
@@ -232,15 +232,15 @@ describe("ConsoleScreen typed Git commands", () => {
 
   it("prints why Rust refused a line, and never runs it", async () => {
     const plan = vi.spyOn(consolePort, "plan")
-      .mockResolvedValueOnce({ ...READ_PLAN, planId: null, command: "git push", tier: "remote", effect: "reaches_remote", refusal: { reason: "tier_not_allowed", subject: "push" } })
+      .mockResolvedValueOnce({ ...READ_PLAN, planId: null, command: "git push --force", tier: "destructive", effect: "can_lose_work", refusal: { reason: "tier_not_allowed", subject: "push" } })
       .mockResolvedValueOnce({ ...READ_PLAN, planId: null, command: null, tier: null, effect: null, refusal: { reason: "shell_syntax", subject: ";" } })
       .mockResolvedValueOnce({ ...READ_PLAN, planId: null, command: "git log --output=x", tier: "never", effect: null, refusal: { reason: "writes_file", subject: "--output" } });
     const runPlan = vi.spyOn(consolePort, "runPlan");
     const user = userEvent.setup();
     renderConsole();
     const input = screen.getByRole("combobox", { name: "Console command" });
-    await user.type(input, "git push{Enter}");
-    expect(await screen.findByText("git push talks to the remote copy. Choose the advanced console mode in Settings › Console to run it here, or use the guided actions.", { selector: ".console-block__error" })).toBeInTheDocument();
+    await user.type(input, "git push --force{Enter}");
+    expect(await screen.findByText("git push can discard work, which the console can't do yet. Use the guided actions for it.", { selector: ".console-block__error" })).toBeInTheDocument();
     await user.type(input, "git status; rm -rf .{Enter}");
     expect(await screen.findByText(/“;” is shell syntax/, { selector: ".console-block__error" })).toBeInTheDocument();
     await user.type(input, "git log --output=x{Enter}");
@@ -255,7 +255,7 @@ describe("ConsoleScreen typed Git commands", () => {
     renderConsole();
     const input = screen.getByRole("combobox", { name: "Console command" });
     await user.type(input, "help git{Enter}");
-    const table = screen.getByRole("table", { name: "Git commands you can type (read-only)" });
+    const table = screen.getByRole("table", { name: "Git commands that only read the project" });
     expect(table).toHaveTextContent("git blameWho last changed each line");
     expect(table).toHaveTextContent("git stash listChanges set aside");
     await user.type(input, "git sta");
@@ -320,27 +320,27 @@ describe("ConsoleScreen typed Git commands", () => {
 
 const CHANGE_PLAN = {
   ...READ_PLAN, planId: "change-1", command: "git add .", tier: "local_change" as const, effect: "changes_project" as const,
-  confirmation: "yes_no" as const, shape: "plain" as const, advancedMode: true,
+  confirmation: "yes_no" as const, shape: "plain" as const,
   facts: [{ kind: "stages" as const, files: ["a.txt", "b.txt"], total: 2 }],
 };
 const CHANGE_RESULT = { command: "git add .", stdout: "", stderr: "", exitCode: 0, success: true, truncated: false, shape: "plain" as const, failure: null };
 
-function renderAdvanced(overrides: { runHooks?: boolean; onRepositoryChanged?: () => void } = {}) {
+function renderChanges(overrides: { runHooks?: boolean; onRepositoryChanged?: () => void } = {}) {
   const lifecycle = createScreenLifecycleController("active");
   return render(<LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
-    <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="epoch-1" advancedMode
+    <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="epoch-1"
       runHooks={overrides.runHooks ?? true} onRepositoryChanged={overrides.onRepositoryChanged} />
   </ScreenLifecycleProvider></LanguageProvider>);
 }
 
-describe("ConsoleScreen changes in advanced mode", () => {
+describe("ConsoleScreen changes", () => {
   it("prints a change plan and runs it only when the answer is yes", async () => {
     const plan = vi.spyOn(consolePort, "plan").mockResolvedValue(CHANGE_PLAN);
     const runChange = vi.spyOn(consolePort, "runChange").mockResolvedValue(CHANGE_RESULT);
     const changed = vi.fn();
     const user = userEvent.setup();
-    renderAdvanced({ runHooks: false, onRepositoryChanged: changed });
-    expect(screen.getByRole("contentinfo", { name: "Console status" })).toHaveTextContent("advanced");
+    renderChanges({ runHooks: false, onRepositoryChanged: changed });
+    expect(screen.getByRole("contentinfo", { name: "Console status" })).toHaveTextContent("confirms changes");
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "git add .{Enter}");
     expect(plan).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1", line: "git add .", runHooks: false });
     expect(await screen.findByText("Changes this project on this computer.")).toBeInTheDocument();
@@ -371,7 +371,7 @@ describe("ConsoleScreen changes in advanced mode", () => {
       .mockResolvedValueOnce({ ...CHANGE_RESULT, success: false, exitCode: 1, stderr: "blocked by the project", failure: "hook_rejected" })
       .mockRejectedValueOnce({ code: "stale_preview", message: "The project changed after this command was previewed, so it didn't run." });
     const user = userEvent.setup();
-    renderAdvanced();
+    renderChanges();
     const prompt = screen.getByRole("combobox", { name: "Console command" });
     await user.type(prompt, "git commit -m x{Enter}");
     expect(await screen.findByText("Saves a new version with 1 file ready to save on the line “main”.")).toBeInTheDocument();
@@ -405,19 +405,18 @@ describe("ConsoleScreen changes in advanced mode", () => {
     expect(openSettings).toHaveBeenCalledTimes(2);
   });
 
-  it("names three modes and marks root in the status line", () => {
+  it("says whether changes are confirmed and marks it when they are not", () => {
     const lifecycle = createScreenLifecycleController("active");
-    const view = (advancedMode: boolean, confirmChanges: boolean) => <LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
-      <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="e" advancedMode={advancedMode} confirmChanges={confirmChanges} />
+    const view = (confirmChanges: boolean) => <LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
+      <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="e" confirmChanges={confirmChanges} />
     </ScreenLifecycleProvider></LanguageProvider>;
-    const rendered = render(view(false, false));
+    const rendered = render(view(true));
     const status = () => screen.getByRole("contentinfo", { name: "Console status" });
-    expect(status()).toHaveTextContent("read-only");
-    rendered.rerender(view(true, true));
-    expect(status()).toHaveTextContent("advanced");
-    rendered.rerender(view(true, false));
-    expect(status()).toHaveTextContent("root");
-    expect(status().querySelector(".console-statusline__state--root")).not.toBeNull();
+    expect(status()).toHaveTextContent("confirms changes");
+    expect(status().querySelector(".console-statusline__state--confirm")).not.toBeNull();
+    rendered.rerender(view(false));
+    expect(status()).toHaveTextContent("no confirmation");
+    expect(status().querySelector(".console-statusline__state--unconfirmed")).not.toBeNull();
   });
 
   it("prints the plan and runs at once when confirmations are off", async () => {
@@ -425,7 +424,7 @@ describe("ConsoleScreen changes in advanced mode", () => {
     const runChange = vi.spyOn(consolePort, "runChange").mockResolvedValue(CHANGE_RESULT);
     const changed = vi.fn();
     const user = userEvent.setup();
-    renderAdvanced({ onRepositoryChanged: changed });
+    renderChanges({ onRepositoryChanged: changed });
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "git add .{Enter}");
     await waitFor(() => expect(runChange).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1", planId: "change-1", answer: "" }));
     expect(screen.getByText("Stages 2 files: a.txt, b.txt")).toBeInTheDocument();
@@ -438,7 +437,7 @@ describe("ConsoleScreen changes in advanced mode", () => {
     vi.spyOn(consolePort, "plan").mockResolvedValue(CHANGE_PLAN);
     const runChange = vi.spyOn(consolePort, "runChange");
     const user = userEvent.setup();
-    renderAdvanced();
+    renderChanges();
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "git add .{Enter}");
     await screen.findByRole("combobox", { name: /Answer y/ });
     await user.keyboard("{Control>}l{/Control}");

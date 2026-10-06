@@ -100,7 +100,7 @@ import {
 } from "../features/version-lines";
 import { createHistoryController, historyPort } from "../features/history";
 import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController, type UpdateState } from "../features/app-updates";
-import { useConsoleAdvancedMode } from "../features/console";
+import { useConsoleConfirmChanges } from "../features/console";
 import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
@@ -707,9 +707,9 @@ export function App(): React.JSX.Element {
   };
   const [diffPreferences, setDiffPreferences] = useStoredDiffPreferences();
   const [consolePreferences, setConsolePreferences] = useStoredConsolePreferences();
-  // Rust holds advanced mode and checks it on every console plan; this copy
-  // drives the Settings switch and the console's indicator.
-  const consoleAdvancedMode = useConsoleAdvancedMode();
+  // Rust holds change confirmations and checks them on every console plan;
+  // this copy drives the Settings switch and the console's indicator.
+  const consoleConfirmChanges = useConsoleConfirmChanges();
   const [reducedMotion, setReducedMotion] = useReducedMotionPreference();
   const [navigationPreferences, setNavigationPreferences] =
     useStoredNavigationPreferences(DEFAULT_NAVIGATION_PREFERENCES.visibleDestinationIds);
@@ -2622,8 +2622,7 @@ export function App(): React.JSX.Element {
                           projectStatus={consoleStatus}
                           preferences={consolePreferences}
                           theme={theme}
-                          advancedMode={consoleAdvancedMode.advancedMode}
-                          confirmChanges={consoleAdvancedMode.confirmChanges}
+                          confirmChanges={consoleConfirmChanges.confirmChanges}
                           runHooks={runGitHooks}
                           onRepositoryChanged={() => void handleMutationSucceeded(project.path)}
                           onOpenSettings={() => openSettings("console")}
@@ -2962,7 +2961,7 @@ export function App(): React.JSX.Element {
           setDiffPreferences,
           consolePreferences,
           setConsolePreferences,
-          consoleAdvancedMode,
+          consoleConfirmChanges,
           identity: gitIdentity,
           defaultBranch,
           lineEndings,

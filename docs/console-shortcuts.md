@@ -2,7 +2,7 @@
 
 The project console runs a shortcut when you type its name. Every built-in
 shortcut is read-only: it shows something about the project and changes
-nothing, in any console mode. You can rename, remove or add shortcuts with the
+nothing. You can rename, remove or add shortcuts with the
 `shortcuts` command or the keyboard button in the console's status line;
 `help` lists the ones you have, with the Git command each runs.
 
@@ -57,9 +57,10 @@ reach the remote itself.
 
 A shortcut can also name a command line of your own, such as
 `lg` → `git log --oneline -20`. Rust checks the line when you save it and plans
-it again every time it runs; a line that would need more than the console mode
-it was saved under does not run. See [ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)
-for what the console accepts in each mode.
+it again every time it runs; a line that would need more than it did when you
+saved it does not run. See [ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)
+and [ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md) for
+what the console accepts.
 
 The words `help`, `clear`, `shortcuts`, `settings` and `git` are reserved for
 the console itself.

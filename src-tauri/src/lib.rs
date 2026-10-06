@@ -155,7 +155,6 @@ pub fn run() {
             ipc::run_console_plan,
             ipc::run_console_change,
             ipc::get_console_settings,
-            ipc::set_console_advanced_mode,
             ipc::set_console_confirm_changes,
             ipc::read_file_diff,
             ipc::read_file_image_preview,
