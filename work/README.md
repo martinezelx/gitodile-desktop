@@ -53,8 +53,9 @@ the expanded epic tracks shared access, discovery, PRs and Actions separately.
 GitHub integration is complete: browser/CLI plus native tokens
 ([148-9](done/148-9-github-token-connections.md)) and repository discovery
 ([148-5](done/148-5-provider-repository-browser.md)). GitLab/glab is also complete
-([148-4](done/148-4-gitlab-accounts.md)). PR/Actions screens come later and
-do not gate this integration closure. Bitbucket [148-8](blocked/148-8-bitbucket-accounts.md)
+([148-4](done/148-4-gitlab-accounts.md)). Corporate hosts (GitHub Enterprise
+Server and GitLab Self-Managed) are [148-10](active/148-10-enterprise-and-self-managed-hosts.md),
+queued before the PR/Actions screens, which do not gate this integration closure. Bitbucket [148-8](blocked/148-8-bitbucket-accounts.md)
 is deferred outside the active queue.
 
 A multi-task epic may group its child task files in a subfolder under

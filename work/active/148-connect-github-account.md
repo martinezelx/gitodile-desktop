@@ -40,14 +40,15 @@ Milestones, in dependency order:
 - [x] Native GitHub token connections ([148-9](../done/148-9-github-token-connections.md)).
 - [x] GitHub repository discovery and clone handoff ([148-5](../done/148-5-provider-repository-browser.md)).
 - [x] GitLab.com accounts/access and browser extension ([148-4](../done/148-4-gitlab-accounts.md)).
+- [ ] GitHub Enterprise Server and GitLab Self-Managed hosts ([148-10](148-10-enterprise-and-self-managed-hosts.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
 - [ ] Deferred provider scope: Bitbucket Cloud accounts/access ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
 - [ ] Subsequent scope: GitOdile-owned GitHub authorization, with browser sign-in independent of gh (see below).
 
 Each child owns qualification of its account/access/API behavior across supported
-platforms and must record deferred evidence honestly. GitHub Enterprise and independently branded
-OAuth remain subsequent scope. Provider features use shared accounts/access
+platforms and must record deferred evidence honestly. Independently branded
+OAuth remains subsequent scope; corporate hosts moved into 148-10. Provider features use shared accounts/access
 but keep their own API permissions and operation plans. No current account row
 may imply these screens already exist.
 
@@ -382,3 +383,43 @@ real Windows token discovery/private cloning and browser-account qualification.
 GitHub and GitLab integration are complete for the accepted scope; PR/Actions
 148-6/148-7 remain in the active queue. Platform qualification limits and review
 results are recorded in the completed GitLab task.
+
+## Corporate hosts (2026-10-06)
+
+The user requested GitHub Enterprise Server and GitLab Self-Managed accounts
+alongside the public hosts. New child [148-10](148-10-enterprise-and-self-managed-hosts.md)
+generalizes the fixed-host registry, account IDs, token namespaces, helper and
+clone checks into host-scoped provider instances. It takes queue position 01,
+ahead of PRs/Actions, so those screens consume the same instances; every other
+active task keeps its relative order.
+
+## Integration review fixes (2026-10-06)
+
+The user requested a review of the delivered GitHub/GitLab integration and
+approved these corrections before 148-10:
+
+- Repository descriptions with CRLF or other control characters no longer reject
+  a whole discovery page; `display_text` normalizes and bounds display text while
+  names, owners and clone URLs stay strictly validated.
+- Verified token rows stay selectable during a background check, and checks and
+  discovery are fenced per connection: changing one token no longer discards or
+  invalidates another token's result. GitLab renames found by a check persist.
+- Project Settings warns when a provider remote stores sign-in details (shown
+  redacted) or uses HTTP, the cases the transfer guard refuses.
+- The hosting clients keep the updater's single Reqwest/TLS configuration by
+  design; the app-update contract check now fails if the OS trust store verifier
+  or OS proxy support disappears (corporate CAs and proxies depend on both).
+- The glab Git-helper lookup skips its per-transfer version probe and still
+  verifies the numeric identity.
+- `extraHeader` wildcards follow Git's one-label rule: wildcards for other hosts
+  no longer block transfers; one matching a selected host is refused with an
+  explanation. ADR 0022 records the refinement.
+- The token check thread is named per provider.
+
+Validation: `pnpm run check` passed — documentation/release/icon contracts,
+frontend architecture, strict TypeScript, 130 frontend files / 1,256 tests,
+production build, Rust formatting, Clippy with warnings denied, 550 native
+library tests (1 ignored OS-store qualification) and the actual-binary helper
+test. It used an isolated Cargo target directory. No real provider login,
+token change, clone or publish was performed for these fixes, and the warning
+was verified by component tests rather than in the running app.
