@@ -11,6 +11,12 @@ export function GitHubIcon(): React.JSX.Element {
 /** Provider identity shared by Settings, clone and repository browsing. */
 export function HostingProviderIcon({ provider }: { provider: string }): React.JSX.Element {
   if (provider === "github") return <GitHubIcon />;
+  // Bitbucket geometry: Simple Icons 16.34.0 (CC0-1.0). https://simpleicons.org
+  if (provider === "bitbucket") return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891zM14.52 15.53H9.522L8.17 8.466h7.561z" />
+    </svg>
+  );
   // GitLab geometry: vscode-icons (MIT), Copyright (c) 2016 Roberto Huertas.
   // https://github.com/vscode-icons/vscode-icons/blob/master/LICENSE
   // Keep the silhouette monochrome, like GitHub, using the surrounding ink.

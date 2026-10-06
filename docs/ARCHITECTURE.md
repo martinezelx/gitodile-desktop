@@ -811,12 +811,31 @@ Both readers accept the released `glab X.Y.Z` version output and the labelled
 ports/copy. `features/gitlab` owns its typed adapter, cached controller and eager
 account/token bodies; hidden Settings suspends polling. Token/browser/tooling
 order, permission/storage consent and single CLI identity limitations are explicit.
-Visibility never authenticates or fetches projects. Identity avatars use a local
+Visibility never authenticates or fetches projects; saved connections are verified
+after launch ([ADR 0027](adr/0027-verify-saved-accounts-after-launch.md)). Identity avatars use a local
 fallback. Shared clone discovery dispatches by registered provider and rechecks
 `/user` before `/projects?membership=true` with bounded 100-row pages. Nested
 namespace URLs must match the fixed provider host before entering the existing
 source-access/destination/credential-helper boundary. See
 [ADR 0024](adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
+
+### Bitbucket Cloud accounts and discovery
+
+`ProviderKind::Bitbucket` is a third product of `hosting_access.rs` with the
+fixed instance `bitbucket` (`bitbucket.org`, `https://api.bitbucket.org/2.0`);
+`bitbucket_access.rs` is its distinct Tauri state type. It has no CLI: a
+token-only `NoCli` adapter supplies no rows or credentials, and
+`ProviderKind::server_kind` keeps it out of the company-server registry. API
+tokens are sent as Bearer, stored under `GitOdile/Bitbucket/token/v1`, keyed by
+the bare lowercased UUID from `/2.0/user`, with display names kept separately;
+Git uses the static `x-bitbucket-api-token-auth` username. Discovery lists
+`/2.0/user/workspaces` and then `/2.0/repositories/{workspace}?role=member`,
+treating the body's `next` only as a signal and rebuilding each request on the
+fixed origin. The service remembers per account and token generation where each
+browser page starts. Clone links must point to the same repository on
+`bitbucket.org`; the embedded viewer name is dropped. `features/bitbucket` owns
+the Settings section (shared Accounts list and token form) and its typed port.
+See [ADR 0026](adr/0026-connect-bitbucket-cloud-through-api-tokens.md).
 
 ### Company servers
 
@@ -845,9 +864,15 @@ list. See
 `credentials.rs` owns provider-neutral metadata, bounded persistent project
 bindings and the internal Git credential protocol. `hosting.rs` registers
 adapters for both the desktop and helper process; `main.rs` dispatches helper
-mode before Tauri starts. `github_auth.rs` and `gitlab_auth.rs` supply the CLI adapters.
+mode before Tauri starts. `github_auth.rs` and `gitlab_auth.rs` supply the CLI adapters;
+Bitbucket is token-only.
 `features/accounts` owns the typed account port, cached receipt controller and
-picker shared by clone and project settings. Providers implement adapters rather
+picker shared by clone and project settings. `useAccounts` keeps the last local
+receipt per port, so a remounted section renders it before the next read and
+reports `loaded` so an unread catalog is never shown as empty.
+`hosting::sync_accounts_after_launch` runs the Check accounts action for every
+product three seconds after launch; see
+[ADR 0027](adr/0027-verify-saved-accounts-after-launch.md). Providers implement adapters rather
 than duplicating the selection store, picker or Git access policy.
 
 `git_command.rs` applies process-only HTTPS helper configuration at the policy
@@ -878,11 +903,12 @@ native-token exception to ADR 0021, scope isolation and platform qualification.
 
 `hosting_access.rs` composes CLI and native OS-stored token connections behind
 each provider adapter. Credential-source IDs and HTTP usernames are separate, so
-the same person can explicitly choose browser or token. `features/github` and
-`features/gitlab` inject their copy/ports into the shared one-way token form; `features/repository-browser` owns the typed
+the same person can explicitly choose browser or token. `features/github`,
+`features/gitlab` and `features/bitbucket` inject their copy/ports into the shared one-way token form; `features/repository-browser` owns the typed
 paginated discovery port/controller and eager clone-overlay browser. Native API
 access verifies the exact selected identity and validates every clone URL.
-Visibility only reads local receipts; network checks and pages require clicks.
+Visibility only reads local receipts; pages require clicks. Saved connections are
+verified in the background after launch (ADR 0027).
 See [ADR 0023](adr/0023-add-native-github-tokens-and-repository-discovery.md) for
 storage, cancellation, limits, caching and platform consequences.
 

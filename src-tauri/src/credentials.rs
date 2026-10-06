@@ -42,19 +42,19 @@ pub(crate) struct ProviderDescriptor {
     /// Normalized authority: host name plus a non-default port.
     host: String,
     kind: &'static str,
-    /// github.com and gitlab.com; company servers are user-added.
+    /// github.com, gitlab.com and bitbucket.org; company servers are user-added.
     built_in: bool,
 }
 
 /// Implemented by a hosting adapter; the account store and Git bridge do not
 /// know how a provider authenticates or where it keeps its secret.
 pub(crate) trait AccessProvider: Send + Sync {
-    /// Instance ID: `github`/`gitlab` for the public hosts, a host-derived ID
+    /// Instance ID: `github`/`gitlab`/`bitbucket` for the public hosts, a host-derived ID
     /// for a company server. It prefixes every account ID of this instance.
     fn id(&self) -> &str;
     /// Exact HTTPS authority (`host` or `host:port`) Git and the helper match.
     fn host(&self) -> &str;
-    /// Provider product: `github` or `gitlab`.
+    /// Provider product: `github`, `gitlab` or `bitbucket`.
     fn kind(&self) -> &'static str;
     fn accounts(&self) -> Vec<Account>;
     fn busy(&self) -> bool;

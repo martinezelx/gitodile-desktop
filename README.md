@@ -36,8 +36,8 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Open a local project from its root or any nested folder, validate it in Rust,
   and switch between recent projects.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
-  provider-neutral two-screen flow: choose an address or GitHub/GitLab project, then
-  choose the destination and clone. Complete GitHub/GitLab addresses get a cancellable
+  provider-neutral two-screen flow: choose an address or GitHub/GitLab/Bitbucket project, then
+  choose the destination and clone. Complete GitHub/GitLab/Bitbucket addresses get a cancellable
   read-only access check using the chosen connection. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
   lifecycle; select a saved account for GitOdile's HTTPS access or use existing
@@ -337,7 +337,7 @@ it; retrieved credentials never return to the frontend or enter command argument
 Selections persist as local metadata, and a missing credential fails instead
 of silently choosing another account. Choosing existing Git credentials preserves
 the system's normal authentication. Account selection does not change commit
-authorship, configure SSH or prove publishing permissions. GitHub and GitLab.com share this provider contract.
+authorship, configure SSH or prove publishing permissions. GitHub, GitLab.com and Bitbucket Cloud share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
 Settings → GitHub starts with one **Accounts** list: every token and browser
@@ -348,8 +348,10 @@ permission details. GitOdile verifies the token's identity and saves it only
 in the system's secure credential store, with no plaintext fallback. Up to eight
 token connections coexist with browser connections; even the same username has
 separate connection choices. Removing one deletes its local secret, leaves its
-project selections unavailable and does not revoke the token on GitHub. After
-restart, detect/check accounts explicitly before choosing them. Metadata stores
+project selections unavailable and does not revoke the token on GitHub. Saved connections
+of every product are verified in the background a few seconds after launch, as
+GitHub Desktop does; **Check accounts** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
+Metadata stores
 only usernames, and the token input clears when sent to Rust.
 
 Clone a project → **GitHub** lets you choose a connection (the one used last
@@ -394,6 +396,26 @@ See [ADR 0024](docs/adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
 Automated fixtures and Windows UI/secure-store checks cover the implementation;
 real GitLab OAuth, private clone/publishing and macOS/Linux runtime qualification
 remain unclaimed until exercised with an authorized account and environment.
+
+### Bitbucket Cloud
+
+Settings → Bitbucket lists bitbucket.org **API token** connections with the same
+**Accounts** list and masked token form; there is no browser connection or CLI.
+Create an Atlassian API token with scopes for Bitbucket: `read:user:bitbucket`
+and `read:workspace:bitbucket` for identity and discovery, plus
+`read:repository:bitbucket` to clone and `write:repository:bitbucket` to publish.
+App passwords no longer exist. GitOdile verifies the token's Bitbucket UUID,
+stores it only in the OS secure store and never asks for the account email. Up
+to eight tokens; tokens expire and must be replaced, and removing one does not
+revoke it at Atlassian. Git uses the static username `x-bitbucket-api-token-auth`.
+
+Clone a project → **Bitbucket** lists the projects of every workspace the
+connection belongs to (up to 300 workspaces), one Bitbucket page per page.
+Addresses copied with a username (`https://name@bitbucket.org/…`) are cloned
+without it but never select an account. See
+[ADR 0026](docs/adr/0026-connect-bitbucket-cloud-through-api-tokens.md).
+Behavior is covered by hermetic fixtures; no real Bitbucket token has been
+qualified yet.
 
 ### Company servers
 

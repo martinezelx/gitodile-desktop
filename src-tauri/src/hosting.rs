@@ -1,7 +1,9 @@
-//! Desktop composition of hosting adapters: the public hosts, user-added
+//! Desktop composition of hosting adapters: the public hosts (github.com,
+//! gitlab.com and the token-only bitbucket.org), user-added
 //! company servers (GitHub Enterprise Server, GitLab Self-Managed) and the
 //! internal Git credential helper.
 use crate::{
+    bitbucket_access::BitbucketAccessService,
     credentials::{self, AccessProvider, AccountCatalog, AccountService},
     error::{AppError, AppErrorCode},
     git::CancellationToken,
@@ -19,12 +21,35 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+/// Products whose saved connections the launch sync verifies; each check also
+/// covers that product's company servers.
+const LAUNCH_SYNC_PRODUCTS: [&str; 3] = ["github", "gitlab", "bitbucket"];
+/// Long enough for the window to paint first; the sync is never on that path.
+const LAUNCH_SYNC_DELAY: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Like other desktop Git clients, verify saved connections in the background
+/// shortly after launch so they are ready to use without a manual check
+/// (ADR 0027): one identity request per saved token and one gh/glab status
+/// check per product. Each check runs on its own worker; failures only mark
+/// the affected connections, exactly like the Check accounts action.
+pub(crate) fn sync_accounts_after_launch(accounts: Arc<AccountService>) {
+    let _ = std::thread::Builder::new()
+        .name("hosting-launch-sync".into())
+        .spawn(move || {
+            std::thread::sleep(LAUNCH_SYNC_DELAY);
+            for product in LAUNCH_SYNC_PRODUCTS {
+                let _ = accounts.check(product);
+            }
+        });
+}
+
 /// One registry serves the desktop catalog and the internal helper process.
 pub(crate) fn providers(
     github: GitHubAccessService,
     gitlab: GitLabAccessService,
+    bitbucket: BitbucketAccessService,
 ) -> Vec<Arc<dyn credentials::AccessProvider>> {
-    vec![Arc::new(github), Arc::new(gitlab)]
+    vec![Arc::new(github), Arc::new(gitlab), Arc::new(bitbucket)]
 }
 
 /// Returns Some only in helper mode, before Tauri or its WebView starts.
@@ -42,6 +67,7 @@ pub fn credential_helper_entry() -> Option<i32> {
                 &providers(
                     GitHubAccessService::new(GitHubAuthService::default(), Default::default()),
                     GitLabAccessService::new(GitLabAuthService::default(), Default::default()),
+                    BitbucketAccessService::new(Default::default()),
                 ),
                 id,
                 &args[3],
@@ -131,6 +157,8 @@ fn id_prefix(kind: ProviderKind) -> &'static str {
     match kind {
         ProviderKind::GitHub => "ghe-",
         ProviderKind::GitLab => "gls-",
+        // Never a company server; `ProviderKind::server_kind` refuses it.
+        ProviderKind::Bitbucket => "bbc-",
     }
 }
 
@@ -190,7 +218,7 @@ fn normalize_address(raw: &str) -> Result<String, AppError> {
 }
 
 fn build(entry: &ServerEntry, path: PathBuf) -> Option<Server> {
-    let kind = ProviderKind::from_id(&entry.kind)?;
+    let kind = ProviderKind::server_kind(&entry.kind)?;
     let (cli, adapter): (ServerCli, Arc<dyn AccessProvider>) = match kind {
         ProviderKind::GitHub => {
             let service = GitHubAuthService::for_host(&entry.id, &entry.host);
@@ -203,6 +231,7 @@ fn build(entry: &ServerEntry, path: PathBuf) -> Option<Server> {
             let service = GitLabAuthService::for_host(&entry.id, &entry.host);
             (ServerCli::GitLab(service.clone()), Arc::new(service))
         }
+        ProviderKind::Bitbucket => return None,
     };
     Some(Server {
         entry: entry.clone(),
@@ -243,7 +272,7 @@ impl HostingServers {
                     .filter(|file| file.version == 1 && file.servers.len() <= MAX_SERVERS)
                     .filter(|file| {
                         file.servers.iter().all(|entry| {
-                            ProviderKind::from_id(&entry.kind).is_some_and(|kind| {
+                            ProviderKind::server_kind(&entry.kind).is_some_and(|kind| {
                                 normalize_address(&entry.host).ok().as_deref()
                                     == Some(entry.host.as_str())
                                     && server_id(kind, &entry.host) == entry.id
@@ -325,7 +354,7 @@ impl HostingServers {
         address: String,
         request_id: String,
     ) -> Result<AccountCatalog, AppError> {
-        let kind = ProviderKind::from_id(&kind)
+        let kind = ProviderKind::server_kind(&kind)
             .ok_or_else(|| error(AppErrorCode::InvalidSelection, "Choose GitHub or GitLab."))?;
         let host = normalize_address(&address)?;
         let id = server_id(kind, &host);
@@ -550,23 +579,36 @@ fn token_path(directory: &std::path::Path, id: &str) -> PathBuf {
 pub(crate) async fn repositories(
     github: &GitHubAccessService,
     gitlab: &GitLabAccessService,
+    bitbucket: &BitbucketAccessService,
     servers: &HostingServers,
     account_id: String,
     page: u32,
     request_id: String,
 ) -> Result<RepositoryPage, AppError> {
-    if account_id.starts_with("github:") {
-        github.repositories(account_id, page, request_id).await
-    } else if account_id.starts_with("gitlab:") {
-        gitlab.repositories(account_id, page, request_id).await
-    } else {
-        servers.repositories(account_id, page, request_id).await
+    match credentials::split_account(&account_id).map(|(provider, _)| provider) {
+        Some("github") => github.repositories(account_id, page, request_id).await,
+        Some("gitlab") => gitlab.repositories(account_id, page, request_id).await,
+        Some("bitbucket") => bitbucket.repositories(account_id, page, request_id).await,
+        _ => servers.repositories(account_id, page, request_id).await,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_launch_sync_covers_every_registered_product() {
+        let registered = providers(
+            GitHubAccessService::new(GitHubAuthService::default(), Default::default()),
+            GitLabAccessService::new(GitLabAuthService::default(), Default::default()),
+            BitbucketAccessService::new(Default::default()),
+        )
+        .iter()
+        .map(|provider| provider.kind())
+        .collect::<Vec<_>>();
+        assert_eq!(registered, LAUNCH_SYNC_PRODUCTS);
+    }
 
     #[test]
     fn addresses_normalize_to_one_https_authority_and_refuse_public_hosts() {

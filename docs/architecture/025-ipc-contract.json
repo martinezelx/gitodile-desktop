@@ -49,6 +49,8 @@
     {"name": "cancel_gitlab_auth", "arguments": ["operationId"], "response": "GitLabAuthSnapshot"},
     {"name": "add_gitlab_token", "arguments": ["token", "requestId"], "response": "string"},
     {"name": "remove_gitlab_token", "arguments": ["accountId"], "response": "void"},
+    {"name": "add_bitbucket_token", "arguments": ["token", "requestId"], "response": "string"},
+    {"name": "remove_bitbucket_token", "arguments": ["accountId"], "response": "void"},
     {"name": "add_hosting_server", "arguments": ["kind", "address", "requestId"], "response": "AccountCatalog"},
     {"name": "remove_hosting_server", "arguments": ["provider"], "response": "AccountCatalog"},
     {"name": "add_hosting_token", "arguments": ["provider", "token", "requestId"], "response": "string"},

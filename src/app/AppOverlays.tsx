@@ -7,6 +7,7 @@ import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
 import { ProviderConnectionsSettings } from "../features/hosting-servers";
+import { BitbucketConnectionsSettings } from "../features/bitbucket";
 import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -423,6 +424,7 @@ export function AppOverlays({
               glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
               gitlabToken={<ProviderConnectionsSettings auth={{ kind: "gitlab", controller: settings.gitlabAuth }}
                 cliAvailable={settings.glabTooling.diagnostics === null ? null : settings.glabTooling.diagnostics.state === "available"} />}
+              bitbucketAccounts={<BitbucketConnectionsSettings />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}
               onCheckGitUpdate={settings.gitTooling.checkUpdate}

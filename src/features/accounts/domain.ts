@@ -5,9 +5,10 @@ export type HostingAccount = {
   avatarDataUrl: string | null; available: boolean;
   unavailableReason?: AppError["code"] | null;
 };
-export type HostingKind = "github" | "gitlab";
-/** One provider instance: github.com, gitlab.com, or a user-added company
- * server. `host` is the exact HTTPS authority, including a non-default port. */
+export type HostingKind = "github" | "gitlab" | "bitbucket";
+/** One provider instance: github.com, gitlab.com, bitbucket.org, or a
+ * user-added company server. `host` is the exact HTTPS authority, including a
+ * non-default port. */
 export type HostingProvider = { id: string; host: string; kind: HostingKind; builtIn: boolean };
 export type AccountCatalog = {
   providers: HostingProvider[];

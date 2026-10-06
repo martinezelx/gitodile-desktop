@@ -163,6 +163,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   git: <GitIcon />,
   github: <GitHubIcon />,
   gitlab: <HostingProviderIcon provider="gitlab" />,
+  bitbucket: <HostingProviderIcon provider="bitbucket" />,
   "line-endings": <CornerDownLeft />,
   updates: <CloudDownload />,
 };
@@ -353,6 +354,7 @@ export function SettingsPanel({
   ghTooling,
   githubToken,
   gitlabToken, glabTooling, glabActions, glabCopy,
+  bitbucketAccounts,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -401,6 +403,7 @@ export function SettingsPanel({
   ghTooling: GitToolingState;
   githubToken?: React.ReactNode;
   gitlabToken?: React.ReactNode; glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
+  bitbucketAccounts?: React.ReactNode;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -2131,6 +2134,9 @@ export function SettingsPanel({
             {gitlabToken}
             <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy} mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl="https://gitlab.com/gitlab-org/cli#installation" />
           </div>
+        )}
+        {activeSection === "bitbucket" && (
+          <div className="settings-groups">{bitbucketAccounts}</div>
         )}
         {activeSection === "github" && (
           <div className="settings-groups">

@@ -24,6 +24,8 @@ export type TokenConnectionCopy = {
   storage: string;
   title: string;
   failed: string; checking: string; chips: Record<"signed_out" | "checking" | "connected" | "invalid" | "unchecked", string>;
+  /** A provider refusal of the token itself (usually missing scopes). */
+  permissionDenied?: string;
 };
 
 /** One provider instance's token rows. Removal confirms inline, naming the
@@ -129,6 +131,7 @@ export function TokenEntryForm({ provider, port, copy, onDone, onCancel, onSettl
   const cancel = (): void => { if (input.current) input.current.value = ""; setDraft(false); onCancel(); };
   const errorCopy = isAppError(error) && error.code === "stale_preview" ? copy.exists
     : isAppError(error) && error.code === "invalid_selection" ? copy.limitReached
+    : isAppError(error) && error.code === "permission_denied" && copy.permissionDenied ? copy.permissionDenied
     : localizeAppError(error, t, copy.failed);
   return <form className="github-token__editor" onSubmit={event => { event.preventDefault(); void submit(); }}
     onKeyDownCapture={event => { if (event.key === "Escape" && !pending) { event.preventDefault(); event.stopPropagation(); cancel(); } }}>

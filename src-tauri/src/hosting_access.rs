@@ -28,33 +28,41 @@ const API_ORIGIN: &str = "https://api.github.com";
 pub(crate) enum ProviderKind {
     GitHub,
     GitLab,
+    /// Bitbucket Cloud: native API tokens only, no browser/CLI connection.
+    Bitbucket,
 }
 impl ProviderKind {
     fn id(self) -> &'static str {
         match self {
             Self::GitHub => "github",
             Self::GitLab => "gitlab",
+            Self::Bitbucket => "bitbucket",
         }
     }
     fn host(self) -> &'static str {
         match self {
             Self::GitHub => "github.com",
             Self::GitLab => "gitlab.com",
+            Self::Bitbucket => "bitbucket.org",
         }
     }
     fn origin(self) -> &'static str {
         match self {
             Self::GitHub => API_ORIGIN,
             Self::GitLab => "https://gitlab.com/api/v4",
+            Self::Bitbucket => BITBUCKET_API_ORIGIN,
         }
     }
     fn add_command(self) -> &'static str {
         match self {
             Self::GitHub => "add_github_token",
             Self::GitLab => "add_gitlab_token",
+            Self::Bitbucket => "add_bitbucket_token",
         }
     }
-    pub(crate) fn from_id(kind: &str) -> Option<Self> {
+    /// Products a user can add as a company server. Bitbucket Cloud is only
+    /// bitbucket.org; Bitbucket Data Center is not supported.
+    pub(crate) fn server_kind(kind: &str) -> Option<Self> {
         match kind {
             "github" => Some(Self::GitHub),
             "gitlab" => Some(Self::GitLab),
@@ -64,19 +72,48 @@ impl ProviderKind {
     pub(crate) fn name(self) -> &'static str {
         self.id()
     }
-    /// A company server's REST origin; github.com and gitlab.com keep theirs.
+    /// A company server's REST origin; the public hosts keep theirs.
     fn server_origin(self, host: &str) -> String {
         match self {
             Self::GitHub => format!("https://{host}/api/v3"),
             Self::GitLab => format!("https://{host}/api/v4"),
+            Self::Bitbucket => BITBUCKET_API_ORIGIN.to_owned(),
         }
     }
     fn repositories_path(self, page: u32) -> String {
         match self {
         Self::GitHub => format!("/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&direction=desc&per_page=100&page={page}"),
-        Self::GitLab => format!("/projects?membership=true&order_by=last_activity_at&sort=desc&per_page=100&page={page}")
+        Self::GitLab => format!("/projects?membership=true&order_by=last_activity_at&sort=desc&per_page=100&page={page}"),
+        // Bitbucket discovery walks workspaces; see `bitbucket_page`.
+        Self::Bitbucket => String::new(),
     }
     }
+}
+const BITBUCKET_API_ORIGIN: &str = "https://api.bitbucket.org/2.0";
+const BITBUCKET_STORE: &str = "GitOdile/Bitbucket/token/v1";
+/// Bitbucket's static Git username for API tokens. A personal username would
+/// be case-sensitive and could be confused with another account's.
+const BITBUCKET_GIT_USERNAME: &str = "x-bitbucket-api-token-auth";
+/// Bitbucket identities are UUIDs (`{…}` in the API); keys keep the bare,
+/// lowercased form, which is also a valid secure-store entry name.
+fn bitbucket_uuid(raw: &str) -> Option<String> {
+    let bare = raw
+        .strip_prefix('{')
+        .and_then(|rest| rest.strip_suffix('}'))
+        .unwrap_or(raw)
+        .to_ascii_lowercase();
+    let groups: Vec<_> = bare.split('-').collect();
+    (groups.len() == 5
+        && groups
+            .iter()
+            .zip([8, 4, 4, 4, 12])
+            .all(|(group, len)| group.len() == len && group.bytes().all(|b| b.is_ascii_hexdigit())))
+    .then_some(bare)
+}
+/// Bitbucket names are free display text (nickname or full name); bound them
+/// and refuse control characters instead of applying a login grammar.
+fn bitbucket_name_is_valid(name: &str) -> bool {
+    !name.trim().is_empty() && name.len() <= 255 && !name.chars().any(char::is_control)
 }
 fn numeric_id(key: &str) -> bool {
     key.parse::<u64>()
@@ -198,6 +235,8 @@ pub(crate) struct HostingAccessService {
     requests: Arc<Mutex<BTreeMap<String, CancellationToken>>>,
     cancelled_requests: Arc<Mutex<BTreeSet<String>>>,
     api_origin: String,
+    /// Bitbucket discovery position of each page already shown, per account.
+    walks: Arc<Mutex<BTreeMap<String, BitbucketWalk>>>,
 }
 
 impl HostingAccessService {
@@ -266,6 +305,15 @@ impl HostingAccessService {
             store,
         )
     }
+    /// Bitbucket Cloud has no browser connection: tokens are its only source.
+    pub(crate) fn bitbucket(path: PathBuf) -> Self {
+        Self::configured(
+            Arc::new(NoCli),
+            ProviderKind::Bitbucket,
+            path,
+            Arc::new(OsTokenStore(BITBUCKET_STORE.into())),
+        )
+    }
     pub(crate) fn gitlab(glab: crate::gitlab_auth::GitLabAuthService, path: PathBuf) -> Self {
         Self::configured(
             Arc::new(glab),
@@ -307,6 +355,14 @@ impl HostingAccessService {
                                             .get(key)
                                             .is_some_and(|name| gitlab_login_is_valid(name))
                                 }))
+                            || (kind == ProviderKind::Bitbucket
+                                && metadata.logins.iter().any(|key| {
+                                    bitbucket_uuid(key).as_deref() != Some(key.as_str())
+                                        || !metadata
+                                            .usernames
+                                            .get(key)
+                                            .is_some_and(|name| bitbucket_name_is_valid(name))
+                                }))
                             || metadata.logins.iter().any(|login| !login_is_valid(login))
                             || metadata
                                 .logins
@@ -341,6 +397,7 @@ impl HostingAccessService {
             requests: Arc::new(Mutex::new(BTreeMap::new())),
             cancelled_requests: Arc::new(Mutex::new(BTreeSet::new())),
             api_origin: kind.origin().into(),
+            walks: Arc::default(),
         }
     }
     fn persist(&self, metadata: &Metadata) -> Result<(), AppError> {
@@ -632,12 +689,18 @@ impl HostingAccessService {
             if !identity.key(self.kind)?.eq_ignore_ascii_case(&expected) {
                 return Err(error(AppErrorCode::AuthenticationFailed));
             }
-            let path = self.kind.repositories_path(page);
-            let (bytes, next) =
-                get(&self.api_origin, &path, &secret, &request.cancellation).await?;
-            let repositories = match self.kind {
-                ProviderKind::GitHub => parse_repositories(&bytes, &self.host)?,
-                ProviderKind::GitLab => parse_gitlab_repositories(&bytes, &self.host)?,
+            let (repositories, next) = if self.kind == ProviderKind::Bitbucket {
+                self.bitbucket_page(&account_id, revision, page, &secret, &request.cancellation)
+                    .await?
+            } else {
+                let path = self.kind.repositories_path(page);
+                let (bytes, next) =
+                    get(&self.api_origin, &path, &secret, &request.cancellation).await?;
+                let repositories = match self.kind {
+                    ProviderKind::GitHub => parse_repositories(&bytes, &self.host)?,
+                    _ => parse_gitlab_repositories(&bytes, &self.host)?,
+                };
+                (repositories, next)
             };
             request.ensure_active()?;
             self.ensure_revision(key, revision)?;
@@ -691,13 +754,15 @@ impl HostingAccessService {
             token_login(key)?
         } else if self.kind == ProviderKind::GitLab {
             key.strip_prefix("cli.")?
+        } else if self.kind == ProviderKind::Bitbucket {
+            return None;
         } else {
             key
         };
-        (if self.kind == ProviderKind::GitLab {
-            numeric_id(login)
-        } else {
-            login_is_valid(login)
+        (match self.kind {
+            ProviderKind::GitLab => numeric_id(login),
+            ProviderKind::Bitbucket => bitbucket_uuid(login).as_deref() == Some(login),
+            ProviderKind::GitHub => login_is_valid(login),
         })
         .then(|| login.to_owned())
     }
@@ -842,7 +907,7 @@ impl AccessProvider for HostingAccessService {
                         let key = login.to_ascii_lowercase();
                         match verification {
                             Ok(username) => {
-                                if service.kind == ProviderKind::GitLab {
+                                if service.kind != ProviderKind::GitHub {
                                     if let Ok(metadata) = &mut state.metadata {
                                         let previous = metadata
                                             .usernames
@@ -870,12 +935,10 @@ impl AccessProvider for HostingAccessService {
         }
     }
     fn username(&self, key: &str) -> Option<String> {
-        self.identity_key(key).map(|login| {
-            if self.kind == ProviderKind::GitLab {
-                "oauth2".into()
-            } else {
-                login
-            }
+        self.identity_key(key).map(|login| match self.kind {
+            ProviderKind::GitLab => "oauth2".into(),
+            ProviderKind::Bitbucket => BITBUCKET_GIT_USERNAME.into(),
+            ProviderKind::GitHub => login,
         })
     }
     fn credential(&self, key: &str) -> Option<Secret> {
@@ -918,18 +981,53 @@ pub(crate) struct User {
     pub(crate) login: String,
     #[serde(default)]
     pub(crate) id: Option<u64>,
+    /// Bitbucket's stable identity; `login` then holds its display name.
+    #[serde(skip)]
+    pub(crate) uuid: Option<String>,
 }
 impl User {
     fn key(&self, kind: ProviderKind) -> Result<String, AppError> {
-        if kind == ProviderKind::GitLab {
-            self.id
+        match kind {
+            ProviderKind::GitLab => self
+                .id
                 .filter(|id| *id > 0)
                 .map(|id| id.to_string())
-                .ok_or_else(|| error(AppErrorCode::RemoteRejected))
-        } else {
-            Ok(self.login.clone())
+                .ok_or_else(|| error(AppErrorCode::RemoteRejected)),
+            ProviderKind::Bitbucket => self
+                .uuid
+                .clone()
+                .ok_or_else(|| error(AppErrorCode::RemoteRejected)),
+            ProviderKind::GitHub => Ok(self.login.clone()),
         }
     }
+}
+/// `GET /2.0/user`. `username` is no longer guaranteed, so the display name
+/// falls back to the nickname, then the full name.
+#[derive(Deserialize)]
+struct BitbucketUser {
+    uuid: String,
+    #[serde(default)]
+    username: Option<String>,
+    #[serde(default)]
+    nickname: Option<String>,
+    #[serde(default)]
+    display_name: Option<String>,
+}
+fn parse_bitbucket_user(bytes: &[u8]) -> Result<User, AppError> {
+    let user: BitbucketUser =
+        serde_json::from_slice(bytes).map_err(|_| error(AppErrorCode::RemoteRejected))?;
+    let uuid = bitbucket_uuid(&user.uuid).ok_or_else(|| error(AppErrorCode::RemoteRejected))?;
+    let login = [user.username, user.nickname, user.display_name]
+        .into_iter()
+        .flatten()
+        .map(|name| name.trim().to_owned())
+        .find(|name| bitbucket_name_is_valid(name))
+        .ok_or_else(|| error(AppErrorCode::RemoteRejected))?;
+    Ok(User {
+        login,
+        id: None,
+        uuid: Some(uuid),
+    })
 }
 async fn user(
     kind: ProviderKind,
@@ -938,6 +1036,9 @@ async fn user(
     cancellation: &CancellationToken,
 ) -> Result<User, AppError> {
     let (bytes, _) = get(origin, "/user", secret, cancellation).await?;
+    if kind == ProviderKind::Bitbucket {
+        return parse_bitbucket_user(&bytes);
+    }
     let user: User =
         serde_json::from_slice(&bytes).map_err(|_| error(AppErrorCode::RemoteRejected))?;
     if !(if kind == ProviderKind::GitLab {
@@ -1019,6 +1120,7 @@ async fn probe_origin(
     let path = match kind {
         ProviderKind::GitHub => "/meta",
         ProviderKind::GitLab => "/version",
+        ProviderKind::Bitbucket => return Err(unsupported()),
     };
     let url = format!("{origin}{path}");
     let fetch = async {
@@ -1057,6 +1159,7 @@ async fn probe_origin(
                 }),
                 MIN_GITHUB_SERVER,
             ),
+            ProviderKind::Bitbucket => return Err(unsupported()),
             ProviderKind::GitLab => match status {
                 200 => (field("version"), MIN_GITLAB_SERVER),
                 // GitLab requires sign-in for its version; its refusal is
@@ -1884,28 +1987,6 @@ mod tests {
         assert_eq!(value, b"fixture-secret-not-an-account-token");
         assert!(matches!(entry.get_secret(), Err(keyring::Error::NoEntry)));
     }
-    struct NoCli;
-    impl AccessProvider for NoCli {
-        fn kind(&self) -> &'static str {
-            "gitlab"
-        }
-        fn id(&self) -> &str {
-            "gitlab"
-        }
-        fn host(&self) -> &str {
-            "gitlab.com"
-        }
-        fn accounts(&self) -> Vec<Account> {
-            vec![]
-        }
-        fn busy(&self) -> bool {
-            false
-        }
-        fn check(&self) {}
-        fn credential(&self, _: &str) -> Option<Secret> {
-            None
-        }
-    }
     fn gitlab_fixture(name: &str) -> (HostingAccessService, PathBuf) {
         let path = PathBuf::from(crate::test_support::unique_temp_dir(name)).join("accounts.json");
         let service = HostingAccessService::configured(
@@ -1926,6 +2007,7 @@ mod tests {
                 User {
                     id: Some(42),
                     login: "studio.user_1".into(),
+                    uuid: None,
                 },
                 &secret,
                 &cancellation,
@@ -1958,7 +2040,8 @@ mod tests {
             .save_identity(
                 User {
                     id: Some(42),
-                    login: "renamed".into()
+                    login: "renamed".into(),
+                    uuid: None,
                 },
                 &secret,
                 &cancellation
@@ -2016,6 +2099,7 @@ mod tests {
         let user = |id, login: &str| User {
             id: Some(id),
             login: login.into(),
+            uuid: None,
         };
         service
             .save_identity(user(42, "old.name"), &secret, &cancellation)
@@ -2160,6 +2244,7 @@ mod tests {
                 User {
                     id: Some(42),
                     login: "name".into(),
+                    uuid: None,
                 },
                 &Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap(),
                 &CancellationToken::default(),
@@ -2178,6 +2263,407 @@ mod tests {
         assert_eq!(failure.code, AppErrorCode::AuthenticationFailed);
         assert!(!failure.message.contains("private_fixture_secret"));
         worker.join().unwrap();
+        assert!(!service.accounts()[0].available);
+    }
+    const BITBUCKET_UUID: &str = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    fn bitbucket_fixture(name: &str) -> (HostingAccessService, PathBuf) {
+        let path = PathBuf::from(crate::test_support::unique_temp_dir(name)).join("accounts.json");
+        let service = HostingAccessService::configured(
+            Arc::new(NoCli),
+            ProviderKind::Bitbucket,
+            path.clone(),
+            Arc::new(MemoryStore::default()),
+        );
+        (service, path)
+    }
+    fn bitbucket_repository(workspace: &str, slug: &str, link: &str) -> String {
+        format!(
+            r#"{{"uuid":"{{6c1f0d2e-1b2a-4c3d-8e9f-0a1b2c3d4e5f}}","slug":"{slug}","full_name":"{workspace}/{slug}","is_private":true,"description":"First\r\nSecond","links":{{"clone":[{{"name":"ssh","href":"git@bitbucket.org:{workspace}/{slug}.git"}},{{"name":"https","href":"{link}"}}]}}}}"#
+        )
+    }
+    #[test]
+    fn bitbucket_identities_are_uuids_with_a_display_name_fallback() {
+        let user = parse_bitbucket_user(
+            br#"{"uuid":"{3F2504E0-4F89-41D3-9A0C-0305E82C3301}","nickname":"Luis M","display_name":"Luis"}"#,
+        )
+        .unwrap();
+        assert_eq!(user.uuid.as_deref(), Some(BITBUCKET_UUID));
+        assert_eq!(user.login, "Luis M");
+        let user = parse_bitbucket_user(
+            br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","username":"","nickname":"bad\u0007","display_name":"Full Name"}"#,
+        )
+        .unwrap();
+        assert_eq!(user.login, "Full Name");
+        for body in [
+            r#"{"uuid":"not-a-uuid","nickname":"name"}"#,
+            r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c330}","nickname":"name"}"#,
+            r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}"}"#,
+            r#"{"nickname":"name"}"#,
+            r#"[]"#,
+        ] {
+            assert!(parse_bitbucket_user(body.as_bytes()).is_err(), "{body}");
+        }
+    }
+    #[test]
+    fn bitbucket_tokens_use_uuid_keys_and_the_static_git_username() {
+        let (service, path) = bitbucket_fixture("bitbucket-identity");
+        let secret = Secret::from_bytes(b"fixture-bitbucket-token-1234".to_vec()).unwrap();
+        let cancellation = CancellationToken::default();
+        let id = service
+            .save_identity(
+                parse_bitbucket_user(
+                    br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"Luis M"}"#,
+                )
+                .unwrap(),
+                &secret,
+                &cancellation,
+            )
+            .unwrap();
+        assert_eq!(id, format!("bitbucket:token.{BITBUCKET_UUID}"));
+        let account = &service.accounts()[0];
+        assert_eq!(
+            (account.host.as_str(), account.login.as_str()),
+            ("bitbucket.org", "Luis M")
+        );
+        let key = format!("token.{BITBUCKET_UUID}");
+        assert_eq!(
+            service.username(&key).as_deref(),
+            Some("x-bitbucket-api-token-auth")
+        );
+        for key in [
+            format!("cli.{BITBUCKET_UUID}"),
+            BITBUCKET_UUID.to_owned(),
+            "token.luis".to_owned(),
+            format!("token.{}", BITBUCKET_UUID.to_ascii_uppercase()),
+        ] {
+            assert!(service.username(&key).is_none(), "{key}");
+            assert!(service.credential(&key).is_none(), "{key}");
+        }
+        let restored = HostingAccessService::configured(
+            Arc::new(NoCli),
+            ProviderKind::Bitbucket,
+            path.clone(),
+            service.store.clone(),
+        );
+        assert_eq!(restored.accounts()[0].id, id);
+        assert_eq!(restored.accounts()[0].login, "Luis M");
+        assert!(!restored.accounts()[0].available);
+
+        let providers: Vec<Arc<dyn AccessProvider>> = vec![Arc::new(service.clone())];
+        let mut output = Vec::new();
+        crate::credentials::helper(
+            &providers,
+            &id,
+            std::ffi::OsStr::new("get"),
+            &b"protocol=https\nhost=bitbucket.org\nusername=x-bitbucket-api-token-auth\n\n"[..],
+            &mut output,
+        )
+        .unwrap();
+        assert!(output
+            .starts_with(b"username=x-bitbucket-api-token-auth\npassword=fixture-bitbucket-token"));
+        for request in [
+            "protocol=https\nhost=gitlab.com\n\n",
+            "protocol=http\nhost=bitbucket.org\n\n",
+            "protocol=https\nhost=bitbucket.org:8443\n\n",
+            "protocol=https\nhost=bitbucket.org.evil.test\n\n",
+            "protocol=https\nhost=bitbucket.org\nusername=luis\n\n",
+        ] {
+            output.clear();
+            assert!(crate::credentials::helper(
+                &providers,
+                &id,
+                std::ffi::OsStr::new("get"),
+                request.as_bytes(),
+                &mut output
+            )
+            .is_err());
+            assert!(output.is_empty(), "{request}");
+        }
+        service.remove(&id).unwrap();
+        assert!(service.accounts().is_empty());
+        assert!(service.credential(&key).is_none());
+        assert!(!fs::read_to_string(&path).unwrap().contains("Luis M"));
+
+        // A tampered login or a missing display name never loads.
+        for metadata in [
+            r#"{"version":1,"logins":["luis"],"usernames":{"luis":"Luis"}}"#.to_owned(),
+            format!(r#"{{"version":1,"logins":["{BITBUCKET_UUID}"]}}"#),
+            format!(
+                r#"{{"version":1,"logins":["{}"],"usernames":{{"{}":"Luis"}}}}"#,
+                BITBUCKET_UUID.to_ascii_uppercase(),
+                BITBUCKET_UUID.to_ascii_uppercase()
+            ),
+        ] {
+            fs::write(&path, metadata).unwrap();
+            let tampered = HostingAccessService::configured(
+                Arc::new(NoCli),
+                ProviderKind::Bitbucket,
+                path.clone(),
+                Arc::new(MemoryStore::default()),
+            );
+            assert!(tampered.accounts().is_empty());
+            assert!(tampered.state.lock().unwrap().metadata.is_err());
+        }
+    }
+    #[test]
+    fn bitbucket_repositories_drop_the_viewer_name_and_refuse_foreign_links() {
+        let page = |rows: &[String], next: bool| {
+            format!(
+                r#"{{"values":[{}]{}}}"#,
+                rows.join(","),
+                if next {
+                    r#","next":"https://attacker.invalid/leak""#
+                } else {
+                    ""
+                }
+            )
+        };
+        let (rows, more) = parse_bitbucket_repositories(
+            page(
+                &[bitbucket_repository(
+                    "alpha",
+                    "Web-App",
+                    "https://nick@bitbucket.org/alpha/web-app.git",
+                )],
+                true,
+            )
+            .as_bytes(),
+            "alpha",
+            "bitbucket.org",
+        )
+        .unwrap();
+        assert!(more);
+        assert_eq!(rows[0].clone_url, "https://bitbucket.org/alpha/web-app.git");
+        assert_eq!(rows[0].full_name, "alpha/web-app");
+        assert_eq!(
+            (rows[0].owner.as_str(), rows[0].name.as_str()),
+            ("alpha", "web-app")
+        );
+        assert_eq!(rows[0].description.as_deref(), Some("First\nSecond"));
+        assert!(rows[0].private && !rows[0].archived);
+        assert!(rows[0].id > 0 && rows[0].id < 1 << 53);
+        for (workspace, link) in [
+            ("alpha", "https://bitbucket.org.evil.test/alpha/web-app.git"),
+            ("alpha", "https://bitbucket.org:8443/alpha/web-app.git"),
+            ("alpha", "http://bitbucket.org/alpha/web-app.git"),
+            ("alpha", "https://bitbucket.org/other/web-app.git"),
+            (
+                "alpha",
+                "https://bitbucket.org/alpha/web-app.git?token=secret",
+            ),
+            (
+                "alpha",
+                "https://nick:secret@bitbucket.org/alpha/web-app.git",
+            ),
+            ("beta", "https://bitbucket.org/alpha/web-app.git"),
+        ] {
+            assert!(
+                parse_bitbucket_repositories(
+                    page(&[bitbucket_repository("alpha", "web-app", link)], false).as_bytes(),
+                    workspace,
+                    "bitbucket.org",
+                )
+                .is_err(),
+                "{workspace} {link}"
+            );
+        }
+        let without_https = bitbucket_repository("alpha", "web-app", "x")
+            .replace(r#""name":"https""#, r#""name":"other""#);
+        let bad_slug =
+            bitbucket_repository("alpha", "../web", "https://bitbucket.org/alpha/../web.git");
+        for rows in [vec![without_https], vec![bad_slug]] {
+            assert!(parse_bitbucket_repositories(
+                page(&rows, false).as_bytes(),
+                "alpha",
+                "bitbucket.org"
+            )
+            .is_err());
+        }
+        let many = vec![
+            bitbucket_repository(
+                "alpha",
+                "web-app",
+                "https://bitbucket.org/alpha/web-app.git"
+            );
+            101
+        ];
+        assert!(parse_bitbucket_repositories(
+            page(&many, false).as_bytes(),
+            "alpha",
+            "bitbucket.org"
+        )
+        .is_err());
+        assert!(
+            parse_bitbucket_workspaces(br#"{"values":[{"workspace":{"slug":"../x"}}]}"#).is_err()
+        );
+    }
+    #[tokio::test]
+    async fn bitbucket_discovery_walks_workspaces_and_skips_empty_ones() {
+        let (mut service, _) = bitbucket_fixture("bitbucket-discovery");
+        let secret = Secret::from_bytes(b"fixture-bitbucket-token-1234".to_vec()).unwrap();
+        let id = service
+            .save_identity(
+                parse_bitbucket_user(
+                    br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"Luis"}"#,
+                )
+                .unwrap(),
+                &secret,
+                &CancellationToken::default(),
+            )
+            .unwrap();
+        let user = || {
+            (
+                "200 OK".to_owned(),
+                r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"Luis"}"#.to_owned(),
+            )
+        };
+        let workspaces = r#"{"values":[{"workspace":{"slug":"Alpha"}},{"workspace":{"slug":"beta"}},{"workspace":{"slug":"gamma"}}]}"#;
+        let alpha = format!(
+            r#"{{"values":[{}],"next":"https://attacker.invalid/leak"}}"#,
+            bitbucket_repository("alpha", "web", "https://nick@bitbucket.org/alpha/web.git")
+        );
+        let (origin, worker) = endpoint(vec![
+            user(),
+            ("200 OK".into(), workspaces.into()),
+            ("200 OK".into(), alpha),
+        ]);
+        service.api_origin = origin;
+        let first = service
+            .repositories(id.clone(), 1, "bitbucket_one".into())
+            .await
+            .unwrap();
+        assert_eq!(first.repositories[0].full_name, "alpha/web");
+        assert_eq!(first.next_page, Some(2));
+        let requests = worker.join().unwrap();
+        assert!(requests[0].starts_with("GET /user "));
+        assert!(requests[1].starts_with("GET /user/workspaces?sort=slug&pagelen=100&page=1 "));
+        assert!(requests[2].starts_with(
+            "GET /repositories/alpha?role=member&sort=-updated_on&pagelen=100&page=1 "
+        ));
+        assert!(requests.iter().all(|request| request
+            .to_ascii_lowercase()
+            .contains("authorization: bearer fixture-bitbucket-token-1234")));
+        assert!(requests.iter().all(|request| !request.contains("attacker")));
+
+        // Alpha's second page is empty: the same request moves on to beta.
+        let (origin, worker) = endpoint(vec![
+            user(),
+            ("200 OK".into(), r#"{"values":[]}"#.into()),
+            (
+                "200 OK".into(),
+                format!(
+                    r#"{{"values":[{}]}}"#,
+                    bitbucket_repository("beta", "site", "https://bitbucket.org/beta/site.git")
+                ),
+            ),
+        ]);
+        service.api_origin = origin;
+        let second = service
+            .repositories(id.clone(), 2, "bitbucket_two".into())
+            .await
+            .unwrap();
+        assert_eq!(second.repositories[0].full_name, "beta/site");
+        assert_eq!(second.next_page, Some(3));
+        let requests = worker.join().unwrap();
+        assert!(requests[1].starts_with(
+            "GET /repositories/alpha?role=member&sort=-updated_on&pagelen=100&page=2 "
+        ));
+        assert!(requests[2].starts_with(
+            "GET /repositories/beta?role=member&sort=-updated_on&pagelen=100&page=1 "
+        ));
+
+        // Going back to page 2 starts where it was shown: beta, not alpha.
+        let (origin, worker) = endpoint(vec![
+            user(),
+            (
+                "200 OK".into(),
+                format!(
+                    r#"{{"values":[{}]}}"#,
+                    bitbucket_repository("beta", "site", "https://bitbucket.org/beta/site.git")
+                ),
+            ),
+        ]);
+        service.api_origin = origin;
+        service
+            .repositories(id.clone(), 2, "bitbucket_back".into())
+            .await
+            .unwrap();
+        assert!(worker.join().unwrap()[1].starts_with("GET /repositories/beta?"));
+
+        // A page never reached in this session needs page 1 first.
+        let (origin, worker) = endpoint(vec![user()]);
+        service.api_origin = origin;
+        let failure = service
+            .repositories(id.clone(), 5, "bitbucket_far".into())
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(failure.code, AppErrorCode::StalePreview);
+        worker.join().unwrap();
+    }
+    #[tokio::test]
+    async fn bitbucket_discovery_bounds_workspaces_and_refuses_a_changed_identity() {
+        let (mut service, _) = bitbucket_fixture("bitbucket-bounds");
+        let secret = Secret::from_bytes(b"fixture-bitbucket-token-1234".to_vec()).unwrap();
+        let id = service
+            .save_identity(
+                parse_bitbucket_user(
+                    br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"Luis"}"#,
+                )
+                .unwrap(),
+                &secret,
+                &CancellationToken::default(),
+            )
+            .unwrap();
+        let user = (
+            "200 OK".to_owned(),
+            r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"Luis"}"#.to_owned(),
+        );
+        let workspaces = |slug: &str| {
+            (
+                "200 OK".to_owned(),
+                format!(
+                    r#"{{"values":[{{"workspace":{{"slug":"{slug}"}}}}],"next":"https://api.bitbucket.org/more"}}"#
+                ),
+            )
+        };
+        // Three workspace pages are read even though Bitbucket offers more.
+        let (origin, worker) = endpoint(vec![
+            user.clone(),
+            workspaces("one"),
+            workspaces("two"),
+            workspaces("three"),
+            ("200 OK".into(), r#"{"values":[]}"#.into()),
+            ("200 OK".into(), r#"{"values":[]}"#.into()),
+            ("200 OK".into(), r#"{"values":[]}"#.into()),
+        ]);
+        service.api_origin = origin;
+        let page = service
+            .repositories(id.clone(), 1, "bitbucket_bounds".into())
+            .await
+            .unwrap();
+        assert!(page.repositories.is_empty());
+        assert_eq!(page.next_page, None);
+        let requests = worker.join().unwrap();
+        assert_eq!(requests.len(), 7);
+        assert!(requests[3].starts_with("GET /user/workspaces?sort=slug&pagelen=100&page=3 "));
+        for (request, slug) in requests[4..].iter().zip(["one", "two", "three"]) {
+            assert!(request.starts_with(&format!("GET /repositories/{slug}?")));
+        }
+
+        // A token that now belongs to another Bitbucket account is refused.
+        let (origin, worker) = endpoint(vec![(
+            "200 OK".into(),
+            r#"{"uuid":"{11111111-2222-4333-8444-555555555555}","nickname":"Luis"}"#.into(),
+        )]);
+        service.api_origin = origin;
+        let failure = service
+            .repositories(id.clone(), 1, "bitbucket_changed".into())
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(failure.code, AppErrorCode::AuthenticationFailed);
+        assert_eq!(worker.join().unwrap().len(), 1);
         assert!(!service.accounts()[0].available);
     }
 }
@@ -2248,11 +2734,278 @@ fn server_store(kind: ProviderKind, host: &str) -> String {
     match kind {
         ProviderKind::GitHub => format!("GitOdile/GitHubEnterprise/{host}/token/v1"),
         ProviderKind::GitLab => format!("GitOdile/GitLabSelfManaged/{host}/token/v1"),
+        ProviderKind::Bitbucket => BITBUCKET_STORE.to_owned(),
+    }
+}
+
+/// Token-only products have no browser connection rows or credentials.
+struct NoCli;
+impl AccessProvider for NoCli {
+    fn id(&self) -> &str {
+        ""
+    }
+    fn host(&self) -> &str {
+        ""
+    }
+    fn kind(&self) -> &'static str {
+        ""
+    }
+    fn accounts(&self) -> Vec<Account> {
+        Vec::new()
+    }
+    fn busy(&self) -> bool {
+        false
+    }
+    fn check(&self) {}
+    fn credential(&self, _: &str) -> Option<Secret> {
+        None
     }
 }
 
 impl HostingAccessService {
     fn is_server(&self) -> bool {
         &*self.id != self.kind.id()
+    }
+}
+
+/// Bitbucket has no cross-workspace repository listing: discovery lists the
+/// account's workspaces, then each workspace's repositories, one Bitbucket page
+/// per GitOdile page. Pages are numbered as the browser expects, so the start
+/// of every page already shown is remembered; later pages need page 1 first.
+#[derive(Clone)]
+struct BitbucketWalk {
+    revision: Option<u64>,
+    workspaces: Vec<String>,
+    /// `(workspace index, workspace page)` where each GitOdile page starts.
+    pages: Vec<(usize, u32)>,
+}
+/// At most 300 workspaces are listed; larger memberships show the first ones.
+const BITBUCKET_WORKSPACE_PAGES: u32 = 3;
+/// Empty workspaces skipped within one request before an empty page is shown.
+const BITBUCKET_EMPTY_SKIPS: usize = 16;
+
+#[derive(Deserialize)]
+struct BitbucketPage<T> {
+    values: Vec<T>,
+    /// Only its presence is used: GitOdile never follows a server link.
+    #[serde(default)]
+    next: Option<String>,
+}
+#[derive(Deserialize)]
+struct BitbucketWorkspaceAccess {
+    workspace: BitbucketWorkspace,
+}
+#[derive(Deserialize)]
+struct BitbucketWorkspace {
+    slug: String,
+}
+#[derive(Deserialize)]
+struct BitbucketRepository {
+    uuid: String,
+    slug: String,
+    full_name: String,
+    is_private: bool,
+    #[serde(default)]
+    description: Option<String>,
+    links: BitbucketLinks,
+}
+#[derive(Deserialize)]
+struct BitbucketLinks {
+    #[serde(default)]
+    clone: Vec<BitbucketLink>,
+}
+#[derive(Deserialize)]
+struct BitbucketLink {
+    href: String,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+/// Workspace and repository slugs, also used as URL path segments.
+fn bitbucket_slug_is_valid(slug: &str) -> bool {
+    !slug.is_empty()
+        && slug.len() <= 128
+        && slug != "."
+        && slug != ".."
+        && slug
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+}
+
+fn parse_bitbucket_page<T: serde::de::DeserializeOwned>(
+    bytes: &[u8],
+) -> Result<(Vec<T>, bool), AppError> {
+    let page: BitbucketPage<T> =
+        serde_json::from_slice(bytes).map_err(|_| error(AppErrorCode::RemoteRejected))?;
+    if page.values.len() > 100 {
+        return Err(error(AppErrorCode::RemoteRejected));
+    }
+    Ok((page.values, page.next.is_some()))
+}
+
+fn parse_bitbucket_workspaces(bytes: &[u8]) -> Result<(Vec<String>, bool), AppError> {
+    let (rows, more) = parse_bitbucket_page::<BitbucketWorkspaceAccess>(bytes)?;
+    let slugs = rows
+        .into_iter()
+        .map(|row| {
+            let slug = row.workspace.slug.to_ascii_lowercase();
+            bitbucket_slug_is_valid(&slug)
+                .then_some(slug)
+                .ok_or_else(|| error(AppErrorCode::RemoteRejected))
+        })
+        .collect::<Result<_, _>>()?;
+    Ok((slugs, more))
+}
+
+/// Browsers display a 53-bit integer exactly; derive one from the UUID.
+fn bitbucket_repository_id(uuid: &str) -> u64 {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(uuid.as_bytes());
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&digest[..8]);
+    (u64::from_be_bytes(bytes) & ((1 << 53) - 1)).max(1)
+}
+
+fn parse_bitbucket_repositories(
+    bytes: &[u8],
+    workspace: &str,
+    host: &str,
+) -> Result<(Vec<HostedRepository>, bool), AppError> {
+    let (rows, more) = parse_bitbucket_page::<BitbucketRepository>(bytes)?;
+    let repositories = rows
+        .into_iter()
+        .map(|row| {
+            let uuid =
+                bitbucket_uuid(&row.uuid).ok_or_else(|| error(AppErrorCode::RemoteRejected))?;
+            let slug = row.slug.to_ascii_lowercase();
+            let full_name = format!("{workspace}/{slug}");
+            // Bitbucket's clone link names the viewer (`nickname@`); that
+            // username is dropped, everything else must be this repository.
+            let link_matches = row
+                .links
+                .clone
+                .iter()
+                .find(|link| link.name.as_deref() == Some("https"))
+                .and_then(|link| reqwest::Url::parse(&link.href).ok())
+                .is_some_and(|url| {
+                    url.scheme() == "https"
+                        && url.host_str() == Some(host)
+                        && url.port().is_none()
+                        && url.password().is_none()
+                        && url.query().is_none()
+                        && url.fragment().is_none()
+                        && url
+                            .path()
+                            .eq_ignore_ascii_case(&format!("/{full_name}.git"))
+                });
+            if !bitbucket_slug_is_valid(&slug)
+                || !row.full_name.eq_ignore_ascii_case(&full_name)
+                || !link_matches
+            {
+                return Err(error(AppErrorCode::RemoteRejected));
+            }
+            Ok(HostedRepository {
+                id: bitbucket_repository_id(&uuid),
+                name: slug,
+                clone_url: format!("https://{host}/{full_name}.git"),
+                full_name,
+                owner: workspace.to_owned(),
+                private: row.is_private,
+                archived: false,
+                description: row.description.as_deref().and_then(display_text),
+            })
+        })
+        .collect::<Result<_, _>>()?;
+    Ok((repositories, more))
+}
+
+impl HostingAccessService {
+    async fn bitbucket_workspaces(
+        &self,
+        secret: &Secret,
+        cancellation: &CancellationToken,
+    ) -> Result<Vec<String>, AppError> {
+        let mut workspaces = Vec::new();
+        for page in 1..=BITBUCKET_WORKSPACE_PAGES {
+            let path = format!("/user/workspaces?sort=slug&pagelen=100&page={page}");
+            let (bytes, _) = get(&self.api_origin, &path, secret, cancellation).await?;
+            let (slugs, more) = parse_bitbucket_workspaces(&bytes)?;
+            for slug in slugs {
+                if !workspaces.contains(&slug) {
+                    workspaces.push(slug);
+                }
+            }
+            if !more {
+                break;
+            }
+        }
+        Ok(workspaces)
+    }
+
+    async fn bitbucket_page(
+        &self,
+        account_id: &str,
+        revision: Option<u64>,
+        page: u32,
+        secret: &Secret,
+        cancellation: &CancellationToken,
+    ) -> Result<(Vec<HostedRepository>, bool), AppError> {
+        let index = page as usize - 1;
+        let mut walk = if page == 1 {
+            BitbucketWalk {
+                revision,
+                workspaces: self.bitbucket_workspaces(secret, cancellation).await?,
+                pages: vec![(0, 1)],
+            }
+        } else {
+            self.walks
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(account_id)
+                .filter(|walk| walk.revision == revision && walk.pages.len() > index)
+                .cloned()
+                .ok_or_else(|| {
+                    error(AppErrorCode::StalePreview)
+                        .with_remediation("Go back to the first page of projects.")
+                })?
+        };
+        walk.pages.truncate(index + 1);
+        let (mut workspace, mut workspace_page) = walk.pages[index];
+        let mut skipped = 0;
+        let (repositories, following) = loop {
+            let Some(slug) = walk.workspaces.get(workspace) else {
+                break (Vec::new(), None);
+            };
+            let path = format!(
+                "/repositories/{slug}?role=member&sort=-updated_on&pagelen=100&page={workspace_page}"
+            );
+            let (bytes, _) = get(&self.api_origin, &path, secret, cancellation).await?;
+            let (rows, more) = parse_bitbucket_repositories(&bytes, slug, &self.host)?;
+            let following = if more && workspace_page < 1000 {
+                Some((workspace, workspace_page + 1))
+            } else if workspace + 1 < walk.workspaces.len() {
+                Some((workspace + 1, 1))
+            } else {
+                None
+            };
+            match following {
+                Some(next) if rows.is_empty() && skipped < BITBUCKET_EMPTY_SKIPS => {
+                    (workspace, workspace_page) = next;
+                    skipped += 1;
+                }
+                _ => break (rows, following),
+            }
+        };
+        walk.pages[index] = (workspace, workspace_page);
+        let next = following.filter(|_| page < 1000);
+        if let Some(position) = next {
+            walk.pages.push(position);
+        }
+        let mut walks = self.walks.lock().unwrap_or_else(|e| e.into_inner());
+        if walks.len() >= 2 * MAX_ACCOUNTS && !walks.contains_key(account_id) {
+            walks.clear();
+        }
+        walks.insert(account_id.to_owned(), walk);
+        Ok((repositories, next.is_some()))
     }
 }

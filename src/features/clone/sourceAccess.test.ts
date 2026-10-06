@@ -83,6 +83,25 @@ it("accepts nested GitLab sources and refuses cross-provider account reads", asy
   expect(checkSource).toHaveBeenCalledWith("https://gitlab.com/team/subgroup/project", "gitlab:token.42", expect.any(String));
 });
 
+it("accepts Bitbucket workspace/repository sources and maps them to its connections only", async () => {
+  expect(hostingCloneAddress("https://bitbucket.org/studio/site.git")).toEqual({ https: true, provider: "bitbucket", providerId: "bitbucket" });
+  expect(hostingCloneAddress("git@bitbucket.org:studio/site.git")).toEqual({ https: false, provider: "bitbucket", providerId: "bitbucket" });
+  // Bitbucket's copy button embeds the viewer's name; that address never selects an account.
+  for (const source of ["https://luis@bitbucket.org/studio/site.git", "https://bitbucket.org/studio/group/site.git",
+    "https://bitbucket.org:8443/studio/site.git", "https://bitbucket.org.evil.test/studio/site.git", "http://bitbucket.org/studio/site.git"]) {
+    expect(hostingCloneAddress(source)).toBeNull();
+  }
+  vi.useFakeTimers();
+  const checkSource = vi.fn(async () => "accessible" as const);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  controller.update("https://bitbucket.org/studio/site.git", "gitlab:token.42");
+  await vi.advanceTimersByTimeAsync(1000); expect(checkSource).not.toHaveBeenCalled();
+  const accountId = "bitbucket:token.3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  controller.update("https://bitbucket.org/studio/site.git", accountId);
+  await vi.advanceTimersByTimeAsync(550);
+  expect(checkSource).toHaveBeenCalledWith("https://bitbucket.org/studio/site.git", accountId, expect.any(String));
+});
+
 it("recognizes registered company servers by exact authority and maps their connection", () => {
   const providers = [
     { id: "github", host: "github.com", kind: "github" as const, builtIn: true },

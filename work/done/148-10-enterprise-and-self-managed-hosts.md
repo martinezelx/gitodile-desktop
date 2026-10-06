@@ -1,7 +1,7 @@
 ---
 id: 148-10
 title: Connect GitHub Enterprise Server and GitLab Self-Managed hosts
-status: active
+status: done
 priority: high
 type: feature
 areas:
@@ -9,14 +9,14 @@ areas:
   - frontend
   - platform
 created: 2026-10-06
-completed:
+completed: 2026-10-06
 parent: "148"
-queue: "01"
+queue:
 ---
 
 # Goal
 
-Extend [epic 148](148-connect-github-account.md)'s shared accounts, HTTPS
+Extend [epic 148](../active/148-connect-github-account.md)'s shared accounts, HTTPS
 access and repository discovery from the fixed `github.com` and `gitlab.com`
 hosts to user-added corporate hosts: GitHub Enterprise Server and GitLab
 Self-Managed (including GitLab Dedicated, which behaves as a self-managed host).
@@ -188,9 +188,9 @@ the glab Git-helper lookup no longer runs a version probe per transfer.
 - [x] Native tests cover parsing, ID grammar, registry persistence, helper host
   and port matching, and per-host token namespaces with fake servers and fake
   gh/glab; frontend tests cover the new Settings, clone and project flows.
-- [ ] Real qualification against at least one GitHub Enterprise Server and one
+- [x] Real qualification against at least one GitHub Enterprise Server and one
   GitLab Self-Managed instance is recorded, or its absence is stated honestly.
-- [ ] Documentation (README capabilities, ARCHITECTURE, DESIGN wording, IPC
+- [x] Documentation (README capabilities, ARCHITECTURE, DESIGN wording, IPC
   contract) is updated and `pnpm run check` passes.
 
 # Relevant files
@@ -304,4 +304,11 @@ Not qualified: no real GitHub Enterprise Server or GitLab Self-Managed instance
 was available, so adding a real server, token/gh/glab sign-in, discovery,
 private clone and publishing against one remain unverified, as does behavior
 behind a corporate CA or proxy. macOS/Linux runtime limits remain under ADR 0006.
-The task stays active until that qualification is recorded.
+
+## Closure — 2026-10-06
+
+The owner closed the task with the implementation, documentation and aggregate
+gate recorded above. The qualification criterion is met by stating its absence:
+no real GitHub Enterprise Server or GitLab Self-Managed instance was available.
+Real company-server qualification remains open evidence, to be recorded when the
+user supplies an instance; it does not reopen this task's scope.

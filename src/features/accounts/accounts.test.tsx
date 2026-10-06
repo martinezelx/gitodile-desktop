@@ -49,7 +49,7 @@ describe("shared provider accounts", () => {
 
   it("reads only cached receipts on opening and saves separate provider bindings with the current epoch", async () => {
     const api = port();
-    render(<ProjectAccountSection project={{ path: "/project", sessionEpoch: "epoch-1" }}
+    const { unmount } = render(<ProjectAccountSection project={{ path: "/project", sessionEpoch: "epoch-1" }}
       remoteUrls={["https://github.com/org/repo.git", "https://gitlab.com/org/repo.git"]} port={api} />, { wrapper });
     await waitFor(() => expect(screen.getAllByRole("combobox")).toHaveLength(2));
     await waitFor(() => expect(screen.getAllByRole("combobox")[0]).toBeEnabled());
@@ -60,6 +60,12 @@ describe("shared provider accounts", () => {
     await userEvent.click(screen.getAllByRole("combobox")[1]);
     await userEvent.click(screen.getByRole("option", { name: /@studio/ }));
     await waitFor(() => expect(api.selectProject).toHaveBeenCalledWith({ path: "/project", sessionEpoch: "epoch-1" }, "gitlab", "gitlab:studio", null));
+    // Opening the project again renders the cached receipt and only reads.
+    unmount();
+    render(<ProjectAccountSection project={{ path: "/project", sessionEpoch: "epoch-1" }}
+      remoteUrls={["https://github.com/org/repo.git"]} port={api} />, { wrapper });
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    expect(api.check).not.toHaveBeenCalled();
   });
 
   it("follows the project's HTTPS remotes and reads only the relevant provider binding", async () => {
@@ -247,5 +253,26 @@ describe("company server remotes", () => {
     expect(providerForSource("https://github.com:444/team/repo.git", providers)).toBeNull();
     expect(remoteAccountIssues(["http://ghe.example.com:8443/team/repo.git"], [], providers).get("ghe-0123456789"))
       .toEqual({ issue: "insecure", host: "ghe.example.com:8443" });
+  });
+});
+
+describe("Bitbucket remotes", () => {
+  const providers = [
+    { id: "github", host: "github.com", kind: "github" as const, builtIn: true },
+    { id: "bitbucket", host: "bitbucket.org", kind: "bitbucket" as const, builtIn: true },
+  ];
+  it("get their own account picker beside other providers", () => {
+    expect(providerForSource("https://bitbucket.org/studio/site.git", providers)).toBe("bitbucket");
+    expect(providerForSource("https://github.com/team/repo.git", providers)).toBe("github");
+    for (const source of ["https://luis@bitbucket.org/studio/site.git", "https://bitbucket.org:444/studio/site.git", "git@bitbucket.org:studio/site.git"]) {
+      expect(providerForSource(source, providers)).toBeNull();
+    }
+  });
+  it("warn when a Bitbucket remote stores sign-in details (its copied address) or uses HTTP", () => {
+    // Sign-in remotes arrive redacted; the native side flags the stored username.
+    expect(remoteAccountIssues([], ["https://bitbucket.org/studio/site.git"], providers).get("bitbucket"))
+      .toEqual({ issue: "sign-in", host: "bitbucket.org" });
+    expect(remoteAccountIssues(["http://bitbucket.org/studio/site.git"], [], providers).get("bitbucket"))
+      .toEqual({ issue: "insecure", host: "bitbucket.org" });
   });
 });

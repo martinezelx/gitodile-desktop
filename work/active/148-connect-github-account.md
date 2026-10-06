@@ -40,10 +40,11 @@ Milestones, in dependency order:
 - [x] Native GitHub token connections ([148-9](../done/148-9-github-token-connections.md)).
 - [x] GitHub repository discovery and clone handoff ([148-5](../done/148-5-provider-repository-browser.md)).
 - [x] GitLab.com accounts/access and browser extension ([148-4](../done/148-4-gitlab-accounts.md)).
-- [ ] GitHub Enterprise Server and GitLab Self-Managed hosts ([148-10](148-10-enterprise-and-self-managed-hosts.md)).
+- [x] GitHub Enterprise Server and GitLab Self-Managed hosts ([148-10](../done/148-10-enterprise-and-self-managed-hosts.md)).
+- [ ] Bitbucket Cloud token connections and repository discovery ([148-11](148-11-bitbucket-token-connections.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
-- [ ] Deferred provider scope: Bitbucket Cloud accounts/access ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
+- [ ] Deferred provider scope: Bitbucket Cloud browser authorization ([148-8](../blocked/148-8-bitbucket-accounts.md)); outside the current completion gate.
 - [ ] Subsequent scope: GitOdile-owned GitHub authorization, with browser sign-in independent of gh (see below).
 
 Each child owns qualification of its account/access/API behavior across supported
@@ -387,7 +388,7 @@ results are recorded in the completed GitLab task.
 ## Corporate hosts (2026-10-06)
 
 The user requested GitHub Enterprise Server and GitLab Self-Managed accounts
-alongside the public hosts. New child [148-10](148-10-enterprise-and-self-managed-hosts.md)
+alongside the public hosts. New child [148-10](../done/148-10-enterprise-and-self-managed-hosts.md)
 generalizes the fixed-host registry, account IDs, token namespaces, helper and
 clone checks into host-scoped provider instances. It takes queue position 01,
 ahead of PRs/Actions, so those screens consume the same instances; every other
@@ -423,3 +424,24 @@ library tests (1 ignored OS-store qualification) and the actual-binary helper
 test. It used an isolated Cargo target directory. No real provider login,
 token change, clone or publish was performed for these fixes, and the warning
 was verified by component tests rather than in the running app.
+
+## Company servers closed and Bitbucket tokens queued (2026-10-06)
+
+The owner closed [148-10](../done/148-10-enterprise-and-self-managed-hosts.md)
+with real company-server qualification recorded as unavailable. The user then
+approved Bitbucket Cloud through native API tokens, as GitHub and GitLab tokens
+work. New child [148-11](148-11-bitbucket-token-connections.md) owns that scope
+and takes the freed queue position 01, ahead of PRs/Actions, so those screens
+are built on three products. Bitbucket browser authorization stays deferred in
+[148-8](../blocked/148-8-bitbucket-accounts.md); every other active task keeps
+its position.
+
+## Saved accounts verified after launch (2026-10-06)
+
+The owner judged that requiring **Check accounts** after every launch before
+cloning or publishing makes no sense. After reviewing GitHub Desktop, Fork and
+Sourcetree, saved connections of every product are verified in the background
+three seconds after launch, as GitHub Desktop does
+([ADR 0027](../../docs/adr/0027-verify-saved-accounts-after-launch.md)).
+Provider sections also render the last account receipt at once when shown
+again, and never show an unread catalog as empty.

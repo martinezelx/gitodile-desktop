@@ -607,6 +607,7 @@ fn main() {
         Ok(hosting_access::User {
             id: Some(42),
             login: "user.with_dot".into(),
+            uuid: None,
         })
     }
     #[test]

@@ -50,12 +50,12 @@ function setup({ rows = [] as Row[], providers = [github] as AccountCatalog["pro
 describe("one account list per product", () => {
   it("groups every host's connections under their own host", async () => {
     const { serverAuth } = setup({ providers: [github, server], rows: [token(server.id, "saml_user")] });
-    const publicHost = await screen.findByRole("group", { name: "github.com" });
-    const company = screen.getByRole("group", { name: "ghe.example.com:8443" });
+    const company = await screen.findByRole("group", { name: "ghe.example.com:8443" });
+    const publicHost = screen.getByRole("group", { name: "github.com" });
     expect(within(publicHost).getByText("No accounts yet.")).toBeVisible();
     expect(within(company).getByRole("group", { name: "@saml_user" })).toBeVisible();
     expect(within(company).getByText("Company")).toBeVisible();
-    // Showing a server reads cached receipts only.
+    // Showing a server reads cached receipts only; the launch sync checks.
     await waitFor(() => expect(serverAuth.readState).toHaveBeenCalled());
     expect(serverAuth.check).not.toHaveBeenCalled();
     // Any account on the page makes adding another a secondary action.
@@ -206,7 +206,7 @@ describe("GitLab browser connections", () => {
     const gitlab = { id: "gitlab", host: "gitlab.com", kind: "gitlab" as const, builtIn: true };
     const session = { id: "gitlab:cli.7", provider: "gitlab", host: "gitlab.com", login: "dev", avatarDataUrl: null, available: true };
     const accountPort: AccountsPort = { readCatalog: vi.fn(async () => ({ providers: [gitlab], accounts: [session], busy: false })),
-      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn() };
     const auth = { snapshot: { state: "connected" as const, operationId: null, needsCheck: false, account: session }, pending: false,
       check: vi.fn(async () => undefined), connect: vi.fn(async () => undefined), disconnect: vi.fn(async () => undefined), cancel: vi.fn(async () => undefined) };
     render(<LanguageProvider><ProviderConnectionsSettings auth={{ kind: "gitlab", controller: auth }} cliAvailable accountPort={accountPort}

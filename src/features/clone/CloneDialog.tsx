@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { AccountPicker, accountsPort, providerForSource, providerKind, useAccounts, type AccountsPort } from "../accounts";
+import { AccountPicker, accountsPort, providerForSource, providerKind, useAccounts, type AccountsPort, type HostingKind } from "../accounts";
 import { RepositoryBrowser, createRepositoryBrowserController, repositoryBrowserPort, type RepositoryBrowserPort, type RepositoryChoice } from "../repository-browser";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
@@ -70,7 +70,7 @@ export function CloneDialog({
   const closeAfterCancelRef = useRef(false);
   const [source, setSource] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
-  const [sourceMode, setSourceMode] = useState<"url" | "github" | "gitlab">("url");
+  const [sourceMode, setSourceMode] = useState<"url" | HostingKind>("url");
   const [selectedRepository, setSelectedRepository] = useState<RepositoryChoice | null>(null);
   const [repositoryBrowser] = useState(() => createRepositoryBrowserController(repositoryPort));
   const browserState = useSyncExternalStore(repositoryBrowser.subscribe, repositoryBrowser.snapshot);
@@ -80,17 +80,20 @@ export function CloneDialog({
   useEffect(() => { setAccountId(current => provider && current?.startsWith(`${provider}:`) ? current : null); }, [provider]);
   // Entering a discovery tab offers the connection used last time, or the only
   // usable one. Selecting is local; finding projects stays an explicit action.
+  // A check in progress (such as the launch sync, ADR 0027) may still make
+  // connections usable, so wait for it.
   const preselected = useRef<string | null>(null);
   useEffect(() => {
     if (sourceMode === "url") { preselected.current = null; return; }
     if (preselected.current === sourceMode || catalog.providers.length === 0 || browserState.accountId) return;
+    if (checkingAccounts || catalog.busy) return;
     preselected.current = sourceMode;
     const usable = catalog.accounts.filter(account => account.available
       && providerKind(catalog.providers, account.provider) === sourceMode);
     const remembered = readLastCloneConnection(sourceMode);
     const choice = usable.find(account => account.id === remembered) ?? (usable.length === 1 ? usable[0] : undefined);
     if (choice) repositoryBrowser.select(choice.id);
-  }, [sourceMode, catalog, browserState.accountId, repositoryBrowser]);
+  }, [sourceMode, catalog, browserState.accountId, repositoryBrowser, checkingAccounts]);
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
   const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
@@ -224,7 +227,7 @@ export function CloneDialog({
     controller.sourceAccess.update(value, nextAccount, catalog.providers);
   };
 
-  const changeSourceMode = (mode: "url" | "github" | "gitlab"): void => {
+  const changeSourceMode = (mode: "url" | HostingKind): void => {
     controller.sourceAccess.cancel(); repositoryBrowser.cancel();
     if (mode !== sourceMode) { repositoryBrowser.select(null); setSelectedRepository(null); setSource(""); setAccountId(null); setDestinationName(""); }
     setSourceMode(mode); resetFieldErrors();
@@ -415,6 +418,7 @@ export function CloneDialog({
             <button type="button" aria-pressed={sourceMode === "url"} onClick={() => changeSourceMode("url")}><Link aria-hidden="true" />{t.cloneGitAddress}</button>
             <button type="button" aria-pressed={sourceMode === "github"} onClick={() => changeSourceMode("github")}><HostingProviderIcon provider="github" />GitHub</button>
             <button type="button" aria-pressed={sourceMode === "gitlab"} onClick={() => changeSourceMode("gitlab")}><HostingProviderIcon provider="gitlab" />GitLab</button>
+            <button type="button" aria-pressed={sourceMode === "bitbucket"} onClick={() => changeSourceMode("bitbucket")}><HostingProviderIcon provider="bitbucket" />Bitbucket</button>
           </nav>
           {sourceMode !== "url" ? <RepositoryBrowser provider={sourceMode} controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
             onConnectionChange={id => writeLastCloneConnection(sourceMode, id)}

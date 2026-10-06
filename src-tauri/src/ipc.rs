@@ -10,6 +10,7 @@ use crate::{
         UpdateCheckSource, UpdateState,
     },
     application,
+    bitbucket_access::BitbucketAccessService,
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{
         self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
@@ -73,9 +74,28 @@ pub(crate) fn remove_github_token(
 }
 
 #[tauri::command]
+pub(crate) async fn add_bitbucket_token(
+    service: tauri::State<'_, BitbucketAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_bitbucket_token", service.add(token, request_id).await)
+}
+
+#[tauri::command(async)]
+pub(crate) fn remove_bitbucket_token(
+    service: tauri::State<'_, BitbucketAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_bitbucket_token");
+    report_result("remove_bitbucket_token", service.remove(&account_id))
+}
+
+#[tauri::command]
 pub(crate) async fn list_hosting_repositories(
     service: tauri::State<'_, GitHubAccessService>,
     gitlab: tauri::State<'_, GitLabAccessService>,
+    bitbucket: tauri::State<'_, BitbucketAccessService>,
     servers: tauri::State<'_, HostingServers>,
     account_id: String,
     page: u32,
@@ -83,8 +103,10 @@ pub(crate) async fn list_hosting_repositories(
 ) -> Result<RepositoryPage, AppError> {
     report_result(
         "list_hosting_repositories",
-        crate::hosting::repositories(&service, &gitlab, &servers, account_id, page, request_id)
-            .await,
+        crate::hosting::repositories(
+            &service, &gitlab, &bitbucket, &servers, account_id, page, request_id,
+        )
+        .await,
     )
 }
 
@@ -92,12 +114,14 @@ pub(crate) async fn list_hosting_repositories(
 pub(crate) fn cancel_hosting_request(
     service: tauri::State<'_, GitHubAccessService>,
     gitlab: tauri::State<'_, GitLabAccessService>,
+    bitbucket: tauri::State<'_, BitbucketAccessService>,
     servers: tauri::State<'_, HostingServers>,
     request_id: String,
 ) {
     let _command = application::enter("cancel_hosting_request");
     service.cancel(&request_id);
     gitlab.cancel(&request_id);
+    bitbucket.cancel(&request_id);
     servers.cancel(&request_id);
 }
 

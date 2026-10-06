@@ -28,7 +28,7 @@ export function ProviderConnectionsSettings({ auth, cliAvailable, port = hosting
   const kind = auth.kind;
   const builtInTokenPort = tokenPort ?? (kind === "github" ? githubTokenPort : gitlabTokenPort);
   const headingId = useId();
-  const { catalog, failed, reload, check, pending: checking } = useAccounts(accountPort, true);
+  const { catalog, loaded, failed, reload, check, pending: checking } = useAccounts(accountPort, true);
   const providers = catalog.providers.filter(provider => provider.kind === kind);
   const builtIn: HostingProvider = providers.find(provider => provider.builtIn) ?? { id: kind, host: `${kind}.com`, kind, builtIn: true };
   const servers = providers.filter(provider => !provider.builtIn);
@@ -62,7 +62,7 @@ export function ProviderConnectionsSettings({ auth, cliAvailable, port = hosting
         <div className="github-account__actions">
           <RefreshIconButton label={t.accountsCheck} busyLabel={t.accountsChecking} busy={checking || catalog.busy}
             disabled={failed || adding} onClick={checkAll} />
-          <button ref={addButton} type="button" className={hasAccounts ? "secondary-button" : "primary-button"}
+          <button ref={addButton} type="button" className={hasAccounts || !loaded ? "secondary-button" : "primary-button"}
             disabled={failed || adding} onClick={() => { setAdding(true); setMessage(""); }}>
             <Plus aria-hidden="true" />{t.hostingAccountsAdd}</button>
         </div>
@@ -76,13 +76,13 @@ export function ProviderConnectionsSettings({ auth, cliAvailable, port = hosting
           catalog={catalog}
           onCancel={close} onConnect={connect} onSettled={reload}
           onAdded={text => { restoreFocus.current = true; setAdding(false); setMessage(text); reload(); }} />}
-        <HostAccounts provider={builtIn} catalog={catalog} checking={checking} onChanged={reload}
+        <HostAccounts provider={builtIn} catalog={catalog} loaded={loaded} checking={checking} onChanged={reload}
           tokenPort={builtInTokenPort}>
           {auth.kind === "github"
             ? <GitHubAccountSection controller={auth.controller} available={cliAvailable} />
             : <GitLabAccountSection controller={auth.controller} available={cliAvailable} host={builtIn.host} />}
         </HostAccounts>
-        {servers.map(server => <ServerAccounts key={server.id} server={server} catalog={catalog} checking={checking} port={port}
+        {servers.map(server => <ServerAccounts key={server.id} server={server} catalog={catalog} loaded={loaded} checking={checking} port={port}
           onChanged={reload} cliAvailable={cliAvailable} connectRequest={connectRequest} checkNonce={checkNonce} />)}
         {message && <p role="status" className="status-line status-line--success"><CheckCircle2 aria-hidden="true" /><span>{message}</span></p>}
       </div>
@@ -91,8 +91,8 @@ export function ProviderConnectionsSettings({ auth, cliAvailable, port = hosting
   </>;
 }
 
-function HostAccounts({ provider, catalog, checking, tokenPort, onChanged, children }: {
-  provider: HostingProvider; catalog: AccountCatalog; checking: boolean; tokenPort: TokenConnectionPort;
+function HostAccounts({ provider, catalog, loaded, checking, tokenPort, onChanged, children }: {
+  provider: HostingProvider; catalog: AccountCatalog; loaded: boolean; checking: boolean; tokenPort: TokenConnectionPort;
   onChanged: () => void; children: React.ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -109,17 +109,17 @@ function HostAccounts({ provider, catalog, checking, tokenPort, onChanged, child
       <TokenConnectionRows provider={provider.id} catalog={catalog} checking={checking} port={tokenPort}
         copy={provider.kind === "github" ? githubCopy : gitlabCopy} onChanged={onChanged} />
       {children}
-      {empty && <p className="github-account__note hosting-accounts__empty">{t.hostingAccountsNone}</p>}
+      {empty && loaded && <p className="github-account__note hosting-accounts__empty">{t.hostingAccountsNone}</p>}
     </div>
   </div>;
 }
 
-function ServerAccounts({ server, catalog, checking, port, onChanged, cliAvailable, connectRequest, checkNonce }: {
-  server: HostingProvider; catalog: AccountCatalog; checking: boolean; port: HostingServersPort; onChanged: () => void;
+function ServerAccounts({ server, catalog, loaded, checking, port, onChanged, cliAvailable, connectRequest, checkNonce }: {
+  server: HostingProvider; catalog: AccountCatalog; loaded: boolean; checking: boolean; port: HostingServersPort; onChanged: () => void;
   cliAvailable: boolean | null; connectRequest: ConnectRequest; checkNonce: number;
 }): React.JSX.Element {
   const tokenPort = useMemo(() => port.tokenPort(server.id), [port, server.id]);
-  return <HostAccounts provider={server} catalog={catalog} checking={checking} tokenPort={tokenPort} onChanged={onChanged}>
+  return <HostAccounts provider={server} catalog={catalog} loaded={loaded} checking={checking} tokenPort={tokenPort} onChanged={onChanged}>
     {server.kind === "github"
       ? <GitHubServerBrowser server={server} port={port} cliAvailable={cliAvailable} connectRequest={connectRequest} checkNonce={checkNonce} />
       : <GitLabServerBrowser server={server} port={port} cliAvailable={cliAvailable} connectRequest={connectRequest} checkNonce={checkNonce} />}

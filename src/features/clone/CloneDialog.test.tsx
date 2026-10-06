@@ -102,7 +102,7 @@ describe("CloneDialog", () => {
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
     const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: provider, host: `${provider}.com`, kind: provider, builtIn: true }], busy: false,
       accounts: [browserId, accountId].map(id => ({ id, provider, host: `${provider}.com`, login: "work", avatarDataUrl: null, available: true })) }),
-      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn() };
     const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
       repositories: [{ id: 1, name: "project", fullName, owner: provider === "github" ? "team" : "team/subgroup", private: true, archived: false, description: null, cloneUrl }] }));
     const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId }));
@@ -120,6 +120,31 @@ describe("CloneDialog", () => {
     await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
     await waitFor(() => expect(plan).toHaveBeenCalled());
     expect(plan.mock.calls[0][0]).toMatchObject({ source: cloneUrl, accountId, destinationName: "project" });
+  });
+  it("lists Bitbucket projects through its only token connection and clones the selected one", async () => {
+    const accountId = "bitbucket:token.3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    const cloneUrl = "https://bitbucket.org/studio/site.git";
+    globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
+    const accounts: AccountsPort = { readCatalog: async () => ({ busy: false,
+      providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }, { id: "bitbucket", host: "bitbucket.org", kind: "bitbucket", builtIn: true }],
+      accounts: [{ id: "github:token.work", provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true },
+        { id: accountId, provider: "bitbucket", host: "bitbucket.org", login: "luis", avatarDataUrl: null, available: true }] }),
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn() };
+    const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
+      repositories: [{ id: 7, name: "site", fullName: "studio/site", owner: "studio", private: true, archived: false, description: null, cloneUrl }] }));
+    const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId }));
+    renderDialog({ plan }, accounts, { list, cancel: vi.fn(async () => undefined) });
+    await userEvent.click(screen.getByRole("button", { name: "Bitbucket" }));
+    // The only Bitbucket connection is preselected; GitHub's is never used.
+    await waitFor(() => expect(list).toHaveBeenCalledWith(accountId, 1, expect.any(String)));
+    expect(screen.getByRole("combobox")).toHaveTextContent("@luis");
+    await userEvent.click(await screen.findByRole("button", { name: "Choose studio/site" }));
+    await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
+    await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
+    await waitFor(() => expect(plan).toHaveBeenCalled());
+    expect(plan.mock.calls[0][0]).toMatchObject({ source: cloneUrl, accountId, destinationName: "site" });
   });
   it.each([false, true])("keeps a completed clone when account persistence fails (cleanup: %s)", async (needsCleanup) => {
     const execute = vi.fn<ClonePort["execute"]>(async () => ({ ...result, accountSelectionSaved: false,
@@ -142,7 +167,7 @@ describe("CloneDialog", () => {
     const accountPort: AccountsPort = {
       readCatalog: vi.fn().mockResolvedValue({ providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
         accounts: [{id: "github:work", provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true}] }),
-      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn(),
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn(),
     };
     const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, sourceDisplay: "https://github.com/team/project.git", accountId: "github:work" }));
     const execute = vi.fn<ClonePort["execute"]>(async () => result);
@@ -243,7 +268,7 @@ describe("remembered discovery connection", () => {
     localStorage.setItem("gitodile-clone-connection-github", "github:token.work");
     const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
       accounts: ["github:work", "github:token.work"].map(id => ({ id, provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true })) }),
-      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn() };
     const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
       repositories: [{ id: 1, name: "project", fullName: "team/project", owner: "team", private: true, archived: false, description: null, cloneUrl: "https://github.com/team/project.git" }] }));
     renderDialog({}, accounts, { list, cancel: vi.fn(async () => undefined) });

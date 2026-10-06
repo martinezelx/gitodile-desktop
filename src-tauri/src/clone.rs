@@ -128,11 +128,15 @@ pub(crate) enum CloneSourceAccess {
 /// no other hosts, local paths, URL secrets or executable-looking inputs.
 fn checked_hosting_source(raw: &str) -> Result<NormalizedSource, AppError> {
     checked_hosting_source_with(raw, |name| {
-        let mut known = [("github.com", "github"), ("gitlab.com", "gitlab")]
-            .into_iter()
-            .filter(|(host, _)| *host == name)
-            .map(|(host, kind)| (host.to_owned(), kind))
-            .collect::<Vec<_>>();
+        let mut known = [
+            ("github.com", "github"),
+            ("gitlab.com", "gitlab"),
+            ("bitbucket.org", "bitbucket"),
+        ]
+        .into_iter()
+        .filter(|(host, _)| *host == name)
+        .map(|(host, kind)| (host.to_owned(), kind))
+        .collect::<Vec<_>>();
         known.extend(crate::credentials::providers_named(name));
         known
     })
@@ -171,7 +175,8 @@ fn checked_hosting_source_with(
             known
                 .iter()
                 .find(|(host, _)| {
-                    url.port().is_none() || !matches!(host.as_str(), "github.com" | "gitlab.com")
+                    url.port().is_none()
+                        || !matches!(host.as_str(), "github.com" | "gitlab.com" | "bitbucket.org")
                 })
                 .map(|(_, kind)| *kind)
         } else {
@@ -186,7 +191,7 @@ fn checked_hosting_source_with(
         )
     };
     let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
-    if (kind == "github" && parts.len() != 2)
+    if (matches!(kind, "github" | "bitbucket") && parts.len() != 2)
         || parts.len() < 2
         || parts.len() > 32
         || parts.iter().any(|part| {
@@ -1507,6 +1512,9 @@ mod tests {
             "https://gitlab.com/team/subgroup/project.git",
             "git@gitlab.com:team/subgroup/project.git",
             "ssh://git@gitlab.com/team/project",
+            "https://bitbucket.org/workspace/project.git",
+            "git@bitbucket.org:workspace/project.git",
+            "ssh://git@bitbucket.org/workspace/project.git",
         ] {
             assert!(checked_hosting_source(value).is_ok(), "{value}");
         }
@@ -1522,6 +1530,10 @@ mod tests {
             "https://github.com/team/project?token=secret",
             "https://github.com/team/project#secret",
             "https://github.com:444/team/project",
+            "https://bitbucket.org/workspace/group/project.git",
+            "https://nick@bitbucket.org/workspace/project.git",
+            "https://bitbucket.org:444/workspace/project.git",
+            "ssh://git@bitbucket.org:2222/workspace/project.git",
             "--upload-pack=evil",
             "C:\\projects",
         ] {

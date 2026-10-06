@@ -1,6 +1,6 @@
 ---
 id: 148-8
-title: Connect Bitbucket through shared provider accounts
+title: Connect Bitbucket through browser authorization
 status: blocked
 priority: high
 type: feature
@@ -96,6 +96,12 @@ Resolve authorization prerequisites before promising a working browser flow.
 
 # Blocker / deferred scope
 
+On 2026-10-06 the user approved Bitbucket Cloud API-token connections and
+discovery as [148-11](../active/148-11-bitbucket-token-connections.md). This task
+now covers only browser authorization (GCM or an OAuth consumer) as a second
+source beside those tokens, and stays deferred.
+
+
 Deferred by the user on 2026-10-04: implement only GitHub and GitLab for now.
 Do not implement or requeue Bitbucket without a new scope decision. No missing
 technical capability is inferred from this product-priority deferral.
@@ -113,7 +119,8 @@ Inspected on 2026-10-04; verify current provider behavior before implementation:
   secret as confidential; resolve the desktop authorization design explicitly.
 - [API tokens](https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/)
   are distinct from OAuth. Do not build a new integration around retired app
-  passwords or introduce a token-paste UI merely to bypass browser-flow decisions.
+  passwords. Native API tokens are now owned by
+  [148-11](../active/148-11-bitbucket-token-connections.md) by user decision.
 
 # Execution handoff
 

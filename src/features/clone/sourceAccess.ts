@@ -14,11 +14,13 @@ export type CloneSourceAccessPort = {
 const BUILT_IN_PROVIDERS: HostingProvider[] = [
   { id: "github", host: "github.com", kind: "github", builtIn: true },
   { id: "gitlab", host: "gitlab.com", kind: "gitlab", builtIn: true },
+  { id: "bitbucket", host: "bitbucket.org", kind: "bitbucket", builtIn: true },
 ];
 export type HostingCloneAddress = { https: boolean; provider: HostingKind; providerId: string };
 /** Mirrors the native clone-source check: HTTPS matches an exact registered
  * authority; SSH matches the host name (a nonstandard port only for a company
- * server). GitHub paths are owner/name, GitLab paths may nest groups. */
+ * server). GitHub and Bitbucket paths are owner/name, GitLab paths may nest
+ * groups. */
 export function hostingCloneAddress(source: string, providers: readonly HostingProvider[] = BUILT_IN_PROVIDERS): HostingCloneAddress | null {
   const value = source.trim();
   const validPath = (path: string, provider: HostingKind): boolean => {

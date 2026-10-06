@@ -5,6 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
 import { accountsTranslations } from "../features/accounts/translations";
+import { bitbucketTranslations } from "../features/bitbucket/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
 import { consoleTranslations } from "../features/console/translations";
@@ -68,6 +69,7 @@ export const translationNamespaces = {
   gitlabTooling: gitlabToolingTranslations,
   github: githubTranslations,
   githubToken: githubTokenTranslations,
+  bitbucket: bitbucketTranslations,
   hostingServers: hostingServersTranslations,
   repositoryBrowser: repositoryBrowserTranslations,
   accounts: accountsTranslations,
@@ -96,6 +98,7 @@ const en = {
   ...gitlabToolingTranslations.en,
   ...githubTranslations.en,
   ...githubTokenTranslations.en,
+  ...bitbucketTranslations.en,
   ...hostingServersTranslations.en,
   ...repositoryBrowserTranslations.en,
   ...accountsTranslations.en,
@@ -126,6 +129,7 @@ const es: Translations = {
   ...gitlabToolingTranslations.es,
   ...githubTranslations.es,
   ...githubTokenTranslations.es,
+  ...bitbucketTranslations.es,
   ...hostingServersTranslations.es,
   ...repositoryBrowserTranslations.es,
   ...accountsTranslations.es,

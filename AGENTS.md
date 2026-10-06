@@ -88,7 +88,9 @@ Secondary:
   must suspend polling, costly effects, subscriptions, and announcements.
 - Never fetch merely because a screen became visible. Render the cached
   snapshot; refresh on project activation or an explicit repository
-  invalidation, idle-deferred where it is speculative.
+  invalidation, idle-deferred where it is speculative. The one exception is
+  the background verification of saved hosting accounts after launch
+  ([ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md)).
 - Visual components do not call `invoke`. A feature reaches Rust through its own
   typed port and `tauriAdapter.ts`. The only direct calls left in
   `src/app/App.tsx` are watcher and session lifecycle wiring, which the

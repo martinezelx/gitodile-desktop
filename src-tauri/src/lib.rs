@@ -6,6 +6,7 @@ mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;
+mod bitbucket_access;
 mod changes;
 mod cli_auth;
 mod clone;
@@ -108,14 +109,21 @@ pub fn run() {
                     .join("gitlab-token-accounts.json"),
             );
             app.manage(gitlab.clone());
+            let bitbucket = bitbucket_access::BitbucketAccessService::new(
+                app.path()
+                    .app_config_dir()?
+                    .join("bitbucket-token-accounts.json"),
+            );
+            app.manage(bitbucket.clone());
             let accounts = credentials::install(
                 app.path().app_config_dir()?.join("account-selections.json"),
-                hosting::providers(access, gitlab),
+                hosting::providers(access, gitlab, bitbucket),
             );
             app.manage(hosting::HostingServers::load(
                 app.path().app_config_dir()?,
                 accounts.clone(),
             ));
+            hosting::sync_accounts_after_launch(accounts.clone());
             app.manage(accounts);
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
@@ -170,6 +178,8 @@ pub fn run() {
             ipc::cancel_gitlab_auth,
             ipc::add_gitlab_token,
             ipc::remove_gitlab_token,
+            ipc::add_bitbucket_token,
+            ipc::remove_bitbucket_token,
             ipc::add_hosting_server,
             ipc::remove_hosting_server,
             ipc::add_hosting_token,
