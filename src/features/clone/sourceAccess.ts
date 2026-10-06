@@ -1,3 +1,4 @@
+import type { HostingKind, HostingProvider } from "../accounts";
 /** Remote reads start only after editing the address/account or pressing Retry.
  * Never on overlay visibility; every obsolete timer and receipt is discarded. */
 export type CloneSourceAccess = {
@@ -10,23 +11,35 @@ export type CloneSourceAccessPort = {
   cancelSourceCheck(requestId: string): Promise<void>;
 };
 
-export function hostingCloneAddress(source: string): { https: boolean; provider: "github" | "gitlab" } | null {
+const BUILT_IN_PROVIDERS: HostingProvider[] = [
+  { id: "github", host: "github.com", kind: "github", builtIn: true },
+  { id: "gitlab", host: "gitlab.com", kind: "gitlab", builtIn: true },
+];
+export type HostingCloneAddress = { https: boolean; provider: HostingKind; providerId: string };
+/** Mirrors the native clone-source check: HTTPS matches an exact registered
+ * authority; SSH matches the host name (a nonstandard port only for a company
+ * server). GitHub paths are owner/name, GitLab paths may nest groups. */
+export function hostingCloneAddress(source: string, providers: readonly HostingProvider[] = BUILT_IN_PROVIDERS): HostingCloneAddress | null {
   const value = source.trim();
-  const validPath = (path: string, provider: "github" | "gitlab"): boolean => {
+  const validPath = (path: string, provider: HostingKind): boolean => {
     const parts = path.replace(/\/+$/, "").split("/");
     return parts.length >= 2 && parts.length <= 32 && (provider === "gitlab" || parts.length === 2) && parts.every(p => /^[\w.-]+$/.test(p) && p !== "." && p !== "..") && parts.at(-1) !== ".git";
   };
-  for (const provider of ["github", "gitlab"] as const) {
-    const prefix = `git@${provider}.com:`;
-    if (value.startsWith(prefix)) return validPath(value.slice(prefix.length), provider) ? { https: false, provider } : null;
+  const named = (name: string): HostingProvider[] => providers.filter(provider => provider.host.replace(/:\d+$/, "") === name.toLowerCase());
+  const scp = /^git@([^/@:]+):(.*)$/.exec(value);
+  if (scp) {
+    const provider = named(scp[1])[0];
+    return provider && validPath(scp[2], provider.kind) ? { https: false, provider: provider.kind, providerId: provider.id } : null;
   }
   try {
     const url = new URL(value);
-    const provider = url.hostname === "github.com" ? "github" : url.hostname === "gitlab.com" ? "gitlab" : null;
-    if (!provider || url.port || url.password || url.search || url.hash ||
-        !validPath(url.pathname.slice(1), provider)) return null;
-    if (url.protocol === "https:" && !url.username) return { https: true, provider };
-    if (url.protocol === "ssh:" && url.username === "git") return { https: false, provider };
+    if (url.password || url.search || url.hash) return null;
+    const provider = url.protocol === "https:" && !url.username
+      ? providers.find(candidate => candidate.host === url.host)
+      : url.protocol === "ssh:" && url.username === "git"
+        ? named(url.hostname).find(candidate => !url.port || !candidate.builtIn) : undefined;
+    if (!provider || !validPath(url.pathname.slice(1), provider.kind)) return null;
+    return { https: url.protocol === "https:", provider: provider.kind, providerId: provider.id };
   } catch { /* Local paths and incomplete addresses never contact a provider. */ }
   return null;
 }
@@ -72,11 +85,11 @@ export function createCloneSourceAccess(port: CloneSourceAccessPort) {
     snapshot: () => state,
     cancel: (): void => { stop(); publish({ ...state, status: "idle" }); },
     reset: (): void => { stop(); publish({ source: "", accountId: null, status: "idle" }); },
-    update: (source: string, accountId: string | null): void => {
+    update: (source: string, accountId: string | null, providers?: readonly HostingProvider[]): void => {
       stop();
-      const address = hostingCloneAddress(source);
+      const address = hostingCloneAddress(source, providers);
       // A saved HTTPS identity cannot be applied to SSH.
-      if (!address || (!address.https && accountId) || (accountId && !accountId.startsWith(`${address.provider}:`))) { publish({ source, accountId, status: "idle" }); return; }
+      if (!address || (!address.https && accountId) || (accountId && !accountId.startsWith(`${address.providerId}:`))) { publish({ source, accountId, status: "idle" }); return; }
       const current = generation;
       publish({ source, accountId, status: "checking" });
       timer = setTimeout(() => {

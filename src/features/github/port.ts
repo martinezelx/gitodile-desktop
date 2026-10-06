@@ -10,4 +10,7 @@ export interface GitHubAuthPort {
   switchAccount(login: string): Promise<GitHubAuthSnapshot>;
   cancel(operationId: string): Promise<GitHubAuthSnapshot>;
   openBrowser(): Promise<void>;
+  /** The configured host's device page; github.com when absent. Only this
+   * exact page opens automatically, never a URL taken from gh's output. */
+  deviceUrl?: string;
 }

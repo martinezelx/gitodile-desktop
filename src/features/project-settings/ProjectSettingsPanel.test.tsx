@@ -174,7 +174,7 @@ describe("the remote section", () => {
 
     expect(
       await screen.findByText(
-        "This address includes hidden sign-in details, and saving a new address removes them.",
+        "This address includes hidden sign-in details. Git uses them instead of the account chosen under HTTPS access, and saving a new address removes them.",
       ),
     ).toBeInTheDocument();
     expect(

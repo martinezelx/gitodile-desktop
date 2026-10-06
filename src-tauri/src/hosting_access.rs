@@ -24,8 +24,8 @@ use zeroize::Zeroize;
 
 const STORE: &str = "GitOdile/GitHub/token/v1";
 const API_ORIGIN: &str = "https://api.github.com";
-#[derive(Clone, Copy, PartialEq)]
-enum ProviderKind {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum ProviderKind {
     GitHub,
     GitLab,
 }
@@ -52,6 +52,23 @@ impl ProviderKind {
         match self {
             Self::GitHub => "add_github_token",
             Self::GitLab => "add_gitlab_token",
+        }
+    }
+    pub(crate) fn from_id(kind: &str) -> Option<Self> {
+        match kind {
+            "github" => Some(Self::GitHub),
+            "gitlab" => Some(Self::GitLab),
+            _ => None,
+        }
+    }
+    pub(crate) fn name(self) -> &'static str {
+        self.id()
+    }
+    /// A company server's REST origin; github.com and gitlab.com keep theirs.
+    fn server_origin(self, host: &str) -> String {
+        match self {
+            Self::GitHub => format!("https://{host}/api/v3"),
+            Self::GitLab => format!("https://{host}/api/v4"),
         }
     }
     fn repositories_path(self, page: u32) -> String {
@@ -82,12 +99,14 @@ fn error(code: AppErrorCode) -> AppError {
     AppError::new(code, "Hosting access could not be completed.")
 }
 
+/// github.com logins are alphanumeric with hyphens; GitHub Enterprise Server
+/// normalizes SAML/LDAP names to longer logins that may contain underscores.
 fn login_is_valid(login: &str) -> bool {
     !login.is_empty()
-        && login.len() <= 39
+        && login.len() <= 100
         && login
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 fn token_login(key: &str) -> Option<&str> {
@@ -101,7 +120,7 @@ trait TokenStore: Send + Sync {
     fn remove(&self, login: &str) -> Result<(), AppError>;
 }
 
-struct OsTokenStore(&'static str);
+struct OsTokenStore(String);
 fn entry(store: &str, login: &str) -> Result<keyring::Entry, AppError> {
     if !login_is_valid(login) {
         return Err(error(AppErrorCode::InvalidSelection));
@@ -111,7 +130,7 @@ fn entry(store: &str, login: &str) -> Result<keyring::Entry, AppError> {
 }
 impl TokenStore for OsTokenStore {
     fn get(&self, login: &str) -> Result<Secret, AppError> {
-        let bytes = entry(self.0, login)?.get_secret().map_err(|failure| {
+        let bytes = entry(&self.0, login)?.get_secret().map_err(|failure| {
             error(match failure {
                 keyring::Error::NoEntry => AppErrorCode::AuthenticationFailed,
                 _ => AppErrorCode::SecureStorageUnavailable,
@@ -120,12 +139,12 @@ impl TokenStore for OsTokenStore {
         Secret::from_bytes(bytes).ok_or_else(|| error(AppErrorCode::AuthenticationFailed))
     }
     fn set(&self, login: &str, secret: &Secret) -> Result<(), AppError> {
-        entry(self.0, login)?
+        entry(&self.0, login)?
             .set_secret(secret.bytes())
             .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))
     }
     fn remove(&self, login: &str) -> Result<(), AppError> {
-        match entry(self.0, login)?.delete_credential() {
+        match entry(&self.0, login)?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(_) => Err(error(AppErrorCode::SecureStorageUnavailable)),
         }
@@ -142,13 +161,33 @@ struct Metadata {
 struct TokenState {
     metadata: Result<Metadata, ()>,
     verified: BTreeSet<String>,
+    // Each saved or removed connection takes a fresh value of this counter.
+    // In-flight checks and discovery are fenced per connection, so changing
+    // one token never discards or invalidates results for another.
     revision: u64,
+    generations: BTreeMap<String, u64>,
     failures: BTreeMap<String, AppErrorCode>,
+}
+impl TokenState {
+    fn generation(&self, login: &str) -> u64 {
+        self.generations
+            .get(&login.to_ascii_lowercase())
+            .copied()
+            .unwrap_or(0)
+    }
+    fn advance(&mut self, login: &str) {
+        self.revision += 1;
+        let revision = self.revision;
+        self.generations
+            .insert(login.to_ascii_lowercase(), revision);
+    }
 }
 #[derive(Clone)]
 pub(crate) struct HostingAccessService {
     cli: Arc<dyn AccessProvider>,
     kind: ProviderKind,
+    id: Arc<str>,
+    host: Arc<str>,
     path: PathBuf,
     store: Arc<dyn TokenStore>,
     state: Arc<Mutex<TokenState>>,
@@ -163,7 +202,61 @@ pub(crate) struct HostingAccessService {
 
 impl HostingAccessService {
     pub(crate) fn new(gh: GitHubAuthService, path: PathBuf) -> Self {
-        Self::with_store(gh, path, Arc::new(OsTokenStore(STORE)))
+        Self::with_store(gh, path, Arc::new(OsTokenStore(STORE.into())))
+    }
+    /// A company server. Its secure-store namespace and API origin derive from
+    /// the exact authority, so the same login on two hosts never shares a secret.
+    pub(crate) fn server(
+        cli: Arc<dyn AccessProvider>,
+        kind: ProviderKind,
+        id: &str,
+        host: &str,
+        path: PathBuf,
+    ) -> Self {
+        let mut service = Self::configured(
+            cli,
+            kind,
+            path,
+            Arc::new(OsTokenStore(server_store(kind, host))),
+        );
+        service.id = id.into();
+        service.host = host.into();
+        service.api_origin = kind.server_origin(host);
+        service
+    }
+    /// Delete every token secret saved for a removed company server.
+    pub(crate) fn forget_tokens(&self) -> Result<(), AppError> {
+        let _mutation = self.mutations.lock().unwrap_or_else(|e| e.into_inner());
+        let logins = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            state
+                .metadata
+                .as_ref()
+                .map(|m| m.logins.clone())
+                .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))?
+        };
+        for login in &logins {
+            self.store.remove(login)?;
+        }
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        for login in &logins {
+            state.verified.remove(&login.to_ascii_lowercase());
+            state.failures.remove(&login.to_ascii_lowercase());
+            state.advance(login);
+        }
+        // The secrets are gone: never list them again, even if removing the
+        // metadata file below fails and the server stays registered.
+        state.metadata = Ok(Metadata {
+            version: 1,
+            logins: Vec::new(),
+            usernames: BTreeMap::new(),
+        });
+        drop(state);
+        match fs::remove_file(&self.path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(_) => Err(error(AppErrorCode::SecureStorageUnavailable)),
+        }
     }
     fn with_store(gh: GitHubAuthService, path: PathBuf, store: Arc<dyn TokenStore>) -> Self {
         Self::configured(
@@ -178,7 +271,7 @@ impl HostingAccessService {
             Arc::new(glab),
             ProviderKind::GitLab,
             path,
-            Arc::new(OsTokenStore("GitOdile/GitLab.com/token/v1")),
+            Arc::new(OsTokenStore("GitOdile/GitLab.com/token/v1".into())),
         )
     }
     fn configured(
@@ -232,12 +325,15 @@ impl HostingAccessService {
         Self {
             cli,
             kind,
+            id: kind.id().into(),
+            host: kind.host().into(),
             path,
             store,
             state: Arc::new(Mutex::new(TokenState {
                 metadata,
                 verified: BTreeSet::new(),
                 revision: 0,
+                generations: BTreeMap::new(),
                 failures: BTreeMap::new(),
             })),
             checking: Arc::new(AtomicBool::new(false)),
@@ -261,6 +357,23 @@ impl HostingAccessService {
         )
         .and_then(|_| fs::rename(&temporary, &self.path))
         .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))
+    }
+    /// Keep a GitLab rename found by a check across restarts. Serialized with
+    /// token mutations; a failed write only leaves the old display name.
+    fn persist_usernames(&self) {
+        let _mutation = self.mutations.lock().unwrap_or_else(|e| e.into_inner());
+        let next = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            let Ok(metadata) = &state.metadata else {
+                return;
+            };
+            Metadata {
+                version: 1,
+                logins: metadata.logins.clone(),
+                usernames: metadata.usernames.clone(),
+            }
+        };
+        let _ = self.persist(&next);
     }
     fn save(
         &self,
@@ -316,7 +429,7 @@ impl HostingAccessService {
         }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.metadata = Ok(next);
-        state.revision += 1;
+        state.advance(&login);
         state.verified.insert(login.to_ascii_lowercase());
         state.failures.remove(&login.to_ascii_lowercase());
         Ok(format!(
@@ -379,12 +492,12 @@ impl HostingAccessService {
         state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.verified.remove(&key.to_ascii_lowercase());
         state.failures.remove(&key.to_ascii_lowercase());
-        state.revision += 1;
+        state.advance(key);
         drop(state);
         self.persist(&next)?;
         state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.metadata = Ok(next);
-        state.revision += 1;
+        state.advance(key);
         Ok(())
     }
     fn request(&self, id: &str, command: &'static str) -> Result<Arc<Request>, AppError> {
@@ -448,7 +561,12 @@ impl HostingAccessService {
     pub(crate) async fn add(&self, token: String, request_id: String) -> Result<String, AppError> {
         let secret = Secret::from_bytes(token.into_bytes())
             .ok_or_else(|| error(AppErrorCode::AuthenticationFailed))?;
-        let request = self.request(&request_id, self.kind.add_command())?;
+        let command = if self.is_server() {
+            "add_hosting_token"
+        } else {
+            self.kind.add_command()
+        };
+        let request = self.request(&request_id, command)?;
         let user = user(self.kind, &self.api_origin, &secret, &request.cancellation).await?;
         request.ensure_active()?;
         let service = self.clone();
@@ -478,11 +596,11 @@ impl HostingAccessService {
         let expected = self
             .identity_key(key)
             .ok_or_else(|| error(AppErrorCode::InvalidSelection))?;
-        let revision = token_login(key).map(|_| {
+        let revision = token_login(key).map(|login| {
             self.state
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
-                .revision
+                .generation(login)
         });
         if !self
             .accounts()
@@ -507,7 +625,7 @@ impl HostingAccessService {
                 return Err(failure);
             }
         };
-        self.ensure_revision(revision)?;
+        self.ensure_revision(key, revision)?;
         let result = async {
             let identity =
                 user(self.kind, &self.api_origin, &secret, &request.cancellation).await?;
@@ -518,11 +636,11 @@ impl HostingAccessService {
             let (bytes, next) =
                 get(&self.api_origin, &path, &secret, &request.cancellation).await?;
             let repositories = match self.kind {
-                ProviderKind::GitHub => parse_repositories(&bytes)?,
-                ProviderKind::GitLab => parse_gitlab_repositories(&bytes)?,
+                ProviderKind::GitHub => parse_repositories(&bytes, &self.host)?,
+                ProviderKind::GitLab => parse_gitlab_repositories(&bytes, &self.host)?,
             };
             request.ensure_active()?;
-            self.ensure_revision(revision)?;
+            self.ensure_revision(key, revision)?;
             Ok(RepositoryPage {
                 account_id: account_id.clone(),
                 page,
@@ -539,12 +657,15 @@ impl HostingAccessService {
         }
         result
     }
-    fn ensure_revision(&self, revision: Option<u64>) -> Result<(), AppError> {
+    fn ensure_revision(&self, key: &str, revision: Option<u64>) -> Result<(), AppError> {
+        let Some(login) = token_login(key) else {
+            return Ok(());
+        };
         if revision.is_some_and(|revision| {
             self.state
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
-                .revision
+                .generation(login)
                 != revision
         }) {
             Err(error(AppErrorCode::AuthenticationFailed))
@@ -559,7 +680,7 @@ impl HostingAccessService {
             return;
         };
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if revision.is_some_and(|revision| state.revision != revision) {
+        if revision.is_some_and(|revision| state.generation(login) != revision) {
             return;
         }
         state.verified.remove(&login.to_ascii_lowercase());
@@ -593,11 +714,14 @@ impl HostingAccessService {
 }
 
 impl AccessProvider for HostingAccessService {
-    fn id(&self) -> &'static str {
-        self.kind.id()
+    fn id(&self) -> &str {
+        &self.id
     }
-    fn host(&self) -> &'static str {
-        self.kind.host()
+    fn host(&self) -> &str {
+        &self.host
+    }
+    fn kind(&self) -> &'static str {
+        self.kind.id()
     }
     fn accounts(&self) -> Vec<Account> {
         let mut accounts = self.cli.accounts();
@@ -616,8 +740,9 @@ impl AccessProvider for HostingAccessService {
                         .cloned()
                         .unwrap_or_else(|| login.clone()),
                     avatar_data_url: None,
-                    available: state.verified.contains(&login.to_ascii_lowercase())
-                        && !self.checking.load(Ordering::Acquire),
+                    // A verified connection stays usable while a background
+                    // check runs; its result replaces this state when it lands.
+                    available: state.verified.contains(&login.to_ascii_lowercase()),
                     unavailable_reason: state.failures.get(&login.to_ascii_lowercase()).cloned(),
                 }
             }));
@@ -635,7 +760,7 @@ impl AccessProvider for HostingAccessService {
         let service = self.clone();
         let checking = self.checking.clone();
         if std::thread::Builder::new()
-            .name("github-token-check".into())
+            .name(format!("{}-token-check", self.id()))
             .spawn(move || {
                 struct CheckGuard(Arc<AtomicBool>);
                 impl Drop for CheckGuard {
@@ -651,16 +776,19 @@ impl AccessProvider for HostingAccessService {
                     return;
                 };
                 runtime.block_on(async move {
-                    let (logins, revision) = {
+                    let logins = {
                         let state = service.state.lock().unwrap_or_else(|e| e.into_inner());
-                        (
-                            state
-                                .metadata
-                                .as_ref()
-                                .map(|m| m.logins.clone())
-                                .unwrap_or_default(),
-                            state.revision,
-                        )
+                        state
+                            .metadata
+                            .as_ref()
+                            .map(|m| m.logins.clone())
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|login| {
+                                let generation = state.generation(&login);
+                                (login, generation)
+                            })
+                            .collect::<Vec<_>>()
                     };
                     let cancellation = CancellationToken::default();
                     let _activity = application::begin_background_activity_with_cancellation(
@@ -668,7 +796,7 @@ impl AccessProvider for HostingAccessService {
                         cancellation.clone(),
                     );
                     let mut workers = tokio::task::JoinSet::new();
-                    for login in logins {
+                    for (login, generation) in logins {
                         let store = service.store.clone();
                         let origin = service.api_origin.clone();
                         let kind = service.kind;
@@ -691,15 +819,16 @@ impl AccessProvider for HostingAccessService {
                                     }),
                                 Err(failure) => Err(failure),
                             };
-                            (login, verification)
+                            (login, generation, verification)
                         });
                     }
+                    let mut renamed = false;
                     while let Some(result) = workers.join_next().await {
-                        let Ok((login, verification)) = result else {
+                        let Ok((login, generation, verification)) = result else {
                             continue;
                         };
                         let mut state = service.state.lock().unwrap_or_else(|e| e.into_inner());
-                        if state.revision != revision {
+                        if state.generation(&login) != generation {
                             continue;
                         }
                         let still_saved = state.metadata.as_ref().is_ok_and(|m| {
@@ -715,7 +844,10 @@ impl AccessProvider for HostingAccessService {
                             Ok(username) => {
                                 if service.kind == ProviderKind::GitLab {
                                     if let Ok(metadata) = &mut state.metadata {
-                                        metadata.usernames.insert(key.clone(), username);
+                                        let previous = metadata
+                                            .usernames
+                                            .insert(key.clone(), username.clone());
+                                        renamed |= previous.as_ref() != Some(&username);
                                     }
                                 }
                                 state.verified.insert(key.clone());
@@ -726,6 +858,9 @@ impl AccessProvider for HostingAccessService {
                                 state.failures.insert(key, failure.code);
                             }
                         }
+                    }
+                    if renamed {
+                        service.persist_usernames();
                     }
                 });
             })
@@ -815,6 +950,137 @@ async fn user(
     Ok(user)
 }
 
+fn client() -> Result<reqwest::Client, AppError> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(20))
+        .connect_timeout(Duration::from_secs(10))
+        .user_agent("GitOdile")
+        .build()
+        .map_err(|_| error(AppErrorCode::Offline))
+}
+
+/// Company servers often use a corporate CA. Name a rejected certificate
+/// instead of reporting the server as offline; other failures stay coarse.
+fn transport_error(failure: reqwest::Error) -> AppError {
+    if failure.is_timeout() {
+        return error(AppErrorCode::NetworkTimeout);
+    }
+    let mut source: Option<&dyn std::error::Error> = Some(&failure);
+    while let Some(cause) = source {
+        let text = cause.to_string().to_ascii_lowercase();
+        if text.contains("certificate") || text.contains("unknownissuer") {
+            return error(AppErrorCode::CertificateFailed);
+        }
+        source = cause.source();
+    }
+    error(AppErrorCode::Offline)
+}
+
+/// Oldest company-server versions accepted. Every API GitOdile calls predates
+/// them; older servers are long out of vendor support.
+const MIN_GITHUB_SERVER: (u32, u32) = (3, 0);
+const MIN_GITLAB_SERVER: (u32, u32) = (14, 0);
+
+fn version_at_least(version: &str, minimum: (u32, u32)) -> bool {
+    let mut parts = version
+        .trim_start_matches(|c: char| !c.is_ascii_digit())
+        .split(['.', '-', '+'])
+        .map(|part| part.parse::<u32>());
+    match (parts.next(), parts.next()) {
+        (Some(Ok(major)), Some(Ok(minor))) => (major, minor) >= minimum,
+        _ => false,
+    }
+}
+
+/// Identify a company server before it is saved, without credentials.
+/// GitHub Enterprise Server names its version on every API response; GitLab
+/// answers its version endpoint, or refuses it in its own JSON shape.
+pub(crate) async fn probe_server(
+    kind: ProviderKind,
+    host: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<String>, AppError> {
+    probe_origin(kind, &kind.server_origin(host), cancellation).await
+}
+
+async fn probe_origin(
+    kind: ProviderKind,
+    origin: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<String>, AppError> {
+    let unsupported = || {
+        AppError::new(
+            AppErrorCode::UnsupportedServer,
+            "This address doesn't answer as a supported server of that product.",
+        )
+    };
+    let path = match kind {
+        ProviderKind::GitHub => "/meta",
+        ProviderKind::GitLab => "/version",
+    };
+    let url = format!("{origin}{path}");
+    let fetch = async {
+        let mut response = client()?
+            .get(url)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .send()
+            .await
+            .map_err(transport_error)?;
+        let status = response.status().as_u16();
+        let header_version = response
+            .headers()
+            .get("x-github-enterprise-version")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
+            if bytes.len() + chunk.len() > 64 * 1024 {
+                return Err(unsupported());
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let body: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
+        let field = |name: &str| {
+            body.as_ref()
+                .and_then(|body| body.get(name))
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+        };
+        let (version, minimum) = match kind {
+            ProviderKind::GitHub => (
+                header_version.or_else(|| {
+                    (status == 200)
+                        .then(|| field("installed_version"))
+                        .flatten()
+                }),
+                MIN_GITHUB_SERVER,
+            ),
+            ProviderKind::GitLab => match status {
+                200 => (field("version"), MIN_GITLAB_SERVER),
+                // GitLab requires sign-in for its version; its refusal is
+                // recognizable, and the version is checked again by tokens.
+                401 if field("message").as_deref() == Some("401 Unauthorized") => return Ok(None),
+                _ => (None, MIN_GITLAB_SERVER),
+            },
+        };
+        let version = version.ok_or_else(unsupported)?;
+        if version.len() > 64 || !version_at_least(&version, minimum) {
+            return Err(unsupported().with_remediation(
+                "Ask your administrator to update the server, or use its address with Git directly.",
+            ));
+        }
+        Ok(Some(version))
+    };
+    let cancelled = async {
+        while !cancellation.is_cancelled() {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::select! { result = fetch => result, () = cancelled => Err(error(AppErrorCode::OperationCancelled)) }
+}
+
 pub(crate) async fn get(
     origin: &str,
     path: &str,
@@ -824,14 +1090,7 @@ pub(crate) async fn get(
     if cancellation.is_cancelled() {
         return Err(error(AppErrorCode::OperationCancelled));
     }
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(20))
-        .connect_timeout(Duration::from_secs(10))
-        .user_agent("GitOdile")
-        .build()
-        .map_err(|_| error(AppErrorCode::Offline))?;
+    let client = client()?;
     let mut bearer = b"Bearer ".to_vec();
     bearer.extend_from_slice(secret.bytes());
     let authorization = reqwest::header::HeaderValue::from_bytes(&bearer);
@@ -850,13 +1109,7 @@ pub(crate) async fn get(
         } else {
             request
         };
-        let mut response = request.send().await.map_err(|e| {
-            error(if e.is_timeout() {
-                AppErrorCode::NetworkTimeout
-            } else {
-                AppErrorCode::Offline
-            })
-        })?;
+        let mut response = request.send().await.map_err(transport_error)?;
         let status = response.status();
         if !status.is_success() {
             return Err(error(match status.as_u16() {
@@ -887,13 +1140,7 @@ pub(crate) async fn get(
         // We never follow the server's link: a numeric next page is requested
         // against the fixed API origin, so redirects/links cannot leak a token.
         let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|failure| {
-            error(if failure.is_timeout() {
-                AppErrorCode::NetworkTimeout
-            } else {
-                AppErrorCode::Offline
-            })
-        })? {
+        while let Some(chunk) = response.chunk().await.map_err(transport_error)? {
             if bytes.len().saturating_add(chunk.len()) > BODY_CAP {
                 return Err(error(AppErrorCode::RemoteRejected));
             }
@@ -947,7 +1194,26 @@ struct ApiRepository {
     description: Option<String>,
     clone_url: String,
 }
-fn parse_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppError> {
+/// Descriptions are free display text written in browsers on any platform.
+/// Normalize line endings, drop other control characters and bound the length
+/// instead of rejecting the page; identity and clone URLs stay strictly checked.
+fn display_text(raw: &str) -> Option<String> {
+    const LIMIT: usize = 8192;
+    let mut text = String::new();
+    for c in raw.replace("\r\n", "\n").chars() {
+        let c = if c == '\r' { '\n' } else { c };
+        if c.is_control() && c != '\n' && c != '\t' {
+            continue;
+        }
+        if text.len() + c.len_utf8() > LIMIT {
+            break;
+        }
+        text.push(c);
+    }
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_owned())
+}
+fn parse_repositories(bytes: &[u8], host: &str) -> Result<Vec<HostedRepository>, AppError> {
     let rows: Vec<ApiRepository> =
         serde_json::from_slice(bytes).map_err(|_| error(AppErrorCode::RemoteRejected))?;
     if rows.len() > 100 {
@@ -964,10 +1230,7 @@ fn parse_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppError> {
                     .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
                 || !login_is_valid(&row.owner.login)
                 || row.full_name != format!("{}/{}", row.owner.login, row.name)
-                || row.clone_url != format!("https://github.com/{}.git", row.full_name)
-                || row.description.as_ref().is_some_and(|d| {
-                    d.len() > 8192 || d.chars().any(|c| c.is_control() && c != '\n' && c != '\t')
-                })
+                || row.clone_url != format!("https://{host}/{}.git", row.full_name)
             {
                 return Err(error(AppErrorCode::RemoteRejected));
             }
@@ -978,7 +1241,7 @@ fn parse_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppError> {
                 owner: row.owner.login,
                 private: row.private,
                 archived: row.archived,
-                description: row.description,
+                description: row.description.as_deref().and_then(display_text),
                 clone_url: row.clone_url,
             })
         })
@@ -1149,7 +1412,22 @@ mod tests {
     #[test]
     fn api_parser_refuses_credentials_or_foreign_clone_hosts() {
         let fixture = r#"[{"id":1,"name":"project","full_name":"team/project","owner":{"login":"team"},"private":true,"archived":false,"description":null,"clone_url":"https://github.com/team/project.git"}]"#;
-        assert!(parse_repositories(fixture.as_bytes()).unwrap()[0].private);
+        assert!(parse_repositories(fixture.as_bytes(), "github.com").unwrap()[0].private);
+        let described = fixture.replace(
+            r#""description":null"#,
+            &format!(r#""description":"Notes\r\n{}""#, "x".repeat(9000)),
+        );
+        let description = parse_repositories(described.as_bytes(), "github.com").unwrap()[0]
+            .description
+            .clone()
+            .unwrap();
+        assert!(description.starts_with("Notes\nx") && description.len() == 8192);
+        let blank = fixture.replace(r#""description":null"#, r#""description":" \r\n ""#);
+        assert!(
+            parse_repositories(blank.as_bytes(), "github.com").unwrap()[0]
+                .description
+                .is_none()
+        );
         for replacement in [
             "https://attacker.test/team/project.git",
             "https://token@github.com/team/project.git",
@@ -1158,7 +1436,8 @@ mod tests {
             assert!(parse_repositories(
                 fixture
                     .replace("https://github.com/team/project.git", replacement)
-                    .as_bytes()
+                    .as_bytes(),
+                "github.com"
             )
             .is_err());
         }
@@ -1166,7 +1445,8 @@ mod tests {
             fixture
                 .replace("team/project", "other/project")
                 .replacen("other/project", "team/project", 1)
-                .as_bytes()
+                .as_bytes(),
+            "github.com"
         )
         .is_err());
     }
@@ -1320,6 +1600,146 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn company_server_probe_identifies_the_product_and_refuses_old_or_foreign_servers() {
+        let cancellation = CancellationToken::default();
+        let probe = |kind, headers: &str, body: &str| {
+            let (origin, worker) = endpoint(vec![(headers.into(), body.into())]);
+            (origin, worker, kind)
+        };
+        let (origin, worker, kind) = probe(
+            ProviderKind::GitHub,
+            "401 Unauthorized\r\nX-GitHub-Enterprise-Version: 3.16.2",
+            r#"{"message":"Must authenticate"}"#,
+        );
+        assert_eq!(
+            probe_origin(kind, &origin, &cancellation)
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("3.16.2")
+        );
+        assert!(worker.join().unwrap()[0].starts_with("GET /meta "));
+        let (origin, worker, kind) = probe(
+            ProviderKind::GitHub,
+            "200 OK",
+            r#"{"installed_version":"3.15.0"}"#,
+        );
+        assert!(probe_origin(kind, &origin, &cancellation).await.is_ok());
+        worker.join().unwrap();
+        let (origin, worker, kind) = probe(
+            ProviderKind::GitLab,
+            "401 Unauthorized",
+            r#"{"message":"401 Unauthorized"}"#,
+        );
+        assert_eq!(
+            probe_origin(kind, &origin, &cancellation).await.unwrap(),
+            None
+        );
+        assert!(worker.join().unwrap()[0].starts_with("GET /version "));
+        let (origin, worker, kind) =
+            probe(ProviderKind::GitLab, "200 OK", r#"{"version":"17.4.1-ee"}"#);
+        assert!(probe_origin(kind, &origin, &cancellation).await.is_ok());
+        worker.join().unwrap();
+        for (kind, headers, body) in [
+            // A GitLab answering on the GitHub path, a plain web server, and
+            // servers older than the supported floor.
+            (
+                ProviderKind::GitHub,
+                "401 Unauthorized",
+                r#"{"message":"401 Unauthorized"}"#,
+            ),
+            (ProviderKind::GitLab, "200 OK", "<html></html>"),
+            (
+                ProviderKind::GitLab,
+                "404 Not Found",
+                r#"{"message":"404 Not Found"}"#,
+            ),
+            (
+                ProviderKind::GitHub,
+                "200 OK\r\nX-GitHub-Enterprise-Version: 2.22.0",
+                "{}",
+            ),
+            (ProviderKind::GitLab, "200 OK", r#"{"version":"13.12.0"}"#),
+        ] {
+            let (origin, worker, kind) = probe(kind, headers, body);
+            assert_eq!(
+                probe_origin(kind, &origin, &cancellation)
+                    .await
+                    .unwrap_err()
+                    .code,
+                AppErrorCode::UnsupportedServer,
+                "{headers} {body}"
+            );
+            worker.join().unwrap();
+        }
+        assert!(version_at_least("3.0.0", MIN_GITHUB_SERVER));
+        assert!(version_at_least("v14.0.12-ee", MIN_GITLAB_SERVER));
+        assert!(!version_at_least("garbage", MIN_GITLAB_SERVER));
+    }
+
+    #[tokio::test]
+    async fn company_server_tokens_use_their_own_namespace_origin_and_clone_host() {
+        let path =
+            PathBuf::from(crate::test_support::unique_temp_dir("ghe-tokens")).join("tokens.json");
+        let mut service = HostingAccessService::server(
+            Arc::new(GhAccessProvider(GitHubAuthService::for_host(
+                "ghe-0123456789",
+                "ghe.example.com:8443",
+            ))),
+            ProviderKind::GitHub,
+            "ghe-0123456789",
+            "ghe.example.com:8443",
+            path.clone(),
+        );
+        assert_eq!(service.api_origin, "https://ghe.example.com:8443/api/v3");
+        assert_eq!(
+            server_store(ProviderKind::GitHub, "ghe.example.com:8443"),
+            "GitOdile/GitHubEnterprise/ghe.example.com:8443/token/v1"
+        );
+        service.store = Arc::new(MemoryStore::default());
+        let secret = Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap();
+        let id = service
+            .save("saml_user-1".into(), &secret, &CancellationToken::default())
+            .unwrap();
+        assert_eq!(id, "ghe-0123456789:token.saml_user-1");
+        let account = &service.accounts()[0];
+        assert_eq!(
+            (account.provider.as_str(), account.host.as_str()),
+            ("ghe-0123456789", "ghe.example.com:8443")
+        );
+        let (origin, worker) = endpoint(vec![
+            ("200 OK".into(), r#"{"login":"saml_user-1"}"#.into()),
+            (
+                "200 OK".into(),
+                r#"[{"id":7,"name":"tool","full_name":"corp/tool","owner":{"login":"corp"},"private":true,"archived":false,"description":null,"clone_url":"https://ghe.example.com:8443/corp/tool.git"}]"#.into(),
+            ),
+        ]);
+        service.api_origin = origin;
+        let page = service
+            .repositories(id.clone(), 1, "fixture_ghe".into())
+            .await
+            .unwrap();
+        assert_eq!(
+            page.repositories[0].clone_url,
+            "https://ghe.example.com:8443/corp/tool.git"
+        );
+        let requests = worker.join().unwrap();
+        // Only github.com receives its REST version header.
+        assert!(!requests[0]
+            .to_ascii_lowercase()
+            .contains("x-github-api-version"));
+        assert!(parse_repositories(
+            br#"[{"id":7,"name":"tool","full_name":"corp/tool","owner":{"login":"corp"},"private":true,"archived":false,"description":null,"clone_url":"https://github.com/corp/tool.git"}]"#,
+            "ghe.example.com:8443"
+        )
+        .is_err());
+        service.forget_tokens().unwrap();
+        assert!(service.credential("token.saml_user-1").is_none());
+        assert!(service.accounts().is_empty());
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
     async fn transport_maps_rate_limits_denial_and_redirects_without_private_response_details() {
         let secret = Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap();
         for (headers, code) in [
@@ -1466,10 +1886,13 @@ mod tests {
     }
     struct NoCli;
     impl AccessProvider for NoCli {
-        fn id(&self) -> &'static str {
+        fn kind(&self) -> &'static str {
             "gitlab"
         }
-        fn host(&self) -> &'static str {
+        fn id(&self) -> &str {
+            "gitlab"
+        }
+        fn host(&self) -> &str {
             "gitlab.com"
         }
         fn accounts(&self) -> Vec<Account> {
@@ -1576,9 +1999,54 @@ mod tests {
         assert!(!fs::read_to_string(path).unwrap().contains("studio.user_1"));
     }
     #[test]
+    fn a_background_check_keeps_verified_rows_and_survives_another_token_change() {
+        let (mut service, path) = gitlab_fixture("gitlab-check-fencing");
+        let (entered, entered_rx) = std::sync::mpsc::channel();
+        let (release, release_rx) = std::sync::mpsc::channel();
+        let (origin, worker) = gated_endpoint(
+            vec![(
+                "200 OK".into(),
+                r#"{"id":42,"username":"renamed.user"}"#.into(),
+            )],
+            Some((entered, release_rx)),
+        );
+        service.api_origin = origin;
+        let cancellation = CancellationToken::default();
+        let secret = Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap();
+        let user = |id, login: &str| User {
+            id: Some(id),
+            login: login.into(),
+        };
+        service
+            .save_identity(user(42, "old.name"), &secret, &cancellation)
+            .unwrap();
+        service.check();
+        entered_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert!(service.busy());
+        assert!(
+            service.accounts()[0].available,
+            "a verified row stays selectable during a check"
+        );
+        // Changing an unrelated connection must not discard this result.
+        service
+            .save_identity(user(43, "other.user"), &secret, &cancellation)
+            .unwrap();
+        release.send(()).unwrap();
+        worker.join().unwrap();
+        let started = std::time::Instant::now();
+        while service.busy() {
+            assert!(started.elapsed() < Duration::from_secs(10));
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let accounts = service.accounts();
+        assert_eq!(accounts[0].login, "renamed.user");
+        assert!(accounts[0].available && accounts[1].available);
+        assert!(fs::read_to_string(&path).unwrap().contains("renamed.user"));
+    }
+    #[test]
     fn gitlab_projects_validate_nested_namespaces_and_exact_https_urls() {
         let fixture = r#"[{"id":9,"name":"Project label","path":"project","path_with_namespace":"team/sub-group/project","visibility":"private","archived":false,"description":null,"http_url_to_repo":"https://gitlab.com/team/sub-group/project.git"}]"#;
-        let rows = parse_gitlab_repositories(fixture.as_bytes()).unwrap();
+        let rows = parse_gitlab_repositories(fixture.as_bytes(), "gitlab.com").unwrap();
         assert_eq!(rows[0].owner, "team/sub-group");
         assert!(rows[0].private);
         for replacement in [
@@ -1590,17 +2058,30 @@ mod tests {
             assert!(parse_gitlab_repositories(
                 fixture
                     .replace("https://gitlab.com/team/sub-group/project.git", replacement)
-                    .as_bytes()
+                    .as_bytes(),
+                "gitlab.com"
             )
             .is_err());
         }
-        assert!(
-            parse_gitlab_repositories(fixture.replace("team/sub-group", "team/..").as_bytes())
-                .is_err()
-        );
+        assert!(parse_gitlab_repositories(
+            fixture.replace("team/sub-group", "team/..").as_bytes(),
+            "gitlab.com"
+        )
+        .is_err());
         let row: serde_json::Value = serde_json::from_str(fixture).unwrap();
         let oversized = serde_json::to_vec(&vec![row[0].clone(); 101]).unwrap();
-        assert!(parse_gitlab_repositories(&oversized).is_err());
+        assert!(parse_gitlab_repositories(&oversized, "gitlab.com").is_err());
+        // A description typed in a Windows browser must not reject the page.
+        let windows_text = fixture.replace(
+            r#""description":null"#,
+            r#""description":"First line\r\nSecond\u0007 line\r""#,
+        );
+        assert_eq!(
+            parse_gitlab_repositories(windows_text.as_bytes(), "gitlab.com").unwrap()[0]
+                .description
+                .as_deref(),
+            Some("First line\nSecond line")
+        );
     }
     #[tokio::test]
     async fn gitlab_ingestion_verifies_identity_and_discovery_rechecks_numeric_id() {
@@ -1712,7 +2193,7 @@ struct GitLabProject {
     description: Option<String>,
     http_url_to_repo: String,
 }
-fn parse_gitlab_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppError> {
+fn parse_gitlab_repositories(bytes: &[u8], host: &str) -> Result<Vec<HostedRepository>, AppError> {
     let rows: Vec<GitLabProject> =
         serde_json::from_slice(bytes).map_err(|_| error(AppErrorCode::RemoteRejected))?;
     if rows.len() > 100 {
@@ -1728,15 +2209,11 @@ fn parse_gitlab_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppE
                     .iter()
                     .any(|p| p.is_empty() || *p == "." || *p == ".." || !gitlab_login_is_valid(p))
                 || parts.last() != Some(&row.path.as_str())
-                || row.http_url_to_repo
-                    != format!("https://gitlab.com/{}.git", row.path_with_namespace)
+                || row.http_url_to_repo != format!("https://{host}/{}.git", row.path_with_namespace)
                 || row.name.is_empty()
                 || row.name.len() > 1024
                 || row.name.chars().any(char::is_control)
                 || !["private", "internal", "public"].contains(&row.visibility.as_str())
-                || row.description.as_ref().is_some_and(|d| {
-                    d.len() > 8192 || d.chars().any(|c| c.is_control() && c != '\n' && c != '\t')
-                })
             {
                 return Err(error(AppErrorCode::RemoteRejected));
             }
@@ -1748,21 +2225,34 @@ fn parse_gitlab_repositories(bytes: &[u8]) -> Result<Vec<HostedRepository>, AppE
                 owner,
                 private: row.visibility != "public",
                 archived: row.archived,
-                description: row.description,
+                description: row.description.as_deref().and_then(display_text),
                 clone_url: row.http_url_to_repo,
             })
         })
         .collect()
 }
 pub(crate) async fn gitlab_user(
+    host: &str,
     secret: &Secret,
     cancellation: &CancellationToken,
 ) -> Result<User, AppError> {
-    user(
-        ProviderKind::GitLab,
-        "https://gitlab.com/api/v4",
-        secret,
-        cancellation,
-    )
-    .await
+    let origin = if host == ProviderKind::GitLab.host() {
+        ProviderKind::GitLab.origin().to_owned()
+    } else {
+        ProviderKind::GitLab.server_origin(host)
+    };
+    user(ProviderKind::GitLab, &origin, secret, cancellation).await
+}
+
+fn server_store(kind: ProviderKind, host: &str) -> String {
+    match kind {
+        ProviderKind::GitHub => format!("GitOdile/GitHubEnterprise/{host}/token/v1"),
+        ProviderKind::GitLab => format!("GitOdile/GitLabSelfManaged/{host}/token/v1"),
+    }
+}
+
+impl HostingAccessService {
+    fn is_server(&self) -> bool {
+        &*self.id != self.kind.id()
+    }
 }

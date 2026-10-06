@@ -31,6 +31,7 @@ export interface SharedTranslations {
   errorInitializeCleanupUnavailable: string;
   errorOffline: string;
   errorCertificateFailed: string;
+  errorUnsupportedServer: string;
   errorHostKeyFailed: string;
   errorRemoteNotFound: string;
   errorDiskFull: string;
@@ -155,7 +156,8 @@ const en: SharedTranslations = {
   errorInitializeCleanupRequired: "Setup stopped, and a leftover temporary file still needs cleaning up.",
   errorInitializeCleanupUnavailable: "GitOdile didn't create that leftover file, so it won't remove it.",
   errorOffline: "Couldn't reach the server. Check your connection, VPN, proxy and the address.",
-  errorCertificateFailed: "Git couldn't verify the server's certificate. Check your proxy and system certificates.",
+  errorCertificateFailed: "The server's certificate couldn't be verified. Check your proxy and the certificates installed on this computer.",
+  errorUnsupportedServer: "This address doesn't answer as a supported server of that product, or the server is too old. Check the address and the product you chose.",
   errorHostKeyFailed: "SSH couldn't verify the server. Check it with your SSH tools, then retry.",
   errorRemoteNotFound: "The remote project wasn't found. Check the address and your access.",
   errorDiskFull: "Not enough disk space to finish. Free some space and retry.",
@@ -280,7 +282,8 @@ const es: SharedTranslations = {
   errorInitializeCleanupRequired: "La configuración se detuvo y aún queda un archivo temporal por limpiar.",
   errorInitializeCleanupUnavailable: "GitOdile no creó ese archivo, así que no lo eliminará.",
   errorOffline: "No se pudo contactar con el servidor. Revisa la conexión, la VPN, el proxy y la dirección.",
-  errorCertificateFailed: "Git no pudo verificar el certificado del servidor. Revisa el proxy y los certificados del sistema.",
+  errorCertificateFailed: "No se pudo verificar el certificado del servidor. Revisa el proxy y los certificados instalados en este equipo.",
+  errorUnsupportedServer: "Esta dirección no responde como un servidor compatible de ese producto, o el servidor es demasiado antiguo. Revisa la dirección y el producto elegido.",
   errorHostKeyFailed: "SSH no pudo verificar el servidor. Compruébalo con tus herramientas SSH y reintenta.",
   errorRemoteNotFound: "No se encontró el proyecto remoto. Revisa la dirección y tus permisos de acceso.",
   errorDiskFull: "No hay espacio suficiente en el disco. Libera espacio y reintenta.",

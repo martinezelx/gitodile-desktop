@@ -13,7 +13,7 @@ use std::time::Duration;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-const DEVICE_URL: &str = "https://github.com/login/device";
+const PUBLIC_HOST: &str = "github.com";
 const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
@@ -23,7 +23,7 @@ pub(crate) use crate::cli_auth::{AuthState, CredentialStorage};
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GitHubAccount {
     login: String,
-    host: &'static str,
+    host: String,
     storage: CredentialStorage,
     avatar_data_url: Option<String>,
 }
@@ -59,7 +59,7 @@ pub(crate) struct GitHubAuthSnapshot {
     accounts: Vec<GitHubSavedAccount>,
     operation_id: Option<String>,
     device_code: Option<String>,
-    verification_url: Option<&'static str>,
+    verification_url: Option<String>,
     /// Login may finish writing shared credentials just as cancellation arrives.
     needs_check: bool,
     signed_out_account: Option<String>,
@@ -101,8 +101,20 @@ struct Inner {
     cancellation: Option<CancellationToken>,
 }
 
-#[derive(Clone, Default)]
-pub(crate) struct GitHubAuthService(Arc<Mutex<Inner>>);
+/// One gh-backed host: github.com, or a GitHub Enterprise Server the user
+/// added. Every gh command names this exact host; nothing reads `GH_HOST`.
+#[derive(Clone)]
+pub(crate) struct GitHubAuthService {
+    inner: Arc<Mutex<Inner>>,
+    id: Arc<str>,
+    host: Arc<str>,
+}
+
+impl Default for GitHubAuthService {
+    fn default() -> Self {
+        Self::for_host("github", PUBLIC_HOST)
+    }
+}
 
 /// GitHub's implementation of the shared account/access contract. Browser
 /// authorization and persistence still belong to gh; selections belong to us.
@@ -110,11 +122,14 @@ pub(crate) struct GitHubAuthService(Arc<Mutex<Inner>>);
 pub(crate) struct GhAccessProvider(pub(crate) GitHubAuthService);
 
 impl AccessProvider for GhAccessProvider {
-    fn id(&self) -> &'static str {
-        "github"
+    fn id(&self) -> &str {
+        &self.0.id
     }
-    fn host(&self) -> &'static str {
-        "github.com"
+    fn host(&self) -> &str {
+        &self.0.host
+    }
+    fn kind(&self) -> &'static str {
+        "github"
     }
     fn accounts(&self) -> Vec<Account> {
         let snapshot = self.0.snapshot();
@@ -123,9 +138,9 @@ impl AccessProvider for GhAccessProvider {
             .iter()
             .filter(|entry| entry.account.storage != CredentialStorage::Environment)
             .map(|entry| Account {
-                id: format!("github:{}", entry.account.login),
-                provider: "github".into(),
-                host: "github.com".into(),
+                id: format!("{}:{}", self.0.id, entry.account.login),
+                provider: self.0.id.to_string(),
+                host: self.0.host.to_string(),
                 login: entry.account.login.clone(),
                 avatar_data_url: entry.account.avatar_data_url.clone(),
                 available: !snapshot.needs_check
@@ -142,22 +157,24 @@ impl AccessProvider for GhAccessProvider {
         self.0.check();
     }
     fn credential(&self, login: &str) -> Option<Secret> {
-        credential_with_programs(tooling::gh_program_candidates(), login)
+        credential_with_programs(&self.0.host, tooling::gh_program_candidates(), login)
     }
 }
 
-fn credential_with_programs(programs: &[&str], login: &str) -> Option<Secret> {
-    if !valid_login(login) {
+fn credential_with_programs(host: &str, programs: &[&str], login: &str) -> Option<Secret> {
+    if !valid_login_on(host, login) {
         return None;
     }
     for program in programs {
         let mut command = gh_command(
             program,
-            &["auth", "token", "--hostname", "github.com", "--user", login],
+            &["auth", "token", "--hostname", host, "--user", login],
         );
         // Explicit account lookup must not inherit an unrelated environment
         // identity. No token is ever put into another command's environment.
-        command.env_remove("GH_TOKEN").env_remove("GITHUB_TOKEN");
+        for key in ENVIRONMENT_TOKENS {
+            command.env_remove(key);
+        }
         match run(
             command,
             &CancellationToken::default(),
@@ -186,9 +203,21 @@ enum AuthAction {
 }
 
 impl GitHubAuthService {
+    pub(crate) fn for_host(id: &str, host: &str) -> Self {
+        Self {
+            inner: Arc::default(),
+            id: id.into(),
+            host: host.into(),
+        }
+    }
+
+    fn device_url(&self) -> String {
+        format!("https://{}/login/device", self.host)
+    }
+
     pub(crate) fn snapshot(&self) -> GitHubAuthSnapshot {
         let _command = application::enter("get_github_auth_state");
-        self.0
+        self.inner
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .snapshot
@@ -219,12 +248,12 @@ impl GitHubAuthService {
         };
         let mutates = !matches!(action, AuthAction::Check);
         let _command = application::enter(command);
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.state.busy() {
             return inner.snapshot.clone();
         }
         // gh itself refuses login when an environment token owns authentication.
-        if mutates && environment_credential() {
+        if mutates && environment_credential(&self.host) {
             inner.snapshot.state = AuthState::EnvironmentControlled;
             return inner.snapshot.clone();
         }
@@ -250,7 +279,7 @@ impl GitHubAuthService {
                         .as_ref()
                         .filter(|account| account.login == *login)
                 });
-            if !valid_login(login)
+            if !valid_login_on(&self.host, login)
                 || target.is_none()
                 || inner.snapshot.needs_check
                 || target.is_some_and(|account| account.storage == CredentialStorage::Environment)
@@ -292,21 +321,33 @@ impl GitHubAuthService {
             .name("github-auth".into())
             .spawn(move || {
                 let _activity = activity;
+                let host = service.host.clone();
                 service.complete_work(&id, mutates, || match action {
                     AuthAction::Logout(login) => {
-                        let (removed, result) =
-                            logout_with_programs(tooling::gh_program_candidates(), &token, &login);
+                        let (removed, result) = logout_with_programs(
+                            &host,
+                            tooling::gh_program_candidates(),
+                            &token,
+                            &login,
+                        );
                         (result, removed.then_some(login))
                     }
                     AuthAction::Switch(login) => (
-                        switch_with_programs(tooling::gh_program_candidates(), &token, &login),
+                        switch_with_programs(
+                            &host,
+                            tooling::gh_program_candidates(),
+                            &token,
+                            &login,
+                        ),
                         None,
                     ),
                     action => {
-                        let result =
-                            authenticate(&token, matches!(action, AuthAction::Login), |code| {
-                                service.publish_code(&id, code)
-                            });
+                        let result = authenticate(
+                            &host,
+                            &token,
+                            matches!(action, AuthAction::Login),
+                            |code| service.publish_code(&id, code),
+                        );
                         (result, None)
                     }
                 });
@@ -334,13 +375,14 @@ impl GitHubAuthService {
     }
 
     fn publish_code(&self, id: &str, code: String) {
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.operation_id.as_deref() == Some(id)
             && inner.snapshot.state == AuthState::LoginStarting
         {
             inner.snapshot.state = AuthState::AwaitingBrowser;
             inner.snapshot.device_code = Some(code);
-            inner.snapshot.verification_url = Some(DEVICE_URL);
+            // Derived from the configured host, never from gh's output.
+            inner.snapshot.verification_url = Some(self.device_url());
         }
     }
 
@@ -351,7 +393,7 @@ impl GitHubAuthService {
         mutates: bool,
         removed: Option<String>,
     ) {
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.operation_id.as_deref() != Some(id) {
             return;
         }
@@ -428,7 +470,7 @@ impl GitHubAuthService {
 
     pub(crate) fn cancel(&self, operation_id: &str) -> GitHubAuthSnapshot {
         let _command = application::enter("cancel_github_auth");
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.operation_id.as_deref() == Some(operation_id) {
             if let Some(token) = &inner.cancellation {
                 token.cancel();
@@ -439,9 +481,22 @@ impl GitHubAuthService {
     }
 }
 
-fn environment_credential() -> bool {
-    ["GH_TOKEN", "GITHUB_TOKEN"]
-        .iter()
+const ENVIRONMENT_TOKENS: [&str; 4] = [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "GH_ENTERPRISE_TOKEN",
+    "GITHUB_ENTERPRISE_TOKEN",
+];
+
+/// gh reads `GH_TOKEN` for github.com and the enterprise variables for every
+/// other host; either one owns that host's authentication.
+fn environment_credential(host: &str) -> bool {
+    let keys = if host == PUBLIC_HOST {
+        &ENVIRONMENT_TOKENS[..2]
+    } else {
+        &ENVIRONMENT_TOKENS[2..]
+    };
+    keys.iter()
         .any(|key| std::env::var_os(key).is_some_and(|value| !value.is_empty()))
 }
 
@@ -511,17 +566,24 @@ fn parse_device_code(line: &str) -> Option<String> {
 }
 
 fn authenticate(
+    host: &str,
     token: &CancellationToken,
     login: bool,
     on_code: impl Fn(String) + Send + Sync,
 ) -> Result<AuthAccounts, AuthState> {
-    let mut accounts =
-        authenticate_with_programs(tooling::gh_program_candidates(), token, login, on_code)?;
-    enrich_avatars(tooling::gh_program_candidates(), token, &mut accounts);
+    let mut accounts = authenticate_with_programs(
+        host,
+        tooling::gh_program_candidates(),
+        token,
+        login,
+        on_code,
+    )?;
+    enrich_avatars(host, tooling::gh_program_candidates(), token, &mut accounts);
     Ok(accounts)
 }
 
 fn authenticate_with_programs(
+    host: &str,
     programs: &[&str],
     token: &CancellationToken,
     login: bool,
@@ -560,7 +622,7 @@ fn authenticate_with_programs(
                     "login",
                     "--web",
                     "--hostname",
-                    "github.com",
+                    host,
                     "--skip-ssh-key",
                     "--clipboard=false",
                 ],
@@ -576,14 +638,7 @@ fn authenticate_with_programs(
     let result = run(
         gh_command(
             program,
-            &[
-                "auth",
-                "status",
-                "--hostname",
-                "github.com",
-                "--json",
-                "hosts",
-            ],
+            &["auth", "status", "--hostname", host, "--json", "hosts"],
         ),
         token,
         CHECK_TIMEOUT,
@@ -592,16 +647,16 @@ fn authenticate_with_programs(
     if !result.success {
         return Err(AuthState::Offline);
     }
-    parse_status(&result.stdout)
+    parse_status(&result.stdout, host)
 }
 
-fn parse_status(bytes: &[u8]) -> Result<AuthAccounts, AuthState> {
+fn parse_status(bytes: &[u8], host: &str) -> Result<AuthAccounts, AuthState> {
     let json: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| AuthState::Failed)?;
     let hosts = json
         .get("hosts")
         .and_then(|v| v.as_object())
         .ok_or(AuthState::Failed)?;
-    let entries = match hosts.get("github.com") {
+    let entries = match hosts.get(host) {
         None => {
             return Ok(AuthAccounts {
                 accounts: Vec::new(),
@@ -616,7 +671,7 @@ fn parse_status(bytes: &[u8]) -> Result<AuthAccounts, AuthState> {
     }
     let mut accounts: Vec<GitHubSavedAccount> = Vec::new();
     for entry in entries {
-        let parsed = parse_account(entry)?;
+        let parsed = parse_account(entry, host)?;
         if let Some(previous) = accounts.iter().find(|previous| {
             previous
                 .account
@@ -642,7 +697,7 @@ fn parse_status(bytes: &[u8]) -> Result<AuthAccounts, AuthState> {
     Ok(AuthAccounts { accounts })
 }
 
-fn parse_account(entry: &serde_json::Value) -> Result<GitHubSavedAccount, AuthState> {
+fn parse_account(entry: &serde_json::Value, host: &str) -> Result<GitHubSavedAccount, AuthState> {
     let state = match entry.get("state").and_then(|v| v.as_str()) {
         Some("success") => AuthState::Connected,
         Some("timeout") => AuthState::Offline,
@@ -660,7 +715,7 @@ fn parse_account(entry: &serde_json::Value) -> Result<GitHubSavedAccount, AuthSt
         .get("login")
         .and_then(|v| v.as_str())
         .ok_or(AuthState::Failed)?;
-    if !valid_login(login) {
+    if !valid_login_on(host, login) {
         return Err(if login.is_empty() && state != AuthState::Connected {
             state
         } else {
@@ -673,7 +728,9 @@ fn parse_account(entry: &serde_json::Value) -> Result<GitHubSavedAccount, AuthSt
         .unwrap_or("");
     let storage = match source {
         "keyring" => CredentialStorage::Secure,
-        "GH_TOKEN" | "GITHUB_TOKEN" => CredentialStorage::Environment,
+        "GH_TOKEN" | "GITHUB_TOKEN" | "GH_ENTERPRISE_TOKEN" | "GITHUB_ENTERPRISE_TOKEN" => {
+            CredentialStorage::Environment
+        }
         source if source.ends_with("hosts.yml") || source == "oauth_token" => {
             CredentialStorage::File
         }
@@ -686,13 +743,29 @@ fn parse_account(entry: &serde_json::Value) -> Result<GitHubSavedAccount, AuthSt
     Ok(GitHubSavedAccount {
         account: GitHubAccount {
             login: login.into(),
-            host: "github.com",
+            host: host.into(),
             storage,
             avatar_data_url: None,
         },
         active,
         state,
     })
+}
+
+/// GitHub Enterprise Server normalizes SAML/LDAP names, so its logins may be
+/// longer and contain underscores; github.com keeps its stricter grammar.
+fn valid_login_on(host: &str, login: &str) -> bool {
+    if host == PUBLIC_HOST {
+        return valid_login(login);
+    }
+    login.len() <= 100
+        && login
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphanumeric)
+        && login
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 fn valid_login(login: &str) -> bool {
@@ -714,25 +787,19 @@ fn valid_login(login: &str) -> bool {
 /// Target the exact account shown in the confirmation, even if another tool
 /// changes gh's active account meanwhile. Never log out a whole host.
 fn logout_with_programs(
+    host: &str,
     programs: &[&str],
     token: &CancellationToken,
     login: &str,
 ) -> (bool, Result<AuthAccounts, AuthState>) {
-    if !valid_login(login) {
+    if !valid_login_on(host, login) {
         return (false, Err(AuthState::Failed));
     }
     for program in programs {
         let result = run(
             gh_command(
                 program,
-                &[
-                    "auth",
-                    "logout",
-                    "--hostname",
-                    "github.com",
-                    "--user",
-                    login,
-                ],
+                &["auth", "logout", "--hostname", host, "--user", login],
             ),
             token,
             CHECK_TIMEOUT,
@@ -745,12 +812,11 @@ fn logout_with_programs(
             Ok(_) => {
                 // gh may automatically select another stored account. Inspect
                 // its actual state rather than pretending every account is gone.
-                let result = authenticate_with_programs(&[*program], token, false, |_| {}).map(
-                    |mut accounts| {
-                        enrich_avatars(&[*program], token, &mut accounts);
+                let result = authenticate_with_programs(host, &[*program], token, false, |_| {})
+                    .map(|mut accounts| {
+                        enrich_avatars(host, &[*program], token, &mut accounts);
                         accounts
-                    },
-                );
+                    });
                 return (true, result);
             }
         }
@@ -761,25 +827,19 @@ fn logout_with_programs(
 /// Local shared-auth mutation only; gh never receives a shell string or an
 /// arbitrary host. A post-switch check reports the real resulting account.
 fn switch_with_programs(
+    host: &str,
     programs: &[&str],
     token: &CancellationToken,
     login: &str,
 ) -> Result<AuthAccounts, AuthState> {
-    if !valid_login(login) {
+    if !valid_login_on(host, login) {
         return Err(AuthState::Failed);
     }
     for program in programs {
         match run(
             gh_command(
                 program,
-                &[
-                    "auth",
-                    "switch",
-                    "--hostname",
-                    "github.com",
-                    "--user",
-                    login,
-                ],
+                &["auth", "switch", "--hostname", host, "--user", login],
             ),
             token,
             CHECK_TIMEOUT,
@@ -789,7 +849,8 @@ fn switch_with_programs(
             Err(state) => return Err(state),
             Ok(output) if !output.success => return Err(AuthState::Failed),
             Ok(_) => {
-                let mut accounts = authenticate_with_programs(&[*program], token, false, |_| {})?;
+                let mut accounts =
+                    authenticate_with_programs(host, &[*program], token, false, |_| {})?;
                 if !accounts
                     .accounts
                     .iter()
@@ -797,7 +858,7 @@ fn switch_with_programs(
                 {
                     return Err(AuthState::Failed);
                 }
-                enrich_avatars(&[*program], token, &mut accounts);
+                enrich_avatars(host, &[*program], token, &mut accounts);
                 return Ok(accounts);
             }
         }
@@ -808,7 +869,17 @@ fn switch_with_programs(
 /// Optional image work must not grow the check deadline with the account list.
 /// At most four profiles are refreshed concurrently; other rows use their
 /// memory-cached avatar (or a placeholder), and refresh when made active.
-fn enrich_avatars(programs: &[&str], token: &CancellationToken, accounts: &mut AuthAccounts) {
+/// Enterprise avatars may sit behind the server's private mode; their rows
+/// use the local placeholder instead of an authenticated image request.
+fn enrich_avatars(
+    host: &str,
+    programs: &[&str],
+    token: &CancellationToken,
+    accounts: &mut AuthAccounts,
+) {
+    if host != PUBLIC_HOST {
+        return;
+    }
     thread::scope(|scope| {
         for entry in accounts.accounts.iter_mut().take(4) {
             scope.spawn(move || {
@@ -870,7 +941,7 @@ fn fetch_avatar(programs: &[&str], token: &CancellationToken, login: &str) -> Op
                 &[
                     "api",
                     "--hostname",
-                    "github.com",
+                    PUBLIC_HOST,
                     "--method",
                     "GET",
                     &endpoint,
@@ -998,10 +1069,10 @@ fn main() {
     #[test]
     fn git_helper_lookup_requests_an_exact_case_preserved_saved_account() {
         let program = fixture("token");
-        assert!(credential_with_programs(&[&program], "FixtureUser").is_some());
+        assert!(credential_with_programs("github.com", &[&program], "FixtureUser").is_some());
         let denied = fixture("token-denied");
-        assert!(credential_with_programs(&[&denied], "FixtureUser").is_none());
-        assert!(credential_with_programs(&[&program], "bad;command").is_none());
+        assert!(credential_with_programs("github.com", &[&denied], "FixtureUser").is_none());
+        assert!(credential_with_programs("github.com", &[&program], "bad;command").is_none());
     }
 
     fn status(state: &str, source: &str, error: &str) -> Vec<u8> {
@@ -1020,7 +1091,7 @@ fn main() {
             ("GH_TOKEN", CredentialStorage::Environment),
             ("unrecognized", CredentialStorage::Unknown),
         ] {
-            let account = parse_status(&status("success", source, ""))
+            let account = parse_status(&status("success", source, ""), "github.com")
                 .unwrap()
                 .accounts[0]
                 .account
@@ -1031,30 +1102,41 @@ fn main() {
             assert!(!wire.contains("Users"));
         }
         assert_eq!(
-            parse_status(br#"{"hosts":{}}"#).unwrap().state(),
+            parse_status(br#"{"hosts":{}}"#, "github.com")
+                .unwrap()
+                .state(),
             AuthState::SignedOut
         );
-        assert_eq!(parse_status(b"bad-json"), Err(AuthState::Failed));
         assert_eq!(
-            parse_status(&status("timeout", "keyring", "timeout"))
+            parse_status(b"bad-json", "github.com"),
+            Err(AuthState::Failed)
+        );
+        assert_eq!(
+            parse_status(&status("timeout", "keyring", "timeout"), "github.com")
                 .unwrap()
                 .state(),
             AuthState::Offline
         );
         assert_eq!(
-            parse_status(&status("error", "keyring", "HTTP 401: Bad credentials"))
-                .unwrap()
-                .state(),
+            parse_status(
+                &status("error", "keyring", "HTTP 401: Bad credentials"),
+                "github.com"
+            )
+            .unwrap()
+            .state(),
             AuthState::Invalid
         );
         assert_eq!(
-            parse_status(&status("error", "keyring", "connection refused"))
-                .unwrap()
-                .state(),
+            parse_status(
+                &status("error", "keyring", "connection refused"),
+                "github.com"
+            )
+            .unwrap()
+            .state(),
             AuthState::Offline
         );
         assert_eq!(
-            parse_status(&status("unknown", "keyring", "")),
+            parse_status(&status("unknown", "keyring", ""), "github.com"),
             Err(AuthState::Failed)
         );
     }
@@ -1067,7 +1149,7 @@ fn main() {
                 {"active": false, "state": "error", "login": "studio", "tokenSource": "oauth_token", "error": "HTTP 401: secret-detail", "token": "secret-inactive"}
             ], "other.example": [{"login": "private-enterprise-account", "token": "secret-enterprise"}]
         }})).unwrap();
-        let result = parse_status(&bytes).unwrap();
+        let result = parse_status(&bytes, "github.com").unwrap();
         assert_eq!(result.state(), AuthState::Connected);
         assert_eq!(result.accounts.len(), 2);
         assert_eq!(result.accounts[1].state, AuthState::Invalid);
@@ -1104,20 +1186,53 @@ fn main() {
         ] {
             let bytes =
                 serde_json::to_vec(&serde_json::json!({"hosts":{"github.com": entries}})).unwrap();
-            assert_eq!(parse_status(&bytes), Err(AuthState::Failed));
+            assert_eq!(parse_status(&bytes, "github.com"), Err(AuthState::Failed));
         }
         let bytes = br#"{"hosts":{"github.com":[{"active":true,"state":"error","login":"","tokenSource":"GH_TOKEN","error":"HTTP 401"}]}}"#;
-        assert_eq!(parse_status(bytes), Err(AuthState::Invalid));
+        assert_eq!(parse_status(bytes, "github.com"), Err(AuthState::Invalid));
     }
 
     #[test]
     fn environment_override_of_a_saved_username_has_one_controlling_identity() {
         let bytes = br#"{"hosts":{"github.com":[{"active":true,"state":"success","login":"octocat","tokenSource":"GH_TOKEN"},{"active":false,"state":"success","login":"octocat","tokenSource":"keyring"}]}}"#;
-        let result = parse_status(bytes).unwrap();
+        let result = parse_status(bytes, "github.com").unwrap();
         assert_eq!(result.accounts.len(), 1);
         assert_eq!(
             result.accounts[0].account.storage,
             CredentialStorage::Environment
+        );
+    }
+
+    #[test]
+    fn enterprise_hosts_read_their_own_status_logins_and_environment_tokens() {
+        let host = "ghe.example.com:8443";
+        let bytes = br#"{"hosts":{"github.com":[{"active":true,"state":"success","login":"public","tokenSource":"keyring"}],"ghe.example.com:8443":[{"active":true,"state":"success","login":"saml_user","tokenSource":"GH_ENTERPRISE_TOKEN"}]}}"#;
+        let accounts = parse_status(bytes, host).unwrap();
+        assert_eq!(accounts.accounts.len(), 1);
+        assert_eq!(accounts.accounts[0].account.login, "saml_user");
+        assert_eq!(accounts.accounts[0].account.host, host);
+        assert_eq!(
+            accounts.accounts[0].account.storage,
+            CredentialStorage::Environment
+        );
+        assert_eq!(
+            parse_status(bytes, "github.com").unwrap().accounts[0]
+                .account
+                .login,
+            "public"
+        );
+        assert!(valid_login_on(host, "saml_user"));
+        assert!(!valid_login("saml_user"));
+        assert!(!valid_login_on(host, "_leading"));
+        let service = GitHubAuthService::for_host("ghe-0123456789", host);
+        assert_eq!(
+            service.device_url(),
+            "https://ghe.example.com:8443/login/device"
+        );
+        let provider = GhAccessProvider(service);
+        assert_eq!(
+            (provider.id(), provider.host(), provider.kind()),
+            ("ghe-0123456789", host, "github")
         );
     }
 
@@ -1148,11 +1263,14 @@ fn main() {
     fn bounded_fake_gh_login_streams_code_and_returns_only_account_metadata() {
         let program = fixture("login");
         let codes = Mutex::new(Vec::new());
-        let account =
-            authenticate_with_programs(&[&program], &CancellationToken::default(), true, |code| {
-                codes.lock().unwrap().push(code)
-            })
-            .unwrap();
+        let account = authenticate_with_programs(
+            "github.com",
+            &[&program],
+            &CancellationToken::default(),
+            true,
+            |code| codes.lock().unwrap().push(code),
+        )
+        .unwrap();
         assert_eq!(*codes.lock().unwrap(), ["ABCD-1234"]);
         assert_eq!(account.accounts[0].account.login, "fixture-user");
         assert!(!serde_json::to_string(&account.accounts)
@@ -1171,6 +1289,7 @@ fn main() {
             let program = fixture(scenario);
             assert_eq!(
                 authenticate_with_programs(
+                    "github.com",
                     &[&program],
                     &CancellationToken::default(),
                     scenario == "denied",
@@ -1181,6 +1300,7 @@ fn main() {
         }
         assert_eq!(
             authenticate_with_programs(
+                "github.com",
                 &["gitodile-nonexistent-gh-fixture"],
                 &CancellationToken::default(),
                 false,
@@ -1192,6 +1312,7 @@ fn main() {
         let old = fixture("old");
         // A missing first path permits a fallback, but an incompatible tool does not.
         assert!(authenticate_with_programs(
+            "github.com",
             &["gitodile-nonexistent-gh-fixture", &compatible],
             &CancellationToken::default(),
             false,
@@ -1200,6 +1321,7 @@ fn main() {
         .is_ok());
         assert_eq!(
             authenticate_with_programs(
+                "github.com",
                 &[&old, &compatible],
                 &CancellationToken::default(),
                 false,
@@ -1244,7 +1366,7 @@ fn main() {
         let service = GitHubAuthService::default();
         let token = CancellationToken::default();
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.state = AuthState::LoginStarting;
             inner.snapshot.operation_id = Some("github-auth-1".into());
             inner.cancellation = Some(token.clone());
@@ -1268,15 +1390,15 @@ fn main() {
     fn offline_check_keeps_last_identity_and_does_not_claim_it_is_verified() {
         let service = GitHubAuthService::default();
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.account = Some(
-                parse_status(&status("success", "keyring", ""))
+                parse_status(&status("success", "keyring", ""), "github.com")
                     .unwrap()
                     .accounts[0]
                     .account
                     .clone(),
             );
-            inner.snapshot.accounts = parse_status(&status("success", "keyring", ""))
+            inner.snapshot.accounts = parse_status(&status("success", "keyring", ""), "github.com")
                 .unwrap()
                 .accounts;
             inner.snapshot.operation_id = Some("github-auth-1".into());
@@ -1287,10 +1409,10 @@ fn main() {
         let provider = GhAccessProvider(service.clone());
         assert_eq!(service.snapshot().accounts[0].state, AuthState::Offline);
         assert!(!provider.accounts()[0].available);
-        service.0.lock().unwrap().snapshot.operation_id = Some("check-again".into());
+        service.inner.lock().unwrap().snapshot.operation_id = Some("check-again".into());
         service.finish(
             "check-again",
-            parse_status(&status("success", "keyring", "")),
+            parse_status(&status("success", "keyring", ""), "github.com"),
             false,
             None,
         );
@@ -1307,19 +1429,32 @@ fn main() {
             let program = fixture(scenario);
             let marker = std::path::Path::new(&program).with_extension("removed");
             let _ = fs::remove_file(&marker);
-            let (removed, result) =
-                logout_with_programs(&[&program], &CancellationToken::default(), "fixture-user");
+            let (removed, result) = logout_with_programs(
+                "github.com",
+                &[&program],
+                &CancellationToken::default(),
+                "fixture-user",
+            );
             assert_eq!(result.map(|accounts| accounts.state()), expected);
             assert_eq!(removed, scenario != "logout-denied");
             assert_eq!(marker.exists(), removed);
         }
         let program = fixture("logout-switch");
-        let (removed, result) =
-            logout_with_programs(&[&program], &CancellationToken::default(), "fixture-user");
+        let (removed, result) = logout_with_programs(
+            "github.com",
+            &[&program],
+            &CancellationToken::default(),
+            "fixture-user",
+        );
         assert!(removed);
         assert_eq!(result.unwrap().accounts[0].account.login, "another-user");
         assert_eq!(
-            logout_with_programs(&[&program], &CancellationToken::default(), "--all"),
+            logout_with_programs(
+                "github.com",
+                &[&program],
+                &CancellationToken::default(),
+                "--all"
+            ),
             (false, Err(AuthState::Failed))
         );
     }
@@ -1327,9 +1462,13 @@ fn main() {
     #[test]
     fn switch_is_exact_noninteractive_and_requires_a_truthful_post_mutation_check() {
         let program = fixture("switch-accounts");
-        let result =
-            switch_with_programs(&[&program], &CancellationToken::default(), "another-user")
-                .unwrap();
+        let result = switch_with_programs(
+            "github.com",
+            &[&program],
+            &CancellationToken::default(),
+            "another-user",
+        )
+        .unwrap();
         assert_eq!(result.accounts.len(), 2);
         assert_eq!(result.accounts[0].account.login, "another-user");
         assert!(result.accounts[0].active);
@@ -1344,12 +1483,22 @@ fn main() {
         ] {
             let program = fixture(scenario);
             assert_eq!(
-                switch_with_programs(&[&program], &CancellationToken::default(), "another-user"),
+                switch_with_programs(
+                    "github.com",
+                    &[&program],
+                    &CancellationToken::default(),
+                    "another-user"
+                ),
                 Err(state)
             );
         }
         assert_eq!(
-            switch_with_programs(&[&program], &CancellationToken::default(), "--all"),
+            switch_with_programs(
+                "github.com",
+                &[&program],
+                &CancellationToken::default(),
+                "--all"
+            ),
             Err(AuthState::Failed)
         );
     }
@@ -1359,15 +1508,15 @@ fn main() {
     ) {
         let service = GitHubAuthService::default();
         let bytes = br#"{"hosts":{"github.com":[{"active":true,"state":"success","login":"octocat","tokenSource":"keyring"},{"active":false,"state":"success","login":"studio","tokenSource":"keyring"}]}}"#;
-        let mut previous = parse_status(bytes).unwrap();
+        let mut previous = parse_status(bytes, "github.com").unwrap();
         previous.accounts[0].account.avatar_data_url = Some("cached-octocat".into());
         previous.accounts[1].account.avatar_data_url = Some("cached-studio".into());
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.accounts = previous.accounts;
             inner.snapshot.operation_id = Some("check-1".into());
         }
-        service.finish("check-1", parse_status(bytes), false, None);
+        service.finish("check-1", parse_status(bytes, "github.com"), false, None);
         let snapshot = service.snapshot();
         assert_eq!(
             snapshot.accounts[1].account.avatar_data_url.as_deref(),
@@ -1377,7 +1526,7 @@ fn main() {
             snapshot.account.unwrap().avatar_data_url.as_deref(),
             Some("cached-octocat")
         );
-        service.0.lock().unwrap().snapshot.operation_id = Some("logout-2".into());
+        service.inner.lock().unwrap().snapshot.operation_id = Some("logout-2".into());
         service.finish(
             "logout-2",
             Err(AuthState::Offline),
@@ -1394,11 +1543,11 @@ fn main() {
     #[test]
     fn uncertain_or_environment_account_switch_is_refused_before_starting_a_process() {
         let service = GitHubAuthService::default();
-        let mut accounts = parse_status(&status("success", "keyring", ""))
+        let mut accounts = parse_status(&status("success", "keyring", ""), "github.com")
             .unwrap()
             .accounts;
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.accounts = accounts.clone();
             inner.snapshot.needs_check = true;
         }
@@ -1406,7 +1555,7 @@ fn main() {
         assert!(service.snapshot().operation_id.is_none());
         accounts[0].account.storage = CredentialStorage::Environment;
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.accounts = accounts;
             inner.snapshot.needs_check = false;
         }
@@ -1420,8 +1569,8 @@ fn main() {
     #[test]
     fn logout_rejects_a_stale_or_environment_controlled_confirmation() {
         let service = GitHubAuthService::default();
-        service.0.lock().unwrap().snapshot.account = Some(
-            parse_status(&status("success", "keyring", ""))
+        service.inner.lock().unwrap().snapshot.account = Some(
+            parse_status(&status("success", "keyring", ""), "github.com")
                 .unwrap()
                 .accounts[0]
                 .account
@@ -1432,8 +1581,8 @@ fn main() {
             AuthState::Failed
         );
         assert!(service.snapshot().operation_id.is_none());
-        service.0.lock().unwrap().snapshot.account = Some(
-            parse_status(&status("success", "GH_TOKEN", ""))
+        service.inner.lock().unwrap().snapshot.account = Some(
+            parse_status(&status("success", "GH_TOKEN", ""), "github.com")
                 .unwrap()
                 .accounts[0]
                 .account
@@ -1450,9 +1599,9 @@ fn main() {
     fn removed_identity_is_cleared_even_when_the_followup_check_fails() {
         let service = GitHubAuthService::default();
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.account = Some(
-                parse_status(&status("success", "keyring", ""))
+                parse_status(&status("success", "keyring", ""), "github.com")
                     .unwrap()
                     .accounts[0]
                     .account
@@ -1477,16 +1626,16 @@ fn main() {
     fn failed_check_keeps_mutation_uncertainty_until_a_verified_account_list_arrives() {
         let service = GitHubAuthService::default();
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.needs_check = true;
             inner.snapshot.operation_id = Some("retry-1".into());
         }
         service.finish("retry-1", Err(AuthState::Offline), false, None);
         assert!(service.snapshot().needs_check);
-        service.0.lock().unwrap().snapshot.operation_id = Some("retry-2".into());
+        service.inner.lock().unwrap().snapshot.operation_id = Some("retry-2".into());
         service.finish(
             "retry-2",
-            parse_status(&status("success", "keyring", "")),
+            parse_status(&status("success", "keyring", ""), "github.com"),
             false,
             None,
         );
@@ -1533,7 +1682,7 @@ fn main() {
     fn unexpected_worker_failure_releases_the_busy_state_and_clears_the_code() {
         let service = GitHubAuthService::default();
         {
-            let mut inner = service.0.lock().unwrap();
+            let mut inner = service.inner.lock().unwrap();
             inner.snapshot.operation_id = Some("panic-1".into());
             inner.snapshot.state = AuthState::AwaitingBrowser;
             inner.snapshot.device_code = Some("ABCD-1234".into());

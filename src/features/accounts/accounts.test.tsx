@@ -1,15 +1,15 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { AccountPicker } from "./AccountPicker";
 import { ProjectAccountSection } from "./ProjectAccountSection";
-import { providerForSource, type AccountCatalog } from "./domain";
+import { providerForSource, remoteAccountIssues, type AccountCatalog } from "./domain";
 import type { AccountsPort } from "./port";
 import { useAccounts } from "./useAccounts";
 
 const catalog: AccountCatalog = {
-  providers: [{ id: "github", host: "github.com" }, { id: "gitlab", host: "gitlab.com" }], busy: false,
+  providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }, { id: "gitlab", host: "gitlab.com", kind: "gitlab", builtIn: true }], busy: false,
   accounts: [
     { id: "github:personal", provider: "github", host: "github.com", login: "personal", avatarDataUrl: null, available: true },
     { id: "github:work", provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true },
@@ -79,18 +79,33 @@ describe("shared provider accounts", () => {
     expect(api.selectProject).not.toHaveBeenCalled();
   });
 
+  it("warns when a provider remote would bypass the selected account", async () => {
+    const api = port();
+    const project = { path: "/project", sessionEpoch: "epoch-1" };
+    const { rerender } = render(<ProjectAccountSection project={project} port={api}
+      remoteUrls={["https://github.com/org/repo.git", "https://gitlab.com/org/repo.git"]}
+      signInRemoteUrls={["https://github.com/org/repo.git"]} />, { wrapper });
+    await waitFor(() => expect(screen.getAllByRole("combobox")).toHaveLength(2));
+    expect(screen.getAllByRole("note")).toHaveLength(1);
+    expect(within(screen.getByRole("group", { name: "github.com" })).getByRole("note")).toHaveTextContent(/stores its own sign-in details/);
+    rerender(<ProjectAccountSection project={project} port={api} remoteUrls={["http://gitlab.com/org/repo.git"]} />);
+    await waitFor(() => expect(within(screen.getByRole("group", { name: "gitlab.com" })).getByRole("note")).toHaveTextContent(/uses HTTP/));
+    expect(screen.getByRole("combobox", { name: /gitlab.com/ })).toBeInTheDocument();
+    expect(api.selectProject).not.toHaveBeenCalled();
+  });
+
   it("hides provider account settings for local, SSH and other-host projects", async () => {
     const api = port();
     const project = { path: "/project", sessionEpoch: "epoch-1" };
     const { rerender } = render(<ProjectAccountSection project={project} remoteUrls={[]} port={api} />, { wrapper });
-    expect(screen.queryByRole("heading", { name: "Project account" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "HTTPS access" })).not.toBeInTheDocument();
     expect(api.readCatalog).not.toHaveBeenCalled();
     rerender(<ProjectAccountSection project={project} port={api} remoteUrls={[
       "git@github.com:org/repo.git", "ssh://git@gitlab.com/org/repo.git",
       "https://example.test/org/repo.git", "https://github.com.evil.test/org/repo.git",
     ]} />);
     await waitFor(() => expect(api.readCatalog).toHaveBeenCalledOnce());
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "Project account" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "HTTPS access" })).not.toBeInTheDocument());
     expect(api.readProject).not.toHaveBeenCalled();
     expect(api.check).not.toHaveBeenCalled();
   });
@@ -117,7 +132,8 @@ describe("shared provider accounts", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
     expect(outerEscape).not.toHaveBeenCalled();
-    await user.keyboard("{End}{Enter}");
+    // End reaches the account check; the account just above it is @work.
+    await user.keyboard("{End}{ArrowUp}{Enter}");
     expect(onChange).toHaveBeenCalledWith("github:work");
     await user.keyboard("{Escape}");
     expect(outerEscape).toHaveBeenCalledOnce();
@@ -137,7 +153,23 @@ describe("shared provider accounts", () => {
     await user.click(trigger);
     await user.tab();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Detect and check accounts" })).toHaveFocus();
+    expect(trigger).not.toHaveFocus();
+  });
+
+  it("checks accounts from the last menu item instead of a separate button", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onCheck = vi.fn();
+    render(<AccountPicker catalog={catalog} provider="github" value={null} onChange={onChange} onCheck={onCheck} required />, { wrapper });
+    expect(screen.queryByRole("button", { name: "Check accounts" })).toBeNull();
+    const trigger = screen.getByRole("combobox");
+    trigger.focus();
+    await user.keyboard("{ArrowDown}{End}");
+    expect(document.getElementById(trigger.getAttribute("aria-activedescendant")!)).toHaveTextContent("Check accounts");
+    await user.keyboard("{Enter}");
+    expect(onCheck).toHaveBeenCalledOnce();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
   });
 
   it("dismisses on outside interaction and when checking starts, including an empty provider", async () => {
@@ -145,7 +177,10 @@ describe("shared provider accounts", () => {
     const props = { provider: "gitlab", value: null, onChange: vi.fn(), onCheck: vi.fn(), required: true };
     const { rerender } = render(<AccountPicker {...props} catalog={{ ...catalog, accounts: [] }} />, { wrapper });
     await user.click(screen.getByRole("combobox"));
-    expect(screen.getAllByRole("option")).toHaveLength(1);
+    // A required choice offers no "none" option; an empty provider says why
+    // and still offers the account check.
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Check accounts"]);
+    expect(screen.getByRole("listbox")).toHaveTextContent(/Connect an account in Settings/);
     expect(props.onCheck).not.toHaveBeenCalled();
     await user.click(document.body);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
@@ -198,5 +233,19 @@ describe("shared provider accounts", () => {
     await userEvent.click(retry);
     await waitFor(() => expect(api.check).toHaveBeenCalledWith("github"));
     expect(await screen.findByRole("button", {name: "Check"})).toBeEnabled();
+  });
+});
+
+describe("company server remotes", () => {
+  it("match a provider instance by exact host and port", () => {
+    const providers = [
+      { id: "github", host: "github.com", kind: "github" as const, builtIn: true },
+      { id: "ghe-0123456789", host: "ghe.example.com:8443", kind: "github" as const, builtIn: false },
+    ];
+    expect(providerForSource("https://ghe.example.com:8443/team/repo.git", providers)).toBe("ghe-0123456789");
+    expect(providerForSource("https://ghe.example.com/team/repo.git", providers)).toBeNull();
+    expect(providerForSource("https://github.com:444/team/repo.git", providers)).toBeNull();
+    expect(remoteAccountIssues(["http://ghe.example.com:8443/team/repo.git"], [], providers).get("ghe-0123456789"))
+      .toEqual({ issue: "insecure", host: "ghe.example.com:8443" });
   });
 });

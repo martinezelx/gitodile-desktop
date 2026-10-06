@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, ExternalLink, Info, LoaderCircle, LogOut, Plus, UserRound } from "lucide-react";
+import { CheckCircle2, CircleAlert, ExternalLink, Info, LoaderCircle, UserRound } from "lucide-react";
 import { useLanguage } from "../../i18n";
-import { copyTextToClipboard, RefreshIconButton, ToolInstallationRow, type ToolChip } from "../../shared/ui";
+import { AccountRow } from "../accounts";
+import { copyTextToClipboard, type ToolChip } from "../../shared/ui";
 import { githubAccountChip, githubAccountRows, isGitHubAuthBusy, isGitHubAvatarDataUrl, type GitHubSavedAccount } from "./domain";
 import type { GitHubAuthController } from "./useGitHubAuth";
 
@@ -12,11 +13,16 @@ function AccountAvatar({ source }: { source: string | null }): React.JSX.Element
     : <UserRound className="github-account__avatar" aria-hidden="true" />;
 }
 
-/** An eager Settings body. Account rows share the installation-row geometry. */
-export function GitHubAccountSection({ controller, available }: {
+/** One host's gh accounts inside the shared account list, which owns the
+ * heading, the account check and the way to add an account. Each saved
+ * account is one row; the panels below it hold what an action needs: the
+ * device code while authorizing, and the inline sign-out and reconnect
+ * confirmations. `allowSwitch` offers changing gh's active account. */
+export function GitHubAccountSection({ controller, available, allowSwitch = true }: {
   controller: GitHubAuthController;
   available: boolean | null;
-}): React.JSX.Element {
+  allowSwitch?: boolean;
+}): React.JSX.Element | null {
   const { t } = useLanguage();
   const { snapshot, pending, browserFailed } = controller;
   const [confirming, setConfirming] = useState(false);
@@ -59,74 +65,56 @@ export function GitHubAccountSection({ controller, available }: {
   const copy = async (): Promise<void> => {
     setCopyState(await copyTextToClipboard(snapshot.deviceCode ?? "") ? "copied" : "failed");
   };
-  const check = (): void => { setConfirming(false); setLogoutLogin(null); void controller.check(); };
-  const checking = snapshot.state === "checking" || pending;
-  const recheck = <RefreshIconButton className="tool-row__recheck"
-    label={snapshot.state === "unchecked" ? t.githubAuthDetect : t.githubAuthCheck}
-    busyLabel={t.githubAuthStatus.checking} busy={checking} disabled={!available || busy} onClick={check} />;
   const cancel = busy && snapshot.operationId
     ? <button type="button" className="secondary-button" disabled={pending || snapshot.state === "cancelling"} onClick={() => void controller.cancel()}>{t.githubAuthCancel}</button>
     : null;
-  const status = snapshot.state === "connected" || snapshot.state === "signed_out" || snapshot.state === "unchecked"
-    ? <span className="visually-hidden">{t.githubAuthStatus[snapshot.state]}</span>
-    : <p className={`status-line status-line--${busy ? "progress" : "warning"}`}>
-      {busy ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
-      <span>{t.githubAuthStatus[snapshot.state]}</span>
-    </p>;
+  // The chip already names a settled state; the line speaks for anything else.
+  const settled = ["connected", "signed_out", "unchecked"].includes(snapshot.state);
+  const status = settled ? null : <p className={`status-line status-line--${busy ? "progress" : "warning"}`}>
+    {busy ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
+    <span>{t.githubAuthStatus[snapshot.state]}</span>
+  </p>;
 
-  const row = (account: GitHubSavedAccount | null): React.JSX.Element => {
-    const active = !account || account.active;
+  const row = (account: GitHubSavedAccount): React.JSX.Element => {
     const state = githubAccountChip(snapshot, account, available, busy);
     const chip: ToolChip = { label: t.githubAuthChip[state], tone: state === "connected" ? "success" : state === "invalid" ? "danger"
       : state === "unchecked" && snapshot.state !== "unchecked" ? "warning" : "neutral",
       icon: state === "connected" ? <CheckCircle2 aria-hidden="true" /> : state === "checking" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : undefined };
-    const signOut = account && <button type="button"
-      className={active && snapshot.state === "connected" ? "secondary-button" : "secondary-button refresh-icon-button"}
+    const signOut = <button type="button" className="secondary-button"
       disabled={mutationDisabled || account.storage === "environment" || logoutLogin !== null}
-      aria-label={active && snapshot.state === "connected" ? undefined : t.githubAuthLogoutConfirm.replace("{login}", account.login)}
-      data-tooltip={active && snapshot.state === "connected" ? undefined : t.githubAuthLogoutConfirm.replace("{login}", account.login)}
-      onClick={event => showLogout(event, account.login)}>
-      <LogOut aria-hidden="true" />{active && snapshot.state === "connected" ? t.githubAuthDisconnect : null}
-    </button>;
-    const primary = active ? cancel ?? (snapshot.state === "connected" && account ? signOut : <>
-      {signOut}<button type="button" className="primary-button" disabled={!available || busy || blocked || confirming} onClick={showLogin}>
-        {snapshot.state === "invalid" ? t.githubAuthReconnect : t.githubAuthConnect}
-      </button>
-    </>) : <button type="button" className="secondary-button"
-      aria-label={t.githubAuthUseAccountLabel.replace("{login}", account!.login)}
-      disabled={mutationDisabled || account!.storage === "environment" || confirming || logoutLogin !== null}
-      onClick={event => { triggerRef.current = event.currentTarget; wasConfirming.current = true; void controller.activate(account!.login); }}>{t.githubAuthUseAccount}</button>;
-    return <div className="github-account__row" key={account?.login ?? "empty"} role="group" aria-label={account ? `@${account.login}` : t.githubAuthAccountName}>
-      <ToolInstallationRow
-        mark={<AccountAvatar key={account?.avatarDataUrl ?? account?.login ?? "empty"} source={account?.avatarDataUrl ?? null} />}
-        name={account ? `@${account.login}` : t.githubAuthAccountName}
-        chip={chip}
-        detail={account ? <span className="github-account__host">{account.host}</span> : <span className="github-account__note">{available === false ? t.githubAuthMissing : t.githubAuthNetwork}</span>}
-        status={active ? status : account?.state === "invalid" || account?.state === "offline" ? <p className="status-line status-line--warning">{t.githubAuthStatus[account.state]}</p> : null}
-        hint={account?.storage === "file" ? <><CircleAlert aria-hidden="true" /><span className="github-account__warning">{t.githubAuthFile}</span></>
-          : account?.storage === "environment" ? <><Info aria-hidden="true" /><span>{t.githubAuthEnvironment}</span></>
-            : account?.storage === "unknown" ? <><Info aria-hidden="true" /><span>{t.githubAuthUnknownStorage}</span></> : null}
-        recheck={active ? recheck : signOut}
-        primaryAction={primary}
-      />
-    </div>;
+      aria-label={t.githubAuthLogoutConfirm.replace("{login}", account.login)}
+      onClick={event => showLogout(event, account.login)}>{t.githubAuthDisconnect}</button>;
+    const actions = account.active ? cancel ?? <>
+      {snapshot.state === "invalid" && <button type="button" className="secondary-button"
+        disabled={!available || busy || blocked || confirming} onClick={showLogin}>{t.githubAuthReconnect}</button>}
+      {signOut}
+    </> : <>
+      {allowSwitch && <button type="button" className="secondary-button"
+        aria-label={t.githubAuthUseAccountLabel.replace("{login}", account.login)}
+        disabled={mutationDisabled || account.storage === "environment" || confirming || logoutLogin !== null}
+        onClick={event => { triggerRef.current = event.currentTarget; wasConfirming.current = true; void controller.activate(account.login); }}>{t.githubAuthUseAccount}</button>}
+      {signOut}
+    </>;
+    const problem = account.active ? status
+      : account.state === "invalid" || account.state === "offline"
+        ? <p className="status-line status-line--warning"><CircleAlert aria-hidden="true" /><span>{t.githubAuthStatus[account.state]}</span></p> : null;
+    const storage = account.storage === "file" ? <p className="status-line status-line--warning"><CircleAlert aria-hidden="true" /><span>{t.githubAuthFile}</span></p>
+      : account.storage === "environment" ? <p className="status-line"><Info aria-hidden="true" /><span>{t.githubAuthEnvironment}</span></p>
+        : account.storage === "unknown" ? <p className="status-line"><Info aria-hidden="true" /><span>{t.githubAuthUnknownStorage}</span></p> : null;
+    return <AccountRow key={account.login} login={account.login} method="browser" state={chip}
+      avatar={isGitHubAvatarDataUrl(account.avatarDataUrl) ? <AccountAvatar key={account.avatarDataUrl} source={account.avatarDataUrl} /> : undefined}
+      notice={problem || storage ? <>{problem}{storage}</> : null} actions={actions} />;
   };
 
-  return <div ref={containerRef} className="github-account" onKeyDownCapture={event => {
+  if (accounts.length === 0 && settled && !busy && !snapshot.needsCheck && !snapshot.signedOutAccount && !confirming) return null;
+  return <div ref={containerRef} className="github-account github-account--embedded" onKeyDownCapture={event => {
     // An inline confirmation consumes Escape before the outer Settings dialog.
     if (event.key === "Escape" && (confirming || logoutLogin !== null)) {
       event.preventDefault(); event.stopPropagation(); setConfirming(false); setLogoutLogin(null);
     }
   }}>
-    {!accounts.some(account => account.active) && row(null)}
+    {accounts.length === 0 && (status || cancel) && <div className="github-account__actions github-account__pending">{status}{cancel}</div>}
     {accounts.map(row)}
-    {accounts.length > 0 && <div className="github-account__footer">
-      <p className="github-account__note">{t.githubAuthSelectedPurpose}</p>
-      <button type="button" className="secondary-button" disabled={!available || busy || blocked || confirming || logoutLogin !== null} onClick={showLogin}>
-        <Plus aria-hidden="true" />{t.githubAuthConnectAnother}
-      </button>
-    </div>}
-    {accounts.length > 0 && <p className="github-account__shared"><Info aria-hidden="true" /><span>{t.githubAuthShared}</span></p>}
     {snapshot.needsCheck && <p className="github-account__note">{t.githubAuthNeedsCheck}</p>}
     {snapshot.signedOutAccount && <p className="github-account__note" role="status">{t.githubAuthLogoutDone.replace("{login}", snapshot.signedOutAccount)}</p>}
     {snapshot.state === "awaiting_browser" && snapshot.deviceCode && <div className="github-account__authorization">
@@ -142,18 +130,18 @@ export function GitHubAccountSection({ controller, available }: {
     {confirming && !busy && <div className="github-account__authorization">
       <p>{t.githubAuthShared}</p><p>{t.githubAuthPermissions}</p><p>{t.githubAuthStorageConsent}</p>
       <div className="github-account__actions">
-        <button ref={continueRef} type="button" className="primary-button" onClick={() => { setConfirming(false); setCopyState("idle"); void controller.connect(); }}>{t.githubAuthConfirm}</button>
         <button type="button" className="secondary-button" onClick={() => setConfirming(false)}>{t.githubAuthNotNow}</button>
+        <button ref={continueRef} type="button" className="primary-button" onClick={() => { setConfirming(false); setCopyState("idle"); void controller.connect(); }}>{t.githubAuthConfirm}</button>
       </div>
     </div>}
     {logoutLogin && hasLogoutTarget && !busy && <div className="github-account__authorization">
       <p>{t.githubAuthLogoutConsent.replace("{login}", logoutLogin)}</p>
       <p>{t.githubAuthLogoutBrowser}</p>
       <div className="github-account__actions">
+        <button ref={logoutDismissRef} type="button" className="secondary-button" onClick={() => setLogoutLogin(null)}>{t.githubAuthNotNow}</button>
         <button type="button" className="danger-button" disabled={mutationDisabled || logoutTarget?.storage === "environment"} onClick={() => {
           const login = logoutLogin; setLogoutLogin(null); void controller.disconnect(login);
         }}>{t.githubAuthLogoutConfirm.replace("{login}", logoutLogin)}</button>
-        <button ref={logoutDismissRef} type="button" className="secondary-button" onClick={() => setLogoutLogin(null)}>{t.githubAuthNotNow}</button>
       </div>
     </div>}
   </div>;

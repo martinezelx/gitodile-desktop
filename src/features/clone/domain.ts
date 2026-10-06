@@ -57,3 +57,15 @@ export function readLastCloneParent(): string {
 export function writeLastCloneParent(parent: string): void {
   if (parent) localStorage.setItem(LAST_CLONE_PARENT_KEY, parent);
 }
+
+/** The connection last chosen for a product's discovery tab. Only an account
+ * ID (no secret); preselecting it reads nothing from the network. */
+export function readLastCloneConnection(kind: string): string | null {
+  try { return localStorage.getItem(`gitodile-clone-connection-${kind}`); } catch { return null; }
+}
+
+export function writeLastCloneConnection(kind: string, accountId: string | null): void {
+  try {
+    if (accountId) localStorage.setItem(`gitodile-clone-connection-${kind}`, accountId);
+  } catch { /* A remembered choice is a convenience; the picker still works. */ }
+}

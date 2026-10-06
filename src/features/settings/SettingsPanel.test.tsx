@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
-import { GitHubTokenSection } from "../github";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
 import { SettingsPanel } from "./SettingsPanel";
@@ -17,25 +16,21 @@ import type { NavigationPreferences } from "./domain";
 afterEach(cleanup);
 
 describe("optional GitHub CLI tooling", () => {
-  it("puts native tokens before browser accounts and CLI tooling, with token entry available when gh is missing", async () => {
+  it("lists accounts before CLI tooling and keeps adding one independent of a missing gh", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
-    const add = vi.fn(async () => "github:token.fixture");
+    const addAccount = vi.fn();
     renderPanel(port, { initialSection: "github",
-      githubToken: <GitHubTokenSection port={{ add, remove: vi.fn(), cancel: vi.fn() }} accountPort={{
-        readCatalog: async () => ({ providers: [], accounts: [], busy: false }), check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn(),
-      }} />, githubAccount: <p>Browser accounts fixture</p>,
+      githubToken: <section aria-label="Accounts"><button type="button" onClick={addAccount}>Add account</button></section>,
     });
-    const token = screen.getByRole("region", { name: "Token connection" });
-    const browser = screen.getByRole("region", { name: "Connect through the browser" });
+    const accounts = screen.getByRole("region", { name: "Accounts" });
     const tooling = screen.getByRole("region", { name: "GitHub on your computer" });
-    expect(token.compareDocumentPosition(browser) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(browser.compareDocumentPosition(tooling) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(token).getByText(/Works with or without GitHub CLI/)).toBeVisible();
-    expect(within(browser).getByText(/Requires GitHub CLI/)).toBeVisible();
+    expect(accounts.compareDocumentPosition(tooling) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await within(tooling).findByText("Not installed on this computer.");
-    await userEvent.click(within(token).getByRole("button", { name: "Add a token" }));
-    expect(within(token).getByLabelText("Personal access token")).toBeEnabled();
-    expect(port.installGh).not.toHaveBeenCalled(); expect(add).not.toHaveBeenCalled();
+    // Optional tooling never takes the page's one accent-filled action.
+    expect(within(tooling).getByRole("button", { name: "Install" })).toHaveClass("secondary-button");
+    await userEvent.click(within(accounts).getByRole("button", { name: "Add account" }));
+    expect(addAccount).toHaveBeenCalledOnce();
+    expect(port.installGh).not.toHaveBeenCalled();
   });
   it.each(["git", "github"] as const)("waits for %s diagnostics before offering an old version's update", async (section) => {
     let finishRead!: (result: GitDiagnostics) => void;
@@ -261,7 +256,6 @@ type PanelOverrides = Partial<{
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
   githubToken: React.ReactNode;
-  githubAccount: React.ReactNode;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
   onClose: () => void;
@@ -313,7 +307,6 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
     <SettingsPanel
       ghTooling={ghTooling}
       githubToken={overrides.githubToken}
-      githubAccount={overrides.githubAccount}
       theme={overrides.theme ?? "system"}
       setTheme={overrides.setTheme ?? vi.fn()}
       reducedMotion={overrides.reducedMotion ?? false}

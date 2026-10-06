@@ -70,8 +70,8 @@ it("keeps transient failures unconfirmed and never runs from mere subscription",
 });
 
 it("accepts nested GitLab sources and refuses cross-provider account reads", async () => {
-  expect(hostingCloneAddress("https://gitlab.com/group/subgroup/project.git")).toEqual({ https: true, provider: "gitlab" });
-  expect(hostingCloneAddress("git@gitlab.com:group/subgroup/project.git")).toEqual({ https: false, provider: "gitlab" });
+  expect(hostingCloneAddress("https://gitlab.com/group/subgroup/project.git")).toEqual({ https: true, provider: "gitlab", providerId: "gitlab" });
+  expect(hostingCloneAddress("git@gitlab.com:group/subgroup/project.git")).toEqual({ https: false, provider: "gitlab", providerId: "gitlab" });
   for (const source of ["https://gitlab.com.evil.test/team/project", "https://token@gitlab.com/team/project", "https://gitlab.com/team/project?token=x", "http://gitlab.com/team/project", "https://gitlab.com/group"]) expect(hostingCloneAddress(source)).toBeNull();
   vi.useFakeTimers();
   const checkSource = vi.fn(async () => "accessible" as const);
@@ -81,4 +81,20 @@ it("accepts nested GitLab sources and refuses cross-provider account reads", asy
   controller.update("https://gitlab.com/team/subgroup/project", "gitlab:token.42");
   await vi.advanceTimersByTimeAsync(550);
   expect(checkSource).toHaveBeenCalledWith("https://gitlab.com/team/subgroup/project", "gitlab:token.42", expect.any(String));
+});
+
+it("recognizes registered company servers by exact authority and maps their connection", () => {
+  const providers = [
+    { id: "github", host: "github.com", kind: "github" as const, builtIn: true },
+    { id: "ghe-0123456789", host: "ghe.example.com", kind: "github" as const, builtIn: false },
+    { id: "gls-0123456789", host: "gitlab.example.com:8443", kind: "gitlab" as const, builtIn: false },
+  ];
+  expect(hostingCloneAddress("https://ghe.example.com/team/project.git", providers)).toEqual({ https: true, provider: "github", providerId: "ghe-0123456789" });
+  expect(hostingCloneAddress("https://gitlab.example.com:8443/group/sub/project.git", providers)).toEqual({ https: true, provider: "gitlab", providerId: "gls-0123456789" });
+  expect(hostingCloneAddress("git@gitlab.example.com:group/project.git", providers)).toEqual({ https: false, provider: "gitlab", providerId: "gls-0123456789" });
+  expect(hostingCloneAddress("ssh://git@gitlab.example.com:2222/group/project.git", providers)).toEqual({ https: false, provider: "gitlab", providerId: "gls-0123456789" });
+  for (const source of ["https://gitlab.example.com/group/project.git", "https://ghe.example.com/team/sub/project.git",
+    "https://ghe.example.com:8443/team/project.git", "ssh://git@github.com:2222/team/project.git", "https://other.example.com/team/project.git"]) {
+    expect(hostingCloneAddress(source, providers)).toBeNull();
+  }
 });

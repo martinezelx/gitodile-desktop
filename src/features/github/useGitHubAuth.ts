@@ -35,11 +35,11 @@ export function useGitHubAuth(port: GitHubAuthPort, visible: boolean): GitHubAut
     state.current = next;
     setSnapshot(next);
     if (next.state === "awaiting_browser" && next.deviceCode && next.operationId
-      && next.verificationUrl === GITHUB_DEVICE_URL && openedOperation.current !== next.operationId) {
+      && next.verificationUrl === (port.deviceUrl ?? GITHUB_DEVICE_URL) && openedOperation.current !== next.operationId) {
       openedOperation.current = next.operationId;
       void openBrowser();
     }
-  }, [openBrowser]);
+  }, [openBrowser, port.deviceUrl]);
 
   const request = async (kind: "check" | "connect" | "cancel" | "disconnect" | "activate", login?: string): Promise<void> => {
     if (inFlight.current || (kind !== "cancel" && isGitHubAuthBusy(state.current.state))) return;

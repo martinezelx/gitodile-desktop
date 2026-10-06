@@ -109,14 +109,11 @@ export interface SettingsTranslations {
   ghChipUnusable: string;
   ghChipCheckFailed: string;
   ghChipInstalled: string;
-  ghAccountTitle: string;
-  ghAccountDescription: string;
   gitChipMissing: string;
   gitChipUnusable: string;
   gitChipCheckFailed: string;
   gitChipInstalled: string;
   settingsToolChipChecking: string;
-  settingsToolCheckingDetail: string;
   settingsToolSearching: string;
   settingsToolUpdateAvailableDetail: string;
   settingsInstallGuided: string;
@@ -335,7 +332,7 @@ const en: SettingsTranslations = {
   settingsGeneralUpdate: "Update",
   gitStartingInstaller: "Starting…",
   ghTitle: "GitHub on your computer",
-  ghDescription: "Required for browser connections and accounts saved in GitHub CLI (gh). Token connections above work with or without it. Installing it does not sign you in.",
+  ghDescription: "Needed to connect through the browser, while tokens work without it. Installing it doesn't sign you in.",
   ghMissing: "Not installed on this computer.",
   ghUnusable: "It was found, but it is not responding as expected.",
   ghCheckFailed: "Couldn't check whether it is installed.",
@@ -354,14 +351,11 @@ const en: SettingsTranslations = {
   ghChipUnusable: "Not responding",
   ghChipCheckFailed: "Unchecked",
   ghChipInstalled: "Installed",
-  ghAccountTitle: "Connect through the browser",
-  ghAccountDescription: "Requires GitHub CLI (gh), installed below. Connect or reuse its saved accounts, then choose the connection for each project. Local work does not require an account.",
   gitChipMissing: "Not installed",
   gitChipUnusable: "Not working",
   gitChipCheckFailed: "Unchecked",
   gitChipInstalled: "Installed",
   settingsToolChipChecking: "Checking",
-  settingsToolCheckingDetail: "Checking the installation on this computer…",
   settingsToolSearching: "Searching…",
   settingsToolUpdateAvailableDetail: "A newer version is available.",
   settingsInstallGuided: "How to install",
@@ -578,7 +572,7 @@ const es: SettingsTranslations = {
   settingsGeneralUpdate: "Actualizar",
   gitStartingInstaller: "Iniciando…",
   ghTitle: "GitHub en tu ordenador",
-  ghDescription: "Necesaria para las conexiones por navegador y las cuentas guardadas en GitHub CLI (gh). Las conexiones por token de arriba funcionan con o sin ella. Instalarla no inicia sesión.",
+  ghDescription: "Necesaria para conectar mediante el navegador, mientras que los tokens funcionan sin ella. Instalarla no inicia sesión.",
   ghMissing: "No está instalada en este ordenador.",
   ghUnusable: "Se encontró, pero no responde como se espera.",
   ghCheckFailed: "No se pudo comprobar si está instalada.",
@@ -597,14 +591,11 @@ const es: SettingsTranslations = {
   ghChipUnusable: "No responde",
   ghChipCheckFailed: "Sin comprobar",
   ghChipInstalled: "Instalada",
-  ghAccountTitle: "Conectar mediante el navegador",
-  ghAccountDescription: "Requiere GitHub CLI (gh), que puedes instalar abajo. Conecta o reutiliza sus cuentas guardadas y elige la conexión de cada proyecto. El trabajo local no requiere una cuenta.",
   gitChipMissing: "No instalado",
   gitChipUnusable: "No funciona",
   gitChipCheckFailed: "Sin comprobar",
   gitChipInstalled: "Instalado",
   settingsToolChipChecking: "Comprobando",
-  settingsToolCheckingDetail: "Comprobando la instalación en este ordenador…",
   settingsToolSearching: "Buscando…",
   settingsToolUpdateAvailableDetail: "Hay una versión más reciente.",
   settingsInstallGuided: "Cómo instalar",

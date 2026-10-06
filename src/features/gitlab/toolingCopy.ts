@@ -3,8 +3,6 @@ import { useLanguage } from "../../i18n";
 export function useGitLabToolingCopy(): HostingToolingCopy {
  const { t } = useLanguage();
  return {
-  ghAccountDescription: t.glabAccountDescription,
-  ghAccountTitle: t.glabAccountTitle,
   ghActionFailed: t.glabActionFailed,
   ghCheckFailed: t.glabCheckFailed,
   ghChipCheckFailed: t.glabChipCheckFailed,

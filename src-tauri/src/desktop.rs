@@ -65,6 +65,18 @@ pub(crate) fn reveal_project_file(path: String, file_path: String) -> Result<(),
     })
 }
 
+/// Opens a URL the native side derived itself (never one the renderer or a
+/// tool supplied); the renderer's opener scope stays a fixed allow-list.
+pub(crate) fn open_derived_url(url: &str) -> Result<(), AppError> {
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "Your browser couldn't be opened.",
+        )
+        .with_remediation("Open the address shown in GitOdile in your browser yourself.")
+    })
+}
+
 /// The main window starts hidden so the OS-level window never appears blank
 /// while the webview loads and React mounts.
 pub(crate) fn show_main_window(window: tauri::Window) {

@@ -1,15 +1,18 @@
 # GitOdile Design Direction
 
-GitHub connections offer personal tokens first, browser authorization second,
-and GitHub CLI tooling last in Settings. Tokens work with or without gh; browser
-authorization and its saved accounts require gh. The token field is hidden until asked
+GitHub and GitLab connections share one Accounts list per product in Settings,
+grouped by host (the public host first, then company servers), followed by the
+company-server inventory and the CLI tooling last. Each row names its method
+(Token or Browser). Tokens work with or without gh/glab; browser authorization
+and its saved accounts require the CLI. The token field is hidden until asked
 for, masks its contents, explains secure storage/permissions before submission
 and clears immediately when sent. Labels distinguish connection methods even
 for the same username. Removing a local connection explains affected project
 access and that it does not revoke authorization on GitHub.
 
-Repository browsing belongs to the clone overlay. Account selection and an
-explicit Find action precede network access. Show page scope, private/archive
+Repository browsing belongs to the clone overlay. Choosing a connection (or
+the one preselected from last time) finds its first page of projects at once;
+a cancelled or failed read waits for an explicit Find projects. Show page scope, private/archive
 metadata, permission-limited results and keyboard-accessible virtual rows.
 Choosing a project populates the normal destination review without starting a
 clone. A filter must say which page it searches; a partial list cannot read as
@@ -399,11 +402,12 @@ The main desktop window should broadly support:
      project is open. Updates is its own settings section — it has state,
      actions and a dialog of its own, like Git — so it never shares General
      with the project-refresh group. Neither of its two groups is named
-     after the tab. "Installed version" shows the version, then one toned
-     status line (the same `.status-line` scale the Git installation row
-     uses: icon and ink, no capsule, no width cap), and when there is a
-     specific cause the line says the cause instead — so "why is it
-     unavailable" needs no click. "Details" opens the dialog only when it has
+     after the tab. The app's row is the shared installation row: the
+     installed version is a monospace chip beside the name, next to the state
+     chip, and a toned status line (icon and ink, no capsule) appears under
+     them only when it says more than the chip — the offered release, a
+     block, an unavailable check or a failure, as the cause when there is
+     one — so "why is it unavailable" needs no click. "Details" opens the dialog only when it has
      something the row cannot say: a release, a transfer or an install to
      confirm. Details stays available during a download, verification or
      installation, so closing the dialog never removes the way back to progress
@@ -1955,14 +1959,22 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
-**GitHub integration is a separate connection.** Settings → GitHub uses standard
-Settings groups in this order: token connections, browser connections, and gh
-tooling. Each method explains its own dependency: tokens work with or without
-gh, while browser authorization and its saved accounts require it. Token rows
-reuse the installation row with identity, state and right-aligned actions. Add
-token opens a flat masked field; storage guidance stays visible and detailed
-permissions use a disclosure. Cancellation restores the initiating control's
-focus; removal restores Add token after the catalog changes.
+**GitHub integration is a separate connection.** Settings → GitHub (and
+GitLab) uses three groups: **Accounts**, the company-server inventory, and the
+CLI tooling. Accounts is one list for every host of the product, each host a
+small label (glyph, host, a "Company" pill for servers) over a bordered list of
+account rows, each one line: a 32px avatar, the login, a method chip (Token or
+Browser) and a state chip, with short text verbs on the right (Use · Remove ·
+Sign out); a second line appears only for a problem or a storage caveat. The
+installation rows for Git, the CLIs and the app update share that geometry in
+their own card: tile, name, installed-version chip and state chip on one line,
+the official guide as an icon button beside the check and the primary action.
+The group header owns the only account check and **Add account**, which opens one inline panel: a Token/Browser segmented choice, the
+host when there is more than one, then the masked token field or the browser
+consent. Consequences are stated in that panel, not as permanent notes under
+every group. **One accent-filled action per page**: Add account while nothing is
+connected and the panel's submit; tooling checks and server additions stay
+secondary. Cancellation restores the initiating control's focus.
 
 Browser account detection explicitly contacts GitHub;
 opening the section renders cached state only. List saved accounts with the
@@ -1980,8 +1992,25 @@ has a selectable device code, Copy, Open GitHub and Cancel, with keyboard focus
 on Continue when consent opens. Cancellation does not promise unchanged
 authorization: gh may already have persisted it.
 
-Cloning a registered provider's HTTPS URL and the project's remote settings
-share an accessible account selector. Default to existing Git credentials and
+**Company servers are an inventory.** The group after Accounts lists each
+GitHub Enterprise Server or GitLab Self-Managed host with its account count and
+Remove; its accounts live in the Accounts list under that host, so the page
+does not grow by whole groups per server. Add a server opens a flat address
+field whose notes say the address is contacted once, without credentials, and
+how certificates and proxies are trusted. Removal confirms inline what is
+deleted (its tokens) and what is kept (gh/glab sessions). Clone discovery keeps
+one tab per product; its connection menu groups accounts under host headers,
+the public host first, and ends with the account check (no separate button
+beside the selector). The connection used last is preselected and its projects
+load at once; after a cancelled or failed read the list offers a visible
+**Find projects** button.
+
+Project settings → Remote lists the remotes first, then **HTTPS access**: one
+compact row per host the remotes use (glyph, host, selector), the explanation
+once in the group header and one account check for the group. A remote whose
+stored address carries sign-in details warns beside that remote; its host row
+only points to it. Cloning a registered provider's HTTPS URL and the project's
+remote settings share an accessible account selector. Default to existing Git credentials and
 require an explicit choice to bind a saved account. Show the chosen identity in
 the clone preview and preserve an unavailable selection visibly rather than
 switching to another account. Explain that project access does not switch gh's

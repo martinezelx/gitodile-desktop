@@ -26,6 +26,7 @@ use crate::{
     gitlab_access::GitLabAccessService,
     gitlab_auth::{GitLabAuthService, GitLabAuthSnapshot},
     history::{self, HistoryPage, SavedVersionDetail},
+    hosting::{CliAction, HostingCliSnapshot, HostingServers},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
         InitializeTargetKind,
@@ -75,13 +76,15 @@ pub(crate) fn remove_github_token(
 pub(crate) async fn list_hosting_repositories(
     service: tauri::State<'_, GitHubAccessService>,
     gitlab: tauri::State<'_, GitLabAccessService>,
+    servers: tauri::State<'_, HostingServers>,
     account_id: String,
     page: u32,
     request_id: String,
 ) -> Result<RepositoryPage, AppError> {
     report_result(
         "list_hosting_repositories",
-        crate::hosting::repositories(&service, &gitlab, account_id, page, request_id).await,
+        crate::hosting::repositories(&service, &gitlab, &servers, account_id, page, request_id)
+            .await,
     )
 }
 
@@ -89,11 +92,13 @@ pub(crate) async fn list_hosting_repositories(
 pub(crate) fn cancel_hosting_request(
     service: tauri::State<'_, GitHubAccessService>,
     gitlab: tauri::State<'_, GitLabAccessService>,
+    servers: tauri::State<'_, HostingServers>,
     request_id: String,
 ) {
     let _command = application::enter("cancel_hosting_request");
     service.cancel(&request_id);
     gitlab.cancel(&request_id);
+    servers.cancel(&request_id);
 }
 
 #[tauri::command]
@@ -1754,6 +1759,7 @@ mod contract_tests {
             AppErrorCode::StaleIgnoreFile,
             AppErrorCode::IgnoreFileWriteFailed,
             AppErrorCode::InstallBlocked,
+            AppErrorCode::UnsupportedServer,
         ];
         let serialized = codes
             .iter()
@@ -1982,4 +1988,108 @@ pub(crate) fn remove_gitlab_token(
 ) -> Result<(), AppError> {
     let _command = application::enter("remove_gitlab_token");
     report_result("remove_gitlab_token", service.remove(&account_id))
+}
+#[tauri::command]
+pub(crate) async fn add_hosting_server(
+    servers: tauri::State<'_, HostingServers>,
+    kind: String,
+    address: String,
+    request_id: String,
+) -> Result<AccountCatalog, AppError> {
+    report_result(
+        "add_hosting_server",
+        servers.add(kind, address, request_id).await,
+    )
+}
+#[tauri::command(async)]
+pub(crate) fn remove_hosting_server(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<AccountCatalog, AppError> {
+    let _command = application::enter("remove_hosting_server");
+    report_result("remove_hosting_server", servers.remove(&provider))
+}
+#[tauri::command]
+pub(crate) async fn add_hosting_token(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result(
+        "add_hosting_token",
+        servers.add_token(&provider, token, request_id).await,
+    )
+}
+#[tauri::command(async)]
+pub(crate) fn remove_hosting_token(
+    servers: tauri::State<'_, HostingServers>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_hosting_token");
+    report_result("remove_hosting_token", servers.remove_token(&account_id))
+}
+#[tauri::command]
+pub(crate) fn get_hosting_cli_state(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    let _command = application::enter("get_hosting_cli_state");
+    report_result(
+        "get_hosting_cli_state",
+        servers.cli(&provider, CliAction::Read),
+    )
+}
+#[tauri::command]
+pub(crate) fn check_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "check_hosting_cli",
+        servers.cli(&provider, CliAction::Check),
+    )
+}
+#[tauri::command]
+pub(crate) fn start_hosting_cli_login(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "start_hosting_cli_login",
+        servers.cli(&provider, CliAction::Login),
+    )
+}
+#[tauri::command]
+pub(crate) fn logout_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    account: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "logout_hosting_cli",
+        servers.cli(&provider, CliAction::Logout(account)),
+    )
+}
+#[tauri::command]
+pub(crate) fn open_hosting_device_page(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("open_hosting_device_page");
+    report_result(
+        "open_hosting_device_page",
+        servers.open_device_page(&provider),
+    )
+}
+#[tauri::command]
+pub(crate) fn cancel_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    operation_id: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "cancel_hosting_cli",
+        servers.cli(&provider, CliAction::Cancel(operation_id)),
+    )
 }

@@ -3,14 +3,13 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleArrowUp,
-  ExternalLink,
   Info,
   LoaderCircle,
   TriangleAlert,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { ToolInstallationRow, type ToolChip } from "../../shared/ui";
+import { ToolGuideButton, ToolInstallationRow, type ToolChip } from "../../shared/ui";
 import { GitHubIcon } from "./GitHubIcon";
 import type { GitDiagnostics, GitInstallationResult, GitUpdateLaunchResult, GitUpdateStatus } from "./domain";
 import { ToolRecheckButton } from "./ToolRecheckButton";
@@ -18,7 +17,7 @@ import type { SettingsPort } from "./port";
 import type { GitToolingState } from "./useGitTooling";
 import { useToolNotice, type ToolNotice } from "./useToolNotice";
 
-export type HostingToolingCopy = { ghAccountDescription: string; ghAccountTitle: string; ghActionFailed: string; ghCheckFailed: string; ghChipCheckFailed: string; ghChipInstalled: string; ghChipMissing: string; ghChipUnusable: string; ghDescription: string; ghGuidanceOpened: string; ghInstall: string; ghInstallerLaunched: string; ghInstructions: string; ghMissing: string; ghName: string; ghTitle: string; ghUnusable: string; ghUpdateCheckFailed: string; ghUpdateCheckTimedOut: string; ghUpdateChecking: string; ghUpdateUnavailable: string; ghUpdateUpToDate: string;  };
+export type HostingToolingCopy = { ghActionFailed: string; ghCheckFailed: string; ghChipCheckFailed: string; ghChipInstalled: string; ghChipMissing: string; ghChipUnusable: string; ghDescription: string; ghGuidanceOpened: string; ghInstall: string; ghInstallerLaunched: string; ghInstructions: string; ghMissing: string; ghName: string; ghTitle: string; ghUnusable: string; ghUpdateCheckFailed: string; ghUpdateCheckTimedOut: string; ghUpdateChecking: string; ghUpdateUnavailable: string; ghUpdateUpToDate: string;  };
 export interface HostingToolingPort { readDiagnostics(): Promise<GitDiagnostics>; checkUpdate(): Promise<GitUpdateStatus>; install(): Promise<GitInstallationResult>; update(): Promise<GitUpdateLaunchResult> }
 
 type NoticeTone = ToolNotice["tone"];
@@ -38,10 +37,9 @@ const UPDATE_ICONS: Record<string, ReactNode> = {
 };
 
 /** Optional machine tooling. Installation never implies GitHub authentication. */
-export function GhToolingSection({ port, tooling, account, copy, mark, actions, guidanceUrl = "https://github.com/cli/cli#installation" }: {
+export function GhToolingSection({ port, tooling, copy, mark, actions, guidanceUrl = "https://github.com/cli/cli#installation" }: {
   port: SettingsPort;
   tooling: GitToolingState;
-  account?: ReactNode;
   copy?: HostingToolingCopy; mark?: ReactNode; actions?: HostingToolingPort; guidanceUrl?: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -108,9 +106,7 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
               : { label: text.ghChipInstalled, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> };
 
   const detail =
-    diagnostics === null ? (
-      <span>{t.settingsToolCheckingDetail}</span>
-    ) : diagnostics.state === "missing" ? (
+    diagnostics === null ? null : diagnostics.state === "missing" ? (
       <strong>{text.ghMissing}</strong>
     ) : diagnostics.state === "unusable" ? (
       <p className="status-line status-line--warning">
@@ -122,12 +118,7 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
         <TriangleAlert aria-hidden="true" />
         <span>{text.ghCheckFailed}</span>
       </p>
-    ) : (
-      <p className="version-line">
-        <span className="version-line__label">{t.settingsGitInstalledVersionLabel}</span>
-        <span className="version-line__value">{diagnostics.version}</span>
-      </p>
-    );
+    ) : null;
 
   const status =
     notice !== null ? (
@@ -179,11 +170,11 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
 
   const primaryAction =
     diagnostics === null ? (
-      <button className="primary-button" type="button" disabled>
+      <button className="secondary-button" type="button" disabled>
         {t.settingsToolChipChecking}
       </button>
     ) : installable ? (
-      <button className="primary-button" type="button" disabled={isStarting || tooling.isRefreshingDiagnostics} onClick={() => void start("install")}>
+      <button className="secondary-button" type="button" disabled={isStarting || tooling.isRefreshingDiagnostics} onClick={() => void start("install")}>
         {isStarting ? t.gitStartingInstaller : isWindows ? text.ghInstall : t.settingsInstallGuided}
       </button>
     ) : update === "update_available" ? (
@@ -191,7 +182,7 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
         {isStarting ? t.gitUpdateStarting : t.settingsGeneralUpdate}
       </button>
     ) : (
-      <button className="primary-button" type="button" disabled={tooling.isCheckingUpdate || tooling.isRefreshingDiagnostics || isStarting} onClick={() => {
+      <button className="secondary-button" type="button" disabled={tooling.isCheckingUpdate || tooling.isRefreshingDiagnostics || isStarting} onClick={() => {
         clearNotice();
         void tooling.checkUpdate();
       }}>
@@ -199,22 +190,10 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
       </button>
     );
 
-  const docs = (
-    <button className="tool-row__docs-link" type="button" onClick={() => void instructions()}>
-      {text.ghInstructions}
-      <ExternalLink aria-hidden="true" />
-    </button>
-  );
+  const docs = <ToolGuideButton label={text.ghInstructions} onClick={() => void instructions()} />;
 
   return (
     <>
-      <section className="settings-group" aria-label={text.ghAccountTitle}>
-        <header className="settings-group__header">
-          <h3>{text.ghAccountTitle}</h3>
-          <p>{text.ghAccountDescription}</p>
-        </header>
-        {account && <div className="settings-group__body">{account}</div>}
-      </section>
       <section className="settings-group" aria-label={text.ghTitle}>
         <header className="settings-group__header">
           <h3>{text.ghTitle}</h3>
@@ -225,6 +204,8 @@ export function GhToolingSection({ port, tooling, account, copy, mark, actions, 
             mark={mark ?? <GitHubIcon />}
             name={text.ghName}
             chip={chip}
+            version={available ? diagnostics.version : null}
+            versionLabel={t.settingsGitInstalledVersionLabel}
             detail={detail}
             status={status}
             hint={hint}

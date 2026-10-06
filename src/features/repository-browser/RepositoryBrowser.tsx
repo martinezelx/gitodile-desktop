@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Check, ChevronLeft, ChevronRight, LockKeyhole, Search, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FolderSearch, LockKeyhole, Search, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { AccountPicker, type AccountCatalog } from "../accounts";
@@ -8,10 +8,12 @@ import { autoHideScrollbarProps, HostingProviderIcon, RefreshIconButton } from "
 import type { RepositoryBrowserController } from "./controller";
 import type { RepositoryChoice } from "./domain";
 
-export function RepositoryBrowser({ controller, catalog, checking, failed, onCheck, onChoose, selected, onClearSelection, provider = "github" }: {
+export function RepositoryBrowser({ controller, catalog, checking, failed, onCheck, onChoose, selected, onClearSelection, onConnectionChange, provider = "github" }: {
   controller: RepositoryBrowserController; catalog: AccountCatalog; checking: boolean; failed: boolean;
   onCheck: () => void; onChoose: (choice: RepositoryChoice) => void;
-  selected?: RepositoryChoice | null; onClearSelection?: () => void; provider?: string;
+  selected?: RepositoryChoice | null; onClearSelection?: () => void;
+  /** The connection the reader picked, so the dialog can offer it next time. */
+  onConnectionChange?: (accountId: string | null) => void; provider?: string;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
@@ -34,19 +36,30 @@ export function RepositoryBrowser({ controller, catalog, checking, failed, onChe
     if (button) { button.focus({ preventScroll: true }); focusRow.current = null; }
   }, [activeRow, virtualRows]);
   useEffect(() => { if (!catalog.busy) controller.reconcile(catalog.accounts); }, [controller, catalog]);
+  // Choosing (or being offered) a usable connection finds its projects at
+  // once, a single time per connection; a cached page is reused, and a
+  // cancelled or failed read waits for the explicit Find projects action.
+  const autoLoaded = useRef<string | null>(null);
+  const accountId = account?.id ?? null;
+  useEffect(() => {
+    if (!accountId || catalog.busy || checking || autoLoaded.current === accountId) return;
+    autoLoaded.current = accountId;
+    const current = controller.snapshot();
+    if (current.accountId === accountId && !current.page && !current.pending && current.error == null) void controller.load(1);
+  }, [accountId, catalog.busy, checking, controller]);
   useEffect(() => { setQuery(""); scrollRef.current?.scrollTo?.({ top: 0 }); }, [state.accountId, state.page?.page]);
   useEffect(() => () => controller.cancel(), [controller]);
   return <div className="repository-browser">
     <div className="repository-browser__connection">
-      <AccountPicker catalog={catalog} provider={provider} value={state.accountId} onChange={id => { onClearSelection?.(); controller.select(id); }}
+      <AccountPicker catalog={catalog} provider={provider} kind={provider} value={state.accountId} onChange={id => { onClearSelection?.(); controller.select(id); onConnectionChange?.(id); }}
         label={t.cloneConnectionLabel} showHelp={false} onCheck={onCheck} disabled={checking} failed={failed} required />
     </div>
     <div className="repository-browser__search">
       <label className="text-field"><span className="visually-hidden">{t.repositoriesFilter}</span><Search aria-hidden="true" />
         <input type="search" placeholder={t.repositoriesFilter} value={query} disabled={!state.page} onChange={event => setQuery(event.target.value)} />
       </label>
-      <RefreshIconButton label={state.page ? t.repositoriesRefresh : t.repositoriesLoad} busyLabel={t.repositoriesLoading} busy={state.pending}
-        disabled={!account || catalog.busy || checking} onClick={() => { onClearSelection?.(); void controller.load(state.page?.page ?? 1); }} />
+      {(state.page || state.pending) && <RefreshIconButton label={t.repositoriesRefresh} busyLabel={t.repositoriesLoading} busy={state.pending}
+        disabled={!account || catalog.busy || checking} onClick={() => { onClearSelection?.(); void controller.load(state.page?.page ?? 1); }} />}
       {state.pending && <button type="button" className="secondary-button refresh-icon-button" aria-label={t.commonCancel} data-tooltip={t.commonCancel} onClick={controller.cancel}><X aria-hidden="true" /></button>}
     </div>
     <div className="repository-browser__list auto-hide-scrollbar" ref={scrollRef} {...autoHideScrollbarProps<HTMLDivElement>()}
@@ -58,7 +71,16 @@ export function RepositoryBrowser({ controller, catalog, checking, failed, onChe
           focusRow.current = next; setActiveRow(next); virtualizer.scrollToIndex(next, { align: "auto" });
         }}>
         {state.error != null && <p className="repository-browser__message" role="alert">{isAppError(state.error) && state.error.code === "permission_denied" ? t.repositoriesDenied : localizeAppError(state.error, t, t.repositoriesError)}</p>}
-        {!state.page && !state.pending && state.error == null && <p className="repository-browser__message">{account ? t.repositoriesLoadHint : t.repositoriesConnectionHint}</p>}
+        {!state.page && !state.pending && state.error == null && (account
+          // An explicit, visible way to the first network read; the icon in the
+          // filter stays the refresh for a loaded page.
+          ? <div className="repository-browser__empty">
+            <span className="repository-browser__empty-icon"><FolderSearch aria-hidden="true" /></span>
+            <p>{t.repositoriesLoadHint.replace("{login}", account.login).replace("{host}", account.host)}</p>
+            <button type="button" className="secondary-button" disabled={catalog.busy || checking}
+              onClick={() => { onClearSelection?.(); void controller.load(1); }}><Search aria-hidden="true" />{t.repositoriesLoad}</button>
+          </div>
+          : <p className="repository-browser__message">{t.repositoriesConnectionHint}</p>)}
         {state.page && rows.length === 0 && <p className="repository-browser__message">{state.page.repositories.length === 0 ? t.repositoriesEmpty : t.repositoriesNoMatches}</p>}
         <div role="list" aria-label={t.repositoriesBrowse} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualRows.map(item => {

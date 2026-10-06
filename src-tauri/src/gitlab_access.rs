@@ -19,11 +19,14 @@ impl Deref for GitLabAccessService {
     }
 }
 impl AccessProvider for GitLabAccessService {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         self.0.id()
     }
-    fn host(&self) -> &'static str {
+    fn host(&self) -> &str {
         self.0.host()
+    }
+    fn kind(&self) -> &'static str {
+        self.0.kind()
     }
     fn accounts(&self) -> Vec<Account> {
         self.0.accounts()

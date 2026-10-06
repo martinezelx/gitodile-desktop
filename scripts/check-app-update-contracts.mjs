@@ -146,6 +146,14 @@ assert.match(cargoToml, /reqwest\s*=\s*\{[^\n]*default-features\s*=\s*false[^\n]
   "GitOdile may name the plugin client's Reqwest types without enabling another default client");
 assert.doesNotMatch(cargoToml, /reqwest\s*=\s*\{[^\n]*,\s*features\s*=/,
   "GitOdile must not select a direct Reqwest TLS provider");
+// The hosting API clients share the plugin's Reqwest features. Corporate CAs
+// and proxies depend on two of them, so an updater change must not drop them.
+const lockPackage = (name) => cargoLock.split("[[package]]")
+  .find((block) => new RegExp(`^name = "${name}"\\r?$`, "m").test(block)) ?? "";
+assert.match(lockPackage("reqwest"), /"rustls-platform-verifier"/,
+  "hosting HTTPS must keep verifying against the OS trust store");
+assert.match(lockPackage("hyper-util"), /"system-configuration"[^]*"windows-registry/,
+  "hosting HTTPS must keep the OS proxy settings (Reqwest system-proxy)");
 assert.doesNotMatch(cargoLock, /^name = "aws-lc-(?:rs|sys)"$/m,
   "the removed standalone manifest client must not retain AWS-LC dependencies");
 const nativeUpdaterProduction = nativeUpdater.split("\n#[cfg(test)]\nmod tests")[0];

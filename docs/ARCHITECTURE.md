@@ -818,6 +818,28 @@ namespace URLs must match the fixed provider host before entering the existing
 source-access/destination/credential-helper boundary. See
 [ADR 0024](adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
 
+### Company servers
+
+`hosting.rs` owns user-added GitHub Enterprise Server and GitLab Self-Managed
+instances (`hosting-servers.json`, at most 8, validated on load by re-deriving
+each `ghe-`/`gls-` ID from its normalized authority). Each server composes a
+host-scoped `HostingAccessService` (API origin, OS-store namespace, clone-URL
+host) with a host-scoped `GitHubAuthService` or `GitLabAuthService`, and
+registers with `AccountService`, whose provider list is runtime-mutable. Adding
+probes the address without credentials; removing deletes that server's token
+secrets and unregisters it while bindings stay saved and unavailable. The Git
+helper receives a server's authority as an argument and rebuilds its adapter only
+when that authority derives the account's instance ID. Credential scopes, remote
+validation and header masking compare host and port. The `hosting-servers`
+feature owns the Settings connections composition (`ProviderConnectionsSettings`:
+one Accounts list per product grouped by host, the add-account panel and the
+server inventory) and its typed port. It composes `accounts`' token rows and
+form with the embedded gh/glab account bodies and per-product token copy from
+`github`/`gitlab`; App passes it as the provider's Settings slot. Native opens
+gh's device page for a server because the renderer's opener scope is a fixed
+list. See
+[ADR 0025](adr/0025-connect-company-servers-as-provider-instances.md).
+
 ### Shared hosting accounts and Git access
 
 `credentials.rs` owns provider-neutral metadata, bounded persistent project
@@ -838,6 +860,18 @@ selected identity and publish its project binding after destination verification
 Failure to save that binding preserves the completed clone result and reports
 manual account setup without a clone retry or automatic opening. A failed account
 check retains identities/avatars while marking old verified rows as unchecked.
+Verified token rows stay selectable while a background check runs. Checks and
+discovery are fenced per connection, so adding or removing one token never
+discards another token's result; a GitLab rename found by a check is persisted.
+Project settings warns beside the picker when a provider remote stores sign-in
+details (shown redacted) or uses HTTP, the cases the transfer guard refuses.
+Repository descriptions are display text: line endings are normalized, other
+control characters dropped and length bounded, while names, owners and clone
+URLs stay strictly validated. The Git helper's glab lookup skips the separate
+version probe and still verifies the numeric identity before answering. The
+hosting HTTP clients share the updater plugin's Reqwest features (one TLS
+provider); the app-update contract check fails if that client stops verifying
+against the OS trust store or stops honoring OS proxy settings.
 Git helper failure stops fallback to another identity. See
 [ADR 0022](adr/0022-share-provider-accounts-and-scope-git-access.md) for the narrow
 native-token exception to ADR 0021, scope isolation and platform qualification.

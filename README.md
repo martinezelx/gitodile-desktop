@@ -340,8 +340,10 @@ the system's normal authentication. Account selection does not change commit
 authorship, configure SSH or prove publishing permissions. GitHub and GitLab.com share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
-Settings → GitHub offers **Token connection** in the same grouped rows as other
-settings. Add token opens a masked field with storage guidance and expandable
+Settings → GitHub starts with one **Accounts** list: every token and browser
+connection of github.com and of each company server, grouped under its host,
+with one check action and one **Add account** panel (method, then host). The
+token method opens a masked field with storage guidance and expandable
 permission details. GitOdile verifies the token's identity and saves it only
 in the system's secure credential store, with no plaintext fallback. Up to eight
 token connections coexist with browser connections; even the same username has
@@ -350,8 +352,9 @@ project selections unavailable and does not revoke the token on GitHub. After
 restart, detect/check accounts explicitly before choosing them. Metadata stores
 only usernames, and the token input clears when sent to Rust.
 
-Clone a project → **GitHub** lets you choose a connection
-and explicitly find its personal/team projects. Pages contain up to 100 projects
+Clone a project → **GitHub** lets you choose a connection (the one used last
+time, or the only usable one, is preselected) and lists its personal/team
+projects as soon as a connection is chosen. Pages contain up to 100 projects
 with private/archive metadata and a filter for the current page. Permissions and
 organization/SSO approval may limit the inventory. Choosing a project fills its
 HTTPS address and account into the existing destination review; nothing is
@@ -359,8 +362,9 @@ cloned until you confirm. Discovery uses exactly that connection without changin
 gh's active account. Its private results are cached only for the app session.
 See [ADR 0023](docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
 
-Settings → GitLab follows the same order: native **Token connection**, browser
-connection, then optional **GitLab CLI (`glab`)** tooling. Tokens work without
+Settings → GitLab follows the same layout: the **Accounts** list (tokens and the
+glab browser connection per host), company servers, then optional
+**GitLab CLI (`glab`)** tooling. Tokens work without
 glab and stay in a separate OS secure-store namespace, with no plaintext fallback.
 Use `read_api` for identity/project discovery, plus `read_repository` for clone/get
 changes or `write_repository` to publish too; the broader `api` scope covers both.
@@ -385,11 +389,32 @@ Clone a project → **GitLab** reuses the connection selector and project browse
 including group/subgroup names, current-page filters and explicit pagination.
 Discovery and HTTPS transfers use the exact token or CLI connection selected;
 there is no fallback to another source. API calls use only GitLab.com without
-redirects. SSH and self-hosted GitLab are outside this account adapter’s scope.
+redirects. SSH stays outside this account adapter’s scope.
 See [ADR 0024](docs/adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
 Automated fixtures and Windows UI/secure-store checks cover the implementation;
 real GitLab OAuth, private clone/publishing and macOS/Linux runtime qualification
 remain unclaimed until exercised with an authorized account and environment.
+
+### Company servers
+
+Settings → GitHub and Settings → GitLab each list their **company servers**
+(**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated) after the
+accounts. Add a server by its HTTPS address (`https://git.example.com`, with
+an optional port); GitOdile contacts it once, without credentials, to confirm
+the product and a supported version (GHES 3.0+, GitLab 14.0+), then its
+accounts appear in the Accounts list under its host. Up to 8 servers;
+their accounts never mix with github.com/gitlab.com accounts, and a project can
+use a personal and a corporate account at the same time. Clone a project →
+GitHub/GitLab lists accounts from every host of that product, and project
+settings → Remote show an **HTTPS access** row per host its remotes use, after
+the remotes themselves. Removing a
+server deletes its saved tokens from the OS secure store; gh/glab sessions are
+left to those tools. API calls trust the certificates installed on the computer
+and its proxy settings; Git uses its own proxy/CA configuration. Relative-URL
+GitLab installations and GHE.com data residency are not supported yet. See
+[ADR 0025](docs/adr/0025-connect-company-servers-as-provider-instances.md).
+Behavior is covered by hermetic fixtures; no real corporate instance has been
+qualified yet.
 
 ## Requirements
 

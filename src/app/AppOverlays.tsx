@@ -1,11 +1,12 @@
-import { GitLabAccountSection, GitLabTokenSection, gitlabToolingPort, useGitLabToolingCopy, type GitLabAuthController } from "../features/gitlab";
+import { gitlabToolingPort, useGitLabToolingCopy, type GitLabAuthController } from "../features/gitlab";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
 import { Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
-import { GitHubAccountSection, GitHubTokenSection, type GitHubAuthController } from "../features/github";
+import { type GitHubAuthController } from "../features/github";
+import { ProviderConnectionsSettings } from "../features/hosting-servers";
 import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -417,11 +418,11 @@ export function AppOverlays({
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               ghTooling={settings.ghTooling}
-              githubToken={<GitHubTokenSection />}
+              githubToken={<ProviderConnectionsSettings auth={{ kind: "github", controller: settings.githubAuth }}
+                cliAvailable={settings.ghTooling.diagnostics === null ? null : settings.ghTooling.diagnostics.state === "available"} />}
               glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
-              gitlabToken={<GitLabTokenSection />}
-              gitlabAccount={<GitLabAccountSection controller={settings.gitlabAuth} available={settings.glabTooling.diagnostics === null ? null : settings.glabTooling.diagnostics.state === "available"} />}
-              githubAccount={<GitHubAccountSection controller={settings.githubAuth} available={settings.ghTooling.diagnostics === null ? null : settings.ghTooling.diagnostics.state === "available"} />}
+              gitlabToken={<ProviderConnectionsSettings auth={{ kind: "gitlab", controller: settings.gitlabAuth }}
+                cliAvailable={settings.glabTooling.diagnostics === null ? null : settings.glabTooling.diagnostics.state === "available"} />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}
               onCheckGitUpdate={settings.gitTooling.checkUpdate}

@@ -27,3 +27,7 @@
 .repository-browser__pagination p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .repository-browser__pagination > div { display: flex; gap: var(--space-1); }
 .repository-browser__pagination .refresh-icon-button { width: 30px; min-width: 30px; min-height: 30px; height: 30px; }
+.repository-browser__empty { display: grid; justify-items: center; align-content: center; gap: var(--space-3); min-height: 100%; padding: var(--space-6) var(--space-4); text-align: center; color: var(--text-secondary-color); font-size: var(--text-body); }
+.repository-browser__empty p { margin: 0; max-width: 360px; line-height: var(--leading-normal); }
+.repository-browser__empty-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-secondary-color); }
+.repository-browser__empty-icon svg { width: 20px; height: 20px; }

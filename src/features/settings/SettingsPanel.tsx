@@ -10,7 +10,6 @@ import {
   CircleArrowUp,
   CloudDownload,
   CornerDownLeft,
-  ExternalLink,
   GripVertical,
   Info,
   LoaderCircle,
@@ -41,6 +40,7 @@ import {
   moveFocusWithinRadioGroup,
   TextPlaceholder,
   ToggleSwitch,
+  ToolGuideButton,
   ToolInstallationRow,
   DEFAULT_PROJECT_AVATAR_STYLE,
   ProjectAvatar,
@@ -351,9 +351,8 @@ export function SettingsPanel({
   activeSection,
   onSectionChange,
   ghTooling,
-  githubAccount,
   githubToken,
-  gitlabToken, gitlabAccount, glabTooling, glabActions, glabCopy,
+  gitlabToken, glabTooling, glabActions, glabCopy,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -400,9 +399,8 @@ export function SettingsPanel({
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   ghTooling: GitToolingState;
-  githubAccount?: React.ReactNode;
   githubToken?: React.ReactNode;
-  gitlabToken?: React.ReactNode; gitlabAccount?: React.ReactNode; glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
+  gitlabToken?: React.ReactNode; glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -1841,9 +1839,7 @@ export function SettingsPanel({
                               : { label: t.gitChipInstalled, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> }
                   }
                   detail={
-                    gitDiagnostics === null ? (
-                      <span>{t.settingsToolCheckingDetail}</span>
-                    ) : gitDiagnostics.state === "missing" ? (
+                    gitDiagnostics === null ? null : gitDiagnostics.state === "missing" ? (
                       <strong>{t.settingsGeneralGitMissing}</strong>
                     ) : gitDiagnostics.state === "unusable" ? (
                       <p className="status-line status-line--danger">
@@ -1855,17 +1851,12 @@ export function SettingsPanel({
                         <TriangleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitCheckFailed}</span>
                       </p>
-                    ) : (
-                      /* The version is the fact this row exists to report, so it
-                         gets the label + monospace value treatment rather than
-                         sitting as a bare paragraph indistinguishable from the
-                         hints under it. */
-                      <p className="version-line">
-                        <span className="version-line__label">{t.settingsGitInstalledVersionLabel}</span>
-                        <span className="version-line__value">{gitDiagnostics.version}</span>
-                      </p>
-                    )
+                    ) : null
                   }
+                  /* The version is the fact this row exists to report: a
+                     monospace chip beside the name, labelled for screen readers. */
+                  version={gitDiagnostics?.state === "available" ? gitDiagnostics.version : null}
+                  versionLabel={t.settingsGitInstalledVersionLabel}
                   status={
                     gitActionNotice ? (
                       <p className={`status-line status-line--${gitActionNotice.tone}`} role="status">
@@ -1928,16 +1919,13 @@ export function SettingsPanel({
                     )
                   }
                   docs={
-                    <button className="tool-row__docs-link" type="button" onClick={() => {
+                    <ToolGuideButton label={t.gitOfficialInstructions} onClick={() => {
                       const report = beginGitActionNotice();
                       const os = platform === "windows" ? "windows" : platform === "macos" ? "mac" : "linux";
                       void port.openGuidance(`https://git-scm.com/install/${os}`).catch(() => {
                         report({ tone: "danger", message: t.gitGuidanceFailed });
                       });
-                    }}>
-                      {t.gitOfficialInstructions}
-                      <ExternalLink aria-hidden="true" />
-                    </button>
+                    }} />
                   }
                 />
               </div>
@@ -2138,14 +2126,16 @@ export function SettingsPanel({
           </div>
         )}
 
-        {activeSection === "gitlab" && glabTooling && (<>
-          {gitlabToken}
-          <GhToolingSection port={port} tooling={glabTooling} account={gitlabAccount} actions={glabActions} copy={glabCopy} mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl="https://gitlab.com/gitlab-org/cli#installation" />
-        </>)}
+        {activeSection === "gitlab" && glabTooling && (
+          <div className="settings-groups">
+            {gitlabToken}
+            <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy} mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl="https://gitlab.com/gitlab-org/cli#installation" />
+          </div>
+        )}
         {activeSection === "github" && (
           <div className="settings-groups">
             {githubToken}
-            <GhToolingSection port={port} tooling={ghTooling} account={githubAccount} />
+            <GhToolingSection port={port} tooling={ghTooling} />
           </div>
         )}
 

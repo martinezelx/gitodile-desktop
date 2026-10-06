@@ -4,7 +4,7 @@ export type GitHubAuthState = "unchecked" | "checking" | "signed_out" | "connect
 
 export type GitHubAccount = {
   login: string;
-  host: "github.com";
+  host: string;
   storage: "secure" | "file" | "environment" | "unknown";
   avatarDataUrl: string | null;
 };

@@ -127,30 +127,66 @@ pub(crate) enum CloneSourceAccess {
 /// Supported provider addresses only. Parse before reaching credentials or Git:
 /// no other hosts, local paths, URL secrets or executable-looking inputs.
 fn checked_hosting_source(raw: &str) -> Result<NormalizedSource, AppError> {
+    checked_hosting_source_with(raw, |name| {
+        let mut known = [("github.com", "github"), ("gitlab.com", "gitlab")]
+            .into_iter()
+            .filter(|(host, _)| *host == name)
+            .map(|(host, kind)| (host.to_owned(), kind))
+            .collect::<Vec<_>>();
+        known.extend(crate::credentials::providers_named(name));
+        known
+    })
+}
+
+/// `providers` maps a host name to the registered `(authority, product)`
+/// pairs. HTTPS must match an exact authority; SSH matches the host name, and
+/// only a company server may use a nonstandard SSH port.
+fn checked_hosting_source_with(
+    raw: &str,
+    providers: impl Fn(&str) -> Vec<(String, &'static str)>,
+) -> Result<NormalizedSource, AppError> {
     let raw = raw.trim();
-    let (host, path) = if let Some(path) = raw.strip_prefix("git@github.com:") {
-        ("github.com".to_string(), path.to_string())
-    } else if let Some(path) = raw.strip_prefix("git@gitlab.com:") {
-        ("gitlab.com".to_string(), path.to_string())
+    let scp = raw
+        .strip_prefix("git@")
+        .and_then(|rest| rest.split_once(':'))
+        .filter(|(name, _)| !name.contains(['/', '@']) && !name.is_empty());
+    let (kind, path) = if let Some((name, path)) = scp {
+        let name = name.to_ascii_lowercase();
+        let (_, kind) = providers(&name)
+            .into_iter()
+            .next()
+            .ok_or_else(invalid_check_source)?;
+        (kind, path.to_string())
     } else {
         let url = reqwest::Url::parse(raw).map_err(|_| invalid_check_source())?;
-        if !matches!(url.host_str(), Some("github.com" | "gitlab.com"))
-            || url.port().is_some()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-            || !((url.scheme() == "https" && url.username().is_empty())
-                || (url.scheme() == "ssh" && url.username() == "git"))
-        {
+        let name = url.host_str().ok_or_else(invalid_check_source)?;
+        let authority = crate::credentials::authority(&url).ok_or_else(invalid_check_source)?;
+        let known = providers(name);
+        let kind = if url.scheme() == "https" && url.username().is_empty() {
+            known
+                .iter()
+                .find(|(host, _)| *host == authority)
+                .map(|(_, kind)| *kind)
+        } else if url.scheme() == "ssh" && url.username() == "git" {
+            known
+                .iter()
+                .find(|(host, _)| {
+                    url.port().is_none() || !matches!(host.as_str(), "github.com" | "gitlab.com")
+                })
+                .map(|(_, kind)| *kind)
+        } else {
+            None
+        };
+        if url.password().is_some() || url.query().is_some() || url.fragment().is_some() {
             return Err(invalid_check_source());
         }
         (
-            url.host_str().unwrap().to_string(),
+            kind.ok_or_else(invalid_check_source)?,
             url.path().trim_start_matches('/').to_string(),
         )
     };
     let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
-    if (host == "github.com" && parts.len() != 2)
+    if (kind == "github" && parts.len() != 2)
         || parts.len() < 2
         || parts.len() > 32
         || parts.iter().any(|part| {
@@ -1490,6 +1526,41 @@ mod tests {
             "C:\\projects",
         ] {
             assert!(checked_hosting_source(value).is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn source_checks_accept_registered_company_servers_by_exact_authority() {
+        let servers = |name: &str| match name {
+            "ghe.example.com" => vec![("ghe.example.com".to_owned(), "github")],
+            "gitlab.example.com" => vec![("gitlab.example.com:8443".to_owned(), "gitlab")],
+            _ => Vec::new(),
+        };
+        for value in [
+            "https://ghe.example.com/team/project.git",
+            "git@ghe.example.com:team/project.git",
+            "https://gitlab.example.com:8443/team/sub/project.git",
+            "git@gitlab.example.com:team/sub/project.git",
+            "ssh://git@gitlab.example.com:2222/team/project.git",
+        ] {
+            assert!(
+                checked_hosting_source_with(value, servers).is_ok(),
+                "{value}"
+            );
+        }
+        for value in [
+            "https://ghe.example.com/team/sub/project.git",
+            "https://ghe.example.com:8443/team/project.git",
+            "https://gitlab.example.com/team/project.git",
+            "https://token@ghe.example.com/team/project.git",
+            "https://unknown.example.com/team/project.git",
+            "git@unknown.example.com:team/project.git",
+            "https://github.com/team/project.git",
+        ] {
+            assert!(
+                checked_hosting_source_with(value, servers).is_err(),
+                "{value}"
+            );
         }
     }
 

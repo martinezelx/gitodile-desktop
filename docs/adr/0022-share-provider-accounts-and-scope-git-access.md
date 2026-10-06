@@ -55,7 +55,10 @@ operations do nothing. Failure sends `quit=true`
 using [Git's helper protocol](https://git-scm.com/docs/gitcredentials) so other
 helpers and askpass cannot silently replace the selected identity. Query only
 HTTP configuration key names and mask matching path-specific extra headers for
-the process; unsupported wildcard header scopes fail closed. No global/project Git
+the process; a wildcard header scope that matches a selected host (Git's
+one-label `*` rule) fails closed with an explanation, because masking it would
+also affect other hosts, while wildcards for other hosts are left untouched
+(refined 2026-10-06). No global/project Git
 configuration is written, and SSH/other hosts retain their configured access.
 Existing provider remote URLs with embedded sign-in details are refused when a
 project account is selected, because those URLs would bypass Git's helper.

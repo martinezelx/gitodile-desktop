@@ -1,19 +1,13 @@
 import type { GitHubAccountChipState, GitHubAuthState } from "./domain";
 
 interface GitHubTranslations {
-  githubAuthDetect: string;
-  githubAuthCheck: string;
-  githubAuthConnect: string;
   githubAuthReconnect: string;
   githubAuthCancel: string;
   githubAuthConfirm: string;
   githubAuthNotNow: string;
   githubAuthDisconnect: string;
-  githubAuthAccountName: string;
-  githubAuthConnectAnother: string;
   githubAuthUseAccount: string;
   githubAuthUseAccountLabel: string;
-  githubAuthSelectedPurpose: string;
   githubAuthChip: Record<GitHubAccountChipState, string>;
   githubAuthLogoutConfirm: string;
   githubAuthLogoutConsent: string;
@@ -22,8 +16,6 @@ interface GitHubTranslations {
   githubAuthShared: string;
   githubAuthStorageConsent: string;
   githubAuthPermissions: string;
-  githubAuthNetwork: string;
-  githubAuthMissing: string;
   githubAuthFile: string;
   githubAuthEnvironment: string;
   githubAuthUnknownStorage: string;
@@ -38,29 +30,23 @@ interface GitHubTranslations {
 }
 
 const en: GitHubTranslations = {
-  githubAuthDetect: "Detect GitHub CLI account", githubAuthCheck: "Check connection",
-  githubAuthConnect: "Connect GitHub", githubAuthReconnect: "Reconnect GitHub", githubAuthCancel: "Cancel connection",
+  githubAuthReconnect: "Reconnect GitHub", githubAuthCancel: "Cancel connection",
   githubAuthConfirm: "Continue in browser", githubAuthNotNow: "Not now",
   githubAuthDisconnect: "Sign out",
-  githubAuthAccountName: "GitHub account",
-  githubAuthConnectAnother: "Connect another account",
   githubAuthUseAccount: "Use account",
   githubAuthUseAccountLabel: "Use @{login}",
-  githubAuthSelectedPurpose: "This is GitHub CLI's active account. Choose the account for each project separately in project settings.",
   githubAuthChip: { connected: "Connected", saved: "Saved", unchecked: "Not checked", signed_out: "Not connected", checking: "In progress", invalid: "Reconnect", unavailable: "Unavailable", environment: "Managed externally" },
   githubAuthLogoutConfirm: "Sign out @{login}",
-  githubAuthLogoutConsent: "This removes @{login} from GitHub CLI on this computer, including other tools that use its session. If another account is saved, GitHub CLI may activate it. You can connect another account afterward.",
-  githubAuthLogoutBrowser: "Your GitHub browser session and GitHub CLI authorization on GitHub remain active. Local project files and Git configuration are unchanged.",
+  githubAuthLogoutConsent: "Removes @{login} from GitHub CLI on this computer, for every tool that uses it, and GitHub CLI may switch to another saved account.",
+  githubAuthLogoutBrowser: "Your browser session, projects and Git settings don't change.",
   githubAuthLogoutDone: "@{login} was signed out of GitHub CLI on this computer.",
-  githubAuthShared: "This account is shared with GitHub CLI and other tools that use it. Switching accounts or signing out also affects those tools.",
-  githubAuthStorageConsent: "GitHub CLI tries to use your system credential store. If it fails, it may save the token in a plain-text file.",
-  githubAuthPermissions: "GitHub will ask you to authorize GitHub CLI, including access to private repositories. Git credentials and SSH keys are not changed.",
-  githubAuthNetwork: "Detection contacts GitHub to check the accounts saved on this computer. Local projects do not need this connection.",
-  githubAuthMissing: "Install GitHub CLI below to connect your account.",
+  githubAuthShared: "It's shared with GitHub CLI, so signing out here also signs out the tools that use it.",
+  githubAuthStorageConsent: "GitHub CLI saves it in your system's secure store, or in a plain-text file if that fails.",
+  githubAuthPermissions: "GitHub opens in your browser to authorize GitHub CLI, private repositories included. Your Git credentials and SSH keys don't change.",
   githubAuthFile: "GitHub CLI stores this credential in a plain-text file on this computer.",
   githubAuthEnvironment: "An environment variable supplies this account. Manage it outside GitOdile.",
   githubAuthUnknownStorage: "Couldn't determine how GitHub CLI stores this credential.",
-  githubAuthNeedsCheck: "GitHub CLI credentials may have changed. Check the connection before trying again.",
+  githubAuthNeedsCheck: "GitHub CLI may have changed. Check the accounts before trying again.",
   githubAuthBrowserFailed: "Couldn't open the browser. Try again or open https://github.com/login/device yourself.",
   githubAuthOpenBrowser: "Open GitHub", githubAuthCopyCode: "Copy code", githubAuthCopied: "Code copied",
   githubAuthCopyFailed: "Couldn't copy the code. Select and copy it yourself.",
@@ -80,29 +66,23 @@ const en: GitHubTranslations = {
 };
 
 const es: GitHubTranslations = {
-  githubAuthDetect: "Detectar cuenta de GitHub CLI", githubAuthCheck: "Comprobar conexión",
-  githubAuthConnect: "Conectar GitHub", githubAuthReconnect: "Reconectar GitHub", githubAuthCancel: "Cancelar conexión",
+  githubAuthReconnect: "Reconectar GitHub", githubAuthCancel: "Cancelar conexión",
   githubAuthConfirm: "Continuar en el navegador", githubAuthNotNow: "Ahora no",
   githubAuthDisconnect: "Cerrar sesión",
-  githubAuthAccountName: "Cuenta de GitHub",
-  githubAuthConnectAnother: "Conectar otra cuenta",
   githubAuthUseAccount: "Usar cuenta",
   githubAuthUseAccountLabel: "Usar @{login}",
-  githubAuthSelectedPurpose: "Esta es la cuenta activa de GitHub CLI. Elige la cuenta de cada proyecto por separado en sus ajustes.",
   githubAuthChip: { connected: "Conectada", saved: "Guardada", unchecked: "Sin comprobar", signed_out: "Sin conectar", checking: "En curso", invalid: "Reconectar", unavailable: "No disponible", environment: "Gestión externa" },
   githubAuthLogoutConfirm: "Cerrar sesión de @{login}",
-  githubAuthLogoutConsent: "Se eliminará @{login} de GitHub CLI en este ordenador, también para las otras herramientas que usan su sesión. Si hay otra cuenta guardada, GitHub CLI puede activarla. Después podrás conectar otra cuenta.",
-  githubAuthLogoutBrowser: "La sesión del navegador y la autorización de GitHub CLI en GitHub seguirán activas. Los archivos de tus proyectos y la configuración de Git no cambian.",
+  githubAuthLogoutConsent: "Quita @{login} de GitHub CLI en este equipo, para todas las herramientas que la usan, y GitHub CLI puede pasar a otra cuenta guardada.",
+  githubAuthLogoutBrowser: "Tu sesión del navegador, tus proyectos y la configuración de Git no cambian.",
   githubAuthLogoutDone: "Se ha cerrado la sesión de @{login} en GitHub CLI en este ordenador.",
-  githubAuthShared: "Esta cuenta se comparte con GitHub CLI y otras herramientas que la utilizan. Cambiar de cuenta o cerrar sesión también afecta a esas herramientas.",
-  githubAuthStorageConsent: "GitHub CLI intenta usar el almacén de credenciales del sistema. Si falla, puede guardar el token en un archivo de texto plano.",
-  githubAuthPermissions: "GitHub te pedirá autorizar GitHub CLI, incluido el acceso a proyectos privados. Las credenciales de Git y las claves SSH no cambian.",
-  githubAuthNetwork: "La detección contacta con GitHub para comprobar las cuentas guardadas en este ordenador. Los proyectos locales no necesitan esta conexión.",
-  githubAuthMissing: "Instala GitHub CLI abajo para conectar tu cuenta.",
+  githubAuthShared: "Se comparte con GitHub CLI, así que cerrar sesión aquí también la cierra en las herramientas que la usan.",
+  githubAuthStorageConsent: "GitHub CLI la guarda en el almacén seguro del sistema, o en un archivo sin cifrar si falla.",
+  githubAuthPermissions: "GitHub se abre en el navegador para autorizar GitHub CLI, repositorios privados incluidos. Tus credenciales de Git y claves SSH no cambian.",
   githubAuthFile: "GitHub CLI guarda esta credencial en un archivo de texto plano en este ordenador.",
   githubAuthEnvironment: "Una variable de entorno proporciona esta cuenta. Se gestiona fuera de GitOdile.",
   githubAuthUnknownStorage: "No se pudo determinar cómo guarda GitHub CLI esta credencial.",
-  githubAuthNeedsCheck: "Las credenciales de GitHub CLI pueden haber cambiado. Comprueba la conexión antes de volver a intentarlo.",
+  githubAuthNeedsCheck: "GitHub CLI puede haber cambiado. Comprueba las cuentas antes de reintentar.",
   githubAuthBrowserFailed: "No se pudo abrir el navegador. Inténtalo de nuevo o abre https://github.com/login/device.",
   githubAuthOpenBrowser: "Abrir GitHub", githubAuthCopyCode: "Copiar código", githubAuthCopied: "Código copiado",
   githubAuthCopyFailed: "No se pudo copiar el código. Selecciónalo y cópialo manualmente.",

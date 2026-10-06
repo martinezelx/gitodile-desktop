@@ -13,6 +13,7 @@ import { notificationsTranslations } from "../features/notifications/translation
 import { historyTranslations } from "../features/history/translations";
 import { githubTranslations } from "../features/github/translations";
 import { githubTokenTranslations } from "../features/github/tokenTranslations";
+import { hostingServersTranslations } from "../features/hosting-servers/translations";
 import { repositoryBrowserTranslations } from "../features/repository-browser/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
@@ -67,6 +68,7 @@ export const translationNamespaces = {
   gitlabTooling: gitlabToolingTranslations,
   github: githubTranslations,
   githubToken: githubTokenTranslations,
+  hostingServers: hostingServersTranslations,
   repositoryBrowser: repositoryBrowserTranslations,
   accounts: accountsTranslations,
   overview: overviewTranslations,
@@ -94,6 +96,7 @@ const en = {
   ...gitlabToolingTranslations.en,
   ...githubTranslations.en,
   ...githubTokenTranslations.en,
+  ...hostingServersTranslations.en,
   ...repositoryBrowserTranslations.en,
   ...accountsTranslations.en,
   ...overviewTranslations.en,
@@ -123,6 +126,7 @@ const es: Translations = {
   ...gitlabToolingTranslations.es,
   ...githubTranslations.es,
   ...githubTokenTranslations.es,
+  ...hostingServersTranslations.es,
   ...repositoryBrowserTranslations.es,
   ...accountsTranslations.es,
   ...overviewTranslations.es,

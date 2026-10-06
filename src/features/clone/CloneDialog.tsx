@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { AccountPicker, accountsPort, providerForSource, useAccounts, type AccountsPort } from "../accounts";
+import { AccountPicker, accountsPort, providerForSource, providerKind, useAccounts, type AccountsPort } from "../accounts";
 import { RepositoryBrowser, createRepositoryBrowserController, repositoryBrowserPort, type RepositoryBrowserPort, type RepositoryChoice } from "../repository-browser";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
@@ -21,7 +21,9 @@ import { Dialog, DialogFacts, FieldError, HostingProviderIcon, useFieldErrors, u
 import { cloneSourceSummary, cloneSuggestedName } from "./sourceAccess";
 import type { CloneAttempt, CloneController } from "./controller";
 import {
+  readLastCloneConnection,
   readLastCloneParent,
+  writeLastCloneConnection,
   writeLastCloneParent,
   type CloneProgressPhase,
   type CloneRequest,
@@ -76,6 +78,19 @@ export function CloneDialog({
   const { catalog, failed: accountsFailed, pending: checkingAccounts, check: checkAccounts } = useAccounts(accountPort, isOpen);
   const provider = providerForSource(source, catalog.providers);
   useEffect(() => { setAccountId(current => provider && current?.startsWith(`${provider}:`) ? current : null); }, [provider]);
+  // Entering a discovery tab offers the connection used last time, or the only
+  // usable one. Selecting is local; finding projects stays an explicit action.
+  const preselected = useRef<string | null>(null);
+  useEffect(() => {
+    if (sourceMode === "url") { preselected.current = null; return; }
+    if (preselected.current === sourceMode || catalog.providers.length === 0 || browserState.accountId) return;
+    preselected.current = sourceMode;
+    const usable = catalog.accounts.filter(account => account.available
+      && providerKind(catalog.providers, account.provider) === sourceMode);
+    const remembered = readLastCloneConnection(sourceMode);
+    const choice = usable.find(account => account.id === remembered) ?? (usable.length === 1 ? usable[0] : undefined);
+    if (choice) repositoryBrowser.select(choice.id);
+  }, [sourceMode, catalog, browserState.accountId, repositoryBrowser]);
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
   const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
@@ -206,7 +221,7 @@ export function CloneDialog({
     const nextProvider = providerForSource(value, catalog.providers);
     const nextAccount = nextProvider && accountId?.startsWith(nextProvider + ":") ? accountId : null;
     setSource(value); setAccountId(nextAccount); setDestinationName(""); setSelectedRepository(null);
-    controller.sourceAccess.update(value, nextAccount);
+    controller.sourceAccess.update(value, nextAccount, catalog.providers);
   };
 
   const changeSourceMode = (mode: "url" | "github" | "gitlab"): void => {
@@ -402,6 +417,7 @@ export function CloneDialog({
             <button type="button" aria-pressed={sourceMode === "gitlab"} onClick={() => changeSourceMode("gitlab")}><HostingProviderIcon provider="gitlab" />GitLab</button>
           </nav>
           {sourceMode !== "url" ? <RepositoryBrowser provider={sourceMode} controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
+            onConnectionChange={id => writeLastCloneConnection(sourceMode, id)}
             onCheck={() => void checkAccounts(sourceMode)} selected={selectedRepository} onClearSelection={() => setSelectedRepository(null)}
             onChoose={choice => { setSelectedRepository(choice); setSource(choice.repository.cloneUrl); setAccountId(choice.accountId); setDestinationName(choice.repository.name); }} /> : <>
             <label className="text-field clone-dialog__field">
@@ -417,12 +433,12 @@ export function CloneDialog({
               <FieldError field="clone-source" errors={errors} />
             </label>
             {provider && <AccountPicker catalog={catalog} provider={provider} value={accountId} label={t.cloneConnectionLabel}
-              onChange={id => { setAccountId(id); controller.sourceAccess.update(source, id); }}
+              onChange={id => { setAccountId(id); controller.sourceAccess.update(source, id, catalog.providers); }}
               onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
             {accessStatus !== "idle" && <div className={"clone-dialog__access clone-dialog__access--" + accessStatus} role="status" aria-live="polite">
-              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ?? "github"} />}
+              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ? providerKind(catalog.providers, provider) : "github"} />}
               <div><strong>{accessTitle}</strong><small>{accessStatus === "unavailable" ? t.cloneAccessUnavailableHelp : accessStatus === "unconfirmed" ? t.cloneAccessUnconfirmedHelp : t.cloneAccessConnection(connectionLabel)}</small></div>
-              <button type="button" className="clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId)}>
+              <button type="button" className="clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId, catalog.providers)}>
                 {accessStatus === "checking" ? t.commonCancel : t.cloneAccessRetry}
               </button>
             </div>}

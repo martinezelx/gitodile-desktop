@@ -108,10 +108,15 @@ pub fn run() {
                     .join("gitlab-token-accounts.json"),
             );
             app.manage(gitlab.clone());
-            app.manage(credentials::install(
+            let accounts = credentials::install(
                 app.path().app_config_dir()?.join("account-selections.json"),
                 hosting::providers(access, gitlab),
+            );
+            app.manage(hosting::HostingServers::load(
+                app.path().app_config_dir()?,
+                accounts.clone(),
             ));
+            app.manage(accounts);
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
             Ok(())
@@ -165,6 +170,16 @@ pub fn run() {
             ipc::cancel_gitlab_auth,
             ipc::add_gitlab_token,
             ipc::remove_gitlab_token,
+            ipc::add_hosting_server,
+            ipc::remove_hosting_server,
+            ipc::add_hosting_token,
+            ipc::remove_hosting_token,
+            ipc::get_hosting_cli_state,
+            ipc::check_hosting_cli,
+            ipc::start_hosting_cli_login,
+            ipc::logout_hosting_cli,
+            ipc::cancel_hosting_cli,
+            ipc::open_hosting_device_page,
             ipc::gh_diagnostics,
             ipc::get_account_catalog,
             ipc::add_github_token,

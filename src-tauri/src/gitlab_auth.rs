@@ -41,16 +41,45 @@ struct Inner {
     sequence: u64,
     cancellation: Option<CancellationToken>,
 }
-#[derive(Clone, Default)]
-pub(crate) struct GitLabAuthService(Arc<Mutex<Inner>>);
+/// One glab-backed host: gitlab.com, or a GitLab Self-Managed server the user
+/// added. glab receives this exact host on every command.
+#[derive(Clone)]
+pub(crate) struct GitLabAuthService {
+    inner: Arc<Mutex<Inner>>,
+    target: Target,
+}
+#[derive(Clone)]
+struct Target {
+    id: Arc<str>,
+    host: Arc<str>,
+}
+impl Target {
+    fn is_public(&self) -> bool {
+        &*self.host == "gitlab.com"
+    }
+}
+impl Default for GitLabAuthService {
+    fn default() -> Self {
+        Self::for_host("gitlab", "gitlab.com")
+    }
+}
 enum Action {
     Check,
     Login,
     Logout(String),
 }
 impl GitLabAuthService {
+    pub(crate) fn for_host(id: &str, host: &str) -> Self {
+        Self {
+            inner: Arc::default(),
+            target: Target {
+                id: id.into(),
+                host: host.into(),
+            },
+        }
+    }
     pub(crate) fn snapshot(&self) -> GitLabAuthSnapshot {
-        self.0
+        self.inner
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .snapshot
@@ -66,7 +95,7 @@ impl GitLabAuthService {
         self.start(Action::Logout(account_id))
     }
     pub(crate) fn cancel(&self, id: &str) -> GitLabAuthSnapshot {
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.operation_id.as_deref() == Some(id) {
             if let Some(token) = &inner.cancellation {
                 token.cancel();
@@ -83,7 +112,7 @@ impl GitLabAuthService {
             Action::Logout(_) => "logout_gitlab_account",
         };
         let _command = application::enter(command);
-        let mut inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if inner.snapshot.operation_id.is_some() {
             return inner.snapshot.clone();
         }
@@ -105,14 +134,11 @@ impl GitLabAuthService {
                 return inner.snapshot.clone();
             }
         }
-        // Do not overwrite an existing host session through non-interactive login.
-        // Check and explicitly sign out its owner before connecting another person.
-        if matches!(action, Action::Login)
-            && (inner.snapshot.account.is_some()
-                || inner.snapshot.state != AuthState::SignedOut
-                || inner.snapshot.needs_check)
-        {
-            inner.snapshot.needs_check = true;
+        // A known session must be signed out explicitly before another person
+        // connects. An unknown one is found by the worker, which captures the
+        // host's session before logging in and never overwrites it.
+        if matches!(action, Action::Login) && inner.snapshot.account.is_some() {
+            // The known session stays exactly as it was; nothing needs checking.
             return inner.snapshot.clone();
         }
         inner.sequence += 1;
@@ -135,10 +161,10 @@ impl GitLabAuthService {
                 let _activity = activity;
                 let mutates = !matches!(action, Action::Check);
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    perform(action, &cancellation)
+                    perform(&service.target, action, &cancellation)
                 }))
                 .unwrap_or(Err(AuthState::Failed));
-                let mut inner = service.0.lock().unwrap_or_else(|e| e.into_inner());
+                let mut inner = service.inner.lock().unwrap_or_else(|e| e.into_inner());
                 if inner.snapshot.operation_id.as_deref() != Some(&id) {
                     return;
                 }
@@ -179,11 +205,14 @@ impl GitLabAuthService {
     }
 }
 impl AccessProvider for GitLabAuthService {
-    fn id(&self) -> &'static str {
-        "gitlab"
+    fn id(&self) -> &str {
+        &self.target.id
     }
-    fn host(&self) -> &'static str {
-        "gitlab.com"
+    fn host(&self) -> &str {
+        &self.target.host
+    }
+    fn kind(&self) -> &'static str {
+        "gitlab"
     }
     fn accounts(&self) -> Vec<Account> {
         let snapshot = self.snapshot();
@@ -209,10 +238,33 @@ impl AccessProvider for GitLabAuthService {
     }
     fn credential(&self, key: &str) -> Option<Secret> {
         let expected = cli_id(key)?;
-        let cancellation = CancellationToken::default();
-        let program = compatible_program(&cancellation).ok()?;
-        exact_credential(&program, &cancellation, expected, verify).ok()
+        let host = self.target.host.clone();
+        credential_with_programs(
+            &self.target,
+            &tooling::glab_program_candidates(),
+            expected,
+            &CancellationToken::default(),
+            |secret, cancellation| verify(&host, secret, cancellation),
+        )
     }
+}
+/// Git asks for a credential once per helper process, so skip the separate
+/// `--version` probe here: an old or broken glab fails the credential command
+/// itself, and the identity is still verified before Git receives anything.
+fn credential_with_programs(
+    target: &Target,
+    programs: &[String],
+    expected: u64,
+    cancellation: &CancellationToken,
+    verify_identity: impl Fn(&Secret, &CancellationToken) -> Result<hosting_access::User, AuthState>,
+) -> Option<Secret> {
+    for program in programs {
+        match exact_credential(target, program, cancellation, expected, &verify_identity) {
+            Err(AuthState::CliMissing) => continue,
+            result => return result.ok(),
+        }
+    }
+    None
 }
 fn cli_id(key: &str) -> Option<u64> {
     let key = key.strip_prefix("cli.")?;
@@ -229,7 +281,7 @@ fn environment_credential() -> bool {
     .iter()
     .any(|key| std::env::var_os(key).is_some_and(|v| !v.is_empty()))
 }
-fn command(program: &str, args: &[&str]) -> Command {
+fn command(host: &str, program: &str, args: &[&str]) -> Command {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -241,8 +293,8 @@ fn command(program: &str, args: &[&str]) -> Command {
         .env("LANG", "C")
         .env("NO_COLOR", "1")
         .env("GLAB_CHECK_UPDATE", "false")
-        .env("GITLAB_HOST", "gitlab.com")
-        .env("GITLAB_API_HOST", "gitlab.com")
+        .env("GITLAB_HOST", host)
+        .env("GITLAB_API_HOST", host)
         .env("GLAB_API_PROTOCOL", "https")
         .env("GLAB_ENABLE_CI_AUTOLOGIN", "false");
     for key in [
@@ -266,7 +318,7 @@ fn command(program: &str, args: &[&str]) -> Command {
 fn compatible_program(cancellation: &CancellationToken) -> Result<String, AuthState> {
     for program in tooling::glab_program_candidates() {
         let output = match cli_auth::run(
-            command(&program, &["--version"]),
+            command("gitlab.com", &program, &["--version"]),
             cancellation,
             Duration::from_secs(15),
             |_| {},
@@ -314,7 +366,7 @@ impl Drop for CredentialToken {
         self.token.zeroize();
     }
 }
-fn parse_credential(mut bytes: Vec<u8>) -> Result<Option<Secret>, AuthState> {
+fn parse_credential(host: &str, mut bytes: Vec<u8>) -> Result<Option<Secret>, AuthState> {
     let receipt = serde_json::from_slice::<CredentialReceipt>(&bytes);
     bytes.zeroize();
     let receipt = receipt.map_err(|_| AuthState::Failed)?;
@@ -327,7 +379,13 @@ fn parse_credential(mut bytes: Vec<u8>) -> Result<Option<Secret>, AuthState> {
             Err(AuthState::Invalid)
         };
     }
-    if receipt.kind != "success" || receipt.instance_url.as_deref() != Some("https://gitlab.com") {
+    let instance = format!("https://{host}");
+    if receipt.kind != "success"
+        || !receipt
+            .instance_url
+            .as_deref()
+            .is_some_and(|url| url.trim_end_matches('/').eq_ignore_ascii_case(&instance))
+    {
         return Err(AuthState::Invalid);
     }
     let mut token = receipt.token.ok_or(AuthState::Invalid)?;
@@ -338,16 +396,17 @@ fn parse_credential(mut bytes: Vec<u8>) -> Result<Option<Secret>, AuthState> {
         .map(Some)
         .ok_or(AuthState::Invalid)
 }
-fn capture(program: &str, cancellation: &CancellationToken) -> Result<Option<Secret>, AuthState> {
+fn capture(
+    target: &Target,
+    program: &str,
+    cancellation: &CancellationToken,
+) -> Result<Option<Secret>, AuthState> {
+    let boundary = format!("https://{}/gitodile/credential-boundary", target.host);
     let mut output = cli_auth::run(
         command(
+            &target.host,
             program,
-            &[
-                "auth",
-                "credential-helper",
-                "--repo",
-                "https://gitlab.com/gitodile/credential-boundary",
-            ],
+            &["auth", "credential-helper", "--repo", &boundary],
         ),
         cancellation,
         Duration::from_secs(30),
@@ -357,9 +416,10 @@ fn capture(program: &str, cancellation: &CancellationToken) -> Result<Option<Sec
         output.stdout.zeroize();
         return Err(AuthState::Failed);
     }
-    parse_credential(std::mem::take(&mut output.stdout))
+    parse_credential(&target.host, std::mem::take(&mut output.stdout))
 }
 fn verify(
+    host: &str,
     secret: &Secret,
     cancellation: &CancellationToken,
 ) -> Result<hosting_access::User, AuthState> {
@@ -368,7 +428,7 @@ fn verify(
         .build()
         .map_err(|_| AuthState::Failed)?;
     runtime
-        .block_on(hosting_access::gitlab_user(secret, cancellation))
+        .block_on(hosting_access::gitlab_user(host, secret, cancellation))
         .map_err(|e| match e.code {
             crate::error::AppErrorCode::OperationCancelled => AuthState::Cancelled,
             crate::error::AppErrorCode::AuthenticationFailed => AuthState::Invalid,
@@ -376,20 +436,27 @@ fn verify(
             _ => AuthState::Offline,
         })
 }
-fn perform(action: Action, cancellation: &CancellationToken) -> Result<Option<Account>, AuthState> {
+fn perform(
+    target: &Target,
+    action: Action,
+    cancellation: &CancellationToken,
+) -> Result<Option<Account>, AuthState> {
     let program = compatible_program(cancellation)?;
     if environment_credential() {
         return Err(AuthState::EnvironmentControlled);
     }
-    perform_with(&program, action, cancellation, verify)
+    perform_with(target, &program, action, cancellation, |secret, cancel| {
+        verify(&target.host, secret, cancel)
+    })
 }
 fn exact_credential(
+    target: &Target,
     program: &str,
     cancellation: &CancellationToken,
     expected: u64,
     verify_identity: impl Fn(&Secret, &CancellationToken) -> Result<hosting_access::User, AuthState>,
 ) -> Result<Secret, AuthState> {
-    let secret = capture(program, cancellation)?.ok_or(AuthState::Invalid)?;
+    let secret = capture(target, program, cancellation)?.ok_or(AuthState::Invalid)?;
     let user = verify_identity(&secret, cancellation)?;
     if user.id != Some(expected) {
         return Err(AuthState::Invalid);
@@ -397,6 +464,7 @@ fn exact_credential(
     Ok(secret)
 }
 fn perform_with(
+    target: &Target,
     program: &str,
     action: Action,
     cancellation: &CancellationToken,
@@ -404,47 +472,55 @@ fn perform_with(
 ) -> Result<Option<Account>, AuthState> {
     match action {
         Action::Login => {
-            if capture(program, cancellation)?.is_some() {
-                return Err(AuthState::Failed);
-            }
-            let output = cli_auth::run(
-                command(
-                    program,
-                    &[
-                        "auth",
-                        "login",
-                        "--hostname",
-                        "gitlab.com",
-                        "--web",
-                        "--api-host",
-                        "gitlab.com",
-                        "--api-protocol",
-                        "https",
-                        "--git-protocol",
-                        "https",
-                        "--ssh-hostname",
-                        "gitlab.com",
-                        "--container-registry-domains",
-                        "registry.gitlab.com",
-                        "--use-keyring",
-                    ],
-                ),
-                cancellation,
-                Duration::from_secs(900),
-                |_| {},
-            )?;
-            if !output.success {
-                return Err(AuthState::Failed);
+            // An existing session is the answer: report its verified account
+            // instead of logging in over it.
+            if capture(target, program, cancellation)?.is_none() {
+                let host = &*target.host;
+                let mut args = vec![
+                    "auth",
+                    "login",
+                    "--hostname",
+                    host,
+                    "--web",
+                    "--api-host",
+                    host,
+                    "--api-protocol",
+                    "https",
+                    "--git-protocol",
+                    "https",
+                    "--ssh-hostname",
+                    crate::credentials::host_name(host),
+                ];
+                // Only gitlab.com's registry domain is known; a self-managed
+                // registry stays whatever glab or the user configured.
+                if target.is_public() {
+                    args.extend(["--container-registry-domains", "registry.gitlab.com"]);
+                }
+                args.push("--use-keyring");
+                let output = cli_auth::run(
+                    command(host, program, &args),
+                    cancellation,
+                    Duration::from_secs(900),
+                    |_| {},
+                )?;
+                if !output.success {
+                    return Err(AuthState::Failed);
+                }
             }
         }
         Action::Logout(id) => {
             let expected = id
-                .strip_prefix("gitlab:")
+                .strip_prefix(&format!("{}:", target.id))
                 .and_then(cli_id)
                 .ok_or(AuthState::Failed)?;
-            let _secret = exact_credential(program, cancellation, expected, &verify_identity)?;
+            let _secret =
+                exact_credential(target, program, cancellation, expected, &verify_identity)?;
             let output = cli_auth::run(
-                command(program, &["auth", "logout", "--hostname", "gitlab.com"]),
+                command(
+                    &target.host,
+                    program,
+                    &["auth", "logout", "--hostname", &target.host],
+                ),
                 cancellation,
                 Duration::from_secs(30),
                 |_| {},
@@ -457,14 +533,14 @@ fn perform_with(
         }
         Action::Check => {}
     }
-    let Some(secret) = capture(program, cancellation)? else {
+    let Some(secret) = capture(target, program, cancellation)? else {
         return Ok(None);
     };
     let user = verify_identity(&secret, cancellation)?;
     Ok(Some(Account {
-        id: format!("gitlab:cli.{}", user.id.ok_or(AuthState::Invalid)?),
-        provider: "gitlab".into(),
-        host: "gitlab.com".into(),
+        id: format!("{}:cli.{}", target.id, user.id.ok_or(AuthState::Invalid)?),
+        provider: target.id.to_string(),
+        host: target.host.to_string(),
         login: user.login,
         avatar_data_url: None,
         available: true,
@@ -475,6 +551,11 @@ fn perform_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+    impl Target {
+        fn public() -> Self {
+            GitLabAuthService::default().target
+        }
+    }
     fn fixture(scenario: &str) -> String {
         use std::{fs, sync::OnceLock};
         static BINARY: OnceLock<std::path::PathBuf> = OnceLock::new();
@@ -532,19 +613,78 @@ fn main() {
     fn browser_and_exact_capture_share_one_verified_cli_identity() {
         let program = fixture("browser");
         let cancellation = CancellationToken::default();
-        let account = perform_with(&program, Action::Login, &cancellation, identity)
-            .unwrap()
-            .unwrap();
+        let account = perform_with(
+            &Target::public(),
+            &program,
+            Action::Login,
+            &cancellation,
+            identity,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(account.id, "gitlab:cli.42");
         assert_eq!(account.login, "user.with_dot");
-        assert!(exact_credential(&program, &cancellation, 42, identity).is_ok());
-        assert!(exact_credential(&program, &cancellation, 43, identity).is_err());
+        assert!(exact_credential(&Target::public(), &program, &cancellation, 42, identity).is_ok());
+        assert!(
+            exact_credential(&Target::public(), &program, &cancellation, 43, identity).is_err()
+        );
+    }
+    #[test]
+    fn login_over_an_existing_session_reports_it_instead_of_signing_in_again() {
+        let program = fixture("existing");
+        let account = perform_with(
+            &Target::public(),
+            &program,
+            Action::Login,
+            &CancellationToken::default(),
+            identity,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(account.id, "gitlab:cli.42");
+        // The fake records a login in a sibling file; none may have happened.
+        assert!(!std::path::Path::new(&program)
+            .with_extension("saved")
+            .exists());
+    }
+    #[test]
+    fn git_helper_lookup_skips_missing_candidates_and_still_verifies_the_identity() {
+        let programs = vec![
+            "gitodile-missing-glab-candidate".to_owned(),
+            fixture("helper"),
+        ];
+        let cancellation = CancellationToken::default();
+        assert!(credential_with_programs(
+            &Target::public(),
+            &programs,
+            42,
+            &cancellation,
+            identity
+        )
+        .is_some());
+        assert!(credential_with_programs(
+            &Target::public(),
+            &programs,
+            43,
+            &cancellation,
+            identity
+        )
+        .is_none());
+        assert!(credential_with_programs(
+            &Target::public(),
+            &programs[..1],
+            42,
+            &cancellation,
+            identity
+        )
+        .is_none());
     }
     #[test]
     fn changed_external_identity_and_offline_check_cannot_sign_out_another_person() {
         let program = fixture("changed");
         let cancellation = CancellationToken::default();
         assert!(perform_with(
+            &Target::public(),
             &program,
             Action::Logout("gitlab:cli.43".into()),
             &cancellation,
@@ -555,6 +695,7 @@ fn main() {
             .with_extension("removed")
             .exists());
         assert!(perform_with(
+            &Target::public(),
             &program,
             Action::Logout("gitlab:cli.42".into()),
             &cancellation,
@@ -565,6 +706,7 @@ fn main() {
             .with_extension("removed")
             .exists());
         assert!(perform_with(
+            &Target::public(),
             &program,
             Action::Logout("gitlab:cli.42".into()),
             &cancellation,
@@ -586,11 +728,12 @@ fn main() {
             token.cancel();
         });
         assert!(matches!(
-            capture(&program, &cancellation),
+            capture(&Target::public(), &program, &cancellation),
             Err(AuthState::Cancelled)
         ));
         canceller.join().unwrap();
         assert!(parse_credential(
+            "gitlab.com",
             br#"{"type":"error","message":"failed to refresh credentials: fixture-private"}"#
                 .to_vec()
         )
@@ -617,7 +760,7 @@ fn main() {
     #[test]
     fn credential_origin_and_kind_are_validated_before_use() {
         let receipt = r#"{"type":"success","instance_url":"https://gitlab.com","token":{"type":"pat","token":"fixture-secret-only-123456"}}"#;
-        assert!(parse_credential(receipt.as_bytes().to_vec())
+        assert!(parse_credential("gitlab.com", receipt.as_bytes().to_vec())
             .unwrap()
             .is_some());
         for wrong in [
@@ -626,16 +769,33 @@ fn main() {
             "https://other.test",
             "https://gitlab.com/api/v4",
         ] {
-            assert!(
-                parse_credential(receipt.replace("https://gitlab.com", wrong).into_bytes())
-                    .is_err()
-            );
+            assert!(parse_credential(
+                "gitlab.com",
+                receipt.replace("https://gitlab.com", wrong).into_bytes()
+            )
+            .is_err());
         }
-        assert!(parse_credential(receipt.replace("pat", "job").into_bytes()).is_err());
         assert!(
-            parse_credential(br#"{"type":"error","message":"glab is not authenticated. Use glab auth login to authenticate"}"#.to_vec())
+            parse_credential("gitlab.com", receipt.replace("pat", "job").into_bytes()).is_err()
+        );
+        assert!(
+            parse_credential("gitlab.com", br#"{"type":"error","message":"glab is not authenticated. Use glab auth login to authenticate"}"#.to_vec())
                 .unwrap()
                 .is_none()
         );
+        // A self-managed receipt must name exactly the configured server.
+        let server = receipt.replace("https://gitlab.com", "https://gitlab.example.com:8443");
+        assert!(
+            parse_credential("gitlab.example.com:8443", server.clone().into_bytes())
+                .unwrap()
+                .is_some()
+        );
+        for host in ["gitlab.example.com", "gitlab.com", "example.com:8443"] {
+            assert!(parse_credential(host, server.clone().into_bytes()).is_err());
+        }
+        let target = GitLabAuthService::for_host("gls-0123456789", "gitlab.example.com:8443");
+        assert_eq!(target.id(), "gls-0123456789");
+        assert_eq!(target.host(), "gitlab.example.com:8443");
+        assert!(!target.target.is_public());
     }
 }

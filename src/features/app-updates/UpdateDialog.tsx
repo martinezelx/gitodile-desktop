@@ -133,6 +133,11 @@ function StatusLine({ line, cause = [], className = "" }: { line: StatusLine; ca
   );
 }
 
+/* States whose status line says more than the Settings row's chip. */
+const ROW_STATUS_STATES: ReadonlySet<UpdateState["kind"]> = new Set([
+  "available", "blocked", "unavailable", "failed",
+]);
+
 /* The dialog has something the Settings row cannot say only once there is a
    release to read, a transfer to watch or an install to confirm. */
 const DIALOG_STATES: ReadonlySet<UpdateState["kind"]> = new Set([
@@ -281,13 +286,11 @@ export function AppUpdateSettingsControl({
             mark={<Mascot variant="head" />}
             name={name}
             chip={describeChip(state, language)}
-            detail={
-              <p className="version-line">
-                <span className="version-line__label">{t.installedLabel}</span>
-                <span className="version-line__value">{installed.version}</span>
-              </p>
-            }
-            status={<StatusLine line={line} cause={detail} />}
+            version={installed.version}
+            versionLabel={t.installedLabel}
+            /* The chip already names a settled state; the line speaks only
+               when it adds something: the offered release, a cause or a failure. */
+            status={detail.length > 0 || ROW_STATUS_STATES.has(state.kind) ? <StatusLine line={line} cause={detail} /> : null}
             primaryAction={
               <button className="primary-button" type="button" disabled={primary.disabled} onClick={primary.run}>
                 {primary.spinner && <LoaderCircle aria-hidden="true" className="icon--spinning" />}

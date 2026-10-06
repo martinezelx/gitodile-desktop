@@ -49,6 +49,16 @@
     {"name": "cancel_gitlab_auth", "arguments": ["operationId"], "response": "GitLabAuthSnapshot"},
     {"name": "add_gitlab_token", "arguments": ["token", "requestId"], "response": "string"},
     {"name": "remove_gitlab_token", "arguments": ["accountId"], "response": "void"},
+    {"name": "add_hosting_server", "arguments": ["kind", "address", "requestId"], "response": "AccountCatalog"},
+    {"name": "remove_hosting_server", "arguments": ["provider"], "response": "AccountCatalog"},
+    {"name": "add_hosting_token", "arguments": ["provider", "token", "requestId"], "response": "string"},
+    {"name": "remove_hosting_token", "arguments": ["accountId"], "response": "void"},
+    {"name": "get_hosting_cli_state", "arguments": ["provider"], "response": "HostingCliSnapshot"},
+    {"name": "check_hosting_cli", "arguments": ["provider"], "response": "HostingCliSnapshot"},
+    {"name": "start_hosting_cli_login", "arguments": ["provider"], "response": "HostingCliSnapshot"},
+    {"name": "logout_hosting_cli", "arguments": ["provider", "account"], "response": "HostingCliSnapshot"},
+    {"name": "cancel_hosting_cli", "arguments": ["provider", "operationId"], "response": "HostingCliSnapshot"},
+    {"name": "open_hosting_device_page", "arguments": ["provider"], "response": "void"},
     { "name": "gh_diagnostics", "arguments": [], "response": "GitDiagnostics" },
     { "name": "get_account_catalog", "arguments": [], "response": "AccountCatalog" },
     { "name": "add_github_token", "arguments": ["token", "requestId"], "response": "string" },
@@ -149,7 +159,7 @@
     "dirty_working_tree", "incoming_tracked_change_collision", "incoming_path_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
     "recovery_unavailable", "recovery_conflict", "recovery_failed",
     "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
-    "install_blocked"
+    "install_blocked", "unsupported_server"
   ],
   "watchEvent": {
     "name": "repository-changed",

@@ -60,6 +60,11 @@ source/assets were adapted; its licenses were inspected. glab's pinned
 [OAuth Git access](https://docs.gitlab.com/api/oauth2/) and
 [projects API](https://docs.gitlab.com/api/projects/) define the provider boundary.
 
+*Refined 2026-10-06:* login no longer requires a prior explicit check. The
+worker captures the host's glab session first; an existing session is
+verified and reported instead of being logged in over, and a session GitOdile
+already knows must still be signed out before another person connects.
+
 ## Consequences
 
 Independent native token accounts work without glab. One CLI identity can coexist

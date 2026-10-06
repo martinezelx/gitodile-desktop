@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ExternalLink } from "lucide-react";
 
 /** The tone of the state chip. Mirrors the status-line scale so the two never
  * disagree about what a colour means. */
@@ -12,19 +13,20 @@ export type ToolChip = {
 };
 
 /** One installable or updatable thing, drawn once for Git, the optional GitHub
- * CLI and the app itself.
+ * and GitLab CLIs and the app itself, with the same geometry as an account
+ * row: a 32px round tile, then the name, the installed version and the state
+ * chip on one line, and the actions on the right.
  *
- * The geometry is the contract: the tile, the name and the chip always occupy
- * the same line; the detail, the status line and the consequence hint always
- * follow in that order; and the action column holds an optional refresh beside
- * one contextual primary, with an optional official guide under them. Only the
- * text changes between states, so nothing moves as the thing is checked,
- * installed or updated. See `.tool-row` in primitives.css and DESIGN.md
- * § Shape. */
+ * Only what the chips cannot say takes a second line: a problem (`detail`), a
+ * receipt for an action the reader just took (`status`), or the consequence
+ * of the primary action (`hint`). Each collapses when empty, so a settled row
+ * is one line. See `.tool-row` in primitives.css and DESIGN.md § Shape. */
 export function ToolInstallationRow({
   mark,
   name,
   chip,
+  version,
+  versionLabel,
   detail,
   status,
   hint,
@@ -36,25 +38,36 @@ export function ToolInstallationRow({
   mark: ReactNode;
   name: string;
   chip: ToolChip;
-  detail: ReactNode;
-  /** The reserved status slot: an update result or an action receipt. */
+  /** The installed version, shown as a chip beside the name. */
+  version?: string | null;
+  /** The accessible name of the version chip, such as "Installed version". */
+  versionLabel?: string;
+  /** Something the chips cannot say, usually a problem. */
+  detail?: ReactNode;
+  /** The reserved status slot: an action receipt or an update result. */
   status: ReactNode;
   /** The consequence of the primary action, or null when there is none. */
   hint?: ReactNode;
-  /** The left action of the pair (a recheck), when the surface has one. */
+  /** The recheck beside the primary action, when the surface has one. */
   recheck?: ReactNode;
   primaryAction: ReactNode;
-  /** The official guide, shown under the buttons when there is one. */
+  /** The official guide, as a `ToolGuideButton` beside the other actions. */
   docs?: ReactNode;
 }): React.JSX.Element {
   return (
     <div className="settings-row tool-row">
+      <span className="tool-row__tile" aria-hidden="true">
+        {mark}
+      </span>
       <div className="tool-row__body">
         <div className="tool-row__head">
-          <span className="tool-row__tile" aria-hidden="true">
-            {mark}
-          </span>
           <strong className="tool-row__name">{name}</strong>
+          {version && (
+            <span className="tool-row__chip tool-row__chip--neutral tool-row__version">
+              {versionLabel && <span className="visually-hidden">{versionLabel} </span>}
+              <span>{version}</span>
+            </span>
+          )}
           <span className={`tool-row__chip tool-row__chip--${chip.tone}`}>
             {chip.icon}
             <span>{chip.label}</span>
@@ -66,13 +79,21 @@ export function ToolInstallationRow({
         </div>
         <div className="tool-row__hint">{hint}</div>
       </div>
-      <div className="tool-row__actions">
-        <div className="settings-row__actions tool-row__buttons">
-          {recheck}
-          {primaryAction}
-        </div>
+      <div className="settings-row__actions tool-row__buttons">
         {docs}
+        {recheck}
+        {primaryAction}
       </div>
     </div>
+  );
+}
+
+/** The official installation guide, as an icon button beside the row's other
+ * actions so every row keeps one line of controls. */
+export function ToolGuideButton({ label, onClick }: { label: string; onClick: () => void }): React.JSX.Element {
+  return (
+    <button className="secondary-button refresh-icon-button" type="button" aria-label={label} data-tooltip={label} onClick={onClick}>
+      <ExternalLink aria-hidden="true" />
+    </button>
   );
 }

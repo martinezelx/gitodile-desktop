@@ -100,7 +100,7 @@ describe("CloneDialog", () => {
     globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
-    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: provider, host: `${provider}.com` }], busy: false,
+    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: provider, host: `${provider}.com`, kind: provider, builtIn: true }], busy: false,
       accounts: [browserId, accountId].map(id => ({ id, provider, host: `${provider}.com`, login: "work", avatarDataUrl: null, available: true })) }),
       check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
     const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
@@ -108,10 +108,11 @@ describe("CloneDialog", () => {
     const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, accountId }));
     renderDialog({ plan }, accounts, { list, cancel: vi.fn(async () => undefined) });
     await userEvent.click(screen.getByRole("button", { name: provider === "github" ? "GitHub" : "GitLab" }));
+    // Two usable connections and none remembered: nothing is read yet.
+    expect(list).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("combobox"));
     await userEvent.click(screen.getByRole("option", { name: /@work.*Token/ }));
-    expect(list).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "Find projects" }));
+    await waitFor(() => expect(list).toHaveBeenCalledWith(accountId, 1, expect.any(String)));
     await userEvent.click(await screen.findByRole("button", { name: `Choose ${fullName}` }));
     expect(screen.getByRole("button", { name: `Choose ${fullName}` })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox")).toHaveTextContent("Token");
@@ -139,7 +140,7 @@ describe("CloneDialog", () => {
 
   it("binds the reviewed identity through execution and explains its project access", async () => {
     const accountPort: AccountsPort = {
-      readCatalog: vi.fn().mockResolvedValue({ providers: [{id: "github", host: "github.com"}], busy: false,
+      readCatalog: vi.fn().mockResolvedValue({ providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
         accounts: [{id: "github:work", provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true}] }),
       check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn(),
     };
@@ -231,5 +232,25 @@ describe("CloneDialog", () => {
     expect(await screen.findByRole("heading", { name: "Clone cancelled" })).toBeInTheDocument();
     expect(screen.getByText("Nothing was added.")).toBeInTheDocument();
     expect(onVerifiedClone).not.toHaveBeenCalled();
+  });
+});
+
+describe("remembered discovery connection", () => {
+  it("offers the connection used last time and lists its projects without another click", async () => {
+    globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
+    localStorage.setItem("gitodile-clone-connection-github", "github:token.work");
+    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
+      accounts: ["github:work", "github:token.work"].map(id => ({ id, provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true })) }),
+      check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
+    const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
+      repositories: [{ id: 1, name: "project", fullName: "team/project", owner: "team", private: true, archived: false, description: null, cloneUrl: "https://github.com/team/project.git" }] }));
+    renderDialog({}, accounts, { list, cancel: vi.fn(async () => undefined) });
+    await userEvent.click(screen.getByRole("button", { name: "GitHub" }));
+    expect(await screen.findByRole("button", { name: "Choose team/project" })).toBeVisible();
+    expect(list).toHaveBeenCalledExactlyOnceWith("github:token.work", 1, expect.any(String));
+    expect(screen.getByRole("combobox")).toHaveTextContent("Token");
+    localStorage.removeItem("gitodile-clone-connection-github");
   });
 });

@@ -29,6 +29,8 @@ tokio = { version = "1", features = ["macros", "sync", "time"] }
 # The updater plugin supplies the TLS provider. This direct dependency retains
 # its redirect/timeout policy and supports a separate, unauthenticated, bounded
 # GitHub avatar client without selecting another TLS provider or new features.
+# The hosting API clients rely on the plugin's OS trust store and OS proxy
+# support; scripts/check-app-update-contracts.mjs fails if either disappears.
 reqwest = { version = "0.13", default-features = false }
 # Already supplied transitively by the updater. Initialize its existing ring
 # provider when an avatar is the first HTTPS request in this app session.

@@ -297,14 +297,18 @@ function SectionState({
   return null;
 }
 
+/** `access` is the HTTPS account group. It follows the remotes it depends on,
+ * as a sibling group so it shares the section's spacing and dividers. */
 function RemoteSection({
   project,
   port,
   resource,
+  access,
 }: {
   project: ProjectSettingsTarget;
   port: ProjectSettingsPort;
   resource: Resource<ProjectRemotes>;
+  access?: React.ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const remotes = resource.data;
@@ -569,6 +573,7 @@ function RemoteSection({
           <NoticeLine notice={notice} />
         </div>
       </section>
+      {access}
     </div>
   );
 }
@@ -1264,9 +1269,11 @@ export function ProjectSettingsPanel({
         )}
 
         {activeSection === "remote" && (
-          <>{remotes.data && <ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project}
-            remoteUrls={remotes.data.remotes.flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])} />}
-          <RemoteSection project={project} port={port} resource={remotes} /></>
+          <RemoteSection project={project} port={port} resource={remotes} access={remotes.data &&
+            <ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project}
+              remoteUrls={remotes.data.remotes.flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])}
+              signInRemoteUrls={remotes.data.remotes.filter(remote => remote.hasHiddenCredentials)
+                .flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])} />} />
         )}
         {activeSection === "ignored" && (
           <IgnoredSection

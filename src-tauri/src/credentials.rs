@@ -11,7 +11,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use zeroize::Zeroize;
 
 #[derive(Clone, Serialize)]
@@ -36,16 +36,26 @@ pub(crate) struct AccountCatalog {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderDescriptor {
-    id: &'static str,
-    host: &'static str,
+    id: String,
+    /// Normalized authority: host name plus a non-default port.
+    host: String,
+    kind: &'static str,
+    /// github.com and gitlab.com; company servers are user-added.
+    built_in: bool,
 }
 
 /// Implemented by a hosting adapter; the account store and Git bridge do not
 /// know how a provider authenticates or where it keeps its secret.
 pub(crate) trait AccessProvider: Send + Sync {
-    fn id(&self) -> &'static str;
-    fn host(&self) -> &'static str;
+    /// Instance ID: `github`/`gitlab` for the public hosts, a host-derived ID
+    /// for a company server. It prefixes every account ID of this instance.
+    fn id(&self) -> &str;
+    /// Exact HTTPS authority (`host` or `host:port`) Git and the helper match.
+    fn host(&self) -> &str;
+    /// Provider product: `github` or `gitlab`.
+    fn kind(&self) -> &'static str;
     fn accounts(&self) -> Vec<Account>;
     fn busy(&self) -> bool;
     fn check(&self);
@@ -96,7 +106,9 @@ pub(crate) struct ProjectAccount {
 
 pub(crate) struct AccountService {
     path: PathBuf,
-    providers: Vec<Arc<dyn AccessProvider>>,
+    // Company servers register and unregister at runtime; readers take a
+    // snapshot so no provider call ever runs under this lock.
+    providers: RwLock<Vec<Arc<dyn AccessProvider>>>,
     selections: Mutex<Result<Selections, ()>>,
 }
 static GLOBAL: OnceLock<Arc<AccountService>> = OnceLock::new();
@@ -126,15 +138,16 @@ fn project_key(path: &Path) -> Result<String, AppError> {
         .collect())
 }
 
-fn split_account(id: &str) -> Option<(&str, &str)> {
+pub(crate) fn split_account(id: &str) -> Option<(&str, &str)> {
     let (provider, login) = id.split_once(':')?;
     if provider.is_empty()
         || provider.len() > 32
         || login.is_empty()
         || login.len() > 100
+        || !provider.as_bytes()[0].is_ascii_lowercase()
         || !provider
             .bytes()
-            .all(|b| b.is_ascii_lowercase() || b == b'-')
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
         || !login
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
@@ -145,7 +158,7 @@ fn split_account(id: &str) -> Option<(&str, &str)> {
 }
 
 impl AccountService {
-    fn new(path: PathBuf, providers: Vec<Arc<dyn AccessProvider>>) -> Self {
+    pub(crate) fn new(path: PathBuf, providers: Vec<Arc<dyn AccessProvider>>) -> Self {
         let selections = match fs::File::open(&path) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Selections {
                 version: 1,
@@ -183,32 +196,69 @@ impl AccountService {
         };
         Self {
             path,
-            providers,
+            providers: RwLock::new(providers),
             selections: Mutex::new(selections),
         }
     }
 
+    pub(crate) fn providers(&self) -> Vec<Arc<dyn AccessProvider>> {
+        self.providers
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn provider(&self, id: &str) -> Option<Arc<dyn AccessProvider>> {
+        self.providers().into_iter().find(|p| p.id() == id)
+    }
+
+    /// A company server joins the catalog, Git bridge and clone checks.
+    pub(crate) fn register(&self, provider: Arc<dyn AccessProvider>) {
+        let mut providers = self.providers.write().unwrap_or_else(|e| e.into_inner());
+        providers.retain(|p| p.id() != provider.id());
+        providers.push(provider);
+    }
+
+    /// Bindings to a removed server stay saved and fail closed as unavailable.
+    pub(crate) fn unregister(&self, id: &str) {
+        self.providers
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .retain(|p| p.id() != id);
+    }
+
     pub(crate) fn catalog(&self) -> AccountCatalog {
+        let providers = self.providers();
         AccountCatalog {
-            providers: self
-                .providers
+            providers: providers
                 .iter()
                 .map(|p| ProviderDescriptor {
-                    id: p.id(),
-                    host: p.host(),
+                    id: p.id().to_owned(),
+                    host: p.host().to_owned(),
+                    kind: p.kind(),
+                    built_in: p.id() == p.kind(),
                 })
                 .collect(),
-            accounts: self.providers.iter().flat_map(|p| p.accounts()).collect(),
-            busy: self.providers.iter().any(|p| p.busy()),
+            accounts: providers.iter().flat_map(|p| p.accounts()).collect(),
+            busy: providers.iter().any(|p| p.busy()),
         }
     }
 
+    /// Checking a product (`github`/`gitlab`) also checks its company servers,
+    /// so one discovery source covers every host of that product.
     pub(crate) fn check(&self, provider: &str) -> Result<AccountCatalog, AppError> {
-        self.providers
+        let providers = self.providers();
+        let mut matched = false;
+        for adapter in providers
             .iter()
-            .find(|p| p.id() == provider)
-            .ok_or_else(error)?
-            .check();
+            .filter(|p| p.id() == provider || p.kind() == provider)
+        {
+            matched = true;
+            adapter.check();
+        }
+        if !matched {
+            return Err(error());
+        }
         Ok(self.catalog())
     }
 
@@ -229,7 +279,7 @@ impl AccountService {
         path: &Path,
         provider: &str,
     ) -> Result<ProjectAccount, AppError> {
-        if !self.providers.iter().any(|p| p.id() == provider) {
+        if self.provider(provider).is_none() {
             return Err(error());
         }
         let key = project_key(path)?;
@@ -264,7 +314,7 @@ impl AccountService {
         account: Option<&str>,
         expected: Option<&str>,
     ) -> Result<ProjectAccount, AppError> {
-        if !self.providers.iter().any(|p| p.id() == provider) {
+        if self.provider(provider).is_none() {
             return Err(error());
         }
         if let Some(account) = account {
@@ -374,19 +424,37 @@ pub(crate) fn validate_clone_account(id: Option<&str>, source: &str) -> Result<(
     let service = global()?;
     service.validate(id)?;
     let (provider, _) = split_account(id).ok_or_else(error)?;
-    let adapter = service
-        .providers
-        .iter()
-        .find(|p| p.id() == provider)
-        .ok_or_else(error)?;
+    let adapter = service.provider(provider).ok_or_else(error)?;
     validate_clone_source(source, adapter.host())
+}
+
+/// `host[:port]` of a URL, lowercased with the default port already removed
+/// by the URL parser.
+pub(crate) fn authority(url: &reqwest::Url) -> Option<String> {
+    let host = url.host_str()?;
+    Some(match url.port() {
+        Some(port) => format!("{host}:{port}"),
+        None => host.to_owned(),
+    })
+}
+
+/// The registered hosting provider (exact authority and product) whose host
+/// name is `name`, for SSH and HTTPS clone-source checks.
+pub(crate) fn providers_named(name: &str) -> Vec<(String, &'static str)> {
+    GLOBAL
+        .get()
+        .map(|service| service.providers())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| host_name(p.host()).eq_ignore_ascii_case(name))
+        .map(|p| (p.host().to_ascii_lowercase(), p.kind()))
+        .collect()
 }
 
 fn validate_clone_source(source: &str, host: &str) -> Result<(), AppError> {
     let url = reqwest::Url::parse(source).map_err(|_| error())?;
     if url.scheme() != "https"
-        || url.host_str() != Some(host)
-        || url.port().is_some()
+        || !authority(&url).is_some_and(|authority| authority.eq_ignore_ascii_case(host))
         || !url.username().is_empty()
         || url.password().is_some()
         || url.query().is_some()
@@ -398,6 +466,14 @@ fn validate_clone_source(source: &str, host: &str) -> Result<(), AppError> {
 
 fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+/// The host name of a `host[:port]` authority.
+pub(crate) fn host_name(authority: &str) -> &str {
+    match authority.rsplit_once(':') {
+        Some((name, port)) if !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) => name,
+        _ => authority,
+    }
 }
 
 fn selected_hosts(prepared: &[OsString]) -> Vec<&str> {
@@ -415,8 +491,19 @@ fn validate_url(raw_url: &str, hosts: &[&str]) -> Result<(), AppError> {
     let Ok(url) = reqwest::Url::parse(raw_url) else {
         return Ok(());
     };
-    if url.host_str().is_some_and(|host| hosts.contains(&host)) {
-        if url.scheme() == "http" || (url.scheme() == "https" && url.port().is_some()) {
+    let Some(name) = url.host_str() else {
+        return Ok(());
+    };
+    let exact = authority(&url).is_some_and(|authority| {
+        hosts
+            .iter()
+            .any(|host| host.eq_ignore_ascii_case(&authority))
+    });
+    if hosts
+        .iter()
+        .any(|host| host_name(host).eq_ignore_ascii_case(name))
+    {
+        if url.scheme() == "http" || (url.scheme() == "https" && !exact) {
             // Git's exact HTTPS helper scope does not match HTTP or other ports.
             // Refuse those URLs instead of falling back to another account.
             return Err(error().with_remediation("Use this provider's standard HTTPS address to access it with the selected account."));
@@ -481,21 +568,51 @@ pub(crate) fn header_overrides(
         let Ok(url) = reqwest::Url::parse(scope) else {
             return Err(error());
         };
-        if url.scheme() == "https"
-            && url.host_str().is_some_and(|host| {
-                hosts
-                    .iter()
-                    .any(|selected| host.eq_ignore_ascii_case(selected))
-            })
-        {
-            overrides.extend([OsString::from("-c"), OsString::from(format!("{key}="))]);
-        } else if scope.contains('*') {
-            // Git's wildcard URL patterns cannot be treated as an exact host.
-            // Preserve those settings and refuse an unsafe identity override.
-            return Err(error());
+        let Some(pattern) = url.host_str().filter(|_| url.scheme() == "https") else {
+            continue;
+        };
+        let wildcard = pattern.contains('*');
+        // Git's urlmatch also compares the port; the default one is implied.
+        let port = url
+            .port()
+            .map(|port| format!(":{port}"))
+            .unwrap_or_default();
+        if !hosts.iter().any(|selected| {
+            let name = host_name(selected);
+            selected[name.len()..] == port
+                && if wildcard {
+                    wildcard_host_matches(pattern, name)
+                } else {
+                    pattern.eq_ignore_ascii_case(name)
+                }
+        }) {
+            // Git never sends this header to the selected hosts.
+            continue;
         }
+        if wildcard {
+            // Masking a wildcard would also strip it from unrelated hosts
+            // this Git process may contact. Keep it and refuse instead.
+            return Err(error().with_remediation(
+                "A Git extraHeader setting with a wildcard address also applies to this provider. Narrow or remove it to use the selected account.",
+            ));
+        }
+        overrides.extend([OsString::from("-c"), OsString::from(format!("{key}="))]);
     }
     Ok(overrides)
+}
+
+/// Git's urlmatch rule: a `*` label matches exactly one host label; every
+/// other label must be equal and the label count must be the same.
+fn wildcard_host_matches(pattern: &str, host: &str) -> bool {
+    let (pattern, host) = (
+        pattern.split('.').collect::<Vec<_>>(),
+        host.split('.').collect::<Vec<_>>(),
+    );
+    pattern.len() == host.len()
+        && pattern
+            .iter()
+            .zip(&host)
+            .all(|(p, h)| *p == "*" || p.eq_ignore_ascii_case(h))
 }
 
 pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<(), AppError> {
@@ -507,18 +624,25 @@ pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<()
     let exe = exe.to_str().ok_or_else(error)?.replace('\\', "/");
     for id in accounts {
         let (provider, login) = split_account(id).ok_or_else(error)?;
-        let adapter = service
-            .providers
-            .iter()
-            .find(|p| p.id() == provider)
-            .ok_or_else(error)?;
-        let host = adapter.host();
+        let adapter = service.provider(provider).ok_or_else(error)?;
+        let host = adapter.host().to_owned();
         let username = adapter.username(login).ok_or_else(error)?;
-        let helper = format!(
-            "!{} --gitodile-credential-helper {}",
-            shell_quote(&exe),
-            shell_quote(id)
-        );
+        // A company server's helper rebuilds its adapter from this authority;
+        // the helper refuses an ID that the authority does not derive.
+        let helper = if adapter.id() == adapter.kind() {
+            format!(
+                "!{} --gitodile-credential-helper {}",
+                shell_quote(&exe),
+                shell_quote(id)
+            )
+        } else {
+            format!(
+                "!{} --gitodile-credential-helper {} {}",
+                shell_quote(&exe),
+                shell_quote(id),
+                shell_quote(&host)
+            )
+        };
         // URL-specific reset overrides existing helpers only for this host.
         // Git executes its helper protocol, never a renderer-supplied shell.
         for setting in [
@@ -619,7 +743,8 @@ pub(crate) fn helper(
     }
     let matches_host = fields.get("host").is_some_and(|host| {
         host.eq_ignore_ascii_case(adapter.host())
-            || host.eq_ignore_ascii_case(&format!("{}:443", adapter.host()))
+            || (host_name(adapter.host()) == adapter.host()
+                && host.eq_ignore_ascii_case(&format!("{}:443", adapter.host())))
     });
     let username = adapter.username(login).ok_or(())?;
     if fields.get("protocol") != Some(&"https")
@@ -649,11 +774,18 @@ mod tests {
         reads: AtomicUsize,
     }
     impl AccessProvider for FakeProvider {
-        fn id(&self) -> &'static str {
+        fn id(&self) -> &str {
             self.provider
         }
-        fn host(&self) -> &'static str {
+        fn host(&self) -> &str {
             self.host
+        }
+        fn kind(&self) -> &'static str {
+            if self.provider.starts_with("gl") {
+                "gitlab"
+            } else {
+                "github"
+            }
         }
         fn accounts(&self) -> Vec<Account> {
             ["Personal", "work"]
@@ -1021,6 +1153,20 @@ mod tests {
             ]
         );
         assert!(header_overrides(b"http.https://*.com/.extraheader\0", &prepared).is_err());
+        // Wildcards for unrelated hosts, other schemes or ports never reach
+        // the selected host, so they neither block nor get masked.
+        for unrelated in [
+            &b"http.https://*.corp.example/.extraheader\0"[..],
+            b"http.https://*.github.com/.extraheader\0",
+            b"http.http://*.com/.extraheader\0",
+            b"http.https://*.com:8443/.extraheader\0",
+        ] {
+            assert!(header_overrides(unrelated, &prepared).unwrap().is_empty());
+        }
+        assert!(wildcard_host_matches("*.com", "github.com"));
+        assert!(wildcard_host_matches("github.*", "GITHUB.com"));
+        assert!(!wildcard_host_matches("*", "github.com"));
+        assert!(!wildcard_host_matches("*.github.com", "github.com"));
         assert!(
             header_overrides(b"http.https://github.com/\nsecret.extraheader\0", &prepared).is_err()
         );
@@ -1043,6 +1189,80 @@ mod tests {
         assert!(
             validate_clone_source("https://GITHUB.com:443/team/project.git", "github.com").is_ok()
         );
+    }
+
+    #[test]
+    fn company_servers_on_a_port_match_their_exact_authority_everywhere() {
+        let host = "git.example.com:8443";
+        let prepared = vec![OsString::from(format!("credential.https://{host}.helper="))];
+        assert_eq!(selected_hosts(&prepared), [host]);
+        // Remotes: only the exact authority over HTTPS may use the account.
+        for url in [
+            "https://git.example.com/team/repo.git",
+            "https://git.example.com:9443/team/repo.git",
+            "http://git.example.com:8443/team/repo.git",
+            "https://user@git.example.com:8443/team/repo.git",
+        ] {
+            assert!(
+                validate_remote_urls(format!("origin\t{url} (fetch)\n").as_bytes(), &prepared)
+                    .is_err(),
+                "{url}"
+            );
+        }
+        assert!(validate_remote_urls(
+            b"origin\thttps://GIT.example.com:8443/team/repo.git (fetch)\n",
+            &prepared
+        )
+        .is_ok());
+        // Headers: Git's urlmatch compares the port, so only that scope masks.
+        let result = header_overrides(
+            b"http.https://git.example.com:8443/.extraheader\0http.https://git.example.com/.extraheader\0http.https://*.example.com/.extraheader\0",
+            &prepared,
+        )
+        .unwrap();
+        assert_eq!(
+            result,
+            [
+                OsString::from("-c"),
+                OsString::from("http.https://git.example.com:8443/.extraheader=")
+            ]
+        );
+        assert!(
+            header_overrides(b"http.https://*.example.com:8443/.extraheader\0", &prepared).is_err()
+        );
+        // Clone sources and the helper's host field use the same authority.
+        assert!(validate_clone_source("https://git.example.com:8443/team/p.git", host).is_ok());
+        assert!(validate_clone_source("https://git.example.com/team/p.git", host).is_err());
+        let adapter = provider("ghe-0123456789", host);
+        let adapters: Vec<Arc<dyn AccessProvider>> = vec![adapter.clone()];
+        let mut output = Vec::new();
+        helper(
+            &adapters,
+            "ghe-0123456789:Personal",
+            OsStr::new("get"),
+            &b"protocol=https\nhost=git.example.com:8443\n\n"[..],
+            &mut output,
+        )
+        .unwrap();
+        assert!(String::from_utf8(output)
+            .unwrap()
+            .starts_with("username=Personal\n"));
+        for input in [
+            "protocol=https\nhost=git.example.com\n\n",
+            "protocol=https\nhost=git.example.com:8443:443\n\n",
+        ] {
+            assert!(helper(
+                &adapters,
+                "ghe-0123456789:Personal",
+                OsStr::new("get"),
+                input.as_bytes(),
+                Vec::new()
+            )
+            .is_err());
+        }
+        assert_eq!(host_name(host), "git.example.com");
+        assert_eq!(host_name("[::1]:8443"), "[::1]");
+        assert_eq!(host_name("git.example.com"), "git.example.com");
     }
 
     #[test]

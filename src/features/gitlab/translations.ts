@@ -1,39 +1,32 @@
 import type { GitLabAuthState } from "./domain";
 
 interface GitLabTranslations {
-  gitlabAuthCheck: string;
-  gitlabAuthConnect: string;
   gitlabAuthCancel: string;
   gitlabAuthConfirm: string;
   gitlabAuthDisconnect: string;
   gitlabAuthAccountName: string;
-  gitlabAuthSelectedPurpose: string;
   gitlabAuthChip: Record<"connected" | "saved" | "unchecked" | "signed_out" | "checking" | "invalid" | "unavailable" | "environment", string>;
   gitlabAuthLogoutConsent: string;
   gitlabAuthLogoutBrowser: string;
   gitlabAuthShared: string;
   gitlabAuthStorageConsent: string;
   gitlabAuthPermissions: string;
-  gitlabAuthMissing: string;
   gitlabAuthNeedsCheck: string;
   gitlabAuthStatus: Record<GitLabAuthState, string>;
 }
 
 const en: GitLabTranslations = {
-  gitlabAuthCheck: "Check connection",
-  gitlabAuthConnect: "Connect GitLab", gitlabAuthCancel: "Cancel connection",
+  gitlabAuthCancel: "Cancel connection",
   gitlabAuthConfirm: "Continue in browser",
   gitlabAuthDisconnect: "Sign out",
   gitlabAuthAccountName: "GitLab account",
-  gitlabAuthSelectedPurpose: "glab connects one GitLab.com account at a time. Choose it for each project separately. Use token connections above for independent accounts.",
   gitlabAuthChip: { connected: "Connected", saved: "Saved", unchecked: "Not checked", signed_out: "Not connected", checking: "In progress", invalid: "Reconnect", unavailable: "Unavailable", environment: "Managed externally" },
-  gitlabAuthLogoutConsent: "This removes @{login} from GitLab CLI on this computer, including other tools that use its session. You can explicitly connect another account afterward.",
-  gitlabAuthLogoutBrowser: "Your GitLab browser session and GitLab CLI authorization on GitLab remain active. Local project files and Git configuration are unchanged.",
-  gitlabAuthShared: "This account is shared with GitLab CLI and other tools that use it. Switching accounts or signing out also affects those tools.",
-  gitlabAuthStorageConsent: "glab owns storage and OAuth renewal. It tries your system credential store and may fall back to a plaintext configuration file.",
-  gitlabAuthPermissions: "GitLab opens in your browser to authorize glab (read_user, api and write_repository access). Return here after approving. This uses the registered glab application.",
-  gitlabAuthMissing: "Install GitLab CLI below to connect your account.",
-  gitlabAuthNeedsCheck: "GitLab CLI credentials may have changed. Check the connection before trying again.",
+  gitlabAuthLogoutConsent: "Removes @{login} from GitLab CLI on this computer, for every tool that uses it.",
+  gitlabAuthLogoutBrowser: "Your browser session, projects and Git settings don't change.",
+  gitlabAuthShared: "It's shared with GitLab CLI, so signing out here also signs out the tools that use it.",
+  gitlabAuthStorageConsent: "GitLab CLI saves and renews it, in your system's secure store or in a plain-text file if that fails.",
+  gitlabAuthPermissions: "GitLab opens in your browser to authorize GitLab CLI (read_user, api and write_repository).",
+  gitlabAuthNeedsCheck: "GitLab CLI may have changed. Check the accounts before trying again.",
   gitlabAuthStatus: {
     unchecked: "Account not checked", checking: "Checking your GitLab account…", signed_out: "No GitLab account connected",
     connected: "Connected", invalid: "Your GitLab CLI authorization is invalid. Repair or remove it with glab, then check here again. Token connections above remain independent.",
@@ -49,20 +42,17 @@ const en: GitLabTranslations = {
 };
 
 const es: GitLabTranslations = {
-  gitlabAuthCheck: "Comprobar conexión",
-  gitlabAuthConnect: "Conectar GitLab", gitlabAuthCancel: "Cancelar conexión",
+  gitlabAuthCancel: "Cancelar conexión",
   gitlabAuthConfirm: "Continuar en el navegador",
   gitlabAuthDisconnect: "Cerrar sesión",
   gitlabAuthAccountName: "Cuenta de GitLab",
-  gitlabAuthSelectedPurpose: "glab conecta una cuenta de GitLab.com cada vez. Elígela por separado en los ajustes de cada proyecto. Usa los tokens de arriba para cuentas independientes.",
   gitlabAuthChip: { connected: "Conectada", saved: "Guardada", unchecked: "Sin comprobar", signed_out: "Sin conectar", checking: "En curso", invalid: "Reconectar", unavailable: "No disponible", environment: "Gestión externa" },
-  gitlabAuthLogoutConsent: "Se eliminará @{login} de GitLab CLI en este ordenador, también para las otras herramientas que usan su sesión. Después podrás conectar otra cuenta de forma explícita.",
-  gitlabAuthLogoutBrowser: "La sesión del navegador y la autorización de GitLab CLI en GitLab seguirán activas. Los archivos de tus proyectos y la configuración de Git no cambian.",
-  gitlabAuthShared: "Esta cuenta se comparte con GitLab CLI y otras herramientas que la utilizan. Cambiar de cuenta o cerrar sesión también afecta a esas herramientas.",
-  gitlabAuthStorageConsent: "glab gestiona el almacenamiento y la renovación OAuth. Intenta usar el almacén seguro del sistema y puede recurrir a un archivo de configuración sin cifrar.",
-  gitlabAuthPermissions: "GitLab se abre en tu navegador para autorizar glab (permisos read_user, api y write_repository). Vuelve aquí después de aprobar. Se usa la aplicación registrada de glab.",
-  gitlabAuthMissing: "Instala GitLab CLI abajo para conectar tu cuenta.",
-  gitlabAuthNeedsCheck: "Las credenciales de GitLab CLI pueden haber cambiado. Comprueba la conexión antes de volver a intentarlo.",
+  gitlabAuthLogoutConsent: "Quita @{login} de GitLab CLI en este equipo, para todas las herramientas que la usan.",
+  gitlabAuthLogoutBrowser: "Tu sesión del navegador, tus proyectos y la configuración de Git no cambian.",
+  gitlabAuthShared: "Se comparte con GitLab CLI, así que cerrar sesión aquí también la cierra en las herramientas que la usan.",
+  gitlabAuthStorageConsent: "GitLab CLI la guarda y la renueva, en el almacén seguro del sistema o en un archivo sin cifrar si falla.",
+  gitlabAuthPermissions: "GitLab se abre en el navegador para autorizar GitLab CLI (read_user, api y write_repository).",
+  gitlabAuthNeedsCheck: "GitLab CLI puede haber cambiado. Comprueba las cuentas antes de reintentar.",
   gitlabAuthStatus: {
     unchecked: "Cuenta sin comprobar", checking: "Comprobando tu cuenta de GitLab…", signed_out: "Sin cuenta de GitLab conectada",
     connected: "Conectada", invalid: "La autorización de GitLab CLI no es válida. Repárala o elimínala con glab y vuelve a comprobarla aquí. Los tokens de arriba siguen siendo independientes.",

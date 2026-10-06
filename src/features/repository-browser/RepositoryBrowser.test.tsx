@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); globalThis.ResizeObserver = resizeObserver; localStorage.clear(); });
-const catalog: AccountCatalog = { providers: [{ id: "github", host: "github.com" }], busy: false,
+const catalog: AccountCatalog = { providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
   accounts: [{ id: "github:token.octocat", provider: "github", host: "github.com", login: "octocat", avatarDataUrl: null, available: true }] };
 const projects = (count: number) => Array.from({ length: count }, (_, index) => ({ id: index + 1, name: `project-${index}`, fullName: `team/project-${index}`, owner: "team",
   private: true, archived: false, description: null, cloneUrl: `https://github.com/team/project-${index}.git` }));
@@ -26,7 +26,6 @@ it("keeps keyboard entry when a refresh removes the previously focused row", asy
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={choose} /></LanguageProvider>);
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: /@octocat/ }));
-  await user.click(screen.getByRole("button", { name: "Find projects" }));
   await user.click(await screen.findByRole("button", { name: "Choose team/project-5" }));
   await user.click(screen.getByRole("button", { name: "Refresh projects" }));
   await screen.findByText("Page 1 · 1 projects");
@@ -42,7 +41,6 @@ it("keeps a tabbable project when wheel scrolling virtualizes the active row awa
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={vi.fn()} /></LanguageProvider>);
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: /@octocat/ }));
-  await user.click(screen.getByRole("button", { name: "Find projects" }));
   const listElement = await screen.findByRole("list", { name: "Browse projects" });
   const viewport = listElement.parentElement!;
   viewport.scrollTop = 1500;
@@ -63,10 +61,11 @@ it("virtualizes a page, shows permissions/partial-search semantics, and hands of
   const choose = vi.fn();
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={choose} /></LanguageProvider>);
   await userEvent.click(screen.getByRole("combobox"));
-  await userEvent.click(screen.getByRole("option", { name: /@octocat/ }));
   expect(list).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "Find projects" }));
+  // Choosing the connection finds its first page at once.
+  await userEvent.click(screen.getByRole("option", { name: /@octocat/ }));
   expect(await screen.findByText("Page 1 · 100 projects")).toBeInTheDocument();
+  expect(list).toHaveBeenCalledOnce();
   expect(screen.getAllByRole("listitem").length).toBeLessThan(20);
   const search = screen.getByRole("searchbox", { name: "Filter this page" });
   expect(within(search.parentElement!.parentElement!).getByRole("button", { name: "Refresh projects" })).toBeInTheDocument();
@@ -91,11 +90,13 @@ it("cancels from the search toolbar, ignores a late page and allows an explicit 
   const cancel = vi.fn(async () => undefined);
   const controller = createRepositoryBrowserController({ list, cancel });
   render(<LanguageProvider><RepositoryBrowser controller={controller} catalog={catalog} checking={false} failed={false} onCheck={vi.fn()} onChoose={vi.fn()} /></LanguageProvider>);
-  expect(screen.getByRole("button", { name: "Find projects" })).toBeDisabled();
+  // Without a connection there is nothing to find yet: the hint says why.
+  expect(screen.queryByRole("button", { name: "Find projects" })).not.toBeInTheDocument();
+  expect(screen.getByText("Choose a connection to find your projects.")).toBeVisible();
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: /@octocat/ }));
-  expect(list).not.toHaveBeenCalled();
-  await user.click(screen.getByRole("button", { name: "Find projects" }));
+  // Choosing the connection starts the first read; it stays cancellable.
+  expect(list).toHaveBeenCalledOnce();
   expect(screen.getByRole("button", { name: "Finding projects…" })).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(cancel).toHaveBeenCalledWith(list.mock.calls[0][2]);
