@@ -91,6 +91,7 @@ import {
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import { GhToolingSection, type HostingToolingCopy, type HostingToolingPort } from "./GhToolingSection";
 import { GitIcon } from "./GitIcon";
+import { GitLocationFacts, GitTechnicalDetails } from "./GitInstallationFacts";
 import { GitHubIcon } from "./GitHubIcon";
 import { ToolRecheckButton } from "./ToolRecheckButton";
 import type { GitToolingState } from "./useGitTooling";
@@ -1860,6 +1861,9 @@ export function SettingsPanel({
                      monospace chip beside the name, labelled for screen readers. */
                   version={gitDiagnostics?.state === "available" ? gitDiagnostics.version : null}
                   versionLabel={t.settingsGitInstalledVersionLabel}
+                  facts={gitDiagnostics?.state === "available" && gitDiagnostics.location
+                    ? <GitLocationFacts location={gitDiagnostics.location} port={port} />
+                    : null}
                   status={
                     gitActionNotice ? (
                       <p className={`status-line status-line--${gitActionNotice.tone}`} role="status">
@@ -1931,6 +1935,7 @@ export function SettingsPanel({
                     }} />
                   }
                 />
+                {gitDiagnostics?.state === "available" && <GitTechnicalDetails diagnostics={gitDiagnostics} port={port} />}
               </div>
             </section>
             <section className="settings-group">

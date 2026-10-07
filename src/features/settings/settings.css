@@ -405,6 +405,86 @@
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
 }
 
+/* Where Git lives, under the Git row: how it was installed, then the path
+   of the executable. No glyphs in front: the row's tile already says Git. */
+.git-origin { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+.git-path { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.git-path__value {
+  min-width: 0; font-family: var(--font-mono); font-size: var(--text-label);
+  color: var(--text-primary-color); overflow-wrap: anywhere; user-select: text;
+}
+/* Copy and show-in-folder follow Overview's project path: borderless, and
+   surfacing on hover or keyboard focus of the line they belong to. A touch
+   screen has no hover, so there they stay visible. */
+.git-path__actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.git-path__actions button {
+  width: 26px; min-width: 26px; min-height: 26px; padding: 0; border-radius: var(--radius-item);
+  background: transparent; border-color: transparent; color: var(--text-secondary-color);
+  opacity: 0; transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.git-path__actions button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.git-path__actions svg { width: 13px; height: 13px; }
+.git-path:hover .git-path__actions button,
+.git-path:focus-within .git-path__actions button,
+.git-fact:hover .git-path__actions button,
+.git-fact:focus-within .git-path__actions button,
+.git-path__actions button.is-copied { opacity: 1; }
+.git-path__actions button.is-copied { color: var(--status-success); }
+@media (pointer: coarse) {
+  .git-path__actions button { opacity: 1; }
+}
+
+/* "Technical details" is its own card beside the Git row rather than inside
+   it: the row's text column shares its width with the actions, and a Windows
+   path would break over three lines there. */
+.git-details {
+  margin-top: var(--space-2); padding: 10px var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--surface-card);
+}
+.git-details > summary {
+  list-style: none; display: flex; align-items: center; gap: 6px;
+  width: fit-content; padding: 3px 4px 3px 0; border-radius: var(--radius-item);
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong);
+}
+.git-details > summary::-webkit-details-marker { display: none; }
+.git-details > summary:hover { color: var(--text-primary-color); }
+.git-details > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.git-details > summary svg { width: 13px; height: 13px; flex-shrink: 0; }
+.git-details__chevron { transition: transform var(--duration-fast); }
+.git-details[open] .git-details__chevron { transform: rotate(90deg); }
+.git-details__state {
+  display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0 0;
+  color: var(--text-secondary-color); font-size: var(--text-label);
+}
+.git-details__state > svg { width: 14px; height: 14px; }
+.git-details__state > .status-line { margin: 0; }
+.git-details > .status-line { margin: var(--space-2) 0 0; }
+
+/* Label, value, actions. The single column is explicit: an `auto` track
+   would shrink to its content and leave the facts in a narrow block. */
+.git-facts { display: grid; grid-template-columns: minmax(0, 1fr); margin: var(--space-2) 0 0; }
+.git-fact {
+  display: grid; grid-template-columns: 156px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--space-3);
+  padding: 7px 0; border-top: 1px solid var(--border-subtle);
+}
+.git-fact:first-child { border-top: 0; }
+.git-fact dd { margin: 0; }
+.git-fact__label { color: var(--text-secondary-color); font-size: var(--text-label); }
+.git-fact__value { min-width: 0; font-size: var(--text-body); overflow-wrap: anywhere; }
+.git-fact__value--mono { font-family: var(--font-mono); font-size: var(--text-label); user-select: text; }
+.git-fact__note {
+  display: block; margin-top: 1px;
+  color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-caption);
+}
+.git-fact__actions .git-path__actions { justify-content: flex-end; }
+
+@media (prefers-reduced-motion: reduce) {
+  .git-details__chevron,
+  .git-path__actions button { transition: none; }
+}
+
 @media (max-width: 800px) {
   /* Every other row stacks here to give its control the full width. The
      notifications switch is small enough to stay beside its label, and
@@ -419,6 +499,8 @@
   .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .remote-check-cadence { width: 100%; }
+  .git-fact { grid-template-columns: minmax(0, 1fr) auto; }
+  .git-fact__label { grid-column: 1 / -1; }
   .settings-view .remote-check-cadence .segmented-control__option { flex: 1 1 auto; }
 }
 

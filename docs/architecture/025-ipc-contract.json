@@ -81,6 +81,8 @@
     { "name": "update_gh", "arguments": [], "response": "GitUpdateLaunchResult" },
     { "name": "check_gh_update", "arguments": [], "response": "GitUpdateStatus" },
     { "name": "git_diagnostics", "arguments": [], "response": "GitDiagnostics" },
+    { "name": "git_installation_details", "arguments": [], "response": "GitInstallationDetails" },
+    { "name": "reveal_git_location", "arguments": ["target"], "response": "void" },
     { "name": "install_git", "arguments": [], "response": "GitInstallationResult" },
     { "name": "update_git", "arguments": [], "response": "GitUpdateLaunchResult" },
     { "name": "check_git_update", "arguments": [], "response": "GitUpdateStatus" },

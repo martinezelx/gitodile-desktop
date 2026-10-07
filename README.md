@@ -127,6 +127,10 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   date and number formats, Git identity, installation diagnostics, supported
   Git update guidance, how diffs are read, and whether projects are watched
   and discards confirmed.
+- See which Git GitOdile uses: how it was installed and where the executable
+  lives, with copy and show-in-Explorer/Finder on hover, plus on-demand technical details — its
+  architecture, internal folder, configuration files, credential helper, Git
+  LFS and editor.
 - Set the default version-line name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether

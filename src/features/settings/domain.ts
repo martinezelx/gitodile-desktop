@@ -148,7 +148,55 @@ export function settingsSectionLabel(
 export type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
+  /** Only the system Git reports where it lives, and only once it ran. */
+  location?: GitLocation;
 };
+
+export type GitDistribution =
+  | "git_for_windows"
+  | "github_desktop"
+  | "scoop"
+  | "homebrew"
+  | "macports"
+  | "apple_developer_tools"
+  | "system_package"
+  | "other";
+
+/** The Git that GitOdile runs, read from its path without starting it. */
+export type GitLocation = {
+  executable: string;
+  distribution: GitDistribution;
+  /** Set for Git for Windows, whose installer offers both. */
+  scope: "all_users" | "current_user" | null;
+};
+
+export type GitPathFact = { path: string; exists: boolean };
+
+export type GitCredentialHelper =
+  | "none"
+  | "git_credential_manager"
+  | "macos_keychain"
+  | "libsecret"
+  | "windows_credential_store"
+  | "cache"
+  | "store"
+  | "other";
+
+/** What "Technical details" shows. Each fact is `null` when this Git could
+ * not answer it, which older Gits do for the configuration paths. */
+export type GitInstallationDetails = {
+  architecture: string | null;
+  execPath: GitPathFact | null;
+  globalConfig: GitPathFact | null;
+  systemConfig: GitPathFact | null;
+  credentialHelper: GitCredentialHelper;
+  largeFilesVersion: string | null;
+  editor: string | null;
+};
+
+/** The places the file manager can be asked to show. Rust finds each path
+ * again from this name; the renderer never sends one. */
+export type GitLocationTarget = "executable" | "global_config" | "system_config";
 
 /** The version worth reporting, or `null` when Git never answered. A version
  * field is carried in every state, but only `available` means the executable

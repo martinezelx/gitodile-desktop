@@ -210,6 +210,8 @@ pub fn run() {
             ipc::update_gh,
             ipc::check_gh_update,
             ipc::git_diagnostics,
+            ipc::git_installation_details,
+            ipc::reveal_git_location,
             ipc::install_git,
             ipc::update_git,
             ipc::check_git_update,

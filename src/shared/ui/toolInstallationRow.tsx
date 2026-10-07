@@ -17,7 +17,8 @@ export type ToolChip = {
  * row: a 32px round tile, then the name, the installed version and the state
  * chip on one line, and the actions on the right.
  *
- * Only what the chips cannot say takes a second line: a problem (`detail`), a
+ * Only what the chips cannot say takes a second line: the installation's own
+ * facts (`facts`, such as where Git lives), a problem (`detail`), a
  * receipt for an action the reader just took (`status`), or the consequence
  * of the primary action (`hint`). Each collapses when empty, so a settled row
  * is one line. See `.tool-row` in primitives.css and DESIGN.md § Shape. */
@@ -27,6 +28,7 @@ export function ToolInstallationRow({
   chip,
   version,
   versionLabel,
+  facts,
   detail,
   status,
   hint,
@@ -42,6 +44,9 @@ export function ToolInstallationRow({
   version?: string | null;
   /** The accessible name of the version chip, such as "Installed version". */
   versionLabel?: string;
+  /** Settled facts about the installation, such as where it lives. Unlike
+   * `detail` they are not a problem: they sit right under the name line. */
+  facts?: ReactNode;
   /** Something the chips cannot say, usually a problem. */
   detail?: ReactNode;
   /** The reserved status slot: an action receipt or an update result. */
@@ -73,6 +78,7 @@ export function ToolInstallationRow({
             <span>{chip.label}</span>
           </span>
         </div>
+        {facts && <div className="tool-row__facts">{facts}</div>}
         <div className="tool-row__detail">{detail}</div>
         <div className="tool-row__status" role="status">
           {status}

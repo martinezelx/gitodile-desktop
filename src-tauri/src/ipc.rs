@@ -46,8 +46,8 @@ use crate::{
     },
     technology::{self, ProjectTechnology},
     tooling::{
-        self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
-        GitUpdateLaunchResult, GitUpdateStatus,
+        self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationDetails,
+        GitInstallationResult, GitLineEndings, GitUpdateLaunchResult, GitUpdateStatus,
     },
     version_lines::{
         self, CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
@@ -744,6 +744,19 @@ pub(crate) fn restore_discarded_changes(
 #[tauri::command(async)]
 pub(crate) fn git_diagnostics() -> GitDiagnostics {
     report_value("git_diagnostics", tooling::git_diagnostics())
+}
+
+#[tauri::command(async)]
+pub(crate) fn git_installation_details() -> GitInstallationDetails {
+    report_value(
+        "git_installation_details",
+        tooling::git_installation_details(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {
+    report_result("reveal_git_location", desktop::reveal_git_location(target))
 }
 
 #[tauri::command(async)]

@@ -1371,6 +1371,13 @@
 .tool-row__status:empty,
 .tool-row__hint:empty { display: none; }
 .tool-row__buttons { flex-wrap: wrap; justify-content: flex-end; }
+/* With settled facts under the name the row is several lines tall, so the
+   tile and the actions sit on the first line instead of centring on the
+   whole block. */
+.tool-row:has(.tool-row__facts) { align-items: start; }
+.tool-row:has(.tool-row__facts) .tool-row__tile { margin-top: 1px; }
+.tool-row__facts { display: grid; gap: 2px; min-width: 0; }
+.tool-row__facts > * { margin: 0; }
 
 /* A label-and-value row whose value is a version: "Installed version 2.47.0",
    Git's in its section and the app's own in Updates. The value is monospace

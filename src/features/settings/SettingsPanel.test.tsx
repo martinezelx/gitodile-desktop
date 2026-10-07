@@ -10,7 +10,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { useGitTooling } from "./useGitTooling";
 import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
-import type { GitDiagnostics, GitLineEndings, GitUpdateStatus, SettingsSection, ThemePreference } from "./domain";
+import type { GitDiagnostics, GitInstallationDetails, GitLineEndings, GitUpdateStatus, SettingsSection, ThemePreference } from "./domain";
 import type { NavigationPreferences } from "./domain";
 
 afterEach(cleanup);
@@ -222,6 +222,22 @@ describe("optional GitHub CLI tooling", () => {
   });
 });
 
+const INSTALLATION_DETAILS: GitInstallationDetails = {
+  architecture: "x86_64",
+  execPath: { path: "C:\Program Files\Git\mingw64\libexec\git-core", exists: true },
+  globalConfig: { path: "C:\Users\ana\.gitconfig", exists: false },
+  systemConfig: { path: "C:\Program Files\Git\etc\gitconfig", exists: true },
+  credentialHelper: "git_credential_manager",
+  largeFilesVersion: "3.7.1",
+  editor: "Visual Studio Code",
+};
+
+const LOCATED_GIT: GitDiagnostics = {
+  state: "available",
+  version: "2.55.0.windows.3",
+  location: { executable: "C:\Program Files\Git\cmd\git.exe", distribution: "git_for_windows", scope: "all_users" },
+};
+
 function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
   return {
     readGhDiagnostics: vi.fn(async () => ({ state: "available", version: "2.80.0" }) as GitDiagnostics),
@@ -229,6 +245,8 @@ function createPort(overrides: Partial<SettingsPort> = {}): SettingsPort {
     installGh: vi.fn(async () => ({ outcome: "started" as const, platform: "windows" as const, guidanceUrl: null })),
     updateGh: vi.fn(async () => ({ outcome: "started" as const })),
     readDiagnostics: vi.fn(async () => ({ state: "available", version: "2.45.0" }) as GitDiagnostics),
+    readInstallationDetails: vi.fn(async () => INSTALLATION_DETAILS),
+    revealGitLocation: vi.fn(async () => undefined),
     checkUpdate: vi.fn(async () => ({ state: "up_to_date", cached: false }) as GitUpdateStatus),
     installGit: vi.fn(async () => ({ outcome: "started" as const, platform: "windows" as const, guidanceUrl: null })),
     updateGit: vi.fn(async () => ({ outcome: "started" as const })),
@@ -384,6 +402,71 @@ function renderToolingPanel(port: SettingsPort, section: "git" | "github") {
   }
   return render(<LanguageProvider><ToolingHarness /></LanguageProvider>);
 }
+
+describe("Settings panel Git installation facts", () => {
+  it("says how Git was installed and where it lives, and acts on that path", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const port = createPort();
+    renderPanel(port, { initialSection: "git", gitDiagnostics: LOCATED_GIT });
+
+    expect(screen.getByText("Git for Windows, installed for all users")).toBeTruthy();
+    expect(screen.getByText("C:\Program Files\Git\cmd\git.exe")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Copy path" }));
+    expect(writeText).toHaveBeenCalledWith("C:\Program Files\Git\cmd\git.exe");
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Show in Explorer" }));
+    expect(port.revealGitLocation).toHaveBeenCalledWith("executable");
+  });
+
+  it("reports a file manager that would not open", async () => {
+    const user = userEvent.setup();
+    const port = createPort({ revealGitLocation: vi.fn(async () => { throw new Error("no"); }) });
+    renderPanel(port, { initialSection: "git", gitDiagnostics: LOCATED_GIT });
+    await user.click(screen.getByRole("button", { name: "Show in Explorer" }));
+    expect(await screen.findByText(/Your file manager couldn't be opened/)).toBeTruthy();
+  });
+
+  it("reads the technical details only when they are opened", async () => {
+    const user = userEvent.setup();
+    const port = createPort();
+    renderPanel(port, { initialSection: "git", gitDiagnostics: LOCATED_GIT });
+    expect(port.readInstallationDetails).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText("Technical details"));
+    expect(await screen.findByText("Git Credential Manager")).toBeTruthy();
+    expect(port.readInstallationDetails).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("2.55.0.windows.3 · 64-bit")).toBeTruthy();
+    expect(screen.getByText("Git LFS 3.7.1")).toBeTruthy();
+    expect(screen.getByText("Visual Studio Code")).toBeTruthy();
+    // A configuration file that does not exist yet can be copied but not shown.
+    expect(screen.getByText(/Not created yet/)).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Show in Explorer" })).toHaveLength(2);
+
+    await user.click(screen.getAllByRole("button", { name: "Show in Explorer" })[1]);
+    expect(port.revealGitLocation).toHaveBeenCalledWith("system_config");
+  });
+
+  it("offers another try when the details could not be read", async () => {
+    const user = userEvent.setup();
+    const readInstallationDetails = vi.fn<SettingsPort["readInstallationDetails"]>()
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockResolvedValueOnce(INSTALLATION_DETAILS);
+    renderPanel(createPort({ readInstallationDetails }), { initialSection: "git", gitDiagnostics: LOCATED_GIT });
+    await user.click(screen.getByText("Technical details"));
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Git Credential Manager")).toBeTruthy();
+  });
+
+  it("shows no location or details while Git is missing", () => {
+    renderPanel(createPort(), { initialSection: "git", gitDiagnostics: { state: "missing", version: null } });
+    expect(screen.queryByText("Technical details")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy path" })).toBeNull();
+  });
+});
 
 describe("Settings panel console section", () => {
   it("changes the console preferences it shows", async () => {

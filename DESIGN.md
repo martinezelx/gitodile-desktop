@@ -403,6 +403,15 @@ The main desktop window should broadly support:
      offers manual-only, 15-minute, 30-minute, and hourly cadences; one timer
      follows the active project session, skips states without a usable upstream,
      and shares the same deduplicated check path as the status-bar action;
+   - the Git row in Settings says which Git GitOdile runs: how it was
+     installed (Git for Windows for all users or just you, GitHub Desktop's
+     copy, Homebrew, Apple's developer tools…) and the executable's path, as
+     two plain secondary lines with no glyph in front, since the tile already
+     says Git. A path's copy and show-in-the-file-manager follow Overview's
+     project path: borderless, surfacing on hover or focus, always visible on
+     touch, named after the platform's file manager (Explorer, Finder, or a
+     plain folder). "Technical details" is a separate card under the row,
+     closed by default and read only when opened;
    - application-update checks are a separate global concern. What's new (as
      the link in the update line under its title, above the local notes and never among them), More actions,
      the command palette and the Updates section of Settings all enter one

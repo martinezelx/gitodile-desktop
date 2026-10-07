@@ -2,8 +2,10 @@ import type {
   GitDefaultBranch,
   GitDiagnostics,
   GitIdentity,
+  GitInstallationDetails,
   GitInstallationResult,
   GitLineEndings,
+  GitLocationTarget,
   GitUpdateLaunchResult,
   GitUpdateStatus,
   LineEndingChoice,
@@ -26,6 +28,11 @@ export interface SettingsPort {
   installGh(): Promise<GitInstallationResult>;
   updateGh(): Promise<GitUpdateLaunchResult>;
   readDiagnostics(): Promise<GitDiagnostics>;
+  /** Several Git processes, so it is read when the reader opens the Git
+   * section's technical details, never because the section became visible. */
+  readInstallationDetails(): Promise<GitInstallationDetails>;
+  /** Shows Git or one of its configuration files in the file manager. */
+  revealGitLocation(target: GitLocationTarget): Promise<void>;
   checkUpdate(): Promise<GitUpdateStatus>;
   installGit(): Promise<GitInstallationResult>;
   updateGit(): Promise<GitUpdateLaunchResult>;

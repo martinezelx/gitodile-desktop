@@ -9,7 +9,9 @@ use crate::error::{AppError, AppErrorCode};
 use crate::git_command::in_test_frame;
 use crate::git_command::{git_stdout, run_global_git_with_env};
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::io::{ErrorKind, Read};
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -27,6 +29,10 @@ const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
 pub(crate) struct GitDiagnostics {
     state: GitDiagnosticState,
     version: Option<String>,
+    /// Where the Git that answered lives. Only the system Git reports one,
+    /// and only once it ran; the GitHub and GitLab CLIs leave it out.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    location: Option<GitLocation>,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -61,18 +67,22 @@ fn git_diagnostics_from_attempt(attempt: ProcessAttempt) -> GitDiagnostics {
         } => GitDiagnostics {
             state: GitDiagnosticState::Available,
             version: Some(parse_git_version(&stdout)),
+            location: None,
         },
         ProcessAttempt::Missing => GitDiagnostics {
             state: GitDiagnosticState::Missing,
             version: None,
+            location: None,
         },
         ProcessAttempt::Completed { success: false, .. } => GitDiagnostics {
             state: GitDiagnosticState::Unusable,
             version: None,
+            location: None,
         },
         ProcessAttempt::FailedToStart | ProcessAttempt::TimedOut => GitDiagnostics {
             state: GitDiagnosticState::CheckFailed,
             version: None,
+            location: None,
         },
     }
 }
@@ -87,7 +97,382 @@ pub(crate) fn git_diagnostics() -> GitDiagnostics {
         Err(error) if error.code == AppErrorCode::GitMissing => ProcessAttempt::Missing,
         Err(_) => ProcessAttempt::FailedToStart,
     };
-    git_diagnostics_from_attempt(attempt)
+    let mut diagnostics = git_diagnostics_from_attempt(attempt);
+    if diagnostics.state == GitDiagnosticState::Available {
+        diagnostics.location = locate_git(current_installation_platform());
+    }
+    diagnostics
+}
+
+/// The Git executable GitOdile runs and how it came to be on this machine.
+///
+/// Answering "which Git is this?" matters most when a machine has more than
+/// one — Git for Windows beside the copy GitHub Desktop bundles, or Apple's
+/// beside Homebrew's — and the version alone cannot tell them apart.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitLocation {
+    executable: String,
+    distribution: GitDistribution,
+    /// Set for Git for Windows, whose installer offers both.
+    scope: Option<GitInstallScope>,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum GitDistribution {
+    GitForWindows,
+    GithubDesktop,
+    Scoop,
+    Homebrew,
+    Macports,
+    AppleDeveloperTools,
+    SystemPackage,
+    Other,
+}
+
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum GitInstallScope {
+    AllUsers,
+    CurrentUser,
+}
+
+fn git_program_name(platform: GitInstallationPlatform) -> &'static str {
+    match platform {
+        GitInstallationPlatform::Windows => "git.exe",
+        _ => "git",
+    }
+}
+
+/// The first `git` on `PATH`, which is the one `Command::new("git")` starts:
+/// GitOdile never changes the child's `PATH`, and Git is never installed in
+/// the application or Windows system directories Rust searches first.
+fn find_on_path(program: &str, path: Option<&OsStr>) -> Option<PathBuf> {
+    std::env::split_paths(path?)
+        .filter(|directory| directory.is_absolute())
+        .map(|directory| directory.join(program))
+        .find(|candidate| candidate.is_file())
+}
+
+fn locate_git(platform: GitInstallationPlatform) -> Option<GitLocation> {
+    let executable = find_on_path(
+        git_program_name(platform),
+        std::env::var_os("PATH").as_deref(),
+    )?;
+    // Homebrew and MacPorts link `git` into a shared `bin`; the link target
+    // says which one installed it. Windows paths are classified as found:
+    // canonicalising there only adds a `\\?\` prefix.
+    let resolved = match platform {
+        GitInstallationPlatform::Windows => executable.clone(),
+        _ => executable
+            .canonicalize()
+            .unwrap_or_else(|_| executable.clone()),
+    };
+    let (distribution, scope) = classify_git_location(platform, &executable, &resolved);
+    Some(GitLocation {
+        executable: executable.to_string_lossy().into_owned(),
+        distribution,
+        scope,
+    })
+}
+
+/// Reads the installation from its path alone, so it never runs a process.
+/// `found` is the path on `PATH`; `resolved` is where its links lead.
+fn classify_git_location(
+    platform: GitInstallationPlatform,
+    found: &Path,
+    resolved: &Path,
+) -> (GitDistribution, Option<GitInstallScope>) {
+    let normalise = |path: &Path| path.to_string_lossy().replace('\\', "/").to_lowercase();
+    let found = normalise(found);
+    let resolved = normalise(resolved);
+    match platform {
+        GitInstallationPlatform::Windows => {
+            if found.contains("/appdata/local/githubdesktop/") {
+                (GitDistribution::GithubDesktop, None)
+            } else if found.contains("/scoop/") {
+                (GitDistribution::Scoop, None)
+            } else if found.contains("/program files/git/")
+                || found.contains("/program files (x86)/git/")
+            {
+                (
+                    GitDistribution::GitForWindows,
+                    Some(GitInstallScope::AllUsers),
+                )
+            } else if found.contains("/appdata/local/programs/git/") {
+                (
+                    GitDistribution::GitForWindows,
+                    Some(GitInstallScope::CurrentUser),
+                )
+            } else if found.ends_with("/cmd/git.exe") || found.contains("/mingw64/bin/") {
+                (GitDistribution::GitForWindows, None)
+            } else {
+                (GitDistribution::Other, None)
+            }
+        }
+        GitInstallationPlatform::Macos => {
+            if resolved.starts_with("/opt/homebrew/") || resolved.contains("/cellar/") {
+                (GitDistribution::Homebrew, None)
+            } else if resolved.starts_with("/opt/local/") {
+                (GitDistribution::Macports, None)
+            } else if resolved == "/usr/bin/git"
+                || resolved.starts_with("/library/developer/commandlinetools/")
+                || resolved.starts_with("/applications/xcode")
+            {
+                (GitDistribution::AppleDeveloperTools, None)
+            } else {
+                (GitDistribution::Other, None)
+            }
+        }
+        GitInstallationPlatform::Linux => {
+            if resolved.contains("/linuxbrew/") || resolved.contains("/cellar/") {
+                (GitDistribution::Homebrew, None)
+            } else if resolved.starts_with("/usr/bin/") || resolved.starts_with("/bin/") {
+                (GitDistribution::SystemPackage, None)
+            } else {
+                (GitDistribution::Other, None)
+            }
+        }
+        GitInstallationPlatform::Unsupported => (GitDistribution::Other, None),
+    }
+}
+
+/// What the Git section shows under "Technical details". Read only when the
+/// reader opens that disclosure: it costs several Git processes, and none of
+/// it is needed to know whether Git works.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GitInstallationDetails {
+    /// Git's own `cpu:` build option, such as `x86_64` or `arm64`.
+    architecture: Option<String>,
+    exec_path: Option<GitPathFact>,
+    global_config: Option<GitPathFact>,
+    system_config: Option<GitPathFact>,
+    credential_helper: GitCredentialHelper,
+    large_files_version: Option<String>,
+    /// A recognisable name for the editor Git opens, never its full command.
+    editor: Option<String>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct GitPathFact {
+    path: String,
+    exists: bool,
+}
+
+/// Which credential helper signs Git in. Only known helpers are named: a
+/// custom `credential.helper` value can be a shell snippet, and those have
+/// been known to carry a token inline.
+#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum GitCredentialHelper {
+    None,
+    GitCredentialManager,
+    MacosKeychain,
+    Libsecret,
+    WindowsCredentialStore,
+    Cache,
+    Store,
+    Other,
+}
+
+fn git_output(args: &[&str]) -> Option<String> {
+    let output = run_global_git_with_env(args, &[]).ok()?;
+    output
+        .status
+        .success()
+        .then(|| git_stdout(&output))
+        .filter(|stdout| !stdout.is_empty())
+}
+
+fn is_plain_token(value: &str, extra: &[u8]) -> bool {
+    !value.is_empty()
+        && value.len() <= 32
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || extra.contains(&byte))
+}
+
+fn parse_build_architecture(build_options: &str) -> Option<String> {
+    build_options
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("cpu:"))
+        .map(str::trim)
+        .filter(|cpu| is_plain_token(cpu, b"_-"))
+        .map(str::to_string)
+}
+
+fn parse_lfs_version(output: &str) -> Option<String> {
+    output
+        .trim()
+        .strip_prefix("git-lfs/")?
+        .split_whitespace()
+        .next()
+        .filter(|version| is_plain_token(version, b".-+"))
+        .map(str::to_string)
+}
+
+/// The helper Git asks last, from `git config -z --get-all` output.
+/// `credential.helper` is a list, and an empty entry clears what came before
+/// it, so an empty last entry means no helper at all.
+fn parse_credential_helper(entries: &str) -> GitCredentialHelper {
+    let entries = entries.strip_suffix('\0').unwrap_or(entries);
+    let helper = entries.rsplit('\0').next().unwrap_or_default().trim();
+    if helper.is_empty() {
+        return GitCredentialHelper::None;
+    }
+    let name = helper.to_lowercase();
+    let program = name.split_whitespace().next().unwrap_or_default();
+    if name.contains("manager") {
+        GitCredentialHelper::GitCredentialManager
+    } else if name.contains("osxkeychain") {
+        GitCredentialHelper::MacosKeychain
+    } else if name.contains("libsecret") {
+        GitCredentialHelper::Libsecret
+    } else if name.contains("wincred") {
+        GitCredentialHelper::WindowsCredentialStore
+    } else if program == "cache" {
+        GitCredentialHelper::Cache
+    } else if program == "store" {
+        GitCredentialHelper::Store
+    } else {
+        GitCredentialHelper::Other
+    }
+}
+
+/// A name for the editor in `GIT_EDITOR`: the program alone, without the
+/// path or arguments around it, and a familiar name for the common ones.
+fn editor_name(command: &str) -> Option<String> {
+    let command = command.trim();
+    let quote = command
+        .chars()
+        .next()
+        .filter(|first| *first == '"' || *first == '\'');
+    let program = match quote {
+        Some(quote) => command[1..].split(quote).next()?,
+        None => command.split_whitespace().next()?,
+    };
+    let file = program.rsplit(['/', '\\']).next()?.trim();
+    let lowered = file.to_lowercase();
+    let base = lowered.strip_suffix(".exe").unwrap_or(&lowered);
+    let known = match base {
+        // `true` and `:` are what scripts set to skip the editor entirely.
+        "" | "true" | ":" => return None,
+        "code" => "Visual Studio Code",
+        "code-insiders" => "Visual Studio Code Insiders",
+        "cursor" => "Cursor",
+        "windsurf" => "Windsurf",
+        "zed" => "Zed",
+        "subl" | "sublime_text" => "Sublime Text",
+        "notepad++" => "Notepad++",
+        "notepad" => "Notepad",
+        "vim" | "vi" | "gvim" => "Vim",
+        "nvim" => "Neovim",
+        "nano" => "nano",
+        "emacs" | "emacsclient" => "Emacs",
+        "mate" => "TextMate",
+        "bbedit" => "BBEdit",
+        "gedit" => "gedit",
+        "kate" => "Kate",
+        "idea" | "idea64" => "IntelliJ IDEA",
+        "webstorm" | "webstorm64" => "WebStorm",
+        _ => return Some(file.chars().take(64).collect()),
+    };
+    Some(known.to_string())
+}
+
+fn path_fact(path: &str, platform: GitInstallationPlatform) -> GitPathFact {
+    // Git for Windows answers with forward slashes; show the path the way
+    // the rest of Windows writes it.
+    let path = match platform {
+        GitInstallationPlatform::Windows => path.trim().replace('/', "\\"),
+        _ => path.trim().to_string(),
+    };
+    GitPathFact {
+        exists: Path::new(&path).exists(),
+        path,
+    }
+}
+
+/// `git var GIT_CONFIG_GLOBAL` lists every per-user file Git reads, the XDG
+/// one first and `~/.gitconfig` last. `git config --global` writes to
+/// `~/.gitconfig` whenever it exists and to the XDG file only when it alone
+/// does, so the last file that exists is the one in use; with none yet, the
+/// last is where Git will write.
+fn global_config_fact(listing: &str, platform: GitInstallationPlatform) -> Option<GitPathFact> {
+    let mut candidates = listing
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| path_fact(line, platform))
+        .collect::<Vec<_>>();
+    let index = candidates
+        .iter()
+        .rposition(|fact| fact.exists)
+        .or(candidates.len().checked_sub(1))?;
+    Some(candidates.swap_remove(index))
+}
+
+fn read_global_config_fact(platform: GitInstallationPlatform) -> Option<GitPathFact> {
+    // `git var GIT_CONFIG_GLOBAL` arrived in Git 2.42; older Gits get no row.
+    global_config_fact(&git_output(&["var", "GIT_CONFIG_GLOBAL"])?, platform)
+}
+
+fn read_system_config_fact(platform: GitInstallationPlatform) -> Option<GitPathFact> {
+    let listing = git_output(&["var", "GIT_CONFIG_SYSTEM"])?;
+    Some(path_fact(listing.lines().next()?, platform))
+}
+
+pub(crate) fn git_installation_details() -> GitInstallationDetails {
+    let _command = application::enter("git_installation_details");
+    let platform = current_installation_platform();
+    GitInstallationDetails {
+        architecture: git_output(&["version", "--build-options"])
+            .as_deref()
+            .and_then(parse_build_architecture),
+        exec_path: git_output(&["--exec-path"])
+            .and_then(|path| path.lines().next().map(|line| path_fact(line, platform))),
+        global_config: read_global_config_fact(platform),
+        system_config: read_system_config_fact(platform),
+        // `--get-all` exits 1 when nothing is set, which is an answer.
+        credential_helper: git_output(&["config", "-z", "--get-all", "credential.helper"])
+            .map(|entries| parse_credential_helper(&entries))
+            .unwrap_or(GitCredentialHelper::None),
+        large_files_version: git_output(&["lfs", "version"])
+            .as_deref()
+            .and_then(parse_lfs_version),
+        editor: git_output(&["var", "GIT_EDITOR"])
+            .as_deref()
+            .and_then(editor_name),
+    }
+}
+
+/// The place the Git section shows in the file manager. The renderer only
+/// names which one; the path itself is always found again here, so the
+/// webview can never ask for an arbitrary file to be revealed.
+pub(crate) fn git_location_path(target: &str) -> Result<PathBuf, AppError> {
+    let _command = application::enter("reveal_git_location");
+    let platform = current_installation_platform();
+    let path = match target {
+        "executable" => locate_git(platform).map(|location| PathBuf::from(location.executable)),
+        "global_config" => read_global_config_fact(platform)
+            .filter(|fact| fact.exists)
+            .map(|fact| PathBuf::from(fact.path)),
+        "system_config" => read_system_config_fact(platform)
+            .filter(|fact| fact.exists)
+            .map(|fact| PathBuf::from(fact.path)),
+        _ => {
+            return Err(AppError::new(
+                AppErrorCode::PathInvalid,
+                "GitOdile can't show that place.",
+            ))
+        }
+    };
+    path.ok_or_else(|| {
+        AppError::new(AppErrorCode::PathMissing, "That file is no longer there.")
+            .with_remediation("Check Git again, then try once more.")
+    })
 }
 
 // Only fixed application-owned commands reach this runner. Drain both pipes
@@ -186,6 +571,7 @@ fn gh_diagnostics_from_attempt(attempt: ProcessAttempt) -> GitDiagnostics {
                     GitDiagnosticState::Unusable
                 },
                 version: version.map(str::to_string),
+                location: None,
             }
         }
         attempt => git_diagnostics_from_attempt(attempt),
@@ -1559,6 +1945,228 @@ mod tests {
         let diagnostics = git_diagnostics();
         assert_eq!(diagnostics.state, GitDiagnosticState::Available);
         assert!(diagnostics.version.is_some());
+    }
+
+    #[test]
+    fn git_location_is_read_from_the_path_on_every_platform() {
+        let windows = |path: &str| {
+            classify_git_location(
+                GitInstallationPlatform::Windows,
+                Path::new(path),
+                Path::new(path),
+            )
+        };
+        assert_eq!(
+            windows(r"C:\Program Files\Git\cmd\git.exe"),
+            (
+                GitDistribution::GitForWindows,
+                Some(GitInstallScope::AllUsers)
+            )
+        );
+        assert_eq!(
+            windows(r"C:\Users\ana\AppData\Local\Programs\Git\cmd\git.exe"),
+            (
+                GitDistribution::GitForWindows,
+                Some(GitInstallScope::CurrentUser)
+            )
+        );
+        assert_eq!(
+            windows(
+                r"C:\Users\ana\AppData\Local\GitHubDesktop\app-3.5.0\resources\app\git\cmd\git.exe"
+            ),
+            (GitDistribution::GithubDesktop, None)
+        );
+        assert_eq!(
+            windows(r"C:\Users\ana\scoop\shims\git.exe"),
+            (GitDistribution::Scoop, None)
+        );
+        assert_eq!(
+            windows(r"D:\tools\PortableGit\cmd\git.exe"),
+            (GitDistribution::GitForWindows, None)
+        );
+        assert_eq!(windows(r"D:\bin\git.exe"), (GitDistribution::Other, None));
+
+        let macos = |found: &str, resolved: &str| {
+            classify_git_location(
+                GitInstallationPlatform::Macos,
+                Path::new(found),
+                Path::new(resolved),
+            )
+            .0
+        };
+        assert_eq!(
+            macos(
+                "/opt/homebrew/bin/git",
+                "/opt/homebrew/Cellar/git/2.55.0/bin/git"
+            ),
+            GitDistribution::Homebrew
+        );
+        assert_eq!(
+            macos("/usr/local/bin/git", "/usr/local/Cellar/git/2.55.0/bin/git"),
+            GitDistribution::Homebrew
+        );
+        assert_eq!(
+            macos("/usr/bin/git", "/usr/bin/git"),
+            GitDistribution::AppleDeveloperTools
+        );
+        assert_eq!(
+            macos("/opt/local/bin/git", "/opt/local/bin/git"),
+            GitDistribution::Macports
+        );
+
+        let linux = |path: &str| {
+            classify_git_location(
+                GitInstallationPlatform::Linux,
+                Path::new(path),
+                Path::new(path),
+            )
+            .0
+        };
+        assert_eq!(linux("/usr/bin/git"), GitDistribution::SystemPackage);
+        assert_eq!(
+            linux("/home/linuxbrew/.linuxbrew/Cellar/git/2.55.0/bin/git"),
+            GitDistribution::Homebrew
+        );
+        assert_eq!(linux("/opt/git/bin/git"), GitDistribution::Other);
+    }
+
+    #[test]
+    fn git_is_found_on_the_first_path_entry_that_has_it() {
+        let root = std::env::temp_dir().join(format!("git-path-fixture-{}", std::process::id()));
+        let empty = root.join("empty");
+        let first = root.join("first");
+        let second = root.join("second");
+        for directory in [&empty, &first, &second] {
+            fs::create_dir_all(directory).unwrap();
+        }
+        fs::write(first.join("git-fixture"), "").unwrap();
+        fs::write(second.join("git-fixture"), "").unwrap();
+        let path = std::env::join_paths([
+            PathBuf::from("relative"),
+            empty.clone(),
+            first.clone(),
+            second.clone(),
+        ])
+        .unwrap();
+        assert_eq!(
+            find_on_path("git-fixture", Some(&path)),
+            Some(first.join("git-fixture"))
+        );
+        assert_eq!(find_on_path("missing-fixture", Some(&path)), None);
+        assert_eq!(find_on_path("git-fixture", None), None);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn installation_details_parse_git_output_without_leaking_it() {
+        assert_eq!(
+            parse_build_architecture("git version 2.55.0\ncpu: x86_64\nsizeof-long: 4\n")
+                .as_deref(),
+            Some("x86_64")
+        );
+        assert_eq!(parse_build_architecture("cpu: x86 64; rm -rf"), None);
+        assert_eq!(parse_build_architecture("git version 2.30.0"), None);
+
+        assert_eq!(
+            parse_lfs_version("git-lfs/3.7.1 (GitHub; windows amd64; go 1.25.1)").as_deref(),
+            Some("3.7.1")
+        );
+        assert_eq!(parse_lfs_version("git: 'lfs' is not a git command."), None);
+
+        assert_eq!(
+            parse_credential_helper("manager\0"),
+            GitCredentialHelper::GitCredentialManager
+        );
+        assert_eq!(
+            parse_credential_helper(
+                "C:/Program Files/Git/mingw64/bin/git-credential-manager.exe\0"
+            ),
+            GitCredentialHelper::GitCredentialManager
+        );
+        assert_eq!(
+            parse_credential_helper("manager\0osxkeychain\0"),
+            GitCredentialHelper::MacosKeychain
+        );
+        assert_eq!(
+            parse_credential_helper("manager\0\0"),
+            GitCredentialHelper::None
+        );
+        assert_eq!(
+            parse_credential_helper("store --file ~/.creds\0"),
+            GitCredentialHelper::Store
+        );
+        assert_eq!(
+            parse_credential_helper("cache --timeout=3600\0"),
+            GitCredentialHelper::Cache
+        );
+        assert_eq!(
+            parse_credential_helper("!f() { echo password=secret; }; f\0"),
+            GitCredentialHelper::Other
+        );
+
+        assert_eq!(
+            editor_name("code --wait").as_deref(),
+            Some("Visual Studio Code")
+        );
+        assert_eq!(
+            editor_name("'C:/Program Files/Notepad++/notepad++.exe' -multiInst -notabbar")
+                .as_deref(),
+            Some("Notepad++")
+        );
+        assert_eq!(
+            editor_name("\"C:\\Tools\\My Editor\\edit.exe\" -w").as_deref(),
+            Some("edit.exe")
+        );
+        assert_eq!(editor_name("vi").as_deref(), Some("Vim"));
+        assert_eq!(editor_name("true"), None);
+        assert_eq!(editor_name("  "), None);
+    }
+
+    #[test]
+    fn the_global_config_in_use_is_the_one_that_exists() {
+        let root =
+            std::env::temp_dir().join(format!("git-global-config-fixture-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let xdg = root.join("xdg-config");
+        let home = root.join(".gitconfig");
+        let listing = format!("{}\n{}\n", xdg.display(), home.display());
+
+        let fact = global_config_fact(&listing, GitInstallationPlatform::Linux).unwrap();
+        assert_eq!(
+            (fact.path.as_str(), fact.exists),
+            (home.to_str().unwrap(), false)
+        );
+
+        fs::write(&xdg, "").unwrap();
+        let fact = global_config_fact(&listing, GitInstallationPlatform::Linux).unwrap();
+        assert_eq!(
+            (fact.path.as_str(), fact.exists),
+            (xdg.to_str().unwrap(), true)
+        );
+
+        // With both, `~/.gitconfig` is the one `git config --global` writes.
+        fs::write(&home, "").unwrap();
+        let fact = global_config_fact(&listing, GitInstallationPlatform::Linux).unwrap();
+        assert_eq!(
+            (fact.path.as_str(), fact.exists),
+            (home.to_str().unwrap(), true)
+        );
+
+        assert_eq!(
+            global_config_fact("\n", GitInstallationPlatform::Linux),
+            None
+        );
+        assert_eq!(
+            path_fact("C:/Users/ana/.gitconfig", GitInstallationPlatform::Windows).path,
+            r"C:\Users\ana\.gitconfig"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn git_location_reveal_only_accepts_known_places() {
+        let error = git_location_path("../../etc/passwd").unwrap_err();
+        assert_eq!(error.code, AppErrorCode::PathInvalid);
     }
 
     #[test]

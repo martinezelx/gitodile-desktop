@@ -16,6 +16,7 @@ function deferred<T>() {
 function createPort(read: SettingsPort["readDiagnostics"], check: SettingsPort["checkUpdate"]): SettingsPort {
   return {
     readDiagnostics: read, readGhDiagnostics: read,
+    readInstallationDetails: vi.fn(), revealGitLocation: vi.fn(),
     checkUpdate: check, checkGhUpdate: check,
     installGit: vi.fn(), installGh: vi.fn(),
     updateGit: vi.fn(), updateGh: vi.fn(),

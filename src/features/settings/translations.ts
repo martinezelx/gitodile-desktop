@@ -1,3 +1,39 @@
+/** The Git section's installation facts: the origin and path lines in the
+ * Git row, and the "Technical details" disclosure under it. */
+export interface GitInstallationCopy {
+  origin: Record<"git_for_windows" | "github_desktop" | "scoop" | "homebrew" | "macports" | "apple_developer_tools" | "system_package" | "other", string>;
+  scope: Record<"all_users" | "current_user", string>;
+  pathLabel: string;
+  copyPath: string;
+  copied: string;
+  copyFailed: string;
+  reveal: Record<"windows" | "macos" | "other", string>;
+  revealFailed: string;
+  detailsTitle: string;
+  detailsLoading: string;
+  detailsFailed: string;
+  detailsRetry: string;
+  unknown: string;
+  version: string;
+  architecture: Record<"64" | "32" | "arm64", string>;
+  execPath: string;
+  globalConfig: string;
+  globalConfigNote: string;
+  globalConfigMissing: string;
+  systemConfig: string;
+  systemConfigNote: string;
+  signIns: string;
+  credentialHelpers: Record<"none" | "git_credential_manager" | "macos_keychain" | "libsecret" | "windows_credential_store" | "cache" | "store" | "other", string>;
+  credentialNotes: Partial<Record<"none" | "git_credential_manager" | "macos_keychain" | "libsecret" | "windows_credential_store" | "cache" | "store" | "other", string>>;
+  largeFiles: string;
+  largeFilesInstalled: string;
+  largeFilesMissing: string;
+  largeFilesNote: string;
+  editor: string;
+  editorNotSet: string;
+  editorNote: string;
+}
+
 export interface SettingsTranslations {
   /** How a blocked app update names unsaved changes in this dialog. */
   settingsInstallBlockerLabel: string;
@@ -80,6 +116,8 @@ export interface SettingsTranslations {
   notificationsEventAppUpdateDescription: string;
   settingsGitToolTitle: string;
   settingsGitInstalledVersionLabel: string;
+  /** Where Git lives and how it is set up, under the Git row. */
+  gitInstallation: GitInstallationCopy;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
   settingsGeneralGitMissing: string;
@@ -324,6 +362,61 @@ const en: SettingsTranslations = {
   notificationsEventAppUpdateDescription: "Found at startup, and nothing downloads on its own.",
   settingsGitToolTitle: "Git on your computer",
   settingsGitInstalledVersionLabel: "Installed version",
+  gitInstallation: {
+    origin: {
+      git_for_windows: "Git for Windows",
+      github_desktop: "The copy bundled with GitHub Desktop",
+      scoop: "Installed with Scoop",
+      homebrew: "Installed with Homebrew",
+      macports: "Installed with MacPorts",
+      apple_developer_tools: "Apple's developer tools",
+      system_package: "Installed by your system's package manager",
+      other: "A separate installation",
+    },
+    scope: { all_users: "installed for all users", current_user: "installed just for you" },
+    pathLabel: "Location of Git",
+    copyPath: "Copy path",
+    copied: "Copied",
+    copyFailed: "The path couldn't be copied.",
+    reveal: { windows: "Show in Explorer", macos: "Show in Finder", other: "Show in folder" },
+    revealFailed: "Your file manager couldn't be opened. Copy the path and open it yourself.",
+    detailsTitle: "Technical details",
+    detailsLoading: "Reading Git's details…",
+    detailsFailed: "Git's details couldn't be read.",
+    detailsRetry: "Try again",
+    unknown: "Not available",
+    version: "Version",
+    architecture: { "64": "64-bit", "32": "32-bit", arm64: "ARM, 64-bit" },
+    execPath: "Git's internal folder",
+    globalConfig: "Your configuration file",
+    globalConfigNote: "Your name, email and line endings live here",
+    globalConfigMissing: "Not created yet: Git creates it the first time a setting is saved",
+    systemConfig: "System configuration",
+    systemConfigNote: "Shared by everyone on this computer",
+    signIns: "Sign-ins",
+    credentialHelpers: {
+      none: "None set up",
+      git_credential_manager: "Git Credential Manager",
+      macos_keychain: "macOS Keychain",
+      libsecret: "Your system's keyring",
+      windows_credential_store: "Windows Credential Manager",
+      cache: "Kept in memory for a while",
+      store: "Saved in a plain text file",
+      other: "A custom helper",
+    },
+    credentialNotes: {
+      none: "Git asks for your password each time",
+      git_credential_manager: "Keeps your sign-ins in the system's secure store",
+      store: "Anyone who can open your user folder can read them",
+    },
+    largeFiles: "Large files",
+    largeFilesInstalled: "Git LFS {version}",
+    largeFilesMissing: "Git LFS isn't installed",
+    largeFilesNote: "For projects with images, videos or other large files",
+    editor: "Git's editor",
+    editorNotSet: "Not set",
+    editorNote: "The program Git opens when it needs you to write something",
+  },
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
   settingsGeneralGitMissing: "Git isn't installed, or GitOdile can't find it.",
@@ -565,6 +658,61 @@ const es: SettingsTranslations = {
   notificationsEventAppUpdateDescription: "Se detecta al iniciar y no se descarga nada solo.",
   settingsGitToolTitle: "Git en tu ordenador",
   settingsGitInstalledVersionLabel: "Versión instalada",
+  gitInstallation: {
+    origin: {
+      git_for_windows: "Git for Windows",
+      github_desktop: "La copia que trae GitHub Desktop",
+      scoop: "Instalado con Scoop",
+      homebrew: "Instalado con Homebrew",
+      macports: "Instalado con MacPorts",
+      apple_developer_tools: "Herramientas de desarrollo de Apple",
+      system_package: "Instalado con el gestor de paquetes del sistema",
+      other: "Una instalación aparte",
+    },
+    scope: { all_users: "instalación para todos los usuarios", current_user: "instalación solo para ti" },
+    pathLabel: "Ubicación de Git",
+    copyPath: "Copiar la ruta",
+    copied: "Copiada",
+    copyFailed: "No se ha podido copiar la ruta.",
+    reveal: { windows: "Mostrar en el Explorador", macos: "Mostrar en Finder", other: "Mostrar en la carpeta" },
+    revealFailed: "No se ha podido abrir el explorador de archivos. Copia la ruta y ábrela tú.",
+    detailsTitle: "Detalles técnicos",
+    detailsLoading: "Leyendo los detalles de Git…",
+    detailsFailed: "No se han podido leer los detalles de Git.",
+    detailsRetry: "Reintentar",
+    unknown: "No disponible",
+    version: "Versión",
+    architecture: { "64": "64 bits", "32": "32 bits", arm64: "ARM, 64 bits" },
+    execPath: "Carpeta interna de Git",
+    globalConfig: "Tu archivo de configuración",
+    globalConfigNote: "Aquí viven tu nombre, tu correo y los finales de línea",
+    globalConfigMissing: "Aún no existe: Git lo crea la primera vez que se guarda un ajuste",
+    systemConfig: "Configuración del sistema",
+    systemConfigNote: "La comparten todos los usuarios de este ordenador",
+    signIns: "Inicios de sesión",
+    credentialHelpers: {
+      none: "Ninguno configurado",
+      git_credential_manager: "Git Credential Manager",
+      macos_keychain: "Llavero de macOS",
+      libsecret: "El llavero del sistema",
+      windows_credential_store: "Administrador de credenciales de Windows",
+      cache: "Se guardan en memoria un rato",
+      store: "Se guardan en un archivo de texto",
+      other: "Un asistente propio",
+    },
+    credentialNotes: {
+      none: "Git te pedirá la contraseña cada vez",
+      git_credential_manager: "Guarda tus inicios de sesión en el almacén seguro del sistema",
+      store: "Cualquiera que pueda abrir tu carpeta de usuario puede leerlos",
+    },
+    largeFiles: "Archivos grandes",
+    largeFilesInstalled: "Git LFS {version}",
+    largeFilesMissing: "Git LFS no está instalado",
+    largeFilesNote: "Para proyectos con imágenes, vídeos u otros archivos grandes",
+    editor: "Editor de Git",
+    editorNotSet: "Sin configurar",
+    editorNote: "El programa que Git abre cuando te pide escribir un texto",
+  },
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
   settingsGeneralGitMissing: "Git no está instalado o GitOdile no lo encuentra.",

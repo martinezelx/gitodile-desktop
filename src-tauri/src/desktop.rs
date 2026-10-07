@@ -8,6 +8,7 @@ use tauri::Manager;
 use crate::application;
 use crate::changes::validate_repo_relative_path;
 use crate::error::{AppError, AppErrorCode};
+use crate::tooling;
 
 pub(crate) fn app_status() -> &'static str {
     "GitOdile is ready"
@@ -56,12 +57,25 @@ pub(crate) fn reveal_project_file(path: String, file_path: String) -> Result<(),
         );
     }
 
-    tauri_plugin_opener::reveal_item_in_dir(&full_path).map_err(|_| {
+    reveal_in_file_manager(&full_path).map_err(|error| {
+        error.with_remediation("Open the project folder yourself to find this file.")
+    })
+}
+
+/// Shows where Git, or one of its configuration files, lives. The path is the
+/// one `tooling` found again for the named place, never one the renderer sent.
+pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {
+    let path = tooling::git_location_path(&target)?;
+    reveal_in_file_manager(&path)
+        .map_err(|error| error.with_remediation("Copy the path and open it yourself."))
+}
+
+fn reveal_in_file_manager(path: &Path) -> Result<(), AppError> {
+    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|_| {
         AppError::new(
             AppErrorCode::PathUnusable,
             "Your file manager couldn't be opened.",
         )
-        .with_remediation("Open the project folder yourself to find this file.")
     })
 }
 
