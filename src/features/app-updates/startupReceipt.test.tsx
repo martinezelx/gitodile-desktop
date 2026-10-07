@@ -43,7 +43,7 @@ describe("startup update receipt", () => {
   it("offers nothing to open when the version has no highlights", () => {
     renderReceipt({ confirmation: { kind: "confirmed", version: "0.3.1" }, onOpenDialog: vi.fn() });
     expect(screen.getByText("Updated to 0.3.1")).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("button", { name: "See what's new" })).toBeNull();
   });
 
   it("opens the update dialog, once, when the restart was not confirmed", () => {

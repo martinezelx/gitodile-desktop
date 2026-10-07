@@ -1934,7 +1934,7 @@ export function App(): React.JSX.Element {
     // versions list under Overview renders diffs too, through an entirely
     // different panel.
     <DiffPreferencesProvider value={diffPreferences}>
-    <ToastProvider>
+    <ToastProvider dismissLabel={t.commonClose}>
     <div
       className={
         `app-window` +

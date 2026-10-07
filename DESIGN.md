@@ -1940,7 +1940,11 @@ set in the sans even where the value is set in the mono.
 line switched, created or deleted, a discard (whose toast carries `Undo`),
 a restore, a remote connected: the dialog closes and `useToast` says what
 happened, under the window, for a few seconds (paused while pointed at or
-focused). A result stays a dialog only when it offers something — a saved
+focused). Up to three stack above the status bar, newest nearest it; each
+carries a dismiss control and, when it has a clock, a bar that drains with the
+same wait so the reader can see how long is left. A toast that offers an action
+(`See what's new`) has no clock — it waits for the reader rather than vanishing
+mid-reach. A result stays a dialog only when it offers something — a saved
 version offers Publish, a created project offers connecting a remote.
 
 **A dead end offers the way out, not a retry.** "Nothing to save" and

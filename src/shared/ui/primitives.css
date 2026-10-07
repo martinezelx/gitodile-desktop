@@ -980,6 +980,7 @@
     min-height: var(--control-height-lg);
   }
   .dialog-close-button { width: var(--control-height-lg); height: var(--control-height-lg); }
+  .app-toast__close { width: var(--control-height-lg); height: var(--control-height-lg); }
   .toggle-switch { width: 52px; height: var(--control-height-lg); padding: 6px; }
   .toggle-switch__knob { width: 30px; height: 30px; }
   .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
@@ -1717,24 +1718,53 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .danger-button--sm svg { width: 14px; height: 14px; }
 
 /* A result with no next step: bottom centre, above the status bar, gone on
-   its own after a few seconds (paused while pointed at or focused). */
+   its own after a few seconds (paused while pointed at or focused). Toasts
+   stack, newest closest to the status bar; a toast that offers an action has
+   no clock and stays until it is dismissed. */
 .app-toast-viewport {
   position: fixed; left: 50%; bottom: 44px; z-index: 30; transform: translateX(-50%);
-  display: flex; justify-content: center; pointer-events: none; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  pointer-events: none; max-width: calc(100vw - 32px);
 }
 .app-toast {
   pointer-events: auto; display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-raised); box-shadow: var(--shadow-md);
   color: var(--text-primary-color); font-size: var(--text-body);
+  min-width: 0; max-width: 100%;
   animation: app-toast-in var(--duration-normal) ease-out;
 }
-.app-toast__icon { display: grid; color: var(--accent-primary); }
+.app-toast__icon { display: grid; color: var(--accent-primary); flex-shrink: 0; }
 .app-toast__icon svg { width: 16px; height: 16px; }
+.app-toast__message { min-width: 0; }
 .app-toast__action {
   margin-left: var(--space-2); border: 0; background: none; padding: 0; white-space: nowrap;
   color: var(--accent-primary); font: inherit; font-weight: var(--weight-strong); cursor: pointer;
 }
 .app-toast__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
+.app-toast__close {
+  display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px;
+  margin-left: 2px; padding: 0; border: 0; border-radius: var(--radius-item);
+  background: none; color: var(--text-secondary-color);
+}
+.app-toast__close:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.app-toast__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.app-toast__close svg { width: 14px; height: 14px; }
+/* The bar is the toast's own clock: it drains over the same wait, and pausing
+   the toast pauses this too, so the fill and the dismissal stay in step. */
+.app-toast--progress { position: relative; overflow: hidden; padding-bottom: 13px; }
+.app-toast__progress {
+  display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: var(--border-subtle);
+}
+.app-toast__progress-fill {
+  display: block; height: 100%; width: 100%;
+  background: var(--accent-primary); transform-origin: left center;
+  animation: app-toast-drain var(--duration-normal) linear forwards;
+}
 @keyframes app-toast-in { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .app-toast { animation: none; } }
+@keyframes app-toast-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-toast { animation: none; }
+  .app-toast__progress-fill { animation: none; }
+}
