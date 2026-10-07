@@ -1,13 +1,12 @@
-/* `--rail-width` lives here, not on `.sidebar`, because the display-mode class
-   that retunes it lives here too — it also drives the caption and spacing
-   rules further down. Base value and override stay in one place. */
+/* `--rail-width` lives here, not on `.sidebar`, so the titlebar's lead inset
+   can read the same value the rail draws. The width is one value in every
+   display mode: icons-only removes captions, not columns. */
 .app-window {
   --rail-width: 64px;
   height: 100%;
   overflow: hidden;
   background: var(--surface-app);
 }
-.app-window--icons-only { --rail-width: 56px; }
 /* Collapsed on request. `display: none` rather than a zero width so the rail
    stops being focusable and stops being announced — a 0px sidebar still in the
    tab order is a trap for keyboard and screen-reader users. The workspace is
@@ -521,8 +520,9 @@
    stay legible without a container behind it.
 
    The width is a variable because it is a function of the widest thing the
-   rail has to hold, and that changes with the display mode: captions need a
-   measure, bare icons need a 40px square and nothing else. */
+   rail has to hold: the longest caption. Icons-only removes the captions but
+   keeps the column, so the tray's plate and the content edge stay put when the
+   setting changes. */
 .sidebar {
   width: var(--rail-width);
   flex-shrink: 0;
@@ -654,11 +654,11 @@
    tooltips keep those compact controls discoverable without restoring the
    captions.
 
-   With the captions gone the widest element is the 40px icon square, so the
-   88px measure the labels needed becomes 24px of dead margin on either side
-   of every icon — the column reads as a wide empty strip rather than a
-   compact tool rail. 56px is that square plus the panel's own padding, and
-   nothing else. */
+   With the captions gone the column keeps its 64px. Narrowing to the 40px
+   icon square would leave the tray's plate 40px wide, too tight for the 36px
+   controls and the chevron, and it would move the content edge on every
+   switch. The 12px of air either side of the square matches the captioned
+   mode. */
 .app-window--icons-only .sidebar-foot { gap: var(--space-2); }
 .app-window--icons-only .sidebar-project-group { gap: var(--space-2); }
 .sidebar-round {

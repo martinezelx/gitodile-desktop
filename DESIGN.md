@@ -163,8 +163,12 @@ The main desktop window should broadly support:
 
    Navigation Settings may switch to icons only: every caption disappears —
    destinations and utilities alike, since a rail that labels one and not the
-   other reads as an accident — and the column narrows to 56px, the icon circle
-   plus its padding. The 40px pointer target and accessible name remain.
+   other reads as an accident — and the column keeps its 64px. Narrowing it to
+   the 40px icon circle plus padding would leave the tray's plate 40px wide,
+   with 2px between the 36px controls and its edge and the project chip's
+   chevron hanging out of it; at 64px the plate and its 6px inset are the same
+   as with captions, and the workspace's edge does not move when the setting
+   changes. The 40px pointer target and accessible name remain.
    - Overview, Work, Lines, and Recovery keep their order. Work is what has
      changed and what has been saved — one loop, one screen, with Changes and
      History as its two tabs (they were neighbouring screens until task 126,
