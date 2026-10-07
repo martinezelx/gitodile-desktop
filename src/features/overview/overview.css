@@ -595,6 +595,31 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   color: var(--text-secondary-color);
 }
 .overview-history--loading > svg { width: 20px; height: 20px; }
+
+/* Launch restore's stand-in for the header (`OverviewPlaceholder`): the
+   project's tile, its name at the name's own size, and the version-line
+   switch's control. */
+.overview-placeholder__avatar {
+  width: 100%;
+  height: 100%;
+  margin-block: 0;
+  border-radius: var(--radius-identity);
+}
+.overview-placeholder__name {
+  font-size: var(--text-hero);
+  line-height: var(--leading-snug);
+}
+/* The path row is as tall as its copy control, and the note under the band as
+   tall as its refresh button, so nothing below moves when the project lands. */
+.overview-placeholder__path { min-height: 28px; }
+.overview-placeholder__note { min-height: 28px; }
+.overview-placeholder__note > .text-placeholder { flex: 0 1 auto; }
+.overview-placeholder__switch {
+  width: 180px;
+  height: 48px;
+  margin-block: 0;
+  border-radius: var(--radius-control);
+}
 .overview-history__header {
   display: flex;
   align-items: center;

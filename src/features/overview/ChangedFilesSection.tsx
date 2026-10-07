@@ -12,9 +12,10 @@ import {
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
-import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
+import { LoadingPlaceholder } from "../../shared/ui";
 import { splitPath, type ChangeCategory, type WorkingTreeStatus } from "../status";
 import { CHANGES_PREVIEW_LIMIT, sampleChangesPreview } from "./changesPreview";
+import { ChangedFilesPlaceholderList } from "./OverviewPlaceholder";
 
 /** The Changes screen's own one-word category names, so a row here is
  * announced the way the same row is announced there. */
@@ -46,13 +47,6 @@ const FileTypeIcon = lazy(async () => {
     },
   };
 });
-
-/** Name and folder lengths for the first check's rows. */
-const CHANGES_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
-  ["96px", "64px"],
-  ["72px", "88px"],
-  ["112px", "48px"],
-];
 
 /**
  * A read-only sample of the working tree: one row per file, its category
@@ -107,17 +101,7 @@ export function ChangedFilesSection({
 
       {isLoading ? (
         <LoadingPlaceholder label={t.statusCheckingTitle}>
-          <ul className="changes-preview__list">
-            {CHANGES_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
-              <li key={name}>
-                <span className="changes-preview__item">
-                  <span className="changes-preview__icon"><TextPlaceholder className="text-placeholder--glyph" /></span>
-                  <span className="changes-preview__name"><TextPlaceholder width={name} /></span>
-                  <span className="changes-preview__dir"><TextPlaceholder width={dir} /></span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ChangedFilesPlaceholderList />
         </LoadingPlaceholder>
       ) : !workingTree ? (
         <div className="changed-files__state changed-files__state--error" role="alert">

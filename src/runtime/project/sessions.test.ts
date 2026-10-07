@@ -51,6 +51,52 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].project.branch).toBe("feature");
   });
 
+  it("restores every project and the stored active one in a single transition", () => {
+    const state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b"), makeProject("/c")],
+      activeId: "/b",
+    });
+    expect(state.order).toEqual(["/a", "/b", "/c"]);
+    expect(state.activeId).toBe("/b");
+  });
+
+  it("falls back to the last restored project when the stored active one was skipped", () => {
+    const state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/c")],
+      activeId: "/b",
+    });
+    expect(state.order).toEqual(["/a", "/c"]);
+    expect(state.activeId).toBe("/c");
+  });
+
+  it("keeps a project the user opened while restore was still revalidating", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "open",
+      project: makeProject("/b", { branch: "feature" }),
+    });
+    state = projectSessionsReducer(state, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b")],
+      activeId: null,
+    });
+    expect(state.order).toEqual(["/b", "/a"]);
+    expect(state.activeId).toBe("/b");
+    expect(state.byId["/b"].project.branch).toBe("feature");
+  });
+
+  it("keeps the project the user opened during restore active over the stored one", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/x") });
+    state = projectSessionsReducer(state, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b")],
+      activeId: "/a",
+    });
+    expect(state.order).toEqual(["/x", "/a", "/b"]);
+    expect(state.activeId).toBe("/x");
+  });
+
   it("ignores activating an id that isn't open", () => {
     const state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
     const next = projectSessionsReducer(state, { type: "activate", id: "/nope" });

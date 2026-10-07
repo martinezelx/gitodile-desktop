@@ -36,6 +36,7 @@ import type { TeamSyncViewState } from "../sync";
 import { ChangedFilesSection } from "./ChangedFilesSection";
 import { deriveJourney } from "./journey";
 import { JourneySection } from "./JourneySection";
+import { OverviewPlaceholder } from "./OverviewPlaceholder";
 
 const HistorySummarySection = lazy(() =>
   import("./HistorySummarySection").then((m) => ({ default: m.HistorySummarySection })),
@@ -456,6 +457,7 @@ function OverviewHeader({
 export function OverviewPanel({
   project,
   isOpening,
+  isRestoring = false,
   workingTree,
   workingTreeError,
   isCheckingChanges,
@@ -500,6 +502,10 @@ export function OverviewPanel({
    * failures are reported in a standalone dialog (see `openError` in
    * `App`), never merged into this project's own status. */
   isOpening: boolean;
+  /** Launch is still revalidating the projects it will reopen. Overview is
+   * already the destination, so the launcher fallback below would flash Home
+   * for the length of that check; the screen's own shape stands in instead. */
+  isRestoring?: boolean;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
@@ -661,6 +667,10 @@ export function OverviewPanel({
         </div>
       </div>
     );
+  }
+
+  if (isRestoring) {
+    return <OverviewPlaceholder />;
   }
 
   return (

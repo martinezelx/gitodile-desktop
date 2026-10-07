@@ -10,7 +10,7 @@ import {
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { LoadingPlaceholder, StateGlyph, TextPlaceholder } from "../../shared/ui";
+import { LoadingPlaceholder, StateGlyph } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -22,21 +22,13 @@ import {
   type HistoryController,
   type SavedVersionSummary,
 } from "../history";
+import { HistoryPlaceholderList } from "./OverviewPlaceholder";
 
 const HISTORY_PREVIEW_LIMIT = 4;
 
 function versionTitle(version: SavedVersionSummary, fallback: string): string {
   return version.subject.trim() || fallback;
 }
-
-/** Subject and author/date lengths for the first read's rows, one per
- * previewed version (`HISTORY_PREVIEW_LIMIT`). */
-const HISTORY_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
-  ["62%", "34%"],
-  ["48%", "28%"],
-  ["70%", "38%"],
-  ["54%", "30%"],
-];
 
 export function HistorySummarySection({
   controller,
@@ -101,19 +93,7 @@ export function HistorySummarySection({
 
       {!state.snapshot && !error ? (
         <LoadingPlaceholder label={t.overviewHistoryLoading}>
-          <ol className="overview-history__list">
-            {HISTORY_PLACEHOLDER_WIDTHS.map(([subject, meta]) => (
-              <li key={subject}>
-                <span className="overview-history__row">
-                  <span className="overview-history__node" />
-                  <span className="overview-history__body">
-                    <span className="overview-history__subject"><TextPlaceholder width={subject} /></span>
-                    <span className="overview-history__meta"><TextPlaceholder width={meta} /></span>
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
+          <HistoryPlaceholderList />
         </LoadingPlaceholder>
       ) : !state.snapshot && error ? (
         <div className="overview-history__state overview-history__state--error" role="alert">

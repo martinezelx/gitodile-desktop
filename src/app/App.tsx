@@ -1116,10 +1116,12 @@ export function App(): React.JSX.Element {
   };
 
   // Restores the previous session's open projects exactly once, on launch.
-  // Every stored path is revalidated through `open_repository` in order; one
-  // that's missing, unreadable, or no longer a repository is skipped without
-  // blocking the rest, and only a count of skipped projects is surfaced —
-  // never the raw Git error.
+  // Every stored path is revalidated through `open_repository` concurrently;
+  // one that's missing, unreadable, or no longer a repository is skipped
+  // without blocking the rest, and only a count of skipped projects is
+  // surfaced — never the raw Git error. The survivors land in one `restore`
+  // dispatch, so Overview's first project is the one the user left active
+  // rather than each stored project flashing past in turn.
   useEffect(() => {
     if (!reopenLastProject) {
       setHasCompletedSessionRestore(true);
@@ -1132,28 +1134,19 @@ export function App(): React.JSX.Element {
     }
     let cancelled = false;
     void (async () => {
-      let skipped = 0;
-      let restored = 0;
-      for (const path of stored.order) {
-        if (cancelled) {
-          return;
-        }
-        try {
-          const info = await repositoryController.open({ selectedPath: path });
-          dispatchSessions({ type: "open", project: info });
-          restored += 1;
-          void checkWorkingTree(info.path, info.sessionEpoch);
-        } catch {
-          skipped += 1;
-        }
-      }
+      const results = await Promise.allSettled(
+        stored.order.map((path) => repositoryController.open({ selectedPath: path })),
+      );
       if (cancelled) {
         return;
       }
-      if (stored.activeId) {
-        dispatchSessions({ type: "activate", id: stored.activeId });
+      const restored = results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
+      const skipped = results.length - restored.length;
+      dispatchSessions({ type: "restore", projects: restored, activeId: stored.activeId });
+      for (const info of restored) {
+        void checkWorkingTree(info.path, info.sessionEpoch);
       }
-      setView(restored > 0 ? "overview" : "home");
+      setView(restored.length > 0 ? "overview" : "home");
       if (skipped > 0) {
         setSkippedRestoreCount(skipped);
       }
@@ -2437,6 +2430,7 @@ export function App(): React.JSX.Element {
                 <OverviewPanel
                   project={project}
                   isOpening={isOpening}
+                  isRestoring={!hasCompletedSessionRestore}
                   workingTree={workingTree}
                   workingTreeError={workingTreeError}
                   isCheckingChanges={isCheckingChanges}

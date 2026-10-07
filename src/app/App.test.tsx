@@ -1309,6 +1309,10 @@ describe("App project restoration", () => {
       order: [restoredProject.path],
       activeId: restoredProject.path,
     });
+    // Overview is already the destination: while revalidation runs it stays a
+    // placeholder in its own shape rather than flashing the launcher.
+    expect(document.querySelector(".empty-state--welcome")).toBeNull();
+    expect(screen.getByText("Opening project…").closest('[role="status"]')).toHaveAttribute("aria-busy", "true");
 
     resolveOpen?.(restoredProject);
     expect(

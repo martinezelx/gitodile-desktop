@@ -98,6 +98,7 @@ export const initialProjectSessionsState: ProjectSessionsState = {
 
 export type ProjectSessionsAction =
   | { type: "open"; project: RepositoryInfo }
+  | { type: "restore"; projects: RepositoryInfo[]; activeId: string | null }
   | { type: "activate"; id: string }
   | { type: "close"; id: string }
   | { type: "reorder"; id: string; toIndex: number }
@@ -264,6 +265,30 @@ export function projectSessionsReducer(
         byId: { ...state.byId, [id]: freshSession(action.project) },
         activeId: id,
       };
+    }
+
+    case "restore": {
+      // Launch restore lands every revalidated project and the active one in a
+      // single transition. Dispatching `open` per project would make each one
+      // active in turn, so the first frames show projects the user did not
+      // leave active. A session that already exists (opened by the user while
+      // restore was still revalidating) is kept as it is, and so is the
+      // active project that open made: a choice made now outranks the stored
+      // one from the last session.
+      const order = [...state.order];
+      const byId = { ...state.byId };
+      for (const project of action.projects) {
+        if (byId[project.path]) continue;
+        order.push(project.path);
+        byId[project.path] = freshSession(project);
+      }
+      if (order.length === state.order.length) {
+        return state;
+      }
+      const activeId =
+        state.activeId ??
+        (action.activeId !== null && byId[action.activeId] ? action.activeId : order[order.length - 1]);
+      return { order, byId, activeId };
     }
 
     case "activate": {
