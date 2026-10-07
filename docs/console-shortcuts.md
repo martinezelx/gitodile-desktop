@@ -4,7 +4,7 @@ The project console runs a shortcut when you type its name. Every built-in
 shortcut is read-only: it shows something about the project and changes
 nothing. You can rename, remove or add shortcuts with the
 `shortcuts` command or the keyboard button in the console's status line;
-`help` lists the ones you have, with the Git command each runs.
+`help` lists the ones you have, with the command each runs.
 
 The names are an app-wide preference. When a GitOdile release adds a built-in
 shortcut, it is added to a list you customised unless you had removed it, or
@@ -52,6 +52,31 @@ exactly as if you had typed them.
 a line that has never been published Git answers that there is no upstream.
 `incoming` shows what the last check for team changes fetched; it does not
 reach the remote itself.
+
+## GitHub and GitLab
+
+These ask the project's hosting service through the GitHub CLI (`gh`) or the
+GitLab CLI (`glab`), whichever matches the remote the current line publishes to
+(else `origin`, else the only remote). Each runs a fixed, read-only command in
+the project folder with the CLI's own login; GitOdile pins the host it detected
+and turns off prompts, the pager, colour and update notices. None of them
+creates, changes or opens anything. `help` shows the command for the project's
+provider; the table lists both. Bitbucket has no official command-line tool, so
+on Bitbucket and other Git servers these shortcuts say so and run nothing. The
+console's welcome names the project's provider.
+
+| Shortcut | What it shows | Command |
+| --- | --- | --- |
+| `prs` | Open pull or merge requests | `gh pr list --limit 20 · glab mr list --per-page 20` |
+| `my-prs` | Your pull or merge requests | `gh pr status · glab mr list --author=@me` |
+| `issues` | Open issues | `gh issue list --limit 20 · glab issue list --per-page 20` |
+| `runs` | Recent CI runs | `gh run list --limit 20 · glab ci list --per-page 20` |
+| `checks` | Checks on this line | `gh pr checks · glab ci status` |
+| `repo` | The project on its hosting service | `gh repo view · glab repo view` |
+
+`checks` reads the pull or merge request of the current line, so on a line
+without one the CLI says there is none. A CLI that is not installed or has no
+login for the project's server is reported with where to fix it in Settings.
 
 ## Your own shortcuts
 

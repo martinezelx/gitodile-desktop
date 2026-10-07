@@ -25,6 +25,8 @@
     { "name": "plan_console_command", "arguments": ["path", "sessionEpoch", "line", "runHooks"], "response": "ConsolePlan" },
     { "name": "run_console_plan", "arguments": ["path", "sessionEpoch", "planId"], "response": "ConsoleRunResult" },
     { "name": "run_console_change", "arguments": ["path", "sessionEpoch", "planId", "answer"], "response": "ConsoleRunResult" },
+    { "name": "read_console_host", "arguments": ["path", "sessionEpoch"], "response": "ConsoleHost" },
+    { "name": "run_console_hosting_query", "arguments": ["path", "sessionEpoch", "operationId"], "response": "ConsoleHostingResult" },
     { "name": "get_console_settings", "arguments": [], "response": "ConsoleModes" },
     { "name": "set_console_confirm_changes", "arguments": ["enabled", "confirmed"], "response": "ConsoleModes" },
     { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch"], "response": "FileDiff" },

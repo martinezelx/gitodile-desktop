@@ -1,4 +1,4 @@
-import type { ConsoleOperationId } from "./domain";
+import type { ConsoleHostingId, ConsoleOperationId } from "./domain";
 
 export type ConsoleQueryResult = {
   operationId: ConsoleOperationId;
@@ -67,10 +67,42 @@ export type ConsoleRunResult = {
   failure: ConsoleRunFailure | null;
 };
 
+/** Where the project's remote lives, as Rust read it from the project. */
+export type HostKind = "github" | "gitlab" | "bitbucket" | "git" | "local" | "unclear";
+
+export type ConsoleHost = {
+  kind: HostKind;
+  /** The server's `host[:port]`, when there is a remote to read it from. */
+  host: string | null;
+  /** A GitHub Enterprise Server or GitLab Self-Managed server. */
+  companyServer: boolean;
+  remote: string | null;
+};
+
+/** Why a hosting shortcut gave no answer of its own. */
+export type HostingUnavailable = "not_supported" | "cli_missing" | "signed_out";
+
+export type ConsoleHostingResult = {
+  operationId: ConsoleHostingId;
+  /** The command as typed; null when none could run. */
+  command: string | null;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  success: boolean;
+  truncated: boolean;
+  host: ConsoleHost;
+  unavailable: HostingUnavailable | null;
+};
+
 type Session = { projectId: string; sessionEpoch: string };
 
 export interface ConsolePort {
   run(request: Session & { operationId: ConsoleOperationId }): Promise<ConsoleQueryResult>;
+  /** Runs one fixed gh/glab query; Rust picks the CLI from the project's remote. */
+  runHosting(request: Session & { operationId: ConsoleHostingId }): Promise<ConsoleHostingResult>;
+  /** The project's provider, read from its own remotes without the network. */
+  readHost(request: Session): Promise<ConsoleHost>;
   /**
    * Sends the typed line to Rust, which alone parses and classifies it.
    * `runHooks` is the Settings switch the guided flows pass the same way.

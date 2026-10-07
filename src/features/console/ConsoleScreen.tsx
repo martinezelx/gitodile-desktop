@@ -1,5 +1,5 @@
 import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Settings, ShieldCheck, SquareTerminal, X } from "lucide-react";
+import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Server, Settings, ShieldCheck, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
 import { localizeAppError } from "../../shared/i18n";
@@ -9,8 +9,11 @@ import {
   completionsFor,
   DEFAULT_SHORTCUTS,
   defaultLineName,
-  QUERY_COMMANDS,
+  HOSTING_OPERATION_IDS,
+  isHostingId,
+  queryCommand,
   shortcutCommand,
+  SHORTCUT_LIMIT,
   GIT_READ_COMMANDS,
   isGitLine,
   isLineShortcut,
@@ -23,27 +26,27 @@ import {
   widensTier,
   writeShortcuts,
   type ConsoleCompletion,
-  type ConsoleOperationId,
   type ConsoleProjectStatus,
+  type ConsoleQueryId,
   type ConsoleShortcut,
 } from "./domain";
 import { mascotLines, mascotRain, type MascotRun } from "./mascotArt";
 import { highlightOutput, queryShape, type OutputSegment } from "./output";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "./preferences";
-import type { ConsolePlan, ConsoleRunResult, ConsoleTier, OutputShape } from "./port";
+import type { ConsoleHost, ConsolePlan, ConsoleRunResult, ConsoleTier, HostKind, OutputShape } from "./port";
 import { consolePort } from "./tauriAdapter";
 
 /** What any run returns: a catalogue query's result or a typed command's. */
 type ConsoleOutput = Omit<ConsoleRunResult, "shape" | "failure">;
 /** A shortcut's target in the editor: a catalogue query, or a command line. */
-type ShortcutTarget = ConsoleOperationId | "line";
-const SHORTCUT_TARGETS: readonly ShortcutTarget[] = [...OPERATION_IDS, "line"];
+type ShortcutTarget = ConsoleQueryId | "line";
+const SHORTCUT_TARGETS: readonly ShortcutTarget[] = [...OPERATION_IDS, ...HOSTING_OPERATION_IDS, "line"];
 
 type Entry = {
   id: number;
   kind: "query" | "help" | "help-git" | "message";
   input: string;
-  operationId?: ConsoleOperationId;
+  operationId?: ConsoleQueryId;
   /** The Git line a typed command or a line shortcut plans on every run. */
   line?: string;
   /** A line shortcut's saved tier, which no later run may exceed. */
@@ -90,7 +93,8 @@ function shortcutLabel(shortcut: ConsoleShortcut, t: Translations): string {
 }
 
 function outputLabel(id: ShortcutTarget, t: Translations): string {
-  const labels: Record<ShortcutTarget, string> = {
+  if (id !== "line" && isHostingId(id)) return t.consoleHostingLabels[id];
+  const labels: Record<Exclude<ShortcutTarget, (typeof HOSTING_OPERATION_IDS)[number]>, string> = {
     status: t.consoleStatus, diff: t.consoleDiff, staged: t.consoleStaged, log: t.consoleLog, graph: t.consoleGraph,
     last: t.consoleLast, branches: t.consoleBranches, tags: t.consoleTags, remotes: t.consoleRemotes,
     stashes: t.consoleStashes, authors: t.consoleAuthors, line: t.consoleShortcutLineOption,
@@ -110,9 +114,11 @@ function refusalText(plan: ConsolePlan, t: Translations): string {
 type LineVerdict = { tier: ConsoleTier } | { error: string };
 
 function ShortcutsManager({
-  shortcuts, onChange, onClose, validateLine,
+  shortcuts, host, onChange, onClose, validateLine,
 }: {
   shortcuts: ConsoleShortcut[];
+  /** The project's provider, so hosting queries show the CLI that answers. */
+  host: HostKind | null;
   onChange: (next: ConsoleShortcut[]) => void;
   onClose: () => void;
   validateLine: (line: string) => Promise<LineVerdict>;
@@ -150,7 +156,7 @@ function ShortcutsManager({
       persist(shortcuts.map((shortcut) => shortcut.name === editing ? { ...shortcut, name: candidate } : shortcut));
       return;
     }
-    if (shortcuts.length >= 24) {
+    if (shortcuts.length >= SHORTCUT_LIMIT) {
       setError(t.consoleShortcutLimit);
       return;
     }
@@ -203,7 +209,7 @@ function ShortcutsManager({
         <span className="console-shortcuts__arrow" aria-hidden="true">→</span>
         <QueryPicker value={target} onChange={(next) => { setTarget(next); setError(""); }} disabled={editing !== null} label={t.consoleShortcutTarget}
           previous={t.consoleQueryPrevious} next={t.consoleQueryNext} />
-        {target !== "line" && <code className="console-shortcuts__command console-shortcuts__command--preview">{QUERY_COMMANDS[target]}</code>}
+        {target !== "line" && <code className="console-shortcuts__command console-shortcuts__command--preview">{queryCommand(target, host)}</code>}
         {target === "line" && (
           <label className="console-shortcuts__field console-shortcuts__field--line">
             <span className="visually-hidden">{t.consoleShortcutLine}</span>
@@ -223,7 +229,7 @@ function ShortcutsManager({
               <span className="console-shortcuts__name">{shortcut.name}</span>
               <span className="console-shortcuts__target">{shortcutLabel(shortcut, t)}</span>
             </span>
-            <code className="console-shortcuts__command" title={shortcutCommand(shortcut)}>{shortcutCommand(shortcut)}</code>
+            <code className="console-shortcuts__command" title={shortcutCommand(shortcut, host)}>{shortcutCommand(shortcut, host)}</code>
             <span className="console-shortcuts__actions">
               <button type="button" className="console-shortcuts__action" onClick={() => startRename(shortcut)}>{t.consoleShortcutRename}</button>
               <button type="button" className="console-shortcuts__action console-shortcuts__action--remove" onClick={() => persist(shortcuts.filter((item) => item.name !== shortcut.name))} aria-label={`${t.consoleShortcutRemove}: ${shortcut.name}`} title={t.consoleShortcutRemove}><X aria-hidden="true" /></button>
@@ -402,6 +408,30 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const { t } = useLanguage();
   const lifecycle = useScreenLifecycle();
   const [shortcuts, setShortcuts] = useState(() => readShortcuts());
+  /**
+   * The project's provider, for the welcome and the hosting shortcuts. Read
+   * once per project session, after first paint: the screen is kept per
+   * session, so showing it again never reads it again. A hosting shortcut's
+   * answer brings a fresh one.
+   */
+  const [host, setHost] = useState<ConsoleHost | null>(null);
+  useEffect(() => {
+    setHost(null);
+    if (!sessionEpoch) return;
+    let current = true;
+    const read = (): void => {
+      consolePort.readHost({ projectId: projectPath, sessionEpoch })
+        .then((value) => { if (current) setHost(value); })
+        .catch(() => undefined);
+    };
+    const idle = "requestIdleCallback" in window;
+    const handle = idle ? window.requestIdleCallback(read, { timeout: 2000 }) : window.setTimeout(read, 500);
+    return () => {
+      current = false;
+      if (idle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, [projectPath, sessionEpoch]);
   const [managerOpen, setManagerOpen] = useState(false);
   const [input, setInput] = useState("");
   const [caret, setCaret] = useState<number | null>(0);
@@ -527,7 +557,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
     else managerButtonRef.current?.focus();
   };
 
-  const runQuery = async (label: string, operationId: ConsoleOperationId): Promise<void> => {
+  const runQuery = async (label: string, operationId: ConsoleQueryId): Promise<void> => {
     if (running || lifecycle !== "active") return;
     const id = ++nextId.current;
     const request = ++currentRequest.current;
@@ -535,6 +565,22 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
     setRunning(true);
     const started = performance.now();
     try {
+      if (isHostingId(operationId)) {
+        const result = await consolePort.runHosting({ projectId: projectPath, sessionEpoch, operationId });
+        if (request !== currentRequest.current) return;
+        setHost(result.host);
+        const durationMs = performance.now() - started;
+        const note = result.unavailable ? t.consoleHostingUnavailable(result.unavailable, result.host) : undefined;
+        const command = result.command ?? undefined;
+        // Signed out, gh or glab still answered, so its own words stay with
+        // the hint; otherwise nothing ran and the reason is the whole answer.
+        const ran = result.unavailable === null || result.unavailable === "signed_out";
+        const { stdout, stderr, exitCode, success, truncated } = result;
+        patchEntry(id, ran
+          ? { command, result: { command: command ?? "", stdout, stderr, exitCode, success, truncated }, failure: note, running: false, durationMs }
+          : { command, error: note, running: false, durationMs });
+        return;
+      }
       const result = await consolePort.run({ projectId: projectPath, sessionEpoch, operationId });
       if (request !== currentRequest.current) return;
       const durationMs = performance.now() - started;
@@ -760,6 +806,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                       [<SquareTerminal key="i" />, "gitodile", __APP_VERSION__],
                       gitVersion ? [<GitCommitHorizontal key="i" />, t.consoleWelcomeGit, gitVersion] : null,
                       [<Palette key="i" />, t.consoleWelcomeTheme, activeThemeName(theme)],
+                      host ? [<Server key="i" />, t.consoleWelcomeProvider, t.consoleProvider(host)] : null,
                       [<ShieldCheck key="i" />, t.consoleWelcomeConfirm, confirmChanges ? t.consoleWelcomeConfirmOn : <span className="console-welcome__unconfirmed">{t.consoleWelcomeConfirmOff}</span>],
                     ]} />
                     <span className="console-welcome__palette" aria-hidden="true">{WELCOME_PALETTE.map((tone) => <span key={tone} className={`console-welcome__dot console-welcome__dot--${tone}`} />)}</span>
@@ -818,7 +865,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                             <tr key={group.operationId}>
                               <td>{group.names.map((name) => <code key={name}>{name}</code>)}</td>
                               <td>{outputLabel(group.operationId, t)}</td>
-                              <td className="console-help__line">{QUERY_COMMANDS[group.operationId]}</td>
+                              <td className="console-help__line">{queryCommand(group.operationId, host?.kind ?? null)}</td>
                             </tr>
                           ))}
                           {shortcuts.filter(isLineShortcut).map((shortcut) => (
@@ -898,7 +945,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             : latest?.result ? (latest.result.success ? t.consoleDone : t.consoleFailed(latest.result.exitCode))
             : latest?.refusal ?? latest?.message ?? ""}
         </p>
-        {managerOpen && <ShortcutsManager shortcuts={shortcuts} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
+        {managerOpen && <ShortcutsManager shortcuts={shortcuts} host={host?.kind ?? null} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
         <footer className="console-statusline" aria-label={t.consoleStatusLine}>
           <span className={`console-statusline__state console-statusline__state--${confirmChanges ? "confirm" : "unconfirmed"}`}><span className="console-statusline__dot" aria-hidden="true" />{confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}</span>
           <span className="console-statusline__hint">{t.consoleHint}</span>

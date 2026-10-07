@@ -16,7 +16,8 @@ use crate::{
         self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
     },
     console::{
-        self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
+        self, ConsoleHost, ConsoleHostingResult, ConsoleModes, ConsolePlan, ConsoleQueryResult,
+        ConsoleRunResult, ConsoleSettings,
     },
     credentials::{self, AccountCatalog, AccountService, ProjectAccount},
     desktop,
@@ -470,6 +471,39 @@ pub(crate) fn run_console_query(
         (|| {
             validate_session(&path, &session_epoch)?;
             console::run_console_query(path, operation_id)
+        })(),
+    )
+}
+
+/// The project's hosting provider for the console's welcome, read from its
+/// own remotes without reaching the network.
+#[tauri::command(async)]
+pub(crate) fn read_console_host(
+    path: String,
+    session_epoch: String,
+) -> Result<ConsoleHost, AppError> {
+    report_result(
+        "read_console_host",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::read_console_host(path)
+        })(),
+    )
+}
+
+/// One fixed gh/glab shortcut, chosen by ID; the renderer never sends an
+/// argument for either CLI.
+#[tauri::command(async)]
+pub(crate) fn run_console_hosting_query(
+    path: String,
+    session_epoch: String,
+    operation_id: String,
+) -> Result<ConsoleHostingResult, AppError> {
+    report_result(
+        "run_console_hosting_query",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_hosting_query(path, operation_id)
         })(),
     )
 }

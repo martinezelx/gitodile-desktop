@@ -237,8 +237,10 @@ src-tauri/src/
   repository_access.rs    # RepositoryContext + fair commonGitDir coordinator
   git_command.rs          # policy-aware domain-facing Git facade
   console/                # project console: catalogue, typed-line tokenizer,
-                          #   permission-tier classifier and single-use plans
-  git.rs                  # bounded process execution and cancellation
+                          #   permission-tier classifier, single-use plans and
+                          #   the project's provider with its gh/glab shortcuts
+  git.rs                  # bounded process execution and cancellation (Git, and
+                          #   other programs through run_program)
   error.rs                # stable structured application errors
   operation.rs            # shared operation kind and safe diagnostic details
   index.rs                # collision-safe temporary-index preparation
@@ -430,6 +432,21 @@ Settings hooks switch reaches the plan like the guided flows' `runHooks`: off,
 the plan adds `--no-verify` to `commit` and `push` and says so. A completed
 change refreshes the project through the guided flows' post-mutation path.
 History and Destructive plans stay refused until task 139.
+
+`console/hosting.rs` owns the project's provider and its gh/glab shortcuts
+(task 148-12). `read_console_host` reads the remote the current line publishes
+to (else `origin`, else the only one) through `sync::project_remotes`, and
+classifies its host as GitHub, GitLab or Bitbucket, a company server registered
+in `credentials`, another Git server, local-only or unclear; nothing reaches the
+network. The console reads it once per project session, idle, for its welcome.
+`run_console_hosting_query` takes one fixed ID and runs a read-only gh or glab
+template in the project folder through `git::run_program`, the bounded runner
+Git itself uses (output caps, timeout, cancellation, process-tree cleanup) for
+a program the caller builds. The CLI keeps its own login; GitOdile pins the
+detected host, turns off prompts, pager, colour and update notices, removes
+inherited debug and repository overrides, and gives the Git processes the CLI
+starts the console's inert Git environment. A missing CLI, a CLI without a
+login, and an unsupported provider come back as structured reasons, not errors.
 
 Shortcut names, and the command lines a shortcut may store with the tier Rust
 gave them, are an app-wide frontend preference; a stored line is planned again

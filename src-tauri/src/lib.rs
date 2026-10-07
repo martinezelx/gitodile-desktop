@@ -151,6 +151,8 @@ pub fn run() {
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
             ipc::run_console_query,
+            ipc::read_console_host,
+            ipc::run_console_hosting_query,
             ipc::plan_console_command,
             ipc::run_console_plan,
             ipc::run_console_change,

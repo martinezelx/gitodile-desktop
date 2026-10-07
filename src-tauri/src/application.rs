@@ -97,6 +97,15 @@ const fn console_read(command: &'static str) -> ExecutionPolicy {
     }
 }
 
+/// gh/glab shortcuts: read-only and on the console's output budget, with
+/// time for the provider's API to answer.
+const fn console_hosting() -> ExecutionPolicy {
+    ExecutionPolicy {
+        timeout: Duration::from_secs(30),
+        ..console_read("run_console_hosting_query")
+    }
+}
+
 /// Typed console changes: local changes and remote transfers, exclusive
 /// like every mutation, on the console's output budget. Remote is the widest
 /// class one can have until history and destructive commands arrive.
@@ -139,6 +148,10 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     console_read("plan_console_command"),
     console_read("run_console_plan"),
     console_change(),
+    // The project's provider is read from its own remotes; a hosting shortcut
+    // runs gh or glab, which reach the provider, on a longer clock.
+    console_read("read_console_host"),
+    console_hosting(),
     no_process("get_console_settings"),
     no_process_with_class("set_console_confirm_changes", OperationClass::LocalMutation),
     read("read_file_diff"),
@@ -821,6 +834,8 @@ mod tests {
         "plan_console_command",
         "run_console_plan",
         "run_console_change",
+        "read_console_host",
+        "run_console_hosting_query",
         "get_console_settings",
         "set_console_confirm_changes",
         "read_file_diff",

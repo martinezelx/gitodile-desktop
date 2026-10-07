@@ -102,7 +102,10 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   `today` or `unpublished`, are listed with the Git command each runs in
   [docs/console-shortcuts.md](docs/console-shortcuts.md) and in the console's
   `help`; you can rename them or add your own names, including names for whole
-  command lines (`lg` → `git log --oneline -20`).
+  command lines (`lg` → `git log --oneline -20`). On GitHub and GitLab projects,
+  six more read-only shortcuts (`prs`, `my-prs`, `issues`, `runs`, `checks`,
+  `repo`) ask the hosting service through `gh` or `glab` with the CLI's own
+  login, and the console's welcome names the project's provider.
   Settings › Console turns suggestions and the welcome on or off and sets the
   cursor and text size. The transcript stays in memory for the open project
   session.

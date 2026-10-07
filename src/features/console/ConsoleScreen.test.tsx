@@ -167,7 +167,7 @@ describe("ConsoleScreen", () => {
     const user = userEvent.setup();
     renderConsole();
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "shortcuts{Enter}");
-    const picker = screen.getByRole("spinbutton", { name: "Git query" });
+    const picker = screen.getByRole("spinbutton", { name: "Query" });
     expect(picker).toHaveAttribute("aria-valuetext", "Project status");
     picker.focus();
     await user.keyboard("{ArrowRight}{ArrowRight}");
@@ -175,6 +175,8 @@ describe("ConsoleScreen", () => {
     await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}");
     expect(picker).toHaveAttribute("aria-valuetext", "Git command line");
     await user.keyboard("{ArrowLeft}");
+    expect(picker).toHaveAttribute("aria-valuetext", "The project on its hosting service");
+    await user.keyboard("{ArrowLeft}".repeat(6));
     expect(picker).toHaveAttribute("aria-valuetext", "Authors");
     await user.click(screen.getByRole("textbox", { name: "Shortcut name" }));
     await user.keyboard("who");
@@ -275,7 +277,7 @@ describe("ConsoleScreen typed Git commands", () => {
     const input = screen.getByRole("combobox", { name: "Console command" });
     await user.type(input, "shortcuts{Enter}");
     await user.type(screen.getByRole("textbox", { name: "Shortcut name" }), "lg");
-    const picker = screen.getByRole("spinbutton", { name: "Git query" });
+    const picker = screen.getByRole("spinbutton", { name: "Query" });
     picker.focus();
     await user.keyboard("{End}");
     const field = screen.getByRole("textbox", { name: "Git command line" });
@@ -309,7 +311,7 @@ describe("ConsoleScreen typed Git commands", () => {
     renderConsole();
     await user.type(screen.getByRole("combobox", { name: "Console command" }), "shortcuts{Enter}");
     await user.type(screen.getByRole("textbox", { name: "Shortcut name" }), "undo");
-    screen.getByRole("spinbutton", { name: "Git query" }).focus();
+    screen.getByRole("spinbutton", { name: "Query" }).focus();
     await user.keyboard("{End}");
     await user.type(screen.getByRole("textbox", { name: "Git command line" }), "git reset --hard");
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
@@ -444,5 +446,70 @@ describe("ConsoleScreen changes", () => {
     const prompt = screen.getByRole("combobox", { name: "Console command" });
     await user.type(prompt, "s{Enter}");
     expect(runChange).not.toHaveBeenCalled();
+  });
+});
+
+const GITHUB = { kind: "github" as const, host: "github.com", companyServer: false, remote: "origin" };
+
+describe("ConsoleScreen hosting shortcuts", () => {
+  it("names the project's provider in the welcome once Rust has read it", async () => {
+    const readHost = vi.spyOn(consolePort, "readHost").mockResolvedValue({ ...GITHUB, kind: "gitlab", host: "gitlab.corp.example", companyServer: true });
+    renderConsole();
+    const welcome = screen.getByRole("region", { name: "environment" });
+    await waitFor(() => expect(welcome).toHaveTextContent("providerGitLab Self-Managed · gitlab.corp.example"));
+    expect(readHost).toHaveBeenCalledTimes(1);
+    expect(readHost).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1" });
+  });
+
+  it("runs a gh query through Rust and shows the CLI's own answer", async () => {
+    vi.spyOn(consolePort, "readHost").mockResolvedValue(GITHUB);
+    const runHosting = vi.spyOn(consolePort, "runHosting").mockResolvedValue({
+      operationId: "prs", command: "gh pr list --limit 20", stdout: "#54  Bump jsdom  dependabot/jsdom\n", stderr: "",
+      exitCode: 0, success: true, truncated: false, host: GITHUB, unavailable: null,
+    });
+    const run = vi.spyOn(consolePort, "run");
+    const user = userEvent.setup();
+    renderConsole();
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "prs{Enter}");
+    expect(runHosting).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1", operationId: "prs" });
+    expect(run).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Bump jsdom/)).toBeInTheDocument();
+    expect(screen.getByText("gh pr list --limit 20", { selector: "code" })).toBeInTheDocument();
+  });
+
+  it("says why nothing ran on a project gh and glab can't answer for", async () => {
+    vi.spyOn(consolePort, "readHost").mockResolvedValue({ ...GITHUB, kind: "bitbucket", host: "bitbucket.org" });
+    vi.spyOn(consolePort, "runHosting").mockResolvedValue({
+      operationId: "issues", command: null, stdout: "", stderr: "", exitCode: null, success: false, truncated: false,
+      host: { ...GITHUB, kind: "bitbucket", host: "bitbucket.org" }, unavailable: "not_supported",
+    });
+    const user = userEvent.setup();
+    renderConsole();
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "issues{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bitbucket has no official command-line tool");
+  });
+
+  it("keeps the CLI's words and adds where to sign in when it has no login", async () => {
+    vi.spyOn(consolePort, "readHost").mockResolvedValue(GITHUB);
+    vi.spyOn(consolePort, "runHosting").mockResolvedValue({
+      operationId: "runs", command: "gh run list --limit 20", stdout: "", stderr: "To get started with GitHub CLI, please run:  gh auth login",
+      exitCode: 4, success: false, truncated: false, host: GITHUB, unavailable: "signed_out",
+    });
+    const user = userEvent.setup();
+    renderConsole();
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "runs{Enter}");
+    expect(await screen.findByText(/To get started with GitHub CLI/)).toBeInTheDocument();
+    expect(screen.getByText("GitHub CLI (gh) has no account signed in for github.com. Connect one in Settings › GitHub, then try again.")).toBeInTheDocument();
+  });
+
+  it("shows the command for the project's provider in help", async () => {
+    vi.spyOn(consolePort, "readHost").mockResolvedValue({ ...GITHUB, kind: "gitlab", host: "gitlab.com" });
+    const user = userEvent.setup();
+    renderConsole();
+    await waitFor(() => expect(screen.getByRole("region", { name: "environment" })).toHaveTextContent("GitLab"));
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "help{Enter}");
+    const help = screen.getByRole("table", { name: "Available shortcuts (read-only)" });
+    expect(help).toHaveTextContent("glab mr list --per-page 20");
+    expect(help).not.toHaveTextContent("gh pr list");
   });
 });

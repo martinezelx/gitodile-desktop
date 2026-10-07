@@ -4,6 +4,10 @@ import type { ConsolePort } from "./port";
 export const consolePort: ConsolePort = {
   run: ({ projectId: path, sessionEpoch, operationId }) =>
     invoke("run_console_query", { path, sessionEpoch, operationId }),
+  runHosting: ({ projectId: path, sessionEpoch, operationId }) =>
+    invoke("run_console_hosting_query", { path, sessionEpoch, operationId }),
+  readHost: ({ projectId: path, sessionEpoch }) =>
+    invoke("read_console_host", { path, sessionEpoch }),
   plan: ({ projectId: path, sessionEpoch, line, runHooks }) =>
     invoke("plan_console_command", { path, sessionEpoch, line, runHooks }),
   runPlan: ({ projectId: path, sessionEpoch, planId }) =>

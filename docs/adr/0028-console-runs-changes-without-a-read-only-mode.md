@@ -72,7 +72,7 @@ anyway.
 - Release qualification covers one setting, not two.
 - gh and glab are a separate question with the same boundary. They start as a
   closed set of safe shortcuts
-  ([task 148-12](../../work/active/148-12-console-gh-and-glab-shortcuts.md)).
+  ([task 148-12](../../work/done/148-12-console-gh-and-glab-shortcuts.md)).
   Typing arbitrary gh or glab lines would need a classifier of its own.
 
 ## Alternatives considered

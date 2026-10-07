@@ -450,7 +450,7 @@ fn current_upstream_remote(path: &str) -> Option<String> {
     (!remote.is_empty()).then_some(remote)
 }
 
-fn project_remotes(path: &str) -> Result<ProjectRemotes, AppError> {
+pub(crate) fn project_remotes(path: &str) -> Result<ProjectRemotes, AppError> {
     let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
     let remotes = parse_project_remotes(&output);
     // With no remotes there is nothing for an upstream to point at, so the two

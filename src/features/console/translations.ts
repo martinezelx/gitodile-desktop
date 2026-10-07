@@ -1,5 +1,5 @@
-import type { DefaultLineName, GitReadCommand } from "./domain";
-import type { ConsoleEffect, ConsoleRefusalReason, ConsoleRunFailure, ConsoleTier, PlanFact } from "./port";
+import type { ConsoleHostingId, DefaultLineName, GitReadCommand } from "./domain";
+import type { ConsoleEffect, ConsoleHost, ConsoleRefusalReason, ConsoleRunFailure, ConsoleTier, HostingUnavailable, PlanFact } from "./port";
 
 export interface ConsoleTranslations {
   consoleTitle: string;
@@ -14,6 +14,8 @@ export interface ConsoleTranslations {
   consoleWelcomeConfirm: string;
   consoleWelcomeConfirmOn: string;
   consoleWelcomeConfirmOff: string;
+  consoleWelcomeProvider: string;
+  consoleProvider: (host: ConsoleHost) => string;
   consoleWelcomeProjectSection: string;
   consoleWelcomeEnvironmentSection: string;
   consoleWelcomeChanges: string;
@@ -110,6 +112,8 @@ export interface ConsoleTranslations {
   consoleRemotes: string;
   consoleStashes: string;
   consoleAuthors: string;
+  consoleHostingLabels: Record<ConsoleHostingId, string>;
+  consoleHostingUnavailable: (reason: HostingUnavailable, host: ConsoleHost) => string;
 }
 
 const EN_TIER_EFFECTS: Record<ConsoleTier, string> = {
@@ -134,6 +138,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleEmpty: "Type help to see the shortcuts, or a Git command such as git log --oneline.",
     consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
     consoleWelcomeConfirmOn: "before each change", consoleWelcomeConfirmOff: "off",
+    consoleWelcomeProvider: "provider",
+    consoleProvider: (host) => {
+      switch (host.kind) {
+        case "github": return host.companyServer ? `GitHub Enterprise · ${host.host}` : "GitHub";
+        case "gitlab": return host.companyServer ? `GitLab Self-Managed · ${host.host}` : "GitLab";
+        case "bitbucket": return "Bitbucket";
+        case "git": return host.host ? `Git server · ${host.host}` : "Git server";
+        case "local": return "this computer only";
+        case "unclear": return "several remotes";
+      }
+    },
     consoleWelcomeProjectSection: "project", consoleWelcomeEnvironmentSection: "environment",
     consoleWelcomeChanges: "changes", consoleWelcomePublish: "publish", consoleWelcomeTheme: "theme",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "version" : "versions"}`, consoleWelcomeUpToDate: "up to date",
@@ -162,13 +177,13 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTruncated: "Output was shortened to keep the console responsive.",
     consoleRequestFailed: "The query couldn't run. Check the project and try again.",
     consoleShortcutsTitle: "Console shortcuts", consoleShortcutsDescription: "Shared by all your projects; each runs a Git command.",
-    consoleShortcutName: "Shortcut name", consoleShortcutTarget: "Git query", consoleQueryPrevious: "Previous query", consoleQueryNext: "Next query", consoleShortcutAdd: "Add shortcut",
+    consoleShortcutName: "Shortcut name", consoleShortcutTarget: "Query", consoleQueryPrevious: "Previous query", consoleQueryNext: "Next query", consoleShortcutAdd: "Add shortcut",
     consoleShortcutRename: "Rename", consoleShortcutRemove: "Remove", consoleShortcutSave: "Save name",
     consoleShortcutCancel: "Cancel", consoleShortcutReset: "Restore defaults", consoleShortcutClose: "Close shortcuts",
     consoleShortcutInvalid: "Use 1–20 lowercase letters, numbers or hyphens, starting with a letter.",
     consoleShortcutReserved: "That name is reserved for a console action.",
     consoleShortcutDuplicate: "That shortcut name is already in use.",
-    consoleShortcutLimit: "You can keep up to 24 shortcuts.",
+    consoleShortcutLimit: "You can keep up to 32 shortcuts.",
     consoleShortcutStorageError: "The shortcut couldn't be saved on this device.",
     consoleShortcutLineOption: "Git command line", consoleShortcutLine: "Git command line",
     consoleShortcutLineInvalid: "Write a Git command that starts with git, such as git log --oneline -20.",
@@ -259,6 +274,22 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleStatus: "Project status", consoleDiff: "Unstaged changes", consoleLog: "Recent versions", consoleBranches: "Local branches",
     consoleStaged: "Changes ready to save", consoleGraph: "Version graph", consoleLast: "Latest saved version", consoleTags: "Tags",
     consoleRemotes: "Remote copies", consoleStashes: "Changes set aside", consoleAuthors: "Authors",
+    consoleHostingLabels: {
+      prs: "Open pull or merge requests", "my-prs": "Your pull or merge requests", issues: "Open issues",
+      runs: "Recent CI runs", checks: "Checks on this line", repo: "The project on its hosting service",
+    },
+    consoleHostingUnavailable: (reason, host) => {
+      const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
+      const section = host.kind === "gitlab" ? "GitLab" : "GitHub";
+      if (reason === "cli_missing") return `${cli} isn't installed. Install it from Settings › ${section}, then try again.`;
+      if (reason === "signed_out") return `${cli} has no account signed in for ${host.host ?? "this server"}. Connect one in Settings › ${section}, then try again.`;
+      switch (host.kind) {
+        case "bitbucket": return "Bitbucket has no official command-line tool, so these shortcuts work only for GitHub and GitLab projects.";
+        case "local": return "This project has no remote yet, so there is no hosting service to ask.";
+        case "unclear": return "This project has several remotes and none is clearly its own. Publish the current line, or name one of them origin, so the console knows which to ask.";
+        default: return "This project's remote isn't on GitHub or GitLab, so there is no hosting tool to ask.";
+      }
+    },
   },
   es: {
     consoleTitle: "Consola", consoleShortcuts: "Atajos",
@@ -267,6 +298,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleEmpty: "Escribe help para ver los atajos, o un comando Git como git log --oneline.",
     consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
     consoleWelcomeConfirmOn: "antes de cada cambio", consoleWelcomeConfirmOff: "desactivada",
+    consoleWelcomeProvider: "proveedor",
+    consoleProvider: (host) => {
+      switch (host.kind) {
+        case "github": return host.companyServer ? `GitHub Enterprise · ${host.host}` : "GitHub";
+        case "gitlab": return host.companyServer ? `GitLab Self-Managed · ${host.host}` : "GitLab";
+        case "bitbucket": return "Bitbucket";
+        case "git": return host.host ? `servidor Git · ${host.host}` : "servidor Git";
+        case "local": return "solo este ordenador";
+        case "unclear": return "varios remotos";
+      }
+    },
     consoleWelcomeProjectSection: "proyecto", consoleWelcomeEnvironmentSection: "entorno",
     consoleWelcomeChanges: "cambios", consoleWelcomePublish: "publicar", consoleWelcomeTheme: "tema",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "versión" : "versiones"}`, consoleWelcomeUpToDate: "al día",
@@ -295,13 +337,13 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTruncated: "Se ha acortado la salida para mantener la consola ágil.",
     consoleRequestFailed: "No se pudo ejecutar la consulta. Comprueba el proyecto e inténtalo de nuevo.",
     consoleShortcutsTitle: "Atajos de consola", consoleShortcutsDescription: "Valen para todos tus proyectos y cada uno ejecuta un comando Git.",
-    consoleShortcutName: "Nombre del atajo", consoleShortcutTarget: "Consulta Git", consoleQueryPrevious: "Consulta anterior", consoleQueryNext: "Consulta siguiente", consoleShortcutAdd: "Añadir atajo",
+    consoleShortcutName: "Nombre del atajo", consoleShortcutTarget: "Consulta", consoleQueryPrevious: "Consulta anterior", consoleQueryNext: "Consulta siguiente", consoleShortcutAdd: "Añadir atajo",
     consoleShortcutRename: "Renombrar", consoleShortcutRemove: "Eliminar", consoleShortcutSave: "Guardar nombre",
     consoleShortcutCancel: "Cancelar", consoleShortcutReset: "Restaurar predeterminados", consoleShortcutClose: "Cerrar atajos",
     consoleShortcutInvalid: "Usa entre 1 y 20 letras minúsculas, números o guiones; empieza por una letra.",
     consoleShortcutReserved: "Ese nombre está reservado para una acción de la consola.",
     consoleShortcutDuplicate: "Ese nombre de atajo ya está en uso.",
-    consoleShortcutLimit: "Puedes guardar hasta 24 atajos.",
+    consoleShortcutLimit: "Puedes guardar hasta 32 atajos.",
     consoleShortcutStorageError: "No se pudo guardar el atajo en este dispositivo.",
     consoleShortcutLineOption: "Comando Git", consoleShortcutLine: "Comando Git",
     consoleShortcutLineInvalid: "Escribe un comando Git que empiece por git, como git log --oneline -20.",
@@ -392,5 +434,21 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleStatus: "Estado del proyecto", consoleDiff: "Cambios sin preparar", consoleLog: "Versiones recientes", consoleBranches: "Ramas locales",
     consoleStaged: "Cambios listos para guardar", consoleGraph: "Grafo de versiones", consoleLast: "Última versión guardada", consoleTags: "Etiquetas",
     consoleRemotes: "Copias remotas", consoleStashes: "Cambios apartados", consoleAuthors: "Autores",
+    consoleHostingLabels: {
+      prs: "Solicitudes de cambios abiertas", "my-prs": "Tus solicitudes de cambios", issues: "Incidencias abiertas",
+      runs: "Ejecuciones recientes de CI", checks: "Comprobaciones de esta línea", repo: "El proyecto en su servicio de alojamiento",
+    },
+    consoleHostingUnavailable: (reason, host) => {
+      const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
+      const section = host.kind === "gitlab" ? "GitLab" : "GitHub";
+      if (reason === "cli_missing") return `${cli} no está instalado. Instálalo desde Ajustes › ${section} e inténtalo de nuevo.`;
+      if (reason === "signed_out") return `${cli} no tiene ninguna cuenta conectada para ${host.host ?? "este servidor"}. Conecta una en Ajustes › ${section} e inténtalo de nuevo.`;
+      switch (host.kind) {
+        case "bitbucket": return "Bitbucket no tiene una herramienta oficial de línea de comandos, así que estos atajos solo funcionan con proyectos de GitHub y GitLab.";
+        case "local": return "Este proyecto aún no tiene remoto, así que no hay ningún servicio de alojamiento al que preguntar.";
+        case "unclear": return "Este proyecto tiene varios remotos y ninguno es claramente el suyo. Publica la línea actual, o llama origin a uno de ellos, para que la consola sepa a cuál preguntar.";
+        default: return "El remoto de este proyecto no está en GitHub ni en GitLab, así que no hay ninguna herramienta de alojamiento a la que preguntar.";
+      }
+    },
   },
 };

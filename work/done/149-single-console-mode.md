@@ -52,7 +52,7 @@ which replaces ADR 0017 §4. This is a standalone task, outside any epic.
 # Out of scope
 
 - History and Destructive tiers (task 139).
-- gh/glab in the console ([148-12](../active/148-12-console-gh-and-glab-shortcuts.md)).
+- gh/glab in the console ([148-12](148-12-console-gh-and-glab-shortcuts.md)).
 - A button to open the system terminal at the project folder: proposed in the
   same conversation. It needs its own per-platform launcher decision, so it was
   left for the backlog.

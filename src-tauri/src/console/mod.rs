@@ -13,15 +13,20 @@
 //! Each submodule is a separate owner: the tokenizer and the classifier work
 //! on text alone, the preview only reads the repository, and the settings
 //! only persist one choice. The fixed queries of task 134 stay in
-//! [`catalogue`] for the catalogue shortcuts.
+//! [`catalogue`] for the catalogue shortcuts, and [`hosting`] owns the
+//! project's provider and its gh/glab shortcuts.
 
 mod catalogue;
 mod classify;
+mod hosting;
 mod preview;
 mod settings;
 mod tokenize;
 
 pub(crate) use catalogue::{run_console_query, ConsoleQueryResult};
+pub(crate) use hosting::{
+    read_console_host, run_console_hosting_query, ConsoleHost, ConsoleHostingResult,
+};
 pub(crate) use settings::{ConsoleModes, ConsoleSettings};
 
 use crate::application;
