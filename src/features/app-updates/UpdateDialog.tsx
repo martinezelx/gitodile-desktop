@@ -1,7 +1,8 @@
-import React, { useId, useRef } from "react";
+import React, { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   CheckCircle2,
+  ChevronDown,
   CircleAlert,
   CircleArrowUp,
   CloudDownload,
@@ -18,12 +19,21 @@ import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import { Dialog, Mascot, ReleaseHighlights, ToolInstallationRow, autoHideScrollbarProps, useModalFocus, type ToolChip } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
-import type { StartupUpdateConfirmation, UpdateCandidate, UpdateError, UpdateState } from "./domain";
+import type { StartupUpdateConfirmation, UpdateCandidate, UpdateError, UpdateHighlight, UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
 
 /** The build the reader is running. It lives in the app shell's release
  * model, which a feature may not import, so the shell passes it in. */
 export type InstalledRelease = Readonly<{ version: string }>;
+
+/** One bundled release as the integrated What's new shows it: the entry shape
+ * the app shell's release model owns, restated here because a feature may not
+ * import that module. The shell maps `APP_CHANGELOG` into it. */
+export type SettingsReleaseEntry = Readonly<{
+  version: string;
+  date: string | null;
+  highlights: readonly UpdateHighlight[];
+}>;
 
 function formatBytes(value: number, language: string): string {
   return new Intl.NumberFormat(language, { style: "unit", unit: "megabyte", maximumFractionDigits: 1 })
@@ -229,11 +239,141 @@ function describeChip(state: UpdateState, language: Language): ToolChip {
   }
 }
 
+/** One bundled release's publication day, formatted for the reader, or null
+ * for an unreadable date. A candidate carries a full ISO instant; a bundled
+ * entry carries a `YYYY-MM-DD` day, which is parsed as local midnight the way
+ * the changelog parses it, so it cannot slip a day backwards. */
+function formatReleaseDate(value: string | null, formats: LocaleFormats): string | null {
+  if (value === null) return null;
+  const parsed = new Date(value.includes("T") ? value : `${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : formatDate(parsed, formats);
+}
+
+function ReleaseBadge({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <span className="whatsnew-badge">{children}</span>;
+}
+
+/** An earlier release: one compact line that opens onto its notes on request.
+ * The running build is marked in the list because it is the one entry the
+ * reader can place themselves against. */
+function EarlierRelease({
+  release,
+  isInstalled,
+  language,
+}: {
+  release: SettingsReleaseEntry;
+  isInstalled: boolean;
+  language: Language;
+}): React.JSX.Element {
+  const { formats } = useLanguage();
+  const t = appUpdateTranslations(language);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const notesId = useId();
+  const releaseDate = formatReleaseDate(release.date, formats);
+
+  return (
+    <li className="whatsnew-entry">
+      <button
+        className="whatsnew-entry__trigger"
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={notesId}
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        <span className="whatsnew-entry__heading">
+          <span className="whatsnew-entry__chevron" aria-hidden="true"><ChevronDown /></span>
+          <span className="whatsnew-entry__identity">
+            <h4>{release.version}</h4>
+            {isInstalled
+              ? <ReleaseBadge>{t.whatsNewYourVersion}</ReleaseBadge>
+              : release.highlights.length > 0 && (
+                <span className="whatsnew-entry__count">{t.whatsNewHighlightCount(release.highlights.length)}</span>
+              )}
+          </span>
+          {releaseDate && release.date && (
+            <time className="whatsnew-entry__date" dateTime={release.date}>{releaseDate}</time>
+          )}
+        </span>
+      </button>
+      {isExpanded && (release.highlights.length === 0
+        ? <p id={notesId} className="whatsnew-empty">{t.whatsNewEmpty}</p>
+        : <ReleaseHighlights id={notesId} highlights={release.highlights} language={language} />)}
+    </li>
+  );
+}
+
+/** The integrated What's new: the release the reader is offered (when the feed
+ * describes one) or the build they run, then every earlier version as a
+ * disclosure. It shows what the changelog dialog shows, in place, so the
+ * Updates section answers "what changed?" without a second surface. */
+function WhatsNewSection({
+  releases,
+  installed,
+  candidate,
+  language,
+}: {
+  releases: readonly SettingsReleaseEntry[];
+  installed: InstalledRelease;
+  candidate: UpdateCandidate | null;
+  language: Language;
+}): React.JSX.Element | null {
+  const { formats } = useLanguage();
+  const t = appUpdateTranslations(language);
+  const current = releases.find((release) => release.version === installed.version) ?? releases[0];
+  if (!current) return null;
+  /* The offered release leads when the feed describes it; a candidate with no
+     highlights leaves the running build as the thing to read. */
+  const offered: SettingsReleaseEntry | null =
+    candidate && candidate.highlights.length > 0
+      ? { version: candidate.version, date: candidate.publishedAt, highlights: candidate.highlights }
+      : null;
+  const featured = offered ?? current;
+  const earlier = releases.filter((release) => release.version !== featured.version);
+  const featuredDate = formatReleaseDate(featured.date, formats);
+
+  return (
+    <section className="settings-group" aria-labelledby="app-whats-new-title">
+      <header className="settings-group__header">
+        <h3 id="app-whats-new-title">{t.highlights}</h3>
+        <p>{t.whatsNewDescription}</p>
+      </header>
+      <article className="whatsnew-release">
+        <div className="whatsnew-release__identity">
+          <h3>{featured.version}</h3>
+          {offered ? <ReleaseBadge>{t.whatsNewNewBadge}</ReleaseBadge> : <ReleaseBadge>{t.whatsNewYourVersion}</ReleaseBadge>}
+          {featuredDate && featured.date && (
+            <time className="whatsnew-release__date" dateTime={featured.date}>{featuredDate}</time>
+          )}
+        </div>
+        {featured.highlights.length > 0
+          ? <ReleaseHighlights highlights={featured.highlights} language={language} />
+          : <p className="whatsnew-empty">{t.whatsNewEmpty}</p>}
+      </article>
+      {earlier.length > 0 && (
+        <div className="whatsnew-earlier">
+          <h4 className="whatsnew-earlier__heading">{t.whatsNewEarlierHeading}</h4>
+          <ol className="whatsnew-list" role="list">
+            {earlier.map((release) => (
+              <EarlierRelease
+                key={release.version}
+                release={release}
+                isInstalled={release.version === installed.version}
+                language={language}
+              />
+            ))}
+          </ol>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** The Updates section of Settings: the installed build with its status and
- * actions, then the one switch for the startup check
- * — with the disclosure (GitHub, the 24-hour repeat for long sessions, what
- * is sent) beside it, as DESIGN.md requires. Checking is never started from
- * here on mount; only the button and the switch act. */
+ * actions, the manual download as its own way out, the integrated What's new,
+ * then the one switch for the startup check — with the disclosure (GitHub, the
+ * 24-hour repeat for long sessions, what is sent) beside it, as DESIGN.md
+ * requires. Checking is never started from here on mount; only the button and
+ * the switch act. */
 export function AppUpdateSettingsControl({
   snapshot,
   controller,
@@ -242,6 +382,7 @@ export function AppUpdateSettingsControl({
   enabled,
   setEnabled,
   onOpenDialog,
+  releases,
 }: {
   snapshot: AppUpdatesSnapshot;
   controller: AppUpdatesController;
@@ -251,10 +392,14 @@ export function AppUpdateSettingsControl({
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
   onOpenDialog?: () => void;
+  /** The bundled changelog, newest first. The shell owns the release model and
+   * passes it in; without it the What's new group stays out. */
+  releases?: readonly SettingsReleaseEntry[];
 }) {
   const { language } = useLanguage();
   const t = appUpdateTranslations(language);
   const state = snapshot.state;
+  const candidate = candidateFromState(state);
   const line = describeState(state, language);
   const detail = describeDetail(state, language);
   /* Details opens the dialog, where the notes, the progress and the install
@@ -276,8 +421,8 @@ export function AppUpdateSettingsControl({
           : state.kind === "downloading" || state.kind === "verifying" || state.kind === "installing"
             ? { label: t.chip[state.kind], disabled: true, run: () => undefined, spinner: true }
             : { label: t.check, disabled: false, run: () => void controller.check(), spinner: false };
-  /* Two groups, neither named after the tab it sits in: the build you have,
-     and how the next one reaches you — today only the startup check. */
+  /* The build you have, the manual way out, what changed, and how the next one
+     reaches you — none named after the tab it sits in. */
   return (
     <div className="settings-groups">
       <section className="settings-group">
@@ -300,6 +445,26 @@ export function AppUpdateSettingsControl({
           />
         </div>
       </section>
+      <section className="settings-group">
+        <header className="settings-group__header">
+          <h3>{t.otherWaysTitle}</h3>
+          <p>{t.otherWaysDescription}</p>
+        </header>
+        <div className="settings-group__body">
+          <div className="settings-row">
+            <div><strong>{t.manual}</strong><p>{t.manualDownloadDescription}</p></div>
+            <div className="settings-row__actions">
+              <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}>
+                <ExternalLink aria-hidden="true" />
+                {t.openReleases}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      {releases && releases.length > 0 && (
+        <WhatsNewSection releases={releases} installed={installed} candidate={candidate} language={language} />
+      )}
       <section className="settings-group">
         <header className="settings-group__header"><h3>{t.receivingTitle}</h3></header>
         <div className="settings-group__body">

@@ -39,7 +39,7 @@ import {
 } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import { PRODUCT_NAME_PARTS, modifierKeyLabels } from "./branding";
-import { CURRENT_APP_RELEASE } from "./appRelease";
+import { APP_CHANGELOG, CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
@@ -465,6 +465,7 @@ export function AppOverlays({
                   enabled={settings.automaticAppUpdates ?? false}
                   setEnabled={settings.setAutomaticAppUpdates}
                   onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}
+                  releases={APP_CHANGELOG}
                 />
               ) : null}
               applicationUpdateAttention={updateAttention}

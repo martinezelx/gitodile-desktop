@@ -68,3 +68,66 @@
 
 /* The installed build as the dialog's subtitle. */
 .app-update-dialog__installed { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+/* ---------------------------------------------------------------------------
+ * The integrated What's new, in the Updates section of Settings. It carries
+ * the changelog's vocabulary — a release card, then one compact line per
+ * earlier version — inside a settings group, so the section answers "what
+ * changed?" in place. The highlights list itself is the shared
+ * `.release-highlights` primitive.
+ * ------------------------------------------------------------------------- */
+.whatsnew-release {
+  display: grid; gap: 14px; padding: 14px 16px 16px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  background: var(--surface-control);
+}
+.whatsnew-release__identity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.whatsnew-release__identity h3 {
+  margin: 0; font-size: var(--text-subtitle); font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-tight); font-variant-numeric: tabular-nums;
+}
+.whatsnew-release__date { margin-left: auto; color: var(--text-secondary-color); font-size: var(--text-label); }
+/* The one accented thing in the card: the badge that says which version this
+   is. The border carries a tint the fill cannot, so the label keeps AA on both
+   the card's control surface and a raised surface. */
+.whatsnew-badge {
+  flex-shrink: 0; padding: 2px 7px; border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-raised));
+  color: var(--accent-primary); font-size: var(--text-micro); font-weight: var(--weight-title);
+  line-height: var(--leading-tight); letter-spacing: var(--tracking-wide);
+}
+.whatsnew-empty { margin: 0; color: var(--text-secondary-color); line-height: var(--leading-normal); }
+
+.whatsnew-earlier { margin-top: var(--space-4); }
+.whatsnew-earlier__heading {
+  margin: 0 0 4px 4px; color: var(--text-secondary-color); font-size: var(--text-caption);
+  font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.whatsnew-list { margin: 0; padding: 0; list-style: none; }
+.whatsnew-entry + .whatsnew-entry { border-top: 1px solid var(--border-subtle); }
+.whatsnew-entry__trigger {
+  width: 100%; padding: 8px 4px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color); text-align: left;
+}
+.whatsnew-entry__trigger:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.whatsnew-entry__trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.whatsnew-entry__heading { display: flex; align-items: center; gap: 8px; }
+.whatsnew-entry__identity { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-width: 0; }
+.whatsnew-entry__identity h4 { margin: 0; font-size: var(--text-body); font-weight: var(--weight-title); font-variant-numeric: tabular-nums; }
+.whatsnew-entry__trigger[aria-expanded="true"] h4,
+.whatsnew-entry__trigger:hover h4 { color: var(--text-primary-color); }
+.whatsnew-entry__chevron {
+  display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color);
+  transition: transform var(--duration-normal), color var(--duration-fast);
+}
+.whatsnew-entry__chevron svg { width: 15px; height: 15px; }
+.whatsnew-entry__trigger[aria-expanded="true"] .whatsnew-entry__chevron { transform: rotate(180deg); color: var(--accent-primary); }
+.whatsnew-entry__count { color: var(--text-secondary-color); font-size: var(--text-label); }
+.whatsnew-entry__count::before { content: "· "; }
+.whatsnew-entry__date { margin-left: auto; flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
+.whatsnew-entry .release-highlights { margin: 6px 4px 14px 27px; }
+.whatsnew-entry .whatsnew-empty { margin: 6px 4px 14px 27px; }
+
+@media (prefers-reduced-motion: reduce) { .whatsnew-entry__chevron { transition: none; } }
+[data-reduced-motion="true"] .whatsnew-entry__chevron { transition: none; }

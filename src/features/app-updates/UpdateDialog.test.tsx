@@ -358,4 +358,56 @@ describe("application update dialog", () => {
     await user.click(screen.getByRole("button", { name: "Check for updates" }));
     expect(appController.check).toHaveBeenCalledOnce();
   });
+
+  it("offers the manual download as its own settings group", async () => {
+    const user = userEvent.setup();
+    const appController = controller();
+    render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl
+          snapshot={snapshotOf({ kind: "current", checkedAt: "2026-10-01T10:00:00Z" })}
+          controller={appController}
+          installed={installed}
+          name="GitOdile"
+          enabled={false}
+          setEnabled={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Other ways to update" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open GitHub Releases" }));
+    expect(appController.openManualDownload).toHaveBeenCalledOnce();
+  });
+
+  it("shows the offered release and earlier versions in the integrated What's new", async () => {
+    const user = userEvent.setup();
+    const releases = [
+      { version: "0.3.0", date: "2026-10-01", highlights: [{ id: "work", icon: "list-checks", en: "One Work screen.", es: "Una sola pantalla, Trabajo." }] },
+      { version: "0.2.12", date: "2026-09-15", highlights: [{ id: "license", icon: "shield-check", en: "Now free software.", es: "Ahora software libre." }] },
+    ];
+    const offered = { ...candidate, version: "0.3.1", highlights: [{ id: "new", icon: "sparkles", en: "The new thing.", es: "Lo nuevo." }] };
+    render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl
+          snapshot={snapshotOf({ kind: "available", candidate: offered })}
+          controller={controller()}
+          installed={{ version: "0.3.0" }}
+          name="GitOdile"
+          enabled={false}
+          setEnabled={vi.fn()}
+          releases={releases}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "What's new" })).toBeInTheDocument();
+    // The offered release leads, with the feed's highlights.
+    expect(screen.getByRole("heading", { name: "0.3.1" })).toBeInTheDocument();
+    expect(screen.getByText("The new thing.")).toBeInTheDocument();
+    expect(screen.getByText("New version")).toBeInTheDocument();
+    // The running build is listed as an earlier version and marked as such.
+    expect(screen.getByText("Your version")).toBeInTheDocument();
+    const earlier = screen.getByRole("button", { name: /0\.2\.12/ });
+    await user.click(earlier);
+    expect(screen.getByText("Now free software.")).toBeInTheDocument();
+  });
 });
