@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useActiveScreenEffect } from "../../runtime/screen/module";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -679,6 +679,62 @@ function DiffWorkspace({
     setHunkTarget({ index: 0, token: 0 });
   }, [selectedPath]);
 
+  /* The strip names the file, so the name keeps its room and the folder gives
+   * way first — but not to the point of showing a two-letter stub of the last
+   * folder (`…ne` beside the category read as a broken "New" badge). The
+   * folder is dropped whole when the name and it cannot both fit, and the
+   * decision has to be measured: whether it fits depends on the name's length,
+   * which CSS alone cannot compare against the space left. The folder stays in
+   * the DOM while hidden (removed from flow, not `display: none`) so its
+   * natural width is still readable and the folder can come back when the pane
+   * widens. */
+  const headerRef = useRef<HTMLElement>(null);
+  const [showsFolder, setShowsFolder] = useState(true);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) {
+      return undefined;
+    }
+    const measure = (): void => {
+      const row = header.querySelector<HTMLElement>(".changes-diff__title-row");
+      const path = row?.querySelector<HTMLElement>(".changes-diff__path");
+      const name = row?.querySelector<HTMLElement>(".changes-diff__name");
+      const folder = row?.querySelector<HTMLElement>(".changes-diff__dir");
+      if (!row || !path || !name || !folder || row.clientWidth <= 0) {
+        return;
+      }
+      const gap = Number.parseFloat(getComputedStyle(row).columnGap) || 0;
+      const siblings = Array.from(row.children).filter((child) => child !== path);
+      const siblingWidth = siblings.reduce((total, child) => total + child.getBoundingClientRect().width, 0);
+      const available = row.clientWidth - siblingWidth - gap * siblings.length;
+      const needed = name.scrollWidth + gap + folder.scrollWidth;
+      const next = needed <= available + 0.5;
+      setShowsFolder((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    // The category's label is translated, so a language switch changes the room
+    // it takes without resizing the header. Watching it re-runs the measure the
+    // one time it changes instead of leaving the folder decided against the old
+    // label. The name and folder widths only move with `selectedPath`, which
+    // reruns this effect by itself.
+    const category = header.querySelector<HTMLElement>(".changes-diff__category");
+    if (category) {
+      observer.observe(category);
+    }
+    let isCurrent = true;
+    void document.fonts?.ready.then(() => {
+      if (isCurrent) {
+        measure();
+      }
+    });
+    return () => {
+      isCurrent = false;
+      observer.disconnect();
+    };
+  }, [selectedPath]);
+
   const goToHunk = (index: number): void => {
     setHunkTarget((current) => ({ index, token: current.token + 1 }));
   };
@@ -704,7 +760,7 @@ function DiffWorkspace({
           one question between them — which file, shown how — so they are one
           row now, paired with the file list's. See `.changes-layout` in
           changes.css. */}
-      <header className="changes-diff__header">
+      <header className="changes-diff__header" ref={headerRef}>
         <span className="changes-diff__header-icon" aria-hidden="true">
           <FileTypeIcon className="changes-diff__type-icon" />
         </span>
@@ -714,7 +770,7 @@ function DiffWorkspace({
               full path stays on the pane's accessible name. */}
           <p className="changes-diff__path">
             <span className="changes-diff__name">{name}</span>
-            <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
+            <span className={`changes-diff__dir${showsFolder ? "" : " changes-diff__dir--hidden"}`}>{dir ?? t.changesProjectRoot}</span>
           </p>
           {/* The category as the row it was chosen from says it — the same
               glyph in the same colour, with the word beside it — rather than
