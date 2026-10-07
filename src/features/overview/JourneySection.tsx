@@ -67,8 +67,8 @@ function JourneyStep({
   const className = `journey-step journey-step--${id} journey-step--${tone}`;
   // The current step — the accent one, or the warning one when overlaps come
   // first — is the one thing on the screen that asks for the eye, so its glyph
-  // wears the app's one attention animation. "next step" beside the label is
-  // what marks a tile as current.
+  // wears the app's one attention animation once, as it becomes current.
+  // "next step" beside the label is what marks a tile as current.
   const isCurrent = tone === "active" || Boolean(labelNote);
   const iconClassName = `journey-step__icon${isCurrent ? " attention-breathe" : ""}`;
   // The button's name is what pressing it does; the copy is its description,

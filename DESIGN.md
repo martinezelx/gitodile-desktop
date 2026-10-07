@@ -1765,21 +1765,24 @@ Rules:
 - **one animation asks for attention, everywhere it is asked for:**
   `.attention-breathe` (primitives.css, tuned by `--attention-duration`,
   `--attention-spread` and `--attention-color` in tokens.css). A halo leaves
-  the element, fades to nothing by its full reach and is reborn at the edge —
-  it is only ever seen going out, never coming back in; nothing inside the
-  element moves and no layout shifts, so the same class fits a 40px tile and
-  an 18px badge. It was chosen over a scale pulse (moves the text around it),
-  sonar rings and a heartbeat (insistent), a glow (neon in dark mode) and a
-  sheen or orbit (need room the small cases do not have). Overview's active
-  step wears it today; a badge for something new or an update that is ready
-  would wear the same one. A surface re-points its colour, never its shape.
-  **The notification dot is the same halo made finite.** `notification-dot-
-  breathe` is a closed set of three breaths rather than an endless loop,
-  because the titlebar is chrome the reader sees all day and a pulse that never
-  ends stops meaning "something happened" and starts meaning "ignore me". It is
-  a second keyframe only because it must carry the dot's surface ring in the
-  same `box-shadow`; it is not a second idea, and it follows the same rule —
-  started in the component only when reduced motion is off.
+  the element and fades to nothing by its full reach — it is only ever seen
+  going out, never coming back in — and it fires a single time, when the state
+  arrives, rather than looping: a wave that never ends stops meaning "something
+  happened" and starts meaning "ignore me", which is what a persistent "next
+  step" would become. Nothing inside the element moves and no layout shifts, so
+  the same class fits a 40px tile and an 18px badge. It was chosen over a scale
+  pulse (moves the text around it), sonar rings and a heartbeat (insistent), a
+  glow (neon in dark mode) and a sheen or orbit (need room the small cases do
+  not have). Overview's active step wears it today; a badge for something new
+  or an update that is ready would wear the same one. A surface re-points its
+  colour, never its shape.
+  **The notification dot is the same halo repeated a closed set of times.**
+  `notification-dot-breathe` fires three breaths rather than the one the rest
+  use, because the titlebar is chrome the reader sees all day and a single wave
+  there is easily missed. It is a second keyframe only because it must carry the
+  dot's surface ring in the same `box-shadow`; it is not a second idea, and it
+  follows the same rule — started in the component only when reduced motion is
+  off.
 - **The mascot moves differently in each brand moment**
   (`Mascot`'s `motion`, primitives.css). About uses `sweep`: two slanted
   white bands, clipped to the lenses, cross them in under a second and rest

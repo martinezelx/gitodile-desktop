@@ -368,10 +368,10 @@ button.journey-step:focus-visible .journey-step__go { opacity: 1; }
 /* The active tile's own glyph is the mark: the same circle as its
    neighbours, filled solid in the accent — the primary button's colour, since
    this tile *is* the primary action — wearing the app's attention animation
-   (`.attention-breathe`, primitives.css). Under the pointer the circle rises
-   a step and the breath pauses. The three fills are the whole hierarchy:
+   (`.attention-breathe`, primitives.css) once, as it becomes current. Under the
+   pointer the circle rises a step. The three fills are the whole hierarchy:
    neutral = a fact, light = done, solid = do this. The warning tile keeps the
-   same breath and only re-points its colour. */
+   same halo and only re-points its colour. */
 .journey-step--active .journey-step__icon,
 .journey-step--attention[aria-current] .journey-step__icon {
   transition: transform var(--duration-fast);
@@ -390,7 +390,6 @@ button.journey-step--active:focus-visible .journey-step__icon,
 button.journey-step--attention[aria-current]:hover .journey-step__icon,
 button.journey-step--attention[aria-current]:focus-visible .journey-step__icon {
   transform: scale(1.08);
-  animation-play-state: paused;
 }
 /* Pointing at the active tile tints it: the ring already says "this one",
    the tint says "and it does something". */
