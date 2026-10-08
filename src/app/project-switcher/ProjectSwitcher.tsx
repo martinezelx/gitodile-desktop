@@ -30,6 +30,8 @@ export type ProjectSwitcherEntry = {
   id: string;
   name: string;
   contextLabel: string | null;
+  /** The version line the project is on, or null when it is not on a branch. */
+  branch?: string | null;
   hasError: boolean;
   hasOperationInProgress: boolean;
   hasUnsavedChanges: boolean;
@@ -89,6 +91,15 @@ export function orderByFavourite<Entry extends { isFavourite: boolean }>(
     ...entries.filter((entry) => entry.isFavourite),
     ...entries.filter((entry) => !entry.isFavourite),
   ];
+}
+
+/** The open project always leads the list; the rest keep their order. */
+function withActiveFirst<Entry extends { id: string }>(
+  entries: readonly Entry[],
+  activeId: string | null,
+): Entry[] {
+  const active = entries.find((entry) => entry.id === activeId);
+  return active ? [active, ...entries.filter((entry) => entry !== active)] : [...entries];
 }
 
 type IndicatorMeta = {
@@ -287,12 +298,21 @@ function ProjectSwitcherRows({
   // trigger that opened the popover, so repeating it inside would be the same
   // control twice within 40px.
   withAddEntry = true,
-}: ProjectSwitcherProps & { withAddEntry?: boolean }): React.JSX.Element {
+  // The rail popover caps its own height and scrolls only the list, so the
+  // search field stays put while the projects move.
+  scrollable = false,
+}: ProjectSwitcherProps & { withAddEntry?: boolean; scrollable?: boolean }): React.JSX.Element {
   const { t } = useLanguage();
   return (
-    <ul className="project-switcher__list" role="list" aria-label={t.projectSwitcherAriaLabel}>
-      {orderByFavourite(entries).map((entry) => {
+    <ul
+      {...(scrollable ? autoHideScrollbarProps<HTMLUListElement>() : {})}
+      className={`project-switcher__list${scrollable ? " project-switcher__list--scroll auto-hide-scrollbar" : ""}`}
+      role="list"
+      aria-label={t.projectSwitcherAriaLabel}
+    >
+      {withActiveFirst(orderByFavourite(entries), activeId).map((entry) => {
         const isActive = entry.id === activeId;
+        const detail = [entry.contextLabel, entry.branch].filter(Boolean).join(" · ");
         const accessibleName = entry.contextLabel
           ? `${entry.name} (${entry.contextLabel})`
           : entry.name;
@@ -316,11 +336,12 @@ function ProjectSwitcherRows({
               />
               <span className="project-switcher__copy">
                 <span className="project-switcher__name">{entry.name}</span>
-                {entry.contextLabel && (
-                  <span className="project-switcher__context">{entry.contextLabel}</span>
-                )}
+                {detail && <span className="project-switcher__context">{detail}</span>}
               </span>
-              <RowIndicators entry={entry} />
+              {/* Inside the rail popover the open project's status already rides
+                  on the trigger's badge, so its own row would repeat it. The
+                  compact switcher has no badge, so there the row keeps it. */}
+              {!(isActive && scrollable) && <RowIndicators entry={entry} />}
             </button>
             {/* Settings, then favourite, then close: open it, configure it,
                 mark it, close it — with the destructive control last in
@@ -343,9 +364,10 @@ function ProjectSwitcherRows({
             >
               <Settings aria-hidden="true" />
             </button>
-            {/* Always rendered rather than revealed on hover: a marked
-                favourite has to be readable without pointing at it, and a
-                hover-only control cannot be reached by keyboard at all. */}
+            {/* Always rendered, but only drawn at rest when marked: a favourite
+                has to be readable without pointing at it. The rest fade in on
+                row hover or focus, and stay reachable by keyboard because
+                focus inside the row reveals them. */}
             <button
               type="button"
               className={`project-switcher__favourite${entry.isFavourite ? " project-switcher__favourite--on" : ""}`}
@@ -484,8 +506,7 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
           {isOpen && createPortal(
             <div
               ref={popupRef}
-              {...autoHideScrollbarProps<HTMLDivElement>()}
-              className="app-menu sidebar-project__popover sidebar-project-flyout auto-hide-scrollbar"
+              className="app-menu sidebar-project__popover sidebar-project-flyout"
               role="dialog"
               aria-label={t.projectSwitcherAriaLabel}
               style={style}
@@ -521,6 +542,7 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
                   {...props}
                   entries={matches}
                   withAddEntry={false}
+                  scrollable
                   onActivate={(id) => {
                     close(true);
                     props.onActivate(id);

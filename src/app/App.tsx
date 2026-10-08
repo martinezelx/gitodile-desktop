@@ -1863,6 +1863,7 @@ export function App(): React.JSX.Element {
         projectNameCounts[session.project.name.toLocaleLowerCase()] > 1
           ? pathParts.at(-2) ?? normalizedPath
           : null,
+      branch: session.project.headState === "branch" ? session.project.branch ?? null : null,
       hasError: Boolean(session.workingTreeError || session.pendingVersionsError),
       hasOperationInProgress: Boolean(
         session.operation &&

@@ -194,6 +194,12 @@ The main desktop window should broadly support:
    - below the destinations: the active project as a single circle that opens
      a searchable switcher, plus a same-size "+" holding the three ways to add
      one (open, create, clone);
+   - the switcher's panel is sized by its rows (two lines each: name, then the
+     version line) and scrolls inside itself past six, with the search field
+     fixed above. The open project always leads, then favourites. Settings,
+     favourite and close take no room at rest and open on hover or focus; only
+     a marked star stays. The open project's status is not repeated on its row
+     because the rail badge already shows it;
    - projects can be starred. Favourites sort to the top of the switcher and
      are the only ones the collapsed rail's jump menu lists, so that menu stays
      a shortcut rather than a second copy of the switcher. Until the first star

@@ -63,7 +63,7 @@ describe("ProjectSwitcherRail", () => {
 
     await userEvent.click(trigger);
     const popover = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(popover).getByRole("button", { name: /alpha.*has unsaved changes/i })).toHaveAttribute(
+    expect(within(popover).getByRole("button", { name: "alpha" })).toHaveAttribute(
       "aria-current",
       "true",
     );
@@ -104,7 +104,27 @@ describe("ProjectSwitcherRail", () => {
     await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
     const popover = screen.getByRole("dialog", { name: "Open projects" });
     expect(within(popover).getByText("client-a")).toBeInTheDocument();
-    expect(within(popover).getByLabelText("Needs attention")).toBeInTheDocument();
+    // The open project's status is on the rail badge, not repeated on its row.
+    expect(within(popover).queryByLabelText("Needs attention")).not.toBeInTheDocument();
+    expect(within(popover).queryByLabelText("Has unsaved changes")).not.toBeInTheDocument();
+  });
+
+  it("lists the open project first and keeps other projects' status", async () => {
+    const props = commonProps();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail
+          {...props}
+          activeId={entries[1].id}
+          entries={[entries[0], { ...entries[1], isFavourite: false }]}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "beta — switch project" }));
+    const popover = screen.getByRole("dialog", { name: "Open projects" });
+    const rows = within(popover).getAllByRole("button", { name: /^(alpha|beta)/ });
+    expect(rows[0]).toHaveAccessibleName(/^beta/);
     expect(within(popover).getByLabelText("Has unsaved changes")).toBeInTheDocument();
   });
 

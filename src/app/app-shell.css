@@ -732,12 +732,20 @@
 .sidebar-project-flyout {
   width: 280px;
   min-width: 280px;
-  max-height: min(440px, calc(100vh - 16px));
+  max-height: min(324px, calc(100vh - 16px));
   overflow-x: hidden;
   overflow-y: auto;
 }
-.sidebar-project__popover .project-switcher__list { min-height: 124px; }
-.sidebar-project__popover { padding: 8px; gap: 6px; }
+.sidebar-project__popover { overflow: hidden; }
+/* Sized by its rows; past about six of them (44px each) it scrolls inside the
+   panel, under the search field. */
+.sidebar-project__popover .project-switcher__list--scroll {
+  min-height: 0; overflow-x: hidden; overflow-y: auto;
+  /* Room for the focus ring, which the scroll container would otherwise clip
+     on the rows' left and right edges. */
+  margin: -2px; padding: 2px;
+}
+.sidebar-project__popover { width: 340px; min-width: 340px; max-width: calc(100vw - 16px); padding: 8px; gap: 6px; }
 .sidebar-project__search {
   display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary-color);
@@ -902,10 +910,10 @@
 .sidebar-tray:hover::before,
 .sidebar-tray:focus-within::before,
 .sidebar-tray:has([aria-expanded="true"])::before { opacity: 1; }
-.project-switcher__list { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0; }
-.project-switcher__item { display: flex; align-items: center; gap: 2px; }
+.project-switcher__list { display: grid; align-content: start; gap: 0; list-style: none; margin: 0; padding: 0; }
+.project-switcher__item { display: flex; align-items: center; gap: 0; }
 .project-switcher__button {
-  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 40px;
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 44px;
   padding: 0 8px; border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary-color); text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
@@ -935,13 +943,14 @@
 .project-switcher__indicator--operation { color: var(--accent-primary); }
 .project-switcher__indicator--unsaved { color: var(--status-warning); }
 .project-switcher__close {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
+  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
+  opacity: 0;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__close svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__close,
+.project-switcher__item:focus-within .project-switcher__close,
 .project-switcher__close:focus-visible { opacity: 1; }
 .project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__close:disabled { opacity: 0.3; }
@@ -952,13 +961,14 @@
    opacity as Close; marked it goes solid and takes the brand accent, which is
    the one state that must survive not pointing at the row. */
 .project-switcher__favourite {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
+  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
+  opacity: 0;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__favourite svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__favourite,
+.project-switcher__item:focus-within .project-switcher__favourite,
 .project-switcher__favourite:focus-visible { opacity: 1; }
 .project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__favourite--on {
@@ -967,17 +977,25 @@
 }
 .project-switcher__favourite--on svg { fill: currentColor; }
 
+/* Collapsed at rest so the name gets the whole row instead of leaving a dead
+   96px strip for controls nobody is pointing at; a marked favourite keeps its
+   slot because it has to stay readable. */
+.project-switcher__item:hover :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
+.project-switcher__item:focus-within :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
+.project-switcher__favourite--on { width: 32px; }
+
 /* Same size and same resting weight as the star beside it: they are two marks
    on the same row, and one of them looking heavier would read as the more
    important one. */
 .project-switcher__settings {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
+  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
+  opacity: 0;
   transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .project-switcher__settings svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__settings,
+.project-switcher__item:focus-within .project-switcher__settings,
 .project-switcher__settings:focus-visible { opacity: 1; }
 .project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__settings:disabled { opacity: 0.3; }
@@ -1770,7 +1788,12 @@
 }
 
 @media (hover: none) {
-  .project-switcher__close:not(:disabled) { opacity: 1; }
+  .project-switcher__close:not(:disabled),
+  .project-switcher__favourite,
+  .project-switcher__settings:not(:disabled) { opacity: 1; }
+  .project-switcher__close,
+  .project-switcher__favourite,
+  .project-switcher__settings { width: 44px; }
 }
 
 /* The window's last-resort notice: the app shell itself failed, so it stands

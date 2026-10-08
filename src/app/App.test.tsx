@@ -1465,7 +1465,7 @@ describe("App project restoration", () => {
     await userEvent.click(
       screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
     );
-    await userEvent.click(screen.getByRole("button", { name: secondProject.name }));
+    await userEvent.click(screen.getByRole("button", { name: new RegExp(`^${secondProject.name}`) }));
 
     await waitFor(() =>
       expect(
@@ -2099,8 +2099,8 @@ describe("App project restoration", () => {
     expect(document.querySelector(".home-launcher .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
     await user.click(screen.getByRole("button", { name: "Open projects" }));
     const switcher = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(switcher).getByRole("button", { name: restoredProject.name })).not.toHaveAttribute("aria-current");
-    await user.click(within(switcher).getByRole("button", { name: restoredProject.name }));
+    expect(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) })).not.toHaveAttribute("aria-current");
+    await user.click(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) }));
     expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Home" }));
