@@ -34,7 +34,9 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 ## What works today
 
 - Open a local project from its root or any nested folder, validate it in Rust,
-  and switch between recent projects.
+  and switch between recent projects. Home greets you and its launcher finds a
+  recent or favourite project, continues the last one with Enter, and turns a
+  pasted folder path or remote address into an open or a prefilled clone.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
   provider-neutral two-screen flow: choose an address or GitHub/GitLab/Bitbucket project, then
   choose the destination and clone. Complete GitHub/GitLab/Bitbucket addresses get a cancellable

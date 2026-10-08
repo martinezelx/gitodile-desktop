@@ -887,254 +887,10 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 .project-path__copy:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-path__copy svg { width: 15px; height: 15px; }
 
-/* ---- Welcome screen (Overview with no project open) ----
-   The shared `.empty-state` block still supplies the centred column, but this
-   is the app's front door rather than a "no results" panel, so it widens for a
-   row of entry points and drops the pattern's single glyph tile: the three
-   cards carry the icons now, and a fourth circle above them only competed. */
-/* The shared block centres itself with `margin: 0 auto`, which in a column
-   flex container means auto cross-axis margins — so it shrinks to fit its
-   content instead of stretching. Without a definite width the launcher grid
-   resolves `auto-fit` against an indefinite size, collapses to one column and
-   the three cards wrap 2 + 1. */
-.empty-state--welcome { width: 100%; max-width: 560px; }
-/* The mascot greets on the front door; its entrance and the crest's wave are
-   the mascot's own motions (`enter` and `commits`, primitives.css). */
-.welcome-mascot {
-  width: 144px;
-  margin: 0 auto var(--space-4);
-}
-.empty-state--welcome h1 { margin-bottom: var(--space-1); }
-.empty-state--welcome p { max-width: 420px; text-wrap: balance; }
-
-.welcome-actions {
-  width: 100%;
-  /* auto-fit rather than a fixed three: the same row reflows to two cards and
-     then to one as the workspace narrows, with no breakpoint to keep in sync
-     with the shell's own. */
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--space-3);
-}
-/* The same card the open project's Overview is made of — raised, shadowed,
-   no border — so the front door and the room behind it are one house. */
-.welcome-action {
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
-  color: var(--text-primary-color);
-  text-align: center;
-  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
-}
-.welcome-action:hover:not(:disabled) {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-.welcome-action:active:not(:disabled) { box-shadow: var(--shadow-sm); transform: translateY(0); }
-.welcome-action:disabled { opacity: 0.5; }
-/* Overview's glyph tile — a 40px filled circle, no ring — and under the
-   pointer the light accent fill the band gives a step that is reached: the
-   card is about to do something. Still no accent at rest: the three are
-   peers, and none is recommended. */
-.welcome-action__icon {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.welcome-action__icon svg { width: 19px; height: 19px; }
-.welcome-action:hover:not(:disabled) .welcome-action__icon { background: var(--surface-active); color: var(--accent-primary); }
-.welcome-action__icon--loading svg { animation: spin 900ms linear infinite; }
-/* Three short strings in three narrow columns: greedy wrapping leaves a single
-   word alone on the last line of most of them ("…proyecto / remoto"), which
-   reads as a mistake next to a card whose label happens to fit. Balanced lines
-   are ignored by anything that does not support them. */
-.welcome-action__label { font-size: var(--text-lead); font-weight: var(--weight-strong); line-height: var(--leading-snug); text-wrap: balance; }
-.welcome-action__hint { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-wrap: balance; }
-
-/* Quieter than the card hints it sits under: it describes an alternative
-   route, not one of the choices. `.empty-state p`'s own 22px bottom margin
-   would push the recents divider away, so this one states its own spacing —
-   and has to out-specify `.empty-state p` (0,1,1) to do it, hence the block
-   class in front. */
-.empty-state--welcome .welcome-drop-hint {
-  margin: var(--space-3) 0 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-}
-
-/* ---- Recent projects, under the launcher ----
-   Left-aligned rows inside a centred block on purpose: names and paths are
-   read down an edge, not from the middle out. The row carries the project's
-   own avatar — same colour and initials as the rail and the switcher — because
-   the point of a recents list is recognizing a project without reading it. */
-.welcome-recents {
-  width: 100%;
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-divider);
-  text-align: left;
-}
-.welcome-recents__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-.welcome-recents__title {
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  font-weight: var(--weight-strong);
-}
-/* The quick switch's own favourites filter, at the row's scale: a bare star
-   that fills with the accent when it is on — the same mark the rows' stars
-   make, so "only these" and "this one" read as one idea. */
-.welcome-recents__filter {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.welcome-recents__filter svg { width: 14px; height: 14px; }
-.welcome-recents__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.welcome-recents__filter--on { color: var(--accent-primary); }
-.welcome-recents__filter--on svg { fill: currentColor; }
-.welcome-recents__filter:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.welcome-recents__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.welcome-recents__item { display: flex; align-items: center; gap: var(--space-1); }
-.welcome-recents__open {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px var(--space-2);
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--text-primary-color);
-  text-align: left;
-  transition: background var(--duration-fast);
-}
-.welcome-recents__open:hover:not(:disabled) { background: var(--surface-hover); }
-.welcome-recents__open:disabled { opacity: 0.5; }
-.welcome-recents__avatar {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-identity);
-  color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  letter-spacing: var(--tracking-wide);
-}
-.welcome-recents__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.welcome-recents__name { min-width: 0; overflow: hidden; font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
-.welcome-recents__path {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Mirrors Remove in footprint so the two trailing controls line up, but not in
-   behaviour — the same split the switcher makes: unmarked it sits at the same
-   low opacity, marked it goes solid and takes the accent, which is the one
-   state that must survive not pointing at the row. */
-.welcome-recents__favourite {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--text-secondary-color);
-  opacity: 0.55;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.welcome-recents__favourite svg { width: 14px; height: 14px; }
-.welcome-recents__item:hover .welcome-recents__favourite,
-.welcome-recents__favourite:focus-visible { opacity: 1; }
-.welcome-recents__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.welcome-recents__favourite--on { opacity: 1; color: var(--accent-primary); }
-.welcome-recents__favourite--on svg { fill: currentColor; }
-
-/* Same reasoning as the switcher's Close: destructive, rarely wanted, so it
-   fades until the row is pointed at — and is always solid where there is no
-   pointer to hover with. */
-.welcome-recents__forget {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--text-secondary-color);
-  opacity: 0.55;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.welcome-recents__forget svg { width: 14px; height: 14px; }
-.welcome-recents__item:hover .welcome-recents__forget,
-.welcome-recents__forget:focus-visible { opacity: 1; }
-.welcome-recents__forget:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-@media (hover: none) {
-  .welcome-recents__forget { opacity: 1; }
-}
-
-/* Narrower than the row needs, the same three cards turn on their side — icon
-   left, text right — rather than stacking as three tall tiles or stranding the
-   third one alone on a second line. Same trio, same order, one column. */
-@media (max-width: 560px) {
-  .welcome-actions { grid-template-columns: minmax(0, 1fr); }
-  .welcome-action {
-    grid-template-columns: auto minmax(0, 1fr);
-    justify-items: start;
-    align-items: center;
-    padding: var(--space-3);
-    column-gap: var(--space-3);
-    row-gap: 2px;
-    text-align: left;
-  }
-  .welcome-action__icon { grid-row: 1 / span 2; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .empty-state__icon--loading svg,
-  .welcome-action__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__node { transition: none; }
-  .welcome-action { transition: none; }
-  .welcome-action:hover:not(:disabled) { transform: none; }
   .journey-step,
   .journey-step__go,
   .journey-step__icon,
@@ -1148,10 +904,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   .overview-header__icon-edit { transition: none; }
   .changed-files__tip { animation: none; }
   .changed-files__done-tick { animation: none; stroke-dashoffset: 0; }
-  .welcome-recents__open,
-  .welcome-recents__filter,
-  .welcome-recents__favourite,
-  .welcome-recents__forget { transition: none; }
 }
 
 /* Nothing to list: the files card keeps its own height and History takes
@@ -1200,12 +952,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
     width: var(--control-height-lg);
     min-width: var(--control-height-lg);
   }
-  .welcome-recents__filter,
-  .welcome-recents__favourite,
-  .welcome-recents__forget {
-    width: 44px;
-    height: 44px;
-  }
 }
 
 @media (hover: none) {
@@ -1218,7 +964,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
    contrast. Drawn inward, like the semantic outlines above, so the fallback
    cannot change layout either. */
 @media (forced-colors: active) {
-  .welcome-action,
   .journey,
   .journey-step,
   .changed-files,

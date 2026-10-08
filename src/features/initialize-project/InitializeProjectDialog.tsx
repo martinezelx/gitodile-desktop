@@ -69,6 +69,9 @@ export type InitializeProjectDialogProps = {
   isOpen: boolean;
   initialMode: InitializeTargetKind;
   initialExistingPath?: string;
+  /** A folder name the caller already has, such as one typed into Home's
+   * launcher, for a new-folder project. */
+  initialName?: string;
   controller: InitializeProjectController;
   saveVersionController: SaveVersionController;
   /** The user's default version-line name, already resolved by the caller —
@@ -91,6 +94,7 @@ export function InitializeProjectDialog({
   isOpen,
   initialMode,
   initialExistingPath = "",
+  initialName = "",
   controller,
   saveVersionController,
   defaultBranchName,
@@ -155,7 +159,7 @@ export function InitializeProjectDialog({
     if (!isOpen) return;
     setTargetKind(initialMode);
     setExistingPath(initialExistingPath);
-    setDestinationName("");
+    setDestinationName(initialName);
     setInitialBranch(defaultBranchName);
     setCreateReadme(false);
     setSaveInitialVersion(false);
@@ -170,6 +174,7 @@ export function InitializeProjectDialog({
     defaultBranchName,
     initialExistingPath,
     initialMode,
+    initialName,
     isOpen,
     t.initializeFirstVersionTitlePlaceholder,
   ]);

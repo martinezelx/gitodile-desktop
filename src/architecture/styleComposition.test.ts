@@ -13,6 +13,7 @@ const EXPECTED_IMPORTS = [
   "./app/app-shell.css",
   "./shared/ui/primitives.css",
   "./features/overview/overview.css",
+  "./features/home/home.css",
   "./features/clone/clone.css",
   "./features/initialize-project/initialize-project.css",
   "./features/status/status.css",
@@ -665,7 +666,7 @@ describe("production style composition", () => {
       ["app/app-shell.css", ".sidebar-project__avatar", "border-radius: var(--radius-identity)"],
       ["app/app-shell.css", ".project-switcher__avatar", "border-radius: var(--radius-identity)"],
       ["app/app-shell.css", ".project-switcher-compact__avatar", "border-radius: var(--radius-identity)"],
-      ["features/overview/overview.css", ".welcome-recents__avatar", "border-radius: var(--radius-identity)"],
+      ["features/home/home.css", ".home-launcher__avatar", "border-radius: var(--radius-identity)"],
       ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
       ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
       // A dialog's header glyph and a progress step's dot are atomic marks
@@ -684,7 +685,7 @@ describe("production style composition", () => {
       ["app/app-shell.css", ".sidebar-project__avatar", "box-shadow: var(--avatar-ring)"],
       ["app/app-shell.css", ".project-switcher__avatar", "box-shadow: var(--avatar-ring)"],
       ["app/app-shell.css", ".project-switcher-compact__avatar", "box-shadow: var(--avatar-ring)"],
-      ["features/overview/overview.css", ".welcome-recents__avatar", "box-shadow: var(--avatar-ring)"],
+      ["features/home/home.css", ".home-launcher__avatar", "box-shadow: var(--avatar-ring)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box
       // rather than a control of its own, so it stays rectangular.

@@ -37,6 +37,9 @@ import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
 import { ToastProvider, handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
 import { DiffPreferencesProvider, createChangesController, changesPort } from "../features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
+import { accountsPort, useAccounts } from "../features/accounts";
+import { createRepositoryBrowserController, repositoryBrowserPort } from "../features/repository-browser";
+import { readHomeAccounts, type HomeSetup } from "../features/home";
 import {
   createInitializeProjectController,
   InitializeProjectDialog,
@@ -255,9 +258,13 @@ export function App(): React.JSX.Element {
   const [repositoryListenerState, setRepositoryListenerState] = useState<"starting" | "listening" | "unavailable">(
     () => "__TAURI_INTERNALS__" in window ? "starting" : "unavailable",
   );
+  /* An address pasted into Home's launcher, filled into Clone when it opens;
+     every other way into Clone starts empty. */
+  const [cloneInitialSource, setCloneInitialSource] = useState("");
   const [initializeDialogRequest, setInitializeDialogRequest] = useState<{
     mode: InitializeTargetKind;
     existingPath?: string;
+    name?: string;
   } | null>(null);
   const [view, setView] = useState<View>(() =>
     localStorage.getItem("gitodile-reopen-last-project") === "true" && readStoredProjects().order.length > 0
@@ -661,6 +668,14 @@ export function App(): React.JSX.Element {
      panel on every close, which used to throw both answers away and pay for
      them again on the next opening. */
   const gitIdentity = useGitIdentity(settingsPort);
+  /* Home's account tabs and status line: the local receipts only (the launch
+     sync verifies them, ADR 0027). Read again whenever Settings closes, since
+     that is where accounts are connected and removed. */
+  const homeAccounts = useAccounts(accountsPort, !isSettingsOpen);
+  const [homeRepositoryBrowser] = useState(() => createRepositoryBrowserController(repositoryBrowserPort));
+  useEffect(() => {
+    homeRepositoryBrowser.reconcile(homeAccounts.catalog?.accounts ?? []);
+  }, [homeRepositoryBrowser, homeAccounts.catalog]);
   const defaultBranch = useDefaultBranch(settingsPort);
   const lineEndings = useLineEndings(
     settingsPort,
@@ -915,12 +930,27 @@ export function App(): React.JSX.Element {
     if (updated) setRecentProjects(updated);
   }, [technologyTargets, projectTechnologies, technologyFailures]);
 
-  // Favourites first, then by recency — ordered *before* the welcome screen
-  // takes its slice, so a project someone starred stays reachable there after
-  // it has aged out of the newest few. The star itself is the app's existing
-  // project favourite, not a second list-local mark.
-  const recentProjectEntries = orderByFavourite(
-    recentProjects.filter((entry) => view !== "home" || !sessionsState.byId[entry.path]).map((entry) => ({
+  // The catalog's own polling while busy fills these in as the launch check
+  // (ADR 0027) lands; until then Home holds their places.
+  const homeAccountState = readHomeAccounts(homeAccounts.catalog, homeAccounts.loaded);
+  const homeSetup: HomeSetup = {
+    git: {
+      state: gitTooling.diagnostics?.state ?? "checking",
+      version: gitTooling.diagnostics?.version ?? null,
+      isRechecking: gitTooling.isRefreshingDiagnostics,
+    },
+    identity: gitIdentity.isLoaded ? gitIdentity.identity : null,
+    accounts: homeAccountState.accounts,
+    pendingAccountKinds: homeAccountState.pendingKinds,
+  };
+
+  // Newest first: Home leads with the project to continue and keeps
+  // favourites in a tab of their own, so a starred project stays reachable
+  // there after it has aged out of the newest few. The star itself is the
+  // app's existing project favourite, not a second list-local mark.
+  const recentProjectEntries = recentProjects
+    .filter((entry) => view !== "home" || !sessionsState.byId[entry.path])
+    .map((entry) => ({
       ...entry,
       isFavourite: favouriteProjectIds.has(entry.path),
       iconChoice: projectIconChoices.get(entry.path) ?? null,
@@ -928,8 +958,7 @@ export function App(): React.JSX.Element {
         ? (projectTechnologies.get(entry.path) ?? null)
         : (isTechnologyId(entry.technology) ? entry.technology : null),
       avatarStyle: projectAvatarStyle,
-    })),
-  );
+    }));
 
   const openPalette = (): void => {
     palettePreviouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -2416,14 +2445,28 @@ export function App(): React.JSX.Element {
                 <HomeScreen
                   isOpening={isOpening}
                   recentProjects={recentProjectEntries}
+                  userName={gitIdentity.identity.name || null}
                   onOpenProject={() => void handleOpenProject()}
                   onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
+                  onCreateNamedProject={(name) => setInitializeDialogRequest({ mode: "new-folder", name })}
                   onCloneProject={() => setIsCloneOpen(true)}
+                  onCloneFromUrl={(url) => {
+                    setCloneInitialSource(url);
+                    setIsCloneOpen(true);
+                  }}
                   onOpenRecentProject={(path) => void handleOpenProject(path)}
                   onToggleFavouriteRecentProject={toggleFavouriteProject}
                   onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
                   hasOpenProjects={sessionsState.order.length > 0}
                   playGreeting={!hasShownHomeGreeting.current}
+                  setup={homeSetup}
+                  repositoryBrowser={homeRepositoryBrowser}
+                  onInstallGit={() => openSettings("git")}
+                  onRecheckGit={() => void gitTooling.refreshDiagnostics()}
+                  onOpenGitSettings={() => openSettings("git")}
+                  onConfigureIdentity={() => openSettings("git")}
+                  onConnectAccount={() => openSettings("github")}
+                  onOpenAccountSettings={(kind) => openSettings(kind)}
                 />
               ),
               overview: (
@@ -2697,8 +2740,12 @@ export function App(): React.JSX.Element {
 
       <CloneDialog
         isOpen={isCloneOpen}
+        initialSource={cloneInitialSource}
         controller={cloneController}
-        onClose={() => setIsCloneOpen(false)}
+        onClose={() => {
+          setIsCloneOpen(false);
+          setCloneInitialSource("");
+        }}
         onVerifiedClone={handleVerifiedClone}
       />
 
@@ -2707,6 +2754,7 @@ export function App(): React.JSX.Element {
           isOpen
           initialMode={initializeDialogRequest.mode}
           initialExistingPath={initializeDialogRequest.existingPath}
+          initialName={initializeDialogRequest.name}
           controller={initializeProjectController}
           saveVersionController={initialSaveVersionController}
           defaultBranchName={defaultBranch.name ?? DEFAULT_BRANCH_FALLBACK}

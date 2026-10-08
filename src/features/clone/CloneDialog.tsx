@@ -52,6 +52,7 @@ type DialogStep =
 
 export function CloneDialog({
   isOpen,
+  initialSource = "",
   controller,
   onClose,
   onVerifiedClone,
@@ -59,6 +60,10 @@ export function CloneDialog({
   repositoryPort = repositoryBrowserPort,
 }: {
   isOpen: boolean;
+  /** An address the caller already has, such as one pasted into Home's
+   * launcher; it fills the field when the dialog opens and is still checked
+   * like anything typed there. */
+  initialSource?: string;
   controller: CloneController;
   onClose: () => void;
   onVerifiedClone: (result: CloneResult) => Promise<void>;
@@ -130,7 +135,10 @@ export function CloneDialog({
   };
 
   useEffect(() => {
-    if (isOpen) resetTransientState();
+    if (isOpen) {
+      resetTransientState();
+      if (initialSource) { setSourceMode("url"); setSource(initialSource); }
+    }
     else { controller.sourceAccess.reset(); repositoryBrowser.cancel(); }
   }, [isOpen]);
   useEffect(() => () => { controller.sourceAccess.reset(); repositoryBrowser.cancel(); controller.supersede(); }, [controller, repositoryBrowser]);

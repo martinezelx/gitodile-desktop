@@ -6,7 +6,13 @@ import {
   readRecentProjects,
   rememberRecentProject,
   rememberRecentProjectTechnology,
+  type RecentProject,
 } from "./recentProjects";
+
+/** The open time is asserted on its own; the other cases are about order. */
+function strip(entries: RecentProject[] | null): Array<Omit<RecentProject, "openedAt">> | null {
+  return entries?.map(({ openedAt: _openedAt, ...rest }) => rest) ?? null;
+}
 
 describe("recent projects storage", () => {
   beforeEach(() => {
@@ -14,17 +20,25 @@ describe("recent projects storage", () => {
   });
 
   it("returns an empty list when nothing is stored", () => {
-    expect(readRecentProjects()).toEqual([]);
+    expect(strip(readRecentProjects())).toEqual([]);
   });
 
   it("keeps the newest opened project first", () => {
     rememberRecentProject({ path: "/a", name: "a" });
     rememberRecentProject({ path: "/b", name: "b" });
 
-    expect(readRecentProjects()).toEqual([
+    expect(strip(readRecentProjects())).toEqual([
       { path: "/b", name: "b" },
       { path: "/a", name: "a" },
     ]);
+  });
+
+  it("records when each project was last opened, and keeps it across a technology update", () => {
+    rememberRecentProject({ path: "/a", name: "a" }, 1_000);
+    rememberRecentProjectTechnology("/a", "rust");
+    expect(readRecentProjects()).toEqual([{ path: "/a", name: "a", technology: "rust", openedAt: 1_000 }]);
+    rememberRecentProject({ path: "/a", name: "a" }, 2_000);
+    expect(readRecentProjects()[0].openedAt).toBe(2_000);
   });
 
   it("promotes a reopened project instead of duplicating it, and takes its current name", () => {
@@ -32,7 +46,7 @@ describe("recent projects storage", () => {
     rememberRecentProject({ path: "/b", name: "b" });
     rememberRecentProject({ path: "/a", name: "a-renamed" });
 
-    expect(readRecentProjects()).toEqual([
+    expect(strip(readRecentProjects())).toEqual([
       { path: "/a", name: "a-renamed" },
       { path: "/b", name: "b" },
     ]);
@@ -40,29 +54,29 @@ describe("recent projects storage", () => {
 
   it("keeps a detected mark after closing and reopening the app, then replaces it on a new read", () => {
     rememberRecentProject({ path: "/a", name: "a" });
-    expect(rememberRecentProjectTechnology("/a", "rust")).toEqual([
+    expect(strip(rememberRecentProjectTechnology("/a", "rust"))).toEqual([
       { path: "/a", name: "a", technology: "rust" },
     ]);
     expect(rememberRecentProjectTechnology("/a", "rust")).toBeNull();
-    expect(readRecentProjects()).toEqual([{ path: "/a", name: "a", technology: "rust" }]);
+    expect(strip(readRecentProjects())).toEqual([{ path: "/a", name: "a", technology: "rust" }]);
 
     rememberRecentProject({ path: "/a", name: "renamed" });
-    expect(readRecentProjects()).toEqual([{ path: "/a", name: "renamed", technology: "rust" }]);
+    expect(strip(readRecentProjects())).toEqual([{ path: "/a", name: "renamed", technology: "rust" }]);
     rememberRecentProjectTechnology("/a", null);
-    expect(readRecentProjects()).toEqual([{ path: "/a", name: "renamed", technology: null }]);
+    expect(strip(readRecentProjects())).toEqual([{ path: "/a", name: "renamed", technology: null }]);
   });
 
   it("does not recreate a forgotten recent project from a late detection", () => {
     rememberRecentProject({ path: "/a", name: "a" });
     forgetRecentProject("/a");
     expect(rememberRecentProjectTechnology("/a", "rust")).toBeNull();
-    expect(readRecentProjects()).toEqual([]);
+    expect(strip(readRecentProjects())).toEqual([]);
   });
 
   it("forgets exactly one entry and leaves the rest in order", () => {
     for (const path of ["/a", "/b", "/c"]) rememberRecentProject({ path, name: path });
 
-    expect(forgetRecentProject("/b")).toEqual([
+    expect(strip(forgetRecentProject("/b"))).toEqual([
       { path: "/c", name: "/c" },
       { path: "/a", name: "/a" },
     ]);
@@ -82,13 +96,13 @@ describe("recent projects storage", () => {
 
   it("treats corrupt JSON and an unrecognized schema as nothing stored", () => {
     localStorage.setItem("gitodile-recent-projects", "{not json");
-    expect(readRecentProjects()).toEqual([]);
+    expect(strip(readRecentProjects())).toEqual([]);
 
     localStorage.setItem(
       "gitodile-recent-projects",
       JSON.stringify({ version: 2, entries: [{ path: "/a", name: "a" }] }),
     );
-    expect(readRecentProjects()).toEqual([]);
+    expect(strip(readRecentProjects())).toEqual([]);
   });
 
   it("rejects entries that are not a path and a name", () => {
@@ -96,6 +110,6 @@ describe("recent projects storage", () => {
       "gitodile-recent-projects",
       JSON.stringify({ version: 1, entries: [{ path: "/a" }] }),
     );
-    expect(readRecentProjects()).toEqual([]);
+    expect(strip(readRecentProjects())).toEqual([]);
   });
 });

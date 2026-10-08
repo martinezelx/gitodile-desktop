@@ -106,29 +106,8 @@ export interface OverviewTranslations {
   overviewPublishUpTo: string;
   overviewPublishUpToHint: string;
   overviewCloseProject: string;
-  overviewEmptyTitle: string;
-  overviewHomeTitle: string;
-  overviewEmptyDescription: string;
   overviewOpening: string;
   overviewOpenProject: string;
-  overviewCloneRemoteProject: string;
-  overviewCreateLocalProject: string;
-  /** One line under each welcome action, answering "which of these three is
-   * mine?" — the labels alone don't separate opening a folder that is already
-   * a project from creating or downloading one. */
-  overviewCreateLocalProjectHint: string;
-  overviewOpenProjectHint: string;
-  overviewCloneRemoteProjectHint: string;
-  /** Discovery line for the window's drag-and-drop: the gesture works, and
-   * nothing on screen said so. */
-  overviewDropFolderHint: string;
-  overviewRecentProjectsTitle: string;
-  /** The star beside the recents heading: the same view filter the version
-   * line quick switch has, in the recents' own words. */
-  overviewRecentFavouritesOnly: string;
-  overviewRecentFavouritesOnlyOff: string;
-  overviewForgetRecentProject: (name: string) => string;
-  overviewForgetRecentProjectShort: string;
   overviewOpenDialogTitle: string;
   overviewCouldntOpenFolder: string;
 }
@@ -226,22 +205,8 @@ const en: OverviewTranslations = {
   overviewPublishUpTo: "Publish up to here",
   overviewPublishUpToHint: "Publishes this version and all older ones.",
   overviewCloseProject: "Close project",
-  overviewEmptyTitle: "No project open",
-  overviewHomeTitle: "What would you like to open?",
-  overviewEmptyDescription: "Choose how to start. Everything stays on this computer until you publish.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
-  overviewCloneRemoteProject: "Clone a remote project",
-  overviewCreateLocalProject: "Create a local project",
-  overviewCreateLocalProjectHint: "A new or existing folder",
-  overviewOpenProjectHint: "A folder that uses Git",
-  overviewCloneRemoteProjectHint: "Download from a server",
-  overviewDropFolderHint: "Or drag a project folder onto this window.",
-  overviewRecentProjectsTitle: "Recent projects",
-  overviewRecentFavouritesOnly: "Show favorite projects only",
-  overviewRecentFavouritesOnlyOff: "Show all recent projects",
-  overviewForgetRecentProject: (name) => `Remove ${name} from recent projects`,
-  overviewForgetRecentProjectShort: "Remove from recent projects",
   overviewOpenDialogTitle: "Open a Git project",
   overviewCouldntOpenFolder: "Couldn't open that folder.",
 };
@@ -339,22 +304,8 @@ const es: OverviewTranslations = {
   overviewPublishUpTo: "Publicar hasta aquí",
   overviewPublishUpToHint: "Publica esta versión y todas las anteriores.",
   overviewCloseProject: "Cerrar proyecto",
-  overviewEmptyTitle: "Ningún proyecto abierto",
-  overviewHomeTitle: "¿Qué te gustaría abrir?",
-  overviewEmptyDescription: "Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
-  overviewCloneRemoteProject: "Clonar un proyecto remoto",
-  overviewCreateLocalProject: "Crear un proyecto local",
-  overviewCreateLocalProjectHint: "Carpeta nueva o tuya",
-  overviewOpenProjectHint: "Una carpeta con Git",
-  overviewCloneRemoteProjectHint: "Desde un servidor",
-  overviewDropFolderHint: "O arrastra la carpeta de un proyecto a esta ventana.",
-  overviewRecentProjectsTitle: "Proyectos recientes",
-  overviewRecentFavouritesOnly: "Ver solo proyectos favoritos",
-  overviewRecentFavouritesOnlyOff: "Ver todos los proyectos recientes",
-  overviewForgetRecentProject: (name) => `Quitar ${name} de proyectos recientes`,
-  overviewForgetRecentProjectShort: "Quitar de proyectos recientes",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",
   overviewCouldntOpenFolder: "No se pudo abrir esa carpeta.",
 };

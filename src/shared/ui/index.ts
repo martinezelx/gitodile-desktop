@@ -139,3 +139,4 @@ export { ErrorBoundary, ViewErrorNotice, type ViewErrorLabels } from "./errorBou
 export { ToolGuideButton, ToolInstallationRow, type ToolChip, type ToolChipTone } from "./toolInstallationRow";
 
 export { GitHubIcon, HostingProviderIcon } from "./hostingProviderIcon";
+export { GitIcon } from "./gitIcon";

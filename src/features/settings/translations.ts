@@ -813,7 +813,7 @@ const es: SettingsTranslations = {
   lineEndingsEolNote: "Otro ajuste también decide lo que se escribe en el disco (core.eol):",
   lineEndingsSaved: "Guardado.",
   lineEndingsCouldntSave: "No se pudo guardar.",
-  settingsStartupTitle: "Inicio",
+  settingsStartupTitle: "Al abrir la app",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Recupera los proyectos que estaban abiertos al salir.",
   settingsWatchingTitle: "Actualización automática",

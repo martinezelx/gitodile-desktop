@@ -1,0 +1,560 @@
+/* ---- Home: greeting and launcher ----
+   The app's front door, and also Overview's no-project fallback. A greeting
+   beside the mascot, then one raised box: the field, the Recent/Favourites
+   tabs, the results and, at its foot, the three ways to start. Left-aligned
+   inside a centred column, because names and paths are read down an edge. */
+.home-launcher {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  /* Top-anchored and as high as the shell allows — the workspace's own top
+     inset, like every other screen: the card can grow with recents, setup
+     steps, a notice and its status line, and the greeting never moves as
+     results grow and shrink while typing. Horizontally it stays centred. No
+     bottom padding: the workspace's bottom inset already ends the page, and
+     the two together scrolled a window whose content all fitted. */
+  padding: 0 24px;
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+}
+.home-launcher__hello { display: flex; align-items: center; gap: 20px; }
+/* The mascot greets on the front door; its entrance and the crest's wave are
+   the mascot's own motions (`enter` and `commits`, primitives.css). */
+.home-launcher__mascot { flex-shrink: 0; width: 116px; }
+.home-launcher__greeting { min-width: 0; display: grid; gap: var(--space-1); }
+.home-launcher__greeting h1 {
+  margin: 0;
+  /* One step above the hero name: this is the front door's single headline. */
+  font-size: calc(var(--text-hero) * 1.15);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-hero);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+.home-launcher__prompt {
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: calc(var(--text-title) * 1.12);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-snug);
+  text-wrap: balance;
+}
+
+/* The same raised card the open project's Overview is made of, so the front
+   door and the room behind it are one house. */
+.home-launcher__box {
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+.home-launcher__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  cursor: text;
+}
+.home-launcher__field svg { flex-shrink: 0; width: 18px; height: 18px; }
+.home-launcher__field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary-color);
+  font: inherit;
+  font-size: var(--text-subtitle);
+}
+.home-launcher__field input::placeholder { color: var(--text-secondary-color); }
+.home-launcher__field:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
+
+.home-launcher__tabs { display: flex; gap: var(--space-1); padding: var(--space-2) var(--space-3) 0; }
+.home-launcher__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.home-launcher__tab svg { width: 12px; height: 12px; }
+.home-launcher__tab:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.home-launcher__tab[aria-pressed="true"] {
+  background: var(--surface-active);
+  color: var(--accent-primary);
+  font-weight: var(--weight-heading);
+}
+.home-launcher__tab[aria-pressed="true"] svg { fill: currentColor; }
+.home-launcher__tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.home-launcher__results { display: grid; gap: 2px; padding: var(--space-2) 6px; }
+.home-launcher__section { display: grid; gap: 2px; }
+.home-launcher__section + .home-launcher__section { margin-top: var(--space-1); }
+.home-launcher__section-title {
+  margin: 0;
+  padding: 6px 10px 2px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.home-launcher__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+/* A recent project's star and Remove float over the row's right end instead of reserving
+   a column, so the time lines up with the card's edge — and with Continue's
+   pill — at rest; pointing at or into the row swaps the time for them. A
+   marked favourite keeps its star, and its time steps left to make room. */
+.home-launcher__item { position: relative; display: flex; align-items: center; border-radius: var(--radius-item); }
+.home-launcher__item--recent .home-launcher__favourite,
+.home-launcher__item--recent .home-launcher__forget { position: absolute; top: 50%; translate: 0 -50%; }
+.home-launcher__item--recent .home-launcher__forget { right: 4px; }
+.home-launcher__item--recent .home-launcher__favourite { right: 36px; }
+.home-launcher__item--favourite:not(:hover, :focus-within) .home-launcher__favourite { right: 6px; }
+.home-launcher__item--favourite .home-launcher__time,
+.home-launcher__item--favourite .home-launcher__enter { margin-right: 30px; }
+.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__time,
+.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__enter { visibility: hidden; }
+.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__open { padding-right: 72px; }
+
+/* Every row's main control shares one shape: avatar or glyph, name over
+   path, and a trailing fact or Enter hint. */
+.home-launcher__open,
+.home-launcher__action,
+.home-launcher__continue {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background var(--duration-fast);
+}
+.home-launcher__open:hover:not(:disabled),
+.home-launcher__action:hover:not(:disabled) { background: var(--surface-hover); }
+.home-launcher__open:focus-visible,
+.home-launcher__action:focus-visible,
+.home-launcher__continue:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.home-launcher__open:disabled,
+.home-launcher__action:disabled,
+.home-launcher__continue:disabled { opacity: 0.5; }
+/* What Enter in the field opens: the light accent wash a reached step has. */
+.home-launcher__item--primary,
+.home-launcher__action--primary { background: var(--surface-active); }
+.home-launcher__item--primary .home-launcher__open:hover:not(:disabled),
+.home-launcher__action--primary:hover:not(:disabled) { background: transparent; }
+
+.home-launcher__avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-identity);
+  color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-wide);
+}
+.home-launcher__avatar--large { width: 44px; height: 44px; font-size: var(--text-label); }
+.home-launcher__glyph {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.home-launcher__action--primary .home-launcher__glyph { background: var(--surface-active); color: var(--accent-primary); }
+.home-launcher__glyph svg { width: 15px; height: 15px; }
+.home-launcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.home-launcher__name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-lead);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-launcher__name--large { font-size: var(--text-title); font-weight: var(--weight-heading); }
+.home-launcher__path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-launcher__time {
+  flex-shrink: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.home-launcher__enter {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent-primary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  white-space: nowrap;
+}
+.home-launcher__enter svg { width: 13px; height: 13px; }
+
+/* Continue: the project to go back to, and the screen's one accent — a
+   light-accent row with the primary fill on its pill, which breathes once. */
+.home-launcher__continue {
+  flex: none;
+  width: 100%;
+  margin-bottom: var(--space-1);
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-active);
+}
+.home-launcher__kicker {
+  color: var(--accent-primary);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.home-launcher__go {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height-sm);
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+  white-space: nowrap;
+}
+.home-launcher__go svg { width: 13px; height: 13px; }
+
+.home-launcher__note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 4px;
+  padding: 10px;
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-item);
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+}
+.home-launcher__note svg { flex-shrink: 0; width: 14px; height: 14px; }
+.home-launcher__note--plain { border: 0; padding: 6px 10px; }
+
+/* Mirrors Remove in footprint so the two trailing controls line up: unmarked
+   the star sits faded, marked it goes solid and takes the accent — the one
+   state that must survive not pointing at the row. */
+.home-launcher__favourite,
+.home-launcher__forget {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  opacity: 0;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.home-launcher__favourite svg,
+.home-launcher__forget svg { width: 14px; height: 14px; }
+.home-launcher__item--recent:hover .home-launcher__favourite,
+.home-launcher__item--recent:hover .home-launcher__forget,
+.home-launcher__item--recent:focus-within .home-launcher__favourite,
+.home-launcher__item--recent:focus-within .home-launcher__forget { opacity: 1; }
+.home-launcher__favourite:hover,
+.home-launcher__forget:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.home-launcher__favourite--on { opacity: 1; color: var(--accent-primary); }
+.home-launcher__favourite--on svg { fill: currentColor; }
+@media (hover: none) {
+  .home-launcher__favourite,
+  .home-launcher__forget { opacity: 1; }
+  /* No pointer to reveal them: the two controls stay, and the time keeps
+     clear of them. */
+  .home-launcher__item--recent .home-launcher__favourite,
+  .home-launcher__item--favourite:not(:hover, :focus-within) .home-launcher__favourite { right: 36px; }
+  .home-launcher__item--recent .home-launcher__open { padding-right: 72px; }
+  .home-launcher__item--favourite .home-launcher__time,
+  .home-launcher__item--favourite .home-launcher__enter { margin-right: 0; }
+}
+
+/* The three ways to start: peers in shape and weight, no accent on any. */
+.home-launcher__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+.home-launcher__start {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
+  font-size: var(--control-font-md);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.home-launcher__start > span:first-child { display: inline-flex; }
+.home-launcher__start svg { width: 14px; height: 14px; }
+.home-launcher__start:hover:not(:disabled) { background: var(--surface-hover); }
+.home-launcher__start:hover:not(:disabled) svg { color: var(--accent-primary); }
+.home-launcher__start:disabled { opacity: 0.5; }
+.home-launcher__start:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.home-launcher__drop {
+  margin-left: auto;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+
+
+/* An account tab carries its provider's mark, in the tab's own ink. */
+.home-launcher__tab-mark { display: inline-flex; }
+.home-launcher__tab-mark svg { width: 12px; height: 12px; }
+.home-launcher__tab[aria-pressed="true"] .home-launcher__tab-mark svg { fill: currentColor; }
+
+/* Continue gives up the accent while a missing Git holds it. */
+.home-launcher__go--quiet {
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
+}
+.home-launcher__note svg.icon--spinning { width: 14px; height: 14px; }
+.home-launcher__inline-action,
+.home-launcher__more {
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.home-launcher__inline-action { margin-left: var(--space-2); padding: 0; }
+.home-launcher__more { justify-self: start; margin: 2px 6px; padding: 6px 4px; border-radius: var(--radius-item); }
+.home-launcher__inline-action:focus-visible,
+.home-launcher__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* ---- First run: setting the computer up, inside the results area ---- */
+.home-setup { display: grid; gap: 2px; }
+.home-setup__header { display: flex; align-items: center; gap: 10px; padding-right: 6px; }
+.home-setup__title { flex-shrink: 0; }
+.home-setup__progress { color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums; }
+.home-setup__bar { width: 88px; height: 4px; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.home-setup__bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent-primary); }
+.home-setup__hide {
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+.home-setup__hide:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.home-setup__hide:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.home-setup__steps { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.home-setup__step { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: var(--radius-item); }
+.home-setup__step--next { background: var(--surface-active); }
+.home-setup__glyph {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.home-setup__glyph svg { width: 16px; height: 16px; }
+/* The three fills a glyph circle takes elsewhere: light = done, solid = do this. */
+.home-setup__glyph--done { background: var(--surface-active); color: var(--accent-primary); }
+.home-setup__glyph--now { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); }
+.home-setup__name { white-space: normal; }
+.home-setup__step--done .home-setup__name { color: var(--text-secondary-color); }
+.home-setup__hint { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+.home-setup__optional {
+  margin-left: var(--space-2);
+  padding: 1px 7px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary-color);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-heading);
+  vertical-align: 1px;
+}
+.home-setup__action { flex-shrink: 0; }
+
+/* ---- Git missing: the one blocking notice, above the results ---- */
+.home-git-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: var(--space-2) var(--space-2) 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+.home-git-notice__glyph {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--status-warning) 18%, transparent);
+  color: var(--status-warning);
+}
+.home-git-notice__glyph svg { width: 16px; height: 16px; }
+.home-git-notice__title { font-size: var(--text-body); font-weight: var(--weight-heading); }
+.home-git-notice__hint { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+.home-git-notice__action { flex-shrink: 0; }
+.home-git-notice__action svg { width: 14px; height: 14px; }
+
+/* ---- The card's foot: what this computer is set up with ---- */
+.home-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+.home-status__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.home-status__item svg { width: 13px; height: 13px; }
+.home-status__item:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.home-status__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
+.home-status__ok { color: var(--accent-primary); }
+.home-status__mark { display: inline-flex; }
+.home-status__item--warn { color: var(--status-warning); font-weight: var(--weight-heading); }
+.home-status__item--connect { margin-left: auto; }
+.home-status__item--icon { width: 26px; padding: 0; justify-content: center; }
+.home-status__mark svg { width: 13px; height: 13px; }
+/* A place held for an entry still being read: no hover, no pointer. */
+.home-status__item--placeholder,
+.home-launcher__tab--placeholder { cursor: default; }
+.home-status__item--placeholder:hover { background: transparent; }
+
+/* A provider with more than one account: pick which one the tab lists. */
+.home-launcher__account-head { display: flex; align-items: center; gap: var(--space-2); padding-right: 6px; }
+.home-launcher__account-head .home-launcher__section-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-launcher__account-chooser { display: flex; gap: 2px; padding: 2px; border-radius: var(--radius-pill); background: var(--surface-hover); }
+.home-launcher__account-choice {
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.home-launcher__account-choice[aria-pressed="true"] { background: var(--surface-raised); color: var(--text-primary-color); font-weight: var(--weight-heading); box-shadow: var(--shadow-sm); }
+.home-launcher__account-choice:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+/* Three or more accounts: one compact menu, whatever the count. */
+.home-launcher__account-select {
+  flex-shrink: 0;
+  max-width: 50%;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
+  font: inherit;
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+}
+.home-launcher__account-select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* A short window keeps the card's rows and gives up greeting size instead. */
+@media (max-height: 820px) {
+  .home-launcher { gap: var(--space-4); }
+  .home-launcher__mascot { width: 92px; }
+  .home-launcher__greeting h1 { font-size: var(--text-hero); }
+  .home-launcher__prompt { font-size: var(--text-title); }
+}
+
+@media (max-width: 560px) {
+  .home-launcher { padding: 0 var(--space-4); }
+  .home-launcher__mascot { width: 72px; }
+  .home-launcher__drop { margin-left: 0; flex-basis: 100%; }
+}
+
+@media (pointer: coarse) {
+  .home-launcher__favourite,
+  .home-launcher__forget { width: 44px; height: 44px; }
+  .home-launcher__start { height: var(--control-height-lg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-launcher__tab,
+  .home-launcher__open,
+  .home-launcher__action,
+  .home-launcher__favourite,
+  .home-launcher__forget,
+  .home-launcher__start,
+  .home-status__item { transition: none; }
+}
+
+/* The card states its edge with a fill and a shadow, which forced colours
+   throw away; drawn inward so the fallback cannot change layout. */
+@media (forced-colors: active) {
+  .home-launcher__box {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}

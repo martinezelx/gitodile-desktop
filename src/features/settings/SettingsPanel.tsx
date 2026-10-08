@@ -47,6 +47,7 @@ import {
   PROJECT_AVATAR_STYLES,
   type ProjectAvatarStyle,
   type TechnologyId,
+  GitIcon,
 } from "../../shared/ui";
 import {
   COMMUNITY_THEMES,
@@ -90,7 +91,6 @@ import {
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import { GhToolingSection, type HostingToolingCopy, type HostingToolingPort } from "./GhToolingSection";
-import { GitIcon } from "./GitIcon";
 import { GitLocationFacts, GitTechnicalDetails } from "./GitInstallationFacts";
 import { GitHubIcon } from "./GitHubIcon";
 import { ToolRecheckButton } from "./ToolRecheckButton";

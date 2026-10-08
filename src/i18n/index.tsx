@@ -16,6 +16,7 @@ import { githubTranslations } from "../features/github/translations";
 import { githubTokenTranslations } from "../features/github/tokenTranslations";
 import { hostingServersTranslations } from "../features/hosting-servers/translations";
 import { repositoryBrowserTranslations } from "../features/repository-browser/translations";
+import { homeTranslations } from "../features/home/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
 import { publishTranslations } from "../features/publish/translations";
@@ -73,6 +74,7 @@ export const translationNamespaces = {
   hostingServers: hostingServersTranslations,
   repositoryBrowser: repositoryBrowserTranslations,
   accounts: accountsTranslations,
+  home: homeTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
   sync: syncTranslations,
@@ -102,6 +104,7 @@ const en = {
   ...hostingServersTranslations.en,
   ...repositoryBrowserTranslations.en,
   ...accountsTranslations.en,
+  ...homeTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
   ...syncTranslations.en,
@@ -133,6 +136,7 @@ const es: Translations = {
   ...hostingServersTranslations.es,
   ...repositoryBrowserTranslations.es,
   ...accountsTranslations.es,
+  ...homeTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
   ...syncTranslations.es,

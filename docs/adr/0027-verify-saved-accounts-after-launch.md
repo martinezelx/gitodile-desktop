@@ -35,6 +35,12 @@ connections (unchecked, reconnect or offline), exactly like the manual action;
 nothing is removed or replaced. A test keeps the synced products equal to the
 registered ones.
 
+The account catalog reports `busy` from the moment the launch check is
+scheduled, not only once it starts, so a catalog read during the three-second
+delay says a check is coming. The renderer's existing busy polling then picks
+up the verified connections without any screen starting a check (added
+2026-10-08, after Home rendered "no accounts" from a read in that window).
+
 The renderer keeps reading local receipts: opening a screen never starts a
 check. `useAccounts` renders the last receipt at once when a section is shown
 again, and the clone dialog waits for a running check before preselecting a

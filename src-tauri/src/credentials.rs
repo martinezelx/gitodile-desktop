@@ -11,6 +11,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use zeroize::Zeroize;
 
@@ -110,6 +111,11 @@ pub(crate) struct AccountService {
     // snapshot so no provider call ever runs under this lock.
     providers: RwLock<Vec<Arc<dyn AccessProvider>>>,
     selections: Mutex<Result<Selections, ()>>,
+    /// Set while the launch check is scheduled but has not yet handed off to
+    /// the providers' own workers (ADR 0027). Without it the catalog read in
+    /// that window reports nothing in progress, and a screen that rendered
+    /// it would never learn the saved connections became usable.
+    launch_check_pending: AtomicBool,
 }
 static GLOBAL: OnceLock<Arc<AccountService>> = OnceLock::new();
 
@@ -198,6 +204,7 @@ impl AccountService {
             path,
             providers: RwLock::new(providers),
             selections: Mutex::new(selections),
+            launch_check_pending: AtomicBool::new(false),
         }
     }
 
@@ -240,8 +247,21 @@ impl AccountService {
                 })
                 .collect(),
             accounts: providers.iter().flat_map(|p| p.accounts()).collect(),
-            busy: providers.iter().any(|p| p.busy()),
+            busy: self.launch_check_pending.load(Ordering::Acquire)
+                || providers.iter().any(|p| p.busy()),
         }
+    }
+
+    /// Marks the launch check as on its way, so the catalog reads as busy from
+    /// the moment it is scheduled rather than only once it starts.
+    pub(crate) fn begin_launch_check(&self) {
+        self.launch_check_pending.store(true, Ordering::Release);
+    }
+
+    /// Called once every product's check has been started: from here the
+    /// providers' own busy state covers the rest of the work.
+    pub(crate) fn end_launch_check(&self) {
+        self.launch_check_pending.store(false, Ordering::Release);
     }
 
     /// Checking a product (`github`/`gitlab`) also checks its company servers,
@@ -915,6 +935,24 @@ mod tests {
             .account_id
             .is_none());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn catalog_reads_busy_while_the_launch_check_is_scheduled() {
+        let root = scratch();
+        let service = AccountService::new(
+            root.join("accounts.json"),
+            vec![provider("github", "github.com")],
+        );
+        assert!(!service.catalog().busy);
+        service.begin_launch_check();
+        assert!(
+            service.catalog().busy,
+            "a read during the launch delay must say a check is coming"
+        );
+        service.end_launch_check();
+        assert!(!service.catalog().busy);
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

@@ -33,14 +33,22 @@ const LAUNCH_SYNC_DELAY: std::time::Duration = std::time::Duration::from_secs(3)
 /// check per product. Each check runs on its own worker; failures only mark
 /// the affected connections, exactly like the Check accounts action.
 pub(crate) fn sync_accounts_after_launch(accounts: Arc<AccountService>) {
-    let _ = std::thread::Builder::new()
+    // Busy from now, not from when the delay ends: a catalog read in between
+    // must say a check is coming, so the renderer keeps polling for it.
+    accounts.begin_launch_check();
+    let worker = accounts.clone();
+    let spawned = std::thread::Builder::new()
         .name("hosting-launch-sync".into())
         .spawn(move || {
             std::thread::sleep(LAUNCH_SYNC_DELAY);
             for product in LAUNCH_SYNC_PRODUCTS {
-                let _ = accounts.check(product);
+                let _ = worker.check(product);
             }
+            worker.end_launch_check();
         });
+    if spawned.is_err() {
+        accounts.end_launch_check();
+    }
 }
 
 /// One registry serves the desktop catalog and the internal helper process.

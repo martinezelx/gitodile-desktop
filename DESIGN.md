@@ -662,7 +662,7 @@ values before this was written down. Choose the tier by what the thing *is*:
 | Token | What it is | Examples |
 | --- | --- | --- |
 | `--radius-round` (50%) | An atomic thing with no reading direction | Person avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
-| `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | Rail project chip, project switcher, jump list, welcome recents, project-icon previews |
+| `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | Rail project chip, project switcher, jump list, Home's recents, project-icon previews |
 | `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
 | `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box (a theme-picker card), square icon button of 40px and up that is not in an action row |
@@ -1309,7 +1309,7 @@ per-project choice is stored per machine, keyed by the project, never in the
 
 Brand identity is not window furniture. Neither the titlebar nor the rail carries a mark or a wordmark: a 40px lockup at the top of the rail once spent that column's most valuable real estate on something that never changes, and a mark in the titlebar corner later did the same to the toolbar. The mascot appears where the app is being introduced or described: the no-project welcome screen and About. The compact layout below 800px adds no wordmark either; the window title and the operating system name the app.
 
-The welcome screen shows the full mascot above its heading (144px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body and crest follow the theme (ADR 0013) while the ink outline, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640` and the deep teal crest `#0f4a43`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. Their crest is a deep shade of the same accent (OKLCH lightness 0.37, chroma at most 0.09). The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
+Home shows the full mascot beside its greeting (116px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body and crest follow the theme (ADR 0013) while the ink outline, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640` and the deep teal crest `#0f4a43`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. Their crest is a deep shade of the same accent (OKLCH lightness 0.37, chroma at most 0.09). The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
 
 About leads with the mascot at hero scale, then the name, then the promise, all
 centred. The mascot is the full body with its theme fill, never a tile; the name
@@ -2223,62 +2223,145 @@ its verb ("Publishing…"), at the control's own size.
 The Overview used to spin a spinner in each card while Changes drew the bar
 over the same wait; one wait now looks the same wherever it is.
 
-**The welcome screen is the one documented departure, and it departs in one
-direction only.** Screen 1 is a front door, not a "nothing here" report: it has
-three peer entry points — create, open, clone — where the pattern allows one or
-two, and as capsules their labels wrapped to three lines *inside* the pill,
-because a capsule is a single-line control by definition (§ Shape). It keeps
-the block, the headline and the one supporting line, and replaces only the
-action row with a launcher: one card per action (`--radius-surface`), each a
-filled glyph circle — the same 40px tile Overview heads its cards with, no ring,
-lit in the light accent only under the pointer — with its label and a one-line
-hint underneath, reusing the
-add-project menu's own icons so both routes to the same three flows look
-related. The pattern's own glyph tile goes away there rather than becoming a
-fourth circle above three, and **the three read as peers**: same tile, same
-weight, no accent on any of them. The old row had one green pill and two grey
-buttons, so the shape carried a recommendation; as cards it would be a claim
-the screen cannot support, since which action is right depends entirely on what
-the user already has on disk. The hint under each label answers that, and it
-answers it better than a colour that only says "this one".
-The Projects screen can be revisited with projects open. Its heading then asks what to open,
-its recent list excludes projects already open in the switcher, and neither
-the switcher nor the rail marks a current destination. Back returns to the
-project screen that led here; Forward can revisit Projects until another navigation.
-The status bar continues to show the active project's name, working-tree and
-remote state, and available project actions. With no project open, it shows
-the no-project state. The mascot's entrance plays once per application session; later
-visits keep the periodic wave of commits without another entrance.
+**Home is the one documented departure from the empty-state block.** Screen 1
+is a front door, not a "nothing here" report, and it is shaped like a launcher
+(Raycast, Arc's command bar) under a greeting (Claude's or Notion's home)
+rather than like the centred icon-headline-actions block. The navigation names
+it **Home** / **Inicio** (house icon); the screen itself never repeats that
+word as a title.
 
-Progress lives on the card that is working — opening a project reports in the
-Open card — not in a spinner at the top of the screen. This screen also owns
-the app's only `h1` while no project is open; the shell does not additionally
-title it "Overview". Read the departure as "a launcher earns cards", not as
-"empty states may invent shapes".
+- **Greeting.** The mascot sits left of the `h1`, "Good morning, Luis" /
+  "Buenos días, Luis": the part of the day (morning until 14:00, afternoon
+  until 21:00, evening otherwise) and the first word of the Git identity's
+  `user.name`, dropped when there is none. Under it, in title size and the
+  secondary ink, one question for that part of the day ("What are we working
+  on today?"). Three per part; each arrival at Home picks one other than the
+  last, and returning also empties the field and puts the cursor back in it.
+  It never rotates while the screen is shown, because text that changes
+  under the reader is a distraction. The block sits as high as the shell
+  allows — the workspace's own top inset, with no padding of its own above or
+  below, since a second bottom inset scrolled windows whose content fitted —
+  and centred horizontally; windows under 820px tall shrink the mascot and
+  greeting rather than the card: the card can
+  grow with recents, setup steps, a notice and its status line, so it needs
+  the room below, and a top-anchored greeting never moves as the results grow
+  and shrink while typing.
+- **Launcher.** One raised card (`--radius-surface`, the Overview's own card)
+  holds a field, the results and, at its foot, the three ways to start. The
+  field has focus on arrival. Typing filters the recent projects (name matches
+  before path matches, recency kept) and offers to create a project with that
+  name; a pasted remote address offers to clone it, and flags a recent project
+  with the same name; an absolute path offers to open that folder. The
+  launcher only suggests: cloning opens the Clone dialog filled in, a path goes
+  through the same open — and the same Rust validation — as the folder picker,
+  and nothing runs merely because something was pasted. Enter takes the first
+  suggestion, which is drawn selected (the light accent wash and an Enter
+  hint); the arrow keys walk the field and the rows' main controls; Escape
+  clears the query. Ctrl+K stays the command palette.
+- **Continue.** With nothing typed and no project open, the most recently
+  opened project leads the list as a larger row — kicker "Continue where you
+  left off", path and when it was opened — whose accent-filled pill is the
+  screen's one accent and breathes once (`.attention-breathe`). Enter in the
+  empty field opens it. It is not listed again underneath. With projects
+  already open, Home answers "what else?", so there is no Continue.
+- **Recent and Favorites.** Under the field, two small tabs appear once there
+  is a favourite; Favorites lists only those, and is a view, not a setting.
+  The star on each row is the **same favourite the rail and the switcher
+  show**, from the same store and with the same strings; it is rendered at
+  rest when marked, and the row's Remove follows the switcher's Close (shown
+  on pointing or focus, always where there is no pointer). Both float over
+  the row's right end instead of reserving a column, so at rest each row's
+  "opened 8 minutes ago" lines up with the card's edge and with Continue's
+  pill, and gives way to them on pointing or focus; a marked favourite keeps
+  its star and its time steps left. Recent lists
+  newest first, five rows including Continue; searching reaches every stored
+  entry. Each row carries the project's own avatar, the same colour and
+  initials the rail and the switcher give it; the name is the row's
+  accessible name and the path its description.
+- **The three ways to start** — create, open, clone — sit at the card's foot
+  as three identical secondary capsules with short labels ("Create", "Open",
+  "Clone"), each accessible name the full label it begins with and its hint as
+  description and tooltip. They are peers, with no accent on any of them:
+  which is right depends on what the user already has on disk. Opening is the
+  only one that runs here rather than in a dialog, so its own capsule carries
+  the progress. Beside them, one quiet line says a folder can be dragged onto
+  the window.
+- With no recent projects yet, the field asks for a URL or a folder path to
+  paste.
+- **Setting the computer up lives inside the same card**, so Home stays a
+  greeting and one object. Everything it shows is already read locally — the
+  Git diagnostics and identity App reads after first paint, and the account
+  receipts the launch sync keeps (ADR 0027) — and none of it reads a
+  repository or the network.
+  - *First run.* With no recent projects, the results area that would be
+    empty holds "Set up GitOdile": Git installed, your name and email, and a
+    GitHub, GitLab or Bitbucket account marked Optional, with "1 of 3" and a
+    thin progress bar. The next step gets the light accent wash; while it is
+    required its glyph is filled solid and breathes once — the screen's one
+    accent, which Continue cannot contest because there is nothing to
+    continue yet. The optional account never takes the accent. "Hide" is
+    remembered on this machine. The steps wait for every answer, so none
+    flashes as missing, and they go once all three are done or the first
+    project is opened.
+  - *Git missing or unusable.* The one blocking problem gets a warning-toned
+    notice between the field and the results: "Install Git" (or "Open
+    Settings") opens Settings › Git, where installation already lives, and
+    "Check again" re-reads the diagnostics — only on that press, never because
+    Home became visible. It takes the accent, Continue turns neutral, and
+    every control that would touch a project is disabled.
+  - *Status line.* Otherwise the card's foot, under the three ways to start,
+    says what this computer is set up with, each part a quiet control into its
+    own Settings section: Git's own mark (the one Settings uses) beside
+    "2.55" — no word, no check: the mark names it and the version is the
+    fact; major and minor only, the full string such as `2.55.0.windows.3`
+    in its tooltip and "Git 2.55" as its accessible name, the identity's name
+    beside a person icon (its tooltip and accessible name say "Saving as…";
+    in the warning tone, "Add your name and email"), and "Connect an account"
+    at the end, which shrinks to a "+" once there is one. Accounts appear
+    here — one entry per provider, its mark and login or "2 accounts" — only
+    when the launcher has no account tabs; with tabs, they would be said
+    twice. While the launch check (ADR 0027) is still coming and no saved
+    connection is usable yet, the accounts are unknown rather than none: no
+    "Connect an account" and no first-run account step until the check
+    lands. Their places are held instead (§ Core screens, first load), and
+    counted from the receipt rather than guessed: one placeholder tab per
+    provider whose saved connection is still being checked and has no usable
+    account yet, so GitHub finishing before GitLab never leaves GitLab to
+    appear from nowhere; a single one only when nothing is listed yet (gh and
+    glab sessions show up once checked). The status line keeps a placeholder
+    entry for each fact still being read — Git, the identity, each pending
+    provider — and holds back "Connect" / "+" until the check lands, so it
+    never changes under the reader. With no recent
+    projects, the first-run steps draw their shape the same way. Like every
+    first-load shape, nothing shows for the first 320ms. Never the email:
+    the line is on screen whenever Home is, including while it is shared. A
+    missing Git is not repeated here.
+  - *Account tabs.* Each provider with a connected account adds one tab
+    beside Recent and Favorites, with its mark and name; a provider with more
+    than one account shows a chooser inside, rather than a tab per account.
+    A provider can hold any number: browser or CLI sign-ins (`gh` and
+    `glab` keep several) and saved tokens, on the public host or company
+    servers. Each choice says only what tells it apart — the login, then
+    "Account" or "Token" when the choices share a login or mix sources, then
+    the server when they are on different ones ("martinezelx · Token",
+    "luis · Token · git.acme.dev"). Two accounts are two small buttons;
+    three or more become one compact menu. With a chooser, the section
+    heading drops the login ("Your projects on GitLab"). Choosing it is the one network read
+    Home makes: the account's first page of projects, through the same
+    repository browser as Clone. Typing narrows them; Enter or a click opens
+    Clone filled in with that address; "See all in Clone" leads to the full
+    browser when there are more.
 
-Under the launcher the same screen lists **recent projects** — left-aligned
-rows inside the centred block, because names and paths are read down an edge
-rather than from the middle out. Each row carries the project's own avatar,
-the same colour and initials the rail and the switcher give it, since the
-point of a recents list is recognizing a project without reading it; the name
-is the row's accessible name and the path its description, so two projects
-sharing a folder name are still told apart. Its "remove from recents" control
-follows the switcher's Close: faded until the row is pointed at, because it is
-destructive and rarely wanted, and always solid where there is no pointer.
-
-Once there is a favourite, the list's heading carries the quick switch's own
-favourites filter — a bare star that fills when pressed, listing favourites
-only. It is a view rather than a setting, and it is absent until there is a
-favourite to filter by, because before that it could only empty the list.
-
-The row's star is the **same favourite the rail and the switcher show**, from
-the same store and with the same strings — one mark on one project, not a
-list-local flag, so starring it here stars it everywhere. Favourites sort to
-the top of the list before it is sliced, which is what keeps a project someone
-cares about reachable on the front door after it has aged out of the newest
-few. Like the switcher's star it is rendered at rest rather than on hover: a
-marked favourite has to be readable without pointing at it, and a hover-only
-control cannot be reached by keyboard at all.
+Home can be revisited with projects open. Its recent list then excludes
+projects already open in the switcher, and neither the switcher nor the rail
+marks a current destination. Back returns to the project screen that led here;
+Forward can revisit Home until another navigation. The status bar continues to
+show the active project's name, working-tree and remote state, and available
+project actions. With no project open, it shows the no-project state. The
+mascot's entrance plays once per application session; later visits keep the
+periodic wave of commits without another entrance. Home owns the app's only
+`h1` while no project is open; the shell does not additionally title it
+"Overview".
 
 **With a project open, Overview is the Journey page** (§ Layout concept,
 Primary workspace): it answers one question — where is my work on the way
