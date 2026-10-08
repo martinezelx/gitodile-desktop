@@ -27,6 +27,7 @@ export {
   type DiffTabWidth,
 } from "./diffPreferences";
 export { ChangesPanel, preloadChangesPanel } from "./screen";
+export { getChangesEmptyState, type ChangesEmptyHeadState, type ChangesEmptyState } from "./emptyState";
 /* The file lists' folder view: Changes draws it first, and a saved version's
    files in History draw the same tree with the same switch and one shared
    preference. */

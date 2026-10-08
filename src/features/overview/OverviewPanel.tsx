@@ -389,9 +389,8 @@ export function OverviewPanel({
 
         {/* The two things that change while you work, side by side and the
             same height: which files, and which saved versions. With nothing
-            to list, the files card shrinks to its own content and history
-            takes the room it leaves. */}
-        <div className={`overview-columns${workingTree?.isClean ? " overview-columns--clean" : ""}`}>
+            to list the files card keeps that height and offers the next step. */}
+        <div className="overview-columns">
           <ChangedFilesSection
             workingTree={workingTree}
             workingTreeError={workingTreeError}
@@ -399,6 +398,11 @@ export function OverviewPanel({
             onOpenFile={(path) => onReviewChanges(path)}
             onSeeAll={() => onReviewChanges()}
             onCheckAgain={onCheckLocalChanges}
+            headState={project.headState}
+            onPublish={onPublish}
+            onGetChanges={onReviewAndGetTeamChanges}
+            onOpenHistory={onOpenHistory}
+            onOpenSettings={onOpenProjectSettings}
           />
 
           <Suspense

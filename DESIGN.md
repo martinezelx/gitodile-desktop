@@ -2401,8 +2401,10 @@ nothing is gated, and a reader who already knows Git reads it as a status row.
 The last row pairs Changed files (one column of rows in the Changes screen's
 own shape, sampled one category at a time so "7 edited, 1 new" shows the new
 one, with the same "View all" in the same corner handing off) with Recent
-history, at one height while there are files to list; with none, the files
-card shrinks to its tick and one tip and History takes the width it leaves. The two cards share one header shape — a neutral
+history, always at one height; with no files to list, the files card keeps
+that height and centres its tick, one line and the Changes screen's own next
+steps (publish, get project changes, open history or settings), with a short
+tip at its foot. The two cards share one header shape — a neutral
 40px glyph tile, a title, one line, the trailing action — and every glyph tile
 on the screen is that same filled circle, no rings and no borders; the band's
 connectors draw themselves when a step is reached, a one-beat transition and

@@ -518,20 +518,29 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
    glyph size, arriving with a small overshoot while the tick draws itself
    from left to right. One run per arrival, never a loop; reduced motion
    shows the finished tile. */
-/* Tile beside the words, at the top of the card, and one tip under both:
-   the card shrinks to this rather than holding a lone tick in the middle of
-   History's height (`.overview-columns--clean`). */
+/* Nothing to list: the card keeps Recent history's height, so the block is
+   centred in what is left under the header, with the tip held at the foot. */
 .changed-files__state--empty {
-  flex: 0 0 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  justify-content: start;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
   gap: var(--space-3);
-  text-align: left;
+  text-align: center;
 }
+.changed-files__clean {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+.changed-files__clean-text { max-width: 34ch; margin-bottom: var(--space-3); }
+.changed-files__clean-text strong { font-size: var(--text-lead); }
+.changed-files__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.changed-files__secondary { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
+.changed-files__actions svg { width: 15px; height: 15px; flex-shrink: 0; }
 .changed-files__tip {
-  grid-column: 1 / -1;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-item);
   background: var(--surface-control);
@@ -539,8 +548,9 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   animation: row-in 220ms ease-out 420ms backwards;
 }
 .changed-files__done {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--space-2);
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
@@ -548,13 +558,14 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   color: var(--accent-primary);
   animation: changed-files-done-in 360ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
-.changed-files__done svg { width: 19px; height: 19px; }
+.changed-files__done svg { width: 20px; height: 20px; }
 .changed-files__done-tick {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation: changed-files-done-tick 320ms ease-out 220ms forwards;
 }
-.changed-files__state--empty > div { animation: row-in 220ms ease-out 360ms backwards; }
+.changed-files__clean-text,
+.changed-files__actions { animation: row-in 220ms ease-out 360ms backwards; }
 @keyframes changed-files-done-in {
   from { opacity: 0; transform: scale(0.6); }
   to { opacity: 1; transform: scale(1); }
@@ -563,7 +574,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 .changed-files__state--error > svg { color: var(--status-danger); }
 .changed-files__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
 .changed-files__state p { margin: 0; line-height: var(--leading-normal); }
-.changed-files__state .secondary-button { margin-top: var(--space-2); }
+.changed-files__state--error .secondary-button { margin-top: var(--space-2); }
 .changed-files__stale {
   display: flex;
   align-items: center;
@@ -896,7 +907,8 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   .journey-step__icon,
   .journey-connector::after { transition: none; }
   .changed-files__done,
-  .changed-files__state--empty > div { animation: none; }
+  .changed-files__clean-text,
+  .changed-files__actions,
   .overview-history__publish:hover,
   .overview-history__publish:focus-visible { animation: none; }
   .overview-history__publish,
@@ -906,17 +918,8 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   .changed-files__done-tick { animation: none; stroke-dashoffset: 0; }
 }
 
-/* Nothing to list: the files card keeps its own height and History takes
-   the width it no longer needs. */
-.overview-columns--clean {
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-  align-items: start;
-}
-.overview-columns--clean .changed-files { height: auto; }
-
 @media (max-width: 980px) {
-  .overview-columns,
-  .overview-columns--clean { grid-template-columns: minmax(0, 1fr); }
+  .overview-columns { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Narrower than three tiles, the band turns on its side: the steps stack and

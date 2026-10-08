@@ -1,18 +1,24 @@
 import React, { Suspense, lazy, useId } from "react";
 import {
+  ArrowDown,
   ArrowRightLeft,
+  ArrowUp,
   ChevronRight,
   CircleAlert,
   FileDiff,
   FileMinus,
   FilePlus,
+  History,
   LoaderCircle,
   Pencil,
+  Settings,
   TriangleAlert,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { LoadingPlaceholder } from "../../shared/ui";
+import { getChangesEmptyState } from "../changes";
+import type { HeadState } from "../repository";
 import { splitPath, type ChangeCategory, type WorkingTreeStatus } from "../status";
 import { CHANGES_PREVIEW_LIMIT, sampleChangesPreview } from "./changesPreview";
 import { ChangedFilesPlaceholderList } from "./OverviewPlaceholder";
@@ -48,6 +54,126 @@ const FileTypeIcon = lazy(async () => {
   };
 });
 
+type CleanAction = { key: string; label: string; icon: React.JSX.Element; onClick: () => void };
+
+/**
+ * What the card says once there is nothing to list: the Changes screen's own
+ * words and actions for the same situation, so both screens answer "what now?"
+ * the same way. The card keeps History's height, so this block is centred in it.
+ */
+function CleanState({
+  workingTree,
+  headState,
+  onPublish,
+  onGetChanges,
+  onOpenHistory,
+  onOpenSettings,
+}: {
+  workingTree: WorkingTreeStatus;
+  headState: HeadState;
+  onPublish: () => void;
+  onGetChanges: () => void;
+  onOpenHistory: () => void;
+  onOpenSettings: () => void;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const state = getChangesEmptyState(workingTree, headState);
+  const getChanges: CleanAction = {
+    key: "get-changes",
+    label: t.changesEmptyGetChanges,
+    icon: <ArrowDown aria-hidden="true" />,
+    onClick: onGetChanges,
+  };
+  const viewHistory: CleanAction = {
+    key: "history",
+    label: t.changesEmptyViewHistory,
+    icon: <History aria-hidden="true" />,
+    onClick: onOpenHistory,
+  };
+  let title: string;
+  let description: string;
+  let primary: CleanAction | null = null;
+  let secondary: CleanAction[] = [];
+  switch (state.kind) {
+    case "ahead":
+      title = t.changesEmptySavedTitle;
+      description = t.changesEmptyAheadDescription(state.count);
+      primary = {
+        key: "publish",
+        label: t.changesEmptyPublish(state.count),
+        icon: <ArrowUp aria-hidden="true" />,
+        onClick: onPublish,
+      };
+      secondary = [getChanges, viewHistory];
+      break;
+    case "behind":
+      title = t.changesEmptySavedTitle;
+      description = t.changesEmptyBehindDescription(state.count);
+      primary = getChanges;
+      secondary = [viewHistory];
+      break;
+    case "no-remote":
+      title = t.changesEmptyNoRemoteTitle;
+      description = t.changesEmptyNoRemoteDescription;
+      secondary = [
+        { key: "settings", label: t.changesEmptyOpenSettings, icon: <Settings aria-hidden="true" />, onClick: onOpenSettings },
+        viewHistory,
+      ];
+      break;
+    case "unborn":
+      title = t.changesEmptyUnbornTitle;
+      description = t.changesEmptyUnbornDescription;
+      break;
+    case "detached":
+      title = t.changesEmptyDetachedTitle;
+      description = t.changesEmptyDetachedDescription;
+      secondary = [viewHistory];
+      break;
+    case "up-to-date":
+      title = t.changesEmptyUpToDateTitle;
+      description = t.changesEmptyUpToDateDescription;
+      secondary = [getChanges, viewHistory];
+      break;
+  }
+
+  return (
+    <div className="changed-files__state changed-files__state--empty">
+      <div className="changed-files__clean">
+        <span className="changed-files__done" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+            <path className="changed-files__done-tick" d="M6 12.5l4 4 8-9" pathLength="1" />
+          </svg>
+        </span>
+        <div className="changed-files__clean-text">
+          <strong>{title}</strong>
+          <p>{description}</p>
+        </div>
+        {(primary || secondary.length > 0) && (
+          <div className="changed-files__actions">
+            {primary && (
+              <button className="primary-button" type="button" onClick={primary.onClick}>
+                {primary.icon}
+                {primary.label}
+              </button>
+            )}
+            {secondary.length > 0 && (
+              <div className="changed-files__secondary">
+                {secondary.map((action) => (
+                  <button key={action.key} className="secondary-button" type="button" onClick={action.onClick}>
+                    {action.icon}
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <p className="changed-files__tip">{t.overviewChangedFilesCleanTip}</p>
+    </div>
+  );
+}
+
 /**
  * A read-only sample of the working tree: one row per file, its category
  * marked the way the Changes screen marks it — by the icon at the end of the
@@ -62,6 +188,11 @@ export function ChangedFilesSection({
   onOpenFile,
   onSeeAll,
   onCheckAgain,
+  headState,
+  onPublish,
+  onGetChanges,
+  onOpenHistory,
+  onOpenSettings,
 }: {
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
@@ -69,6 +200,11 @@ export function ChangedFilesSection({
   onOpenFile: (path: string) => void;
   onSeeAll: () => void;
   onCheckAgain: () => void;
+  headState: HeadState;
+  onPublish: () => void;
+  onGetChanges: () => void;
+  onOpenHistory: () => void;
+  onOpenSettings: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const headingId = useId();
@@ -115,25 +251,18 @@ export function ChangedFilesSection({
           </div>
         </div>
       ) : workingTree.counts.total === 0 ? (
-        /* Nothing to list is the good outcome here, so it is said the way the
-           band says a step is done — the light "done" tile — and it arrives:
-           the tile pops in and the tick draws itself, once, when the card
-           reaches this state. A drawn check is the oldest "all done" there is,
-           and it is over in half a second. It sits at the top of a card that
-           shrinks to fit it, with one line on what the card is for, rather
-           than centred in a card stretched to History's height. */
-        <div className="changed-files__state changed-files__state--empty">
-          <span className="changed-files__done" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-              <path className="changed-files__done-tick" d="M6 12.5l4 4 8-9" pathLength="1" />
-            </svg>
-          </span>
-          <div>
-            <strong>{t.statusCleanTitle}</strong>
-            <p>{t.statusCleanMessage}</p>
-          </div>
-          <p className="changed-files__tip">{t.overviewChangedFilesCleanTip}</p>
-        </div>
+        /* Nothing to list is the good outcome, said the way the band says a
+           step is done: the "done" tile, whose tick draws itself once on
+           arrival. The card keeps Recent history's height and offers the next
+           step, as the Changes screen does. */
+        <CleanState
+          workingTree={workingTree}
+          headState={headState}
+          onPublish={onPublish}
+          onGetChanges={onGetChanges}
+          onOpenHistory={onOpenHistory}
+          onOpenSettings={onOpenSettings}
+        />
       ) : (
         <>
           {/* A refresh that fails after a successful one keeps the known list

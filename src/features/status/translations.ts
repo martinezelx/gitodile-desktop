@@ -1,6 +1,5 @@
 export interface StatusTranslations {
   statusCleanTitle: string;
-  statusCleanMessage: string;
   statusChangesTitle: string;
   statusChangesMessage: (total: number) => string;
   statusConflictsTitle: string;
@@ -23,7 +22,6 @@ export interface StatusTranslations {
 
 const en: StatusTranslations = {
   statusCleanTitle: "Everything is saved",
-  statusCleanMessage: "No unsaved changes in this project.",
   statusChangesTitle: "You have unsaved changes",
   statusChangesMessage: (total) =>
     total === 1 ? "1 file changed since your last saved version." : `${total} files changed since your last saved version.`,
@@ -50,7 +48,6 @@ const en: StatusTranslations = {
 
 const es: StatusTranslations = {
   statusCleanTitle: "Todo está guardado",
-  statusCleanMessage: "No hay cambios sin guardar en este proyecto.",
   statusChangesTitle: "Tienes cambios sin guardar",
   statusChangesMessage: (total) =>
     total === 1
