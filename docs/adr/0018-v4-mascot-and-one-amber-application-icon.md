@@ -2,6 +2,8 @@
 
 - Status: accepted
 - Date: 2026-09-30
+- Amended by: [ADR 0029](0029-slate-icon-tile.md) (the icon tile is slate,
+  `#2c3542` to `#161b22`; the mascot and everything else here still stand)
 
 ## Context
 

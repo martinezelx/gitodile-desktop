@@ -1,7 +1,7 @@
 // Regenerates every platform icon, and the brand PNGs, from the mascot in `mascot.mjs`.
 //
 // GitOdile has one application icon on every platform and at every size: the
-// mascot's portrait on the amber tile (ADR 0018). Windows and Linux take it
+// mascot's portrait on the slate tile (ADR 0018, ADR 0029). Windows and Linux take it
 // filling the canvas; macOS takes the same icon on Apple's 824px grid, so the
 // Dock can draw its shadow around the tile.
 //
@@ -13,11 +13,12 @@
 //    which GitOdile does not ship.
 // 3. `tauri icon --png` renders the brand PNGs under `src/assets/brand`: the
 //    icon at every size it ships in, the macOS icon, and the mascot and its
-//    head on transparent squares.
+//    head on transparent squares, and the Windows installer's side panel and
+//    header, each rendered on a square and cropped to its size.
 // 4. `build-windows-ico.mjs` re-encodes the small ICO layers as DIBs (see that
 //    file for why).
-// 5. `build-nsis-images.mjs` composes the Windows installer's sidebar and
-//    header bitmaps from the freshly rendered icons.
+// 5. `build-nsis-images.mjs` encodes the installer's PNGs as the BMPs NSIS
+//    needs.
 //
 //   pnpm icons
 
@@ -27,7 +28,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { brandDir, brandSourceSvg, iconSourceSvg } from "./mascot.mjs";
+import { crop, images as installerImages } from "./build-nsis-images.mjs";
+import { decodePng, encodePng } from "./build-windows-ico.mjs";
+import { brandDir, brandSourceSvg, iconSourceSvg, installerSourceSvg } from "./mascot.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const iconsDir = path.join(root, "src-tauri", "icons");
@@ -93,6 +96,13 @@ function main() {
       "gitodile-mascot-head.png": renderPngs(work, "mascot-head", brandSourceSvg("head"), [1024])[1024],
     };
     for (const [file, from] of Object.entries(extras)) fs.copyFileSync(from, path.join(png, file));
+    // `tauri icon` renders squares only, so each installer image is drawn in
+    // the corner of one and cut back out.
+    for (const [name, { source, width, height }] of Object.entries(installerImages)) {
+      const side = Math.max(width, height);
+      const square = renderPngs(work, `installer-${name}`, installerSourceSvg(name, { width, height }), [side])[side];
+      fs.writeFileSync(path.join(png, source), encodePng(crop(decodePng(fs.readFileSync(square)), width, height)));
+    }
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }

@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { BRAND_ICON_SIZES, parseIcns } from "./generate-icons.mjs";
-import { brandSourceSvg, generatedFiles, iconSourceSvg, mascotSvg, variantNames } from "./mascot.mjs";
+import { brandSourceSvg, generatedFiles, iconSourceSvg, installerSourceSvg, mascotSvg, variantNames } from "./mascot.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -22,7 +22,7 @@ test("the committed ICNS carries every entry and the generated mascot files matc
   }
 });
 
-test("both icon sources are the same portrait on the amber tile, at a different margin", () => {
+test("both icon sources are the same portrait on the slate tile, at a different margin", () => {
   const tile = (svg) => svg.match(/<rect x="(\d+)" y="\d+" width="(\d+)"/).slice(1).map(Number);
   const flat = iconSourceSvg({ platform: "default" });
   const mac = iconSourceSvg({ platform: "macos" });
@@ -33,6 +33,16 @@ test("both icon sources are the same portrait on the amber tile, at a different 
   }
   assert.deepEqual(tile(mac), [100, 824], "macOS sits on Apple's 824px grid");
   assert.ok(tile(flat)[1] > tile(mac)[1], "Windows and Linux fill more of the canvas");
+});
+
+test("the installer sources draw their image in the corner of a square slate canvas", () => {
+  const sidebar = installerSourceSvg("sidebar", { width: 164, height: 314 });
+  assert.match(sidebar, /width="314" height="314"/);
+  assert.match(sidebar, /<rect width="164" height="314" fill="url\(#slate\)"\/>/);
+  const header = installerSourceSvg("header", { width: 150, height: 57 });
+  assert.match(header, /width="150" height="150"/);
+  assert.match(header, /<rect width="150" height="57" fill="url\(#slate\)"\/>/);
+  assert.throws(() => installerSourceSvg("banner", { width: 1, height: 1 }), /unknown installer image/);
 });
 
 test("the brand sources and variants render as standalone SVGs", () => {

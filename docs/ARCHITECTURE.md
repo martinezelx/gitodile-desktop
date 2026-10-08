@@ -980,7 +980,7 @@ standalone SVGs, the element tree the in-app mark renders inline
 (`src/shared/ui/mascotArtwork.ts`, so its fill can follow the theme) and the
 console welcome's ASCII art (`src/features/console/mascotAscii.ts`, sampled by
 the dependency-free `scripts/icons/ascii-art.mjs`) from it, then runs `tauri
-icon` on two 1024×1024 sources: the portrait on the amber tile filling the
+icon` on two 1024×1024 sources: the portrait on the slate tile filling the
 canvas, and the identical icon on Apple's 824px macOS grid. Every PNG, the
 Windows `.ico` and the Store logos come from the first; the macOS `.icns` comes
 from the second. There is one icon at every size, with no head variant spliced
@@ -999,16 +999,19 @@ PNG-compressed small layer as a blank sheet. `scripts/icons/build-windows-ico.mj
 Tauri's layer order (32px first, then 16, 24, 48, 64, 256); `check:icons`
 fails the gate when the committed `icon.ico` drifts from that shape.
 
-The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
+The Windows installer is dressed from the same drawing. `tauri.windows.conf.json`
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
-draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px icon on
-the light theme's warm white, shown on the Welcome and Finish pages) and
-`installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
-header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
-step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and
-`icon.ico` without resampling; `check:icons` fails when the committed bitmaps
-drift from the icons. The installer ships English and Spanish (the app's two
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the whole mascot on
+the icon's slate, shown on the Welcome and Finish pages) and
+`installer-header.bmp` (150×57, the mascot's head on the slate, shown in the
+header of every other page). `mascot.mjs` composes both
+(`installerSourceSvg`); `pnpm icons` renders each in the corner of a square,
+because `tauri icon` renders only squares, and crops it to
+`src/assets/brand/png/gitodile-installer-*.png`.
+`scripts/icons/build-nsis-images.mjs` (the last step of `pnpm icons`) encodes
+those PNGs as the 24-bit BMPs NSIS needs without resampling; `check:icons`
+fails when the committed bitmaps drift from the PNGs. The installer ships English and Spanish (the app's two
 locales) and picks the system UI language without a selector dialog.
 `bundle.copyright` and `bundle.homepage` in `tauri.conf.json` feed the
 installer's branding text, the executables' version resources, and the

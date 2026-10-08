@@ -5,10 +5,12 @@
 // plates and four teeth. Every surface crops that one drawing:
 //
 //   body       the whole crocodile: the in-app mark (welcome, About), the
-//              console welcome's ASCII art and brand material
-//   head       the head, crest to snout tip: a brand asset
+//              console welcome's ASCII art, the Windows installer's side
+//              panel and brand material
+//   head       the head, crest to snout tip: a brand asset and the Windows
+//              installer's header
 //   portrait   crest to snout tip across, the body running off the bottom
-//              edge: the application icon, on the amber tile, at every size
+//              edge: the application icon, on the slate tile, at every size
 //              and on every platform
 //
 // The drawing is a small element tree, written out several ways:
@@ -23,6 +25,8 @@
 //                                      console's welcome prints
 //   icon sources for `pnpm icons`      1024px squares; `pnpm icons` also renders
 //                                      the PNGs under src/assets/brand
+//   installer sources for `pnpm icons` the Windows installer's side panel and
+//                                      header, on the icon's slate
 //
 //   node scripts/icons/mascot.mjs            rewrite the generated files
 //   node scripts/icons/mascot.mjs --check    fail if they drift from this file
@@ -48,9 +52,9 @@ export const colors = {
   amber: "#e7b448",
   white: "#ffffff",
   lens: "#0f1513",
-  /** The icon tile: amber lit from above (Apple's icon guidance), the same on every platform. */
-  tileTop: "#fbe3a0",
-  tileBottom: "#e0a032",
+  /** The icon tile: slate lit from above (Apple's icon guidance), the same on every platform (ADR 0029). */
+  tileTop: "#2c3542",
+  tileBottom: "#161b22",
 };
 const c = colors;
 
@@ -226,7 +230,7 @@ ${toSvg(DRAWING, "    ")}
 }
 
 /**
- * The application icon on a 1024px canvas: the portrait on the amber tile.
+ * The application icon on a 1024px canvas: the portrait on the slate tile.
  * `platform: "default"` fills the canvas the way Windows and Linux icons do;
  * `"macos"` sits on Apple's grid, an 824px tile centred with room for the
  * shadow macOS draws. Both are the same icon at a different margin.
@@ -253,6 +257,47 @@ export function iconSourceSvg({ platform }) {
   <rect x="${start}" y="${start}" width="${tile}" height="${tile}" rx="${radius}" fill="url(#tile)"/>
   <g clip-path="url(#tile-shape)">
   ${placed("portrait", n4(start + tile * 0.05), n4(start + tile * 0.16), n4(area))}
+  </g>
+</svg>
+`;
+}
+
+/**
+ * The Windows installer's bitmaps on the icon's slate (ADR 0029): `sidebar` is
+ * the whole mascot on the Welcome and Finish pages, `header` its head on every
+ * other page. The composition is drawn at its exact pixel size in the top-left
+ * corner of a square canvas, because `tauri icon` only renders squares;
+ * `pnpm icons` crops it back to `width`x`height`.
+ */
+export function installerSourceSvg(name, { width, height }) {
+  const side = Math.max(width, height);
+  let art;
+  if (name === "sidebar") {
+    // The whole crocodile, 12px clear of each side, sitting a little below the
+    // middle so it rests in the panel rather than floating in it.
+    const size = width - 24;
+    art = placed("body", 12, n4(height * 0.56 - size / 2), size);
+  } else if (name === "header") {
+    // The head 45px tall, centred in the strip.
+    const box = boxes.head;
+    const size = n4((45 * box.width) / box.height);
+    art = placed("head", n4((width - size) / 2), n4(height / 2 - size / 2), size);
+  } else {
+    throw new Error(`unknown installer image: ${name}`);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}" viewBox="0 0 ${side} ${side}">
+  <defs>
+    <linearGradient id="slate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${c.tileTop}"/>
+      <stop offset="1" stop-color="${c.tileBottom}"/>
+    </linearGradient>
+    <clipPath id="frame">
+      <rect width="${width}" height="${height}"/>
+    </clipPath>
+  </defs>
+  <rect width="${width}" height="${height}" fill="url(#slate)"/>
+  <g clip-path="url(#frame)">
+  ${art}
   </g>
 </svg>
 `;

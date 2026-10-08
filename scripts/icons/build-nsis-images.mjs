@@ -1,45 +1,42 @@
-// Builds the bitmaps the Windows installer shows, from the icons Tauri renders.
+// Builds the bitmaps the Windows installer shows, from the PNGs `pnpm icons`
+// renders.
 //
 // NSIS (Modern UI 2) dresses the installer with two fixed-size bitmaps: a
 // 164x314 panel on the Welcome and Finish pages and a 150x57 strip in the
-// header of every other page. Both must be classic 24-bit BMPs with no alpha,
-// so each one is composed here by painting an icon layer over a solid
-// background:
+// header of every other page. Both are drawn in `mascot.mjs` on the icon's
+// slate (ADR 0029):
 //
-//   installer-sidebar.bmp   the 128px icon, amber tile included, centred on warm white
-//   installer-header.bmp    the 48px layer of icon.ico on the header's white
+//   installer-sidebar.bmp   the whole mascot, clear of every edge
+//   installer-header.bmp    the mascot's head, centred in the strip
 //
-// The pixels come from `src-tauri/icons` (rendered from the mascot by
-// `pnpm icons`), so the installer stays in step with the app icon whenever
-// `pnpm icons` runs. Nothing is resampled: each bitmap uses a layer that
-// already exists at the size it is shown.
+// `pnpm icons` renders each one at its exact size into
+// `src/assets/brand/png/gitodile-installer-*.png`. NSIS needs classic 24-bit
+// BMPs with no alpha, so this script flattens those PNGs and re-encodes them;
+// nothing is resampled.
 //
 //   node scripts/icons/build-nsis-images.mjs            rewrite both BMPs
-//   node scripts/icons/build-nsis-images.mjs --check    fail if the committed BMPs drift from the icons
+//   node scripts/icons/build-nsis-images.mjs --check    fail if the committed BMPs drift from the PNGs
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { decodePng, dibToRgba, isPng, parseIco } from "./build-windows-ico.mjs";
+import { decodePng } from "./build-windows-ico.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const iconsDir = path.join(root, "src-tauri", "icons");
+export const brandPngDir = path.join(root, "src", "assets", "brand", "png");
 export const windowsDir = path.join(root, "src-tauri", "windows");
 
 /**
- * Background behind the icon on the Welcome/Finish panel: the warm white of the
- * GitOdile light theme (`--surface-app`, `#faf8f5`). The icon brings its own amber tile, so the panel only
- * has to let that tile stand out; a coloured panel would compete with it.
+ * What a translucent pixel in a rendered PNG is flattened onto: the slate's
+ * darker end. The renders are opaque, so this only guards the BMP's lack of alpha.
  */
-export const sidebarBackground = [0xfa, 0xf8, 0xf5];
-/** Background of the header strip: Modern UI paints the header white (`MUI_BGCOLOR`). */
-export const headerBackground = [0xff, 0xff, 0xff];
+export const flattenBackground = [0x16, 0x1b, 0x22];
 
-/** The two bitmaps Modern UI 2 expects, at the sizes it draws them. */
+/** The two bitmaps Modern UI 2 expects, at the sizes it draws them, and the PNG each is encoded from. */
 export const images = {
-  sidebar: { file: "installer-sidebar.bmp", width: 164, height: 314 },
-  header: { file: "installer-header.bmp", width: 150, height: 57 },
+  sidebar: { file: "installer-sidebar.bmp", source: "gitodile-installer-sidebar.png", width: 164, height: 314 },
+  header: { file: "installer-header.bmp", source: "gitodile-installer-header.png", width: 150, height: 57 },
 };
 
 // --- Composition --------------------------------------------------------------
@@ -76,11 +73,6 @@ export function blit(canvas, layer, x, y) {
     }
   }
   return canvas;
-}
-
-/** Centres `layer` on a fresh canvas of `width`x`height` filled with `background`. */
-export function centred(width, height, background, layer) {
-  return blit(solid(width, height, background), layer, (width - layer.width) >> 1, (height - layer.height) >> 1);
 }
 
 // --- BMP ----------------------------------------------------------------------
@@ -146,31 +138,35 @@ export function decodeBmp(bmp) {
 
 // --- Sources ------------------------------------------------------------------
 
-/** Pulls the `size`px layer out of an ICO, whether it is stored as a DIB or a PNG. */
-export function icoLayer(ico, size) {
-  const entry = parseIco(ico).find((candidate) => candidate.width === size && candidate.height === size);
-  if (!entry) throw new Error(`icon.ico has no ${size}px layer`);
-  return isPng(entry.data) ? decodePng(entry.data) : dibToRgba(entry.data);
+/** Cuts the `width`x`height` top-left corner out of `image`. */
+export function crop(image, width, height) {
+  if (image.width < width || image.height < height) {
+    throw new Error(`cannot crop ${width}x${height} from ${image.width}x${image.height}`);
+  }
+  const rgba = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    image.rgba.copy(rgba, y * width * 4, y * image.width * 4, (y * image.width + width) * 4);
+  }
+  return { width, height, rgba };
 }
 
-/** Composes both installer bitmaps from `{ tile, ico }` (a 128px PNG and icon.ico). */
-export function buildNsisImages({ tile, ico }) {
-  const tileImage = decodePng(tile);
-  if (tileImage.width !== 128 || tileImage.height !== 128) {
-    throw new Error(`expected a 128x128 tile, got ${tileImage.width}x${tileImage.height}`);
+/** Encodes both installer bitmaps from their rendered PNGs, `{ sidebar, header }`. */
+export function buildNsisImages(sources) {
+  const built = {};
+  for (const [name, { file, width, height }] of Object.entries(images)) {
+    const image = decodePng(sources[name]);
+    if (image.width !== width || image.height !== height) {
+      throw new Error(`expected a ${width}x${height} ${name}, got ${image.width}x${image.height}`);
+    }
+    built[file] = encodeBmp(blit(solid(width, height, flattenBackground), image, 0, 0));
   }
-  const { sidebar, header } = images;
-  return {
-    [sidebar.file]: encodeBmp(centred(sidebar.width, sidebar.height, sidebarBackground, tileImage)),
-    [header.file]: encodeBmp(centred(header.width, header.height, headerBackground, icoLayer(ico, 48))),
-  };
+  return built;
 }
 
 function readSources() {
-  return {
-    tile: fs.readFileSync(path.join(iconsDir, "128x128.png")),
-    ico: fs.readFileSync(path.join(iconsDir, "icon.ico")),
-  };
+  return Object.fromEntries(
+    Object.entries(images).map(([name, { source }]) => [name, fs.readFileSync(path.join(brandPngDir, source))]),
+  );
 }
 
 // --- CLI ----------------------------------------------------------------------
@@ -188,7 +184,7 @@ function main(argv) {
     if (check) {
       const current = fs.existsSync(target) ? fs.readFileSync(target) : null;
       if (current === null || !current.equals(buffer)) {
-        console.error(`${relative(target)}: out of date with src-tauri/icons (run pnpm icons)`);
+        console.error(`${relative(target)}: out of date with its rendered PNG (run pnpm icons)`);
         drifted = true;
       }
       continue;
@@ -201,7 +197,7 @@ function main(argv) {
       process.exitCode = 1;
       return;
     }
-    console.log(`src-tauri/windows: installer bitmaps match src-tauri/icons`);
+    console.log(`src-tauri/windows: installer bitmaps match their rendered PNGs`);
   }
 }
 

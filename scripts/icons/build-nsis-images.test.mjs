@@ -5,18 +5,17 @@ import test from "node:test";
 
 import {
   blit,
+  brandPngDir,
   buildNsisImages,
-  centred,
+  crop,
   decodeBmp,
   encodeBmp,
-  headerBackground,
-  icoLayer,
+  flattenBackground,
   images,
-  sidebarBackground,
   solid,
   windowsDir,
 } from "./build-nsis-images.mjs";
-import { encodePng, rgbaToDib, writeIco } from "./build-windows-ico.mjs";
+import { decodePng, encodePng } from "./build-windows-ico.mjs";
 
 function pixel({ width, rgba }, x, y) {
   const at = (y * width + x) * 4;
@@ -54,42 +53,40 @@ test("blit blends straight alpha over the canvas and clips at the edges", () => 
   assert.deepEqual(pixel(canvas, 0, 0), [0, 0, 0, 255]);
 });
 
-test("centred places the layer in the middle of the canvas", () => {
-  const image = centred(10, 6, [1, 1, 1], square(2, [250, 0, 0, 255]));
-  assert.deepEqual(pixel(image, 4, 2), [250, 0, 0, 255]);
-  assert.deepEqual(pixel(image, 5, 3), [250, 0, 0, 255]);
-  assert.deepEqual(pixel(image, 3, 2), [1, 1, 1, 255]);
-  assert.deepEqual(pixel(image, 6, 3), [1, 1, 1, 255]);
+test("crop keeps the top-left corner of the image", () => {
+  const image = solid(4, 3, [1, 1, 1]);
+  image.rgba.set([9, 9, 9, 255], (1 * 4 + 1) * 4); // (1, 1)
+  image.rgba.set([7, 7, 7, 255], (0 * 4 + 3) * 4); // (3, 0), cut away
+  const cut = crop(image, 2, 2);
+  assert.equal(cut.width, 2);
+  assert.equal(cut.height, 2);
+  assert.deepEqual(pixel(cut, 1, 1), [9, 9, 9, 255]);
+  assert.deepEqual(pixel(cut, 1, 0), [1, 1, 1, 255]);
+  assert.throws(() => crop(image, 5, 3), /cannot crop 5x3 from 4x3/);
 });
 
-test("icoLayer reads both DIB and PNG layers", () => {
-  const ico = writeIco([
-    { width: 16, height: 16, data: rgbaToDib(square(16, [1, 2, 3, 255])) },
-    { width: 48, height: 48, data: encodePng(square(48, [4, 5, 6, 255])) },
-  ]);
-  assert.deepEqual(pixel(icoLayer(ico, 16), 0, 0), [1, 2, 3, 255]);
-  assert.deepEqual(pixel(icoLayer(ico, 48), 47, 47), [4, 5, 6, 255]);
-  assert.throws(() => icoLayer(ico, 32), /no 32px layer/);
-});
-
-test("buildNsisImages composes both bitmaps at the sizes Modern UI expects", () => {
-  const tile = encodePng(square(128, [0x80, 0xdc, 0x2e, 255]));
-  const ico = writeIco([{ width: 48, height: 48, data: rgbaToDib(square(48, [0, 0, 0, 255])) }]);
-  const built = buildNsisImages({ tile, ico });
+test("buildNsisImages flattens each rendered PNG into the bitmap Modern UI expects", () => {
+  const sidebarPng = solid(164, 314, [0x2c, 0x35, 0x42]);
+  sidebarPng.rgba.set([0x86, 0xb6, 0x40, 255], (157 * 164 + 82) * 4);
+  const headerPng = solid(150, 57, [0x2c, 0x35, 0x42]);
+  headerPng.rgba[3] = 0; // a transparent pixel lands on the slate
+  const built = buildNsisImages({ sidebar: encodePng(sidebarPng), header: encodePng(headerPng) });
 
   const sidebar = decodeBmp(built[images.sidebar.file]);
   assert.equal(sidebar.width, 164);
   assert.equal(sidebar.height, 314);
-  assert.deepEqual(pixel(sidebar, 0, 0), [...sidebarBackground, 255]);
-  assert.deepEqual(pixel(sidebar, 82, 157), [0x80, 0xdc, 0x2e, 255]);
+  assert.deepEqual(pixel(sidebar, 0, 0), [0x2c, 0x35, 0x42, 255]);
+  assert.deepEqual(pixel(sidebar, 82, 157), [0x86, 0xb6, 0x40, 255]);
 
   const header = decodeBmp(built[images.header.file]);
   assert.equal(header.width, 150);
   assert.equal(header.height, 57);
-  assert.deepEqual(pixel(header, 0, 0), [...headerBackground, 255]);
-  assert.deepEqual(pixel(header, 75, 28), [0, 0, 0, 255]);
+  assert.deepEqual(pixel(header, 0, 0), [...flattenBackground, 255]);
 
-  assert.throws(() => buildNsisImages({ tile: encodePng(square(64, [0, 0, 0, 255])), ico }), /128x128/);
+  assert.throws(
+    () => buildNsisImages({ sidebar: encodePng(solid(128, 128, [0, 0, 0])), header: encodePng(headerPng) }),
+    /expected a 164x314 sidebar, got 128x128/,
+  );
 });
 
 test("the committed installer bitmaps are the sizes Modern UI 2 draws", () => {
@@ -97,5 +94,13 @@ test("the committed installer bitmaps are the sizes Modern UI 2 draws", () => {
     const decoded = decodeBmp(fs.readFileSync(path.join(windowsDir, file)));
     assert.equal(decoded.width, width, `${file} width`);
     assert.equal(decoded.height, height, `${file} height`);
+  }
+});
+
+test("the committed installer PNGs are the bitmaps' sizes", () => {
+  for (const { source, width, height } of Object.values(images)) {
+    const decoded = decodePng(fs.readFileSync(path.join(brandPngDir, source)));
+    assert.equal(decoded.width, width, `${source} width`);
+    assert.equal(decoded.height, height, `${source} height`);
   }
 });

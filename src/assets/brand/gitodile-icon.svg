@@ -2,8 +2,8 @@
   <title>GitOdile</title>
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fbe3a0"/>
-      <stop offset="1" stop-color="#e0a032"/>
+      <stop offset="0" stop-color="#2c3542"/>
+      <stop offset="1" stop-color="#161b22"/>
     </linearGradient>
     <clipPath id="tile-shape">
       <rect x="24" y="24" width="976" height="976" rx="219.6"/>

@@ -1522,15 +1522,18 @@ Do not place the mascot in every panel or use it to trivialize serious errors.
 
 The application icon is the same everywhere: the portrait (crest to snout tip
 across, the body running off the bottom edge) on a rounded tile with a vertical
-amber gradient, `#fbe3a0` at the top to `#e0a032` at the bottom. Amber is the
-mascot's own accent, so the tile makes it the brand colour, and it stands out
-on light and dark desktops alike. Windows and Linux take the icon filling the
+slate gradient, `#2c3542` at the top to `#161b22` at the bottom (ADR 0029). The
+slate keeps the icon in the register of a professional tool, where the earlier
+amber tile read as playful, and lets the lime body and the amber details carry
+the colour. Windows and Linux take the icon filling the
 canvas; macOS takes the identical icon on Apple's 824px grid
 (`src/assets/brand/gitodile-icon-macos.svg`) and adds its own shadow. The tile
 carries no drawn glow, highlight or shadow. The 16–32px sizes are the same
 portrait, downsampled: the sunglasses carry recognition there. The Windows
-installer's side panel shows the tiled icon on the warm white of the light
-theme. Inside the app the body's green follows the theme (see the welcome
+installer wears the same slate: its side panel (Welcome and Finish pages) shows
+the whole mascot clear of every edge, and the header strip of every other page
+shows its head. Neither bitmap carries text, because the installer is
+localised and its pages already name the product. Inside the app the body's green follows the theme (see the welcome
 screen under "Icons" above).
 
 `scripts/icons/mascot.mjs` is the single source for the drawing: it writes
