@@ -281,6 +281,17 @@ pub(crate) fn reveal_project_file(
 }
 
 #[tauri::command(async)]
+pub(crate) fn open_project_folder(path: String, session_epoch: String) -> Result<(), AppError> {
+    report_result(
+        "open_project_folder",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            desktop::open_project_folder(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
 pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
@@ -1140,6 +1151,20 @@ pub(crate) fn list_unpublished_versions(
         (|| {
             validate_session(&path, &session_epoch)?;
             status::list_unpublished_versions(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn list_incoming_versions(
+    path: String,
+    session_epoch: String,
+) -> Result<PendingVersionsResult, AppError> {
+    report_result(
+        "list_incoming_versions",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            status::list_incoming_versions(path)
         })(),
     )
 }

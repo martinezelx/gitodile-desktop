@@ -108,8 +108,13 @@ describe("deriveJourney", () => {
     const loading = deriveJourney({ ...base, workingTree: null, isCheckingChanges: true, teamSync: EMPTY_TEAM_SYNC_STATE });
     expect(loading.changes.state).toBe("loading");
     expect(loading.save.state).toBe("loading");
-    expect(loading.publish.state).toBe("notChecked");
+    // Nothing read yet is "reading", never a remote that was not asked.
+    expect(loading.publish.state).toBe("reading");
     expect(loading.activeStep).toBeNull();
+    const readingLocal = deriveJourney({ ...base, workingTree: tree({}), teamSync: { ...EMPTY_TEAM_SYNC_STATE, isLoading: true, generation: 1 } });
+    expect(readingLocal.publish.state).toBe("reading");
+    const answered = deriveJourney({ ...base, workingTree: tree({}), teamSync: { ...EMPTY_TEAM_SYNC_STATE, generation: 1 } });
+    expect(answered.publish.state).toBe("notChecked");
 
     const failed = deriveJourney({ ...base, workingTree: null, workingTreeError: "boom", teamSync: sync({}, { status: null, error: "offline" }) });
     expect(failed.changes.state).toBe("error");

@@ -51,6 +51,7 @@ function recordingSubscriber(
 function coordinatorWith(log: string[]) {
   const runtime = createProjectRuntime();
   const repository = createRepositoryController({
+    openFolder: vi.fn(),
     open: vi.fn(async () => {
       log.push("open:repository");
       return project();

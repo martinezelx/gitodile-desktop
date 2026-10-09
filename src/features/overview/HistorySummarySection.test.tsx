@@ -91,7 +91,14 @@ function renderSection(
   };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  // Some tests fit the screen to a window; the rest scroll as a page.
+  delete (window as Partial<Window>).matchMedia;
+});
+
+const eight = () => [9, 8, 7, 6, 5, 4, 3, 2].map(version).map((item) => ({ ...item, publication: "published" as const }));
 
 describe("HistorySummarySection", () => {
   it("reuses the warmed history cache and opens the selected version", async () => {
@@ -104,9 +111,9 @@ describe("HistorySummarySection", () => {
 
     expect(screen.getByRole("heading", { name: "Recent history" })).toBeInTheDocument();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
-    // No label row splits the list: the unpublished rows mark themselves.
-    expect(screen.getByText("Your latest saved versions, newest first.")).toBeInTheDocument();
-    expect(screen.queryByText(/only on this computer/i)).toBeNull();
+    // The unpublished version leads the timeline, grouped under one label.
+    expect(screen.getByText("Only on this computer")).toBeInTheDocument();
+    expect(screen.getByText("1 version")).toBeInTheDocument();
     expect(screen.queryByText(version(2).shortCommit)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
@@ -140,12 +147,12 @@ describe("HistorySummarySection", () => {
     expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
     expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
 
-    // The unpublished mark leads, then author, reference, time — the same
-    // order the History timeline uses.
+    // Author, reference, time — the same order the History timeline uses.
+    // The group the row sits in says it is unpublished, so the row does not.
     const order = (row: HTMLElement): string[] =>
       [...row.querySelectorAll<HTMLElement>(".overview-history__meta > *")].map((element) => element.className.split(" ")[0]);
     expect(order(rows[0])).toEqual([
-      "state-glyph", "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
+      "overview-history__author", "history-meta-dot", "history-ref-badge", "history-meta-dot", "overview-history__date",
     ]);
     expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
   });
@@ -202,16 +209,49 @@ describe("HistorySummarySection", () => {
     expect(screen.queryByRole("button", { name: /Publish up to here: Saved version 1/ })).toBeNull();
   });
 
-  it("marks each unpublished version with History's laptop glyph and no label rows", async () => {
-    const controller = createHistoryController(port(vi.fn(async () => page([version(3), version(2), version(1)]))));
+  it("groups the unpublished versions and marks where the remote's copy begins", async () => {
+    const trackingRef = "refs/remotes/origin/main";
+    const upstream = { remote: "origin", destinationBranch: "main", trackingRef, commit: version(1).commit };
+    const controller = createHistoryController(
+      port(vi.fn(async () => ({ ...page([version(3), version(2), version(1)]), upstream }))),
+    );
     await controller.refresh(query);
     const { container } = renderSection(controller);
 
-    const items = [...container.querySelectorAll<HTMLElement>(".overview-history__list > li")];
-    expect(items).toHaveLength(3);
-    const glyphs = items.map((item) => item.querySelector(".overview-history__meta .state-glyph"));
-    expect(glyphs.map((glyph) => glyph !== null)).toEqual([true, true, false]);
-    expect(glyphs[0]).toHaveAttribute("data-tooltip", "Saved locally — not published yet, so it's only on this computer");
+    const group = container.querySelector<HTMLElement>(".overview-timeline__group");
+    expect(group).not.toBeNull();
+    expect(group).toHaveTextContent("Only on this computer");
+    expect(group).toHaveTextContent("2 versions");
+    expect(group?.querySelectorAll(".overview-history__row")).toHaveLength(2);
+    // The mark sits between the group and the published version, and names
+    // only the remote when the line has the same name as the one stood on.
+    const timeline = container.querySelector<HTMLElement>(".overview-timeline");
+    const children = [...(timeline?.children ?? [])].map((child) => child.className.split(" ")[0]);
+    expect(children).toEqual(["overview-timeline__group", "overview-timeline__mark", "overview-timeline__item"]);
+    expect(container.querySelector(".overview-timeline__mark")).toHaveTextContent("Published on origin");
+  });
+
+  it("puts the working tree first when it is given one", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(1)]))));
+    await controller.refresh(query);
+    const lifecycle = createScreenLifecycleController("active");
+    const { container } = render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <HistorySummarySection
+            controller={controller}
+            projectPath={query.projectId}
+            sessionEpoch={query.sessionEpoch}
+            onOpenHistory={vi.fn()}
+            now={<span>Now node</span>}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
+
+    const first = container.querySelector(".overview-timeline > li");
+    expect(first).toHaveClass("overview-timeline__now");
+    expect(first).toHaveTextContent("Now node");
   });
 
   it("keeps the publish hand-off off the rows when publishing is not possible", async () => {
@@ -240,7 +280,7 @@ describe("HistorySummarySection", () => {
     await controller.refresh(query);
     const { container } = renderSection(controller);
 
-    expect(container.querySelector(".state-glyph")).toBeNull();
+    expect(container.querySelector(".overview-timeline__group")).toBeNull();
   });
 
   it("shows a truthful empty state after history has loaded", async () => {
@@ -252,7 +292,7 @@ describe("HistorySummarySection", () => {
     expect(screen.queryByRole("button", { name: "View all" })).not.toBeInTheDocument();
   });
 
-  it("shows refresh progress in the section icon while keeping cached history visible", async () => {
+  it("shows refresh progress beside the title while keeping cached history visible", async () => {
     let finishRefresh: ((value: HistoryPage) => void) | undefined;
     const pendingRefresh = new Promise<HistoryPage>((resolve) => {
       finishRefresh = resolve;
@@ -266,7 +306,7 @@ describe("HistorySummarySection", () => {
     const { container } = renderSection(controller);
 
     const refresh = controller.refresh(query);
-    await waitFor(() => expect(container.querySelector(".overview-history__icon .icon--spinning")).not.toBeNull());
+    await waitFor(() => expect(container.querySelector(".overview-history__refreshing")).not.toBeNull());
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
 
     finishRefresh?.(page([version(2)]));
@@ -278,7 +318,7 @@ describe("HistorySummarySection", () => {
     await controller.refresh(query);
     const { container } = renderSection(controller, vi.fn(), true);
 
-    expect(container.querySelector(".overview-history__icon .icon--spinning")).not.toBeNull();
+    expect(container.querySelector(".overview-history__refreshing")).not.toBeNull();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
   });
 
@@ -295,5 +335,49 @@ describe("HistorySummarySection", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(readPage).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("No saved versions yet")).toBeInTheDocument();
+  });
+
+  it("ends on a fading rail, not a count, when there are more versions than it shows", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page(eight()))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    // Scrolling as a page, the timeline keeps its fixed length.
+    expect(container.querySelectorAll("[data-fit-row]")).toHaveLength(6);
+    expect(container.querySelector(".overview-timeline__tail")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText(/more/i)).toBeNull();
+    expect(screen.getAllByRole("button", { name: "View all" })).toHaveLength(1);
+  });
+
+  it("draws no fading end when every version is shown", async () => {
+    const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    expect(container.querySelector(".overview-timeline__tail")).toBeNull();
+  });
+
+  it("shows as many whole versions as the window has room for when it fits the screen", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    });
+    // A 300px box, each version row 50px tall in order.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.classList.contains("overview-history__fit")) return new DOMRect(0, 0, 600, 300);
+      if (this.hasAttribute("data-fit-row")) {
+        const index = Array.from(document.querySelectorAll("[data-fit-row]")).indexOf(this);
+        return new DOMRect(0, index * 50, 600, 50);
+      }
+      return new DOMRect(0, 0, 0, 0);
+    });
+    const controller = createHistoryController(port(vi.fn(async () => page(eight()))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    // Six rows reach the bottom, but not all eight fit: the fading end takes
+    // its room and five stay, none cut in half.
+    await waitFor(() => expect(container.querySelectorAll("[data-fit-row]")).toHaveLength(5));
+    expect(container.querySelector(".overview-timeline__tail")).not.toBeNull();
   });
 });

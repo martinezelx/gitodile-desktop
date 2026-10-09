@@ -7,7 +7,6 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { LanguageProvider } from "../i18n";
 import { App } from "./App";
 import { TitlebarMenu } from "./TitlebarMenu";
-import { ProjectPath } from "../features/overview";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type {
@@ -377,26 +376,6 @@ describe("TitlebarMenu", () => {
     expect(reload).toHaveAttribute("aria-disabled", "true");
     await user.click(reload);
     expect(screen.getByRole("menu")).toBeInTheDocument();
-  });
-});
-
-describe("ProjectPath", () => {
-  it("reports clipboard permission failures through the caller's error surface", async () => {
-    const user = userEvent.setup();
-    const onCopyError = vi.fn();
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
-    });
-
-    render(
-      <LanguageProvider>
-        <ProjectPath path="C:\\project" onCopyError={onCopyError} />
-      </LanguageProvider>,
-    );
-    await user.click(screen.getByRole("button", { name: "Copy project path" }));
-
-    expect(onCopyError).toHaveBeenCalledOnce();
   });
 });
 
@@ -1549,11 +1528,11 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    // The band's Publish tile is where the answer lands now.
-    // The status bar says the same words, so the band is found by its hint class.
+    // Overview's next-step card is where the answer lands now. The status bar
+    // says the same words, so the card is found by its title's class.
     expect(
-      (await screen.findAllByText("1 newer version available")).some((node) =>
-        node.classList.contains("journey-step__hint"),
+      (await screen.findAllByText(/^1 new version (on|available)/)).some((node) =>
+        node.classList.contains("next-step__title"),
       ),
     ).toBe(true);
     expect(
@@ -1647,8 +1626,8 @@ describe("App project restoration", () => {
     );
     await screen.findByRole("heading", { name: restoredProject.name });
 
-    // The band's active tile is the action.
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    // The band's active tile is the action, once both sides have been read.
+    await userEvent.click(await screen.findByRole("button", { name: "Save version" }));
 
     // The dialog opens here, and Overview stays the screen: nothing was
     // navigated, and the planner was asked to save everything.

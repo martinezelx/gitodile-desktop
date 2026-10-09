@@ -501,57 +501,113 @@ The main desktop window should broadly support:
      save → publish is the model the product exists to teach; alone, it
      under-serves the reader who already knows Git and wants the numbers.
 
-   The Journey page is the first and the third fused: the dashboard's header
-   and columns, with the stat row replaced by the stepper. Its parts, top to
-   bottom:
+   The Journey page is the third with the first's density: one card that
+   answers "what now", over the lists that answer "where is my work". It was
+   reworked in 0.3.1 from a band of three equal tiles, after a design review
+   found the band weighed two done steps as much as the waiting one and said
+   "publish" four times on one screen. Its parts, top to bottom:
 
-   - **A page header, not a card** (Linear, Vercel): the project's own icon,
-     name, path, the one selector that belongs to the whole project, its
-     settings. It is the only thing on the page that does not change while you
-     work, so it sits on the workspace itself. The icon is the identity chip
-     the rail shows for the project — chosen emoji, detected technology, or
-     initials — so the project is recognised here the way it is recognised
-     there, and it spends no accent: the band's current step is the page's one
-     accent fill. The line selector reads as one of the band's facts, not as a
-     form control — a neutral glyph circle, the caption "Version line" over
-     the name, no border and no fill until it is pointed at — and the settings
-     gear beside it is a bare round glyph. The header holds no bordered
-     control at rest. The line's name is said there and nowhere else on the
-     page: the Publish tile says "to origin" unless the destination has a
-     different name, and Recent history marks the version stood on as
-     "current".
-   - **The band**: one card holding the steps of the model as equal tiles
-     joined by connectors that turn solid as each step is reached. Every tile
-     is a fact (label, value, one line) and a button in its entirety, leading
-     to the screen that owns it. The tile whose action is the one thing to do
-     now is *current*: ringed in the accent, its value the verb, its hint the
-     reason, its glyph circle filled solid and wearing the attention
-     animation. There is no separate primary button — a button inside one
-     tile is a thing its neighbours would never match, and one under the band
-     said the tile twice. One sentence under the band says what the current
-     step means, with a quiet link only where there is somewhere to go and
-     nothing to press. Every state the page can be in is a state of one of
-     the tiles, so the band never needs a second card to explain itself.
-   - **Two equal columns** of the lists the band's facts are about, in the
-     same card shape with the same header shape (neutral glyph tile, title,
-     one line, the trailing action in the same corner and the same words).
-   - Nothing gets a card of its own for sometimes existing. Versions saved
-     but not yet published are rows of Recent history that say so — each
-     leading its meta with History's laptop glyph and tooltip, its node
-     ringed in the accent, with no label row splitting the list and no badge
-     on the current line's own remote copy (the glyphs already show where it
-     sits),
-     and "Publish up to here" appearing on a node under the pointer or focus —
-     not a fourth card repeating the band's count with a second Publish
-     button, and not a solid accent node on every row.
+   - **A breadcrumb, not a header block** (Vercel's and Linear's page
+     tops): the project's own icon, its name, a slash, and the line it is on
+     — read as an address, "this project, on this line" — and, at the row's
+     end, the project's folder and its settings as bare round glyphs. The icon
+     is the identity chip the rail shows for the project and opens its icon
+     picker. The line is the shared quick-switch pill, compact, with the name
+     in mono. The technology and the path are properties, not part of the
+     address: a row that mixed a 17px name, a 30px pill and 12px text read as
+     a mismatch rather than a hierarchy, so both left the row: the path is the
+     folder button's tooltip and the technology is the project's own icon.
+   - **The next-step card**: the one thing to do now, a sentence saying why,
+     and the button that does it — the page's one primary button. The three
+     steps of the model survive as a thin three-segment bar in the card's
+     caption (done, current, still to come), not as tiles. The state's colour
+     is one of the status tokens every theme defines — `--status-warning` for
+     unsaved work (the colour the switcher and rail already give it), the
+     accent for saved versions waiting to be published, `--status-renamed`
+     for newer versions on the remote, `--status-danger` for overlaps or a
+     failed check — and it washes in from the card's top-left corner and tints
+     its edge, the highlighted-card treatment of Linear and Arc. No edge
+     stripe. With nothing waiting the card is plain and offers nothing to
+     press. The primary button keeps the theme's accent in every state except
+     overlaps, where the action is "stop and decide" and takes the danger
+     colour. The card's glyph circle breathes once as a step becomes current.
+     **The card is always one colour.** What comes after the current step —
+     versions waiting on the remote, or saved versions still to publish — is
+     said in a neutral pill under the sentence ("Then: 3 new versions on
+     origin"), never in a second hue: unsaved work with news on the remote is
+     an amber card with a grey pill, not amber and blue. A check that failed
+     keeps the card calm and puts the failure in its glyph alone: the work is
+     safe, only the remote could not be asked.
+   - **A living timeline beside a side column.** Versions the last remote
+     check found waiting lead the timeline, above *now* — which is where they
+     stand in time — as one blue row with a dashed node ("origin · 3 new
+     versions · Get"). Then *now*, one line: "Now · 4 unsaved changes" on a
+     soft fill of the unsaved colour, the kinds of change as small glyph
+     counts, the whole line a way into Changes; it names no files, the side
+     column does, and with nothing unsaved it is one quiet line. Under it, the
+     versions still only on this computer are grouped on the accent's light
+     fill under one label ("Only on this computer · 2 versions") — in the
+     unsaved colour instead when there is no remote at all — then a small
+     cloud on the rail marks where the remote's copy of the line begins, then
+     the published versions. One rail runs the whole list. "Publish up to
+     here" still appears on an unpublished node under the pointer or focus.
+     Beside it, a **side column that follows the card**: one detail of what
+     the next step will move — "What you'll save" (files and the line totals
+     as a green and red bar), "What you need to decide" (the files with
+     overlapping parts), "What you'll get" (the incoming versions by title and
+     author), or "What you'll publish" (the files the unpublished versions
+     carry, "9+ files" while not all are read) — closing on the consequence in
+     one line that fits the column in every language ("Stays here until you
+     publish", "Seen by anyone on this line"). Above the detail, and alone when
+     nothing is waiting, **the scene**: this computer and the remote drawn as
+     two objects and the path between them telling how they stand — a check
+     when they match, green dots leaving for versions not yet published, dashed
+     blue dots arriving for versions waiting, a "?" when the remote could not
+     be asked, an empty dashed cloud ("No copy · Connect") when there is no
+     remote. Each place carries one fact ("Here · 3 hours ago", "origin · up to
+     date"); the explanation for newcomers is its tooltip, not a sentence on
+     the page. Large on a soft light of the two places' colours when nothing is
+     waiting, small and plain above the detail while there is work. Until the
+     history, the working tree and the remote's last known state are read it
+     shows its own shape as a neutral placeholder, then fades in once, so it never
+     draws a guess and jumps; captions wrap under their object rather than
+     spilling past it. When its state changes it moves once to say what just
+     happened, then rests: published dots travel to the cloud and the check
+     appears, got versions travel to this computer, news slides in from the
+     remote, a new version is born at the laptop, a check gives way to a "?",
+     a connected cloud fills in; colours ease rather than switch. Nothing
+     moves on the first drawing, while the Overview is hidden (a change made
+     elsewhere plays on coming back), or with reduced motion. Every part of
+     the screen loads the same way — its own shape in placeholder text, never a
+     spinner or a guessed state: the next-step card until both the files and
+     the remote's last known state are read (so "not checked" never flashes on
+     opening), the "Now" row, the timeline, the scene, and a detail card's
+     list until its files or versions are read. The whole screen's placeholder
+     during launch restore is built from the same pieces. A discard
+     that can still be restored is its own amber card under the scene, and
+     "Restore" opens Changes with the restore picker already open. The column
+     repeats nothing the status bar or the timeline already says: the remote
+     check, the project's path and its technology are not here (the path is
+     the folder button's tooltip; the technology is the project's own icon).
 
-   Three rules hold it together: one accent-filled thing per page (the
-   current step's glyph, or nothing when nothing is waiting), one vocabulary
-   of glyph tiles (a filled circle — neutral for a fact, light for done, solid
-   for do this — and never a ring), and nothing counted twice (a number is
-   said on its tile and nowhere else). A screen that adopts the pattern keeps
-   the same three rows and swaps the steps for its own model; it does not
-   keep the band and add a fourth row of cards.
+     **Fitted to the window.** Tall and wide enough (620px by 981px), Overview
+     has no scroll of its own: the header and the card keep their height and
+     the body takes the rest. The timeline and the detail card's list show as
+     many whole rows as fit — never a half row, never a scroll inside the page
+     — so a maximised window shows more versions and more files. When the
+     timeline leaves versions out, its rail runs on past the last one and
+     fades: the line goes on, said without a count, since "View all" is in its
+     header. Resizing reads nothing from Git; it only changes how many of the
+     rows already read are drawn. Smaller than that, the screen scrolls as a
+     page with lists of a fixed length.
+
+   Three rules hold it together: one primary button per page (the card's, or
+   none when nothing is waiting), one vocabulary of glyph tiles (filled
+   circles, never rings), and nothing counted twice (the card says the number
+   the step is about; the timeline groups the versions instead of counting
+   them again; the remote check lives in one place). A screen that adopts the
+   pattern keeps the card over its own lists; it does not add a band of tiles
+   back on top.
 
 5. **Optional inspector**
    - metadata;
@@ -2373,54 +2429,54 @@ periodic wave of commits without another entrance. Home owns the app's only
 "Overview".
 
 **With a project open, Overview is the Journey page** (§ Layout concept,
-Primary workspace): it answers one question — where is my work on the way
-from an edited file to a published version — and then shows the two lists
-that question is about. It is a page, not a stack of cards. The
-header sits on the workspace like a Linear or Vercel project page: the
-project's own icon (the rail's identity chip, which opens its icon picker),
-name, path with the detected technology beside it, the line selector (a
-labelled fact, borderless at rest) and its settings. Under it, one card holds the band: three
-tiles — Changes, Save, Publish — joined by connectors that turn solid as each
-step is reached. The band is the app's model of Git drawn once rather than
-explained. All three tiles are buttons in their entirety that lead to the
-screen owning them (Changes, History, the remote check, project settings when
-there is no remote); the tile whose action is the one thing to do now is
-ringed in the accent and *is* the action: its value is the verb ("Save
-version"), its hint the reason ("Keep your work safe"), and its own glyph
-circle is filled solid in the accent — the primary button's colour — and
-breathes: a slow, soft halo, the one moving thing on the screen, marking the
-one thing to do. The three fills a glyph circle can take are the band's whole
-hierarchy: neutral is a fact, light is done, solid is do this. There is no
-separate primary button: a button inside one tile is a thing its neighbours
-would never match, and a button under the band said the tile twice. Every
-state the old status cards described in prose is a state of one of the three
-tiles instead — loading, failed, conflicts (which take the first tile, in
-warning, and block the second), unsaved, saved, versions ready to publish,
-newer versions available, diverged, no remote — and one sentence under the
-band says what the active tile means, with when the remote was last checked
-and the one remote refresh at its end. The current tile takes the band's wide
-column; with nothing waiting the three are equal. Facts are not repeated
-across tiles: with everything saved, Changes says what will appear there and
-Save says when the last version was saved.
-It is a stepper in the shape of Headspace's or Fitness's home, not a wizard:
-nothing is gated, and a reader who already knows Git reads it as a status row.
-The last row pairs Changed files (one column of rows in the Changes screen's
-own shape, sampled one category at a time so "7 edited, 1 new" shows the new
-one, with the same "View all" in the same corner handing off) with Recent
-history, always at one height; with no files to list, the files card keeps
-that height and centres its tick, one line and the Changes screen's own next
-steps (publish, get project changes, open history or settings), with a short
-tip at its foot. The two cards share one header shape — a neutral
-40px glyph tile, a title, one line, the trailing action — and every glyph tile
-on the screen is that same filled circle, no rings and no borders; the band's
-connectors draw themselves when a step is reached, a one-beat transition and
-never a loop. Versions
-saved but not yet published are rows of that history, marked and offering
-"Publish up to here" under the pointer, rather than a card of their own. Nothing
-counts anything twice: the band's Publish tile is the one place "N ready to
-publish" is said, and there is no green number beside the line name. Every
-glyph tile on the screen is a circle, per Shape, including the ones a mockup
-would draw as rounded squares.
+Primary workspace): it answers one question — what do I do now — and then
+shows where all the work is. Top to bottom: a one-row breadcrumb (the
+project's own icon, name, a slash, the line's compact quick-switch pill, and
+the folder and settings glyphs at the end); the next-step card; and a
+timeline beside the project's properties.
+
+The **next-step card** is derived by `deriveNextStep` from the same journey
+the status bar reads: overlaps first (blocked, "Resolve overlaps"), then
+unsaved work (unsaved colour, "Save version" with "Review changes" beside
+it, and a neutral "Then:" pill for what waits on the remote or to be
+published; "Save your first version" in a project with none), then the
+remote side once everything is saved — versions to publish (accent, "Publish
+all N" and "View history"), newer versions on the remote (incoming colour,
+"3 new versions on origin · Review and get"), both sides moved (incoming
+colour, "Get 3 new versions before publishing" with "Then: publish 2
+versions"), not checked, checking, a check that failed (calm, a red glyph,
+"Your work is saved", "Try again"), no remote ("Saved on this computer",
+"Connect a remote"), no upstream, an older version open ("Choose a version
+line"), unborn, and finally "Saved and published" with no action. Its kicker
+names the kind of ask ("Next step", "Before you continue", "Needs your
+decision", "All saved", "All in order") beside the three-segment progress
+bar. The colour is a 135° wash of the state's status token from the top-left
+corner, fading out by 62%, plus a tinted 1px edge; in the calm state the card
+is a plain raised surface.
+
+The **timeline** is the History screen's shape: the incoming row (one blue
+line above *now* while versions wait on the remote, leading to the review and
+get flow), *now* (one line with the unsaved count and its kinds as glyph
+counts, leading to Changes), the versions only on this computer grouped under
+one label on the accent's light fill (the unsaved colour with no remote), a
+cloud mark on the rail where the remote's copy begins ("Published on origin",
+naming the line only when it differs from the one stood on), then published
+versions, six in all with "View all" in the card's corner. Rows keep "You" for
+the user's own versions and the "current" badge.
+The **side column** is `OverviewDetail`, choosing its detail with
+`overviewDetailMode` and drawing the scene with `WorkScene`. Its data never
+loads because Overview became visible: the composition root reads the files of
+each unpublished version when the unpublished list changes (once per version,
+since a saved version never changes, at most 20), the incoming versions when a
+remote check finds some (through `list_incoming_versions`, which reads the
+tracking ref the check already moved and never fetches, once per pair of
+commits), and the newest discard on a working-tree invalidation — all
+idle-deferred, into a feature-owned cache (`workDetail.ts`) the column only
+renders. "Restore" sets Changes' restore intent, the same intent pattern
+History uses for a selected version. The folder glyph in the breadcrumb opens
+the project's root in the system file manager through `open_project_folder`,
+which resolves the folder from the open project and never from a path the
+renderer sends. Under 980px the column drops below the timeline.
 
 **Changes saves from one place, and it is the place the files are.** The
 screen used to offer a version twice: a primary "Save version" in the

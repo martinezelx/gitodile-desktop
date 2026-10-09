@@ -715,8 +715,8 @@
    arrows act on the file and take the far edge. */
 .history-diff-toolbar .history-icon-button { width: 28px; height: 28px; border-color: transparent; background: transparent; }
 /* The copy control is a convenience, not a fact: it stays invisible until the
-   toolbar is pointed at, or focused into, the way Overview's project-path copy
-   does, so the open file's name keeps the row. */
+   toolbar is pointed at, or focused into, so the open file's name keeps the
+   row. */
 .history-diff-toolbar__copy { opacity: 0; transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast); }
 .history-diff-toolbar:hover .history-diff-toolbar__copy,
 .history-diff-toolbar:focus-within .history-diff-toolbar__copy,

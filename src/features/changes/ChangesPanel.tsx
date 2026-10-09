@@ -1201,6 +1201,8 @@ export function ChangesPanel({
   onBeginDiscard,
   onDiscardClose,
   onDiscardPhaseChange,
+  restoreIntent = null,
+  onRestoreIntentHandled,
 }: {
   /** The Work screen's tab pair, drawn as the list panel's header in every
    * state this panel has — it is what names the column now (task 126), and
@@ -1251,6 +1253,11 @@ export function ChangesPanel({
   onBeginDiscard: () => boolean;
   onDiscardClose: () => void;
   onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
+  /** Set by another screen — Overview's "Restore" on a discarded change — to
+   * open the restore picker as Changes arrives. Each new value is one request;
+   * the screen reports it handled so the same request never opens twice. */
+  restoreIntent?: number | null;
+  onRestoreIntentHandled?: () => void;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
@@ -1379,6 +1386,13 @@ export function ChangesPanel({
       setDiscardRequest(request);
     }
   };
+  const requestDiscardRef = useRef(requestDiscard);
+  requestDiscardRef.current = requestDiscard;
+  useEffect(() => {
+    if (restoreIntent === null) return;
+    onRestoreIntentHandled?.();
+    requestDiscardRef.current({ mode: "restore", selectedPath: null });
+  }, [restoreIntent, onRestoreIntentHandled]);
   const store = controller.getStore(projectPath, sessionEpoch, workingTree);
   // Seeded from the cache rather than starting at `idle`: on a remount with a
   // warm cache (navigating back to this screen) that difference is the one

@@ -193,6 +193,10 @@ import {
   type ScreenId,
 } from "./screens";
 import { previewFromPendingVersions } from "../features/publish/domain";
+// The adapter alone, not the feature index: the index carries the publish
+// dialog, which stays in its own lazy chunk.
+import { publishPort } from "../features/publish/tauriAdapter";
+import { createWorkDetailController } from "../features/overview/workDetail";
 import "../styles.css";
 
 // Lazily loaded: none of these are needed for Home's first paint, and
@@ -334,6 +338,16 @@ export function App(): React.JSX.Element {
   );
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
+  // Overview's side column: the files the unpublished versions carry, and the
+  // newest discard that can still be restored. Filled from here, on project
+  // activation and repository invalidations, never because Overview is shown.
+  const [workDetailController] = useState(() =>
+    createWorkDetailController({
+      readCommitFileChanges: (query) => publishPort.readCommitFileChanges(query),
+      getDiscardRecovery: (query) => changesController.getDiscardRecovery(query.projectId, query.sessionEpoch),
+      readIncomingVersions: (query) => statusPort.readIncomingVersions(query),
+    }),
+  );
   const [syncController] = useState(() => createSyncController(syncPort));
   // The error mapper is rebuilt whenever the language changes, so subscribers
   // read it through a ref rather than closing over the first render's copy.
@@ -370,6 +384,18 @@ export function App(): React.JSX.Element {
           await syncController.refreshLocal(projectRuntime, query, mapSyncErrorRef.current);
         },
         supersede: (query) => syncController.supersede(projectRuntime, query),
+      },
+      {
+        // A discard changes the working tree, so a worktree invalidation is
+        // when a new recovery can have appeared. Speculative for every screen
+        // but Overview, so it waits for an idle moment.
+        id: "overview-recovery",
+        refreshOn: "worktree-change",
+        blocking: false,
+        refresh: (query) => {
+          scheduleIdleTask(() => void workDetailController.refreshRecovery(query));
+        },
+        supersede: () => undefined,
       },
     ]),
   );
@@ -544,6 +570,9 @@ export function App(): React.JSX.Element {
   const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
   /** A saved version Lines asked History to open, alongside the line it is on. */
   const [historySelectCommitIntent, setHistorySelectCommitIntent] = useState<string | null>(null);
+  // Overview's "Restore" on a discarded change: Changes opens its restore
+  // picker as it arrives, then clears this.
+  const [changesRestoreIntent, setChangesRestoreIntent] = useState<number | null>(null);
   const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
@@ -1216,6 +1245,38 @@ export function App(): React.JSX.Element {
   // accurate publish-entry-point signal than the old ahead-count heuristic,
   // since it already accounts for the no-upstream-yet case (everything
   // local is reported as pending) with no extra branching needed here.
+  // When the unpublished list changes — after a save, a publish, an
+  // invalidation — read the files of the versions not seen yet. Saved versions
+  // never change, so each is read once per session.
+  const activeSessionId = activeSession?.id ?? null;
+  const activeSessionEpoch = activeSession?.epoch ?? null;
+  useEffect(() => {
+    if (!activeSessionId || !activeSessionEpoch || pendingVersions.versions.length === 0) return undefined;
+    const commits = pendingVersions.versions.map((version) => version.commit);
+    return scheduleIdleTask(() => {
+      void workDetailController.ensureCommitFiles(
+        { projectId: activeSessionId, sessionEpoch: activeSessionEpoch },
+        commits,
+      );
+    });
+  }, [activeSessionId, activeSessionEpoch, pendingVersions, workDetailController]);
+  // When a remote check finds versions waiting, name them: read locally from
+  // the tracking ref the check just moved, once per pair of commits.
+  const incomingKey =
+    teamSync.status && teamSync.status.behind > 0
+      ? `${teamSync.status.localCommit ?? ""}..${teamSync.status.remoteCommit ?? ""}`
+      : null;
+  useEffect(() => {
+    if (!activeSessionId || !activeSessionEpoch) return undefined;
+    const query = { projectId: activeSessionId, sessionEpoch: activeSessionEpoch };
+    if (!incomingKey) {
+      workDetailController.clearIncoming(query);
+      return undefined;
+    }
+    return scheduleIdleTask(() => {
+      void workDetailController.ensureIncoming(query, incomingKey);
+    });
+  }, [activeSessionId, activeSessionEpoch, incomingKey, workDetailController]);
   const canPublish = Boolean(
     project &&
       project.headState === "branch" &&
@@ -1306,6 +1367,7 @@ export function App(): React.JSX.Element {
   );
   const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
   const clearHistorySelectCommitIntent = useCallback(() => setHistorySelectCommitIntent(null), []);
+  const clearChangesRestoreIntent = useCallback(() => setChangesRestoreIntent(null), []);
   const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
 
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
@@ -1582,6 +1644,7 @@ export function App(): React.JSX.Element {
     delete watchedSessionsRef.current[id];
     versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
+    workDetailController.forget({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
     if (sessionsState.activeId === id) {
       setHomeHistory(null);
@@ -2526,9 +2589,17 @@ export function App(): React.JSX.Element {
                   }}
                   selfEmail={gitIdentity.identity.email || null}
                   onGoToVersionLines={() => navigateToView("version-lines")}
-                  onCopyPathError={() =>
-                    showErrorDialog(t.overviewCopyPathFailedTitle, t.overviewCopyPathFailedMessage)
-                  }
+                  onOpenProjectFolder={() => {
+                    if (!project || !activeSession) return;
+                    void repositoryController
+                      .openFolder({ path: project.path, sessionEpoch: activeSession.epoch })
+                      .catch((error: unknown) =>
+                        showErrorDialog(
+                          t.overviewOpenFolderFailedTitle,
+                          localizeAppError(error, t, t.overviewOpenFolderFailedMessage),
+                        ),
+                      );
+                  }}
                   onOpenSaveVersion={() => startSessionOperation("save")}
                   teamSync={teamSync}
                   onCheckTeamChanges={() => {
@@ -2541,6 +2612,11 @@ export function App(): React.JSX.Element {
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   historyController={historyController}
+                  workDetail={workDetailController}
+                  onRestoreDiscarded={() => {
+                    setChangesRestoreIntent(Date.now());
+                    openWorkbench("changes");
+                  }}
                   onOpenHistory={() => openWorkbench("history")}
                 />
               ),
@@ -2586,6 +2662,8 @@ export function App(): React.JSX.Element {
                                   selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
                                 })
                               }
+                              restoreIntent={changesRestoreIntent}
+                              onRestoreIntentHandled={clearChangesRestoreIntent}
                               onBeginDiscard={() => startSessionOperation("discard")}
                               onDiscardClose={() => finishSessionOperation(project.path)}
                               onDiscardPhaseChange={(phase) => {

@@ -50,6 +50,10 @@ export type VersionLineQuickSwitchProps = {
    * dialog. Without it, the control only chooses. */
   create?: VersionLineCreateContext;
   onSeeAll: () => void;
+  /** Where the menu opens from the trigger. By default the status strip's
+   * grows right and the control's backs off its right edge; a trigger at the
+   * start of a row, like Overview's breadcrumb, opens rightwards as well. */
+  menuAnchor?: "below" | "below-end";
 };
 
 /**
@@ -71,6 +75,7 @@ export function VersionLineQuickSwitch({
   onSwitch,
   create,
   onSeeAll,
+  menuAnchor,
 }: VersionLineQuickSwitchProps): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -128,14 +133,14 @@ export function VersionLineQuickSwitch({
     if (actionLine) backRef.current?.focus();
   }, [actionLine]);
   // The status-bar trigger sits at the left of its strip, so its menu grows
-  // right; Overview's control sits at the trailing end of the page header, so
-  // its menu backs off the trigger's right edge and grows left over the page
-  // instead of past the header. One component, two anchors.
+  // right; a control at the trailing end of a header backs off the trigger's
+  // right edge and grows left over the page instead. A caller whose control
+  // starts its row, like Overview's breadcrumb, names `menuAnchor` itself.
   const { popupRef, style } = usePortalFlyout(
     isOpen,
     triggerRef,
     close,
-    variant === "status" ? "below" : "below-end",
+    menuAnchor ?? (variant === "status" ? "below" : "below-end"),
     "first-control",
   );
   const Chevron = variant === "status" ? ChevronUp : ChevronDown;

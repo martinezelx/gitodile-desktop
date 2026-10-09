@@ -5,41 +5,29 @@
   gap: var(--space-4);
 }
 
-/* ---- Page header ----
-   Not a card. The name, the path, the line and its settings are the one
-   thing on the screen that does not change while you work, so they sit on
-   the workspace itself, the way Linear or Vercel head a project page; the
-   cards below are for what does change. Identity on the left takes what it
-   needs; the controls on the right take the rest and drop under it when the
-   row is too narrow for both. */
+/* ---- Breadcrumb header ----
+   Not a card and not a block: one row read as an address — the project, a
+   slash, the line it is on — the way Vercel and Linear head a page. The
+   technology and the path follow quietly, the settings sit at the far end, and
+   the row wraps rather than truncating the line when the window is narrow. */
 .overview-header {
   min-width: 0;
+  min-height: 40px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
-  padding: 0 var(--space-2);
+  gap: var(--space-2) var(--space-3);
+  padding: 0 var(--space-1);
 }
-.overview-header__identity {
-  flex: 1 1 260px;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-/* The project's own icon — the rail's identity chip at the header's size, in
-   the same rounded square — rather than a generic folder glyph in the accent:
-   the project is recognised here the way it is recognised in the rail, and the
-   band's current step is left as the one accent fill on the page. It is the
-   way into the icon picker, so under the pointer or focus a small pencil says
-   so; the chip itself stays decorative (`ProjectAvatar`) and the button
-   carries the name. */
+/* The project's own icon — the rail's identity chip, at the breadcrumb's size.
+   It is the way into the icon picker, so under the pointer or focus a small
+   pencil says so; the chip itself stays decorative (`ProjectAvatar`) and the
+   button carries the name. */
 .overview-header__icon {
   position: relative;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-identity);
@@ -56,7 +44,7 @@
   border-radius: var(--radius-identity);
   color: var(--avatar-foreground);
   box-shadow: var(--avatar-ring);
-  font-size: var(--text-lead);
+  font-size: var(--text-label);
   font-weight: var(--weight-title);
   letter-spacing: var(--tracking-wide);
 }
@@ -64,8 +52,8 @@
   position: absolute;
   right: -5px;
   bottom: -5px;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
@@ -75,145 +63,63 @@
   opacity: 0;
   transition: opacity var(--duration-fast);
 }
-.overview-header__icon-edit svg { width: 11px; height: 11px; }
+.overview-header__icon-edit svg { width: 10px; height: 10px; }
 .overview-header__icon:hover .overview-header__icon-edit,
 .overview-header__icon:focus-visible .overview-header__icon-edit { opacity: 1; }
-.overview-header__copy { min-width: 0; flex: 1; }
-/* What the project was detected as — the fact behind a technology icon, said
-   in words — then the place it lives. */
-.overview-header__subline { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
-.overview-header__subline .project-path { min-width: 0; }
-.overview-header__technology {
-  flex-shrink: 0;
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--surface-control);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-snug);
-  white-space: nowrap;
-}
-/* Truncated, never wrapped: the header is one row, and the whole name is
-   one hover away. `--leading-snug` rather than `--leading-tight`: the name is
-   clipped by `overflow: hidden` for the ellipsis, and a tight line box cut the
-   descenders of a name like "project-gitodile" off at the path below it. The
-   snug leading is a name's own role anyway, and it leaves the box tall enough
-   to hold a descender (tokens.css). */
-.overview-header__copy h1 {
+/* The project's name, at the card-heading size: in a breadcrumb it is a place,
+   and the next-step card under it is the page's headline. `--leading-snug`
+   keeps a descender inside the box `overflow: hidden` clips for the ellipsis. */
+.overview-header__name {
+  min-width: 0;
+  max-width: 40ch;
+  margin: 0;
   overflow: hidden;
-  margin-bottom: 2px;
-  /* The hero size is the name size in DESIGN.md — the app's, the project's —
-     and it keeps the name a step above the band's count, which is the
-     screen-title size. */
-  font-size: var(--text-hero);
-  letter-spacing: var(--tracking-hero);
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-tight);
   line-height: var(--leading-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The name and the gear that configures it: the settings belong to the
-   project, not to the version line on the right. The name truncates; the gear
-   never does. */
-.overview-header__title { min-width: 0; margin-bottom: 2px; display: flex; align-items: center; gap: var(--space-1); }
-.overview-header__title h1 { min-width: 0; margin-bottom: 0; }
-.overview-header__copy .project-path { margin-bottom: 0; }
-.overview-header__copy .project-path__value { color: var(--text-secondary-color); font-size: var(--text-label); }
-.overview-header__copy .project-path__copy {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-item);
-  background: transparent;
-  border-color: transparent;
-  opacity: 0;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+.overview-header__slash {
+  flex-shrink: 0;
+  color: var(--border-control);
+  font-size: var(--text-display);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-none);
 }
-.overview-header__copy .project-path:hover .project-path__copy,
-.overview-header__copy .project-path:focus-within .project-path__copy,
-.overview-header__copy .project-path__copy:focus-visible { opacity: 1; }
-.overview-header__copy .project-path__copy svg { width: 13px; height: 13px; }
-.overview-header__actions {
-  flex: 0 1 auto;
+/* The line, as the breadcrumb's second part: the shared selector's pill,
+   compact, with the name in mono since it is a name Git knows. It truncates
+   rather than wrapping; the full name is the trigger's own title. */
+.overview-meta {
   min-width: 0;
-  max-width: 100%;
   display: flex;
-  align-items: stretch;
-  gap: var(--space-2);
+  align-items: center;
 }
-/* The line reads as one of the band's facts rather than as a form control:
-   no border and no fill at rest, a neutral glyph circle, a caption saying what
-   the name is, and the name at the band's value size — mono, since it is a
-   name Git knows, but not heavier than a tile's value. Under the pointer it
-   takes the band tiles' own hover fill. The header's controls are the page's
-   only bordered objects otherwise, and they read as a form stuck on top. The
-   value truncates rather than wrapping, so a long line name costs the header
-   no height; the full name is the trigger's own title. */
-.overview-header .version-lines-quick-switch {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-  align-items: stretch;
-  gap: var(--space-2);
-}
+.overview-header .version-lines-quick-switch { min-width: 0; }
 .overview-header .version-line-selector {
-  flex: 1 1 auto;
   min-width: 0;
-  max-width: 340px;
-  gap: var(--space-3);
-  padding: 6px var(--space-3) 6px 6px;
-  justify-content: flex-start;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
+  max-width: 300px;
+  min-height: 30px;
+  gap: 6px;
+  padding: 3px var(--space-3) 3px 10px;
+  border-radius: var(--radius-item);
+  background: var(--surface-raised);
 }
 .overview-header .version-line-selector:hover { background: var(--surface-hover); }
-.overview-header .version-line-selector:active { background: var(--surface-active); }
 .overview-header .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
 .overview-header .version-line-selector:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-/* A detached HEAD cannot switch from here; the same face, without the hover. */
-.overview-header .version-line-selector--static { border: 0; background: transparent; }
+.overview-header .version-line-selector__icon { width: 14px; height: 14px; color: var(--text-secondary-color); }
 .overview-header .version-line-selector__value {
   min-width: 0;
   overflow: hidden;
   overflow-wrap: normal;
-  font-size: var(--text-lead);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
   font-weight: var(--weight-strong);
   line-height: var(--leading-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-/* A bare round glyph, like the band's refresh: no border and no fill until it
-   is pointed at, so the header holds no form-control chrome at rest. */
-.overview-header .version-lines-quick-switch__create,
-.overview-header__settings {
-  flex-shrink: 0;
-  align-self: center;
-  width: var(--control-height-md);
-  min-width: var(--control-height-md);
-  height: var(--control-height-md);
-  min-height: var(--control-height-md);
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-round);
-  background: transparent;
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.overview-header__settings svg { width: 18px; height: 18px; }
-.overview-header__settings:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.overview-header .version-lines-quick-switch__create:hover:not(:disabled),
-.overview-header__settings:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.overview-header .version-lines-quick-switch__create:active:not(:disabled),
-.overview-header__settings:active { background: var(--surface-active); }
-
-.overview-meta {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 .overview-meta__branch-icon {
   width: 14px;
@@ -222,458 +128,195 @@
   color: var(--text-secondary-color);
   vertical-align: -2px;
 }
-.overview-meta__branch-note { max-width: 40ch; color: var(--text-secondary-color); font-size: var(--text-body); }
+.overview-meta__branch-note { color: var(--text-secondary-color); font-family: var(--font-mono); font-size: var(--text-label); white-space: nowrap; }
+/* The project's tools at the row's end — its folder, its settings: bare round
+   glyphs with no border and no fill until they are pointed at, so the header
+   holds no form-control chrome at rest. */
+.overview-header__tool {
+  flex-shrink: 0;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.overview-header__tool svg { width: 17px; height: 17px; }
+.overview-header__tool:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.overview-header__tool:active { background: var(--surface-active); }
+.overview-header__tool:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.overview-header__tool--first { margin-left: auto; }
 
-/* ---- The band: change, save, publish ----
-   One card holding three tiles and the connectors between them. The tiles
-   are the same 10px rows-in-a-container tier as a menu row, on the control
-   surface so they read as parts of one thing; the active one alone takes the
-   accent, as a 2px ring rather than a fill, so the primary button inside it
-   is still the only green fill on the screen. */
-.journey {
+/* ---- The next-step card ----
+   The one thing to do now, why, and the button that does it. The state's
+   colour comes from the theme's own status tokens and washes in from the
+   top-left corner, tinting the edge with it — a highlighted card in the manner
+   of Linear's and Arc's, not a stripe — and with nothing waiting the card is
+   plain. `--tone` is the wash and the segments; `--ink` is the text and glyph,
+   which for the accent is its readable shade rather than its fill. */
+.next-step {
+  --tone: var(--accent-primary-fill);
+  --ink: var(--accent-primary);
+  --attention-color: var(--tone);
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, var(--border-subtle));
+  border-radius: var(--radius-surface);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tone) 18%, transparent) 0%, transparent 62%),
+    var(--surface-raised);
+  box-shadow: var(--shadow-md);
+}
+.next-step--unsaved { --tone: var(--status-warning); --ink: var(--status-warning); }
+.next-step--incoming { --tone: var(--status-renamed); --ink: var(--status-renamed); }
+.next-step--blocked { --tone: var(--status-danger); --ink: var(--status-danger); }
+.next-step--calm {
+  --tone: var(--border-control);
+  --ink: var(--text-secondary-color);
+  border-color: var(--border-subtle);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+/* A filled circle, the page's one glyph-tile shape, in the state's colour. */
+.next-step__glyph {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--tone) 22%, transparent);
+  color: var(--ink);
+}
+.next-step--calm .next-step__glyph { background: var(--surface-hover); }
+.next-step__glyph svg { width: 21px; height: 21px; }
+.next-step__copy { flex: 1 1 280px; min-width: 0; display: grid; gap: 2px; }
+.next-step__kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
+}
+/* The three steps — change, save, publish — survive as a thin bar: done,
+   current, and still to come. */
+.next-step__progress { display: inline-flex; gap: 3px; }
+.next-step__segment {
+  width: 16px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-control);
+}
+.next-step__segment--done { background: color-mix(in srgb, var(--ink) 55%, transparent); }
+.next-step__segment--current { background: var(--tone); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tone) 30%, transparent); }
+.next-step__title {
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
+}
+.next-step__hint {
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
+/* What comes after this step, in a neutral pill: the card keeps one colour. */
+.next-step__then {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  padding: 3px var(--space-3) 3px 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-strong);
+}
+.next-step__then strong { color: var(--text-primary-color); font-weight: var(--weight-heading); }
+.next-step__then-glyph {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-raised);
+}
+.next-step__then-glyph svg { width: 11px; height: 11px; }
+/* A check that failed keeps the card calm and puts the failure in its glyph. */
+.next-step .next-step__glyph--failed { background: color-mix(in srgb, var(--status-danger) 14%, transparent); color: var(--status-danger); }
+.next-step__actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.next-step__actions svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* Overlaps, and a check that failed, are the one primary that leaves the
+   accent: the action there is not "go on" but "stop and decide". */
+.next-step .primary-button.next-step__primary--blocked {
+  background: var(--status-danger);
+  color: var(--status-danger-contrast);
+}
+
+/* ---- The body: the timeline beside the project's facts ---- */
+.overview-body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.overview-history {
   min-width: 0;
   padding: var(--space-3);
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
-  box-shadow: var(--shadow-md);
-}
-/* Equal thirds while nothing is waiting; the current step takes the wide
-   column, because it is the tile that holds the verb and the reason. */
-.journey__steps {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr);
-  align-items: stretch;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.journey__steps--wide-changes { grid-template-columns: minmax(0, 1.3fr) 24px minmax(0, 1fr) 24px minmax(0, 1fr); }
-.journey__steps--wide-save { grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1.3fr) 24px minmax(0, 1fr); }
-.journey__steps--wide-publish { grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) 24px minmax(0, 1.3fr); }
-.journey__steps > li { min-width: 0; display: grid; }
-.journey-connector {
-  position: relative;
-  align-self: center;
-  width: 100%;
-  height: 0;
-  border-top: 2px dashed var(--border-control);
-}
-/* Drawn, not switched: when a step is reached the solid line grows out of
-   it towards the next step, over one short beat. It is a transition on a
-   state that changes a few times an hour, never a loop — and it does not
-   run on first paint, because the initial state has nothing to arrive from. */
-.journey-connector::after {
-  content: "";
-  position: absolute;
-  inset: -2px 0 auto 0;
-  border-top: 2px solid var(--text-secondary-color);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 320ms ease-out;
-}
-.journey-connector--done::after { transform: scaleX(1); }
-.journey-step {
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 2px solid transparent;
-  border-radius: var(--radius-control);
-  background: var(--surface-control);
-  color: var(--text-primary-color);
-  font: inherit;
-  text-align: left;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
-}
-button.journey-step:hover { background: var(--surface-hover); }
-button.journey-step:active { background: var(--surface-active); }
-button.journey-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.journey-step--active { border-color: var(--accent-primary); background: var(--surface-raised); }
-/* The step that needs attention and carries the action is ringed the same way,
-   in its own colour. */
-.journey-step--attention[aria-current] { border-color: var(--status-warning); background: var(--surface-raised); }
-/* The one glyph-tile recipe this screen uses, at the one size the cards
-   use: a 40px circle, a 19px glyph, the tone in the fill and the glyph, and
-   no border — the same tile Changed files and Recent history head their
-   cards with, and the project's own tile in the page header is the same
-   thing at 44px with the accent. */
-.journey-step__icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.journey-step__icon svg { width: 19px; height: 19px; }
-.journey-step--done .journey-step__icon { background: var(--surface-active); color: var(--accent-primary); }
-.journey-step--attention .journey-step__icon { background: color-mix(in srgb, var(--status-warning) 14%, transparent); color: var(--status-warning); }
-.journey-step--danger .journey-step__icon { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
-.journey-step--muted { color: var(--text-secondary-color); }
-.journey-step__copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
-.journey-step__label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-snug);
-}
-.journey-step__label-note { color: var(--accent-primary); font-weight: var(--weight-strong); }
-.journey-step--attention .journey-step__label-note { color: var(--status-warning); }
-.journey-step__go { width: 13px; height: 13px; margin-left: auto; color: var(--text-secondary-color); opacity: 0; transition: opacity var(--duration-fast); }
-button.journey-step:hover .journey-step__go,
-button.journey-step:focus-visible .journey-step__go { opacity: 1; }
-.journey-step__value {
-  overflow: hidden;
-  font-size: var(--text-lead);
-  font-weight: var(--weight-strong);
-  line-height: var(--leading-snug);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.journey-step--done .journey-step__value { color: var(--text-primary-color); }
-.journey-step--attention .journey-step__value { color: var(--status-warning); }
-.journey-step--danger .journey-step__value { color: var(--status-danger); }
-.journey-step__hint {
-  overflow: hidden;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-snug);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.journey-step__mono { font-family: var(--font-mono); }
-/* "✎ 14 edited · + 7 new · − 2 deleted": the Changes rows' own category
-   glyphs, in the rows' own colours, so the breakdown and the list below are
-   read with one vocabulary. Wraps rather than truncates — three short chips
-   on two lines beat one line cut at "1 dele…". */
-.journey-step__breakdown {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--space-2);
-  white-space: normal;
-}
-.journey-step__kind { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.journey-step__kind svg { width: 13px; height: 13px; flex-shrink: 0; }
-.journey-step__kind--new svg { color: var(--status-success); }
-.journey-step__kind--deleted svg { color: var(--status-danger); }
-.journey-step__kind--renamed svg { color: var(--status-renamed); }
-.journey-step__kind--conflicted svg { color: var(--status-warning); }
-.journey-step__hint:has(.journey-step__breakdown) { overflow: visible; white-space: normal; }
-/* The active tile's own glyph is the mark: the same circle as its
-   neighbours, filled solid in the accent — the primary button's colour, since
-   this tile *is* the primary action — wearing the app's attention animation
-   (`.attention-breathe`, primitives.css) once, as it becomes current. Under the
-   pointer the circle rises a step. The three fills are the whole hierarchy:
-   neutral = a fact, light = done, solid = do this. The warning tile keeps the
-   same halo and only re-points its colour. */
-.journey-step--active .journey-step__icon,
-.journey-step--attention[aria-current] .journey-step__icon {
-  transition: transform var(--duration-fast);
-}
-.journey-step--active .journey-step__icon {
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
-}
-.journey-step--attention[aria-current] .journey-step__icon {
-  --attention-color: var(--status-warning);
-  background: var(--status-warning);
-  color: var(--accent-primary-contrast);
-}
-button.journey-step--active:hover .journey-step__icon,
-button.journey-step--active:focus-visible .journey-step__icon,
-button.journey-step--attention[aria-current]:hover .journey-step__icon,
-button.journey-step--attention[aria-current]:focus-visible .journey-step__icon {
-  transform: scale(1.08);
-}
-/* Pointing at the active tile tints it: the ring already says "this one",
-   the tint says "and it does something". */
-button.journey-step--active:hover { background: var(--surface-active); }
-button.journey-step--attention[aria-current]:hover { background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-raised)); }
-/* Where publishing goes, on the hint's one line: "to origin · main". When it
-   was last checked is said under the band, beside the refresh. */
-.journey-step__remote { min-width: 0; }
-/* One sentence under the band, and the one remote refresh on the screen at
-   its end: the cloud check belongs to the band's Publish fact, and the strip
-   below already holds its twin. */
-.journey__note {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin: var(--space-3) 0 0;
-  padding: 0 var(--space-1);
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-}
-.journey__note > svg { flex-shrink: 0; width: 14px; height: 14px; }
-.journey__note > span { flex: 1 1 240px; min-width: 0; }
-/* When the remote was last asked, right before the button that asks again. */
-.journey__note > .journey__when { flex: 0 0 auto; font-size: var(--text-caption); white-space: nowrap; }
-.journey__note-action,
-.journey__refresh {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 28px;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--accent-primary);
-  font: inherit;
-  font-size: var(--text-label);
-  font-weight: var(--weight-heading);
-  white-space: nowrap;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.journey__note-action svg { width: 14px; height: 14px; }
-.journey__note-action:hover { background: var(--surface-hover); }
-.journey__refresh {
-  width: 28px;
-  padding: 0;
-  justify-content: center;
-  border-radius: var(--radius-round);
-  color: var(--text-secondary-color);
-}
-.journey__refresh svg { width: 14px; height: 14px; }
-.journey__refresh:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.journey__refresh:active:not(:disabled) { background: var(--surface-active); }
-.journey__refresh:disabled { opacity: 0.6; }
-.journey__note-action:focus-visible,
-.journey__refresh:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-
-/* ---- Changed files ----
-   The left column: the "which files" behind the band's count, in the
-   Changes screen's own row shape. Same header shape as Recent history beside
-   it, so the two read as a pair. */
-.changed-files {
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-5);
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
-}
-.changed-files__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-.changed-files__heading {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.changed-files__heading > div { min-width: 0; }
-/* The same tile Recent history wears beside it, in the neutral tone: the
-   count is the fact here, and it is already said in the band. */
-.changed-files__icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.changed-files__icon svg { width: 19px; height: 19px; }
-.changed-files__header h2 {
-  margin: 0 0 2px;
-  font-size: var(--text-subtitle);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
-}
-.changed-files__header p {
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-}
-.changed-files__state {
-  flex: 1;
-  min-height: 84px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  color: var(--text-secondary-color);
-  font-size: var(--text-body);
-}
-.changed-files__state > svg { width: 20px; height: 20px; flex-shrink: 0; }
-/* The empty card's tile: the band's light "done" fill, at the card's own
-   glyph size, arriving with a small overshoot while the tick draws itself
-   from left to right. One run per arrival, never a loop; reduced motion
-   shows the finished tile. */
-/* Nothing to list: the card keeps Recent history's height, so the block is
-   centred in what is left under the header, with the tip held at the foot. */
-.changed-files__state--empty {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: var(--space-3);
-  text-align: center;
-}
-.changed-files__clean {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-}
-.changed-files__clean-text { max-width: 34ch; margin-bottom: var(--space-3); }
-.changed-files__clean-text strong { font-size: var(--text-lead); }
-.changed-files__actions { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
-.changed-files__secondary { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
-.changed-files__actions svg { width: 15px; height: 15px; flex-shrink: 0; }
-.changed-files__tip {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-item);
-  background: var(--surface-control);
-  font-size: var(--text-label);
-  animation: row-in 220ms ease-out 420ms backwards;
-}
-.changed-files__done {
-  width: 44px;
-  height: 44px;
-  margin-bottom: var(--space-2);
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-active);
-  color: var(--accent-primary);
-  animation: changed-files-done-in 360ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-}
-.changed-files__done svg { width: 20px; height: 20px; }
-.changed-files__done-tick {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: changed-files-done-tick 320ms ease-out 220ms forwards;
-}
-.changed-files__clean-text,
-.changed-files__actions { animation: row-in 220ms ease-out 360ms backwards; }
-@keyframes changed-files-done-in {
-  from { opacity: 0; transform: scale(0.6); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes changed-files-done-tick { to { stroke-dashoffset: 0; } }
-.changed-files__state--error > svg { color: var(--status-danger); }
-.changed-files__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
-.changed-files__state p { margin: 0; line-height: var(--leading-normal); }
-.changed-files__state--error .secondary-button { margin-top: var(--space-2); }
-.changed-files__stale {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 var(--space-2);
-  color: var(--status-warning);
-  font-size: var(--text-caption);
-}
-.changed-files__stale svg { width: 13px; height: 13px; }
-.changed-files .changes-preview__item { background: transparent; padding-inline: var(--space-2); }
-.changed-files .changes-preview__item:hover { background: var(--surface-hover); }
-
-/* Rows arrive staggered through `.row-in` (primitives.css), shared with
-   the Changes file list. */
-
-.overview-history {
-  min-width: 0;
-  height: 100%;
-  padding: var(--space-5);
-  border-radius: var(--radius-surface);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
-}
-.overview-history--loading {
-  min-height: 132px;
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary-color);
-}
-.overview-history--loading > svg { width: 20px; height: 20px; }
-
-/* Launch restore's stand-in for the header (`OverviewPlaceholder`): the
-   project's tile, its name at the name's own size, and the version-line
-   switch's control. */
-.overview-placeholder__avatar {
-  width: 100%;
-  height: 100%;
-  margin-block: 0;
-  border-radius: var(--radius-identity);
-}
-.overview-placeholder__name {
-  font-size: var(--text-hero);
-  line-height: var(--leading-snug);
-}
-/* The path row is as tall as its copy control, and the note under the band as
-   tall as its refresh button, so nothing below moves when the project lands. */
-.overview-placeholder__path { min-height: 28px; }
-.overview-placeholder__note { min-height: 28px; }
-.overview-placeholder__note > .text-placeholder { flex: 0 1 auto; }
-.overview-placeholder__switch {
-  width: 180px;
-  height: 48px;
-  margin-block: 0;
-  border-radius: var(--radius-control);
 }
 .overview-history__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-1);
+  padding-left: var(--space-2);
 }
-.overview-history__heading {
-  min-width: 0;
+.overview-history__header h2 {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-}
-.overview-history__heading > div { min-width: 0; }
-.overview-history__icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.overview-history__icon svg { width: 19px; height: 19px; }
-.overview-history__heading h2 {
-  margin: 0 0 2px;
+  gap: var(--space-2);
+  margin: 0;
   font-size: var(--text-subtitle);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
 }
-.overview-history__heading p {
-  margin: 0;
-  color: var(--text-secondary-color);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-}
-.changed-files__all,
+.overview-history__refreshing { width: 14px; height: 14px; color: var(--text-secondary-color); }
 .overview-history__all {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 36px;
+  min-height: 32px;
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
@@ -684,41 +327,56 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   font-weight: var(--weight-heading);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.changed-files__all:hover,
 .overview-history__all:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.changed-files__all svg,
 .overview-history__all svg { width: 15px; height: 15px; }
-.overview-history__list {
+
+/* ---- The timeline ----
+   One rail runs the whole list, in the divider colour — the same rail the
+   History screen draws — and every node, group glyph and mark sits on it at
+   the same x: the 24px first column, 6px in. */
+.overview-timeline,
+.overview-timeline__rows {
+  min-width: 0;
   display: grid;
-  gap: var(--space-1);
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.overview-history__list li { position: relative; min-width: 0; }
-.overview-history__list li:not(:last-child)::after {
+.overview-timeline { position: relative; }
+.overview-timeline::before {
   content: "";
   position: absolute;
-  z-index: 0;
-  top: 50%;
+  top: 20px;
+  bottom: 24px;
   left: 17.5px;
   width: 1px;
-  height: calc(100% + var(--space-1));
-  /* Structure, in the divider colour: the same rail the History timeline
-     draws, and for the same reason — an accent spent on every row is an accent
-     that says nothing about any of them. */
   background: var(--border-divider);
+}
+.overview-timeline__item { position: relative; min-width: 0; }
+/* More versions than drawn: the rail runs on past the last one and fades out,
+   saying the line goes on without a count ("View all" is in the header). */
+.overview-timeline--continues::before { bottom: 32px; }
+.overview-timeline__tail { position: relative; height: 32px; }
+.overview-timeline__tail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 17.5px;
+  width: 1px;
+  background: linear-gradient(var(--border-divider), transparent);
 }
 .overview-history__row {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 58px;
+  min-height: 50px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) 16px;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) 6px;
+  padding: 6px var(--space-2) 6px 6px;
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
@@ -730,8 +388,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
 .overview-history__row:hover,
 .overview-history__row:focus-visible { background: var(--surface-hover); }
 /* The same node as the History timeline's, minus the selected state this
-   preview has no room for: a ring at rest, the accent under the pointer, and
-   no keyframes at all. */
+   preview has no room for: a ring at rest, the accent under the pointer. */
 .overview-history__node {
   position: relative;
   z-index: 1;
@@ -744,9 +401,6 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   box-shadow: 0 0 0 3px var(--surface-raised);
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
-/* Under the pointer the node takes the History screen's *selected* look —
-   filled, with the soft halo — because this list has no selection of its
-   own, and "this is the one you are about to open" is the same fact. */
 .overview-history__row:hover .overview-history__node,
 .overview-history__row:focus-visible .overview-history__node {
   border-color: var(--accent-primary);
@@ -754,11 +408,7 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
-.overview-history__body {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
+.overview-history__body { min-width: 0; display: grid; gap: 3px; }
 .overview-history__subject {
   overflow: hidden;
   font-size: var(--text-body);
@@ -779,24 +429,145 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   white-space: nowrap;
 }
 .overview-history__meta > span { overflow: hidden; text-overflow: ellipsis; }
-/* The separator is a real element rendered beside the badge rather than a
-   `::before` on whatever follows: the badge is an `inline-flex` capsule, and a
-   pseudo-element on it lands inside its border. `HistoryMetaDot` owns it. */
-/* The laptop glyph is the row's one publish signal, so a long author or line
-   name gives way before it does. */
-.overview-history__meta > .state-glyph { flex-shrink: 0; overflow: visible; }
 .overview-history__author { flex: 0 1 auto; }
 .overview-history__date { flex: 0 0 auto; }
 .overview-history__chevron { width: 15px; height: 15px; color: var(--text-secondary-color); }
-/* A version still only on this computer: its node is ringed in the accent.
-   Where it can be published, the node *is* the action — but only under the
-   pointer or focus: it grows from 12px to a pressable 22px, filled solid in
-   the accent with the send glyph, laid over the row's own node because it
-   cannot live inside the row's button, and breathes once. At rest it is
-   hidden, so four unpublished rows are four rings and not four solid fills
-   competing with the band's current step. Keyboard focus reaches it all the
-   same, and a touch screen, with no pointer to hover with, always shows it. */
+
+/* The versions still only on this computer: one group, on the accent's light
+   fill, under one label — the count the old band said, drawn where the
+   versions are. Their nodes are ringed in the accent. */
+.overview-timeline__group {
+  min-width: 0;
+  padding: 2px 0 4px;
+  border-radius: var(--radius-control);
+  background: var(--surface-active);
+}
+.overview-timeline__group .overview-history__node,
+.overview-timeline__group .overview-history__row:not(:hover):not(:focus-visible) .overview-history__node { box-shadow: none; }
 .overview-history__item--local .overview-history__node { border-color: var(--accent-primary); }
+.overview-timeline__group-head {
+  display: grid;
+  grid-template-columns: 24px auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 6px var(--space-2) 0 6px;
+}
+.overview-timeline__group-icon {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  place-self: center;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--accent-primary-fill);
+  color: var(--accent-primary-contrast);
+}
+.overview-timeline__group-icon svg { width: 12px; height: 12px; }
+.overview-timeline__group-label {
+  color: var(--accent-primary);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.overview-timeline__group-count { color: var(--text-secondary-color); font-size: var(--text-caption); }
+/* Versions waiting on the remote, above "now" — where they stand in time —
+   in the remote's blue with a dashed node, and the way to get them. */
+.overview-timeline__incoming-item { position: relative; min-width: 0; }
+.overview-timeline__incoming {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) 6px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-renamed) 10%, transparent);
+  color: var(--text-secondary-color);
+  font: inherit;
+  font-size: var(--text-body);
+  text-align: left;
+  transition: background var(--duration-fast);
+}
+.overview-timeline__incoming:hover { background: color-mix(in srgb, var(--status-renamed) 16%, transparent); }
+.overview-timeline__incoming:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.overview-timeline__incoming-node {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  justify-self: center;
+  border: 2px dashed var(--status-renamed);
+  border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 3px var(--surface-raised);
+}
+.overview-timeline__incoming-text { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.overview-timeline__incoming-where { color: var(--text-primary-color); font-family: var(--font-mono); font-size: var(--text-label); font-weight: var(--weight-heading); }
+.overview-timeline__incoming-text strong { color: var(--status-renamed); font-weight: var(--weight-heading); }
+.overview-timeline__incoming-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--status-renamed);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.overview-timeline__incoming-action svg { width: 12px; height: 12px; }
+/* With no remote at all, everything is only on this computer: the group says
+   so in the unsaved colour rather than the accent's "ready to publish". */
+.overview-timeline__group--alone { background: color-mix(in srgb, var(--status-warning) 9%, transparent); }
+.overview-timeline__group--alone .overview-timeline__group-icon { background: var(--status-warning); color: var(--surface-raised); }
+.overview-timeline__group--alone .overview-timeline__group-label { color: var(--status-warning); }
+.overview-timeline__group--alone .overview-history__node { border-color: var(--status-warning); }
+
+/* Where the remote's copy of the line begins: a small cloud on the rail and a
+   dashed rule running out from it. */
+.overview-timeline__mark {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) 2px 6px;
+}
+.overview-timeline__mark-icon {
+  position: relative;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  place-self: center;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  color: var(--status-success);
+}
+.overview-timeline__mark-icon svg { width: 12px; height: 12px; }
+.overview-timeline__mark-text {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+}
+.overview-timeline__mark-text::after { content: ""; flex: 1; border-top: 1px dashed var(--border-control); }
+.overview-timeline__mono { color: var(--text-primary-color); font-family: var(--font-mono); font-weight: var(--weight-strong); }
+
+/* Where it can be published, the node *is* the action — but only under the
+   pointer or focus: it grows to a pressable 22px, filled solid in the accent,
+   laid over the row's own node because it cannot live inside the row's
+   button. At rest it is hidden, so the next-step card stays the one solid
+   accent on the page. A touch screen, with nothing to hover, always shows it. */
 .overview-history__publish {
   position: absolute;
   z-index: 2;
@@ -857,122 +628,567 @@ button.journey-step--attention[aria-current]:hover { background: color-mix(in sr
   color: var(--status-warning);
   font-size: var(--text-caption);
 }
-.overview-columns {
+
+/* ---- "Now": the working tree, the timeline's first node ----
+   One line. Unsaved work rings the node in the unsaved colour on a soft fill
+   of it, with the kinds of change as small glyph counts; overlaps take the
+   blocked colour. The whole line leads to Changes. With nothing unsaved it is
+   a quiet line in the secondary colour. No file names: the side column has
+   them. */
+.overview-timeline__now { position: relative; min-width: 0; }
+.overview-now {
+  --now-tone: var(--status-warning);
+  width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  gap: var(--space-4);
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) 6px;
 }
-
-.project-path__value { font-family: var(--font-mono); }
-.project-path {
+.overview-now--active {
+  grid-template-columns: 24px auto minmax(0, 1fr) 16px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--now-tone) 9%, transparent);
+  color: var(--text-primary-color);
+  font: inherit;
+  text-align: left;
+  transition: background var(--duration-fast);
+}
+.overview-now--active:hover { background: color-mix(in srgb, var(--now-tone) 15%, transparent); }
+.overview-now--active:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.overview-now--conflicts,
+.overview-now--error { --now-tone: var(--status-danger); }
+.overview-now__node {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  justify-self: center;
+  border: 2.5px solid var(--now-tone);
+  border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 5px color-mix(in srgb, var(--now-tone) 22%, transparent);
+}
+.overview-now--quiet .overview-now__node {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
+  box-shadow: 0 0 0 3px var(--surface-raised);
+}
+.overview-now__body { min-width: 0; }
+.overview-now__title {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-body);
+  line-height: var(--leading-snug);
+}
+.overview-now__title svg { width: 14px; height: 14px; }
+.overview-now__title strong { color: var(--now-tone); font-weight: var(--weight-heading); }
+.overview-now__label { color: var(--text-primary-color); font-weight: var(--weight-heading); }
+.overview-now--quiet .overview-now__label { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+.overview-now--error .overview-now__title svg { color: var(--status-danger); }
+/* The kinds of change as glyph counts, in the Changes rows' own colours. */
+.overview-now__kinds { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.overview-now__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  font-variant-numeric: tabular-nums;
+}
+.overview-now__kind svg { width: 12px; height: 12px; }
+.overview-now__kind--new svg { color: var(--status-success); }
+.overview-now__kind--deleted svg { color: var(--status-danger); }
+.overview-now__kind--renamed svg { color: var(--status-renamed); }
+.overview-now__kind--conflicted svg { color: var(--status-warning); }
+.overview-now__chevron { width: 15px; height: 15px; color: var(--text-secondary-color); }
+.overview-now__stale {
+  grid-column: 2 / -1;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: 6px;
+  color: var(--status-warning);
+  font-size: var(--text-caption);
 }
-.project-path__value {
+.overview-now__stale svg { width: 13px; height: 13px; }
+.overview-now__link {
+  margin-top: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.overview-now__link:hover { text-decoration: underline; }
+
+/* ---- Beside the timeline: what the next step moves, and where the work is ----
+   The column follows the next-step card. A small scene says where the work
+   is; while the card asks to save, resolve, get or publish, one card under it
+   shows what that will move — the files, the lines, the incoming versions —
+   and closes on the consequence in one line. With nothing waiting the scene
+   takes the column. Neither repeats the status bar or the timeline. */
+.overview-side { min-width: 0; display: grid; gap: var(--space-3); align-content: start; }
+.overview-detail {
   min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+.overview-detail__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.overview-detail__head > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
+.overview-detail__head h2 {
+  min-width: 0;
+  margin: 0;
   overflow: hidden;
-  color: var(--text-primary-color);
   font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.project-path__copy {
-  width: 32px;
-  height: 32px;
-  /* The UA's default button padding eats into the fixed box (border-box),
-     which squeezes the icon off-centre at small sizes. */
-  padding: 0;
-  flex-shrink: 0;
+.overview-detail__link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--space-1);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+  white-space: nowrap;
+}
+.overview-detail__link svg { width: 13px; height: 13px; }
+.overview-detail__link:hover { background: var(--surface-hover); }
+.overview-detail__sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); margin: 0; }
+.overview-detail__sum strong {
+  font-size: var(--text-display);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-none);
+}
+.overview-detail__sum span { color: var(--text-secondary-color); font-size: var(--text-label); }
+.overview-detail__lines {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+}
+.overview-detail__added { color: var(--diff-added); }
+.overview-detail__removed { color: var(--diff-removed); }
+.overview-detail__bar { flex: 1; height: 6px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.overview-detail__bar > i { display: block; flex-basis: 0; }
+.overview-detail__bar-added { background: var(--diff-added); }
+.overview-detail__bar-removed { background: var(--diff-removed); }
+.overview-detail__files { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.overview-detail__file {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 16px auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary-color);
+  font: inherit;
+  font-size: var(--text-label);
+  text-align: left;
+}
+button.overview-detail__file:hover { background: var(--surface-hover); }
+button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.overview-detail__kind { display: grid; place-items: center; color: var(--text-secondary-color); }
+.overview-detail__kind svg { width: 13px; height: 13px; }
+.overview-detail__kind--new { color: var(--status-success); }
+.overview-detail__kind--deleted { color: var(--status-danger); }
+.overview-detail__kind--renamed { color: var(--status-renamed); }
+.overview-detail__kind--conflicted { color: var(--status-warning); }
+.overview-detail__name { overflow: hidden; font-weight: var(--weight-strong); text-overflow: ellipsis; white-space: nowrap; }
+.overview-detail__dir { min-width: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-caption); text-overflow: ellipsis; white-space: nowrap; }
+.overview-detail__more { padding: 4px 6px 0 30px; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.overview-detail__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-item);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+.overview-detail__note svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
+.overview-detail__state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+.overview-detail__state svg { width: 14px; height: 14px; }
+.overview-detail__state--error svg { color: var(--status-warning); }
+/* A row before its file or version is read, at the real row's measures. */
+.overview-detail__placeholder-row {
+  display: grid;
+  grid-template-columns: 16px auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px;
+  font-size: var(--text-label);
+}
+.overview-detail__placeholder-row .text-placeholder:nth-child(2) { min-width: 5em; }
+.overview-detail__placeholder-kind { width: 13px; height: 13px; margin-block: 0; justify-self: center; border-radius: var(--radius-round); }
+
+/* A version waiting on the remote, in the bring detail: a dashed blue ring,
+   the same mark the timeline's incoming row wears. */
+.overview-detail__version {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 16px auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px;
+  font-size: var(--text-label);
+}
+.overview-detail__incoming {
+  width: 10px;
+  height: 10px;
+  justify-self: center;
+  border: 2px dashed var(--status-renamed);
+  border-radius: var(--radius-round);
+}
+.overview-detail__version .overview-detail__name { min-width: 0; }
+
+/* ---- The scene: where the work is ----
+   This computer and the remote as two objects and the path between them:
+   green with a check when they match, dots for versions on their way — solid
+   green leaving, dashed blue arriving — a "?" when the remote could not be
+   asked, an empty dashed cloud when there is none. Large, on a soft light of
+   the two places' colours, when nothing is waiting; small and plain under the
+   detail while there is work. The explanation is its tooltip. */
+.work-scene {
+  --here-tone: var(--status-success);
+  --remote-tone: var(--status-renamed);
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-radius: var(--radius-surface);
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--here-tone) 16%, transparent), transparent 60%),
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--remote-tone) 16%, transparent), transparent 60%),
+    var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+.work-scene--unsaved { --here-tone: var(--status-warning); }
+.work-scene--no-copy {
+  --here-tone: var(--status-warning);
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--status-warning) 18%, transparent), transparent 60%),
+    var(--surface-raised);
+}
+.work-scene--small {
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+/* Its shape while loading wears no state's colour: the state is not known yet. */
+.work-scene--loading { background: var(--surface-raised); }
+/* Three flexible columns shared by the objects and their captions, so a
+   caption is always centred under its object, however long it is; a caption
+   too long for its column wraps rather than spilling past it. */
+.work-scene__row,
+.work-scene__captions {
+  display: grid;
+  grid-template-columns: minmax(64px, 1.2fr) minmax(24px, 1fr) minmax(64px, 1.2fr);
+  column-gap: var(--space-1);
+}
+.work-scene__row { align-items: center; justify-items: center; }
+.work-scene__captions { align-items: start; }
+/* The real scene arrives once, softly, after its placeholder. */
+.work-scene:not(.work-scene--loading) { animation: work-scene-in 260ms ease-out; }
+:root[data-reduced-motion="true"] .work-scene { animation: none; }
+@keyframes work-scene-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+.work-scene--loading .work-scene__path::before { border-top-color: var(--border-subtle); }
+.work-scene__place-placeholder {
+  width: 64px;
+  height: 56px;
+  margin: 0;
+  border-radius: var(--radius-control);
+}
+.work-scene--small .work-scene__place-placeholder { width: 44px; height: 38px; border-radius: var(--radius-item); }
+.work-scene--loading .work-scene__caption { gap: 4px; padding-top: 2px; }
+.work-scene__place {
+  position: relative;
+  width: 64px;
+  height: 56px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-item);
-  background: var(--surface-raised);
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-md);
 }
-.project-path__copy:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-path__copy svg { width: 15px; height: 15px; }
+.work-scene__place svg { width: 30px; height: 30px; stroke-width: 1.6; }
+.work-scene__place--here svg { color: var(--here-tone); }
+.work-scene__place--remote svg { color: var(--remote-tone); }
+.work-scene__place--empty { background: transparent; box-shadow: none; border: 2px dashed var(--border-control); }
+.work-scene__place--empty svg { color: var(--text-secondary-color); opacity: 0.6; }
+.work-scene--small .work-scene__place { width: 44px; height: 38px; border-radius: var(--radius-item); box-shadow: var(--shadow-sm); }
+.work-scene--small .work-scene__place svg { width: 20px; height: 20px; }
+.work-scene__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 2px var(--surface-raised);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+}
+.work-scene__badge--out { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); }
+.work-scene__badge--in { background: var(--status-renamed); color: var(--surface-raised); }
+.work-scene__path { position: relative; width: 100%; height: 22px; }
+.work-scene__path::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 6px;
+  left: 6px;
+  border-top: 2px dashed color-mix(in srgb, var(--text-secondary-color) 45%, transparent);
+}
+/* Always a dashed path — it reads as a way between two places. Matching is
+   said by its colour and the check, not by turning the line solid. */
+.work-scene__path--synced::before { border-color: var(--status-success); }
+.work-scene__mark {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--status-success);
+  color: var(--surface-raised);
+  box-shadow: 0 0 0 3px var(--surface-raised);
+  transform: translateX(-50%);
+}
+.work-scene__mark svg { width: 12px; height: 12px; stroke-width: 3; }
+/* Opaque, so the dashed path never shows through the "?". */
+.work-scene__mark--unknown {
+  background: color-mix(in srgb, var(--text-secondary-color) 22%, var(--surface-raised));
+  color: var(--text-primary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+}
+.work-scene__dots { position: absolute; top: 7px; right: 10px; left: 10px; display: flex; justify-content: space-around; }
+.work-scene__dot { width: 8px; height: 8px; border-radius: var(--radius-round); }
+.work-scene__dot--out { background: var(--accent-primary-fill); }
+.work-scene__dot--in { border: 2px dashed var(--status-renamed); background: var(--surface-raised); }
+/* A dot that has left the drawing, replayed on its way out (sceneMotion.ts). */
+.work-scene__dot--ghost { position: absolute; top: 7px; left: -4px; }
+/* State changes ease the colours; the one-shot movement lives in sceneMotion.ts. */
+.work-scene__place,
+.work-scene__place svg,
+.work-scene__path::before,
+.work-scene__note { transition: color var(--duration-normal) ease, background-color var(--duration-normal) ease, border-color var(--duration-normal) ease; }
+:root[data-reduced-motion="true"] .work-scene__place,
+:root[data-reduced-motion="true"] .work-scene__place svg,
+:root[data-reduced-motion="true"] .work-scene__path::before,
+:root[data-reduced-motion="true"] .work-scene__note { transition: none; }
+.work-scene__caption { min-width: 0; display: grid; justify-items: center; margin: 0; text-align: center; line-height: var(--leading-snug); }
+.work-scene__name { font-size: var(--text-label); font-weight: var(--weight-heading); }
+.work-scene__name--mono { font-family: var(--font-mono); font-size: var(--text-caption); }
+.work-scene__note { color: var(--text-secondary-color); font-size: var(--text-caption); text-wrap: balance; }
+.work-scene__note--failed { color: var(--status-danger); }
+.work-scene__connect {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+}
+.work-scene__connect:hover { text-decoration: underline; }
+.work-scene__connect:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* A discard that can still be restored: its own card under the scene, in the
+   unsaved colour, because it is the one thing in the column to act on. Its
+   button opens Changes with the restore picker already open. */
+.overview-restore {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, var(--border-subtle));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-raised));
+}
+.overview-restore__icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--status-warning) 16%, transparent);
+  color: var(--status-warning);
+}
+.overview-restore__icon svg { width: 14px; height: 14px; }
+.overview-restore__copy { min-width: 0; display: grid; gap: 1px; }
+.overview-restore__label { font-size: var(--text-label); font-weight: var(--weight-heading); }
+.overview-restore__hint { color: var(--text-secondary-color); font-size: var(--text-caption); }
+.overview-restore__action {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+.overview-restore__action:hover { background: var(--surface-active); }
+.overview-restore__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+/* Launch restore's stand-in (`OverviewPlaceholder`): the project's tile, its
+   name, the line's pill and the header's two buttons, at their own sizes. */
+.overview-placeholder__avatar {
+  width: 100%;
+  height: 100%;
+  margin-block: 0;
+  border-radius: var(--radius-identity);
+}
+.overview-placeholder__name { min-width: 8em; }
+/* The folder and settings buttons' round places. */
+.overview-placeholder__tool { width: 22px; height: 22px; margin: 0 5px; background: color-mix(in srgb, var(--text-secondary-color) 18%, transparent); }
+.overview-placeholder__tool.overview-header__tool--first { margin-left: auto; }
+.overview-placeholder__switch {
+  width: 120px;
+  height: 30px;
+  margin-block: 0;
+  border-radius: var(--radius-item);
+}
+
 
 @media (prefers-reduced-motion: reduce) {
+  .work-scene:not(.work-scene--loading) { animation: none; }
+  .work-scene__place,
+  .work-scene__place svg,
+  .work-scene__path::before,
+  .work-scene__note { transition: none; }
   .empty-state__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__node { transition: none; }
-  .journey-step,
-  .journey-step__go,
-  .journey-step__icon,
-  .journey-connector::after { transition: none; }
-  .changed-files__done,
-  .changed-files__clean-text,
-  .changed-files__actions,
   .overview-history__publish:hover,
   .overview-history__publish:focus-visible { animation: none; }
   .overview-history__publish,
   .overview-header__icon,
   .overview-header__icon-edit { transition: none; }
-  .changed-files__tip { animation: none; }
-  .changed-files__done-tick { animation: none; stroke-dashoffset: 0; }
 }
 
+/* ---- Fitted to the window ----
+   Tall and wide enough, Overview has no scroll of its own: the header and the
+   next-step card keep their height and the body takes the rest. The timeline
+   and the detail card's list show as many whole rows as fit (`useFitCount` in
+   fit.ts, whose OVERVIEW_FIT_QUERY must match this query); the scene keeps its
+   size above the card. Below this size the screen scrolls as a page, with
+   lists of a fixed length. */
+@media (min-height: 620px) and (min-width: 981px) {
+  .project-overview {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .overview-body { min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .overview-history { min-height: 0; display: flex; flex-direction: column; }
+  .overview-history__header,
+  .overview-history__stale { flex-shrink: 0; }
+  .overview-history__fit { flex: 1; min-height: 0; overflow: hidden; }
+  .overview-side { min-height: 0; }
+  .overview-side--working { display: flex; flex-direction: column; }
+  .overview-side--working > * { flex-shrink: 0; }
+  .overview-side--working > .overview-detail { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .overview-side--working .overview-detail > * { flex-shrink: 0; }
+  .overview-side--working .overview-detail > .overview-detail__files { flex: 1 1 0; min-height: 0; overflow: hidden; align-content: start; }
+}
+
+/* Narrower than a timeline and a column, the column drops under the timeline. */
 @media (max-width: 980px) {
-  .overview-columns { grid-template-columns: minmax(0, 1fr); }
+  .overview-body { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Narrower than three tiles, the band turns on its side: the steps stack and
-   the connectors become short vertical ticks between them. */
 @media (max-width: 800px) {
-  .journey__steps { grid-template-columns: minmax(0, 1fr); }
-  .journey__steps > li[aria-hidden] { justify-items: start; padding-left: 30px; }
-  .journey-connector { width: 0; height: 16px; border-top: 0; border-left: 2px dashed var(--border-control); }
-  .journey-connector::after { inset: 0 auto 0 -2px; border-top: 0; border-left: 2px solid var(--text-secondary-color); transform: scaleY(0); transform-origin: center top; }
-  .journey-connector--done::after { transform: scaleY(1); }
-  .changed-files,
-  .overview-history { padding: var(--space-4); }
+  .next-step { padding: var(--space-4); }
+  .next-step__actions { margin-left: 0; }
 }
 
 @media (pointer: coarse) {
   .project-switcher-compact__trigger,
-  .compact-history-controls .titlebar-icon-button,
-  .overview-header__copy .project-path__copy {
+  .compact-history-controls .titlebar-icon-button {
     width: 44px;
     height: 44px;
   }
-  /* These are not `.primary-button`/`.secondary-button`, so they do not grow
-     with the shared primitive — and the circles need a width, which is never
-     a height. */
   .overview-header .version-line-selector { min-height: var(--control-height-lg); }
-  .overview-header .version-lines-quick-switch__create,
-  .overview-header__settings {
-    min-height: var(--control-height-lg);
+  .overview-header__tool {
+    width: var(--control-height-lg);
     height: var(--control-height-lg);
   }
-  .overview-header .version-lines-quick-switch__create,
-  .overview-header__settings {
-    width: var(--control-height-lg);
-    min-width: var(--control-height-lg);
-  }
 }
 
-@media (hover: none) {
-  .overview-header__copy .project-path__copy { opacity: 1; }
-}
 
-/* These cards state their edge with an opaque fill and a shadow, and
-   forced-colors throws both away. Without a fallback the summary, the main
-   status card, and the support cards would have no boundary at all in high
-   contrast. Drawn inward, like the semantic outlines above, so the fallback
-   cannot change layout either. */
+/* These cards state their edge with a fill, a wash and a shadow, and
+   forced-colors throws all three away. Drawn inward, so the fallback cannot
+   change layout either. */
 @media (forced-colors: active) {
-  .journey,
-  .journey-step,
-  .changed-files,
-  .overview-history {
+  .next-step,
+  .overview-history,
+  .overview-detail,
+  .work-scene,
+  .overview-restore,
+  .overview-timeline__group {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }
-  .journey-step--active { outline: 2px solid Highlight; }
 }

@@ -1,16 +1,16 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
-import { Check, Copy, GitBranch, LoaderCircle, Pencil, Settings } from "lucide-react";
+import React, { Suspense, lazy } from "react";
+import { FolderOpen, GitBranch, Pencil, Settings } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import {
+  LoadingPlaceholder,
   ProjectAvatar,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
-  TECHNOLOGY_LABELS,
   type TechnologyId,
 } from "../../shared/ui";
 import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
-import { getWorkingTreeBreakdown, type WorkingTreeStatus } from "../status";
+import type { WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
 import {
@@ -19,56 +19,18 @@ import {
   type VersionLinesSnapshot,
 } from "../version-lines";
 import type { TeamSyncViewState } from "../sync";
-import { ChangedFilesSection } from "./ChangedFilesSection";
 import { deriveJourney } from "./journey";
-import { JourneySection } from "./JourneySection";
-import { OverviewPlaceholder } from "./OverviewPlaceholder";
+import { NextStepCard, type NextStepHandlers } from "./NextStepCard";
+import { deriveNextStep } from "./nextStep";
+import { OverviewNow } from "./OverviewNow";
+import { OverviewDetail, overviewDetailMode } from "./OverviewDetail";
+import type { WorkDetailController } from "./workDetail";
+import { HistoryPlaceholderList, OverviewPlaceholder } from "./OverviewPlaceholder";
 import { HomeLauncher, type HomeRecentEntry } from "../home";
 
 const HistorySummarySection = lazy(() =>
   import("./HistorySummarySection").then((m) => ({ default: m.HistorySummarySection })),
 );
-/** Truncated paths stay fully available: readable on hover/AT, and copyable. */
-export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: () => void }): React.JSX.Element {
-  const { t } = useLanguage();
-  const [wasCopied, setWasCopied] = useState(false);
-
-  useEffect(() => {
-    if (!wasCopied) return;
-    const timer = window.setTimeout(() => setWasCopied(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [wasCopied]);
-
-  const copyPath = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(path);
-      setWasCopied(true);
-    } catch {
-      onCopyError();
-    }
-  };
-
-  return (
-    <p className="project-path">
-      <span className="project-path__value" data-tooltip={path}>
-        {path}
-      </span>
-      <button
-        className="project-path__copy"
-        type="button"
-        onClick={() => void copyPath()}
-        aria-label={t.overviewCopyPath}
-        data-tooltip={wasCopied ? t.overviewPathCopied : t.overviewCopyPath}
-      >
-        {wasCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      </button>
-      <span className="visually-hidden" role="status">
-        {wasCopied ? t.overviewPathCopied : ""}
-      </span>
-    </p>
-  );
-}
-
 /** How the project shows itself everywhere else — the rail, the switcher, the
  * recents — so the header can wear the same icon. */
 export type OverviewProjectIdentity = {
@@ -78,16 +40,18 @@ export type OverviewProjectIdentity = {
 };
 
 /**
- * Who this screen is about, as a page header rather than a card: the name,
- * where it lives, the line you are on and its settings. It sits directly on
- * the workspace because it is the one thing on the screen that does not
- * change while you work — the cards below are for what does — and a card
- * around three facts was a card that was mostly air.
+ * Who this screen is about, as one row of breadcrumbs rather than a block:
+ * the project, a slash, the line it is on — read as an address, "this
+ * project, on this line", the way Vercel and Linear head a page — and the
+ * project's folder and settings at the far end. The path is the folder
+ * button's tooltip and the technology is the project's own icon, so neither
+ * is spelled out. The next-step card under it is the page's subject; this row only says
+ * where it is.
  *
  * Its tile is the project's own icon — the chosen emoji, the detected
- * technology or the initials — at the header's size, the same chip the rail
- * shows for it, so the project is recognised here the way it is recognised
- * there. Pressing it opens the icon section of project settings.
+ * technology or the initials — the same chip the rail shows for it, so the
+ * project is recognised here the way it is recognised there. Pressing it
+ * opens the icon section of project settings.
  */
 function OverviewHeader({
   project,
@@ -101,7 +65,7 @@ function OverviewHeader({
   onQuickSwitchVersionLine,
   versionLineCreate,
   onGoToVersionLines,
-  onCopyPathError,
+  onOpenProjectFolder,
   onOpenProjectSettings,
   onChangeProjectIcon,
   onPrefetchProjectSettings,
@@ -117,7 +81,8 @@ function OverviewHeader({
   onQuickSwitchVersionLine: (target: string) => void;
   versionLineCreate?: VersionLineCreateContext;
   onGoToVersionLines: () => void;
-  onCopyPathError: () => void;
+  /** Opens the project's folder in the system file manager. */
+  onOpenProjectFolder: () => void;
   /** The same panel the project switcher's gear opens, for the project this
    * header is already about. */
   onOpenProjectSettings: () => void;
@@ -130,80 +95,71 @@ function OverviewHeader({
 
   return (
     <header className="overview-header" aria-labelledby="project-summary-heading">
-      <div className="overview-header__identity">
-        <button
-          className="overview-header__icon"
-          type="button"
-          aria-label={t.overviewChangeProjectIcon}
-          data-tooltip={t.overviewChangeProjectIcon}
-          onPointerEnter={() => onPrefetchProjectSettings?.()}
-          onFocus={() => onPrefetchProjectSettings?.()}
-          onClick={onChangeProjectIcon}
-        >
-          <ProjectAvatar
-            id={project.path}
-            name={project.name}
-            className="overview-header__avatar"
-            iconChoice={identity.iconChoice}
-            technology={identity.technology}
-            style={identity.avatarStyle}
-          />
-          <span className="overview-header__icon-edit" aria-hidden="true">
-            <Pencil />
+      <button
+        className="overview-header__icon"
+        type="button"
+        aria-label={t.overviewChangeProjectIcon}
+        data-tooltip={t.overviewChangeProjectIcon}
+        onPointerEnter={() => onPrefetchProjectSettings?.()}
+        onFocus={() => onPrefetchProjectSettings?.()}
+        onClick={onChangeProjectIcon}
+      >
+        <ProjectAvatar
+          id={project.path}
+          name={project.name}
+          className="overview-header__avatar"
+          iconChoice={identity.iconChoice}
+          technology={identity.technology}
+          style={identity.avatarStyle}
+        />
+        <span className="overview-header__icon-edit" aria-hidden="true">
+          <Pencil />
+        </span>
+      </button>
+      <h1 id="project-summary-heading" className="overview-header__name" title={project.name}>{project.name}</h1>
+      <span className="overview-header__slash" aria-hidden="true">/</span>
+      <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
+        {overview.isUnborn ? (
+          <span className="overview-meta__branch-note" title={t[overview.versionDescriptionKey]}>
+            <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
+            <span className="version-line-card__value">{versionValue}</span>
           </span>
-        </button>
-        <div className="overview-header__copy">
-          <div className="overview-header__title">
-            <h1 id="project-summary-heading" title={project.name}>{project.name}</h1>
-            {/* The same gear the project switcher shows for the same panel,
-                beside the name it configures. */}
-            <button
-              className="overview-header__settings"
-              type="button"
-              aria-label={t.projectSettingsOpenFor(project.name)}
-              data-tooltip={t.projectSettingsOpen}
-              onPointerEnter={() => onPrefetchProjectSettings?.()}
-              onFocus={() => onPrefetchProjectSettings?.()}
-              onClick={onOpenProjectSettings}
-            >
-              <Settings aria-hidden="true" />
-            </button>
-          </div>
-          <div className="overview-header__subline">
-            {/* First, so the path's copy control — invisible until the path
-                is pointed at — never opens a gap between the two. */}
-            {identity.technology && (
-              <span className="overview-header__technology">{TECHNOLOGY_LABELS[identity.technology]}</span>
-            )}
-            <ProjectPath path={project.path} onCopyError={onCopyPathError} />
-          </div>
-        </div>
+        ) : (
+          <VersionLineQuickSwitch
+            snapshot={versionLines}
+            isLoadingSnapshot={isLoadingVersionLines}
+            currentValue={versionValue}
+            canSwitch={!overview.isDetached}
+            favouriteLines={favouriteVersionLines}
+            onToggleFavourite={onToggleFavouriteVersionLine}
+            onSwitch={onQuickSwitchVersionLine}
+            create={versionLineCreate}
+            showCreateControl={false}
+            menuAnchor="below"
+            onSeeAll={onGoToVersionLines}
+          />
+        )}
       </div>
-      <div className="overview-header__actions">
-        <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
-          {overview.isUnborn ? (
-            <span className="overview-meta__branch-note">
-              <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
-              <span className="version-line-card__value">{versionValue}</span>
-              {t[overview.versionDescriptionKey]}
-            </span>
-          ) : (
-            <VersionLineQuickSwitch
-              snapshot={versionLines}
-              isLoadingSnapshot={isLoadingVersionLines}
-              currentValue={versionValue}
-              label={t.overviewVersionLineLabel}
-              canSwitch={!overview.isDetached}
-              favouriteLines={favouriteVersionLines}
-              onToggleFavourite={onToggleFavouriteVersionLine}
-              onSwitch={onQuickSwitchVersionLine}
-              create={versionLineCreate}
-              showCreateControl={false}
-              onSeeAll={onGoToVersionLines}
-            />
-          )}
-        </div>
-      </div>
+      <button
+        className="overview-header__tool overview-header__tool--first"
+        type="button"
+        aria-label={t.overviewOpenFolder}
+        data-tooltip={`${t.overviewOpenFolder} · ${project.path}`}
+        onClick={onOpenProjectFolder}
+      >
+        <FolderOpen aria-hidden="true" />
+      </button>
+      <button
+        className="overview-header__tool"
+        type="button"
+        aria-label={t.projectSettingsOpenFor(project.name)}
+        data-tooltip={t.projectSettingsOpen}
+        onPointerEnter={() => onPrefetchProjectSettings?.()}
+        onFocus={() => onPrefetchProjectSettings?.()}
+        onClick={onOpenProjectSettings}
+      >
+        <Settings aria-hidden="true" />
+      </button>
     </header>
   );
 }
@@ -236,12 +192,14 @@ export function OverviewPanel({
   onQuickSwitchVersionLine,
   versionLineCreate,
   onGoToVersionLines,
-  onCopyPathError,
+  onOpenProjectFolder,
   onOpenSaveVersion,
   teamSync,
   onCheckTeamChanges,
   onReviewAndGetTeamChanges,
   historyController,
+  workDetail,
+  onRestoreDiscarded,
   onOpenHistory,
   onOpenProjectSettings,
   onChangeProjectIcon,
@@ -298,7 +256,9 @@ export function OverviewPanel({
   /** Where the header's quick switch makes a new line, inside its popup. */
   versionLineCreate?: VersionLineCreateContext;
   onGoToVersionLines: () => void;
-  onCopyPathError: () => void;
+  /** Opens the project's folder in the system file manager, from the
+   * header's folder button. */
+  onOpenProjectFolder: () => void;
   /** Opens this project's own settings — the remote it publishes to, the files
    * it ignores, and the identity it saves as. */
   onOpenProjectSettings: () => void;
@@ -323,6 +283,12 @@ export function OverviewPanel({
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
   historyController: HistoryController;
+  /** The side column's cache: the files of the unpublished versions and the
+   * newest restorable discard, filled by the composition root. */
+  workDetail: WorkDetailController;
+  /** Opens Changes with its restore picker already open, from the side
+   * column's discarded-changes card. */
+  onRestoreDiscarded: () => void;
   onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -332,10 +298,6 @@ export function OverviewPanel({
     const versionValue = overview.isDetached
       ? t.overviewSpecificSavedVersion
       : (overview.versionLine ?? t.overviewNoSavedVersions);
-    // The working tree is only unknown before the first check has finished, so
-    // the band never invents a count and never blanks out a known one while a
-    // later refresh is running.
-    const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
     const journey = deriveJourney({
       workingTree,
       workingTreeError,
@@ -344,11 +306,31 @@ export function OverviewPanel({
       pendingVersionsError,
       teamSync,
     });
+    const nextStep = deriveNextStep(journey, { canPublish });
     const isRefreshing = isCheckingChanges || teamSync.isCheckingRemote;
     // Only a line with an upstream can be checked against one; the same gate
     // the status bar's own cloud button uses.
     const canCheckTeamChanges =
       project.headState === "branch" && Boolean(project.branch) && !teamSync.isCheckingRemote;
+    const checkTeamChanges = canCheckTeamChanges ? onCheckTeamChanges : () => undefined;
+    const nextStepHandlers: NextStepHandlers = {
+      save: onOpenSaveVersion,
+      reviewChanges: () => onReviewChanges(),
+      resolve: () => onReviewChanges(),
+      publish: onPublish,
+      openHistory: onOpenHistory,
+      getChanges: onReviewAndGetTeamChanges,
+      checkRemote: checkTeamChanges,
+      checkLocal: onCheckLocalChanges,
+      openSettings: onOpenProjectSettings,
+      openLines: onGoToVersionLines,
+    };
+    // Versions waiting on the remote lead the timeline, above "now", which is
+    // where they stand in time.
+    const incoming =
+      (journey.publish.state === "behind" || journey.publish.state === "diverged") && journey.publish.behind > 0
+        ? { count: journey.publish.behind, remote: journey.publish.remote, onGet: onReviewAndGetTeamChanges }
+        : null;
 
     return (
       <div className="project-overview" aria-busy={isRefreshing}>
@@ -364,51 +346,29 @@ export function OverviewPanel({
           onQuickSwitchVersionLine={onQuickSwitchVersionLine}
           versionLineCreate={versionLineCreate}
           onGoToVersionLines={onGoToVersionLines}
-          onCopyPathError={onCopyPathError}
+          onOpenProjectFolder={onOpenProjectFolder}
           onOpenProjectSettings={onOpenProjectSettings}
           onChangeProjectIcon={onChangeProjectIcon}
           onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
-        <JourneySection
-          journey={journey}
-          breakdown={breakdown}
-          canPublish={canPublish}
-          onReviewChanges={() => onReviewChanges()}
-          onCheckLocalChanges={onCheckLocalChanges}
-          onSaveVersion={onOpenSaveVersion}
-          onPublish={onPublish}
-          onCheckTeamChanges={canCheckTeamChanges ? onCheckTeamChanges : () => undefined}
-          onReviewAndGetTeamChanges={onReviewAndGetTeamChanges}
-          onOpenProjectSettings={onOpenProjectSettings}
-          onOpenHistory={onOpenHistory}
-          historyController={historyController}
-          projectPath={project.path}
-          sessionEpoch={project.sessionEpoch}
-        />
+        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} />
 
-        {/* The two things that change while you work, side by side and the
-            same height: which files, and which saved versions. With nothing
-            to list the files card keeps that height and offers the next step. */}
-        <div className="overview-columns">
-          <ChangedFilesSection
-            workingTree={workingTree}
-            workingTreeError={workingTreeError}
-            isCheckingChanges={isCheckingChanges}
-            onOpenFile={(path) => onReviewChanges(path)}
-            onSeeAll={() => onReviewChanges()}
-            onCheckAgain={onCheckLocalChanges}
-            headState={project.headState}
-            onPublish={onPublish}
-            onGetChanges={onReviewAndGetTeamChanges}
-            onOpenHistory={onOpenHistory}
-            onOpenSettings={onOpenProjectSettings}
-          />
-
+        {/* Where the work is, as one timeline — waiting on the remote, now,
+            only on this computer, published — beside what the next step will
+            move and a scene of where the work is. */}
+        <div className="overview-body">
           <Suspense
             fallback={
-              <section className="overview-history overview-history--loading" aria-label={t.overviewHistoryLoading}>
-                <LoaderCircle aria-hidden="true" className="icon--spinning" />
+              // The section's code is still arriving: the same shape its own
+              // first read draws, so nothing changes when it lands.
+              <section className="overview-history" aria-labelledby="overview-history-title">
+                <header className="overview-history__header">
+                  <h2 id="overview-history-title">{t.overviewHistoryTitle}</h2>
+                </header>
+                <LoadingPlaceholder label={t.overviewHistoryLoading}>
+                  <HistoryPlaceholderList />
+                </LoadingPlaceholder>
               </section>
             }
           >
@@ -420,8 +380,36 @@ export function OverviewPanel({
               onOpenHistory={onOpenHistory}
               onPublishUpTo={onPublishUpTo}
               selfEmail={selfEmail}
+              incoming={incoming}
+              hasNoRemote={journey.publish.state === "noRemote"}
+              now={
+                <OverviewNow
+                  workingTree={workingTree}
+                  workingTreeError={workingTreeError}
+                  isCheckingChanges={isCheckingChanges}
+                  onReview={() => onReviewChanges()}
+                  onCheckAgain={onCheckLocalChanges}
+                />
+              }
             />
           </Suspense>
+
+          <OverviewDetail
+            mode={overviewDetailMode(journey)}
+            journey={journey}
+            workingTree={workingTree}
+            pendingVersions={pendingVersions}
+            workDetail={workDetail}
+            historyController={historyController}
+            projectPath={project.path}
+            sessionEpoch={project.sessionEpoch}
+            onReviewChanges={onReviewChanges}
+            onResolve={() => onReviewChanges()}
+            onGetChanges={onReviewAndGetTeamChanges}
+            onOpenHistory={onOpenHistory}
+            onOpenProjectSettings={onOpenProjectSettings}
+            onRestoreDiscarded={onRestoreDiscarded}
+          />
         </div>
       </div>
     );

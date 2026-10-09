@@ -62,6 +62,35 @@ pub(crate) fn reveal_project_file(path: String, file_path: String) -> Result<(),
     })
 }
 
+/// Opens the project's own folder in the operating system's file manager.
+///
+/// Only the folder of a project this session has open: the path is
+/// authorised as a repository first, so the renderer can name a project but
+/// never an arbitrary place on the disk — the same reason
+/// `reveal_project_file` keeps the opener's scope-free API behind a command of
+/// its own. The authorised root is opened as it is: canonicalising it would
+/// hand Windows' file manager a verbatim `\\?\` path, which it does not
+/// always open.
+pub(crate) fn open_project_folder(path: String) -> Result<(), AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "open_project_folder", None)?;
+    let repo_root = Path::new(&path);
+    if !repo_root.is_dir() {
+        return Err(AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's folder can't be read.",
+        )
+        .with_remediation("Open the project again, or choose another folder."));
+    }
+    tauri_plugin_opener::open_path(repo_root, None::<&str>).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "Your file manager couldn't be opened.",
+        )
+        .with_remediation("Copy the path and open it yourself.")
+    })
+}
+
 /// Shows where Git, or one of its configuration files, lives. The path is the
 /// one `tooling` found again for the named place, never one the renderer sent.
 pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {

@@ -26,6 +26,9 @@ export type Journey = {
   };
   publish: {
     state:
+      /** The line's last known relation to its remote has not been read yet:
+       * a local read, not a check. */
+      | "reading"
       | "notChecked"
       | "checking"
       | "upToDate"
@@ -113,6 +116,9 @@ export function deriveJourney({
   let publishState: Journey["publish"]["state"];
   if (teamSync.isCheckingRemote && !status) publishState = "checking";
   else if (teamSync.error && !status) publishState = "unavailable";
+  // Before the first local read lands there is no answer yet, not a remote
+  // that was never asked: saying "not checked" would flash on every opening.
+  else if (!status && (teamSync.isLoading || teamSync.generation === 0)) publishState = "reading";
   else if (!status) publishState = "notChecked";
   else if (status.state === "unknown") publishState = "unavailable";
   else publishState = status.state;

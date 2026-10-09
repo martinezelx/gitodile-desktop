@@ -206,6 +206,57 @@ fn list_unpublished_versions_separates_an_existing_title_and_multiline_descripti
 }
 
 #[test]
+fn list_incoming_versions_names_what_the_tracking_ref_has_and_the_line_does_not() {
+    let (repo, _remote, branch) = published_repo_and_remote("incoming-list");
+
+    assert!(list_incoming_versions(repo.clone())
+        .expect("should list with an upstream")
+        .versions
+        .is_empty());
+
+    write_file(&repo, "b.txt", "second\n");
+    git_add_all(&repo);
+    git_commit(&repo, "second");
+    write_file(&repo, "c.txt", "third\n");
+    git_add_all(&repo);
+    git_commit(&repo, "third");
+    // The tracking ref moves on the way a fetch would move it, and the line
+    // stays where it was: two versions are waiting to be received.
+    let tracking = format!("refs/remotes/origin/{branch}");
+    for args in [
+        vec!["update-ref", tracking.as_str(), "HEAD"],
+        vec!["reset", "-q", "--hard", "HEAD~2"],
+    ] {
+        let status = git_command(&repo).args(&args).status().expect("run git");
+        assert!(status.success(), "git {args:?} should succeed");
+    }
+
+    let incoming =
+        list_incoming_versions(repo.clone()).expect("should list the two incoming commits");
+    assert_eq!(incoming.total_count, 2);
+    assert!(!incoming.is_truncated);
+    assert_eq!(incoming.versions[0].title, "third");
+    assert_eq!(incoming.versions[1].title, "second");
+
+    let _ = fs::remove_dir_all(&repo);
+}
+
+#[test]
+fn list_incoming_versions_is_empty_without_an_upstream() {
+    let repo = unique_temp_dir("incoming-no-upstream");
+    git_init(&repo);
+    write_file(&repo, "a.txt", "one\n");
+    git_add_all(&repo);
+    git_commit(&repo, "first");
+
+    let incoming = list_incoming_versions(repo.clone()).expect("should answer without a remote");
+    assert_eq!(incoming.total_count, 0);
+    assert!(incoming.versions.is_empty());
+
+    let _ = fs::remove_dir_all(&repo);
+}
+
+#[test]
 fn list_unpublished_versions_reports_only_commits_ahead_of_a_published_upstream() {
     let (repo, remote, _branch) = published_repo_and_remote("unpublished-list");
 

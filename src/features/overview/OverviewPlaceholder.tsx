@@ -1,49 +1,24 @@
 import React from "react";
-import { FileDiff, GitCommitHorizontal } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
 
-/** Name and folder lengths for Changed files' first-check rows. */
-const CHANGES_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
-  ["96px", "64px"],
-  ["72px", "88px"],
-  ["112px", "48px"],
-];
-
-/** Subject and author/date lengths for Recent history's first-read rows, one
- * per previewed version. */
+/** Subject and date lengths for Recent history's first-read rows, one per
+ * previewed version. */
 const HISTORY_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
-  ["62%", "34%"],
-  ["48%", "28%"],
-  ["70%", "38%"],
-  ["54%", "30%"],
+  ["62%", "18%"],
+  ["48%", "14%"],
+  ["70%", "20%"],
+  ["54%", "16%"],
 ];
 
-/** Changed files' list before its first check answers. Shared with the whole
+/** Recent history's list before its first read answers. Shared with the whole
  * screen's placeholder, so the card looks the same either way it loads. */
-export function ChangedFilesPlaceholderList(): React.JSX.Element {
-  return (
-    <ul className="changes-preview__list">
-      {CHANGES_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
-        <li key={name}>
-          <span className="changes-preview__item">
-            <span className="changes-preview__icon"><TextPlaceholder className="text-placeholder--glyph" /></span>
-            <span className="changes-preview__name"><TextPlaceholder width={name} /></span>
-            <span className="changes-preview__dir"><TextPlaceholder width={dir} /></span>
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** Recent history's list before its first read answers; see above. */
 export function HistoryPlaceholderList(): React.JSX.Element {
   return (
-    <ol className="overview-history__list">
+    <ol className="overview-timeline">
       {HISTORY_PLACEHOLDER_WIDTHS.map(([subject, meta]) => (
-        <li key={subject}>
+        <li key={subject} className="overview-timeline__item">
           <span className="overview-history__row">
             <span className="overview-history__node" />
             <span className="overview-history__body">
@@ -57,92 +32,104 @@ export function HistoryPlaceholderList(): React.JSX.Element {
   );
 }
 
+/** The next-step card before the project's state is known, shared with the
+ * card itself so it looks the same either way it loads. */
+export function NextStepPlaceholder({ label }: { label?: string }): React.JSX.Element {
+  return (
+    <LoadingPlaceholder label={label} className="next-step next-step--calm">
+      <span className="next-step__glyph" aria-hidden="true"><TextPlaceholder className="text-placeholder--glyph" /></span>
+      <div className="next-step__copy" aria-hidden="true">
+        <p className="next-step__kicker"><TextPlaceholder width="6em" /></p>
+        <p className="next-step__title"><TextPlaceholder width="40%" /></p>
+        <p className="next-step__hint"><TextPlaceholder width="60%" /></p>
+      </div>
+    </LoadingPlaceholder>
+  );
+}
+
+/** The scene's own shape — two places and the path between them — until it
+ * knows where the work is. */
+export function WorkScenePlaceholder({ size, label }: { size: "large" | "small"; label?: string }): React.JSX.Element {
+  const shape = (
+    <>
+      <div className="work-scene__row" aria-hidden="true">
+        <TextPlaceholder className="work-scene__place-placeholder" />
+        <span className="work-scene__path" />
+        <TextPlaceholder className="work-scene__place-placeholder" />
+      </div>
+      <div className="work-scene__captions" aria-hidden="true">
+        <p className="work-scene__caption"><TextPlaceholder width="3.5em" /><TextPlaceholder width="5em" /></p>
+        <span />
+        <p className="work-scene__caption"><TextPlaceholder width="3.5em" /><TextPlaceholder width="4em" /></p>
+      </div>
+    </>
+  );
+  // Inside the whole screen's placeholder the label is already said once.
+  return (
+    <LoadingPlaceholder label={label} className={`work-scene work-scene--${size} work-scene--loading`}>
+      {shape}
+    </LoadingPlaceholder>
+  );
+}
+
+/** Name and folder lengths for a detail card's rows before they are read. */
+const DETAIL_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
+  ["38%", "30%"],
+  ["30%", "36%"],
+  ["44%", "22%"],
+];
+
+/** A detail card's summary and rows while what it lists is being read. */
+export function DetailListPlaceholder({ label }: { label: string }): React.JSX.Element {
+  return (
+    <LoadingPlaceholder label={label}>
+      <p className="overview-detail__sum" aria-hidden="true"><TextPlaceholder width="45%" /></p>
+      <ul className="overview-detail__files" aria-hidden="true">
+        {DETAIL_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
+          <li key={name} className="overview-detail__placeholder-row">
+            <TextPlaceholder className="overview-detail__placeholder-kind" />
+            <TextPlaceholder width={name} />
+            <TextPlaceholder width={dir} />
+          </li>
+        ))}
+      </ul>
+    </LoadingPlaceholder>
+  );
+}
+
 /**
  * The whole of Overview before launch restore has a project to show: the
- * header, the band and both cards, drawn with the real content's classes so
- * the project lands in the space that was waiting for it. Only what does not
- * depend on the project — the step names and the card titles — is written
- * out; everything else is a run of placeholder text. The shape is hidden
- * from assistive tech, which hears only the placeholder's own label.
+ * breadcrumb, the next-step card, the timeline and the scene beside it, drawn
+ * with the real content's classes so the project lands in the space that was
+ * held for it. Only the label is said; the shape is hidden from assistive tech.
  */
 export function OverviewPlaceholder(): React.JSX.Element {
   const { t } = useLanguage();
-  const steps = [t.overviewJourneyChanges, t.overviewJourneySave, t.overviewJourneyPublish];
 
   return (
     <LoadingPlaceholder label={t.overviewOpeningTitle} className="project-overview">
       <div className="overview-header" aria-hidden="true">
-        <div className="overview-header__identity">
-          <span className="overview-header__icon">
-            <TextPlaceholder className="overview-placeholder__avatar" />
-          </span>
-          <div className="overview-header__copy">
-            <div className="overview-header__title overview-placeholder__name">
-              <TextPlaceholder width="9em" />
-            </div>
-            <div className="overview-header__subline overview-placeholder__path">
-              <TextPlaceholder width="18em" />
-            </div>
-          </div>
-        </div>
-        <div className="overview-header__actions">
-          <TextPlaceholder className="overview-placeholder__switch" />
-        </div>
+        <span className="overview-header__icon">
+          <TextPlaceholder className="overview-placeholder__avatar" />
+        </span>
+        <span className="overview-header__name overview-placeholder__name"><TextPlaceholder width="8em" /></span>
+        <span className="overview-header__slash">/</span>
+        <TextPlaceholder className="overview-placeholder__switch" />
+        <TextPlaceholder className="overview-header__tool overview-header__tool--first overview-placeholder__tool" />
+        <TextPlaceholder className="overview-header__tool overview-placeholder__tool" />
       </div>
 
-      <div className="journey" aria-hidden="true">
-        <ol className="journey__steps">
-          {steps.map((label, index) => (
-            <React.Fragment key={label}>
-              {index > 0 && (
-                <li>
-                  <span className="journey-connector" />
-                </li>
-              )}
-              <li>
-                <div className="journey-step journey-step--muted">
-                  <span className="journey-step__icon">
-                    <TextPlaceholder className="text-placeholder--glyph" />
-                  </span>
-                  <span className="journey-step__copy">
-                    <span className="journey-step__label">{label}</span>
-                    <span className="journey-step__value"><TextPlaceholder width="60%" /></span>
-                    <span className="journey-step__hint"><TextPlaceholder width="80%" /></span>
-                  </span>
-                </div>
-              </li>
-            </React.Fragment>
-          ))}
-        </ol>
-        <p className="journey__note overview-placeholder__note">
-          <TextPlaceholder width="46%" />
-        </p>
-      </div>
+      <NextStepPlaceholder />
 
-      <div className="overview-columns" aria-hidden="true">
-        <div className="changed-files">
-          <div className="changed-files__header">
-            <div className="changed-files__heading">
-              <span className="changed-files__icon"><FileDiff /></span>
-              <div>
-                <h2>{t.overviewChangedFilesTitle}</h2>
-                <p>{t.overviewChangedFilesSince}</p>
-              </div>
-            </div>
-          </div>
-          <ChangedFilesPlaceholderList />
-        </div>
+      <div className="overview-body" aria-hidden="true">
         <div className="overview-history">
           <div className="overview-history__header">
-            <div className="overview-history__heading">
-              <span className="overview-history__icon"><GitCommitHorizontal /></span>
-              <div>
-                <h2>{t.overviewHistoryTitle}</h2>
-                <p>{t.overviewHistoryDescription}</p>
-              </div>
-            </div>
+            <h2>{t.overviewHistoryTitle}</h2>
           </div>
           <HistoryPlaceholderList />
+        </div>
+        <div className="overview-side">
+          <WorkScenePlaceholder size="large" />
         </div>
       </div>
     </LoadingPlaceholder>

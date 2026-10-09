@@ -567,7 +567,37 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
         Some(upstream) => format!("{upstream}..HEAD"),
         None => "HEAD".to_string(),
     };
-    let total_count = checked_git_stdout(run_git(&path, &["rev-list", "--count", &range])?)?
+    versions_in_range(&path, &range)
+}
+
+/// Read-only and local-only, the mirror of [`list_unpublished_versions`]: the
+/// versions the last-known remote-tracking ref has and this line does not —
+/// what the last remote check brought down, never a fresh fetch. Overview
+/// names them before the user chooses to get them. Without an upstream there
+/// is nothing to receive.
+pub(crate) fn list_incoming_versions(path: String) -> Result<PendingVersionsResult, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "list_incoming_versions", None)?;
+    let status = read_working_tree_status(path.clone())?;
+    let (head_state, _) = resolve_head_state(&path, status.upstream.branch.clone())?;
+    let Some(upstream) = status
+        .upstream
+        .upstream
+        .filter(|_| head_state == HeadState::Branch)
+    else {
+        return Ok(PendingVersionsResult {
+            total_count: 0,
+            versions: Vec::new(),
+            is_truncated: false,
+        });
+    };
+    versions_in_range(&path, &format!("HEAD..{upstream}"))
+}
+
+/// The versions in a `git log` range, counted in full and listed up to the
+/// shared cap.
+fn versions_in_range(path: &str, range: &str) -> Result<PendingVersionsResult, AppError> {
+    let total_count = checked_git_stdout(run_git(path, &["rev-list", "--count", range])?)?
         .parse::<u32>()
         .map_err(|_| {
             AppError::new(
@@ -576,7 +606,7 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
             )
             .with_remediation("Refresh and try again.")
         })?;
-    let versions = git_log_summaries(&path, &range)?;
+    let versions = git_log_summaries(path, range)?;
     Ok(PendingVersionsResult {
         total_count,
         is_truncated: total_count as usize > versions.len(),

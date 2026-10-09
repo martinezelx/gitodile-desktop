@@ -1320,6 +1320,19 @@ fn svg_sniffing_accepts_a_lowercase_doctype() {
 /// resolves it against the open project, so the frontend can never name a place
 /// on the disk. Only the refusals are exercised: the success path would open a
 /// real file manager window on the machine running the tests.
+/// The folder opener only ever opens a project this app can authorise; a plain
+/// folder is refused before any file manager is asked. As above, the success
+/// path is not exercised because it would open a window.
+#[test]
+fn open_project_folder_refuses_a_folder_that_is_not_a_project() {
+    let path = unique_temp_dir("open-folder-reject");
+    fs::create_dir_all(&path).unwrap();
+
+    assert!(desktop::open_project_folder(path.clone()).is_err());
+
+    let _ = fs::remove_dir_all(&path);
+}
+
 #[test]
 fn reveal_project_file_refuses_a_path_outside_the_project() {
     let path = unique_temp_dir("reveal-reject");

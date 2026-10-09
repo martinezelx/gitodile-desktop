@@ -1,5 +1,5 @@
 import type { RepositoryInfo } from "./domain";
-import type { OpenRepositoryRequest, RepositoryPort } from "./port";
+import type { OpenRepositoryRequest, ProjectFolderRequest, RepositoryPort } from "./port";
 
 export type RepositoryController = ReturnType<typeof createRepositoryController>;
 
@@ -18,6 +18,9 @@ export function createRepositoryController(port: RepositoryPort) {
       });
       inFlight.set(key, promise);
       return promise;
+    },
+    openFolder(request: ProjectFolderRequest): Promise<void> {
+      return port.openFolder(request);
     },
   };
 }

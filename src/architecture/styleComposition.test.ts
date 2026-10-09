@@ -63,7 +63,7 @@ describe("production style composition", () => {
   });
 
   it("keeps closed visual contracts with their feature owners", () => {
-    expect(readSource("features/overview/overview.css")).toContain(".journey");
+    expect(readSource("features/overview/overview.css")).toContain(".next-step");
     expect(readSource("features/clone/clone.css")).toContain(".clone-dialog");
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
@@ -674,7 +674,7 @@ describe("production style composition", () => {
       ["shared/ui/primitives.css", ".app-dialog__glyph", "border-radius: var(--radius-round)"],
       ["shared/ui/primitives.css", ".app-dialog__step-dot", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
-      ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".next-step__glyph", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       // Every project chip carries the neutral brand ring. The fixed palette
       // cannot clear 3:1 on the lighter community dark panels (Nord, Catppuccin
