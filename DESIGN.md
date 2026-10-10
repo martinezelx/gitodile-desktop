@@ -2309,14 +2309,19 @@ word as a title.
   moves, and screen readers get the whole sentence. Typing in the field, or
   reduced motion, shows the question whole.
   It never rotates while the screen is shown, because text that changes
-  under the reader is a distraction. The block sits as high as the shell
-  allows — the workspace's own top inset, with no padding of its own above or
-  below, since a second bottom inset scrolled windows whose content fitted —
-  and centred horizontally; windows under 820px tall shrink the mascot and
-  greeting rather than the card: the card can
-  grow with recents, setup steps, a notice and its status line, so it needs
-  the room below, and a top-anchored greeting never moves as the results grow
-  and shrink while typing.
+  under the reader is a distraction.
+- **Fitted to the window.** The block is centred horizontally and sits at the
+  optical centre of the work area: the free height splits 2:3 above and below,
+  so it rests a little above the middle. The whole block scales with the work
+  area — one factor for type, icons, rows, radii and the column's width (720px
+  at 1) — taken from the tighter of width ÷ 1240 and height ÷ 800 and kept
+  between 1 and 1.5, so a large screen gets a launcher in proportion to it.
+  It never shrinks below 1, so the 10px type floor holds; a small window
+  scrolls instead. The position is the
+  rest state's (empty field, Recent tab): while the person types or browses an
+  account the space above is held, so the greeting never moves as the results
+  grow and shrink, and is worked out again only when the window changes. A
+  launcher taller than the area starts at its top and the workspace scrolls.
 - **Launcher.** One raised card (`--radius-surface`, the Overview's own card)
   holds a field, the results and, at its foot, the three ways to start. The
   field has focus on arrival. Typing filters the recent projects (name matches

@@ -39,6 +39,7 @@ import {
   type HomeSetup,
 } from "./launcher";
 import { AccountResults, GitNotice, SetupStatus, SetupSteps, SetupStepsPlaceholder } from "./LauncherSetup";
+import { useHomeFit } from "./fit";
 import { TypingPrompt } from "./TypingPrompt";
 
 /** A recent project plus whether it is one of the app's favourite projects —
@@ -197,6 +198,9 @@ export function HomeLauncher({
   const showTabs = hasTabs && (intent.kind === "empty" || (tabGroup !== undefined && intent.kind === "text"));
   const activeTab: Tab = showTabs && tabIsValid ? tab : "recent";
   const activeGroup = activeTab === tab ? tabGroup : undefined;
+  // An empty field on the Recent tab is Home at rest, the shape it is centred
+  // by; anything else holds the greeting where rest left it (fit.ts).
+  const fit = useHomeFit(query === "" && activeTab === "recent");
   const activeAccount = activeGroup
     ? (activeGroup.accounts.find((account) => account.id === chosenAccounts[activeGroup.kind]) ?? activeGroup.accounts[0])
     : undefined;
@@ -496,157 +500,167 @@ export function HomeLauncher({
   };
 
   return (
-    <div className="home-launcher" aria-busy={isOpening}>
-      {/* The front door is a brand moment, so the mascot greets here: once a
-          session it draws itself and builds its history, then the commits on
-          its crest light amber up to the HEAD now and then. Decorative; the
-          h1 names the screen. */}
-      <header className="home-launcher__hello">
-        <Mascot motion="commits" entrance={playGreeting} className="home-launcher__mascot" />
-        <div className="home-launcher__greeting">
-          <h1>{t.homeGreeting(slot, greetingName(userName))}</h1>
-          <TypingPrompt
-            text={t.homePrompt(slot, promptIndex)}
-            // The session's first greeting waits for the mascot to draw
-            // itself; a return to Home has no entrance to wait for.
-            startDelay={playGreeting ? 600 : 150}
-            settled={query !== ""}
-            className="home-launcher__prompt"
-          />
-        </div>
-      </header>
+    <div
+      ref={fit.frameRef}
+      className={`home-launcher${fit.top === null ? "" : " home-launcher--held"}`}
+      style={
+        { "--home-scale": fit.scale, "--home-top": fit.top === null ? undefined : `${fit.top}px` } as React.CSSProperties
+      }
+      aria-busy={isOpening}
+    >
+      <div ref={fit.aboveRef} className="home-launcher__above" aria-hidden="true" />
+      <div ref={fit.bodyRef} className="home-launcher__body">
+        {/* The front door is a brand moment, so the mascot greets here: once a
+            session it draws itself and builds its history, then the commits on
+            its crest light amber up to the HEAD now and then. Decorative; the
+            h1 names the screen. */}
+        <header className="home-launcher__hello">
+          <Mascot motion="commits" entrance={playGreeting} className="home-launcher__mascot" />
+          <div className="home-launcher__greeting">
+            <h1>{t.homeGreeting(slot, greetingName(userName))}</h1>
+            <TypingPrompt
+              text={t.homePrompt(slot, promptIndex)}
+              // The session's first greeting waits for the mascot to draw
+              // itself; a return to Home has no entrance to wait for.
+              startDelay={playGreeting ? 600 : 150}
+              settled={query !== ""}
+              className="home-launcher__prompt"
+            />
+          </div>
+        </header>
 
-      <div className="home-launcher__box">
-        <label className="home-launcher__field">
-          <Search aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="text"
-            // The launcher is the screen's reason to exist; landing on Home
-            // with the cursor already in it is the whole point of the field.
-            autoFocus
-            value={query}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label={t.homeLauncherLabel}
-            placeholder={
-              activeAccount
-                ? t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
-                : hasRecents
-                  ? t.homeLauncherPlaceholder
-                  : t.homeLauncherPlaceholderFirst
-            }
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={handleInputKeyDown}
-          />
-        </label>
+        <div className="home-launcher__box">
+          <label className="home-launcher__field">
+            <Search aria-hidden="true" />
+            <input
+              ref={inputRef}
+              type="text"
+              // The launcher is the screen's reason to exist; landing on Home
+              // with the cursor already in it is the whole point of the field.
+              autoFocus
+              value={query}
+              spellCheck={false}
+              autoComplete="off"
+              aria-label={t.homeLauncherLabel}
+              placeholder={
+                activeAccount
+                  ? t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
+                  : hasRecents
+                    ? t.homeLauncherPlaceholder
+                    : t.homeLauncherPlaceholderFirst
+              }
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={handleInputKeyDown}
+            />
+          </label>
 
-        {showTabs && (
-          <div className="home-launcher__tabs" role="group" aria-label={t.homeTabsLabel}>
-            <button
-              type="button"
-              className="home-launcher__tab"
-              aria-pressed={activeTab === "recent"}
-              onClick={() => chooseTab("recent")}
-            >
-              {t.homeTabRecent}
-            </button>
-            {favourites.length > 0 && (
+          {showTabs && (
+            <div className="home-launcher__tabs" role="group" aria-label={t.homeTabsLabel}>
               <button
                 type="button"
                 className="home-launcher__tab"
-                aria-pressed={activeTab === "favourites"}
-                onClick={() => chooseTab("favourites")}
+                aria-pressed={activeTab === "recent"}
+                onClick={() => chooseTab("recent")}
               >
-                <Star aria-hidden="true" />
-                {t.homeTabFavourites}
+                {t.homeTabRecent}
               </button>
-            )}
-            {accountGroups.map((group) => (
-              <button
-                key={group.kind}
-                type="button"
-                className="home-launcher__tab home-launcher__tab--account"
-                aria-pressed={activeTab === `account:${group.kind}`}
-                onClick={() => chooseTab(`account:${group.kind}`)}
-              >
-                <span className="home-launcher__tab-mark" aria-hidden="true">
-                  <HostingProviderIcon provider={group.kind} />
+              {favourites.length > 0 && (
+                <button
+                  type="button"
+                  className="home-launcher__tab"
+                  aria-pressed={activeTab === "favourites"}
+                  onClick={() => chooseTab("favourites")}
+                >
+                  <Star aria-hidden="true" />
+                  {t.homeTabFavourites}
+                </button>
+              )}
+              {accountGroups.map((group) => (
+                <button
+                  key={group.kind}
+                  type="button"
+                  className="home-launcher__tab home-launcher__tab--account"
+                  aria-pressed={activeTab === `account:${group.kind}`}
+                  onClick={() => chooseTab(`account:${group.kind}`)}
+                >
+                  <span className="home-launcher__tab-mark" aria-hidden="true">
+                    <HostingProviderIcon provider={group.kind} />
+                  </span>
+                  {ACCOUNT_KIND_NAMES[group.kind]}
+                </button>
+              ))}
+              {Array.from({ length: tabPlaceholders }, (_, index) => (
+                <span
+                  key={index}
+                  className="home-launcher__tab home-launcher__tab--placeholder loading-placeholder"
+                  aria-hidden="true"
+                >
+                  <TextPlaceholder className="text-placeholder--glyph" />
+                  <TextPlaceholder width={44} />
                 </span>
-                {ACCOUNT_KIND_NAMES[group.kind]}
-              </button>
-            ))}
-            {Array.from({ length: tabPlaceholders }, (_, index) => (
-              <span
-                key={index}
-                className="home-launcher__tab home-launcher__tab--placeholder loading-placeholder"
-                aria-hidden="true"
-              >
-                <TextPlaceholder className="text-placeholder--glyph" />
-                <TextPlaceholder width={44} />
-              </span>
-            ))}
+              ))}
+            </div>
+          )}
+
+          {gitBlocked && setup && (setup.git.state === "missing" || setup.git.state === "unusable") && (
+            <GitNotice
+              state={setup.git.state}
+              isRechecking={setup.git.isRechecking}
+              onInstallGit={onInstallGit}
+              onRecheckGit={onRecheckGit}
+            />
+          )}
+
+          {results && (
+            <div className="home-launcher__results" ref={resultsRef} onKeyDown={handleResultsKeyDown}>
+              {results}
+            </div>
+          )}
+
+          <div className="home-launcher__footer">
+            <StartButton
+              icon={<FolderInput />}
+              label={t.homeActionCreate}
+              name={t.homeCreateLocalProject}
+              hint={t.homeCreateLocalProjectHint}
+              disabled={isOpening || gitBlocked}
+              onClick={onCreateProject}
+            />
+            <StartButton
+              // Opening is the only one of the three that runs here rather than
+              // in a dialog, so its own button carries the progress.
+              icon={isOpening ? <LoaderCircle className="icon--spinning" /> : <FolderPlus />}
+              label={isOpening ? t.overviewOpening : t.homeActionOpen}
+              name={isOpening ? t.overviewOpening : t.overviewOpenProject}
+              hint={t.homeOpenProjectHint}
+              disabled={isOpening || gitBlocked}
+              onClick={onOpenProject}
+            />
+            <StartButton
+              icon={<CloudDownload />}
+              label={t.homeActionClone}
+              name={t.homeCloneRemoteProject}
+              hint={t.homeCloneRemoteProjectHint}
+              disabled={isOpening || gitBlocked}
+              onClick={onCloneProject}
+            />
+            {/* The window takes a dropped folder, and a gesture nobody is told
+                about is a gesture nobody uses. */}
+            <span className="home-launcher__drop">{t.homeDropHint}</span>
           </div>
-        )}
 
-        {gitBlocked && setup && (setup.git.state === "missing" || setup.git.state === "unusable") && (
-          <GitNotice
-            state={setup.git.state}
-            isRechecking={setup.git.isRechecking}
-            onInstallGit={onInstallGit}
-            onRecheckGit={onRecheckGit}
-          />
-        )}
-
-        {results && (
-          <div className="home-launcher__results" ref={resultsRef} onKeyDown={handleResultsKeyDown}>
-            {results}
-          </div>
-        )}
-
-        <div className="home-launcher__footer">
-          <StartButton
-            icon={<FolderInput />}
-            label={t.homeActionCreate}
-            name={t.homeCreateLocalProject}
-            hint={t.homeCreateLocalProjectHint}
-            disabled={isOpening || gitBlocked}
-            onClick={onCreateProject}
-          />
-          <StartButton
-            // Opening is the only one of the three that runs here rather than
-            // in a dialog, so its own button carries the progress.
-            icon={isOpening ? <LoaderCircle className="icon--spinning" /> : <FolderPlus />}
-            label={isOpening ? t.overviewOpening : t.homeActionOpen}
-            name={isOpening ? t.overviewOpening : t.overviewOpenProject}
-            hint={t.homeOpenProjectHint}
-            disabled={isOpening || gitBlocked}
-            onClick={onOpenProject}
-          />
-          <StartButton
-            icon={<CloudDownload />}
-            label={t.homeActionClone}
-            name={t.homeCloneRemoteProject}
-            hint={t.homeCloneRemoteProjectHint}
-            disabled={isOpening || gitBlocked}
-            onClick={onCloneProject}
-          />
-          {/* The window takes a dropped folder, and a gesture nobody is told
-              about is a gesture nobody uses. */}
-          <span className="home-launcher__drop">{t.homeDropHint}</span>
+          {showStatus && setup && plan && (
+            <SetupStatus
+              setup={setup}
+              plan={plan}
+              onOpenGitSettings={onOpenGitSettings}
+              onConfigureIdentity={onConfigureIdentity}
+              onOpenAccount={onOpenAccountSettings}
+              onConnectAccount={onConnectAccount}
+              showAccounts={accountGroups.length === 0}
+            />
+          )}
         </div>
-
-        {showStatus && setup && plan && (
-          <SetupStatus
-            setup={setup}
-            plan={plan}
-            onOpenGitSettings={onOpenGitSettings}
-            onConfigureIdentity={onConfigureIdentity}
-            onOpenAccount={onOpenAccountSettings}
-            onConnectAccount={onConnectAccount}
-            showAccounts={accountGroups.length === 0}
-          />
-        )}
       </div>
     </div>
   );

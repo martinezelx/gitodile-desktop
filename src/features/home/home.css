@@ -2,21 +2,34 @@
    The app's front door, and also Overview's no-project fallback. A greeting
    beside the mascot, then one raised box: the field, the Recent/Favourites
    tabs, the results and, at its foot, the three ways to start. Left-aligned
-   inside a centred column, because names and paths are read down an edge. */
+   inside a centred column, because names and paths are read down an edge.
+
+   Fitted to the window (fit.ts): the frame fills the work area and splits the
+   free height 2:3 above and below the launcher, so it sits a little above the
+   middle; the launcher itself scales with the area through `zoom`, one factor
+   for type, icons, rows, radii and the column's width. While the person types
+   or browses another tab the space above is held at what rest had, so the
+   greeting never moves as results grow and shrink. A launcher taller than the
+   area starts at its top and the workspace scrolls. */
 .home-launcher {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 2fr) auto minmax(0, 3fr);
+}
+.home-launcher--held { grid-template-rows: var(--home-top, 0px) auto minmax(0, 1fr); }
+.home-launcher__body {
+  grid-row: 2;
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  /* Top-anchored and as high as the shell allows — the workspace's own top
-     inset, like every other screen: the card can grow with recents, setup
-     steps, a notice and its status line, and the greeting never moves as
-     results grow and shrink while typing. Horizontally it stays centred. No
-     bottom padding: the workspace's bottom inset already ends the page, and
-     the two together scrolled a window whose content all fitted. */
-  padding: 0 24px;
   display: grid;
   align-content: start;
   gap: var(--space-5);
+  zoom: var(--home-scale, 1);
 }
 .home-launcher__hello { display: flex; align-items: center; gap: 20px; }
 /* The mascot greets on the front door; its entrance and the crest's wave are
@@ -534,14 +547,6 @@
   text-overflow: ellipsis;
 }
 .home-launcher__account-select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-
-/* A short window keeps the card's rows and gives up greeting size instead. */
-@media (max-height: 820px) {
-  .home-launcher { gap: var(--space-4); }
-  .home-launcher__mascot { width: 92px; }
-  .home-launcher__greeting h1 { font-size: var(--text-hero); }
-  .home-launcher__prompt { font-size: var(--text-title); }
-}
 
 @media (max-width: 560px) {
   .home-launcher { padding: 0 var(--space-4); }
