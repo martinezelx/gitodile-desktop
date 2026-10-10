@@ -8,7 +8,7 @@ import {
   ChevronUp,
   CircleAlert,
   CircleArrowUp,
-  CloudDownload,
+  CircleFadingArrowUp,
   CornerDownLeft,
   GripVertical,
   Info,
@@ -166,7 +166,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   gitlab: <HostingProviderIcon provider="gitlab" />,
   bitbucket: <HostingProviderIcon provider="bitbucket" />,
   "line-endings": <CornerDownLeft />,
-  updates: <CloudDownload />,
+  updates: <CircleFadingArrowUp />,
 };
 
 /** The three kinds the centre records, in the order the panel shows them: the

@@ -265,7 +265,7 @@ describe("ProjectSwitcherRail", () => {
 
     const trigger = screen.getByRole("button", { name: "Add project" });
     expect(trigger).toHaveAttribute("data-tooltip", "Add project");
-    expect(screen.queryByRole("menuitem", { name: "Create local project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Create local project…" })).not.toBeInTheDocument();
 
     await userEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -277,15 +277,15 @@ describe("ProjectSwitcherRail", () => {
     expect(menu).not.toHaveClass("sidebar-project-flyout");
     expect(within(menu).getAllByRole("menuitem")).toHaveLength(3);
     await waitFor(() =>
-      expect(within(menu).getByRole("menuitem", { name: "Create local project" })).toHaveFocus(),
+      expect(within(menu).getByRole("menuitem", { name: "Create local project…" })).toHaveFocus(),
     );
 
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Clone remote project" }));
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Clone remote project…" }));
     expect(props.onClone).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
 
     await userEvent.click(trigger);
-    await userEvent.click(screen.getByRole("menuitem", { name: "Create local project" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Create local project…" }));
     expect(props.onCreate).toHaveBeenCalledOnce();
   });
 
@@ -315,7 +315,7 @@ describe("ProjectSwitcherRail", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Switch project" }));
     await userEvent.click(screen.getByRole("button", { name: "Add project" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Open another project" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Open another project…" }));
 
     expect(props.onOpenAnother).toHaveBeenCalledOnce();
   });

@@ -28,7 +28,7 @@ published. A development checkout without the tag shows the file's date.
   "version": "0.3.0",
   "date": "2026-09-15",
   "highlights": [
-    { "id": "inAppUpdates", "icon": "cloud-download", "en": "…", "es": "…" }
+    { "id": "inAppUpdates", "icon": "circle-fading-arrow-up", "en": "…", "es": "…" }
   ]
 }
 ```

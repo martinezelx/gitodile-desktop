@@ -2,7 +2,6 @@ import React, { useEffect, useId, useRef, useState, useSyncExternalStore } from 
 import {
   CloudDownload,
   CornerDownLeft,
-  FolderInput,
   FolderOpen,
   FolderPlus,
   LoaderCircle,
@@ -448,7 +447,7 @@ export function HomeLauncher({
         {canCreate && (
           <LauncherSection label={t.homeSectionActions}>
             <ActionRow
-              icon={<FolderInput />}
+              icon={<FolderPlus />}
               label={t.homeCreateNamed(intent.text)}
               hint={t.homeCreateNamedHint}
               enterLabel={t.homeActionCreate}
@@ -619,7 +618,7 @@ export function HomeLauncher({
 
           <div className="home-launcher__footer">
             <StartButton
-              icon={<FolderInput />}
+              icon={<FolderPlus />}
               label={t.homeActionCreate}
               name={t.homeCreateLocalProject}
               hint={t.homeCreateLocalProjectHint}
@@ -629,7 +628,7 @@ export function HomeLauncher({
             <StartButton
               // Opening is the only one of the three that runs here rather than
               // in a dialog, so its own button carries the progress.
-              icon={isOpening ? <LoaderCircle className="icon--spinning" /> : <FolderPlus />}
+              icon={isOpening ? <LoaderCircle className="icon--spinning" /> : <FolderOpen />}
               label={isOpening ? t.overviewOpening : t.homeActionOpen}
               name={isOpening ? t.overviewOpening : t.overviewOpenProject}
               hint={t.homeOpenProjectHint}

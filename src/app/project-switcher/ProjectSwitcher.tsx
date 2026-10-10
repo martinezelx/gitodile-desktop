@@ -6,7 +6,7 @@ import {
   CloudDownload,
   FileDiff,
   FolderGit2,
-  FolderInput,
+  FolderOpen,
   FolderPlus,
   LoaderCircle,
   Plus,
@@ -257,7 +257,7 @@ function AddProjectMenu({
           onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => close(true))}
         >
           <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onCreate)}>
-            <FolderInput aria-hidden="true" />
+            <FolderPlus aria-hidden="true" />
             {t.projectSwitcherCreateProject}
           </button>
           <button
@@ -267,8 +267,8 @@ function AddProjectMenu({
             disabled={isOpening}
             onClick={() => choose(onOpenAnother)}
           >
-            <FolderPlus aria-hidden="true" />
-            {hasEntries ? t.overviewOpenAnotherProject : t.overviewOpenProject}
+            <FolderOpen aria-hidden="true" />
+            {hasEntries ? t.projectSwitcherOpenAnotherProject : t.projectSwitcherOpenProject}
           </button>
           <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onClone)}>
             <CloudDownload aria-hidden="true" />

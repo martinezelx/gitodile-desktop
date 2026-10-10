@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Bug, CloudDownload, Ellipsis, FolderInput, FolderPlus, FolderX, House, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
+import { Bug, CircleFadingArrowUp, CloudDownload, Ellipsis, FolderOpen, FolderPlus, FolderX, House, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
 import { useLanguage } from "../i18n";
+import { IS_MAC, modifierKeyLabels } from "./branding";
 
 export function TitlebarMenu({
   onOpenHome,
@@ -36,6 +37,9 @@ export function TitlebarMenu({
   isReportingIssue: boolean;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  // Spelled the way the shortcut sheet spells it: ⌘, on a Mac, Ctrl+, elsewhere.
+  const { mod } = modifierKeyLabels(null);
+  const settingsShortcut = IS_MAC ? `${mod},` : `${mod}+,`;
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -133,11 +137,11 @@ export function TitlebarMenu({
             <span>{t.navHome}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} disabled={isOpeningProject} onClick={() => runMenuAction(onOpenProject)}>
-            <FolderPlus aria-hidden="true" />
+            <FolderOpen aria-hidden="true" />
             <span>{isOpeningProject ? t.overviewOpening : t.titlebarOpenProject}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCreateProject)}>
-            <FolderInput aria-hidden="true" />
+            <FolderPlus aria-hidden="true" />
             <span>{t.titlebarCreateProject}</span>
           </button>
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCloneProject)}>
@@ -151,10 +155,47 @@ export function TitlebarMenu({
             </button>
           )}
           <div className="app-menu__divider" role="separator" />
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenSettings)}>
+          {/* Four groups, in the order they are reached for: the project, how the
+              app is set up, the app itself, and the way out when something is
+              wrong. Reload sits with Report an issue rather than beside
+              Settings: both are what someone looks for when the window misbehaves. */}
+          <button
+            className="titlebar-menu__item"
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            aria-keyshortcuts={IS_MAC ? "Meta+Comma" : "Control+Comma"}
+            onClick={() => runMenuAction(onOpenSettings)}
+          >
             <Settings aria-hidden="true" />
             <span>{t.navSettings}</span>
+            <kbd className="titlebar-menu__shortcut" aria-hidden="true">{settingsShortcut}</kbd>
           </button>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenShortcuts)}>
+            <Keyboard aria-hidden="true" />
+            <span>{t.titlebarKeyboardShortcuts}</span>
+          </button>
+          <div className="app-menu__divider" role="separator" />
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
+            <Sparkles aria-hidden="true" />
+            <span>{t.changelogTitle}</span>
+          </button>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCheckAppUpdates)}>
+            <CircleFadingArrowUp aria-hidden="true" />
+            <span>{t.commandCheckAppUpdates}</span>
+          </button>
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenAbout)}>
+            <Info aria-hidden="true" />
+            <span>{t.aboutGitOdile}</span>
+          </button>
+          <div className="app-menu__divider" role="separator" />
+          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1}
+            aria-disabled={isReportingIssue} aria-describedby="issue-report-hint"
+            onClick={() => { if (!isReportingIssue) runMenuAction(onReportIssue); }}>
+            <Bug aria-hidden="true" />
+            <span>{t.titlebarReportIssue}</span>
+          </button>
+          <span id="issue-report-hint" className="visually-hidden">{t.issueReportHint}</span>
           <button
             className="titlebar-menu__item"
             type="button"
@@ -169,30 +210,6 @@ export function TitlebarMenu({
           >
             <RotateCw aria-hidden="true" />
             <span>{t.titlebarReloadWindow}</span>
-          </button>
-          <div className="app-menu__divider" role="separator" />
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenShortcuts)}>
-            <Keyboard aria-hidden="true" />
-            <span>{t.titlebarKeyboardShortcuts}</span>
-          </button>
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1}
-            aria-disabled={isReportingIssue} aria-describedby="issue-report-hint"
-            onClick={() => { if (!isReportingIssue) runMenuAction(onReportIssue); }}>
-            <Bug aria-hidden="true" />
-            <span>{t.titlebarReportIssue}</span>
-          </button>
-          <span id="issue-report-hint" className="visually-hidden">{t.issueReportHint}</span>
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onCheckAppUpdates)}>
-            <CloudDownload aria-hidden="true" />
-            <span>{t.commandCheckAppUpdates}</span>
-          </button>
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
-            <Sparkles aria-hidden="true" />
-            <span>{t.changelogTitle}</span>
-          </button>
-          <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenAbout)}>
-            <Info aria-hidden="true" />
-            <span>{t.aboutGitOdile}</span>
           </button>
         </div>
       )}

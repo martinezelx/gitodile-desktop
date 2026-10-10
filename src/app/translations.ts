@@ -128,6 +128,8 @@ export interface AppTranslations {
   projectSwitcherUnfavouriteHint: string;
   projectSwitcherCloneProject: string;
   projectSwitcherCreateProject: string;
+  projectSwitcherOpenProject: string;
+  projectSwitcherOpenAnotherProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
@@ -223,9 +225,9 @@ const en: AppTranslations = {
   titlebarOpenCommandPalette: "Open command palette",
   titlebarJumpToHint: "Jump to a view or action",
   titlebarMoreActions: "More actions",
-  titlebarOpenProject: "Open project",
-  titlebarCreateProject: "Create local project",
-  titlebarCloneProject: "Clone remote project",
+  titlebarOpenProject: "Open project…",
+  titlebarCreateProject: "Create local project…",
+  titlebarCloneProject: "Clone remote project…",
   titlebarReloadWindow: "Reload window",
   titlebarReloadBlocked: "Wait for the current operation to finish before reloading.",
   titlebarReportIssue: "Report an issue",
@@ -345,8 +347,10 @@ const en: AppTranslations = {
   projectSwitcherFavouritesOnlyOff: "Show all open projects",
   projectSwitcherFavouritesEmpty: "No favorites yet. Star a project to keep it here.",
   projectSwitcherUnfavouriteHint: "Remove from favorites",
-  projectSwitcherCloneProject: "Clone remote project",
-  projectSwitcherCreateProject: "Create local project",
+  projectSwitcherCloneProject: "Clone remote project…",
+  projectSwitcherCreateProject: "Create local project…",
+  projectSwitcherOpenProject: "Open a project…",
+  projectSwitcherOpenAnotherProject: "Open another project…",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
   projectSwitcherMutationBlocked: (name) =>
     `Wait for the operation in ${name} to finish, since both workspaces share one project.`,
@@ -396,7 +400,7 @@ const en: AppTranslations = {
     count === 1
       ? "1 project from your last session couldn't be reopened."
       : `${count} projects from your last session couldn't be reopened.`,
-  aboutGitOdile: "About",
+  aboutGitOdile: "About GitOdile",
   aboutHeading: "Git without the fear.",
   aboutDescription: "Version control in clear, worry-free steps.",
   aboutLicense: "GNU AGPL v3.0 only",
@@ -432,9 +436,9 @@ const es: AppTranslations = {
   titlebarOpenCommandPalette: "Abrir la paleta de comandos",
   titlebarJumpToHint: "Ir a una vista o acción",
   titlebarMoreActions: "Más acciones",
-  titlebarOpenProject: "Abrir proyecto",
-  titlebarCreateProject: "Crear proyecto local",
-  titlebarCloneProject: "Clonar proyecto remoto",
+  titlebarOpenProject: "Abrir proyecto…",
+  titlebarCreateProject: "Crear proyecto local…",
+  titlebarCloneProject: "Clonar proyecto remoto…",
   titlebarReloadWindow: "Recargar ventana",
   titlebarReloadBlocked: "Espera a que termine la operación en curso para recargar.",
   titlebarReportIssue: "Reportar un problema",
@@ -554,8 +558,10 @@ const es: AppTranslations = {
   projectSwitcherFavouritesOnlyOff: "Ver todos los proyectos abiertos",
   projectSwitcherFavouritesEmpty: "Aún no hay favoritos. Marca un proyecto con la estrella para tenerlo aquí.",
   projectSwitcherUnfavouriteHint: "Quitar de favoritos",
-  projectSwitcherCloneProject: "Clonar proyecto remoto",
-  projectSwitcherCreateProject: "Crear proyecto local",
+  projectSwitcherCloneProject: "Clonar proyecto remoto…",
+  projectSwitcherCreateProject: "Crear proyecto local…",
+  projectSwitcherOpenProject: "Abrir un proyecto…",
+  projectSwitcherOpenAnotherProject: "Abrir otro proyecto…",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
   projectSwitcherMutationBlocked: (name) =>
     `Espera a que termine la operación de ${name}, porque los dos espacios de trabajo comparten proyecto.`,
@@ -605,7 +611,7 @@ const es: AppTranslations = {
     count === 1
       ? "1 proyecto de tu última sesión no se pudo volver a abrir."
       : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
-  aboutGitOdile: "Acerca de",
+  aboutGitOdile: "Acerca de GitOdile",
   aboutHeading: "Git sin miedo.",
   aboutDescription: "El control de versiones, en pasos claros y sin sustos.",
   aboutLicense: "Solo GNU AGPL v3.0",

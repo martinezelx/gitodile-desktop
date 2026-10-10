@@ -28,7 +28,7 @@
     },
     {
       "id": "oneUpdateChannel",
-      "icon": "cloud-download",
+      "icon": "circle-fading-arrow-up",
       "en": "Updates follow one channel, so everyone gets every release, and the update dialog lists what a new version brings, in your language.",
       "es": "Las actualizaciones siguen un único canal, así que todo el mundo recibe cada versión, y el diálogo de actualización muestra qué trae, en tu idioma."
     }

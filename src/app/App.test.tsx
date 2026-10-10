@@ -325,7 +325,7 @@ describe("TitlebarMenu", () => {
     renderMenu({ onCloneProject });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Clone remote project" }));
+    await user.click(screen.getByRole("menuitem", { name: "Clone remote project…" }));
 
     expect(onCloneProject).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
@@ -337,20 +337,20 @@ describe("TitlebarMenu", () => {
     renderMenu({ onCreateProject });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Create local project" }));
+    await user.click(screen.getByRole("menuitem", { name: "Create local project…" }));
 
     expect(onCreateProject).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("lists both help surfaces, with the changelog beside About", async () => {
+  it("groups the app's own entries, with the changelog first and About last", async () => {
     const user = userEvent.setup();
     const onOpenChangelog = vi.fn();
     renderMenu({ onOpenChangelog });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
     const names = screen.getAllByRole("menuitem").map((item) => item.textContent);
-    expect(names.slice(-2)).toEqual(["What's new", "About"]);
+    expect(names.slice(-5)).toEqual(["What's new", "Check for updates", "About GitOdile", "Report an issue", "Reload window"]);
 
     await user.click(screen.getByRole("menuitem", { name: "What's new" }));
     expect(onOpenChangelog).toHaveBeenCalledOnce();
@@ -487,7 +487,7 @@ describe("App project restoration", () => {
     // The titlebar carries no mark, so About opens from the overflow menu.
     expect(screen.queryByRole("button", { name: "About" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "More actions" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "About" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "About GitOdile" }));
     expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
   });
 

@@ -4,7 +4,7 @@
   "highlights": [
     {
       "id": "inAppUpdates",
-      "icon": "cloud-download",
+      "icon": "circle-fading-arrow-up",
       "en": "Update from inside the app. A startup check tells you when a newer version is out; Settings → Updates downloads and installs it when you choose.",
       "es": "Actualiza desde la propia aplicación. Una comprobación al iniciar te avisa cuando hay una versión nueva; en Ajustes → Actualizaciones la descargas e instalas cuando tú decidas."
     },

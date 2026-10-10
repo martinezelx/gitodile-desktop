@@ -50,7 +50,7 @@ describe("application update dialog", () => {
     localStorage.setItem("gitodile-language", "es");
     try {
       const highlights = [
-        { id: "faster", icon: "cloud-download", en: "Faster updates.", es: "Actualizaciones más rápidas." },
+        { id: "faster", icon: "circle-fading-arrow-up", en: "Faster updates.", es: "Actualizaciones más rápidas." },
         { id: "future", icon: "rocket", en: "A glyph this build does not know.", es: "Un glifo que esta build no conoce." },
       ];
       render(<Harness snapshot={{ state: { kind: "available", candidate: { ...candidate, highlights } }, startupConfirmation: { kind: "none" }, automaticEnabled: false }} />);

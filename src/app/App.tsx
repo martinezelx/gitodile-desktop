@@ -15,7 +15,6 @@ import {
   ChevronRight,
   CloudDownload,
   Copy,
-  FolderInput,
   FolderOpen,
   FolderPlus,
   PanelLeftClose,
@@ -2162,7 +2161,7 @@ export function App(): React.JSX.Element {
                   setInitializeDialogRequest({ mode: "new-folder" });
                 }}
               >
-                <FolderInput aria-hidden="true" />
+                <FolderPlus aria-hidden="true" />
                 <span>{t.projectSwitcherCreateProject}</span>
               </button>
               <button
@@ -2175,9 +2174,9 @@ export function App(): React.JSX.Element {
                   void handleOpenProject();
                 }}
               >
-                <FolderPlus aria-hidden="true" />
+                <FolderOpen aria-hidden="true" />
                 <span>
-                  {switcherEntries.length > 0 ? t.overviewOpenAnotherProject : t.overviewOpenProject}
+                  {switcherEntries.length > 0 ? t.projectSwitcherOpenAnotherProject : t.projectSwitcherOpenProject}
                 </span>
               </button>
               <button

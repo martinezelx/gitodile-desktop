@@ -5,7 +5,7 @@ import {
   ChevronDown,
   CircleAlert,
   CircleArrowUp,
-  CloudDownload,
+  CircleFadingArrowUp,
   Download,
   ExternalLink,
   Info,
@@ -555,7 +555,7 @@ export function AppUpdateDialog({
         </span>
       }
       descriptionId={descriptionId}
-      icon={<CloudDownload />}
+      icon={<CircleFadingArrowUp />}
       onClose={close}
       closeLabel={appT.commonClose}
       dialogRef={dialogRef}

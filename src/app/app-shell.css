@@ -120,6 +120,9 @@
 }
 .titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
 .titlebar-menu__item:hover { background: var(--surface-hover); }
+/* A shortcut hint, not a keycap: quiet text pushed to the row's end, so it
+   teaches the shortcut without competing with the label. */
+.titlebar-menu__shortcut { margin-left: auto; padding-left: var(--space-4); color: var(--text-secondary-color); font-family: inherit; font-size: var(--text-label); }
 .titlebar-menu__item:disabled { color: var(--text-secondary-color); }
 .titlebar-menu__item:disabled:hover { background: transparent; }
 .titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary-color); }

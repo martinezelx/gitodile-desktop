@@ -97,7 +97,8 @@ Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserv
 The main desktop window should broadly support:
 
 1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
-   - the overflow menu starts with Projects (Proyectos), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination; the titlebar and rail add no permanent Projects button.
+   - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination; the titlebar and rail add no permanent Projects button.
+   - the overflow menu's rules separate four groups, in the order they are reached for: the project (Home, then open, create, clone and close), setting the app up (Settings, Keyboard shortcuts), the app itself (What's new, Check for updates, About GitOdile), and the way out when something is wrong (Report an issue, Reload window). Reload once sat beside Settings, pairing a daily entry with a rare recovery one; it belongs with the problem report. Entries that open a dialog asking for more end in an ellipsis, a shortcut the app owns is shown as quiet text at the row's end (`Ctrl+,` beside Settings), and no glyph appears twice in the menu. Opening a project is `FolderOpen` and creating one `FolderPlus` wherever either appears — Home, this menu, the project switcher's add menu, the collapsed rail's jump menu and the create dialog itself — and the three menus spell the actions the same way, ellipsis included.
    - no brand: the titlebar is controls only and starts with the overflow menu, centred over the rail's icon column so the titlebar and the rail share one vertical axis (with no rail, it sits at the plain edge inset). It once carried the app mark in the corner (later the full mascot); a colour illustration in a row of line icons drew the eye to a spot that does nothing, and the operating system already shows the app icon. The mascot lives in the brand moments instead (see "Brand and mascot").
    - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`), the rail collapse control, and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
    - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's three groups — destinations, projects (favourites only), and the app-level utilities — with the project group's two nested menus flattened, since a list this short can just say what those menus would have said. It is a menu, not a miniature rail — same furniture as every other flyout in the app.
@@ -1345,6 +1346,17 @@ of its box and never centres in a small circle. "Not checked yet" and the
 states with no remote to speak of take the plain `Cloud`; "review and get" is
 `ArrowDownToLine`. The changelog's `send` highlight glyph is content, not this
 verb, and keeps its plane.
+
+**The cloud is the remote, and only the remote.** Every cloud glyph speaks of
+the project's copy on its hosting service: publishing (`CloudUpload`), its
+state (`Cloud`, `CloudCheck`, `CloudAlert`, `CloudOff`), and cloning a project
+down from it (`CloudDownload`). Updating GitOdile itself has nothing to do with
+that remote, so it never borrows the cloud: the app's updates are the circle
+with the arrow — `CircleFadingArrowUp` where the reader goes to look (Check for
+updates in the overflow menu, the update dialog's header, the Updates section
+in Settings, and the `circle-fading-arrow-up` release highlight), and the solid
+`CircleArrowUp` once a newer version has actually been found. The fading ring
+completing into a whole one is the same glyph saying "there is one".
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
