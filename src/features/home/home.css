@@ -41,6 +41,21 @@
   line-height: var(--leading-snug);
   text-wrap: balance;
 }
+/* The question typing itself (TypingPrompt.tsx). The untyped rest holds its
+   place, transparent, and the caret takes no width, so the line wraps the same
+   at every key. The caret is steady while keys land and blinks once they stop. */
+.home-launcher__untyped { color: transparent; }
+.home-launcher__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-right: -2px;
+  vertical-align: -0.15em;
+  background: var(--accent-primary);
+}
+.home-launcher__caret--resting { animation: home-caret-blink 1s steps(1) infinite; }
+.home-launcher__caret--fading { opacity: 0; transition: opacity 300ms ease; }
+@keyframes home-caret-blink { 50% { opacity: 0; } }
 
 /* The same raised card the open project's Overview is made of, so the front
    door and the room behind it are one house. */

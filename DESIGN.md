@@ -2302,6 +2302,12 @@ word as a title.
   secondary ink, one question for that part of the day ("What are we working
   on today?"). Three per part; each arrival at Home picks one other than the
   last, and returning also empties the field and puts the cursor back in it.
+  Each new question types itself at a brisk, uneven human pace (about 1.5s
+  for the longest) behind a thin accent caret that blinks briefly and fades;
+  the first arrival of a session waits for the mascot to draw itself, a
+  return starts at once. The untyped rest already holds its place, so nothing
+  moves, and screen readers get the whole sentence. Typing in the field, or
+  reduced motion, shows the question whole.
   It never rotates while the screen is shown, because text that changes
   under the reader is a distraction. The block sits as high as the shell
   allows — the workspace's own top inset, with no padding of its own above or

@@ -48,6 +48,12 @@ function renderLauncher(overrides: Partial<HomeLauncherProps> = {}) {
   return { props, lifecycle, field: screen.getByRole("textbox", { name: "Find a project, or paste a path or URL" }) };
 }
 
+/** The question as a screen reader hears it, whether or not it is typing. */
+function promptText(): string | undefined {
+  const prompt = document.querySelector(".home-launcher__prompt");
+  return (prompt?.querySelector(".visually-hidden") ?? prompt)?.textContent ?? undefined;
+}
+
 describe("HomeLauncher", () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
@@ -55,21 +61,20 @@ describe("HomeLauncher", () => {
   it("greets by the Git name's first word and asks a question for the time of day", () => {
     renderLauncher();
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/^Good (morning|afternoon|evening), Luis$/);
-    expect(document.querySelector(".home-launcher__prompt")?.textContent).toMatch(/\?$/);
+    expect(promptText()).toMatch(/\?$/);
   });
 
   it("asks a different question, empties the field and takes focus again on each return", async () => {
     const user = userEvent.setup();
     const { lifecycle, field } = renderLauncher();
-    const prompt = () => document.querySelector(".home-launcher__prompt")?.textContent;
-    const first = prompt();
+    const first = promptText();
     await user.type(field, "tfg");
     field.blur();
 
     act(() => lifecycle.transition("hidden"));
     act(() => lifecycle.transition("active"));
 
-    expect(prompt()).not.toBe(first);
+    expect(promptText()).not.toBe(first);
     expect(field).toHaveValue("");
     expect(field).toHaveFocus();
   });

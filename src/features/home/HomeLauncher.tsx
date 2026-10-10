@@ -39,6 +39,7 @@ import {
   type HomeSetup,
 } from "./launcher";
 import { AccountResults, GitNotice, SetupStatus, SetupSteps, SetupStepsPlaceholder } from "./LauncherSetup";
+import { TypingPrompt } from "./TypingPrompt";
 
 /** A recent project plus whether it is one of the app's favourite projects —
  * the *same* favourites the rail and the project switcher show, from the same
@@ -504,7 +505,14 @@ export function HomeLauncher({
         <Mascot motion="commits" entrance={playGreeting} className="home-launcher__mascot" />
         <div className="home-launcher__greeting">
           <h1>{t.homeGreeting(slot, greetingName(userName))}</h1>
-          <p className="home-launcher__prompt">{t.homePrompt(slot, promptIndex)}</p>
+          <TypingPrompt
+            text={t.homePrompt(slot, promptIndex)}
+            // The session's first greeting waits for the mascot to draw
+            // itself; a return to Home has no entrance to wait for.
+            startDelay={playGreeting ? 600 : 150}
+            settled={query !== ""}
+            className="home-launcher__prompt"
+          />
         </div>
       </header>
 
