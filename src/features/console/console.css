@@ -22,7 +22,7 @@
 
 /* Welcome: the whole mascot in ASCII beside a fetch-style summary. */
 .console-welcome { padding: var(--space-2) 0 0; }
-.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
+.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
 .console-art {
   /* ASCII art in the mark's colours: forced colours would flatten it. Printed
      small and at line-height 1, as fetch tools print their logos, so the
@@ -118,6 +118,7 @@
 .console-welcome__added { color: var(--diff-added); }
 .console-welcome__removed { color: var(--diff-removed); }
 .console-welcome__incoming { color: var(--status-warning); }
+.console-welcome__unknown { color: var(--text-secondary-color); }
 /* Loose under the frames, as fetch tools leave their palette, but starting
    where the frames' rows start (border plus padding), under the icons. */
 .console-welcome__palette { display: inline-flex; gap: 6px; vertical-align: middle; padding-inline-start: calc(var(--space-4) + 1px); }

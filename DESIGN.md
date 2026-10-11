@@ -1020,7 +1020,11 @@ publish and newer ones available) and "environment" in the keyword colour
 (GitOdile version, Git version, the theme actually drawn and whether changes
 are confirmed, in violet when they are not) — with a Lucide icon on every row, then a row of round dots in the
 theme's accent, status and syntax colours, as a terminal's welcome shows its
-ANSI palette. The dots stay loose rather than framed, since they are
+ANSI palette. The mascot sits level with the summary's top, and the summary
+keeps its height while facts are read: the changes, publish and provider rows
+are always drawn, with a dim dash while their reading is unknown or failed,
+and a re-check keeps the last value, so an edit the watcher picks up never
+makes a row come and go or the mascot move. The dots stay loose rather than framed, since they are
 decoration next to two groups of facts, but start where the frames' rows
 start, under the icons. The mascot has no frame either. The frames are borders rather than box-drawing glyphs, so no font
 leaves gaps in them. The transcript scrolls with the app's shared auto-hiding scrollbar (thin, no

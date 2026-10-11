@@ -4,15 +4,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { ConsoleScreen } from "./ConsoleScreen";
+import type { ConsoleProjectStatus } from "./domain";
 import { consolePort } from "./tauriAdapter";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); });
 
-function renderConsole(epoch = "epoch-1") {
+const KNOWN_STATUS: ConsoleProjectStatus = { changes: 3, linesAdded: 12, linesRemoved: 4, unpublished: 2, incoming: 0 };
+
+function renderConsole(epoch = "epoch-1", projectStatus: ConsoleProjectStatus = KNOWN_STATUS) {
   const lifecycle = createScreenLifecycleController("active");
   const result = render(<LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
     <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch={epoch} gitVersion="2.47.1"
-      projectStatus={{ changes: 3, linesAdded: 12, linesRemoved: 4, unpublished: 2, incoming: 0 }} />
+      projectStatus={projectStatus} />
   </ScreenLifecycleProvider></LanguageProvider>);
   return { lifecycle, ...result };
 }
@@ -145,6 +148,20 @@ describe("ConsoleScreen", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("region", { name: "Console shortcuts" })).not.toBeInTheDocument();
     expect(input).toHaveFocus();
+  });
+
+  it("keeps the welcome's changes and publish rows while their facts are unknown", () => {
+    const { lifecycle, rerender } = renderConsole("epoch-1", { changes: null, linesAdded: 0, linesRemoved: 0, unpublished: null, incoming: null });
+    const project = screen.getByRole("region", { name: "project" });
+    expect(project).toHaveTextContent("changes—");
+    expect(project).toHaveTextContent("publish—");
+    const rows = project.querySelectorAll(".console-welcome__row").length;
+    rerender(<LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
+      <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="epoch-1" gitVersion="2.47.1" projectStatus={KNOWN_STATUS} />
+    </ScreenLifecycleProvider></LanguageProvider>);
+    expect(project).toHaveTextContent("changes3 unsaved +12 −4");
+    expect(project).toHaveTextContent("publish2 versions");
+    expect(project.querySelectorAll(".console-welcome__row")).toHaveLength(rows);
   });
 
   it("follows the console settings: no suggestions, no welcome, steady larger text", async () => {
@@ -456,6 +473,8 @@ describe("ConsoleScreen hosting shortcuts", () => {
     const readHost = vi.spyOn(consolePort, "readHost").mockResolvedValue({ ...GITHUB, kind: "gitlab", host: "gitlab.corp.example", companyServer: true });
     renderConsole();
     const welcome = screen.getByRole("region", { name: "environment" });
+    // The row is held with a dash until the read lands, so the summary keeps its height.
+    expect(welcome).toHaveTextContent("provider—");
     await waitFor(() => expect(welcome).toHaveTextContent("providerGitLab Self-Managed · gitlab.corp.example"));
     expect(readHost).toHaveBeenCalledTimes(1);
     expect(readHost).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1" });

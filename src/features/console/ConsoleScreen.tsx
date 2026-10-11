@@ -346,6 +346,9 @@ const MascotArt = memo(function MascotArt(): React.JSX.Element {
   );
 });
 
+/** A welcome value not known yet, or not readable: kept as a row so nothing shifts. */
+const WELCOME_UNKNOWN = <span className="console-welcome__unknown">—</span>;
+
 type WelcomeRow = [icon: React.JSX.Element, key: string, value: React.ReactNode] | null;
 
 /** One framed group of the fetch-style welcome, drawn in its own theme colour. */
@@ -791,22 +794,25 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                     <WelcomeSection title={t.consoleWelcomeProjectSection} tone="project" rows={[
                       [<Folder key="i" />, t.consoleWelcomeProject, projectName],
                       branch ? [<GitBranch key="i" />, t.consoleWelcomeLine, branch] : null,
-                      projectStatus?.changes === 0 ? [<Diff key="i" />, t.consoleWelcomeChanges, t.consoleStatusSaved] : null,
-                      projectStatus && projectStatus.changes !== null && projectStatus.changes > 0 ? [<Diff key="i" />, t.consoleWelcomeChanges, <>
-                        {t.consoleStatusUnsaved(projectStatus.changes)}
-                        {projectStatus.linesAdded > 0 && <span className="console-welcome__added"> +{projectStatus.linesAdded}</span>}
-                        {projectStatus.linesRemoved > 0 && <span className="console-welcome__removed"> −{projectStatus.linesRemoved}</span>}
-                      </>] : null,
-                      projectStatus && projectStatus.unpublished !== null ? [<CloudUpload key="i" />, t.consoleWelcomePublish, <>
+                      // Rows that wait on a reading are always drawn, with a dash
+                      // while it is unknown, so the summary keeps its height and
+                      // nothing under it moves when a reading comes or goes.
+                      [<Diff key="i" />, t.consoleWelcomeChanges, projectStatus?.changes == null ? WELCOME_UNKNOWN
+                        : projectStatus.changes === 0 ? t.consoleStatusSaved : <>
+                          {t.consoleStatusUnsaved(projectStatus.changes)}
+                          {projectStatus.linesAdded > 0 && <span className="console-welcome__added"> +{projectStatus.linesAdded}</span>}
+                          {projectStatus.linesRemoved > 0 && <span className="console-welcome__removed"> −{projectStatus.linesRemoved}</span>}
+                        </>],
+                      [<CloudUpload key="i" />, t.consoleWelcomePublish, projectStatus?.unpublished == null ? WELCOME_UNKNOWN : <>
                         {projectStatus.unpublished > 0 ? t.consoleWelcomeUnpublished(projectStatus.unpublished) : t.consoleWelcomeUpToDate}
                         {projectStatus.incoming ? <span className="console-welcome__incoming"> · {t.consoleStatusIncoming(projectStatus.incoming)}</span> : null}
-                      </>] : null,
+                      </>],
                     ]} />
                     <WelcomeSection title={t.consoleWelcomeEnvironmentSection} tone="environment" rows={[
                       [<SquareTerminal key="i" />, "gitodile", __APP_VERSION__],
                       gitVersion ? [<GitCommitHorizontal key="i" />, t.consoleWelcomeGit, gitVersion] : null,
                       [<Palette key="i" />, t.consoleWelcomeTheme, activeThemeName(theme)],
-                      host ? [<Server key="i" />, t.consoleWelcomeProvider, t.consoleProvider(host)] : null,
+                      [<Server key="i" />, t.consoleWelcomeProvider, host ? t.consoleProvider(host) : WELCOME_UNKNOWN],
                       [<ShieldCheck key="i" />, t.consoleWelcomeConfirm, confirmChanges ? t.consoleWelcomeConfirmOn : <span className="console-welcome__unconfirmed">{t.consoleWelcomeConfirmOff}</span>],
                     ]} />
                     <span className="console-welcome__palette" aria-hidden="true">{WELCOME_PALETTE.map((tone) => <span key={tone} className={`console-welcome__dot console-welcome__dot--${tone}`} />)}</span>

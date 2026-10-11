@@ -432,8 +432,8 @@ export function App(): React.JSX.Element {
   const pendingVersionsError = activeSession?.pendingVersionsError ?? null;
   const teamSync = activeSession?.teamSync ?? EMPTY_TEAM_SYNC_STATE;
   const consoleStatus = useMemo(
-    () => consoleProjectStatus(workingTree, isCheckingChanges, workingTreeError, teamSync),
-    [workingTree, isCheckingChanges, workingTreeError, teamSync],
+    () => consoleProjectStatus(workingTree, workingTreeError, teamSync),
+    [workingTree, workingTreeError, teamSync],
   );
   const mapStatusError = useMemo<StatusErrorMapper>(
     () => (error, area) =>
