@@ -1,6 +1,19 @@
 import type React from "react";
 
-const POINTER_ACTIVE_CLASS = "auto-hide-scrollbar--pointer-active";
+/**
+ * The scroll area's "pointer is here" flag. It is a data attribute rather than
+ * a class because React owns `class`: whenever a caller's `className` string
+ * changes on a re-render, React rewrites the whole attribute and would wipe an
+ * imperatively added class while the pointer is still inside. React never
+ * touches an attribute it was not given, so this one survives re-renders.
+ */
+const POINTER_ACTIVE_ATTRIBUTE = "data-pointer-active";
+
+/** Shows or hides an auto-hide scroll area's thumb without a React render. */
+export function setAutoHideScrollbarActive(element: HTMLElement, active: boolean): void {
+  if (active) element.setAttribute(POINTER_ACTIVE_ATTRIBUTE, "");
+  else element.removeAttribute(POINTER_ACTIVE_ATTRIBUTE);
+}
 
 /**
  * WebView2 can leave `::-webkit-scrollbar-thumb:hover` visually stuck after
@@ -15,14 +28,14 @@ export function autoHideScrollbarProps<T extends HTMLElement>(): Pick<
   return {
     onPointerEnter: (event) => {
       if (event.pointerType !== "touch") {
-        event.currentTarget.classList.add(POINTER_ACTIVE_CLASS);
+        setAutoHideScrollbarActive(event.currentTarget, true);
       }
     },
     onPointerLeave: (event) => {
-      event.currentTarget.classList.remove(POINTER_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(event.currentTarget, false);
     },
     onPointerCancel: (event) => {
-      event.currentTarget.classList.remove(POINTER_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(event.currentTarget, false);
     },
   };
 }
