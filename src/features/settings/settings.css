@@ -6,6 +6,13 @@
 }
 .settings-nav__alert svg { width: 15px; height: 15px; }
 .settings-nav__alert--accent { color: var(--accent-primary); }
+.settings-nav__alert--warning { color: var(--status-warning); }
+/* A provider CLI's row on its own, inside the connect panel that needs it. */
+.settings-tool-inline {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
 /* The same dense list as Notifications: one bordered surface with rows split
    by hairlines, not rows floating in the section. Each row reads icon, name,
    then how to move it, then whether it shows. */

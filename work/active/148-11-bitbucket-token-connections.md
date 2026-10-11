@@ -207,7 +207,7 @@ must generalize rather than fork:
 - [Shared credentials and Git helper](../../src-tauri/src/credentials.rs)
 - [Clone source checks](../../src-tauri/src/clone.rs)
 - [Shared frontend accounts](../../src/features/accounts/index.ts)
-- [Provider connections in Settings](../../src/features/hosting-servers/ProviderConnectionsSettings.tsx)
+- [Accounts in Settings](../../src/features/hosting-servers/AccountsSettings.tsx)
 - [Clone source access](../../src/features/clone/sourceAccess.ts)
 
 # Dependencies

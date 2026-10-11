@@ -2064,9 +2064,24 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
-**GitHub integration is a separate connection.** Settings → GitHub (and
-GitLab) uses three groups: **Accounts**, the company-server inventory, and the
-CLI tooling. Accounts is one list for every host of the product, each host a
+**GitHub integration is a separate connection.** Settings has one **Accounts**
+section for every provider, in two groups: **Connected accounts**, and **By
+provider**, a folded block per provider (glyph, name, and a one-line summary —
+accounts, company servers, whether its CLI is installed) whose body holds what
+only that provider has: the company-server inventory and the CLI tooling. A
+block's body stays mounted once opened, so folding it never drops a draft.
+A provider CLI that does not answer, or that has a known update, puts a chip on
+its folded block ("GitHub tool: needs attention", warning; "…: update
+available", accent), a matching badge on the Accounts rail entry, and opens
+that block on arrival — or when the answer arrives later — unless the reader
+has already opened or folded it; a block never folds by itself. A CLI that is
+simply not installed asks for nothing there: it is optional. Where it is
+needed — the browser method of the connect panel — the panel says so and shows
+the CLI's own installation row in place, so installing, the official guide and
+the recheck happen without leaving the panel.
+Connected accounts is one list for every host of every provider; a host with
+nothing connected or in progress is left out rather than drawn empty, and the
+list says once when nothing is connected at all. Each host is a
 small label (glyph, host, a "Company" pill for servers) over a bordered list of
 account rows, each one line: a 32px avatar, the login, a method chip (Token or
 Browser) and a state chip, with short text verbs on the right (Use · Remove ·
@@ -2074,10 +2089,14 @@ Sign out); a second line appears only for a problem or a storage caveat. The
 installation rows for Git, the CLIs and the app update share that geometry in
 their own card: tile, name, installed-version chip and state chip on one line,
 the official guide as an icon button beside the check and the primary action.
-The group header owns the only account check and **Add account**, which opens one inline panel: a Token/Browser segmented choice, the
+The group header owns the only account check, which covers every provider, and
+**Connect account**, a menu that names each provider with how it connects
+(GitHub and GitLab: browser or token; Bitbucket: API token). Choosing one opens
+one inline panel titled with the provider: a Token/Browser segmented choice, the
 host when there is more than one, then the masked token field or the browser
-consent. Consequences are stated in that panel, not as permanent notes under
-every group. **One accent-filled action per page**: Add account while nothing is
+consent; Bitbucket's panel is the token field alone. Home's **+** for another
+account lands on Accounts with this menu open and its first provider focused. Consequences are stated in that panel, not as permanent notes under
+every group. **One accent-filled action per page**: Connect account while nothing is
 connected and the panel's submit; tooling checks and server additions stay
 secondary. Cancellation restores the initiating control's focus.
 

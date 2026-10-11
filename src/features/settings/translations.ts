@@ -67,9 +67,7 @@ export interface SettingsTranslations {
   formatsNumberSpaceComma: string;
   formatsPreviewLabel: string;
   settingsGitTitle: string;
-  settingsGitHubTitle: string;
-  settingsGitLabTitle: string;
-  settingsBitbucketTitle: string;
+  settingsAccountsTitle: string;
   settingsGitToolDescription: string;
   gitOfficialInstructions: string;
   gitGuidanceFailed: string;
@@ -120,6 +118,8 @@ export interface SettingsTranslations {
   gitInstallation: GitInstallationCopy;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
+  settingsToolNeedsAttention: string;
+  settingsToolUpdateAttention: string;
   settingsGeneralGitMissing: string;
   settingsGeneralGitUnusable: string;
   settingsGeneralGitCheckFailed: string;
@@ -316,9 +316,7 @@ const en: SettingsTranslations = {
   formatsNumberSpaceComma: "Space groups",
   formatsPreviewLabel: "Example",
   settingsGitTitle: "Git",
-  settingsGitHubTitle: "GitHub",
-  settingsGitLabTitle: "GitLab",
-  settingsBitbucketTitle: "Bitbucket",
+  settingsAccountsTitle: "Accounts",
   settingsGitToolDescription: "Git saves your projects' versions; GitOdile uses this computer's installation.",
   gitOfficialInstructions: "Official Git instructions",
   gitGuidanceFailed: "Couldn't open the official Git instructions. Try again.",
@@ -419,6 +417,8 @@ const en: SettingsTranslations = {
   },
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
+  settingsToolNeedsAttention: "{tool}: needs attention",
+  settingsToolUpdateAttention: "{tool}: update available",
   settingsGeneralGitMissing: "Git isn't installed, or GitOdile can't find it.",
   settingsGeneralGitUnusable: "Git was found, but it isn't working.",
   settingsGeneralGitCheckFailed: "Couldn't check Git.",
@@ -612,9 +612,7 @@ const es: SettingsTranslations = {
   formatsNumberSpaceComma: "Grupos con espacio",
   formatsPreviewLabel: "Ejemplo",
   settingsGitTitle: "Git",
-  settingsGitHubTitle: "GitHub",
-  settingsGitLabTitle: "GitLab",
-  settingsBitbucketTitle: "Bitbucket",
+  settingsAccountsTitle: "Cuentas",
   settingsGitToolDescription: "Git guarda las versiones de tus proyectos; GitOdile usa la instalación de este ordenador.",
   gitOfficialInstructions: "Instrucciones oficiales de Git",
   gitGuidanceFailed: "No se pudieron abrir las instrucciones oficiales de Git. Vuelve a intentarlo.",
@@ -715,6 +713,8 @@ const es: SettingsTranslations = {
   },
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
+  settingsToolNeedsAttention: "{tool}: necesita atención",
+  settingsToolUpdateAttention: "{tool}: actualización disponible",
   settingsGeneralGitMissing: "Git no está instalado o GitOdile no lo encuentra.",
   settingsGeneralGitUnusable: "Se encontró Git, pero no funciona.",
   settingsGeneralGitCheckFailed: "No se pudo comprobar Git.",

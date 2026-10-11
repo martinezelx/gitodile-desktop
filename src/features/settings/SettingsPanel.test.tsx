@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "../changes";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "../console";
-import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPanel, type AccountsToolSlot } from "./SettingsPanel";
 import { useGitTooling } from "./useGitTooling";
 import { useDefaultBranch, useGitIdentity, useLineEndings } from "./useGitConfig";
 import type { SettingsPort } from "./port";
@@ -19,8 +19,8 @@ describe("optional GitHub CLI tooling", () => {
   it("lists accounts before CLI tooling and keeps adding one independent of a missing gh", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
     const addAccount = vi.fn();
-    renderPanel(port, { initialSection: "github",
-      githubToken: <section aria-label="Accounts"><button type="button" onClick={addAccount}>Add account</button></section>,
+    renderPanel(port, { initialSection: "accounts",
+      accounts: (tooling) => <><section aria-label="Accounts"><button type="button" onClick={addAccount}>Add account</button></section>{tooling.github.section}</>,
     });
     const accounts = screen.getByRole("region", { name: "Accounts" });
     const tooling = screen.getByRole("region", { name: "GitHub on your computer" });
@@ -32,7 +32,7 @@ describe("optional GitHub CLI tooling", () => {
     expect(addAccount).toHaveBeenCalledOnce();
     expect(port.installGh).not.toHaveBeenCalled();
   });
-  it.each(["git", "github"] as const)("waits for %s diagnostics before offering an old version's update", async (section) => {
+  it.each(["git", "accounts"] as const)("waits for %s diagnostics before offering an old version's update", async (section) => {
     let finishRead!: (result: GitDiagnostics) => void;
     const read = vi.fn<SettingsPort["readDiagnostics"]>()
       .mockResolvedValueOnce({ state: "available", version: "2.80.0" })
@@ -54,7 +54,7 @@ describe("optional GitHub CLI tooling", () => {
     expect(port.updateGh).not.toHaveBeenCalled();
   });
 
-  it.each(["git", "github"] as const)("ignores a late %s guide receipt after a newer update check", async (section) => {
+  it.each(["git", "accounts"] as const)("ignores a late %s guide receipt after a newer update check", async (section) => {
     let finishGuide: () => void = () => { throw new Error("guide not opened"); };
     const port = createPort({
       openGuidance: vi.fn(() => new Promise<void>((resolve, reject) => {
@@ -74,8 +74,8 @@ describe("optional GitHub CLI tooling", () => {
   });
 
   it.each([
-    ["git", "failed"], ["github", "failed"],
-    ["git", "up_to_date"], ["github", "up_to_date"],
+    ["git", "failed"], ["accounts", "failed"],
+    ["git", "up_to_date"], ["accounts", "up_to_date"],
   ] as const)("replaces the previous %s guide notice with a %s update result", async (section, resultState) => {
     let finishCheck: (result: GitUpdateStatus) => void = () => { throw new Error("check not started"); };
     const check = vi.fn(() => new Promise<GitUpdateStatus>((resolve) => { finishCheck = resolve; }));
@@ -103,7 +103,7 @@ describe("optional GitHub CLI tooling", () => {
     expect(check).toHaveBeenCalledOnce();
   });
 
-  it.each(["git", "github"] as const)("clears the %s installer receipt when rechecking the local version", async (section) => {
+  it.each(["git", "accounts"] as const)("clears the %s installer receipt when rechecking the local version", async (section) => {
     const read = vi.fn<SettingsPort["readDiagnostics"]>()
       .mockResolvedValueOnce({ state: "missing", version: null })
       .mockResolvedValueOnce({ state: "check_failed", version: null });
@@ -119,10 +119,10 @@ describe("optional GitHub CLI tooling", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["git", "github"] as const)("uses an icon-only recheck in the %s installation card", async (section) => {
+  it.each(["git", "accounts"] as const)("uses an icon-only recheck in the %s installation card", async (section) => {
     const port = createPort();
     renderPanel(port, { initialSection: section });
-    if (section === "github") await screen.findByText("2.80.0");
+    if (section === "accounts") await screen.findByText("2.80.0");
     const button = screen.getByRole("button", { name: "Check again" });
     expect(button.textContent).toBe("");
     expect(button).toHaveAttribute("data-tooltip", "Check again");
@@ -130,18 +130,18 @@ describe("optional GitHub CLI tooling", () => {
     fireEvent.click(button);
     expect(button).toBeDisabled();
     expect(button.querySelector("svg")).toHaveClass("icon--spinning");
-    if (section === "github") {
+    if (section === "accounts") {
       await waitFor(() => expect(port.readGhDiagnostics).toHaveBeenCalledTimes(2));
     }
   });
 
-  it("keeps GitHub in its own section and supports keyboard navigation", async () => {
+  it("keeps GitHub in the Accounts section and supports keyboard navigation", async () => {
     renderPanel(createPort(), { initialSection: "git" });
     expect(screen.queryByRole("region", { name: "GitHub on your computer" })).not.toBeInTheDocument();
     const gitTab = screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ });
     gitTab.focus();
     await userEvent.keyboard("{ArrowDown}");
-    expect(screen.getByRole("tab", { name: "GitHub" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Accounts" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByRole("region", { name: "GitHub on your computer" })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "main" })).not.toBeInTheDocument();
@@ -163,9 +163,28 @@ describe("optional GitHub CLI tooling", () => {
     expect(port.installGit).not.toHaveBeenCalled();
   });
 
+  it("hands Accounts the bare CLI row and badges the rail when gh does not answer", async () => {
+    const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "unusable", version: null })) });
+    renderPanel(port, { initialSection: "accounts",
+      accounts: (tooling) => <><p>{tooling.github.attention ?? "none"}</p>{tooling.github.inline}</>,
+    });
+    expect(await screen.findByText("problem")).toBeInTheDocument();
+    const row = screen.getByRole("group", { name: "GitHub tool" });
+    expect(within(row).getByText("Not responding")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "GitHub on your computer" })).toBeNull();
+    expect(within(screen.getByRole("tab", { name: /^Accounts/ })).getByRole("img", { name: "GitHub tool: needs attention" })).toBeInTheDocument();
+  });
+
+  it("leaves the rail quiet while gh is only not installed", async () => {
+    const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
+    renderPanel(port, { initialSection: "accounts" });
+    await screen.findByText("Not installed on this computer.");
+    expect(within(screen.getByRole("tab", { name: "Accounts" })).queryByRole("img")).toBeNull();
+  });
+
   it("reads only the local version on startup and keeps GitHub optional", async () => {
     const port = createPort();
-    renderPanel(port, { initialSection: "github" });
+    renderPanel(port, { initialSection: "accounts" });
     const section = screen.getByRole("region", { name: "GitHub on your computer" });
     expect(await within(section).findByText("2.80.0")).toBeInTheDocument();
     expect(port.readGhDiagnostics).toHaveBeenCalledTimes(1);
@@ -175,7 +194,7 @@ describe("optional GitHub CLI tooling", () => {
 
   it("starts only the GitHub installer and does not claim installation finished", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
-    renderPanel(port, { initialSection: "github" });
+    renderPanel(port, { initialSection: "accounts" });
     const section = screen.getByRole("region", { name: "GitHub on your computer" });
     fireEvent.click(await within(section).findByRole("button", { name: "Install" }));
     await waitFor(() => expect(port.installGh).toHaveBeenCalledTimes(1));
@@ -190,7 +209,7 @@ describe("optional GitHub CLI tooling", () => {
       readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })),
       installGh: vi.fn<SettingsPort["installGh"]>(async () => ({ outcome: "guidance", platform, guidanceUrl: url })),
     });
-    renderPanel(port, { initialSection: "github" });
+    renderPanel(port, { initialSection: "accounts" });
     fireEvent.click(await screen.findByRole("button", { name: "Install" }));
     await waitFor(() => expect(port.openGuidance).toHaveBeenCalledWith(url));
     expect(await screen.findByText("The official GitHub CLI instructions were opened.")).toBeInTheDocument();
@@ -202,7 +221,7 @@ describe("optional GitHub CLI tooling", () => {
       installGh: vi.fn<SettingsPort["installGh"]>(async () => ({ outcome: "guidance", platform: "linux", guidanceUrl: "https://github.com/cli/cli/blob/trunk/docs/install_linux.md" })),
       openGuidance: vi.fn().mockRejectedValueOnce(new Error("browser failed")).mockResolvedValue(undefined),
     });
-    renderPanel(port, { initialSection: "github" });
+    renderPanel(port, { initialSection: "accounts" });
     fireEvent.click(await screen.findByRole("button", { name: "Install" }));
     expect(await screen.findByText(/The GitHub CLI action could not be completed/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Official GitHub CLI guide" }));
@@ -211,7 +230,7 @@ describe("optional GitHub CLI tooling", () => {
 
   it("checks and updates gh without triggering Git update actions", async () => {
     const port = createPort({ checkGhUpdate: vi.fn<SettingsPort["checkGhUpdate"]>(async () => ({ state: "update_available", cached: false })) });
-    renderPanel(port, { initialSection: "github" });
+    renderPanel(port, { initialSection: "accounts" });
     const section = screen.getByRole("region", { name: "GitHub on your computer" });
     await within(section).findByText("2.80.0");
     fireEvent.click(within(section).getByRole("button", { name: "Check for updates" }));
@@ -273,7 +292,7 @@ type PanelOverrides = Partial<{
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
-  githubToken: React.ReactNode;
+  accounts: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
   onClose: () => void;
@@ -324,7 +343,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
   return (
     <SettingsPanel
       ghTooling={ghTooling}
-      githubToken={overrides.githubToken}
+      accounts={overrides.accounts ?? ((tooling) => tooling.github.section)}
       theme={overrides.theme ?? "system"}
       setTheme={overrides.setTheme ?? vi.fn()}
       reducedMotion={overrides.reducedMotion ?? false}
@@ -387,7 +406,7 @@ function renderPanel(port: SettingsPort, overrides: PanelOverrides = {}) {
 }
 
 /** Use the shell's real Git tooling hook for checks whose result changes over time. */
-function renderToolingPanel(port: SettingsPort, section: "git" | "github") {
+function renderToolingPanel(port: SettingsPort, section: "git" | "accounts") {
   function ToolingHarness() {
     const tooling = useGitTooling(port);
     return <Harness port={port} overrides={{

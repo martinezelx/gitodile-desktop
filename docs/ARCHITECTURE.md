@@ -731,7 +731,7 @@ absent from normal development and production builds.
 
 ### Optional GitHub CLI tooling
 
-The GitHub section of Settings owns machine-level `gh` readiness through its
+The GitHub block of Settings → Accounts owns machine-level `gh` readiness through its
 typed port and adapter. Git configuration stays in the separate Git section.
 `tooling.rs` shares fixed platform installation/update plans with Git while
 keeping each tool's launch guards and update cache independent. The renderer
@@ -868,11 +868,15 @@ secrets and unregisters it while bindings stay saved and unavailable. The Git
 helper receives a server's authority as an argument and rebuilds its adapter only
 when that authority derives the account's instance ID. Credential scopes, remote
 validation and header masking compare host and port. The `hosting-servers`
-feature owns the Settings connections composition (`ProviderConnectionsSettings`:
-one Accounts list per product grouped by host, the add-account panel and the
-server inventory) and its typed port. It composes `accounts`' token rows and
-form with the embedded gh/glab account bodies and per-product token copy from
-`github`/`gitlab`; App passes it as the provider's Settings slot. Native opens
+feature owns the Settings → Accounts composition (`AccountsSettings`: one
+connected-accounts list for every provider grouped by host, the provider menu
+and connect panels, and a folded block per provider holding its server
+inventory and CLI tooling) and its typed port. It composes `accounts`' token
+rows and form with the embedded gh/glab account bodies and per-product token
+copy from `github`/`gitlab`/`bitbucket`, over one shared catalog read so a
+change anywhere in the section shows everywhere in it. Settings renders the
+gh/glab tooling rows and hands them to the section through its `accounts`
+render slot, which App fills. Native opens
 gh's device page for a server because the renderer's opener scope is a fixed
 list. See
 [ADR 0025](adr/0025-connect-company-servers-as-provider-instances.md).

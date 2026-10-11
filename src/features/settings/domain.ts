@@ -96,9 +96,7 @@ export const SETTINGS_SECTIONS = [
   "reading",
   "console",
   "git",
-  "github",
-  "gitlab",
-  "bitbucket",
+  "accounts",
   "line-endings",
   "updates",
 ] as const;
@@ -121,9 +119,7 @@ export function settingsSectionLabel(
     settingsReadingTitle: string;
     settingsConsoleTitle: string;
     settingsGitTitle: string;
-    settingsGitHubTitle: string;
-    settingsGitLabTitle: string;
-    settingsBitbucketTitle: string;
+    settingsAccountsTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
   },
@@ -136,9 +132,7 @@ export function settingsSectionLabel(
     reading: t.settingsReadingTitle,
     console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
-    github: t.settingsGitHubTitle,
-    gitlab: t.settingsGitLabTitle,
-    bitbucket: t.settingsBitbucketTitle,
+    accounts: t.settingsAccountsTitle,
     "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,
   };
@@ -215,6 +209,18 @@ export type GitUpdateStatus = {
   state: "checking" | "unavailable" | "up_to_date" | "update_available" | "failed" | "timed_out";
   cached: boolean;
 };
+
+/** What an optional provider CLI asks of the reader. Not being installed asks
+ * nothing — the CLI is optional, and the connect panel says so where the
+ * browser method needs it; a CLI that is there but does not answer, or one
+ * with a known update, does. */
+export type ToolAttention = "update" | "problem" | null;
+
+export function toolAttention(diagnostics: GitDiagnostics | null, updateStatus: GitUpdateStatus | null): ToolAttention {
+  if (diagnostics === null || diagnostics.state === "missing") return null;
+  if (diagnostics.state !== "available") return "problem";
+  return updateStatus?.state === "update_available" ? "update" : null;
+}
 
 export type GitUpdateLaunchResult = {
   outcome: "started" | "already_starting" | "unavailable" | "failed";

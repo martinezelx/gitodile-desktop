@@ -716,8 +716,12 @@ export function App(): React.JSX.Element {
      create-project identity link — says so by passing it, so remembering the
      last visit only made the plain open unpredictable. */
   const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
-  const gitlabAuth = useGitLabAuth(gitlabAuthPort, isSettingsOpen && settingsSection === "gitlab");
-  const githubAuth = useGitHubAuth(githubAuthPort, isSettingsOpen && settingsSection === "github");
+  const gitlabAuth = useGitLabAuth(gitlabAuthPort, isSettingsOpen && settingsSection === "accounts");
+  const githubAuth = useGitHubAuth(githubAuthPort, isSettingsOpen && settingsSection === "accounts");
+  /* Home's "+" asks for another account, so Accounts opens with its provider
+     menu already open. Consumed on arrival: a later visit opens it closed. */
+  const [openAccountsMenu, setOpenAccountsMenu] = useState(false);
+  const clearAccountsMenu = useCallback(() => setOpenAccountsMenu(false), []);
   /** The one way to open Settings. Callers that want a particular section name
    * it; everyone else gets General. */
   const openSettings = (section: SettingsSection = "general"): void => {
@@ -2528,8 +2532,8 @@ export function App(): React.JSX.Element {
                   onRecheckGit={() => void gitTooling.refreshDiagnostics()}
                   onOpenGitSettings={() => openSettings("git")}
                   onConfigureIdentity={() => openSettings("git")}
-                  onConnectAccount={() => openSettings("github")}
-                  onOpenAccountSettings={(kind) => openSettings(kind)}
+                  onConnectAccount={() => { setOpenAccountsMenu(true); openSettings("accounts"); }}
+                  onOpenAccountSettings={() => openSettings("accounts")}
                 />
               ),
               overview: (
@@ -3052,6 +3056,8 @@ export function App(): React.JSX.Element {
           gitTooling,
           ghTooling,
           githubAuth, gitlabAuth, glabTooling,
+          openAccountsMenu,
+          onAccountsMenuOpened: clearAccountsMenu,
           reopenLastProject,
           setReopenLastProject,
           confirmCloseProject,

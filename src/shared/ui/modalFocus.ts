@@ -11,7 +11,10 @@ export function getFocusableElements(container: HTMLElement): HTMLElement[] {
     // A roving tabindex takes its inactive items out of the tab order with
     // `tabindex="-1"`. The selector above still matches them by tag, so the
     // trap has to drop them too or Tab would walk a list the browser won't.
-  ).filter((element) => !element.hasAttribute("hidden") && element.tabIndex >= 0);
+    // A control inside a hidden ancestor (a folded block that keeps its
+    // content mounted) cannot take focus either, so wrapping onto it would
+    // leave focus nowhere.
+  ).filter((element) => !element.closest("[hidden]") && element.tabIndex >= 0);
 }
 
 export function useModalFocus<T extends HTMLElement>(

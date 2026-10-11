@@ -1,2 +1,2 @@
-export { BitbucketConnectionsSettings, useBitbucketTokenCopy } from "./BitbucketConnectionsSettings";
+export { useBitbucketTokenCopy } from "./tokenCopy";
 export { bitbucketTokenPort } from "./tauriAdapter";

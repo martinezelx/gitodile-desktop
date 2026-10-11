@@ -45,13 +45,16 @@ export function useAccounts(port: AccountsPort, visible: boolean) {
     void poll();
     return () => { stopped = true; if (timer !== undefined) clearTimeout(timer); };
   }, [port, visible, generation, setCatalog]);
-  const check = useCallback(async (provider: string): Promise<void> => {
+  /** Checks one product, or several in turn under one pending state (the
+   * account list's single check covers every product it shows). */
+  const check = useCallback(async (provider: string | readonly string[]): Promise<void> => {
     if (running.current) return;
     running.current = true; revision.current += 1;
     setPending(true); setFailed(false);
     try {
-      const next = await port.check(provider);
-      if (mounted.current && isVisible.current) setCatalog(next);
+      let next: AccountCatalog | null = null;
+      for (const id of typeof provider === "string" ? [provider] : provider) next = await port.check(id);
+      if (next && mounted.current && isVisible.current) setCatalog(next);
     } catch { if (mounted.current) setFailed(true); }
     finally { running.current = false; if (mounted.current) { setPending(false); setGeneration(value => value + 1); } }
   }, [port, setCatalog]);

@@ -302,7 +302,7 @@ GitOdile uses the system Git executable. Git **2.23 or newer** is required for
 version-line switching; diagnostics remain available when Git is missing or
 unusable.
 
-Settings → GitHub offers optional **GitHub CLI (`gh`)** diagnostics,
+The GitHub block of Settings → Accounts offers optional **GitHub CLI (`gh`)** diagnostics,
 installation and update guidance. Windows starts WinGet for the exact
 `GitHub.cli` package, with official instructions as a fallback; macOS and Linux
 open the official platform instructions. Local version checks require no
@@ -312,7 +312,7 @@ missing. Windows update checks are explicit and
 cached for five minutes; other platforms use the official update instructions.
 An installer being started is not proof of installation: reopen GitOdile after
 installing to inherit the updated `PATH`. This prepares the dependency for
-future PRs and Actions; those screens are not yet implemented. Settings → GitHub
+future PRs and Actions; those screens are not yet implemented. Settings → Accounts
 offers explicit account detection and browser connection through gh. It shows
 the saved github.com accounts and cached avatars, with the active account first,
 and retains their last known identities when offline,
@@ -335,8 +335,8 @@ See
 [ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
 for ordinary local Git workflows.
 
-Settings presents token connections first, browser connections second and gh
-installation last. Browser connections and saved gh accounts require the CLI;
+Settings → Accounts lists every connection first; each provider's company
+servers and CLI installation sit in that provider's folded block below. Browser connections and saved gh accounts require the CLI;
 token connections work with or without it. Cloning a GitHub or GitLab.com HTTPS URL
 and Project settings → Remote offer a shared account selector. Different projects
 can use different saved accounts without switching gh's active account. The
@@ -348,9 +348,17 @@ the system's normal authentication. Account selection does not change commit
 authorship, configure SSH or prove publishing permissions. GitHub, GitLab.com and Bitbucket Cloud share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
-Settings → GitHub starts with one **Accounts** list: every token and browser
-connection of github.com and of each company server, grouped under its host,
-with one check action and one **Add account** panel (method, then host). The
+Settings → Accounts starts with one **Connected accounts** list: every token and
+browser connection of every provider (github.com, gitlab.com, bitbucket.org and
+each company server), grouped under its host, leaving out hosts with nothing
+connected. One check action covers every provider, and one **Connect account**
+menu picks the provider and opens its panel (method, then host); Home's **+**
+opens Accounts with that menu open. Below, **By provider** folds GitHub, GitLab
+and Bitbucket into one block each, holding what only that provider has: its
+company servers and its CLI. A CLI that does not answer or has a known update
+marks its block and the Accounts entry and opens the block; choosing the
+browser method without the CLI shows its installation row inside the connect
+panel. The
 token method opens a masked field with storage guidance and expandable
 permission details. GitOdile verifies the token's identity and saves it only
 in the system's secure credential store, with no plaintext fallback. Up to eight
@@ -372,8 +380,8 @@ cloned until you confirm. Discovery uses exactly that connection without changin
 gh's active account. Its private results are cached only for the app session.
 See [ADR 0023](docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
 
-Settings → GitLab follows the same layout: the **Accounts** list (tokens and the
-glab browser connection per host), company servers, then optional
+GitLab connections share the same list (tokens and the glab browser connection
+per host); the GitLab block holds its company servers and the optional
 **GitLab CLI (`glab`)** tooling. Tokens work without
 glab and stay in a separate OS secure-store namespace, with no plaintext fallback.
 Use `read_api` for identity/project discovery, plus `read_repository` for clone/get
@@ -407,8 +415,8 @@ remain unclaimed until exercised with an authorized account and environment.
 
 ### Bitbucket Cloud
 
-Settings → Bitbucket lists bitbucket.org **API token** connections with the same
-**Accounts** list and masked token form; there is no browser connection or CLI.
+bitbucket.org **API token** connections join the same list in Settings → Accounts
+and use the same masked token form; there is no browser connection or CLI.
 Create an Atlassian API token with scopes for Bitbucket: `read:user:bitbucket`
 and `read:workspace:bitbucket` for identity and discovery, plus
 `read:repository:bitbucket` to clone and `write:repository:bitbucket` to publish.
@@ -427,9 +435,8 @@ qualified yet.
 
 ### Company servers
 
-Settings → GitHub and Settings → GitLab each list their **company servers**
-(**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated) after the
-accounts. Add a server by its HTTPS address (`https://git.example.com`, with
+The GitHub and GitLab blocks of Settings → Accounts each list their **company
+servers** (**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated). Add a server by its HTTPS address (`https://git.example.com`, with
 an optional port); GitOdile contacts it once, without credentials, to confirm
 the product and a supported version (GHES 3.0+, GitLab 14.0+), then its
 accounts appear in the Accounts list under its host. Up to 8 servers;

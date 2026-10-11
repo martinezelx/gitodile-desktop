@@ -6,8 +6,7 @@ import { Check, CircleAlert, Copy, Keyboard } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
-import { ProviderConnectionsSettings } from "../features/hosting-servers";
-import { BitbucketConnectionsSettings } from "../features/bitbucket";
+import { AccountsSettings } from "../features/hosting-servers";
 import { ConsoleConfirmChangesSetting, type ConsoleConfirmChangesState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -52,6 +51,11 @@ import { OperatingSystemMark, StackMark } from "./vendorMarks";
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 
 const NO_STARTUP_CONFIRMATION: StartupUpdateConfirmation = { kind: "none" };
+
+/** Whether a provider CLI can run, or `null` while it has not been read yet. */
+function toolAvailable(tooling: GitToolingState): boolean | null {
+  return tooling.diagnostics === null ? null : tooling.diagnostics.state === "available";
+}
 
 /** The one line About can honestly say about updates: what the release model
  * knows and a person can act on. Every state names itself, so the line is never
@@ -113,6 +117,9 @@ export type AppOverlaysProps = {
     glabTooling: GitToolingState;
     gitlabAuth: GitLabAuthController;
     githubAuth: GitHubAuthController;
+    /** Accounts opens with its provider menu open (Home's "+"), once. */
+    openAccountsMenu?: boolean;
+    onAccountsMenuOpened?: () => void;
     reopenLastProject: boolean;
     setReopenLastProject: BooleanSetter;
     confirmCloseProject: boolean;
@@ -419,12 +426,11 @@ export function AppOverlays({
               activeSection={settings.section}
               onSectionChange={settings.setSection}
               ghTooling={settings.ghTooling}
-              githubToken={<ProviderConnectionsSettings auth={{ kind: "github", controller: settings.githubAuth }}
-                cliAvailable={settings.ghTooling.diagnostics === null ? null : settings.ghTooling.diagnostics.state === "available"} />}
               glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
-              gitlabToken={<ProviderConnectionsSettings auth={{ kind: "gitlab", controller: settings.gitlabAuth }}
-                cliAvailable={settings.glabTooling.diagnostics === null ? null : settings.glabTooling.diagnostics.state === "available"} />}
-              bitbucketAccounts={<BitbucketConnectionsSettings />}
+              accounts={(tooling) => <AccountsSettings tooling={tooling}
+                github={{ controller: settings.githubAuth, cliAvailable: toolAvailable(settings.ghTooling) }}
+                gitlab={{ controller: settings.gitlabAuth, cliAvailable: toolAvailable(settings.glabTooling) }}
+                openMenu={settings.openAccountsMenu} onMenuOpened={settings.onAccountsMenuOpened} />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}
               onCheckGitUpdate={settings.gitTooling.checkUpdate}

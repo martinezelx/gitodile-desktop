@@ -18,6 +18,7 @@ import {
   Settings,
   SquareTerminal,
   TriangleAlert,
+  UsersRound,
   WrapText,
 } from "lucide-react";
 
@@ -88,11 +89,12 @@ import {
   type RemoteCheckIntervalMinutes,
   type RemoteCheckUnit,
   type SettingsSection,
+  type ToolAttention,
+  toolAttention,
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
 import { GhToolingSection, type HostingToolingCopy, type HostingToolingPort } from "./GhToolingSection";
 import { GitLocationFacts, GitTechnicalDetails } from "./GitInstallationFacts";
-import { GitHubIcon } from "./GitHubIcon";
 import { ToolRecheckButton } from "./ToolRecheckButton";
 import type { GitToolingState } from "./useGitTooling";
 import { useToolNotice } from "./useToolNotice";
@@ -152,6 +154,11 @@ type ThemeCardOption = {
    reader will get rather than a flattering enlargement. */
 const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
+const GLAB_GUIDANCE_URL = "https://gitlab.com/gitlab-org/cli#installation";
+
+/** One provider CLI as the Accounts section receives it. */
+export type AccountsToolSlot = { name: string; section: React.ReactNode; inline: React.ReactNode; attention: ToolAttention };
+
 /** Static: nothing about the rail's icons depends on state, a preference or the
  * language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
@@ -162,9 +169,7 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   reading: <WrapText />,
   console: <SquareTerminal />,
   git: <GitIcon />,
-  github: <GitHubIcon />,
-  gitlab: <HostingProviderIcon provider="gitlab" />,
-  bitbucket: <HostingProviderIcon provider="bitbucket" />,
+  accounts: <UsersRound />,
   "line-endings": <CornerDownLeft />,
   updates: <CircleFadingArrowUp />,
 };
@@ -250,6 +255,7 @@ const SettingsNav = React.memo(function SettingsNav({
   onSectionChange,
   needsGitAttention,
   updateAttention,
+  accountsAttention,
   railLabel,
   attentionLabel,
 }: {
@@ -264,6 +270,8 @@ const SettingsNav = React.memo(function SettingsNav({
   /** An update waiting to be downloaded or installed, named for the badge's
    * accessible name — or null when the rail has nothing to point at. */
   updateAttention: string | null;
+  /** A provider CLI that needs a look, named for the badge's accessible name. */
+  accountsAttention: { tone: "update" | "problem"; label: string } | null;
   railLabel: string;
   attentionLabel: string;
 }): React.JSX.Element {
@@ -329,6 +337,14 @@ const SettingsNav = React.memo(function SettingsNav({
                 <CircleArrowUp aria-hidden="true" />
               </span>
             )}
+            {/* An optional CLI degrades one way of connecting, not the app, so
+                its problem is a warning rather than Git's alarm. */}
+            {section.id === "accounts" && accountsAttention && (
+              <span className={`settings-nav__alert settings-nav__alert--${accountsAttention.tone === "update" ? "accent" : "warning"}`}
+                role="img" aria-label={accountsAttention.label}>
+                {accountsAttention.tone === "update" ? <CircleArrowUp aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+              </span>
+            )}
           </button>
         );
       })}
@@ -353,9 +369,8 @@ export function SettingsPanel({
   activeSection,
   onSectionChange,
   ghTooling,
-  githubToken,
-  gitlabToken, glabTooling, glabActions, glabCopy,
-  bitbucketAccounts,
+  glabTooling, glabActions, glabCopy,
+  accounts,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -402,9 +417,12 @@ export function SettingsPanel({
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   ghTooling: GitToolingState;
-  githubToken?: React.ReactNode;
-  gitlabToken?: React.ReactNode; glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
-  bitbucketAccounts?: React.ReactNode;
+  glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
+  /** The Accounts section, owned by the hosting features. It receives each
+   * product's CLI, which this panel renders — the full group for that
+   * product's block, the bare row for the connect panel, and whether it needs
+   * a look. */
+  accounts?: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -863,6 +881,24 @@ export function SettingsPanel({
     [t],
   );
   const needsGitAttention = isGitInstallationBroken(gitDiagnostics);
+  const ghAttention = toolAttention(ghTooling.diagnostics, ghTooling.updateStatus);
+  const glabAttention = glabTooling ? toolAttention(glabTooling.diagnostics, glabTooling.updateStatus) : null;
+  // A problem outranks an update; GitHub is named first when both match.
+  // Keyed on the name rather than the copy object, which is new every render:
+  // the rail is memoized and must not redraw on every keystroke.
+  const glabName = glabCopy?.ghName ?? "GitLab CLI";
+  const accountsAttention = useMemo(() => {
+    const tools = [
+      { attention: ghAttention, name: t.ghName },
+      { attention: glabAttention, name: glabName },
+    ];
+    const pick = tools.find((tool) => tool.attention === "problem") ?? tools.find((tool) => tool.attention === "update");
+    if (!pick?.attention) return null;
+    return {
+      tone: pick.attention,
+      label: (pick.attention === "problem" ? t.settingsToolNeedsAttention : t.settingsToolUpdateAttention).replace("{tool}", pick.name),
+    };
+  }, [ghAttention, glabAttention, glabName, t]);
   const visibleNavigationIds = new Set(navigationPreferences.visibleDestinationIds);
   const setDestinationVisible = (id: string, isVisible: boolean): void => {
     setNavigationPreferences((previous) => {
@@ -957,6 +993,7 @@ export function SettingsPanel({
         onSectionChange={onSectionChange}
         needsGitAttention={needsGitAttention}
         updateAttention={applicationUpdateAttention}
+        accountsAttention={accountsAttention}
         railLabel={t.settingsSectionsAriaLabel}
         attentionLabel={t.settingsGitNeedsAttention}
       />
@@ -2134,19 +2171,24 @@ export function SettingsPanel({
           </div>
         )}
 
-        {activeSection === "gitlab" && glabTooling && (
+        {activeSection === "accounts" && (
           <div className="settings-groups">
-            {gitlabToken}
-            <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy} mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl="https://gitlab.com/gitlab-org/cli#installation" />
-          </div>
-        )}
-        {activeSection === "bitbucket" && (
-          <div className="settings-groups">{bitbucketAccounts}</div>
-        )}
-        {activeSection === "github" && (
-          <div className="settings-groups">
-            {githubToken}
-            <GhToolingSection port={port} tooling={ghTooling} />
+            {accounts?.({
+              github: {
+                name: t.ghName,
+                section: <GhToolingSection port={port} tooling={ghTooling} />,
+                inline: <GhToolingSection port={port} tooling={ghTooling} variant="inline" />,
+                attention: ghAttention,
+              },
+              gitlab: glabTooling ? {
+                name: glabName,
+                section: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} />,
+                inline: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} variant="inline" />,
+                attention: glabAttention,
+              } : null,
+            })}
           </div>
         )}
 

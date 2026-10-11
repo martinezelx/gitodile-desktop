@@ -36,11 +36,14 @@ const UPDATE_ICONS: Record<string, ReactNode> = {
   warning: <TriangleAlert aria-hidden="true" />,
 };
 
-/** Optional machine tooling. Installation never implies GitHub authentication. */
-export function GhToolingSection({ port, tooling, copy, mark, actions, guidanceUrl = "https://github.com/cli/cli#installation" }: {
+/** Optional machine tooling. Installation never implies GitHub authentication.
+ * `inline` is the bare row, for the connect panel that needs the CLI: the same
+ * install, guide and recheck, without the group heading around it. */
+export function GhToolingSection({ port, tooling, copy, mark, actions, guidanceUrl = "https://github.com/cli/cli#installation", variant = "section" }: {
   port: SettingsPort;
   tooling: GitToolingState;
   copy?: HostingToolingCopy; mark?: ReactNode; actions?: HostingToolingPort; guidanceUrl?: string;
+  variant?: "section" | "inline";
 }): React.JSX.Element {
   const { t } = useLanguage();
   const text = copy ?? t;
@@ -192,30 +195,32 @@ export function GhToolingSection({ port, tooling, copy, mark, actions, guidanceU
 
   const docs = <ToolGuideButton label={text.ghInstructions} onClick={() => void instructions()} />;
 
-  return (
-    <>
-      <section className="settings-group" aria-label={text.ghTitle}>
-        <header className="settings-group__header">
-          <h3>{text.ghTitle}</h3>
-          <p>{text.ghDescription}</p>
-        </header>
-        <div className="settings-group__body">
-          <ToolInstallationRow
-            mark={mark ?? <GitHubIcon />}
-            name={text.ghName}
-            chip={chip}
-            version={available ? diagnostics.version : null}
-            versionLabel={t.settingsGitInstalledVersionLabel}
-            detail={detail}
-            status={status}
-            hint={hint}
-            recheck={recheck}
-            primaryAction={primaryAction}
-            docs={docs}
-          />
-        </div>
-      </section>
+  const row = (
+    <ToolInstallationRow
+      mark={mark ?? <GitHubIcon />}
+      name={text.ghName}
+      chip={chip}
+      version={available ? diagnostics.version : null}
+      versionLabel={t.settingsGitInstalledVersionLabel}
+      detail={detail}
+      status={status}
+      hint={hint}
+      recheck={recheck}
+      primaryAction={primaryAction}
+      docs={docs}
+    />
+  );
 
-    </>
+  if (variant === "inline") {
+    return <div className="settings-tool-inline" role="group" aria-label={text.ghName}>{row}</div>;
+  }
+  return (
+    <section className="settings-group" aria-label={text.ghTitle}>
+      <header className="settings-group__header">
+        <h3>{text.ghTitle}</h3>
+        <p>{text.ghDescription}</p>
+      </header>
+      <div className="settings-group__body">{row}</div>
+    </section>
   );
 }
