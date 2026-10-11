@@ -131,6 +131,9 @@ describe("NextStepCard", () => {
 
     expect(container.querySelector(".next-step")).toHaveClass("next-step--unsaved");
     expect(screen.getByRole("heading", { name: "Save your 2 changes" })).toBeInTheDocument();
+    // What comes after counts only the versions already waiting: the one
+    // about to be saved goes "along with" them.
+    expect(container.querySelector(".next-step__then")).toHaveTextContent("Then: publish it along with 2 more");
     await userEvent.click(screen.getByRole("button", { name: "Save version" }));
     expect(actions.save).toHaveBeenCalledOnce();
   });

@@ -69,6 +69,12 @@ export interface OverviewTranslations {
   /** The row above "now" for versions waiting on the remote. */
   overviewTimelineIncoming: (count: number) => string;
   overviewTimelineGet: string;
+  /** Under the last version drawn when older ones exist; History has them. */
+  overviewTimelineEndMore: (count: number) => string;
+  /** Under the last version of a shallow copy, whose older history was not downloaded. */
+  overviewTimelineEndShallow: string;
+  /** Under the line's first version. */
+  overviewTimelineEndStart: string;
   /** The side column: what the next step will move, and where you can go
    * back to. */
   overviewDetailSaveTitle: string;
@@ -115,6 +121,9 @@ export interface OverviewTranslations {
   overviewNextThenGet: (count: number) => string;
   overviewNextThenOn: (remote: string) => string;
   overviewNextThenPublish: (count: number) => string;
+  /** While saving is the step: publish what is about to be saved, with the
+   * `count` versions already waiting ("publish it along with 4 more"). */
+  overviewNextThenPublishWith: (count: number) => string;
   /** The side column's other details. */
   overviewDetailResolveTitle: string;
   overviewDetailResolveSum: string;
@@ -240,6 +249,10 @@ const en: OverviewTranslations = {
   overviewTimelinePublishedOn: "Published on",
   overviewTimelineIncoming: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewTimelineGet: "Get",
+  overviewTimelineEndMore: (count) =>
+    count === 1 ? "Latest version · older ones are in History" : `Latest ${count} versions · older ones are in History`,
+  overviewTimelineEndShallow: "Older versions were not downloaded to this computer",
+  overviewTimelineEndStart: "Where the project began",
   overviewDetailSaveTitle: "What you'll save",
   overviewDetailPublishTitle: "What you'll publish",
   overviewDetailReview: "Review",
@@ -284,6 +297,7 @@ const en: OverviewTranslations = {
   overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewNextThenOn: (remote) => `on ${remote}`,
   overviewNextThenPublish: (count) => (count === 1 ? "publish 1 version" : `publish ${count} versions`),
+  overviewNextThenPublishWith: (count) => (count === 0 ? "publish it" : `publish it along with ${count} more`),
   overviewDetailResolveTitle: "What you need to decide",
   overviewDetailResolveSum: "with overlapping parts",
   overviewDetailResolveNote: "Open each one to choose what stays.",
@@ -403,6 +417,10 @@ const es: OverviewTranslations = {
   overviewTimelinePublishedOn: "Publicado en",
   overviewTimelineIncoming: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewTimelineGet: "Traer",
+  overviewTimelineEndMore: (count) =>
+    count === 1 ? "Última versión · las anteriores están en Historial" : `Últimas ${count} versiones · las anteriores están en Historial`,
+  overviewTimelineEndShallow: "Las versiones anteriores no se descargaron en este ordenador",
+  overviewTimelineEndStart: "Aquí empezó el proyecto",
   overviewDetailSaveTitle: "Lo que vas a guardar",
   overviewDetailPublishTitle: "Lo que vas a publicar",
   overviewDetailReview: "Revisar",
@@ -447,6 +465,8 @@ const es: OverviewTranslations = {
   overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewNextThenOn: (remote) => `en ${remote}`,
   overviewNextThenPublish: (count) => (count === 1 ? "publicar 1 versión" : `publicar ${count} versiones`),
+  overviewNextThenPublishWith: (count) =>
+    count === 0 ? "publicarla" : count === 1 ? "publicarla junto a otra" : `publicarla junto a otras ${count}`,
   overviewDetailResolveTitle: "Lo que tienes que decidir",
   overviewDetailResolveSum: "con partes superpuestas",
   overviewDetailResolveNote: "Abre cada uno para elegir qué queda.",

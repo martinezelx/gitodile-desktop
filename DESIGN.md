@@ -593,14 +593,22 @@ The main desktop window should broadly support:
 
      **Fitted to the window.** Tall and wide enough (620px by 981px), Overview
      has no scroll of its own: the header and the card keep their height and
-     the body takes the rest. The timeline and the detail card's list show as
-     many whole rows as fit — never a half row, never a scroll inside the page
-     — so a maximised window shows more versions and more files. When the
-     timeline leaves versions out, its rail runs on past the last one and
-     fades: the line goes on, said without a count, since "View all" is in its
-     header. Resizing reads nothing from Git; it only changes how many of the
-     rows already read are drawn. Smaller than that, the screen scrolls as a
-     page with lists of a fixed length.
+     the body takes the rest. The detail card's list shows as many whole rows
+     as fit — never a half row — so a maximised window shows more files. The
+     timeline is the one scroll inside the page: "Now" stays pinned at its
+     top, and the versions of the history's first page scroll under it, its
+     bottom edge fading while there is more below. The group's label and the
+     remote's mark stick to the top while their versions pass, so what is in
+     view always says whether it is published. Whole rows would leave up to a
+     row and a mark of empty card; a scroll fills the card at any height.
+     The line ends in words, never a second "View all" (the header has it):
+     the latest versions shown and that older ones are in History, where the
+     project began, or that a shallow copy's older versions were never
+     downloaded. Scrolled to the end of a line that goes on, the header's
+     "View all" takes the accent's light fill and breathes once (it quiets
+     when scrolled back up). The scroll uses the app's auto-hiding scrollbar.
+     Scrolling and resizing read nothing from Git. Smaller than
+     that, the screen scrolls as a page with lists of a fixed length.
 
    Three rules hold it together: one primary button per page (the card's, or
    none when nothing is waiting), one vocabulary of glyph tiles (filled
@@ -2480,8 +2488,11 @@ timeline beside the project's properties.
 The **next-step card** is derived by `deriveNextStep` from the same journey
 the status bar reads: overlaps first (blocked, "Resolve overlaps"), then
 unsaved work (unsaved colour, "Save version" with "Review changes" beside
-it, and a neutral "Then:" pill for what waits on the remote or to be
-published; "Save your first version" in a project with none), then the
+it, and a neutral "Then:" pill for what waits on the remote, or for
+publishing what is about to be saved: "publish it along with 4 more" counts
+only the versions already saved, since the one being saved does not exist
+yet and the work may be saved in several; "publish it" when nothing else
+waits. "Save your first version" in a project with none), then the
 remote side once everything is saved — versions to publish (accent, "Publish
 all N" and "View history"), newer versions on the remote (incoming colour,
 "3 new versions on origin · Review and get"), both sides moved (incoming

@@ -117,7 +117,9 @@ describe("deriveNextStep", () => {
     expect(behind).toMatchObject({ kind: "save", tone: "unsaved", then: { kind: "get", count: 3 } });
 
     const ahead = next({ workingTree: tree({ changed: 2, total: 2 }), pendingVersionsCount: 2, teamSync: sync({ state: "ahead", ahead: 2 }) });
-    expect(ahead.then).toEqual({ kind: "publish", count: 2 });
+    // The version about to be saved is not counted: it is published "along
+    // with" the two already waiting, however many times the work is saved.
+    expect(ahead.then).toEqual({ kind: "publishWith", count: 2 });
 
     // What waits on the remote comes first: it has to arrive before anything
     // can be published.
@@ -127,7 +129,12 @@ describe("deriveNextStep", () => {
       teamSync: sync({ state: "diverged", ahead: 2, behind: 3 }),
     });
     expect(both.then).toEqual({ kind: "get", count: 3 });
-    expect(next({ workingTree: tree({ changed: 2, total: 2 }) }).then).toBeNull();
+    // Nothing waiting: what is saved now is published on its own.
+    expect(next({ workingTree: tree({ changed: 2, total: 2 }) }).then).toEqual({ kind: "publishWith", count: 0 });
+    // With nowhere to publish to, nothing is said to come after.
+    expect(
+      next({ workingTree: tree({ changed: 2, total: 2 }), teamSync: sync({ state: "noRemote", upstreamRemote: null }) }).then,
+    ).toBeNull();
   });
 
   it("asks to receive first when both sides moved, then to publish", () => {

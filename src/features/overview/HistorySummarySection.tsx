@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ArrowDownToLine,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { LoadingPlaceholder } from "../../shared/ui";
+import { autoHideScrollbarProps, LoadingPlaceholder } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -24,16 +24,15 @@ import {
   type HistoryController,
   type SavedVersionSummary,
 } from "../history";
-import { useFitCount, useOverviewFits } from "./fit";
+import { useMoreBelow, useOverviewFits } from "./fit";
 import { HistoryPlaceholderList } from "./OverviewPlaceholder";
 
 /** Versions shown while the screen scrolls as a page. */
 const HISTORY_PREVIEW_LIMIT = 6;
-/** The most versions the timeline draws when it fits the window — enough for
- * a tall screen, all from the history's first page. */
-const HISTORY_FIT_LIMIT = 30;
-/** The rail's fading end under the last version shown, with its gap. */
-const TIMELINE_TAIL_SPACE = 34;
+/** Versions the timeline scrolls through when it fits the window: all from
+ * the history's first page, so the list stays short enough not to need
+ * virtualizing and scrolling never reads Git. */
+const HISTORY_SCROLL_LIMIT = 30;
 
 function versionTitle(version: SavedVersionSummary, fallback: string): string {
   return version.subject.trim() || fallback;
@@ -96,17 +95,28 @@ export function HistorySummarySection({
     Boolean(now),
     incoming?.count ?? 0,
   ].join("|");
-  const fit = useFitCount<HTMLDivElement>({
-    fits,
-    max: HISTORY_FIT_LIMIT,
-    fallback: HISTORY_PREVIEW_LIMIT,
-    reserve: TIMELINE_TAIL_SPACE,
-    contentKey,
-  });
-  const versions = state.versions.slice(0, fit.count);
-  // More saved versions than drawn: the rail runs on past the last one and
-  // fades, saying the line goes on without a count — "View all" is above.
-  const continues = state.versions.length > versions.length || Boolean(state.snapshot?.hasMore);
+  const scroll = useMoreBelow<HTMLDivElement>(fits, contentKey);
+  // A new project starts at its newest version, not where the last one was left.
+  useEffect(() => {
+    scroll.ref.current?.scrollTo?.({ top: 0 });
+  }, [projectPath, scroll.ref]);
+  const versions = state.versions.slice(0, fits ? HISTORY_SCROLL_LIMIT : HISTORY_PREVIEW_LIMIT);
+  // How the line ends under the last version drawn: it goes on (the rest is
+  // in History, a header button away), it was cut off when this copy was
+  // downloaded, or this is where the project began.
+  const ending =
+    state.versions.length > versions.length || state.snapshot?.hasMore
+      ? "more"
+      : state.snapshot?.shallow
+        ? "shallow"
+        : "start";
+  const endingText =
+    ending === "more"
+      ? t.overviewTimelineEndMore(versions.length)
+      : ending === "shallow"
+        ? t.overviewTimelineEndShallow
+        : t.overviewTimelineEndStart;
+  const pointsOn = ending === "more" && scroll.reachedEnd;
   const currentBranch = state.snapshot?.branch ?? null;
   const upstream = state.snapshot?.upstream ?? null;
   const upstreamRef = upstream?.trackingRef ?? null;
@@ -146,7 +156,6 @@ export function HistorySummarySection({
     return (
       <li
         key={version.commit}
-        data-fit-row=""
         className={`overview-timeline__item row-in${isLocalOnly ? " overview-history__item--local" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
         style={{ "--row-index": index } as React.CSSProperties}
       >
@@ -221,14 +230,20 @@ export function HistorySummarySection({
           )}
         </h2>
         {state.snapshot && state.versions.length > 0 && (
-          <button className="overview-history__all" type="button" onClick={onOpenHistory}>
+          // Scrolled to the end of a line that goes on, the way to the rest
+          // takes the accent and breathes once; scrolling back up quiets it.
+          <button
+            className={`overview-history__all${pointsOn ? " overview-history__all--lead attention-breathe" : ""}`}
+            type="button"
+            onClick={onOpenHistory}
+          >
             {t.overviewHistoryViewAll}
             <ChevronRight aria-hidden="true" />
           </button>
         )}
       </header>
 
-      <div className="overview-history__fit" ref={fit.ref}>
+      <div className="overview-history__fit">
         {!state.snapshot && !error ? (
           <>
             {nowItem && <ol className="overview-timeline">{nowItem}</ol>}
@@ -262,36 +277,53 @@ export function HistorySummarySection({
             </div>
           </>
         ) : (
-          <ol className={`overview-timeline${continues ? " overview-timeline--continues" : ""}`} aria-label={t.overviewHistoryListLabel}>
-            {nowItem}
-            {local.length > 0 && (
-              <li className={`overview-timeline__group${hasNoRemote ? " overview-timeline__group--alone" : ""}`}>
-                <p className="overview-timeline__group-head">
-                  <span className="overview-timeline__group-icon" aria-hidden="true"><Laptop /></span>
-                  <span className="overview-timeline__group-label">{t.overviewTimelineLocalGroup}</span>
-                  <span className="overview-timeline__group-count">{t.overviewTimelineLocalCount(localCount)}</span>
-                </p>
-                <ol className="overview-timeline__rows">
-                  {local.map((version, index) => renderRow(version, index))}
-                </ol>
-              </li>
-            )}
-            {upstream && shared.length > 0 && (
-              <li className="overview-timeline__mark" title={upstream.trackingRef}>
-                <span className="overview-timeline__mark-icon" aria-hidden="true"><Cloud /></span>
-                <span className="overview-timeline__mark-text">
-                  {t.overviewTimelinePublishedOn}{" "}
-                  <span className="overview-timeline__mono">
-                    {upstream.destinationBranch === currentBranch
-                      ? upstream.remote
-                      : `${upstream.remote} · ${upstream.destinationBranch}`}
-                  </span>
-                </span>
-              </li>
-            )}
-            {shared.map((version, index) => renderRow(version, local.length + index))}
-            {continues && <li className="overview-timeline__tail" aria-hidden="true" />}
-          </ol>
+          <>
+            {/* "Now" stays put above the versions, which scroll under it
+                while the screen fits the window. */}
+            {nowItem && <ol className="overview-timeline overview-timeline--pinned">{nowItem}</ol>}
+            <div
+              {...autoHideScrollbarProps<HTMLDivElement>()}
+              // The class stays fixed: the scrollbar's pointer state is a
+              // class added outside React, and a changing className would
+              // wipe it on every scroll. The fade rides on an attribute.
+              className="overview-history__scroll auto-hide-scrollbar"
+              data-more-below={scroll.moreBelow || undefined}
+              ref={scroll.ref}
+            >
+              <ol className={`overview-timeline overview-timeline--ended${nowItem ? " overview-timeline--after-now" : ""}`} aria-label={t.overviewHistoryListLabel}>
+                {local.length > 0 && (
+                  <li className={`overview-timeline__group${hasNoRemote ? " overview-timeline__group--alone" : ""}`}>
+                    <p className="overview-timeline__group-head">
+                      <span className="overview-timeline__group-icon" aria-hidden="true"><Laptop /></span>
+                      <span className="overview-timeline__group-label">{t.overviewTimelineLocalGroup}</span>
+                      <span className="overview-timeline__group-count">{t.overviewTimelineLocalCount(localCount)}</span>
+                    </p>
+                    <ol className="overview-timeline__rows">
+                      {local.map((version, index) => renderRow(version, index))}
+                    </ol>
+                  </li>
+                )}
+                {upstream && shared.length > 0 && (
+                  <li className="overview-timeline__mark" title={upstream.trackingRef}>
+                    <span className="overview-timeline__mark-icon" aria-hidden="true"><Cloud /></span>
+                    <span className="overview-timeline__mark-text">
+                      {t.overviewTimelinePublishedOn}{" "}
+                      <span className="overview-timeline__mono">
+                        {upstream.destinationBranch === currentBranch
+                          ? upstream.remote
+                          : `${upstream.remote} · ${upstream.destinationBranch}`}
+                      </span>
+                    </span>
+                  </li>
+                )}
+                {shared.map((version, index) => renderRow(version, local.length + index))}
+                <li className={`overview-timeline__end overview-timeline__end--${ending}`}>
+                  <span className="overview-timeline__end-rail" aria-hidden="true" />
+                  <span className="overview-timeline__end-text">{endingText}</span>
+                </li>
+              </ol>
+            </div>
+          </>
         )}
       </div>
 

@@ -227,7 +227,12 @@ describe("HistorySummarySection", () => {
     // only the remote when the line has the same name as the one stood on.
     const timeline = container.querySelector<HTMLElement>(".overview-timeline");
     const children = [...(timeline?.children ?? [])].map((child) => child.className.split(" ")[0]);
-    expect(children).toEqual(["overview-timeline__group", "overview-timeline__mark", "overview-timeline__item"]);
+    expect(children).toEqual([
+      "overview-timeline__group",
+      "overview-timeline__mark",
+      "overview-timeline__item",
+      "overview-timeline__end",
+    ]);
     expect(container.querySelector(".overview-timeline__mark")).toHaveTextContent("Published on origin");
   });
 
@@ -337,47 +342,108 @@ describe("HistorySummarySection", () => {
     expect(await screen.findByText("No saved versions yet")).toBeInTheDocument();
   });
 
-  it("ends on a fading rail, not a count, when there are more versions than it shows", async () => {
+  it("ends by pointing to History, not with a second button, when there are more versions than it shows", async () => {
     const controller = createHistoryController(port(vi.fn(async () => page(eight()))));
     await controller.refresh(query);
     const { container } = renderSection(controller);
 
     // Scrolling as a page, the timeline keeps its fixed length.
-    expect(container.querySelectorAll("[data-fit-row]")).toHaveLength(6);
-    expect(container.querySelector(".overview-timeline__tail")).toHaveAttribute("aria-hidden", "true");
-    expect(screen.queryByText(/more/i)).toBeNull();
+    expect(container.querySelectorAll(".overview-history__row")).toHaveLength(6);
+    const end = container.querySelector(".overview-timeline__end");
+    expect(end).toHaveClass("overview-timeline__end--more");
+    expect(end).toHaveTextContent("Latest 6 versions · older ones are in History");
     expect(screen.getAllByRole("button", { name: "View all" })).toHaveLength(1);
   });
 
-  it("draws no fading end when every version is shown", async () => {
+  it("ends where the project began when every version is shown", async () => {
     const controller = createHistoryController(port(vi.fn(async () => page([version(2), version(1)]))));
     await controller.refresh(query);
     const { container } = renderSection(controller);
 
-    expect(container.querySelector(".overview-timeline__tail")).toBeNull();
+    const end = container.querySelector(".overview-timeline__end");
+    expect(end).toHaveClass("overview-timeline__end--start");
+    expect(end).toHaveTextContent("Where the project began");
   });
 
-  it("shows as many whole versions as the window has room for when it fits the screen", async () => {
+  it("does not call a shallow copy's oldest version the start of the project", async () => {
+    const controller = createHistoryController(
+      port(vi.fn(async () => ({ ...page([version(2), version(1)]), shallow: true }))),
+    );
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    expect(container.querySelector(".overview-timeline__end")).toHaveTextContent(
+      "Older versions were not downloaded to this computer",
+    );
+  });
+
+  it("scrolls the first page of versions under a pinned now when it fits the screen", async () => {
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
     });
-    // A 300px box, each version row 50px tall in order.
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      if (this.classList.contains("overview-history__fit")) return new DOMRect(0, 0, 600, 300);
-      if (this.hasAttribute("data-fit-row")) {
-        const index = Array.from(document.querySelectorAll("[data-fit-row]")).indexOf(this);
-        return new DOMRect(0, index * 50, 600, 50);
-      }
-      return new DOMRect(0, 0, 0, 0);
-    });
     const controller = createHistoryController(port(vi.fn(async () => page(eight()))));
     await controller.refresh(query);
-    const { container } = renderSection(controller);
+    const lifecycle = createScreenLifecycleController("active");
+    const { container } = render(
+      <LanguageProvider>
+        <ScreenLifecycleProvider controller={lifecycle}>
+          <HistorySummarySection
+            controller={controller}
+            projectPath={query.projectId}
+            sessionEpoch={query.sessionEpoch}
+            onOpenHistory={vi.fn()}
+            now={<span>Now node</span>}
+          />
+        </ScreenLifecycleProvider>
+      </LanguageProvider>,
+    );
 
-    // Six rows reach the bottom, but not all eight fit: the fading end takes
-    // its room and five stay, none cut in half.
-    await waitFor(() => expect(container.querySelectorAll("[data-fit-row]")).toHaveLength(5));
-    expect(container.querySelector(".overview-timeline__tail")).not.toBeNull();
+    // Every version read is drawn; the box scrolls rather than cutting rows.
+    const scroller = container.querySelector(".overview-history__scroll");
+    expect(scroller?.querySelectorAll(".overview-history__row")).toHaveLength(8);
+    // "Now" stays outside the scrolling box.
+    const now = container.querySelector(".overview-timeline__now");
+    expect(now?.closest(".overview-timeline--pinned")).not.toBeNull();
+    expect(scroller?.contains(now ?? null)).toBe(false);
+  });
+
+  it("points to View all once the timeline is scrolled to the end of a line that goes on", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    });
+    const controller = createHistoryController(
+      port(vi.fn(async () => ({ ...page(eight()), hasMore: true, nextCursor: "next" }))),
+    );
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+    const viewAll = screen.getByRole("button", { name: "View all" });
+    const scroller = container.querySelector<HTMLElement>(".overview-history__scroll");
+    if (!scroller) throw new Error("no scroller");
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 500 });
+
+    // The pointer is over the list, so its scrollbar shows.
+    fireEvent.pointerEnter(scroller, { pointerType: "mouse" });
+
+    // At the top, with more below: the bottom fades and View all stays quiet.
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(scroller).toHaveAttribute("data-more-below"));
+    expect(viewAll).not.toHaveClass("overview-history__all--lead");
+
+    // Scrolled to the end: the fade goes and View all takes the lead.
+    scroller.scrollTop = 200;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(viewAll).toHaveClass("overview-history__all--lead", "attention-breathe"));
+    expect(scroller).not.toHaveAttribute("data-more-below");
+
+    // Back up, it quiets again.
+    scroller.scrollTop = 40;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(viewAll).not.toHaveClass("overview-history__all--lead"));
+
+    // None of that re-rendering hid the scrollbar under the pointer.
+    expect(scroller).toHaveClass("auto-hide-scrollbar--pointer-active");
   });
 });

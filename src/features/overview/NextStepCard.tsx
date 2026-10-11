@@ -167,6 +167,8 @@ export function NextStepCard({
               {t.overviewNextThen}{" "}
               {then.kind === "get" ? (
                 <><strong>{t.overviewNextThenGet(then.count)}</strong>{remote ? ` ${t.overviewNextThenOn(remote)}` : ""}</>
+              ) : then.kind === "publishWith" ? (
+                <strong>{t.overviewNextThenPublishWith(then.count)}</strong>
               ) : (
                 <strong>{t.overviewNextThenPublish(then.count)}</strong>
               )}

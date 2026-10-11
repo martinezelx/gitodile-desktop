@@ -51,8 +51,14 @@ export type NextStepKind =
 
 /** What comes after this step, said in the card in a neutral pill so the card
  * keeps one colour: saved work that will still need publishing, or versions
- * waiting on the remote. */
-export type NextStepThen = { kind: "publish"; count: number } | { kind: "get"; count: number };
+ * waiting on the remote. While saving is the step, the version about to be
+ * saved does not exist yet, so `publishWith` counts only the versions already
+ * waiting beside it (0 when it would be published alone): a count that stays
+ * true however many times the work is saved. */
+export type NextStepThen =
+  | { kind: "publish"; count: number }
+  | { kind: "publishWith"; count: number }
+  | { kind: "get"; count: number };
 
 export type NextStep = {
   kind: NextStepKind;
@@ -101,10 +107,13 @@ export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: b
       return step("firstSave", "unsaved", "save", [], { done: 1, current: 1 });
     }
     // Versions waiting on the remote come before your own unpublished ones:
-    // they have to be received before anything can be published.
+    // they have to be received before anything can be published. Otherwise
+    // what is saved now is published next, with whatever already waits.
     const then: NextStepThen | null = incoming > 0
       ? { kind: "get", count: incoming }
-      : publish.pending > 0 ? { kind: "publish", count: publish.pending } : null;
+      : publish.pending > 0 || publish.state === "upToDate"
+        ? { kind: "publishWith", count: publish.pending }
+        : null;
     return step("save", "unsaved", "save", ["reviewChanges"], { done: 1, current: 1 }, false, then);
   }
 

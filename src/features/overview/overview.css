@@ -328,6 +328,12 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .overview-history__all:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+/* Scrolled to the end of a line that goes on: the rest is this button away. */
+.overview-history__all--lead,
+.overview-history__all--lead:hover {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+}
 .overview-history__all svg { width: 15px; height: 15px; }
 
 /* ---- The timeline ----
@@ -354,18 +360,51 @@
   background: var(--border-divider);
 }
 .overview-timeline__item { position: relative; min-width: 0; }
-/* More versions than drawn: the rail runs on past the last one and fades out,
-   saying the line goes on without a count ("View all" is in the header). */
-.overview-timeline--continues::before { bottom: 32px; }
-.overview-timeline__tail { position: relative; height: 32px; }
-.overview-timeline__tail::before {
-  content: "";
+/* "Now" on its own above the versions: its rail runs from its node to its
+   bottom edge, where the versions' rail picks it up without a break. */
+.overview-timeline--pinned { padding-bottom: 2px; }
+.overview-timeline--pinned::before { bottom: 0; }
+.overview-timeline--after-now::before { top: 0; }
+/* The versions' rail runs to the list's end, whose line says how it ends. */
+.overview-timeline--ended::before { bottom: 0; }
+
+/* How the line ends under the last version drawn. The line covers the rail
+   under it with the card's surface and draws its own end: one fading on when
+   older versions exist, or a small closing dot where the line begins. */
+.overview-timeline__end {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+  padding: 0 var(--space-2) 0 6px;
+  background: var(--surface-raised);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.overview-timeline__end-rail {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 17.5px;
   width: 1px;
   background: linear-gradient(var(--border-divider), transparent);
+}
+.overview-timeline__end-text { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overview-timeline__end--start .overview-timeline__end-rail {
+  bottom: 50%;
+  background: var(--border-divider);
+}
+.overview-timeline__end--start .overview-timeline__end-rail::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: -2.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--border-control);
 }
 .overview-history__row {
   position: relative;
@@ -437,10 +476,11 @@
    fill, under one label — the count the old band said, drawn where the
    versions are. Their nodes are ringed in the accent. */
 .overview-timeline__group {
+  --group-fill: var(--surface-active);
   min-width: 0;
   padding: 2px 0 4px;
   border-radius: var(--radius-control);
-  background: var(--surface-active);
+  background: var(--group-fill);
 }
 .overview-timeline__group .overview-history__node,
 .overview-timeline__group .overview-history__row:not(:hover):not(:focus-visible) .overview-history__node { box-shadow: none; }
@@ -523,7 +563,7 @@
 .overview-timeline__incoming-action svg { width: 12px; height: 12px; }
 /* With no remote at all, everything is only on this computer: the group says
    so in the unsaved colour rather than the accent's "ready to publish". */
-.overview-timeline__group--alone { background: color-mix(in srgb, var(--status-warning) 9%, transparent); }
+.overview-timeline__group--alone { --group-fill: color-mix(in srgb, var(--status-warning) 9%, transparent); }
 .overview-timeline__group--alone .overview-timeline__group-icon { background: var(--status-warning); color: var(--surface-raised); }
 .overview-timeline__group--alone .overview-timeline__group-label { color: var(--status-warning); }
 .overview-timeline__group--alone .overview-history__node { border-color: var(--status-warning); }
@@ -1131,8 +1171,9 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 /* ---- Fitted to the window ----
    Tall and wide enough, Overview has no scroll of its own: the header and the
    next-step card keep their height and the body takes the rest. The timeline
-   and the detail card's list show as many whole rows as fit (`useFitCount` in
-   fit.ts, whose OVERVIEW_FIT_QUERY must match this query); the scene keeps its
+   scrolls its versions under a pinned "now", and the detail card's list shows
+   as many whole rows as fit (`useFitCount` in fit.ts, whose
+   OVERVIEW_FIT_QUERY must match this query); the scene keeps its
    size above the card. Below this size the screen scrolls as a page, with
    lists of a fixed length. */
 @media (min-height: 620px) and (min-width: 981px) {
@@ -1145,7 +1186,54 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-history { min-height: 0; display: flex; flex-direction: column; }
   .overview-history__header,
   .overview-history__stale { flex-shrink: 0; }
-  .overview-history__fit { flex: 1; min-height: 0; overflow: hidden; }
+  .overview-history__fit { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .overview-history__fit > * { flex-shrink: 0; }
+  /* The versions scroll under a pinned "now", fading out at the bottom while
+     there is more below. The scroll padding keeps a focused row clear of the
+     header stuck above it and of the fade below. */
+  .overview-history__fit > .overview-history__scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scroll-padding-top: 40px;
+    scroll-padding-bottom: 28px;
+  }
+  /* The app's focus ring sits outside a button, where the scrolling box
+     would clip it and a stuck header would cover it: inside the box, it is
+     drawn inward. */
+  .overview-history__scroll .overview-history__row:focus-visible { outline-offset: -2px; }
+  .overview-history__scroll[data-more-below] {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  }
+  /* The group's label and the remote's mark stay at the top while their
+     versions scroll by, so it is always plain whether what is in view is
+     published. Both are opaque, carry the rail through themselves, and sit
+     over the rows' nodes. */
+  .overview-timeline__group-head,
+  .overview-timeline__mark {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+  .overview-timeline__group-head {
+    padding-bottom: 2px;
+    border-radius: var(--radius-control) var(--radius-control) 0 0;
+    background: linear-gradient(var(--group-fill), var(--group-fill)), var(--surface-raised);
+  }
+  .overview-timeline__mark { background: var(--surface-raised); }
+  .overview-timeline__group-head::before,
+  .overview-timeline__mark::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 17.5px;
+    width: 1px;
+    background: var(--border-divider);
+  }
   .overview-side { min-height: 0; }
   .overview-side--working { display: flex; flex-direction: column; }
   .overview-side--working > * { flex-shrink: 0; }
