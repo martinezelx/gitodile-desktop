@@ -74,6 +74,7 @@ function sync(state: "ahead" | "upToDate" | "behind"): TeamSyncViewState {
       warnings: [],
       nextActions: [],
       stateToken: "token",
+      forecast: null,
     },
   };
 }

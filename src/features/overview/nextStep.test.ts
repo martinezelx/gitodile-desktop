@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { WorkingTreeStatus } from "../status";
-import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } from "../sync";
+import { EMPTY_TEAM_SYNC_STATE, type IncomingForecast, type TeamSyncStatus, type TeamSyncViewState } from "../sync";
 import { deriveJourney } from "./journey";
 import { deriveNextStep } from "./nextStep";
 
@@ -37,9 +37,30 @@ function sync(overrides: Partial<TeamSyncStatus> = {}, view: Partial<TeamSyncVie
       warnings: [],
       nextActions: [],
       stateToken: "token",
+      forecast: null,
       ...overrides,
     },
     ...view,
+  };
+}
+
+function forecast(overrides: Partial<IncomingForecast> = {}): IncomingForecast {
+  return {
+    outcome: "clear",
+    integration: "fastForward",
+    remoteCommit: "2".repeat(40),
+    incomingCount: 3,
+    localCount: 0,
+    incomingFileCount: 12,
+    authors: ["Ana", "Marcos"],
+    authorCount: 2,
+    carriedUnsavedCount: 0,
+    combinedUnsaved: [],
+    combinedUnsavedCount: 0,
+    overlaps: [],
+    overlapCount: 0,
+    blocker: null,
+    ...overrides,
   };
 }
 
@@ -157,5 +178,57 @@ describe("deriveNextStep", () => {
       secondary: ["checkRemote"],
     });
     expect(next({ teamSync: sync({ state: "detached" }) })).toMatchObject({ kind: "detached", secondary: ["openLines"] });
+  });
+});
+
+describe("deriveNextStep with a forecast", () => {
+  const behind = (overrides: Partial<IncomingForecast> = {}) =>
+    sync({ state: "behind", behind: 3, forecast: forecast(overrides) });
+  const diverged = (overrides: Partial<IncomingForecast> = {}) =>
+    sync({ state: "diverged", ahead: 1, behind: 3, forecast: forecast({ integration: "merge", localCount: 1, ...overrides }) });
+
+  it("gets straight away when nothing overlaps, and says so", () => {
+    expect(next({ teamSync: behind() })).toMatchObject({
+      kind: "behind", primary: "getChanges", secondary: [], note: { kind: "clear" }, then: null,
+    });
+  });
+
+  it("combines a diverged line, with publishing beside it when publishing is possible", () => {
+    expect(next({ pendingVersionsCount: 1, teamSync: diverged() })).toMatchObject({
+      kind: "diverged", primary: "getChanges", secondary: ["getAndPublish"], note: { kind: "canCombine" }, then: null,
+    });
+    expect(next({ pendingVersionsCount: 1, teamSync: diverged() }, false).secondary).toEqual([]);
+  });
+
+  it("stops on an overlap with no primary action, saved or unsaved", () => {
+    const overlaps = [{ path: "a.txt", side: "saved" as const }];
+    expect(next({ teamSync: diverged({ outcome: "overlap", overlaps, overlapCount: 1 }) })).toMatchObject({
+      kind: "overlap", tone: "blocked", primary: null, secondary: ["explainIncoming"], note: { kind: "overlap" },
+    });
+    expect(
+      next({ workingTree: tree({ changed: 1, total: 1 }), teamSync: behind({ outcome: "overlap", overlaps, overlapCount: 1 }) }),
+    ).toMatchObject({ kind: "overlap", primary: null, secondary: ["explainIncoming", "save"] });
+  });
+
+  it("says what is in the way instead of offering a get that would refuse", () => {
+    const blocker = { kind: "untrackedCollision" as const, path: "logo.svg" };
+    expect(next({ teamSync: behind({ outcome: "blocked", blocker }) })).toMatchObject({
+      kind: "incomingBlocked", primary: null, secondary: ["explainIncoming"],
+    });
+    expect(next({ workingTree: tree({ changed: 1, total: 1 }), teamSync: behind({ outcome: "blocked", blocker }) })).toMatchObject({
+      kind: "save", primary: "save", secondary: ["reviewChanges"], note: { kind: "blocked", blocker },
+    });
+  });
+
+  it("offers to get beside saving when the update doesn't touch unsaved work", () => {
+    expect(next({ workingTree: tree({ changed: 2, total: 2 }), teamSync: behind() })).toMatchObject({
+      kind: "save", primary: "save", secondary: ["getChanges"], then: null, note: { kind: "incomingClear", count: 3 },
+    });
+    expect(
+      next({
+        workingTree: tree({ changed: 1, total: 1 }),
+        teamSync: behind({ combinedUnsaved: ["README.md"], combinedUnsavedCount: 1 }),
+      }).note,
+    ).toEqual({ kind: "incomingCombined", count: 3, files: ["README.md"], fileCount: 1 });
   });
 });

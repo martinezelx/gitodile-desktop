@@ -71,8 +71,11 @@ import {
   selectTeamSyncState,
   syncPort,
   useAutomaticRemoteCheck,
+  isRemoteCheckRecent,
+  type GetTeamIntent,
   type SyncErrorMapper,
 } from "../features/sync";
+import type { PublishResult } from "../features/publish";
 import {
   SETTINGS_SECTIONS,
   settingsPort,
@@ -385,6 +388,20 @@ export function App(): React.JSX.Element {
         supersede: (query) => syncController.supersede(projectRuntime, query),
       },
       {
+        // The forecast of a line with versions waiting compares them with
+        // unsaved work, so a file save can change it (task 161). Only then,
+        // and at an idle moment: it is a local read, never a fetch.
+        id: "sync-forecast",
+        refreshOn: "worktree-change",
+        blocking: false,
+        refresh: (query) => {
+          const { status } = selectTeamSyncState(projectRuntime.getSnapshot(), query.projectId);
+          if (status?.state !== "behind" && status?.state !== "diverged") return;
+          scheduleIdleTask(() => void syncController.refreshLocal(projectRuntime, query, mapSyncErrorRef.current));
+        },
+        supersede: () => undefined,
+      },
+      {
         // A discard changes the working tree, so a worktree invalidation is
         // when a new recovery can have appeared. Speculative for every screen
         // but Overview, so it waits for an idle moment.
@@ -551,6 +568,12 @@ export function App(): React.JSX.Element {
      the mutation guard would still see the sync running and refuse. */
   const [saveAfterSyncSessionId, setSaveAfterSyncSessionId] = useState<string | null>(null);
   const [getTeamDialogSessionId, setGetTeamDialogSessionId] = useState<string | null>(null);
+  /* Whether Get project changes was asked for on its own or to publish
+     afterwards (the remote moved on first). */
+  const [getTeamIntent, setGetTeamIntent] = useState<GetTeamIntent>("get");
+  /* Publish can end in "get the remote's versions first". Get opens once the
+     publish dialog has closed and its operation has finished, as above. */
+  const [getAfterPublishSessionId, setGetAfterPublishSessionId] = useState<string | null>(null);
   // App-wide bounded quick-switch and Overview's quick-create are distinct
   // from the Lines screen's own dialog state because neither entry point is
   // inside that screen's React subtree. All use the feature-owned dialogs and
@@ -623,6 +646,7 @@ export function App(): React.JSX.Element {
     kind: "save" | "publish" | "discard" | "sync",
     upTo?: string,
     sessionId?: string,
+    intent: GetTeamIntent = "get",
   ): boolean => {
     const session = sessionId ? sessionsState.byId[sessionId] : activeSession;
     if (!session) {
@@ -643,6 +667,7 @@ export function App(): React.JSX.Element {
       setPublishUpTo(upTo ?? null);
       setPublishDialogSessionId(session.id);
     } else if (kind === "sync") {
+      setGetTeamIntent(intent);
       setGetTeamDialogSessionId(session.id);
     }
     return true;
@@ -657,6 +682,11 @@ export function App(): React.JSX.Element {
     setSaveAfterSyncSessionId(null);
     startSessionOperationRef.current("save", undefined, saveAfterSyncSessionId);
   }, [getTeamDialogSessionId, saveAfterSyncSessionId]);
+  useEffect(() => {
+    if (!getAfterPublishSessionId || publishDialogSessionId) return;
+    setGetAfterPublishSessionId(null);
+    startSessionOperationRef.current("sync", undefined, getAfterPublishSessionId, "getAndPublish");
+  }, [getAfterPublishSessionId, publishDialogSessionId]);
 
   /* The notification centre's one action.
 
@@ -682,7 +712,37 @@ export function App(): React.JSX.Element {
     startSessionOperation("sync", undefined, id);
   };
 
+  /* What every successful publish records, from the publish dialog or after
+     Get and publish: a receipt in the notification list (already read: the
+     person just watched it succeed), the remote knowledge superseded, the
+     pending count settled, and one refresh. */
+  const recordPublished = (
+    session: { id: string; epoch: string; project: { path: string; name: string } },
+    result: PublishResult,
+  ): Promise<void> => {
+    notificationCenter.notify({
+      projectId: session.project.path,
+      projectName: session.project.name,
+      details: {
+        kind: "changesPublished",
+        versionCount: result.publishedCount,
+        destination: `${result.target.remote}/${result.target.destinationBranch}`,
+      },
+    });
+    const query = { projectId: session.project.path, sessionEpoch: session.epoch };
+    syncController.supersede(projectRuntime, query);
+    statusController.commitPublishedResult(projectRuntime, query, result.remainingAfterPublish);
+    return handleMutationSucceeded(session.project.path);
+  };
+
   const openPublishDialog = (upTo?: string): void => {
+    // Both sides have new versions: publishing needs the remote's first, so
+    // the one confirmation gets, combines and publishes. A checkpoint
+    // (`upTo`) stays a plain publish of saved versions.
+    if (upTo === undefined && activeSession?.teamSync.status?.state === "diverged") {
+      startSessionOperation("sync", undefined, undefined, "getAndPublish");
+      return;
+    }
     startSessionOperation("publish", upTo);
   };
   const [skippedRestoreCount, setSkippedRestoreCount] = useState(0);
@@ -1549,13 +1609,14 @@ export function App(): React.JSX.Element {
         .check(projectRuntime, { projectId, sessionEpoch: activeSession.epoch }, mapSyncError)
         .then((status) => {
           if (status) {
-            // `behind` alone would also match a diverged upstream, and Rust
-            // deliberately offers no "review and get" for that: the update is
-            // fast-forward-only and would refuse. Telling someone about
-            // versions and handing them a button that declines is worse than
-            // the status bar saying "diverged" on its own, so this waits for
-            // the task that can actually integrate a diverged line.
-            if (status.state === "behind" && status.behind > 0) {
+            // A diverged line is news too once its forecast says what getting
+            // would do: the dialog then combines it, or names what overlaps.
+            // Without a forecast there is nothing to offer but a refusal, and
+            // the status bar saying "diverged" on its own is better.
+            if (
+              status.behind > 0 &&
+              (status.state === "behind" || (status.state === "diverged" && status.forecast !== null))
+            ) {
               notificationCenter.notify({
                 projectId,
                 projectName,
@@ -2614,6 +2675,7 @@ export function App(): React.JSX.Element {
                     );
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
+                  onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}
                   historyController={historyController}
                   workDetail={workDetailController}
                   onRestoreDiscarded={() => {
@@ -2869,32 +2931,13 @@ export function App(): React.JSX.Element {
               finishSessionOperation(publishDialogSession.id);
               setPublishDialogSessionId(null);
             }}
-            onPublished={(result) => {
-              // Recorded already-read by the kind table: this is a receipt for
-              // something the user just watched succeed, so it belongs in the
-              // list without lighting the badge.
-              notificationCenter.notify({
-                projectId: publishDialogSession.project.path,
-                projectName: publishDialogSession.project.name,
-                details: {
-                  kind: "changesPublished",
-                  versionCount: result.publishedCount,
-                  destination: `${result.target.remote}/${result.target.destinationBranch}`,
-                },
-              });
-              syncController.supersede(projectRuntime, {
-                projectId: publishDialogSession.project.path,
-                sessionEpoch: publishDialogSession.epoch,
-              });
-              statusController.commitPublishedResult(
-                projectRuntime,
-                {
-                  projectId: publishDialogSession.project.path,
-                  sessionEpoch: publishDialogSession.epoch,
-                },
-                result.remainingAfterPublish,
-              );
-              return handleMutationSucceeded(publishDialogSession.project.path);
+            onPublished={(result) => recordPublished(publishDialogSession, result)}
+            onGetFirst={() => {
+              // The remote moved on: get its versions first, then publish, in
+              // Get project changes once this dialog has let go.
+              finishSessionOperation(publishDialogSession.id);
+              setPublishDialogSessionId(null);
+              setGetAfterPublishSessionId(publishDialogSession.id);
             }}
             onPhaseChange={(phase) =>
               dispatchSessions({
@@ -2913,6 +2956,18 @@ export function App(): React.JSX.Element {
           controller={syncController}
           projectPath={getTeamDialogSession.project.path}
           sessionEpoch={getTeamDialogSession.epoch}
+          intent={getTeamIntent}
+          runHooks={runGitHooks}
+          canPublish={getTeamDialogSession.project.headState === "branch"}
+          refreshRemote={
+            isRemoteCheckRecent(getTeamDialogSession.teamSync)
+              ? null
+              : () => syncController.check(
+                projectRuntime,
+                { projectId: getTeamDialogSession.id, sessionEpoch: getTeamDialogSession.epoch },
+                mapSyncError,
+              )
+          }
           onClose={() => {
             finishSessionOperation(getTeamDialogSession.id);
             setGetTeamDialogSessionId(null);
@@ -2945,6 +3000,28 @@ export function App(): React.JSX.Element {
             finishSessionOperation(getTeamDialogSession.id);
             setGetTeamDialogSessionId(null);
             setSaveAfterSyncSessionId(getTeamDialogSession.id);
+          }}
+          onRevealFile={(filePath) => {
+            void changesController
+              .revealFile(getTeamDialogSession.project.path, getTeamDialogSession.epoch, filePath)
+              .catch(() => undefined);
+          }}
+          onPublishAfter={async () => {
+            const query = {
+              projectId: getTeamDialogSession.project.path,
+              sessionEpoch: getTeamDialogSession.epoch,
+            };
+            // A fresh plan after the get: its own fetch confirms the remote
+            // still accepts the combined line before anything is sent.
+            const plan = await publishPort.plan(query);
+            const result = await publishPort.publish({
+              ...query,
+              remote: plan.target.remote,
+              stateToken: plan.stateToken,
+              runHooks: runGitHooks,
+            });
+            await recordPublished(getTeamDialogSession, result);
+            return { publishedCount: result.publishedCount, remote: result.target.remote };
           }}
         />
       )}

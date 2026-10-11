@@ -8,6 +8,7 @@ import {
   CloudUpload,
   Eye,
   GitBranch,
+  GitMerge,
   History,
   LoaderCircle,
   RotateCw,
@@ -17,8 +18,9 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { forecastBlockerCopy } from "../sync";
 import type { Journey } from "./journey";
-import type { NextStep, NextStepAction, NextStepKind } from "./nextStep";
+import type { NextStep, NextStepAction, NextStepKind, NextStepNote } from "./nextStep";
 import { NextStepPlaceholder } from "./OverviewPlaceholder";
 
 export type NextStepHandlers = Record<NextStepAction, () => void>;
@@ -33,6 +35,8 @@ const KIND_ICONS: Record<NextStepKind, React.JSX.Element> = {
   unpublished: <CloudUpload />,
   behind: <ArrowDownToLine />,
   diverged: <Split />,
+  overlap: <TriangleAlert />,
+  incomingBlocked: <CircleAlert />,
   checking: <LoaderCircle className="icon--spinning" />,
   notChecked: <Cloud />,
   unavailable: <CircleAlert />,
@@ -54,6 +58,8 @@ const ACTION_ICONS: Record<NextStepAction, React.JSX.Element> = {
   checkLocal: <RotateCw aria-hidden="true" />,
   openSettings: <Cloud aria-hidden="true" />,
   openLines: <GitBranch aria-hidden="true" />,
+  explainIncoming: <Eye aria-hidden="true" />,
+  getAndPublish: <CloudUpload aria-hidden="true" />,
 };
 
 /**
@@ -80,15 +86,19 @@ export function NextStepCard({
   const { t } = useLanguage();
   const titleId = useId();
   const { changes, publish } = journey;
-  const { kind, tone, primary, secondary, progress, isPending, then } = nextStep;
+  const { kind, tone, primary, secondary, progress, isPending, then, note } = nextStep;
   const remote = publish.remote;
+  const forecast = publish.forecast;
+  const isMerge = forecast?.integration === "merge";
+  const from = forecast ? t.getTeamFrom(forecast.authors, forecast.authorCount) : "";
   // The project not read yet: the card's shape, as on the whole screen's
   // placeholder, so it fills in place instead of saying "checking" first.
   if (kind === "loading") return <NextStepPlaceholder label={t.overviewJourneyNoteIdle} />;
 
   const kicker =
     kind === "conflicts" ? t.overviewNextKickerDecide
-      : kind === "behind" || kind === "diverged" ? t.overviewNextKickerBefore
+      : kind === "behind" || kind === "diverged" || kind === "overlap" || kind === "incomingBlocked"
+        ? t.overviewNextKickerBefore
         : primary ? t.overviewNextKickerNext
           : kind === "upToDate" ? t.overviewNextKickerAllGood
             : kind === "noRemote" ? t.overviewNextKickerSaved
@@ -103,8 +113,33 @@ export function NextStepCard({
     case "firstSave": title = t.overviewNextFirstSaveTitle; hint = t.overviewNextFirstSaveHint(changes.total); break;
     case "publish": title = t.overviewNextPublishTitle(publish.pending, remote); hint = t.overviewJourneyNoteAhead; break;
     case "unpublished": title = t.overviewJourneyReadyToPublish(publish.pending); hint = t.overviewJourneyNoteAhead; break;
-    case "behind": title = t.overviewNextBehindTitle(publish.behind, remote); hint = t.syncBehindMessage; break;
-    case "diverged": title = t.overviewNextDivergedTitle(publish.behind); hint = t.overviewNextDivergedHint(remote); break;
+    case "behind":
+      title = t.overviewNextBehindTitle(publish.behind, remote);
+      hint = forecast ? t.overviewNextFromHint(from, forecast.incomingFileCount) : t.syncBehindMessage;
+      break;
+    case "diverged":
+      if (forecast) {
+        title = t.overviewNextDivergedBoth(publish.behind, forecast.localCount, remote);
+        hint = t.overviewNextFromHint(from, forecast.incomingFileCount);
+      } else {
+        title = t.overviewNextDivergedTitle(publish.behind);
+        hint = t.overviewNextDivergedHint(remote);
+      }
+      break;
+    case "overlap": {
+      const first = forecast?.overlaps[0]?.path ?? "";
+      title = t.overviewNextOverlapTitle(remote);
+      hint = t.overviewNextOverlapHint(first, Math.max(0, (forecast?.overlapCount ?? 1) - 1));
+      break;
+    }
+    case "incomingBlocked": {
+      const copy = forecast?.blocker
+        ? forecastBlockerCopy(forecast.blocker, remote ?? "", t)
+        : { title: t.getTeamBlockedTitle, body: t.syncBehindMessage };
+      title = copy.title;
+      hint = copy.body;
+      break;
+    }
     case "checking": title = t.syncChecking; hint = t.syncCheckingMessage; break;
     case "notChecked": title = t.syncNotCheckedTitle; hint = t.syncNotCheckedMessage; break;
     case "unavailable": title = t.overviewNextUnavailableTitle(remote); hint = t.overviewNextUnavailableHint; break;
@@ -122,7 +157,11 @@ export function NextStepCard({
       case "resolve": return t.overviewJourneyResolve;
       case "publish": return t.overviewPublishAll(publish.pending);
       case "openHistory": return t.changesEmptyViewHistory;
-      case "getChanges": return t.syncReviewAndGet;
+      case "getChanges":
+        if (!forecast || forecast.outcome !== "clear") return t.syncReviewAndGet;
+        return isMerge ? t.overviewNextGetAndCombine : t.overviewNextGetCount(publish.behind);
+      case "explainIncoming": return kind === "overlap" ? t.overviewNextSeeOverlap : t.overviewNextSeeWhy;
+      case "getAndPublish": return t.overviewNextGetAndPublish;
       case "checkRemote": return kind === "unavailable" ? t.syncCheckAgain : t.overviewFactsCheck;
       case "checkLocal": return t.overviewCheckLocalAgain;
       case "openSettings": return t.overviewNextConnectRemote;
@@ -158,6 +197,7 @@ export function NextStepCard({
         </p>
         <h2 id={titleId} className="next-step__title">{title}</h2>
         <p className="next-step__hint">{hint}</p>
+        {note && <NoteLine note={note} remote={remote} />}
         {then && (
           <p className="next-step__then">
             <span className="next-step__then-glyph" aria-hidden="true">
@@ -197,12 +237,37 @@ export function NextStepCard({
               type="button"
               onClick={handlers[primary]}
             >
-              {ACTION_ICONS[primary]}
+              {primary === "getChanges" && isMerge ? <GitMerge aria-hidden="true" /> : ACTION_ICONS[primary]}
               {actionLabel(primary)}
             </button>
           )}
         </div>
       )}
     </section>
+  );
+}
+
+/** Whether what is waiting on the remote gets in the way, in one line: a
+ * check in the success ink when it doesn't, an alert in the danger ink when
+ * it does. */
+function NoteLine({ note, remote }: { note: NextStepNote; remote: string | null }): React.JSX.Element {
+  const { t } = useLanguage();
+  let text: string;
+  let safe = true;
+  switch (note.kind) {
+    case "clear": text = t.overviewNextNoteClear; break;
+    case "canCombine": text = t.overviewNextNoteCanCombine; break;
+    case "incomingClear": text = t.overviewNextNoteIncomingClear(note.count, remote); break;
+    case "incomingCombined":
+      text = t.overviewNextNoteIncomingCombined(note.count, remote, note.files[0] ?? "", note.fileCount);
+      break;
+    case "overlap": text = t.overviewNextNoteOverlap; safe = false; break;
+    case "blocked": text = forecastBlockerCopy(note.blocker, remote ?? "", t).body; safe = false; break;
+  }
+  return (
+    <p className={`next-step__note${safe ? "" : " next-step__note--stopped"}`}>
+      <span aria-hidden="true">{safe ? <Check /> : <TriangleAlert />}</span>
+      <span>{text}</span>
+    </p>
   );
 }

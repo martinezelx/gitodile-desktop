@@ -157,6 +157,23 @@ describe("HistorySummarySection", () => {
     expect(order(rows[1])).toEqual(["overview-history__author", "history-meta-dot", "overview-history__date"]);
   });
 
+  it("keeps every unpublished version together after a merge brings in an older one", async () => {
+    // Date order after Get and combine: the merge version, a local one, the
+    // one that came in from the remote, and an older local one.
+    const merge: SavedVersionSummary = { ...version(4), isMerge: true, subject: "Merge remote-tracking branch 'origin/main'" };
+    const incoming: SavedVersionSummary = { ...version(2), publication: "published", subject: "From the remote" };
+    const controller = createHistoryController(port(vi.fn(async () => page([merge, version(3), incoming, version(5)]))));
+    await controller.refresh(query);
+    const { container } = renderSection(controller);
+
+    const local = [...container.querySelectorAll(".overview-history__item--local .overview-history__subject")]
+      .map((node) => node.textContent);
+    expect(local).toEqual(["Merge remote-tracking branch 'origin/main'", "Saved version 3", "Saved version 5"]);
+    expect(container.querySelector(".overview-timeline__group-count")).toHaveTextContent("3");
+    const subjects = [...container.querySelectorAll(".overview-history__subject")].map((node) => node.textContent);
+    expect(subjects.at(-1)).toBe("From the remote");
+  });
+
   it("leaves the current line's copy on the remote unbadged, keeping other lines' names", async () => {
     const trackingRef = "refs/remotes/origin/main";
     const upstreamTip: SavedVersionSummary = {
@@ -174,7 +191,9 @@ describe("HistorySummarySection", () => {
     const { container } = renderSection(controller);
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
-    expect(rows[0].querySelector(".history-ref-badge")).toHaveTextContent("origin/feature");
+    // Grouped by where they live: the local version leads, then the two the
+    // remote already holds.
+    expect(rows[1].querySelector(".history-ref-badge")).toHaveTextContent("origin/feature");
     expect(rows[2].querySelector(".history-ref-badge")).toBeNull();
     expect(rows[2].querySelector(".history-meta-dot + .history-meta-dot")).toBeNull();
     expect(rows[2].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
@@ -444,6 +463,6 @@ describe("HistorySummarySection", () => {
     await waitFor(() => expect(viewAll).not.toHaveClass("overview-history__all--lead"));
 
     // None of that re-rendering hid the scrollbar under the pointer.
-    expect(scroller).toHaveClass("auto-hide-scrollbar--pointer-active");
+    expect(scroller).toHaveAttribute("data-pointer-active");
   });
 });

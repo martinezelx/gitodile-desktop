@@ -36,6 +36,7 @@ function sync(overrides: Partial<TeamSyncStatus> = {}, view: Partial<TeamSyncVie
       warnings: [],
       nextActions: [],
       stateToken: "token",
+      forecast: null,
       ...overrides,
     },
     ...view,

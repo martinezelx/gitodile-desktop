@@ -107,6 +107,20 @@ export interface OverviewTranslations {
   overviewNextBehindTitle: (count: number, remote: string | null) => string;
   overviewNextDivergedTitle: (count: number) => string;
   overviewNextDivergedHint: (remote: string | null) => string;
+  overviewNextFromHint: (from: string, files: number) => string;
+  overviewNextDivergedBoth: (incoming: number, local: number, remote: string | null) => string;
+  overviewNextGetCount: (count: number) => string;
+  overviewNextGetAndCombine: string;
+  overviewNextGetAndPublish: string;
+  overviewNextSeeOverlap: string;
+  overviewNextSeeWhy: string;
+  overviewNextOverlapTitle: (remote: string | null) => string;
+  overviewNextOverlapHint: (path: string, more: number) => string;
+  overviewNextNoteClear: string;
+  overviewNextNoteCanCombine: string;
+  overviewNextNoteOverlap: string;
+  overviewNextNoteIncomingClear: (count: number, remote: string | null) => string;
+  overviewNextNoteIncomingCombined: (count: number, remote: string | null, file: string, fileCount: number) => string;
   overviewNextUnavailableTitle: (remote: string | null) => string;
   overviewNextUnavailableHint: string;
   overviewNextNoRemoteTitle: string;
@@ -285,6 +299,25 @@ const en: OverviewTranslations = {
     count === 1 ? "Get 1 new version before publishing" : `Get ${count} new versions before publishing`,
   overviewNextDivergedHint: (remote) =>
     `${remote ?? "The remote"} moved on while you saved. Get them first, then publish yours.`,
+  overviewNextFromHint: (from, files) =>
+    `${from ? `${from} · ` : ""}${files} ${files === 1 ? "file" : "files"}.`,
+  overviewNextDivergedBoth: (incoming, local, remote) =>
+    `${remote ?? "The remote"} has ${incoming === 1 ? "1 new version" : `${incoming} new versions`} and you have ${local} unpublished`,
+  overviewNextGetCount: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
+  overviewNextGetAndCombine: "Get and combine",
+  overviewNextGetAndPublish: "Get and publish",
+  overviewNextSeeOverlap: "See what overlaps",
+  overviewNextSeeWhy: "See why",
+  overviewNextOverlapTitle: (remote) => `Your changes and ${remote ?? "the remote"}'s overlap`,
+  overviewNextOverlapHint: (path, more) =>
+    `${path} changes the same lines on both sides${more > 0 ? ` (and ${more} more)` : ""}. They can't be combined in GitOdile yet.`,
+  overviewNextNoteClear: "Nothing of yours overlaps.",
+  overviewNextNoteCanCombine: "They don't overlap: they can be combined.",
+  overviewNextNoteOverlap: "Nothing comes in until they stop overlapping.",
+  overviewNextNoteIncomingClear: (count, remote) =>
+    `${count === 1 ? "1 new version" : `${count} new versions`} on ${remote ?? "the remote"} ${count === 1 ? "doesn't" : "don't"} touch your files.`,
+  overviewNextNoteIncomingCombined: (count, remote, file, fileCount) =>
+    `${count === 1 ? "1 new version" : `${count} new versions`} on ${remote ?? "the remote"} also ${count === 1 ? "changes" : "change"} ${fileCount === 1 ? file : `${fileCount} of your files`}, on other lines: your edits stay on top.`,
   overviewNextUnavailableTitle: (remote) => (remote ? `Couldn't check ${remote}` : "Couldn't check the remote"),
   overviewNextUnavailableHint: "Your work is saved. Check your connection or account and try again.",
   overviewNextNoRemoteTitle: "Saved on this computer",
@@ -453,6 +486,25 @@ const es: OverviewTranslations = {
     count === 1 ? "Trae 1 versión nueva antes de publicar" : `Trae ${count} versiones nuevas antes de publicar`,
   overviewNextDivergedHint: (remote) =>
     `${remote ?? "El remoto"} ha avanzado mientras guardabas. Tráelas primero; luego podrás publicar las tuyas.`,
+  overviewNextFromHint: (from, files) =>
+    `${from ? `${from} · ` : ""}${files} ${files === 1 ? "archivo" : "archivos"}.`,
+  overviewNextDivergedBoth: (incoming, local, remote) =>
+    `${remote ?? "El remoto"} tiene ${incoming === 1 ? "1 versión nueva" : `${incoming} versiones nuevas`} y tú ${local} sin publicar`,
+  overviewNextGetCount: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
+  overviewNextGetAndCombine: "Traer y combinar",
+  overviewNextGetAndPublish: "Traer y publicar",
+  overviewNextSeeOverlap: "Ver qué se pisa",
+  overviewNextSeeWhy: "Ver por qué",
+  overviewNextOverlapTitle: (remote) => `Tus cambios y los de ${remote ?? "el remoto"} se pisan`,
+  overviewNextOverlapHint: (path, more) =>
+    `${path} cambia las mismas líneas en los dos lados${more > 0 ? ` (y ${more} más)` : ""}. Aún no se pueden combinar desde GitOdile.`,
+  overviewNextNoteClear: "No choca con nada tuyo.",
+  overviewNextNoteCanCombine: "No se pisan: se pueden combinar.",
+  overviewNextNoteOverlap: "No se trae nada hasta que dejen de pisarse.",
+  overviewNextNoteIncomingClear: (count, remote) =>
+    `${count === 1 ? "Hay 1 versión nueva" : `Hay ${count} versiones nuevas`} en ${remote ?? "el remoto"} que no ${count === 1 ? "toca" : "tocan"} tus archivos.`,
+  overviewNextNoteIncomingCombined: (count, remote, file, fileCount) =>
+    `${count === 1 ? "1 versión nueva" : `${count} versiones nuevas`} en ${remote ?? "el remoto"} también ${count === 1 ? "cambia" : "cambian"} ${fileCount === 1 ? file : `${fileCount} de tus archivos`}, en otras líneas: tus cambios se quedan encima.`,
   overviewNextUnavailableTitle: (remote) => (remote ? `No se pudo comprobar ${remote}` : "No se pudo comprobar el remoto"),
   overviewNextUnavailableHint: "Tu trabajo está guardado. Revisa la conexión o la cuenta y vuelve a intentarlo.",
   overviewNextNoRemoteTitle: "Guardado en este ordenador",

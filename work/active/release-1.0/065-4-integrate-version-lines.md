@@ -101,6 +101,12 @@ merge and connects clean/conflicting outcomes to those established contracts.
   progressive-power features.
 - Integration never auto-stashes or auto-publishes.
 - This task owns initiation; task 037 owns a conflict once one exists.
+- 2026-10-11: [Task 161](../../done/161-get-and-publish-without-friction.md) shipped the
+  clean configured-upstream half: a local forecast with `merge-tree`, a merge
+  version built with `commit-tree` after the merge hooks, and Get-and-publish
+  ([ADR 0030](../../../docs/adr/0030-forecast-and-combine-project-changes.md)).
+  This task keeps bringing in another version line and handing a real
+  overlap to task 037, reusing that forecast and merge-version path.
 
 # Implementation notes
 

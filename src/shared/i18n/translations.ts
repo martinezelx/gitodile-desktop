@@ -97,7 +97,6 @@ export interface SharedTranslations {
   errorStaleVersionLinePlan: string;
   errorDirtyWorkingTree: string;
   errorIncomingTrackedChangeCollision: string;
-  errorIncomingPathCollision: string;
   errorRefLocked: string;
   errorNothingToDiscard: string;
   errorStaleDiscardPlan: string;
@@ -223,7 +222,6 @@ const en: SharedTranslations = {
   errorStaleVersionLinePlan: "The project changed since the preview. Refresh and retry.",
   errorDirtyWorkingTree: "You have unsaved changes. Save a version, or start a new line with them.",
   errorIncomingTrackedChangeCollision: "Some of your unsaved changes touch files in the update. Save or discard them, then review again.",
-  errorIncomingPathCollision: "A local file would be overwritten by the update. Move it, then review again.",
   errorRefLocked: "Git couldn't update right now, maybe because another Git program is using this project.",
   errorNothingToDiscard: "There's nothing to discard. Refresh Changes.",
   errorStaleDiscardPlan: "The files changed since the preview. Review it again.",
@@ -349,7 +347,6 @@ const es: SharedTranslations = {
   errorStaleVersionLinePlan: "El proyecto ha cambiado desde la vista previa. Actualiza y reintenta.",
   errorDirtyWorkingTree: "Tienes cambios sin guardar. Guarda una versión o empieza una línea nueva con ellos.",
   errorIncomingTrackedChangeCollision: "Algunos de tus cambios sin guardar tocan archivos de la actualización. Guárdalos o descártalos y vuelve a revisar.",
-  errorIncomingPathCollision: "La actualización sobrescribiría un archivo local. Muévelo y vuelve a revisar.",
   errorRefLocked: "Git no pudo actualizar ahora mismo, quizá porque otro programa de Git está usando el proyecto.",
   errorNothingToDiscard: "No hay nada que descartar. Actualiza Cambios.",
   errorStaleDiscardPlan: "Los archivos han cambiado desde la vista previa. Revísala de nuevo.",

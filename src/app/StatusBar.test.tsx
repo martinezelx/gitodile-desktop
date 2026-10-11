@@ -88,6 +88,7 @@ function syncStatus(state: TeamSyncState = "upToDate"): TeamSyncStatus {
     warnings: [],
     nextActions: ["checkAgain"],
     stateToken: `status-${state}`,
+    forecast: null,
   };
 }
 

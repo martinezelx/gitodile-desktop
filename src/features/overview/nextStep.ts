@@ -1,3 +1,4 @@
+import type { ForecastBlocker } from "../sync";
 import type { Journey } from "./journey";
 
 /**
@@ -28,7 +29,12 @@ export type NextStepAction =
   | "checkRemote"
   | "checkLocal"
   | "openSettings"
-  | "openLines";
+  | "openLines"
+  /** Opens Get project changes on what stops it: the overlapping files, or
+   * what is in the way. */
+  | "explainIncoming"
+  /** Gets, combines and publishes in one confirmation. */
+  | "getAndPublish";
 
 export type NextStepKind =
   | "loading"
@@ -40,6 +46,10 @@ export type NextStepKind =
   | "unpublished"
   | "behind"
   | "diverged"
+  /** Local work and the remote's change the same lines: nothing comes in. */
+  | "overlap"
+  /** Something of the person's is in the way of the update. */
+  | "incomingBlocked"
   | "checking"
   | "notChecked"
   | "unavailable"
@@ -60,6 +70,17 @@ export type NextStepThen =
   | { kind: "publishWith"; count: number }
   | { kind: "get"; count: number };
 
+/** One line under the hint saying whether what is waiting on the remote
+ * gets in the way of local work — the forecast, in a sentence. `clear` lines
+ * read as safe, the others as stopped. */
+export type NextStepNote =
+  | { kind: "clear" }
+  | { kind: "canCombine" }
+  | { kind: "incomingClear"; count: number }
+  | { kind: "incomingCombined"; count: number; files: string[]; fileCount: number }
+  | { kind: "overlap" }
+  | { kind: "blocked"; blocker: ForecastBlocker };
+
 export type NextStep = {
   kind: NextStepKind;
   tone: NextStepTone;
@@ -74,6 +95,7 @@ export type NextStep = {
   /** A spinner stands in for the glyph while the fact is still being read. */
   isPending: boolean;
   then: NextStepThen | null;
+  note: NextStepNote | null;
 };
 
 /**
@@ -90,6 +112,8 @@ export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: b
   const incoming = (publish.state === "behind" || publish.state === "diverged") && publish.behind > 0
     ? publish.behind
     : 0;
+  // The card never offers an action the forecast already knows will fail.
+  const forecast = incoming > 0 ? publish.forecast : null;
 
   // Until both sides are read, the card holds its shape rather than guessing
   // a step that changes a moment later.
@@ -105,6 +129,22 @@ export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: b
   if (changes.state === "dirty") {
     if (publish.state === "unborn") {
       return step("firstSave", "unsaved", "save", [], { done: 1, current: 1 });
+    }
+    if (forecast?.outcome === "overlap") {
+      return step("overlap", "blocked", null, ["explainIncoming", "save"], { done: 1, current: 1 }, false, null,
+        { kind: "overlap" });
+    }
+    if (forecast?.outcome === "clear") {
+      // Getting first is safe and keeps the line from diverging; saving is
+      // still the step, so it keeps the primary button.
+      const note: NextStepNote = forecast.combinedUnsavedCount > 0
+        ? { kind: "incomingCombined", count: incoming, files: forecast.combinedUnsaved, fileCount: forecast.combinedUnsavedCount }
+        : { kind: "incomingClear", count: incoming };
+      return step("save", "unsaved", "save", ["getChanges"], { done: 1, current: 1 }, false, null, note);
+    }
+    if (forecast?.outcome === "blocked" && forecast.blocker) {
+      return step("save", "unsaved", "save", ["reviewChanges"], { done: 1, current: 1 }, false, null,
+        { kind: "blocked", blocker: forecast.blocker });
     }
     // Versions waiting on the remote come before your own unpublished ones:
     // they have to be received before anything can be published. Otherwise
@@ -124,11 +164,28 @@ export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: b
         ? step("publish", "ready", "publish", ["openHistory"], { done: 2, current: 2 })
         : step("unpublished", "ready", null, ["openHistory"], { done: 2, current: 2 });
     case "behind":
-      return step("behind", "incoming", "getChanges", [], { done: 2, current: 2 });
-    case "diverged":
-      // Both sides moved: receive first, then publish what is yours.
+    case "diverged": {
+      if (forecast?.outcome === "overlap") {
+        return step("overlap", "blocked", null, ["explainIncoming"], { done: 2, current: 2 }, false, null,
+          { kind: "overlap" });
+      }
+      if (forecast?.outcome === "blocked") {
+        return step("incomingBlocked", "unsaved", null, ["explainIncoming"], { done: 2, current: 2 });
+      }
+      if (publish.state === "behind") {
+        return step("behind", "incoming", "getChanges", [], { done: 2, current: 2 }, false, null,
+          forecast ? { kind: "clear" } : null);
+      }
+      if (forecast) {
+        // Both sides moved and nothing overlaps: combine, and publishing can
+        // ride along in the same confirmation.
+        return step("diverged", "incoming", "getChanges", canPublish ? ["getAndPublish"] : [], { done: 2, current: 2 },
+          false, null, { kind: "canCombine" });
+      }
+      // Unknown: receive first, then publish what is yours.
       return step("diverged", "incoming", "getChanges", [], { done: 2, current: 2 }, false,
         publish.pending > 0 ? { kind: "publish", count: publish.pending } : null);
+    }
     case "reading":
     case "checking":
       return step("checking", "calm", null, [], { done: 2, current: null }, true);
@@ -161,6 +218,7 @@ function step(
   progress: NextStep["progress"],
   isPending = false,
   then: NextStepThen | null = null,
+  note: NextStepNote | null = null,
 ): NextStep {
-  return { kind, tone, primary, secondary, progress, isPending, then };
+  return { kind, tone, primary, secondary, progress, isPending, then, note };
 }

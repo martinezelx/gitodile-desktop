@@ -95,8 +95,8 @@ export function createSyncController(port: SyncPort) {
     check(runtime: ProjectRuntime, query: TeamSyncQuery, mapError: SyncErrorMapper) {
       return run(runtime, query, "check", mapError);
     },
-    planGet(query: TeamSyncQuery, onProgress: Parameters<SyncPort["planGet"]>[1]) {
-      return port.planGet(query, onProgress);
+    planGet(query: TeamSyncQuery) {
+      return port.planGet(query);
     },
     get(request: Parameters<SyncPort["get"]>[0]) {
       return port.get(request);

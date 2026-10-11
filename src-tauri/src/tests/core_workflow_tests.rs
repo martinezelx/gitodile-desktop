@@ -118,13 +118,14 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         .expect("fetch and classify the team update");
     assert_eq!(behind.state, TeamSyncState::Behind);
     assert_eq!((behind.ahead, behind.behind), (0, 1));
-    let get_plan = plan_get_team_changes(repo.clone(), opened.session_epoch.clone(), |_| {})
+    let get_plan = plan_get_team_changes(repo.clone(), opened.session_epoch.clone())
         .expect("plan the strict fast-forward update");
     let get_result = get_team_changes(
         repo.clone(),
         opened.session_epoch.clone(),
         get_plan.state_token,
         get_plan.recovery.reference,
+        true,
         |_| {},
     )
     .expect("apply the strict fast-forward update");
@@ -726,10 +727,12 @@ fn repository_state_journey_covers_unborn_dirty_clean_detached_conflicted_and_sy
     let diverged = check_team_changes(behind_repo.clone(), "state-diverged".to_string()).unwrap();
     assert_eq!(diverged.state, TeamSyncState::Diverged);
     let head_before = git_stdout(&test_git(&behind_repo, &["rev-parse", "HEAD"]).unwrap());
-    let blocked = plan_get_team_changes(behind_repo.clone(), "state-diverged".to_string(), |_| {})
-        .expect_err("diverged histories must stop before mutation");
-    assert_eq!(blocked.code, AppErrorCode::DivergedHistories);
-    assert!(blocked.remediation.is_some());
+    // A diverged line is planned as a merge version, and planning moves
+    // nothing.
+    let merge_plan = plan_get_team_changes(behind_repo.clone(), "state-diverged".to_string())
+        .expect("a diverged line without overlaps can be combined");
+    assert_eq!(merge_plan.integration, IntegrationKind::Merge);
+    assert_eq!(merge_plan.forecast.outcome, ForecastOutcome::Clear);
     assert_eq!(
         git_stdout(&test_git(&behind_repo, &["rev-parse", "HEAD"]).unwrap()),
         head_before

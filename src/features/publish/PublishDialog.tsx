@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
+import { ArrowDownToLine, ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, DialogFacts, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
@@ -209,6 +209,7 @@ export function PublishDialog({
   onClose,
   onPublished,
   onPhaseChange,
+  onGetFirst,
 }: {
   isOpen: boolean;
   controller?: PublishController;
@@ -231,6 +232,9 @@ export function PublishDialog({
   onPhaseChange?: (
     phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success"
   ) => void;
+  /** Given, a remote that moved on is not a dead end: the dialog offers to
+   * get its versions first and publish in the same confirmation. */
+  onGetFirst?: () => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const showToast = useToast();
@@ -375,6 +379,13 @@ export function PublishDialog({
   // Retrying can't make versions appear: "everything is published" only
   // offers the way out. Any other planning failure may pass on a retry.
   const isNothingToPublish = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_publish";
+  // The remote has versions this line doesn't: publishing needs them first.
+  const remoteMovedOn = (error: unknown): boolean =>
+    isAppError(error) && (error.code === "behind_remote" || error.code === "diverged_histories");
+  const canGetFirst = Boolean(onGetFirst) && (
+    (state.status === "blocked" && remoteMovedOn(state.error)) ||
+    (state.status === "publish-error" && remoteMovedOn(state.error))
+  );
   const title = state.status === "remote-selection"
     ? t.publishChooseRemoteHeading
     : isFirstPublish && plan
@@ -428,6 +439,16 @@ export function PublishDialog({
               <button className="primary-button" type="button" onClick={requestClose}>
                 {t.commonClose}
               </button>
+            ) : canGetFirst ? (
+              <>
+                <button className="secondary-button" type="button" onClick={requestClose}>
+                  {t.commonCancel}
+                </button>
+                <button className="primary-button" type="button" onClick={onGetFirst}>
+                  <ArrowDownToLine aria-hidden="true" />
+                  {t.getTeamConfirmPublish}
+                </button>
+              </>
             ) : (
               <>
                 <button className="secondary-button" type="button" onClick={requestClose}>
@@ -484,6 +505,12 @@ export function PublishDialog({
               >
                 {t.commonCancel}
               </button>
+              {canGetFirst ? (
+                <button className="primary-button" type="button" onClick={onGetFirst}>
+                  <ArrowDownToLine aria-hidden="true" />
+                  {t.getTeamConfirmPublish}
+                </button>
+              ) : (
               <button
                 className="primary-button"
                 type="button"
@@ -510,6 +537,7 @@ export function PublishDialog({
                   </>
                 )}
               </button>
+              )}
             </div>
           </div>
         </>

@@ -4184,6 +4184,7 @@ pub(crate) fn delete_version_line(
                     destination_branch: copy.base.clone(),
                     tracking_ref: validated.upstream.clone().unwrap_or_default(),
                     state_token: state_token.clone(),
+                    unsaved_snapshot: None,
                 },
             )?;
             verify_history_recovery(&path, &record)?;

@@ -137,6 +137,16 @@ describe("PublishDialog", () => {
     expect(screen.queryByRole("button", { name: "Publish changes" })).not.toBeInTheDocument();
   });
 
+  it("offers to get the remote's versions first instead of a dead end", async () => {
+    mockedInvoke.mockRejectedValueOnce({ code: "diverged_histories", message: "x", remediation: null });
+    const onGetFirst = vi.fn();
+    renderDialog({ onGetFirst });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Get and publish" }));
+    expect(onGetFirst).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
   it("shows the plan summary once it loads", async () => {
     mockedInvoke.mockResolvedValueOnce(plan());
     renderDialog();

@@ -1099,29 +1099,31 @@ pub(crate) fn check_team_changes(
     )
 }
 
+/// Local only: the plan reads the remote as of the last check and never
+/// contacts the network, so the dialog can show it at once.
 #[tauri::command(async)]
 pub(crate) fn plan_get_team_changes(
     path: String,
     session_epoch: String,
-    on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesPlan, AppError> {
     report_result(
         "plan_get_team_changes",
         (|| {
             validate_session(&path, &session_epoch)?;
-            sync::plan_get_team_changes(path, session_epoch, |phase| {
-                let _ = on_progress.send(phase);
-            })
+            sync::plan_get_team_changes(path, session_epoch)
         })(),
     )
 }
 
+/// `run_hooks` is the Settings switch the other guided flows follow: it
+/// decides whether the project's merge hooks run for a merge version.
 #[tauri::command(async)]
 pub(crate) fn get_team_changes(
     path: String,
     session_epoch: String,
     state_token: String,
     recovery_reference: String,
+    run_hooks: bool,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesResult, AppError> {
     report_result(
@@ -1133,6 +1135,7 @@ pub(crate) fn get_team_changes(
                 session_epoch,
                 state_token,
                 recovery_reference,
+                run_hooks,
                 |phase| {
                     let _ = on_progress.send(phase);
                 },
@@ -1829,7 +1832,6 @@ mod contract_tests {
             AppErrorCode::StaleVersionLinePlan,
             AppErrorCode::DirtyWorkingTree,
             AppErrorCode::IncomingTrackedChangeCollision,
-            AppErrorCode::IncomingPathCollision,
             AppErrorCode::RefLocked,
             AppErrorCode::NothingToDiscard,
             AppErrorCode::StaleDiscardPlan,

@@ -122,14 +122,15 @@ export function HistorySummarySection({
   const upstreamRef = upstream?.trackingRef ?? null;
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
 
-  // The versions that have not left this computer are the newest ones, so
-  // they lead the list; everything after the first published one is history
-  // the remote already holds.
-  const firstShared = versions.findIndex((version) => version.publication !== "local-only");
-  const local = firstShared === -1 ? versions : versions.slice(0, firstShared);
-  const shared = firstShared === -1 ? [] : versions.slice(firstShared);
-  const localTotal = state.versions.findIndex((version) => version.publication !== "local-only");
-  const localCount = localTotal === -1 ? state.versions.length : localTotal;
+  // Grouped by where each version lives, not by where it falls in date order:
+  // once a merge version joins the remote's line to this one (task 161), a
+  // version that came in from the remote can be older than some still only
+  // here, and would otherwise cut the local group short and drag the rest of
+  // it under "Published".
+  const isLocal = (version: SavedVersionSummary): boolean => version.publication === "local-only";
+  const local = versions.filter(isLocal);
+  const shared = versions.filter((version) => !isLocal(version));
+  const localCount = state.versions.filter(isLocal).length;
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);

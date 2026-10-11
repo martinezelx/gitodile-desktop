@@ -1,5 +1,12 @@
 {
   "version": "0.3.1",
   "date": "2026-10-01",
-  "highlights": []
+  "highlights": [
+    {
+      "id": "getWithoutFriction",
+      "icon": "cloud-download",
+      "en": "Overview now tells you before you press anything whether getting project changes overlaps your work; when nothing overlaps, one confirmation gets them, combines them with your unpublished versions and can publish too.",
+      "es": "Resumen te dice antes de pulsar nada si traer cambios del proyecto choca con tu trabajo; si nada choca, una sola confirmación los trae, los combina con tus versiones sin publicar y también puede publicar."
+    }
+  ]
 }

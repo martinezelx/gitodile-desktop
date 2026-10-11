@@ -6,10 +6,11 @@
 //! target for a branch without an upstream.
 //!
 //! [`get_team_changes`] is a submodule rather than more of this file. It is the
-//! one destructive workflow in the domain, it reads *from* the model here and
-//! nothing here reads back, and its safety checks are eighteen helpers that no
-//! other part of sync should be able to call. Splitting it keeps those private
-//! and leaves this file as the read model.
+//! one history-changing workflow in the domain and its safety checks are
+//! helpers no other part of sync should be able to call. The read model here
+//! reaches it through one door, [`forecast_incoming`], so every status read of
+//! a line with versions waiting can say what getting them would do; splitting
+//! it keeps everything else private and leaves this file as the read model.
 
 mod get_team_changes;
 
@@ -150,6 +151,9 @@ pub(crate) struct TeamSyncStatus {
     pub(crate) warnings: Vec<SyncWarning>,
     pub(crate) next_actions: Vec<SyncNextAction>,
     pub(crate) state_token: String,
+    /// What getting the waiting versions would do, predicted locally. Present
+    /// only while the line is behind or diverged.
+    pub(crate) forecast: Option<IncomingForecast>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1121,7 +1125,7 @@ pub(super) fn relation_state(relation: &SyncRelation) -> TeamSyncState {
 fn actions_for(state: TeamSyncState, knowledge: SyncKnowledge) -> Vec<SyncNextAction> {
     let mut actions = match state {
         TeamSyncState::Ahead => vec![SyncNextAction::PublishChanges],
-        TeamSyncState::Behind => vec![SyncNextAction::ReviewAndGet],
+        TeamSyncState::Behind | TeamSyncState::Diverged => vec![SyncNextAction::ReviewAndGet],
         _ => Vec::new(),
     };
     if knowledge == SyncKnowledge::Cached
@@ -1195,6 +1199,7 @@ fn base_status(
             None,
             None,
         ),
+        forecast: None,
     }
 }
 
@@ -1287,6 +1292,12 @@ pub(super) fn read_team_sync_status_inner(
         )
     };
     warnings.truncate(MAX_WARNINGS);
+    let forecast = match (state, remote_commit.as_deref()) {
+        (TeamSyncState::Behind | TeamSyncState::Diverged, Some(remote_commit)) => {
+            forecast_incoming(path, &local_commit, remote_commit, &relation)
+        }
+        _ => None,
+    };
     let checked_at = perform_fetch.then(|| {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1316,6 +1327,7 @@ pub(super) fn read_team_sync_status_inner(
             Some(&target),
             remote_commit.as_deref(),
         ),
+        forecast,
     })
 }
 

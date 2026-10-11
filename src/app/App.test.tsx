@@ -71,6 +71,7 @@ const cachedTeamSync: TeamSyncStatus = {
   warnings: [],
   nextActions: ["checkAgain"],
   stateToken: "cached-sync",
+  forecast: null,
 };
 
 const freshBehindTeamSync: TeamSyncStatus = {
@@ -79,14 +80,31 @@ const freshBehindTeamSync: TeamSyncStatus = {
   remoteCommit: "2222222222222222222222222222222222222222",
   behind: 1,
   knowledge: "fresh",
-  checkedAt: 1,
+  // Now, not long ago: Get project changes asks the remote again in the
+  // background when this session's last check is older than a minute.
+  checkedAt: Date.now(),
   nextActions: ["reviewAndGet"],
   stateToken: "fresh-behind",
+  forecast: {
+    outcome: "clear",
+    integration: "fastForward",
+    remoteCommit: "2222222222222222222222222222222222222222",
+    incomingCount: 1,
+    localCount: 0,
+    incomingFileCount: 1,
+    authors: ["Team"],
+    authorCount: 1,
+    carriedUnsavedCount: 0,
+    combinedUnsaved: [],
+    combinedUnsavedCount: 0,
+    overlaps: [],
+    overlapCount: 0,
+    blocker: null,
+  },
 };
 
-/** Ahead *and* behind. GitOdile's update is fast-forward-only, and Rust offers
- * no "review and get" next action for this state, so nothing should be
- * recorded about it. */
+/** Ahead *and* behind, with no forecast: nothing says what getting would do,
+ * so nothing should be recorded about it. */
 const divergedTeamSync: TeamSyncStatus = {
   ...cachedTeamSync,
   state: "diverged",
@@ -111,6 +129,7 @@ const getTeamPlan: GetTeamChangesPlan = {
   localCommit: "1111111111111111111111111111111111111111",
   remoteCommit: "2222222222222222222222222222222222222222",
   incomingCount: 1,
+  integration: "fastForward",
   incomingVersions: [{
     commit: "2222222222222222222222222222222222222222",
     shortCommit: "2222222",
@@ -118,31 +137,24 @@ const getTeamPlan: GetTeamChangesPlan = {
     description: null,
     committedAt: "2026-08-16T10:00:00Z",
     author: "Team",
+    fileCount: 1,
   }],
   versionsTruncated: false,
+  localCount: 0,
+  localVersions: [],
   fileImpact: {
     totalCount: 1,
     counts: { added: 1, modified: 0, deleted: 0, renamed: 0, binary: 0 },
     files: [{ path: "team.txt", originalPath: null, category: "added", binary: false }],
     isTruncated: false,
   },
-  consequences: [],
-  risks: [],
-  steps: [],
-  verification: "verified",
+  forecast: freshBehindTeamSync.forecast!,
+  mergeMessage: null,
   recovery: {
     reference: "refs/gitodile/recovery/v1/get-team-changes/worktree-a/1",
     explanation: "protected",
     retention: "newest 20",
     retentionLimit: 20,
-  },
-  guarantees: {
-    fastForwardOnly: true,
-    noMerge: true,
-    noRebase: true,
-    noStash: true,
-    noForce: true,
-    noAutomaticConflictResolution: true,
   },
 };
 
@@ -153,10 +165,12 @@ const getTeamResult: GetTeamChangesResult = {
   branch: "main",
   target: getTeamPlan.target,
   trackingRef: getTeamPlan.trackingRef,
+  integration: "fastForward",
   previousCommit: getTeamPlan.localCommit,
   resultingCommit: getTeamPlan.remoteCommit,
   observedHead: getTeamPlan.remoteCommit,
   receivedCount: 1,
+  combinedUnsavedCount: 0,
   recovery: {
     schemaVersion: 1,
     recoveryId: "1",
@@ -552,7 +566,7 @@ describe("App project restoration", () => {
       fireEvent.click(within(panel).getByRole("button", { name: "Review and get" }));
       expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
       await settle(50);
-      expect(screen.getByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Get 1 version from origin" })).toBeInTheDocument();
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
@@ -582,9 +596,9 @@ describe("App project restoration", () => {
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
-      // A diverged upstream is behind too, but the update is fast-forward-only
-      // and would refuse. Nothing is recorded rather than handing someone a
-      // button that declines.
+      // A diverged upstream with no forecast: nothing says what getting would
+      // do, so nothing is recorded rather than handing someone a button that
+      // declines.
       mockedInvoke.mockImplementation((command) => {
         if (command === "check_team_changes") return Promise.resolve(divergedTeamSync);
         if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
@@ -1541,12 +1555,12 @@ describe("App project restoration", () => {
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
     ).toHaveLength(repositoryOpensBeforeRemoteCheck);
-    await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Get 1 version" }));
     // The confirmation opens behind an async plan call, which under a loaded
     // parallel run needs more than the one-second default (task 072).
     const confirm = await screen.findByRole(
       "button",
-      { name: "Get these versions" },
+      { name: "Get" },
       { timeout: 3000 },
     );
     // The rail keeps switching and closing behind one trigger, so blocking

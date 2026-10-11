@@ -47,6 +47,7 @@ const ahead: TeamSyncViewState = {
     warnings: [],
     nextActions: [],
     stateToken: "token",
+    forecast: null,
   },
 };
 
@@ -62,6 +63,8 @@ function handlers(): NextStepHandlers {
     checkLocal: vi.fn(),
     openSettings: vi.fn(),
     openLines: vi.fn(),
+    explainIncoming: vi.fn(),
+    getAndPublish: vi.fn(),
   };
 }
 
@@ -186,5 +189,82 @@ describe("OverviewNow", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Checking");
     expect(container.querySelector(".overview-now .text-placeholder")).not.toBeNull();
     expect(container.querySelector(".icon--spinning")).toBeNull();
+  });
+});
+
+describe("NextStepCard with a forecast", () => {
+  const forecast = {
+    outcome: "clear" as const,
+    integration: "fastForward" as const,
+    remoteCommit: "3".repeat(40),
+    incomingCount: 3,
+    localCount: 0,
+    incomingFileCount: 12,
+    authors: ["Ana", "Marcos"],
+    authorCount: 2,
+    carriedUnsavedCount: 0,
+    combinedUnsaved: [],
+    combinedUnsavedCount: 0,
+    overlaps: [],
+    overlapCount: 0,
+    blocker: null,
+  };
+  const teamSync = (status: Partial<NonNullable<TeamSyncViewState["status"]>>): TeamSyncViewState => ({
+    ...ahead,
+    status: { ...ahead.status!, ahead: 0, ...status },
+  });
+  const card = (workingTree: WorkingTreeStatus, sync: TeamSyncViewState, pending = 0) => {
+    const journey = deriveJourney({
+      workingTree, workingTreeError: null, isCheckingChanges: false, pendingVersionsCount: pending, teamSync: sync,
+    });
+    const actions = handlers();
+    const view = wrap(<NextStepCard nextStep={deriveNextStep(journey, { canPublish: true })} journey={journey} handlers={actions} />);
+    return { actions, ...view };
+  };
+
+  it("says who sent what and that nothing overlaps, with a counted button", async () => {
+    const { actions } = card(tree([]), teamSync({ state: "behind", behind: 3, forecast }));
+    expect(screen.getByRole("heading", { name: "3 new versions on origin" })).toBeInTheDocument();
+    expect(screen.getByText("From Ana and Marcos · 12 files.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing of yours overlaps.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Get 3 versions" }));
+    expect(actions.getChanges).toHaveBeenCalledOnce();
+  });
+
+  it("offers to combine and to publish when both sides moved apart", async () => {
+    const { actions } = card(
+      tree([]),
+      teamSync({ state: "diverged", ahead: 1, behind: 2, forecast: { ...forecast, integration: "merge", localCount: 1, incomingCount: 2 } }),
+      1,
+    );
+    expect(screen.getByRole("heading", { name: "origin has 2 new versions and you have 1 unpublished" })).toBeInTheDocument();
+    expect(screen.getByText("They don't overlap: they can be combined.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Get and combine" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Get and publish" }));
+    expect(actions.getAndPublish).toHaveBeenCalledOnce();
+  });
+
+  it("names the overlapping file and offers only to look", async () => {
+    const { actions, container } = card(
+      tree([]),
+      teamSync({
+        state: "diverged", ahead: 1, behind: 2,
+        forecast: { ...forecast, outcome: "overlap", overlaps: [{ path: "src/auth.ts", side: "saved" }], overlapCount: 2 },
+      }),
+      1,
+    );
+    expect(container.querySelector(".next-step")).toHaveClass("next-step--blocked");
+    expect(screen.getByRole("heading", { name: "Your changes and origin's overlap" })).toBeInTheDocument();
+    expect(screen.getByText(/src\/auth\.ts changes the same lines on both sides \(and 1 more\)/)).toBeInTheDocument();
+    expect(container.querySelectorAll(".primary-button")).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "See what overlaps" }));
+    expect(actions.explainIncoming).toHaveBeenCalledOnce();
+  });
+
+  it("lets unsaved work and a safe update sit side by side", () => {
+    card(tree([entry("a.ts")]), teamSync({ state: "behind", behind: 3, forecast }));
+    expect(screen.getByText("3 new versions on origin don't touch your files.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Get 3 versions" })).toHaveClass("secondary-button");
+    expect(screen.getByRole("button", { name: "Save version" })).toHaveClass("primary-button");
   });
 });

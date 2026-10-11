@@ -1,173 +1,74 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
-  Check,
   ChevronDown,
   CircleAlert,
-  FileArchive,
-  FileMinus,
-  FilePenLine,
-  FilePlus2,
-  GitBranch,
+  CloudUpload,
+  FileText,
+  FolderOpen,
+  GitMerge,
+  Layers,
+  LoaderCircle,
   Save,
   ShieldCheck,
+  TriangleAlert,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { isAppError, localizeAppError } from "../../shared/i18n";
-import { Dialog, DialogBanner, DialogFacts, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
+import { formatRelativeTime, isAppError, localizeAppError } from "../../shared/i18n";
+import {
+  Dialog,
+  DialogBanner,
+  DialogFacts,
+  LoadingBar,
+  autoHideScrollbarProps,
+  useModalFocus,
+  useToast,
+  type DialogFact,
+} from "../../shared/ui";
 import type { SyncController } from "./controller";
+import { forecastBlockerCopy } from "./forecastCopy";
 import type {
   GetTeamChangesPhase,
   GetTeamChangesPlan,
   GetTeamChangesResult,
-  IncomingFileCategory,
+  TeamSyncStatus,
 } from "./domain";
 
+/** What the person asked for: the versions on the remote, or to publish their
+ * own when the remote has moved on first (the get comes before the publish
+ * in the same confirmation). */
+export type GetTeamIntent = "get" | "getAndPublish";
+
+/** What a publish after the get reports back, for the closing toast. */
+export type PublishAfterGet = { publishedCount: number; remote: string };
+
+type ExecutingPhase = GetTeamChangesPhase | "publishing";
+
 type DialogState =
-  | { status: "planning"; phase: GetTeamChangesPhase }
+  | { status: "planning" }
   | { status: "blocked"; error: unknown }
-  | { status: "ready"; plan: GetTeamChangesPlan }
-  | { status: "executing"; plan: GetTeamChangesPlan; phase: GetTeamChangesPhase }
-  | { status: "success"; result: GetTeamChangesResult }
+  | { status: "ready"; plan: GetTeamChangesPlan; remoteMoved: boolean }
+  | { status: "executing"; plan: GetTeamChangesPlan; phase: ExecutingPhase }
   | { status: "uncertain"; result: GetTeamChangesResult }
-  | { status: "execution-error"; plan: GetTeamChangesPlan; error: unknown };
+  | { status: "execution-error"; plan: GetTeamChangesPlan; error: unknown }
+  | { status: "publish-error"; plan: GetTeamChangesPlan; result: GetTeamChangesResult; error: unknown };
 
-function categoryIcon(category: IncomingFileCategory): React.JSX.Element {
-  switch (category) {
-    case "added": return <FilePlus2 />;
-    case "deleted": return <FileMinus />;
-    case "renamed": return <FileArchive />;
-    case "modified": return <FilePenLine />;
-  }
-}
-
-/* Five phases on the wire, three steps on screen: the reader needs to know
-   the remote is being read, a recovery point is being kept and files are
-   changing — not which internal check runs in between. */
-const STEPS: { phases: GetTeamChangesPhase[] }[] = [
-  { phases: ["checkingTeam", "checkingLocalSafety"] },
-  { phases: ["creatingRecovery"] },
-  { phases: ["updatingFilesAndHistory", "verifying"] },
-];
-
-function PhaseProgress({ phase }: { phase: GetTeamChangesPhase }): React.JSX.Element {
-  const { t } = useLanguage();
-  const labels = [t.getTeamPhaseTeam, t.getTeamPhaseRecovery, t.getTeamPhaseUpdating];
-  const current = STEPS.findIndex((step) => step.phases.includes(phase));
-  return (
-    <ol
-      className="app-dialog__steps"
-      aria-label={t.getTeamProgressLabel}
-      aria-live="polite"
-      aria-atomic="false"
-    >
-      {STEPS.map((_, index) => {
-        const complete = index < current;
-        const active = index === current;
-        return (
-          <li
-            key={index}
-            className={`app-dialog__step${active ? " app-dialog__step--active" : complete ? " app-dialog__step--done" : ""}`}
-            aria-current={active ? "step" : undefined}
-          >
-            <span className="app-dialog__step-dot" aria-hidden="true">{complete && <Check />}</span>
-            {labels[index]}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function PlanContent({ plan }: { plan: GetTeamChangesPlan }): React.JSX.Element {
-  const { t } = useLanguage();
-  return (
-    <div className="get-team-plan">
-      <div className="get-team-plan__lead">
-        <section aria-labelledby="get-team-versions-title">
-          <h3 id="get-team-versions-title">{t.getTeamIncomingVersions(plan.incomingCount)}</h3>
-          <ul
-            {...autoHideScrollbarProps<HTMLUListElement>()}
-            className="get-team-version-list auto-hide-scrollbar"
-          >
-            {plan.incomingVersions.map((version) => (
-              <li key={version.commit}>
-                <span>{version.title}</span>
-                {version.author && <small>{version.author}</small>}
-                <code>{version.shortCommit}</code>
-              </li>
-            ))}
-          </ul>
-          {plan.versionsTruncated && (
-            <p className="get-team-plan__bounded-note">{t.getTeamVersionsTruncated(plan.incomingVersions.length, plan.incomingCount)}</p>
-          )}
-        </section>
-
-        <section aria-labelledby="get-team-files-title">
-          <h3 id="get-team-files-title">{t.getTeamAffectedFiles(plan.fileImpact.totalCount)}</h3>
-          <ul
-            {...autoHideScrollbarProps<HTMLUListElement>()}
-            className="get-team-file-list auto-hide-scrollbar"
-          >
-            {plan.fileImpact.files.map((file) => (
-              <li key={`${file.originalPath ?? ""}\0${file.path}`}>
-                <span className="get-team-file-list__icon" aria-hidden="true">{categoryIcon(file.category)}</span>
-                <span className="get-team-file-list__path">
-                  {file.originalPath ? <><s>{file.originalPath}</s><span>{file.path}</span></> : file.path}
-                </span>
-                <span className="get-team-file-list__kind">
-                  {file.binary ? t.getTeamBinaryFile : t.getTeamFileCategory[file.category]}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {plan.fileImpact.isTruncated && (
-            <p className="get-team-plan__bounded-note">{t.getTeamFilesTruncated(plan.fileImpact.files.length, plan.fileImpact.totalCount)}</p>
-          )}
-        </section>
-      </div>
-
-      {/* Two lines, not a grid of cards: what happens to the line, and what
-          stays safe. The mechanism is in the technical details. */}
-      <DialogFacts
-        facts={[
-          { icon: <GitBranch />, text: t.getTeamLineCatchesUp(plan.branch) },
-          { icon: <ShieldCheck />, text: t.getTeamRecoveryFirst, safe: true },
-        ]}
-      />
-
-      <details className="get-team-technical">
-        <summary><ChevronDown aria-hidden="true" />{t.syncTechnicalDetails}</summary>
-        <dl>
-          <div><dt>{t.getTeamOperationKind}</dt><dd>{plan.operationKind}</dd></div>
-          <div><dt>{t.syncRemote}</dt><dd>{plan.target.remote}</dd></div>
-          <div><dt>{t.syncDestination}</dt><dd>{plan.target.destinationBranch}</dd></div>
-          <div><dt>{t.syncTrackingRef}</dt><dd>{plan.trackingRef}</dd></div>
-          <div><dt>{t.syncLocalCommit}</dt><dd>{plan.localCommit}</dd></div>
-          <div><dt>{t.syncRemoteCommit}</dt><dd>{plan.remoteCommit}</dd></div>
-          <div><dt>{t.getTeamRecoveryReference}</dt><dd>{plan.recovery.reference}</dd></div>
-          <div><dt>{t.getTeamStateToken}</dt><dd>{plan.stateToken}</dd></div>
-        </dl>
-        <p>{t.getTeamTechnicalGuarantees}</p>
-      </details>
-    </div>
-  );
-}
-
+/** Errors a retry cannot change; the dialog only offers to close. */
 function deterministicBlock(error: unknown): boolean {
   return isAppError(error) && [
-    "diverged_histories",
     "nothing_to_get",
     "remote_ref_missing",
     "invalid_remote_configuration",
     "detached_head",
     "unborn_branch_no_version",
-    "dirty_working_tree",
-    "incoming_tracked_change_collision",
-    "incoming_path_collision",
     "git_operation_in_progress",
+    "no_remote_configured",
   ].includes(error.code);
+}
+
+function shortCommit(commit: string): string {
+  return commit.slice(0, 12);
 }
 
 export function GetTeamChangesDialog({
@@ -175,32 +76,57 @@ export function GetTeamChangesDialog({
   controller,
   projectPath,
   sessionEpoch,
+  intent = "get",
+  runHooks,
+  canPublish = false,
+  refreshRemote = null,
   onClose,
   onApplied,
   onPhaseChange,
   onSaveVersion,
+  onRevealFile,
+  onPublishAfter,
 }: {
   isOpen: boolean;
   controller: SyncController;
   projectPath: string;
   sessionEpoch: string;
+  intent?: GetTeamIntent;
+  /** The Settings switch: whether the project's merge hooks run. */
+  runHooks: boolean;
+  /** Publishing is possible from here, so a merge can offer to publish too. */
+  canPublish?: boolean;
+  /** Given when the last check of the remote is old: the dialog opens on
+   * what it already knows and asks the remote in the background, re-planning
+   * in place if something newer arrived. */
+  refreshRemote?: (() => Promise<TeamSyncStatus | null>) | null;
   onClose: () => void;
   onApplied: (result: GetTeamChangesResult) => Promise<void>;
   onPhaseChange: (phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success") => void;
-  /** Offered when unsaved work collides with what is coming in: saving it is
-   * the way through, so the dialog hands over to Save version. */
+  /** Offered when local work has to be saved before the update can carry it:
+   * the dialog hands over to Save version. */
   onSaveVersion?: () => void;
+  /** Offered when an untracked file of the person's is in the way. */
+  onRevealFile?: (path: string) => void;
+  /** Publishes after a successful get (Get and publish). */
+  onPublishAfter?: () => Promise<PublishAfterGet>;
 }): React.JSX.Element | null {
-  const { t } = useLanguage();
+  const { t, formats } = useLanguage();
   const showToast = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   const phaseRef = useRef(onPhaseChange);
   const busyRef = useRef(false);
+  const stateRef = useRef<DialogState>({ status: "planning" });
+  const [state, setStateValue] = useState<DialogState>({ status: "planning" });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
-  const [state, setState] = useState<DialogState>({ status: "planning", phase: "checkingTeam" });
   closeRef.current = onClose;
   phaseRef.current = onPhaseChange;
+  const setState = useCallback((next: DialogState) => {
+    stateRef.current = next;
+    setStateValue(next);
+  }, []);
 
   const setOpen = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((next) => {
     const value = typeof next === "function" ? next(true) : next;
@@ -208,31 +134,69 @@ export function GetTeamChangesDialog({
   }, []);
   useModalFocus(isOpen, dialogRef, setOpen);
 
+  const query = { projectId: projectPath, sessionEpoch };
+  const plan = useCallback(
+    (remoteMoved: boolean): Promise<void> =>
+      controller.planGet({ projectId: projectPath, sessionEpoch }).then(
+        (next) => setState({ status: "ready", plan: next, remoteMoved }),
+        (error: unknown) => {
+          setState({ status: "blocked", error });
+          phaseRef.current("error");
+        },
+      ),
+    [controller, projectPath, sessionEpoch, setState],
+  );
+
+  // The plan is local, so the dialog opens on it at once.
   useEffect(() => {
     if (!isOpen) return undefined;
     let cancelled = false;
     phaseRef.current("planning");
-    setState({ status: "planning", phase: "checkingTeam" });
-    controller.planGet(
-      { projectId: projectPath, sessionEpoch },
-      (phase) => !cancelled && setState({ status: "planning", phase }),
-    ).then((plan) => {
-      if (!cancelled) setState({ status: "ready", plan });
-    }).catch((error: unknown) => {
-      if (!cancelled) {
+    setState({ status: "planning" });
+    controller.planGet({ projectId: projectPath, sessionEpoch }).then(
+      (next) => {
+        if (!cancelled) setState({ status: "ready", plan: next, remoteMoved: false });
+      },
+      (error: unknown) => {
+        if (cancelled) return;
         setState({ status: "blocked", error });
         phaseRef.current("error");
-      }
-    });
+      },
+    );
     return () => { cancelled = true; };
-  }, [controller, isOpen, projectPath, retryToken, sessionEpoch]);
+  }, [controller, isOpen, projectPath, retryToken, sessionEpoch, setState]);
+
+  // One background check when the last one is old. If the remote moved, the
+  // summary is planned again in place and says so; once an update is under
+  // way the check changes nothing here (execution revalidates on its own).
+  const refreshRef = useRef(refreshRemote);
+  refreshRef.current = refreshRemote;
+  useEffect(() => {
+    const refresh = refreshRef.current;
+    if (!isOpen || !refresh) return undefined;
+    let cancelled = false;
+    setIsRefreshing(true);
+    refresh()
+      .then((status) => {
+        if (cancelled || !status) return;
+        const current = stateRef.current;
+        const shown = current.status === "ready" ? current.plan.remoteCommit : null;
+        const stillWaiting = current.status === "planning" || current.status === "blocked";
+        if ((shown !== null && status.remoteCommit !== shown) || stillWaiting) {
+          return plan(shown !== null);
+        }
+        return undefined;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setIsRefreshing(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen, plan]);
 
   if (!isOpen) return null;
   const isBusy = state.status === "executing";
   busyRef.current = isBusy;
-  const plan = "plan" in state ? state.plan : null;
-  const canRetryBlocked = state.status === "blocked" && !deterministicBlock(state.error);
-
   const requestClose = (): void => {
     if (!isBusy) onClose();
   };
@@ -240,17 +204,36 @@ export function GetTeamChangesDialog({
     phaseRef.current("planning");
     setRetryToken((value) => value + 1);
   };
-  const execute = (): void => {
-    if (!plan) return;
+
+  const publishAfter = (current: GetTeamChangesPlan, result: GetTeamChangesResult): void => {
+    if (!onPublishAfter) return;
+    setState({ status: "executing", plan: current, phase: "publishing" });
     phaseRef.current("executing");
-    setState({ status: "executing", plan, phase: "checkingTeam" });
+    onPublishAfter()
+      .then((published) => {
+        phaseRef.current("success");
+        showToast({
+          icon: <CloudUpload />,
+          message: t.getTeamPublishedToast(result.receivedCount, published.publishedCount, published.remote),
+        });
+        closeRef.current();
+      })
+      .catch((error: unknown) => {
+        setState({ status: "publish-error", plan: current, result, error });
+        phaseRef.current("error");
+      });
+  };
+
+  const execute = (current: GetTeamChangesPlan, thenPublish: boolean): void => {
+    phaseRef.current("executing");
+    setState({ status: "executing", plan: current, phase: "checkingLocalSafety" });
     controller.get({
-      projectId: projectPath,
-      sessionEpoch,
-      stateToken: plan.stateToken,
-      recoveryReference: plan.recovery.reference,
+      ...query,
+      stateToken: current.stateToken,
+      recoveryReference: current.recovery.reference,
+      runHooks,
       onProgress: (phase) => {
-        setState({ status: "executing", plan, phase });
+        setState({ status: "executing", plan: current, phase });
         phaseRef.current(phase === "verifying" ? "verifying" : "executing");
       },
     }).then(async (result) => {
@@ -260,91 +243,166 @@ export function GetTeamChangesDialog({
         return;
       }
       await onApplied(result);
-      setState({ status: "success", result });
+      if (thenPublish && onPublishAfter) {
+        publishAfter(current, result);
+        return;
+      }
       phaseRef.current("success");
       // Nothing left to decide, so the result is a toast rather than a screen
-      // to dismiss. The recovery point is still kept, as before.
-      showToast({ icon: <ArrowDownToLine />, message: t.getTeamSuccessToast(result.receivedCount) });
+      // to dismiss. The recovery point is still kept.
+      showToast({
+        icon: result.integration === "merge" ? <GitMerge /> : <ArrowDownToLine />,
+        message: result.integration === "merge"
+          ? t.getTeamMergedToast(result.receivedCount)
+          : t.getTeamSuccessToast(result.receivedCount),
+      });
       closeRef.current();
     }).catch((error: unknown) => {
-      setState({ status: "execution-error", plan, error });
+      // The project or its remote moved after the summary was read: show the
+      // new summary instead of an error to dismiss.
+      if (isAppError(error) && error.code === "stale_get_team_changes_plan") {
+        phaseRef.current("planning");
+        void plan(true);
+        return;
+      }
+      setState({ status: "execution-error", plan: current, error });
       phaseRef.current("error");
     });
   };
 
-  const currentPhase = state.status === "planning" || state.status === "executing" ? state.phase : null;
-  const blockedCode = state.status === "blocked" && isAppError(state.error) ? state.error.code : null;
-  const isDiverged = blockedCode === "diverged_histories";
-  // Unsaved work in the way is lifted by saving it. A local file the update
-  // would overwrite is not (it has to be moved), so it keeps its own message.
-  const isCollision = blockedCode === "incoming_tracked_change_collision" || blockedCode === "dirty_working_tree";
-
-  // A blocked or uncertain result is a short message, not a plan: the small
-  // shell, a status glyph, one sentence and the way out.
-  if (state.status === "blocked" || state.status === "uncertain") {
-    const title = state.status === "uncertain"
-      ? t.getTeamUncertainTitle
-      : isDiverged ? t.getTeamDivergedTitle : isCollision ? t.getTeamSaveFirstTitle : t.getTeamBlockedTitle;
+  if (state.status === "blocked") {
     return (
-      <Dialog
-        size="s"
-        role="alertdialog"
-        title={title}
-        titleId="get-team-dialog-title"
-        descriptionId="get-team-dialog-description"
-        icon={<CircleAlert />}
-        tone={isDiverged ? "danger" : "warning"}
+      <AlertDialog
+        tone="warning"
+        title={t.getTeamBlockedTitle}
+        body={localizeAppError(state.error, t, t.errorGitCommandFailed)}
         onClose={requestClose}
-        closeLabel={t.commonClose}
         dialogRef={dialogRef}
-      >
-        <p className="app-dialog__text" id="get-team-dialog-description">
-          {state.status === "uncertain"
-            ? t.getTeamUncertainInstructions
-            : isDiverged
-              ? t.getTeamDivergedNoRetry
-              : isCollision
-                ? blockedCode === "dirty_working_tree" ? t.getTeamDirtyBody : t.getTeamSaveFirstBody
-                : localizeAppError(state.error, t, t.errorGitCommandFailed)}
-        </p>
-        {state.status === "uncertain" && (
+        actions={deterministicBlock(state.error) ? (
+          <button className="primary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+        ) : (
+          <>
+            <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+            <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
+          </>
+        )}
+      />
+    );
+  }
+
+  if (state.status === "uncertain") {
+    return (
+      <AlertDialog
+        tone="warning"
+        title={t.getTeamUncertainTitle}
+        body={t.getTeamUncertainInstructions}
+        onClose={requestClose}
+        dialogRef={dialogRef}
+        details={
           <details className="app-dialog__details">
             <summary>{t.syncTechnicalDetails}</summary>
             <pre>
               {`${t.getTeamRecoveryReference}: ${state.result.recovery.reference}`}
+              {state.result.recovery.unsavedReference
+                ? `\n${t.getTeamUnsavedCopy}: ${state.result.recovery.unsavedReference}`
+                : ""}
               {state.result.observedHead ? `\n${t.getTeamObservedHead}: ${state.result.observedHead}` : ""}
             </pre>
           </details>
-        )}
-        <div className="dialog-actions">
-          {isCollision && onSaveVersion ? (
-            <>
-              <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
-              <button className="primary-button" type="button" onClick={onSaveVersion}>
-                <Save aria-hidden="true" />{t.getTeamSaveVersion}
-              </button>
-            </>
-          ) : canRetryBlocked ? (
-            <>
-              <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
-              <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
-            </>
-          ) : (
-            <button className="primary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
-          )}
-        </div>
-      </Dialog>
+        }
+        actions={<button className="primary-button" type="button" onClick={requestClose}>{t.commonClose}</button>}
+      />
     );
   }
 
+  if (state.status === "ready" && state.plan.forecast.outcome === "overlap") {
+    const { forecast, target } = state.plan;
+    const hidden = forecast.overlapCount - forecast.overlaps.length;
+    return (
+      <AlertDialog
+        tone="danger"
+        icon={<TriangleAlert />}
+        title={t.getTeamOverlapTitle(target.remote)}
+        body={t.getTeamOverlapBody}
+        onClose={requestClose}
+        dialogRef={dialogRef}
+        details={
+          <>
+            <ul className="get-team-overlaps" aria-label={t.getTeamOverlapTitle(target.remote)}>
+              {forecast.overlaps.map((overlap) => (
+                <li key={overlap.path}>
+                  <FileText aria-hidden="true" />
+                  <span className="get-team-overlaps__path">{overlap.path}</span>
+                  <small>{t.getTeamOverlapSide[overlap.side]}</small>
+                </li>
+              ))}
+            </ul>
+            {hidden > 0 && <p className="get-team-plan__bounded-note">{t.getTeamOverlapMore(hidden)}</p>}
+            <p className="app-dialog__text">{t.getTeamSafeNothingChanged}</p>
+          </>
+        }
+        actions={<button className="primary-button" type="button" onClick={requestClose}>{t.commonClose}</button>}
+      />
+    );
+  }
+
+  if (state.status === "ready" && state.plan.forecast.outcome === "blocked" && state.plan.forecast.blocker) {
+    const copy = forecastBlockerCopy(state.plan.forecast.blocker, state.plan.target.remote, t);
+    const path = state.plan.forecast.blocker.path;
+    return (
+      <AlertDialog
+        tone="warning"
+        title={copy.title}
+        body={copy.body}
+        onClose={requestClose}
+        dialogRef={dialogRef}
+        actions={
+          <>
+            <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+            {copy.action === "save" && onSaveVersion ? (
+              <button className="primary-button" type="button" onClick={onSaveVersion}>
+                <Save aria-hidden="true" />{t.getTeamSaveVersion}
+              </button>
+            ) : copy.action === "reveal" && onRevealFile && path ? (
+              <button className="primary-button" type="button" onClick={() => onRevealFile(path)}>
+                <FolderOpen aria-hidden="true" />{t.getTeamShowInFolder}
+              </button>
+            ) : null}
+          </>
+        }
+      />
+    );
+  }
+
+  const current = state.status === "planning" ? null : state.plan;
+  const isMerge = current?.integration === "merge";
+  // Publishing after the get only means something when there is saved work
+  // of the person's to publish.
+  const publishes = intent === "getAndPublish" && Boolean(onPublishAfter) && (current?.localCount ?? 0) > 0;
+  const remote = current?.target.remote ?? "";
+  const from = current ? t.getTeamFrom(current.forecast.authors, current.forecast.authorCount) : "";
+  const title = !current
+    ? t.getTeamDialogTitle
+    : publishes
+      ? t.getTeamTitlePublish(current.localCount, remote)
+      : isMerge
+        ? t.getTeamTitleMerge(current.incomingCount, current.localCount)
+        : t.getTeamTitleFastForward(current.incomingCount, remote);
+  const subtitle = !current
+    ? null
+    : publishes
+      ? t.getTeamBeforePublish(current.incomingCount, from)
+      : [from, t.getTeamFileCount(current.forecast.incomingFileCount)].filter(Boolean).join(" · ");
+  const phaseLabel = state.status === "executing" ? t.getTeamPhase[state.phase] : null;
+
   return (
     <Dialog
-      size="l"
-      title={t.getTeamDialogTitle}
+      size="m"
+      title={title}
       titleId="get-team-dialog-title"
-      subtitle={<span id="get-team-dialog-description">{t.getTeamDialogDescription}</span>}
-      descriptionId="get-team-dialog-description"
-      icon={<ArrowDownToLine />}
+      subtitle={subtitle ? <span id="get-team-dialog-description">{subtitle}</span> : undefined}
+      descriptionId={subtitle ? "get-team-dialog-description" : undefined}
+      icon={publishes ? <CloudUpload /> : isMerge ? <GitMerge /> : <ArrowDownToLine />}
       onClose={requestClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
@@ -352,9 +410,17 @@ export function GetTeamChangesDialog({
       className="get-team-dialog auto-hide-scrollbar"
       bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
     >
-      {currentPhase && <PhaseProgress phase={currentPhase} />}
+      {!current ? (
+        <LoadingBar label={t.getTeamProgressLabel} />
+      ) : (
+        <PlanContent plan={current} publishes={publishes} formatsNow={Date.now()} formats={formats} />
+      )}
 
-      {plan && state.status !== "success" && <PlanContent plan={plan} />}
+      {state.status === "ready" && state.remoteMoved && (
+        <DialogBanner tone="info" icon={<CircleAlert />} role="status">
+          <p>{t.getTeamRemoteMoved}</p>
+        </DialogBanner>
+      )}
 
       {state.status === "execution-error" && (
         <DialogBanner tone="danger" icon={<CircleAlert />}>
@@ -362,17 +428,176 @@ export function GetTeamChangesDialog({
         </DialogBanner>
       )}
 
-      <div className="dialog-actions">
-        <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>{t.commonCancel}</button>
-        {state.status === "ready" && (
-          <button className="primary-button" type="button" onClick={execute}>
-            <ArrowDownToLine aria-hidden="true" />{t.getTeamConfirm}
+      {state.status === "publish-error" && (
+        <DialogBanner tone="danger" icon={<CircleAlert />}>
+          <p role="alert">{t.getTeamPublishFailed}</p>
+          <p>{localizeAppError(state.error, t, t.errorGitCommandFailed)}</p>
+        </DialogBanner>
+      )}
+
+      <div className="app-dialog__foot">
+        {phaseLabel ? (
+          <LoadingBar label={phaseLabel} showLabel />
+        ) : isRefreshing && current && state.status === "ready" ? (
+          <p className="app-dialog__note get-team-refreshing" role="status">
+            <LoaderCircle aria-hidden="true" className="icon--spinning" />
+            {t.getTeamCheckingRemote(remote)}
+          </p>
+        ) : null}
+        <div className="dialog-actions">
+          <button className="secondary-button" type="button" onClick={requestClose} disabled={isBusy}>
+            {state.status === "publish-error" ? t.commonClose : t.commonCancel}
           </button>
-        )}
-        {state.status === "execution-error" && (
-          <button className="primary-button" type="button" onClick={replan}>{t.getTeamReviewUpdatedPlan}</button>
-        )}
+          {state.status === "ready" && isMerge && !publishes && canPublish && onPublishAfter && (
+            <button className="secondary-button" type="button" onClick={() => execute(state.plan, true)}>
+              <CloudUpload aria-hidden="true" />{t.getTeamAlsoPublish}
+            </button>
+          )}
+          {state.status === "ready" && (
+            <button className="primary-button" type="button" onClick={() => execute(state.plan, publishes)}>
+              {publishes ? <CloudUpload aria-hidden="true" /> : isMerge ? <GitMerge aria-hidden="true" /> : <ArrowDownToLine aria-hidden="true" />}
+              {publishes ? t.getTeamConfirmPublish : isMerge ? t.getTeamConfirmMerge : t.getTeamConfirmFastForward}
+            </button>
+          )}
+          {(state.status === "planning" || state.status === "executing") && (
+            <button className="primary-button" type="button" disabled>
+              <LoaderCircle aria-hidden="true" className="icon--spinning" />{t.getTeamWorking}
+            </button>
+          )}
+          {state.status === "execution-error" && (
+            <button className="primary-button" type="button" onClick={replan}>{t.getTeamReviewUpdatedPlan}</button>
+          )}
+          {state.status === "publish-error" && (
+            <button className="primary-button" type="button" onClick={() => publishAfter(state.plan, state.result)}>
+              <CloudUpload aria-hidden="true" />{t.getTeamRetryPublish}
+            </button>
+          )}
+        </div>
       </div>
     </Dialog>
+  );
+}
+
+/** A short message instead of a plan: the small shell, a status glyph, the
+ * sentence and the way out. */
+function AlertDialog({
+  tone,
+  icon = <CircleAlert />,
+  title,
+  body,
+  details,
+  actions,
+  onClose,
+  dialogRef,
+}: {
+  tone: "warning" | "danger";
+  icon?: React.ReactNode;
+  title: string;
+  body: string;
+  details?: React.ReactNode;
+  actions: React.ReactNode;
+  onClose: () => void;
+  dialogRef: React.RefObject<HTMLDivElement | null>;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  return (
+    <Dialog
+      size="s"
+      role="alertdialog"
+      title={title}
+      titleId="get-team-dialog-title"
+      descriptionId="get-team-dialog-description"
+      icon={icon}
+      tone={tone}
+      onClose={onClose}
+      closeLabel={t.commonClose}
+      dialogRef={dialogRef}
+    >
+      <p className="app-dialog__text" id="get-team-dialog-description">{body}</p>
+      {details}
+      <div className="dialog-actions">{actions}</div>
+    </Dialog>
+  );
+}
+
+function PlanContent({
+  plan,
+  publishes,
+  formats,
+  formatsNow,
+}: {
+  plan: GetTeamChangesPlan;
+  publishes: boolean;
+  formats: ReturnType<typeof useLanguage>["formats"];
+  formatsNow: number;
+}): React.JSX.Element {
+  const { t } = useLanguage();
+  const { forecast } = plan;
+  const facts: DialogFact[] = [
+    {
+      icon: <ShieldCheck />,
+      text: forecast.carriedUnsavedCount > 0
+        ? `${t.getTeamNothingOverlaps} ${t.getTeamCarried(forecast.carriedUnsavedCount)}`
+        : t.getTeamNothingOverlaps,
+      safe: true,
+    },
+  ];
+  if (forecast.combinedUnsavedCount > 0) {
+    facts.push({
+      icon: <Layers />,
+      text: t.getTeamCombined(forecast.combinedUnsaved, forecast.combinedUnsavedCount),
+      safe: true,
+    });
+  }
+  if (plan.integration === "merge") {
+    facts.push({ icon: <GitMerge />, text: t.getTeamMergeFact(plan.localCount) });
+  }
+  if (publishes) {
+    facts.push({ icon: <CloudUpload />, text: t.getTeamPublishFact(plan.localCount, plan.target.remote) });
+  }
+  facts.push({ icon: <ShieldCheck />, text: t.getTeamRecoveryFirst, safe: true });
+
+  return (
+    <div className="get-team-plan">
+      <DialogFacts facts={facts} />
+
+      <details className="get-team-disclosure">
+        <summary><ChevronDown aria-hidden="true" />{t.getTeamWhatComesIn}</summary>
+        <ul
+          {...autoHideScrollbarProps<HTMLUListElement>()}
+          className="get-team-version-list auto-hide-scrollbar"
+        >
+          {plan.incomingVersions.map((version) => (
+            <li key={version.commit}>
+              <span>{version.title}</span>
+              <small>
+                {t.getTeamVersionMeta(
+                  version.author,
+                  formatRelativeTime(new Date(version.committedAt), formats, formatsNow),
+                  version.fileCount,
+                )}
+              </small>
+            </li>
+          ))}
+        </ul>
+        {plan.versionsTruncated && (
+          <p className="get-team-plan__bounded-note">
+            {t.getTeamVersionsTruncated(plan.incomingVersions.length, plan.incomingCount)}
+          </p>
+        )}
+      </details>
+
+      <details className="get-team-disclosure get-team-technical">
+        <summary><ChevronDown aria-hidden="true" />{t.syncTechnicalDetails}</summary>
+        <dl>
+          <div><dt>{t.getTeamIntegration}</dt><dd>{t.getTeamIntegrationKind[plan.integration]}</dd></div>
+          <div><dt>{t.syncTrackingRef}</dt><dd>{plan.trackingRef}</dd></div>
+          <div><dt>{t.syncLocalCommit}</dt><dd>{shortCommit(plan.localCommit)}</dd></div>
+          <div><dt>{t.syncRemoteCommit}</dt><dd>{shortCommit(plan.remoteCommit)}</dd></div>
+          {plan.mergeMessage && <div><dt>{t.getTeamMergeMessage}</dt><dd>{plan.mergeMessage}</dd></div>}
+          <div><dt>{t.getTeamRecoveryReference}</dt><dd>{plan.recovery.reference}</dd></div>
+        </dl>
+      </details>
+    </div>
   );
 }

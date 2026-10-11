@@ -197,6 +197,7 @@ export function OverviewPanel({
   teamSync,
   onCheckTeamChanges,
   onReviewAndGetTeamChanges,
+  onGetAndPublish,
   historyController,
   workDetail,
   onRestoreDiscarded,
@@ -280,6 +281,9 @@ export function OverviewPanel({
   teamSync: TeamSyncViewState;
   onCheckTeamChanges: () => void;
   onReviewAndGetTeamChanges: () => void;
+  /** Gets the remote's versions, combines them and publishes, in one
+   * confirmation. */
+  onGetAndPublish: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
   historyController: HistoryController;
@@ -324,6 +328,8 @@ export function OverviewPanel({
       checkLocal: onCheckLocalChanges,
       openSettings: onOpenProjectSettings,
       openLines: onGoToVersionLines,
+      explainIncoming: onReviewAndGetTeamChanges,
+      getAndPublish: onGetAndPublish,
     };
     // Versions waiting on the remote lead the timeline, above "now", which is
     // where they stand in time.

@@ -28,6 +28,7 @@ const status = (knowledge: "cached" | "fresh", ahead = 0): TeamSyncStatus => ({
   warnings: [],
   nextActions: ahead ? ["publishChanges"] : ["checkAgain"],
   stateToken: `token-${ahead}`,
+  forecast: null,
 });
 
 const readPort = (implementation: Pick<SyncPort, "readLocal" | "check">): SyncPort => ({

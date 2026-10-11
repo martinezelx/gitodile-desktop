@@ -8,12 +8,9 @@ export const syncPort: SyncPort = {
     invoke("read_team_sync_status", { path, sessionEpoch }),
   check: ({ projectId: path, sessionEpoch }) =>
     invoke("check_team_changes", { path, sessionEpoch }),
-  planGet: ({ projectId: path, sessionEpoch }, onProgress) => {
-    const channel = new Channel<GetTeamChangesPhase>();
-    channel.onmessage = onProgress;
-    return invoke("plan_get_team_changes", { path, sessionEpoch, onProgress: channel });
-  },
-  get: ({ projectId: path, sessionEpoch, stateToken, recoveryReference, onProgress }) => {
+  planGet: ({ projectId: path, sessionEpoch }) =>
+    invoke("plan_get_team_changes", { path, sessionEpoch }),
+  get: ({ projectId: path, sessionEpoch, stateToken, recoveryReference, runHooks, onProgress }) => {
     const channel = new Channel<GetTeamChangesPhase>();
     channel.onmessage = onProgress;
     return invoke("get_team_changes", {
@@ -21,6 +18,7 @@ export const syncPort: SyncPort = {
       sessionEpoch,
       stateToken,
       recoveryReference,
+      runHooks,
       onProgress: channel,
     });
   },

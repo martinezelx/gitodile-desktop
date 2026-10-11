@@ -554,42 +554,64 @@ same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
 activation, screen visibility, watchers, and cache warming never call the
 network command.
 
-Get-team-changes extends that single sync domain. Planning and execution each
-fetch the exact configured upstream under one exclusive `commonGitDir` permit,
-then require a named branch that is strictly behind with zero local-ahead
-commits. The plan token binds repository identity, session epoch, branch,
-local and remote commits, upstream destination/tracking ref, planned recovery
-ref, and the complete porcelain-v2 local-safety snapshot. Incoming versions
-are capped at 25 and file evidence at 100 while retaining authoritative totals
-and truncation flags. Untracked and ignored paths are compared by complete path
-components against added, modified, deleted, and renamed paths; when bounded
-evidence cannot prove safety, the operation blocks.
+Get-team-changes extends that single sync domain
+([ADR 0030](adr/0030-forecast-and-combine-project-changes.md)). One local
+analysis serves three callers: the `forecast` every team-sync read carries for
+a line that is behind or diverged, the plan, and the execution that
+revalidates it. The analysis never changes files, the index or refs. It
+predicts a combination with `git merge-tree --write-tree` (diverged lines) or
+takes the remote tree (behind lines), lists every path that changes towards
+that tree, and compares local work with all of them; only what crosses IPC is
+capped (25 versions, 100 files, 20 forecast paths, with exact totals).
+Untracked and ignored paths are compared by complete path components, and a
+collision blocks. A prepared change to an incoming path blocks. An unsaved,
+unstaged edit to a regular file the remote edits in place is combined line by
+line with `merge-tree --merge-base=HEAD`, using a temporary index that holds
+the file's working content; any other unsaved overlap, or a saved one, is an
+overlap and is refused by name. Separate unsaved changes are carried; the plan
+and the execution also prove that with a dry-run two-tree update run against a
+copy of the index, so the question never takes `index.lock` beside other
+reads. The read model relies on the path comparison alone.
 
-Prepared and unsaved tracked changes use the same complete-path comparison,
-including both sides of local and incoming renames. Non-overlapping changes may
-continue only after a dry-run two-tree update proves Git can carry them. The
-state token also fingerprints the bytes of each changed tracked file or link,
-so an edit after preview makes the plan stale. The post-update verifier compares
-both that fingerprint and the exact porcelain-v2 tracked-change records from
-the reviewed snapshot, preserving staged and unstaged state instead of requiring
-a clean index. Truncated incoming-file evidence blocks whenever any local
-content would make non-overlap impossible to prove.
+The plan reads the remote as of the last check under a shared read permit and
+never fetches; the dialog checks the remote in the background only when this
+session's last check is older than a minute. The plan token binds repository
+identity, session epoch, branch, local and remote commits, upstream
+destination/tracking ref, planned recovery ref, the predicted trees and the
+complete porcelain-v2 local-safety snapshot, including a fingerprint of the
+bytes of every changed tracked file or link. Execution does not fetch either:
+it applies exactly the reviewed remote commit, and a moved tracking ref or
+changed local state makes the plan stale, which the dialog answers by
+re-planning in place.
 
-Execution repeats the fetch and validation, creates and verifies recovery,
-then runs the narrow two-tree update `git read-tree -u -m <old> <target>` and
-the compare-and-swap branch move
-`git update-ref refs/heads/<branch> <target> <old>`. It never calls `pull`,
-merge, rebase, reset, checkout, stash, force, or conflict resolution. A failure
-after recovery is conservatively returned as an uncertain local result with
-the observed `HEAD` and inspection instructions. The authoritative success
-snapshot is committed before exactly one coordinated local refresh; coalesced
-watcher invalidations never issue a fetch.
+Execution builds a merge version first when the line diverged: `commit-tree`
+from the predicted tree with the previous tip and the reviewed remote commit
+as parents, after the project's `pre-merge-commit`, `prepare-commit-msg` and
+`commit-msg` hooks run through `git hook run` against a temporary index of the
+merge result (skipped only when hooks are turned off in Settings), and with
+`commit.gpgSign` honoured. A hook, identity or signing failure changes nothing.
+It then creates and verifies recovery (with a snapshot of combined unsaved
+content), hands combined files back to their saved content, runs the narrow
+two-tree update `git read-tree -u -m <old> <new>` and the compare-and-swap
+branch move `git update-ref refs/heads/<branch> <new> <old>`, writes combined
+content back through Git's filters, and verifies HEAD, the carried
+porcelain-v2 records and bytes, the combined files, the recovery refs and the
+relation to the remote. It never calls `pull`, `merge`, rebase, reset, stash,
+force or conflict resolution. A failure after recovery is conservatively
+returned as an uncertain local result with the observed `HEAD`, the recovery
+refs and inspection instructions. The authoritative success snapshot is
+committed before exactly one coordinated local refresh; coalesced watcher
+invalidations never issue a fetch. When Publish meets a remote that moved on,
+the same dialog gets, combines and then plans and publishes in one
+confirmation.
 
 History-mutation recovery follows
 [ADR 0008](adr/0008-store-history-recovery-as-versioned-hidden-refs.md): the
 previous commit is protected by a create-only ref under
 `refs/gitodile/recovery/v1/get-team-changes/`, paired with versioned metadata
-in the common Git directory. The newest 20 complete records are retained per
+in the common Git directory. Combined unsaved content is kept as a snapshot
+commit under the sibling `get-team-changes-unsaved/` namespace, owned by the
+same record and removed with it. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
 

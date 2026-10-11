@@ -155,8 +155,9 @@ save a change, and verify the result in History.
    It first supports an externally started merge so its safety model can be
    proven independently.
 - **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
-   local-branch merge and non-fast-forward team integration. Clean results
-   complete normally; overlaps enter task 037's established session contract.
+   local-branch merge. Clean, non-fast-forward team integration shipped in
+   task 161 (ADR 0030); overlaps still enter task 037's established session
+   contract.
 
 Exit condition: both the clean and conflicting collaboration paths can finish
 without a terminal. Rebase and force push remain excluded.

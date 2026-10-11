@@ -235,6 +235,20 @@
   font-size: var(--text-body);
   line-height: var(--leading-normal);
 }
+/* Whether what waits on the remote gets in the way: the forecast in one line.
+   Only its glyph carries the status ink, so the card keeps one colour. */
+.next-step__note {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: var(--space-1) 0 0;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+}
+.next-step__note > span:first-child { display: grid; margin-top: 3px; color: var(--status-success); }
+.next-step__note svg { width: 14px; height: 14px; }
+.next-step__note--stopped > span:first-child { color: var(--status-danger); }
 /* What comes after this step, in a neutral pill: the card keeps one colour. */
 .next-step__then {
   width: fit-content;

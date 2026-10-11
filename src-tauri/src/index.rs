@@ -92,6 +92,79 @@ pub(crate) fn prepare_index(
     })
 }
 
+/// A temporary index loaded from `tree`, with the working-tree content of
+/// `worktree_paths` added on top through `git add`, so clean filters and line
+/// endings apply exactly as they would for a save. Neither the real index nor
+/// any file is touched. With no paths it is `tree` as an index: what a hook
+/// that reads the index must see for a commit GitOdile builds from a tree.
+pub(crate) fn prepare_tree_index(
+    path: &str,
+    tree: &str,
+    worktree_paths: &[String],
+) -> Result<PreparedIndex, AppError> {
+    let index_path = selection_index_path();
+    let index_value = index_path.to_string_lossy().to_string();
+    let envs = [("GIT_INDEX_FILE", index_value.as_str())];
+    // The guard exists before the first write, so every early return below
+    // still removes the file.
+    let mut prepared = PreparedIndex {
+        path: index_path,
+        tree: String::new(),
+    };
+    let output = run_git_with_env(path, ["read-tree", tree], &envs)
+        .map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+    if !worktree_paths.is_empty() {
+        let mut add_args = vec!["add".to_string(), "-A".to_string(), "--".to_string()];
+        add_args.extend(worktree_paths.iter().cloned());
+        let output =
+            run_git_with_env(path, &add_args, &envs).map_err(|_| index_unavailable_error())?;
+        if !output.status.success() {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git couldn't read your unsaved changes safely.",
+            )
+            .with_remediation("Check that the changed files are readable, then try again.")
+            .with_detail(truncate_detail(&stderr_text(&output))));
+        }
+    }
+    let output =
+        run_git_with_env(path, ["write-tree"], &envs).map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+    prepared.tree = git_stdout(&output);
+    Ok(prepared)
+}
+
+/// A temporary copy of the project's own index, for a Git command that would
+/// otherwise take `index.lock` only to answer a question
+/// (`read-tree --dry-run`). The real index is read once and never locked, so
+/// the question can't collide with another process refreshing it. A split
+/// index still resolves: Git finds `sharedindex.*` in the Git directory, not
+/// beside whichever index file it reads.
+pub(crate) fn copy_project_index(path: &str) -> Result<PreparedIndex, AppError> {
+    let output = run_git_with_env(path, ["rev-parse", "--git-path", "index"], &[])
+        .map_err(|_| index_unavailable_error())?;
+    if !output.status.success() {
+        return Err(index_unavailable_error().with_detail(truncate_detail(&stderr_text(&output))));
+    }
+    let real = PathBuf::from(git_stdout(&output));
+    let real = if real.is_absolute() {
+        real
+    } else {
+        std::path::Path::new(path).join(real)
+    };
+    let copy = PreparedIndex {
+        path: selection_index_path(),
+        tree: String::new(),
+    };
+    std::fs::copy(&real, &copy.path).map_err(|_| index_unavailable_error())?;
+    Ok(copy)
+}
+
 pub(crate) fn index_unavailable_error() -> AppError {
     AppError::new(
         AppErrorCode::IndexUnavailable,

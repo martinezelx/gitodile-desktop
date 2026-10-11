@@ -75,10 +75,16 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Check the configured upstream for project changes without moving the current
   version line or files, manually or on an opt-in 15/30/60-minute cadence, with
   cached/fresh status and clear next steps.
-- Review and get strictly newer upstream versions through a confirmed,
-  fast-forward-only update. GitOdile blocks local work and path collisions,
-  creates a verified durable recovery point first, and reports uncertain local
-  outcomes without attempting an automatic repair.
+- Get project changes with one confirmation. Before anything is pressed,
+  Overview predicts locally whether the update is direct, needs a merge
+  version because both sides have new versions, or overlaps local work. Lines
+  that don't overlap are advanced or combined with a merge version (running
+  the project's merge hooks and honouring commit signing); unsaved edits on
+  other lines of an incoming file stay unsaved on top of it; real overlaps are
+  refused with the files named. A verified recovery point (and a copy of any
+  combined unsaved content) is kept first, and uncertain local outcomes are
+  reported without an automatic repair. Publishing when the remote moved on
+  gets, combines and publishes in the same confirmation.
 - List, create, switch, rename, and safely delete version lines (local
   branches), with dirty-worktree checks and recovery references where required.
   A line is only called safe to delete when another local or remote-tracking
@@ -153,7 +159,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Return to Projects from More actions or the command palette while projects stay
   open, use recent closed projects, and go Back to the project screen you left.
 
-Not yet implemented: non-fast-forward/local-line integration, the recovery
+Not yet implemented: bringing in another local version line, the recovery
 center, guided conflict
 resolution, and setting changes aside. Windows/Linux release qualification also
 remains open. Windows Authenticode and macOS delivery are deliberately deferred

@@ -1972,8 +1972,8 @@ shell and a size, never a width of its own.
 | Size | Width | For |
 |---|---|---|
 | `s` | 440px | A message, an error, a confirmation, a result with a next step: discard, delete a line, switch lines, a new line, close a project, anything that failed |
-| `m` | 560px | A short form or a plan: save a version, publish, updates, connecting a remote |
-| `l` | 720px | A flow with a review or lists: create a project, clone, get project changes, the issue report |
+| `m` | 560px | A short form or a plan: save a version, publish, get project changes, updates, connecting a remote |
+| `l` | 720px | A flow with a review or lists: create a project, clone, the issue report |
 
 A flow may change size between steps — its failure or its result is a short
 message in `s` — but a dialog never picks a width outside the three. All three
@@ -2499,9 +2499,13 @@ yet and the work may be saved in several; "publish it" when nothing else
 waits. "Save your first version" in a project with none), then the
 remote side once everything is saved — versions to publish (accent, "Publish
 all N" and "View history"), newer versions on the remote (incoming colour,
-"3 new versions on origin · Review and get"), both sides moved (incoming
-colour, "Get 3 new versions before publishing" with "Then: publish 2
-versions"), not checked, checking, a check that failed (calm, a red glyph,
+"3 new versions on origin", who sent them and how many files, "Nothing of
+yours overlaps." and "Get 3 versions"), both sides moved without overlapping
+(incoming colour, "origin has 2 new versions and you have 1 unpublished",
+"Get and combine" beside "Get and publish"), an overlap (danger colour,
+"Your changes and origin's overlap", the first file, "See what overlaps" and
+no primary action), something of the person's in the way (warning colour,
+what it is and "See why"), not checked, checking, a check that failed (calm, a red glyph,
 "Your work is saved", "Try again"), no remote ("Saved on this computer",
 "Connect a remote"), no upstream, an older version open ("Choose a version
 line"), unborn, and finally "Saved and published" with no action. Its kicker

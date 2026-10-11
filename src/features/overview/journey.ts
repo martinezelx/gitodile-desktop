@@ -1,5 +1,5 @@
 import type { WorkingTreeStatus } from "../status";
-import type { TeamSyncViewState } from "../sync";
+import type { IncomingForecast, TeamSyncViewState } from "../sync";
 
 /** The three things the app is for, in the order they happen. Overview draws
  * them as one band — change, then save, then publish — so the model is on
@@ -67,6 +67,9 @@ export type Journey = {
     /** The local inventory of unpublished versions could not be read: the
      * band's count may be short, and the sentence under it says so. */
     inventoryError: string | null;
+    /** What getting the waiting versions would do, predicted locally;
+     * `null` when nothing is waiting or it couldn't be predicted. */
+    forecast: IncomingForecast | null;
   };
 };
 
@@ -143,6 +146,7 @@ export function deriveJourney({
     isCached: status?.knowledge === "cached",
     error: teamSync.error,
     inventoryError: pendingVersionsError,
+    forecast: status?.forecast ?? null,
   };
 
   let activeStep: JourneyStepId | null = null;

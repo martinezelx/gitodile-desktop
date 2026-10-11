@@ -110,7 +110,6 @@ pub(crate) enum AppErrorCode {
     StaleVersionLinePlan,
     DirtyWorkingTree,
     IncomingTrackedChangeCollision,
-    IncomingPathCollision,
     RefLocked,
     NothingToDiscard,
     StaleDiscardPlan,
