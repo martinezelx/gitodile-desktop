@@ -190,7 +190,7 @@
   background-color: transparent;
   background-clip: padding-box;
 }
-.auto-hide-scrollbar--pointer-active::-webkit-scrollbar-thumb,
+.auto-hide-scrollbar[data-pointer-active]::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:focus-visible::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:has(:focus-visible)::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--text-secondary-color) 32%, transparent);

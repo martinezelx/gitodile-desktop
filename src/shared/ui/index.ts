@@ -14,7 +14,7 @@
  * only risk pulling the portal into every lazy feature chunk that touches this
  * barrel.
  */
-export { autoHideScrollbarProps } from "./autoHideScrollbar";
+export { autoHideScrollbarProps, setAutoHideScrollbarActive } from "./autoHideScrollbar";
 /* ADR 0003's two-consumer bar: About and the no-project welcome screen both
    show the mascot, with the same themed fill; each picks its glasses motion. */
 export { Mascot, type MascotMotion, type MascotProps } from "./mascot";
