@@ -13,7 +13,7 @@
 }
 /* The prompt always has focus, so the shared "visible while focused inside"
    reveal would never let the scrollbar fade: only activity shows it here. */
-.console-panel__transcript.auto-hide-scrollbar:not(.auto-hide-scrollbar--pointer-active)::-webkit-scrollbar-thumb { background-color: transparent; }
+.console-panel__transcript.auto-hide-scrollbar:not([data-pointer-active])::-webkit-scrollbar-thumb { background-color: transparent; }
 .console-panel--text-small .console-panel__transcript { font-size: var(--text-label); }
 .console-panel--text-large .console-panel__transcript { font-size: var(--text-lead); }
 .console-panel--steady-cursor .console-prompt__cursor { animation: none; }

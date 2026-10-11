@@ -4,7 +4,7 @@ import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
 import { localizeAppError } from "../../shared/i18n";
 import { themeById, type ThemePreference } from "../../shared/theme";
-import { copyTextToClipboard } from "../../shared/ui";
+import { copyTextToClipboard, setAutoHideScrollbarActive } from "../../shared/ui";
 import {
   completionsFor,
   DEFAULT_SHORTCUTS,
@@ -78,7 +78,6 @@ type BlockState = "running" | "success" | "failed" | "truncated" | "note";
 const TRANSCRIPT_LIMIT = 40;
 /** Coloured runs (each an element) the whole transcript may hold; see the screen's element budget. */
 const TRANSCRIPT_TONE_BUDGET = 400;
-const SCROLLBAR_ACTIVE_CLASS = "auto-hide-scrollbar--pointer-active";
 const SCROLLBAR_IDLE_MS = 1200;
 /** The theme's own colours, as a terminal's welcome shows its eight ANSI ones. */
 const WELCOME_PALETTE = ["accent", "danger", "warning", "string", "type", "keyword", "number", "property"] as const;
@@ -464,13 +463,13 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const scrollbarTimer = useRef<number | undefined>(undefined);
   const scrollbarActivity = useMemo(() => {
     const wake = (element: HTMLElement): void => {
-      element.classList.add(SCROLLBAR_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(element, true);
       window.clearTimeout(scrollbarTimer.current);
-      scrollbarTimer.current = window.setTimeout(() => element.classList.remove(SCROLLBAR_ACTIVE_CLASS), SCROLLBAR_IDLE_MS);
+      scrollbarTimer.current = window.setTimeout(() => setAutoHideScrollbarActive(element, false), SCROLLBAR_IDLE_MS);
     };
     const sleep = (element: HTMLElement): void => {
       window.clearTimeout(scrollbarTimer.current);
-      element.classList.remove(SCROLLBAR_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(element, false);
     };
     return {
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => { if (event.pointerType !== "touch") wake(event.currentTarget); },
