@@ -274,12 +274,21 @@ The main desktop window should broadly support:
    should doubt or act — and *how* it is known (a saved snapshot, when it was
    checked) is the tooltip, not a second item; when a result is stale or a
    check failed, the doubt takes the word and the last known state moves to
-   the tooltip, so the strip never reads as current when it is not. When the
-   relation is ahead and known-current, that same cloud is also the shortcut to
-   publishing: it becomes a button wearing the version-line control's 28px
-   pill, and its tooltip names the action ("Publish 3 versions · Checked 5 min
-   ago"). A stale, failed or still-loading answer keeps it a plain fact — it is
-   not a state to act from. The
+   the tooltip, so the strip never reads as current when it is not. "Up to
+   date" alone also says its age beside it ("3 min ago") in the quiet ink, so
+   the calm state can be trusted without hovering. When the relation calls for
+   a sync and is known-current, that same cloud becomes the one sync button —
+   GitHub Desktop's Fetch/Pull/Push in the app's words: ahead is "Publish 3
+   versions" (`CloudUpload`), behind is "Get 2 versions" (`CloudDownload`), and
+   both sides moved is "Get and publish" (`CloudSync`), each opening the same
+   previewed dialog Overview's card does. The button wears the strip's 28px
+   pill on the quiet hover surface in the strip's own ink, with only its glyph
+   in the accent: the shape says it is a button and one green mark is enough to
+   find it, so it never competes with the screen's primary action (Overview's
+   "Save version"). Its tooltip adds when it was checked. The refresh beside
+   it stays the explicit check in every state. A stale, failed
+   or still-loading answer keeps the cloud a plain fact — it is not a state to
+   act from. The
    branch is also the app's one global version-line control: its dropdown
    switches, creates — in place, see Lines — and hands off to the Lines
    screen. No screen adds a
@@ -1371,8 +1380,10 @@ verb, and keeps its plane.
 
 **The cloud is the remote, and only the remote.** Every cloud glyph speaks of
 the project's copy on its hosting service: publishing (`CloudUpload`), its
-state (`Cloud`, `CloudCheck`, `CloudAlert`, `CloudOff`), and cloning a project
-down from it (`CloudDownload`). Updating GitOdile itself has nothing to do with
+state (`Cloud`, `CloudCheck`, `CloudAlert`, `CloudOff`), bringing its newer
+versions down — cloning a project or the status bar's Get — (`CloudDownload`),
+and getting and publishing in one confirmation (`CloudSync`). Updating
+GitOdile itself has nothing to do with
 that remote, so it never borrows the cloud: the app's updates are the circle
 with the arrow — `CircleFadingArrowUp` where the reader goes to look (Check for
 updates in the overflow menu, the update dialog's header, the Updates section

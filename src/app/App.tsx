@@ -2890,6 +2890,8 @@ export function App(): React.JSX.Element {
           onOpenProjectSettings={() => openProjectSettings()}
           onPrefetchProjectSettings={() => prefetchProjectSettings()}
           onPublish={() => openPublishDialog()}
+          onGetChanges={() => startSessionOperation("sync")}
+          onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}
           onOpenChangelog={() => setIsChangelogOpen(true)}
           appUpdate={appUpdates.state}
           hasUnseenWhatsNew={hasUnseenWhatsNew}

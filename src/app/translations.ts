@@ -166,6 +166,8 @@ export interface AppTranslations {
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarPublishAction: (count: number) => string;
+  statusBarGetAction: (count: number) => string;
+  statusBarGetAndPublishAction: string;
   statusBarVersion: (version: string) => string;
   statusBarOpenChangelog: (version: string) => string;
   statusBarOpenUpdates: string;
@@ -389,6 +391,8 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
+  statusBarGetAction: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
+  statusBarGetAndPublishAction: "Get and publish",
   statusBarVersion: (version) => version,
   statusBarOpenChangelog: (version) => `What's new in GitOdile ${version}`,
   statusBarOpenUpdates: "Open updates",
@@ -600,6 +604,8 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
+  statusBarGetAction: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
+  statusBarGetAndPublishAction: "Traer y publicar",
   statusBarVersion: (version) => version,
   statusBarOpenChangelog: (version) => `Novedades de GitOdile ${version}`,
   statusBarOpenUpdates: "Abrir actualizaciones",

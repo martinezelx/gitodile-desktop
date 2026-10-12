@@ -432,23 +432,32 @@
    snapshot, when it was checked — stays in the tooltip. */
 .status-bar__sync--success { color: var(--status-success); }
 .status-bar__sync--warning { color: var(--status-warning); }
-/* Ahead, the cloud is also the shortcut to publishing, so it wears the strip's
-   one interactive shape: the same 28px pill as the version-line control beside
-   it, on the strip's hover surface, with the same focus ring. A stale, failed
-   or still-loading relation never takes this shape. */
+/* When the relation calls for a sync — publish when ahead, get when behind,
+   get and publish when both moved — the cloud becomes that verb as a button:
+   the strip's 28px pill on its quiet hover surface, in the strip's own ink,
+   with only the glyph in the accent. The shape says "button"; one green mark
+   is enough to find it, and the screen's strong green stays with its primary
+   action. A stale, failed or still-loading relation never takes this shape. */
 .status-bar__sync-action {
   height: 28px;
-  padding: 0 6px;
+  padding: 0 10px;
   border: 0;
   border-radius: var(--radius-pill);
-  background: transparent;
-  color: inherit;
+  background: var(--surface-hover);
+  color: var(--text-primary-color);
   font: inherit;
+  font-weight: var(--weight-medium);
   cursor: default;
   transition: background var(--duration-fast);
 }
-.status-bar__sync-action:hover { background: var(--surface-hover); }
-.status-bar__sync-action:active { background: var(--surface-active); }
+.status-bar__sync-action svg { color: var(--accent-primary); }
+.status-bar__sync-action:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, transparent); }
+.status-bar__sync-action:active { background: color-mix(in srgb, var(--text-primary-color) 15%, transparent); }
+/* How fresh "up to date" is, beside it in the strip's quiet ink. */
+.status-bar__sync-age {
+  color: var(--text-secondary-color);
+  font-variant-numeric: tabular-nums;
+}
 .status-bar__sync-action:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 0;

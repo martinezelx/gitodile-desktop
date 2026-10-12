@@ -114,6 +114,8 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     onCheckTeamChanges: vi.fn(),
     onOpenProjectSettings: vi.fn(),
     onPublish: vi.fn(),
+    onGetChanges: vi.fn(),
+    onGetAndPublish: vi.fn(),
     onOpenChangelog: vi.fn(),
     ...overrides,
   } as StatusBarProps;
@@ -290,9 +292,9 @@ describe("StatusBar", () => {
   });
 
   it.each([
-    ["ahead", "2 versions to publish"],
-    ["behind", "3 newer versions available"],
-    ["diverged", "Both sides changed"],
+    ["ahead", "Publish 2 versions"],
+    ["behind", "Get 3 versions"],
+    ["diverged", "Get and publish"],
     ["noRemote", "No remote connected"],
     ["noUpstream", "No publish destination"],
     ["unborn", "Save a version to compare"],
@@ -303,14 +305,30 @@ describe("StatusBar", () => {
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it("opens publish from the cloud when saved versions are ready to send", async () => {
-    const onPublish = vi.fn();
-    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead") }, onPublish });
+  it.each([
+    ["ahead", "Publish 2 versions", "onPublish", "publish"],
+    ["behind", "Get 3 versions", "onGetChanges", "get"],
+    ["diverged", "Get and publish", "onGetAndPublish", "getAndPublish"],
+  ] as const)("turns the cloud into the %s sync action", async (state, name, handler, kind) => {
+    const handlers = { onPublish: vi.fn(), onGetChanges: vi.fn(), onGetAndPublish: vi.fn() };
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) }, ...handlers });
 
-    const cloud = screen.getByRole("button", { name: "Publish 2 versions" });
-    expect(cloud).toHaveAttribute("data-tooltip", expect.stringMatching(/^Publish 2 versions · Checked /));
+    const cloud = screen.getByRole("button", { name });
+    expect(cloud).toHaveClass(`status-bar__sync-action--${kind}`);
+    expect(cloud).toHaveAttribute("data-tooltip", expect.stringMatching(new RegExp(`^${name} · Checked `)));
     await userEvent.click(cloud);
-    expect(onPublish).toHaveBeenCalledOnce();
+    expect(handlers[handler]).toHaveBeenCalledOnce();
+    for (const [other, fn] of Object.entries(handlers)) {
+      if (other !== handler) expect(fn).not.toHaveBeenCalled();
+    }
+    // The refresh beside it stays the explicit check.
+    expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeEnabled();
+  });
+
+  it("says how fresh an up-to-date answer is without hovering", () => {
+    renderBar();
+    const sync = screen.getByText("Up to date").closest(".status-bar__sync");
+    expect(sync?.querySelector(".status-bar__sync-age")).toHaveTextContent(/3 min/);
   });
 
   it("keeps the cloud a plain fact when there is nothing to publish or the answer is doubted", () => {
@@ -318,9 +336,14 @@ describe("StatusBar", () => {
     expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
     unmount();
 
-    // A stale answer may still say "ahead", but it is not a state to act from.
-    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isStale: true } });
+    // A stale or failed answer may still say "ahead" or "behind", but it is
+    // not a state to act from.
+    const stale = renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isStale: true } });
     expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
+    stale.unmount();
+
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("behind"), error: "offline" } });
+    expect(screen.queryByRole("button", { name: /^Get / })).toBeNull();
   });
 
   it("distinguishes loading, failed, cached, and stale knowledge", () => {
@@ -348,6 +371,8 @@ describe("StatusBar", () => {
           onCheckTeamChanges={vi.fn()}
           onOpenProjectSettings={vi.fn()}
           onPublish={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,
@@ -372,6 +397,8 @@ describe("StatusBar", () => {
           onCheckTeamChanges={vi.fn()}
           onOpenProjectSettings={vi.fn()}
           onPublish={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
           onOpenChangelog={vi.fn()}
         />
       </LanguageProvider>,

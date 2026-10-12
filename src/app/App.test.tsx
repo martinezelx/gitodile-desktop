@@ -474,7 +474,7 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
@@ -662,7 +662,7 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
@@ -1555,7 +1555,9 @@ describe("App project restoration", () => {
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
     ).toHaveLength(repositoryOpensBeforeRemoteCheck);
-    await userEvent.click(await screen.findByRole("button", { name: "Get 1 version" }));
+    // Overview's card and the status bar both offer the get; this takes the
+    // status bar's, the one every screen carries.
+    await userEvent.click(await within(statusBar).findByRole("button", { name: "Get 1 version" }));
     // The confirmation opens behind an async plan call, which under a loaded
     // parallel run needs more than the one-second default (task 072).
     const confirm = await screen.findByRole(
@@ -2137,7 +2139,7 @@ describe("App project restoration", () => {
     expect(within(statusBar).getByText("Everything is saved")).toBeInTheDocument();
     expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
     await user.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
