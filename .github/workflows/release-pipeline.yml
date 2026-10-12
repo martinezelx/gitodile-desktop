@@ -77,7 +77,7 @@ jobs:
             throw new Error("Authorization did not originate in the trusted merge coordinator.");
           }
           NODE
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           run-id: ${{ inputs.authorization_run_id }}
           github-token: ${{ github.token }}
@@ -116,7 +116,7 @@ jobs:
         id: identity
         run: |
           node -e "const c=require('./candidate.json'); const fs=require('fs'); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'tag='+c.source.tag+'\nversion='+c.release.version+'\nsha='+c.source.sha+'\n')"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-identity
           path: candidate.json
@@ -160,7 +160,7 @@ jobs:
           ref: ${{ needs.validate.outputs.sha }}
           fetch-tags: true
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: candidate-identity
       - name: Require the release tag for the bundled changelog date
@@ -206,7 +206,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11.17.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: pnpm
@@ -242,7 +242,7 @@ jobs:
           mkdir -p "candidate/${{ matrix.target }}"
           cp "${packages[0]}" "candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage"
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target "${{ matrix.target }}" --phase unsigned --trust-state unsigned --artifact "first-install-and-updater=candidate/${{ matrix.target }}/GitOdile_${{ needs.validate.outputs.version }}_amd64.AppImage" --output "candidate/${{ matrix.target }}/evidence.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-${{ matrix.target }}
           path: candidate/${{ matrix.target }}
@@ -259,11 +259,11 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: unsigned-*
           path: unsigned
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: candidate-identity
       - name: Verify hashes, provenance and complete target set
@@ -278,10 +278,10 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: candidate-identity
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unsigned-windows-x86_64
           path: input
@@ -296,7 +296,7 @@ jobs:
           Copy-Item -LiteralPath $source -Destination $destination
           node scripts/release/make-os-trust.mjs windows-x86_64 authenticode-deferred windows-trust.json
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target windows-x86_64 --phase os-signed --trust windows-trust.json --artifact "first-install-and-updater=$destination" --output os-signed/windows-x86_64/evidence.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: os-signed-windows-x86_64
           path: os-signed/windows-x86_64
@@ -312,10 +312,10 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: candidate-identity
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unsigned-linux-x86_64
           path: input
@@ -327,7 +327,7 @@ jobs:
           cp "input/$package" "os-signed/linux-x86_64/$package"
           node scripts/release/make-os-trust.mjs linux-x86_64 not-applicable linux-trust.json
           node scripts/release/release-evidence.mjs create --candidate candidate.json --target linux-x86_64 --phase os-signed --trust linux-trust.json --artifact "first-install-and-updater=os-signed/linux-x86_64/$package" --output os-signed/linux-x86_64/evidence.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: os-signed-linux-x86_64
           path: os-signed/linux-x86_64
@@ -347,10 +347,10 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: candidate-identity
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: os-signed-*
           path: os
@@ -359,7 +359,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11.17.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: pnpm
@@ -396,7 +396,7 @@ jobs:
           node scripts/release/release-evidence.mjs verify-matrix --candidate candidate.json --directory signed --phase signed
       - name: Write private matrix authorization record
         run: node -e "const fs=require('fs'); const c=require('./candidate.json'); fs.writeFileSync('signed/matrix.json', JSON.stringify({schemaVersion:1,source:c.source,release:c.release,targets:c.matrix.requiredTargets,result:'passed',publicPromotionAllowed:false},null,2)+'\n',{flag:'wx'})"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: private-signed-${{ needs.validate.outputs.tag }}
           path: signed
@@ -415,7 +415,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: private-signed-${{ needs.validate.outputs.tag }}
           path: signed
@@ -448,7 +448,7 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11.17.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: pnpm
@@ -493,7 +493,7 @@ jobs:
           cp scripts/release/github-publication.mjs scripts/release/public-release.mjs scripts/release/qualification-evidence.mjs scripts/release/release-candidate.mjs scripts/release/release-evidence.mjs public-bundle/runtime/scripts/release/
           cp docs/architecture/065-9-1-app-update-contract.json public-bundle/runtime/docs/architecture/
           cp validated-source-run.json public-bundle/runtime/
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-publication-bundle
           path: public-bundle
@@ -514,7 +514,7 @@ jobs:
     # reviewed publication environment.
     environment: public-release
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: public-publication-bundle
           path: public-bundle
