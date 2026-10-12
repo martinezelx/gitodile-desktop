@@ -379,16 +379,18 @@ export function OverviewDetail({
     );
   }
 
-  // One copy says what it holds; several say how many there are, since the
-  // picker is where each one is told apart.
+  // One copy says what it holds; several are counted on the icon, like the
+  // scene's badges, and the line dates the newest, since the picker is where
+  // each one is told apart. Files are never added up: copies can share them.
   const recovery = detail.recovery;
+  const restoreCopies = recovery && recovery.restorableCount > 1 ? recovery.restorableCount : 0;
   const restoreWhen = recovery
     ? formatRelativeCheckTime(recovery.createdAtMs, now, formats.language, t.statusBarJustNow)
     : "";
   const restoreHint = !recovery
     ? ""
-    : recovery.restorableCount > 1
-      ? t.overviewSafetyDiscardedCopies(recovery.restorableCount, restoreWhen)
+    : restoreCopies > 0
+      ? t.overviewSafetyDiscardedLatest(restoreWhen)
       : t.overviewSafetyDiscardedHint(recovery.fileCount, restoreWhen);
 
   return (
@@ -409,9 +411,13 @@ export function OverviewDetail({
           that choice is made. */}
       {journey.changes.state === "clean" && detail.recovery && (
         <div className={`overview-restore${card ? " overview-restore--compact" : ""}`}>
-          <span className="overview-restore__place" aria-hidden="true"><RotateCcw /></span>
+          <span className="overview-restore__place" aria-hidden="true">
+            <RotateCcw />
+            {restoreCopies > 0 && <span className="overview-restore__badge">{restoreCopies}</span>}
+          </span>
           <span className="overview-restore__copy">
             <span className="overview-restore__label">{t.overviewSafetyDiscarded}</span>
+            {restoreCopies > 0 && <span className="visually-hidden">{t.overviewSafetyDiscardedCopies(restoreCopies)}</span>}
             <span className="overview-restore__hint">
               {restoreHint}
             </span>

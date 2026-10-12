@@ -243,6 +243,7 @@ describe("OverviewDetail", () => {
     expect(scene).toHaveAttribute("title", expect.stringContaining("if something happens to one"));
     expect(screen.getByText("Discarded changes")).toBeInTheDocument();
     expect(screen.getByText(/^3 files · /)).toBeInTheDocument();
+    expect(document.querySelector(".overview-restore__badge")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
     expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
   });
@@ -250,7 +251,12 @@ describe("OverviewDetail", () => {
   it("counts the copies when several can be restored, rather than one copy's files", async () => {
     await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
 
-    expect(screen.getByText(/^3 copies · latest /)).toBeInTheDocument();
+    // The count rides the icon, as the scene's badges do, and is read out;
+    // the line under the title only dates the newest copy.
+    const card = screen.getByText("Discarded changes").closest(".overview-restore");
+    expect(card?.querySelector(".overview-restore__badge")).toHaveTextContent("3");
+    expect(screen.getByText("3 copies")).toHaveClass("visually-hidden");
+    expect(screen.getByText(/^latest /)).toBeInTheDocument();
   });
 
   it("offers the discard whenever everything is saved, and never over unsaved work", async () => {

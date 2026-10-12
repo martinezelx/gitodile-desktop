@@ -590,8 +590,10 @@ The main desktop window should broadly support:
      the same surface, amber wash and shadow, its icon drawn as one of the
      scene's places (plain and bordered under a detail card, like the small
      scene). Its line under the title describes one copy — its files and
-     when — or, when several can be restored, counts the copies and dates the
-     newest; files are never added up across copies, which can share them.
+     when; when several can be restored, a badge on the icon counts them the
+     way the scene counts versions and the line dates the newest ("latest 10
+     days ago"), so it stays on one line. Files are never added up across
+     copies, which can share them.
      "Restore" opens the restore picker over the Overview: closing it
      stays there, and only a restore moves on to Changes, which shows what
      came back. The column

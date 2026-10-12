@@ -1133,6 +1133,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   box-shadow: none;
 }
 .overview-restore__place {
+  position: relative;
   width: 38px;
   height: 34px;
   display: grid;
@@ -1143,6 +1144,24 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   color: var(--restore-tone);
 }
 .overview-restore__place svg { width: 18px; height: 18px; stroke-width: 1.6; }
+/* Several restorable copies, counted the way the scene counts versions. */
+.overview-restore__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--restore-tone);
+  color: var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--surface-raised);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+}
 .overview-restore--compact .overview-restore__place { width: 32px; height: 28px; }
 .overview-restore--compact .overview-restore__place svg { width: 16px; height: 16px; }
 .overview-restore__copy { min-width: 0; display: grid; gap: 1px; line-height: var(--leading-snug); }

@@ -62,9 +62,11 @@ card then still offered "Restore", and the picker opened with nothing to pick.
 - `ChangesPanel`'s `restoreIntent` (open the picker on arrival) is replaced by
   `restoredElsewhere` (report a restore another screen ran) and
   `recoveriesRevision`.
-- The card's hint describes the one restorable copy ("1 file · 10 days ago"),
-  or counts them when there are several ("3 copies · latest 10 days ago").
-  Files are not added up across copies, because copies can share files.
+- The card's hint describes the one restorable copy ("1 file · 10 days ago").
+  When there are several, a badge on the icon counts them (like the scene's
+  badges, and read out for assistive technology) and the hint dates the newest
+  ("latest 10 days ago"). Files are not added up across copies, because copies
+  can share files.
 - The work-detail port becomes `findRestorableDiscard`. `App` answers it from
   `list_discard_recoveries` through `newestRestorableDiscard`, only while the
   active tree is clean, and re-reads when the tree turns clean.
@@ -142,8 +144,12 @@ None.
   are fixed above.
 - Testing in the app showed "1 file · 10 days ago" while the picker held
   copies with many more files. The hint described only the newest
-  restorable copy and read as a total. It now counts the copies when there
-  is more than one.
+  restorable copy and read as a total. It first became "10 copies · latest 10
+  days ago", which wrapped to two lines in the 290px column. The count moved to
+  a badge on the icon. Measured at 290px, the longest hints ("la última hace 23
+  horas", "latest 23 hours ago") fit on one line, and so does
+  "12 archivos · hace 45 min" (122 of 123px). A single copy with three-digit
+  file counts could still wrap.
 - A throwaway browser harness rendered both card variants at 290px in the dark
   theme. It was deleted before committing. The light theme did not apply in
   the harness, so that variant was not seen.
