@@ -39,7 +39,7 @@ describe("work detail controller", () => {
   });
 
   it("keeps the newest restorable discard, and offers none when there is none to read", async () => {
-    const recovery = { recoveryId: "r1", createdAtMs: 1, fileCount: 3 };
+    const recovery = { recoveryId: "r1", createdAtMs: 1, fileCount: 3, restorableCount: 1 };
     const findRestorableDiscard = vi.fn().mockResolvedValueOnce(recovery).mockRejectedValueOnce(new Error("none"));
     const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard, readIncomingVersions: vi.fn() });
     const listener = vi.fn();
@@ -58,9 +58,10 @@ describe("work detail controller", () => {
     });
 
     // Restored or moved past, the newest copy is still stored; an older one
-    // the project still matches is the one to offer.
-    expect(newestRestorableDiscard([record("new", "superseded"), record("old", "restorable")]))
-      .toEqual({ recoveryId: "old", createdAtMs: 1, fileCount: 2 });
+    // the project still matches is the one to offer, counted with the rest
+    // the picker could restore.
+    expect(newestRestorableDiscard([record("new", "superseded"), record("old", "restorable"), record("older", "restorable")]))
+      .toEqual({ recoveryId: "old", createdAtMs: 1, fileCount: 2, restorableCount: 2 });
     expect(newestRestorableDiscard([record("new", "superseded"), record("broken", "incomplete")])).toBeNull();
     expect(newestRestorableDiscard([])).toBeNull();
   });

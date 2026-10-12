@@ -85,12 +85,15 @@ async function setup({
   state,
   readIncoming = true,
   incomingFails = false,
+  recoveryCopies = 1,
 }: {
   workingTree: WorkingTreeStatus | null;
   pending: PendingVersionsResult;
   state: "ahead" | "upToDate" | "behind";
   readIncoming?: boolean;
   incomingFails?: boolean;
+  /** How many stored discards the picker could restore. */
+  recoveryCopies?: number;
 }) {
   const page: HistoryPage = {
     repositoryId: query.projectId,
@@ -118,7 +121,7 @@ async function setup({
       { path: "src/app.ts", originalPath: null, category: "changed" as const },
       { path: "src/new.ts", originalPath: null, category: "new" as const },
     ]),
-    findRestorableDiscard: vi.fn(async () => ({ recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3 })),
+    findRestorableDiscard: vi.fn(async () => ({ recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3, restorableCount: recoveryCopies })),
     readIncomingVersions: vi.fn(async () => {
       if (incomingFails) throw new Error("unreadable");
       return {
@@ -239,8 +242,15 @@ describe("OverviewDetail", () => {
     expect(scene.querySelector(".work-scene__path--synced")).not.toBeNull();
     expect(scene).toHaveAttribute("title", expect.stringContaining("if something happens to one"));
     expect(screen.getByText("Discarded changes")).toBeInTheDocument();
+    expect(screen.getByText(/^3 files · /)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
     expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
+  });
+
+  it("counts the copies when several can be restored, rather than one copy's files", async () => {
+    await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
+
+    expect(screen.getByText(/^3 copies · latest /)).toBeInTheDocument();
   });
 
   it("offers the discard whenever everything is saved, and never over unsaved work", async () => {

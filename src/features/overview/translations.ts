@@ -99,6 +99,8 @@ export interface OverviewTranslations {
   overviewDetailVersionsError: string;
   overviewSafetyDiscarded: string;
   overviewSafetyDiscardedHint: (count: number, when: string) => string;
+  /** Several restorable copies: how many, and when the newest was made. */
+  overviewSafetyDiscardedCopies: (copies: number, when: string) => string;
   /** The card's other cases: the first save, versions waiting on the remote,
    * both sides moved, a check that failed, no remote, an older version. */
   overviewNextKickerSaved: string;
@@ -285,6 +287,7 @@ const en: OverviewTranslations = {
   overviewDetailVersionsError: "Couldn't read the versions waiting. Review them to see what changes.",
   overviewSafetyDiscarded: "Discarded changes",
   overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 file" : `${count} files`} · ${when}`,
+  overviewSafetyDiscardedCopies: (copies, when) => `${copies} copies · latest ${when}`,
   overviewNextKickerSaved: "All saved",
   overviewNextFirstSaveTitle: "Save your first version",
   overviewNextFirstSaveHint: (count) =>
@@ -472,6 +475,7 @@ const es: OverviewTranslations = {
   overviewDetailVersionsError: "No se pudieron leer las versiones que esperan. Revísalas para ver qué cambia.",
   overviewSafetyDiscarded: "Cambios descartados",
   overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 archivo" : `${count} archivos`} · ${when}`,
+  overviewSafetyDiscardedCopies: (copies, when) => `${copies} copias · la última ${when}`,
   overviewNextKickerSaved: "Todo guardado",
   overviewNextFirstSaveTitle: "Guarda tu primera versión",
   overviewNextFirstSaveHint: (count) =>

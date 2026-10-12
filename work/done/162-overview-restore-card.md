@@ -62,6 +62,9 @@ card then still offered "Restore", and the picker opened with nothing to pick.
 - `ChangesPanel`'s `restoreIntent` (open the picker on arrival) is replaced by
   `restoredElsewhere` (report a restore another screen ran) and
   `recoveriesRevision`.
+- The card's hint describes the one restorable copy ("1 file · 10 days ago"),
+  or counts them when there are several ("3 copies · latest 10 days ago").
+  Files are not added up across copies, because copies can share files.
 - The work-detail port becomes `findRestorableDiscard`. `App` answers it from
   `list_discard_recoveries` through `newestRestorableDiscard`, only while the
   active tree is clean, and re-reads when the tree turns clean.
@@ -88,6 +91,8 @@ card then still offered "Restore", and the picker opened with nothing to pick.
 - [x] A restore moves to Changes and reports what came back.
 - [x] Forgetting copies from Overview's picker refreshes Overview's card and
       Changes' empty-state button.
+- [x] With several restorable copies, the hint counts them instead of
+      showing one copy's files as if it were the total.
 - [x] The card matches the scene card's look, with a compact variant under a
       detail card, and its title fits on one line at the column's width.
 - [x] Tests cover visibility, the restorable selection, the Changes report and
@@ -135,6 +140,10 @@ None.
 - Review before committing found the stale-`latest` problem and the stale
   "Restore discarded" button in Changes after forgetting from Overview. Both
   are fixed above.
+- Testing in the app showed "1 file · 10 days ago" while the picker held
+  copies with many more files. The hint described only the newest
+  restorable copy and read as a total. It now counts the copies when there
+  is more than one.
 - A throwaway browser harness rendered both card variants at 290px in the dark
   theme. It was deleted before committing. The light theme did not apply in
   the harness, so that variant was not seen.

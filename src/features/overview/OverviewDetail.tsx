@@ -379,6 +379,18 @@ export function OverviewDetail({
     );
   }
 
+  // One copy says what it holds; several say how many there are, since the
+  // picker is where each one is told apart.
+  const recovery = detail.recovery;
+  const restoreWhen = recovery
+    ? formatRelativeCheckTime(recovery.createdAtMs, now, formats.language, t.statusBarJustNow)
+    : "";
+  const restoreHint = !recovery
+    ? ""
+    : recovery.restorableCount > 1
+      ? t.overviewSafetyDiscardedCopies(recovery.restorableCount, restoreWhen)
+      : t.overviewSafetyDiscardedHint(recovery.fileCount, restoreWhen);
+
   return (
     <aside className={`overview-side${card ? " overview-side--working" : ""}`}>
       {/* Where the work is first, then what the next step will move. */}
@@ -401,10 +413,7 @@ export function OverviewDetail({
           <span className="overview-restore__copy">
             <span className="overview-restore__label">{t.overviewSafetyDiscarded}</span>
             <span className="overview-restore__hint">
-              {t.overviewSafetyDiscardedHint(
-                detail.recovery.fileCount,
-                formatRelativeCheckTime(detail.recovery.createdAtMs, now, formats.language, t.statusBarJustNow),
-              )}
+              {restoreHint}
             </span>
           </span>
           <button className="overview-restore__action" type="button" onClick={onRestoreDiscarded}>

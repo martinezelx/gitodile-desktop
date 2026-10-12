@@ -24,8 +24,13 @@ export type IncomingState =
   | { key: string; status: "ready"; result: PendingVersionsResult }
   | { key: string; status: "error" };
 
-/** A stored discard Overview can offer: one that can be restored right now. */
-export type RestorableDiscard = Pick<DiscardRecoveryRecord, "recoveryId" | "createdAtMs" | "fileCount">;
+/** What Overview offers of the stored discards: the newest one that can be
+ * restored right now, and how many can be. */
+export type RestorableDiscard = Pick<DiscardRecoveryRecord, "recoveryId" | "createdAtMs" | "fileCount"> & {
+  /** Every copy the picker could restore, the newest included. Their files
+   * are not added up: several copies can hold the same file. */
+  restorableCount: number;
+};
 
 export type WorkDetailSnapshot = {
   /** Files of each unpublished version read so far, by commit. A saved
@@ -47,11 +52,14 @@ export type WorkDetailPorts = {
   readIncomingVersions(query: WorkDetailQuery): Promise<PendingVersionsResult>;
 };
 
-/** The newest record of a listing that can be restored right now. The
- * listing is newest first. */
+/** The newest record of a listing that can be restored right now, with how
+ * many can be. The listing is newest first. */
 export function newestRestorableDiscard(records: readonly DiscardRecoveryRecord[]): RestorableDiscard | null {
-  const record = records.find((item) => item.availability === "restorable");
-  return record ? { recoveryId: record.recoveryId, createdAtMs: record.createdAtMs, fileCount: record.fileCount } : null;
+  const restorable = records.filter((item) => item.availability === "restorable");
+  const [record] = restorable;
+  return record
+    ? { recoveryId: record.recoveryId, createdAtMs: record.createdAtMs, fileCount: record.fileCount, restorableCount: restorable.length }
+    : null;
 }
 
 const EMPTY: WorkDetailSnapshot = { commitFiles: new Map(), recovery: null, incoming: null };
@@ -133,7 +141,10 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
       }
       if (recoveryGenerations.get(key) !== generation) return;
       const current = read(key);
-      if (current.recovery?.recoveryId === recovery?.recoveryId) return;
+      if (
+        current.recovery?.recoveryId === recovery?.recoveryId
+        && current.recovery?.restorableCount === recovery?.restorableCount
+      ) return;
       write(key, { ...current, recovery });
     },
     /** Reads the incoming versions for this pair of commits, unless they are

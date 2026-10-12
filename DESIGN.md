@@ -589,7 +589,10 @@ The main desktop window should broadly support:
      everything is saved — under a detail card too — dressed like the scene:
      the same surface, amber wash and shadow, its icon drawn as one of the
      scene's places (plain and bordered under a detail card, like the small
-     scene). "Restore" opens the restore picker over the Overview: closing it
+     scene). Its line under the title describes one copy — its files and
+     when — or, when several can be restored, counts the copies and dates the
+     newest; files are never added up across copies, which can share them.
+     "Restore" opens the restore picker over the Overview: closing it
      stays there, and only a restore moves on to Changes, which shows what
      came back. The column
      repeats nothing the status bar or the timeline already says: the remote
