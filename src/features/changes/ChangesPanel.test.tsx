@@ -1326,41 +1326,28 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByText("kept.txt")).toBeInTheDocument();
   });
 
-  it("opens the restore picker as it arrives when another screen asks for it", async () => {
+  it("reports a restore another screen finished as it arrives", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_discard_recovery") {
-        return Promise.resolve({ recoveryId: "discard-1", createdAtMs: 1, fileCount: 1, selectedPath: null, stateToken: "token-1" });
+        return Promise.reject(new Error("none"));
       }
       if (command === "list_discard_recoveries") {
-        return Promise.resolve([
-          {
-            recoveryId: "discard-1", createdAtMs: 1756000000000, fileCount: 1, selectedPath: null,
-            previewPaths: ["gone.txt"], stateToken: "token-1", availability: "restorable" as const,
-            restoresPreparedState: true,
-          },
-        ]);
+        return Promise.resolve([]);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
-    const clean: WorkingTreeStatus = {
-      ...workingTree,
-      isClean: true,
-      counts: { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: 0 },
-      entries: [],
-      hasUnpreparedChanges: false,
-    };
-    const onRestoreIntentHandled = vi.fn();
+    const onRestoredElsewhereHandled = vi.fn();
     render(
       <LanguageProvider><ToastProvider>
-        <ControlledChangesPanel projectPath="/repo" workingTree={clean} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} restoreIntent={1} onRestoreIntentHandled={onRestoreIntentHandled} />
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} restoredElsewhere={{ status: "restored", restoredFiles: 2 }} onRestoredElsewhereHandled={onRestoredElsewhereHandled} />
       </ToastProvider></LanguageProvider>,
     );
 
-    // Overview's "Restore" lands here with the picker already open, and the
-    // request is reported handled so it never opens a second time.
-    expect(await screen.findByRole("heading", { name: "Restore discarded changes" })).toBeInTheDocument();
-    expect(await screen.findByText("gone.txt")).toBeInTheDocument();
-    expect(onRestoreIntentHandled).toHaveBeenCalledOnce();
+    // Overview's restore picker restored the files and moved here: the header
+    // says so, as if this screen's own dialog had run it, and only once.
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
+    expect(onRestoredElsewhereHandled).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("heading", { name: "Restore discarded changes" })).not.toBeInTheDocument();
   });
 
   it("keeps a way back to discarded work after the last change is discarded", async () => {

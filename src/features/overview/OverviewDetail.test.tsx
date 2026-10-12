@@ -118,7 +118,7 @@ async function setup({
       { path: "src/app.ts", originalPath: null, category: "changed" as const },
       { path: "src/new.ts", originalPath: null, category: "new" as const },
     ]),
-    getDiscardRecovery: vi.fn(async () => ({ recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3, selectedPath: null, stateToken: "t" })),
+    findRestorableDiscard: vi.fn(async () => ({ recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3 })),
     readIncomingVersions: vi.fn(async () => {
       if (incomingFails) throw new Error("unreadable");
       return {
@@ -241,6 +241,19 @@ describe("OverviewDetail", () => {
     expect(screen.getByText("Discarded changes")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
     expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
+  });
+
+  it("offers the discard whenever everything is saved, and never over unsaved work", async () => {
+    const { redraw } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
+
+    // Saved but not published: the detail card leads, and the discard still
+    // sits under it, plain like the small scene.
+    expect(screen.getByRole("heading", { name: "What you'll publish" })).toBeInTheDocument();
+    expect(screen.getByText("Discarded changes").closest(".overview-restore")).toHaveClass("overview-restore--compact");
+
+    const entry: WorkingTreeEntry = { path: "src/a.ts", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true };
+    redraw({ workingTree: tree([entry]), pending: ONE_PENDING, state: "ahead" });
+    expect(screen.queryByText("Discarded changes")).not.toBeInTheDocument();
   });
 
   it("names the versions waiting on the remote, and shows them arriving in the scene", async () => {

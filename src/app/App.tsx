@@ -34,7 +34,13 @@ import { isOfficialTheme } from "../shared/theme";
 import type { RepositoryInvalidation } from "../runtime/project/invalidation";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
 import { ToastProvider, handlePopupMenuKeyDown, usePortalFlyout } from "../shared/ui";
-import { DiffPreferencesProvider, createChangesController, changesPort } from "../features/changes";
+import {
+  DiffPreferencesProvider,
+  createChangesController,
+  changesPort,
+  type DirectDiscardOutcome,
+  type DiscardDialogRequest,
+} from "../features/changes";
 import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
 import { accountsPort, useAccounts } from "../features/accounts";
 import { createRepositoryBrowserController, repositoryBrowserPort } from "../features/repository-browser";
@@ -198,7 +204,7 @@ import { previewFromPendingVersions } from "../features/publish/domain";
 // The adapter alone, not the feature index: the index carries the publish
 // dialog, which stays in its own lazy chunk.
 import { publishPort } from "../features/publish/tauriAdapter";
-import { createWorkDetailController } from "../features/overview/workDetail";
+import { createWorkDetailController, newestRestorableDiscard } from "../features/overview/workDetail";
 import "../styles.css";
 
 // Lazily loaded: none of these are needed for Home's first paint, and
@@ -212,6 +218,12 @@ import "../styles.css";
 // opens from a click, with no navigation to hide its first chunk load behind.
 const loadPublishDialog = () => import("../features/publish/PublishDialog");
 const PublishDialog = lazy(() => loadPublishDialog().then((m) => ({ default: m.PublishDialog })));
+// Overview's restore picker: the same chunk Changes loads its discard dialog
+// from, warmed with Publish for the same reason.
+const loadDiscardChangesDialog = () => import("../features/changes/DiscardChangesDialog");
+const DiscardChangesDialog = lazy(() => loadDiscardChangesDialog().then((m) => ({ default: m.DiscardChangesDialog })));
+/** One request for every open: the dialog reloads its list when this changes. */
+const RESTORE_REQUEST: DiscardDialogRequest = { mode: "restore", selectedPath: null };
 const CreateVersionLineDialog = lazy(() =>
   import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );
@@ -346,7 +358,15 @@ export function App(): React.JSX.Element {
   const [workDetailController] = useState(() =>
     createWorkDetailController({
       readCommitFileChanges: (query) => publishPort.readCommitFileChanges(query),
-      getDiscardRecovery: (query) => changesController.getDiscardRecovery(query.projectId, query.sessionEpoch),
+      findRestorableDiscard: async (query) => {
+        // Overview offers a discard only while everything is saved, and
+        // telling which copies still apply reads the status and hashes every
+        // changed file: with unsaved work there is nothing to offer, so
+        // nothing is read. The tree turning clean reads it again (below).
+        if (!projectRuntime.getSnapshot().byId[query.projectId]?.workingTree?.isClean) return null;
+        const records = await changesController.listDiscardRecoveries(query.projectId, query.sessionEpoch);
+        return newestRestorableDiscard(records);
+      },
       readIncomingVersions: (query) => statusPort.readIncomingVersions(query),
     }),
   );
@@ -592,10 +612,18 @@ export function App(): React.JSX.Element {
   const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
   /** A saved version Lines asked History to open, alongside the line it is on. */
   const [historySelectCommitIntent, setHistorySelectCommitIntent] = useState<string | null>(null);
-  // Overview's "Restore" on a discarded change: Changes opens its restore
-  // picker as it arrives, then clears this.
-  const [changesRestoreIntent, setChangesRestoreIntent] = useState<number | null>(null);
+  // Overview's "Restore" on a discarded change opens the restore picker over
+  // the Overview. Closing it leaves the Overview where it was; a restore moves
+  // on to Changes, which reports it as it arrives and then clears this.
+  const [restoreDialogSessionId, setRestoreDialogSessionId] = useState<string | null>(null);
+  const [changesRestoredElsewhere, setChangesRestoredElsewhere] = useState<DirectDiscardOutcome | null>(null);
+  // Counts the picker's closes: one may have deleted stored copies, which
+  // Changes' empty state offers a way back to.
+  const [recoveriesRevision, setRecoveriesRevision] = useState(0);
   const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
+  const restoreDialogSession = restoreDialogSessionId
+    ? sessionsState.byId[restoreDialogSessionId] ?? null
+    : null;
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
     : null;
@@ -1323,6 +1351,15 @@ export function App(): React.JSX.Element {
       );
     });
   }, [activeSessionId, activeSessionEpoch, pendingVersions, workDetailController]);
+  // The tree turning clean is when Overview's discard card can appear; the
+  // watcher's own read may have run before the status landed and skipped it.
+  const activeIsClean = activeSession?.workingTree?.isClean ?? false;
+  useEffect(() => {
+    if (!activeSessionId || !activeSessionEpoch || !activeIsClean) return undefined;
+    return scheduleIdleTask(() => {
+      void workDetailController.refreshRecovery({ projectId: activeSessionId, sessionEpoch: activeSessionEpoch });
+    });
+  }, [activeSessionId, activeSessionEpoch, activeIsClean, workDetailController]);
   // When a remote check finds versions waiting, name them: read locally from
   // the tracking ref the check just moved, once per pair of commits.
   const incomingKey =
@@ -1430,7 +1467,7 @@ export function App(): React.JSX.Element {
   );
   const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
   const clearHistorySelectCommitIntent = useCallback(() => setHistorySelectCommitIntent(null), []);
-  const clearChangesRestoreIntent = useCallback(() => setChangesRestoreIntent(null), []);
+  const clearChangesRestoredElsewhere = useCallback(() => setChangesRestoredElsewhere(null), []);
   const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
 
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
@@ -1496,6 +1533,7 @@ export function App(): React.JSX.Element {
       scheduleIdleTask(() => {
         prefetchScreenChunks();
         void loadPublishDialog();
+        void loadDiscardChangesDialog();
       }),
     [],
   );
@@ -2679,8 +2717,9 @@ export function App(): React.JSX.Element {
                   historyController={historyController}
                   workDetail={workDetailController}
                   onRestoreDiscarded={() => {
-                    setChangesRestoreIntent(Date.now());
-                    openWorkbench("changes");
+                    if (activeSession && startSessionOperation("discard")) {
+                      setRestoreDialogSessionId(activeSession.id);
+                    }
                   }}
                   onOpenHistory={() => openWorkbench("history")}
                 />
@@ -2727,8 +2766,9 @@ export function App(): React.JSX.Element {
                                   selection: { selectedPath, excludedPaths: activeSession?.changesSelection.excludedPaths ?? [] },
                                 })
                               }
-                              restoreIntent={changesRestoreIntent}
-                              onRestoreIntentHandled={clearChangesRestoreIntent}
+                              restoredElsewhere={changesRestoredElsewhere}
+                              onRestoredElsewhereHandled={clearChangesRestoredElsewhere}
+                              recoveriesRevision={recoveriesRevision}
                               onBeginDiscard={() => startSessionOperation("discard")}
                               onDiscardClose={() => finishSessionOperation(project.path)}
                               onDiscardPhaseChange={(phase) => {
@@ -3076,6 +3116,38 @@ export function App(): React.JSX.Element {
               finishSessionOperation(project.path);
             }}
             onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
+          />
+        </Suspense>
+      )}
+
+      {restoreDialogSession && (
+        <Suspense fallback={null}>
+          <DiscardChangesDialog
+            request={RESTORE_REQUEST}
+            projectPath={restoreDialogSession.project.path}
+            sessionEpoch={restoreDialogSession.epoch}
+            controller={changesController}
+            onClose={() => {
+              finishSessionOperation(restoreDialogSession.id);
+              setRestoreDialogSessionId(null);
+              setRecoveriesRevision((value) => value + 1);
+              // Forgetting a copy changes no file, so no watcher reports it:
+              // the Overview's card is read again here instead.
+              void workDetailController.refreshRecovery({
+                projectId: restoreDialogSession.project.path,
+                sessionEpoch: restoreDialogSession.epoch,
+              });
+            }}
+            onMutationCompleted={() => void handleMutationSucceeded(restoreDialogSession.project.path)}
+            onPhaseChange={(phase) =>
+              dispatchSessions({ type: "setOperationPhase", id: restoreDialogSession.id, phase })
+            }
+            onFinished={(outcome) => {
+              // The files are back in Changes: that is where to look next.
+              if (restoreDialogSession.id !== sessionsState.activeId) return;
+              setChangesRestoredElsewhere(outcome);
+              openWorkbench("changes");
+            }}
           />
         </Suspense>
       )}

@@ -163,7 +163,8 @@ function DetailCard({
  * card asks to save, resolve, get or publish, a small scene of where the work
  * is leads it and, under the scene, what that step will move; with nothing
  * waiting the scene takes the column. A discard that can still be restored
- * sits under it, and its button opens the restore picker itself.
+ * sits under them whenever everything is saved, and its button opens the
+ * restore picker over the Overview.
  */
 export function OverviewDetail({
   mode,
@@ -195,7 +196,7 @@ export function OverviewDetail({
   onGetChanges: () => void;
   onOpenHistory: () => void;
   onOpenProjectSettings: () => void;
-  /** Opens Changes with its restore picker already open. */
+  /** Opens the restore picker over the Overview. */
   onRestoreDiscarded: () => void;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
@@ -391,9 +392,12 @@ export function OverviewDetail({
         onOpenProjectSettings={onOpenProjectSettings}
       />
       {card}
-      {!card && detail.recovery && (
-        <div className="overview-restore">
-          <span className="overview-restore__icon" aria-hidden="true"><RotateCcw /></span>
+      {/* Whenever everything is saved, whatever the remote waits on: with work
+          on screen a restore would land on top of it, and Changes is where
+          that choice is made. */}
+      {journey.changes.state === "clean" && detail.recovery && (
+        <div className={`overview-restore${card ? " overview-restore--compact" : ""}`}>
+          <span className="overview-restore__place" aria-hidden="true"><RotateCcw /></span>
           <span className="overview-restore__copy">
             <span className="overview-restore__label">{t.overviewSafetyDiscarded}</span>
             <span className="overview-restore__hint">

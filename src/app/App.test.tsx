@@ -1655,6 +1655,66 @@ describe("App project restoration", () => {
     });
   });
 
+  it("restores a discard from Overview, and stays there when nothing was restored", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    const record = {
+      recoveryId: "discard-1", createdAtMs: Date.now() - 60_000, fileCount: 1, selectedPath: null,
+      previewPaths: ["gone.txt"], stateToken: "token-1", availability: "restorable" as const,
+      restoresPreparedState: true,
+    };
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "list_discard_recoveries") return Promise.resolve([record]);
+      if (command === "get_discard_recovery") return Promise.resolve(record);
+      if (command === "restore_discarded_changes") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await screen.findByText("Discarded changes", undefined, { timeout: 5000 });
+
+    // The picker opens over Overview; closing it without restoring leaves
+    // Overview where it was.
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
+    const picker = await screen.findByRole("dialog", { name: "Restore discarded changes" });
+    expect(await within(picker).findByText("gone.txt")).toBeInTheDocument();
+    await userEvent.click(within(picker).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Restore discarded changes" })).toBeNull());
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
+
+    // A restore moves on to Changes, which says what came back.
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
+    const again = await screen.findByRole("dialog", { name: "Restore discarded changes" });
+    await within(again).findByText("gone.txt");
+    await userEvent.click(within(again).getByRole("button", { name: "Restore" }));
+    expect(await screen.findByRole("heading", { name: "Changes" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("1 file restored.", undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("restore_discarded_changes", {
+      path: restoredProject.path,
+      sessionEpoch: restoredProject.sessionEpoch,
+      recoveryId: "discard-1",
+      stateToken: "token-1",
+    });
+  });
+
   it("keeps a screen mounted when you navigate away from it and back", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(

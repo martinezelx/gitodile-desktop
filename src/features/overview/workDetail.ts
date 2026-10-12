@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import { useScreenLifecycleController } from "../../runtime/screen/module";
-import type { DiscardRecovery } from "../changes";
+import type { DiscardRecoveryRecord } from "../changes";
 import type { CommitFileChange, PendingVersionsResult } from "../publish";
 
 /** How many unpublished versions the column reads the files of. A longer run
@@ -24,21 +24,35 @@ export type IncomingState =
   | { key: string; status: "ready"; result: PendingVersionsResult }
   | { key: string; status: "error" };
 
+/** A stored discard Overview can offer: one that can be restored right now. */
+export type RestorableDiscard = Pick<DiscardRecoveryRecord, "recoveryId" | "createdAtMs" | "fileCount">;
+
 export type WorkDetailSnapshot = {
   /** Files of each unpublished version read so far, by commit. A saved
    * version never changes, so an entry is read once per session. */
   commitFiles: ReadonlyMap<string, CommitFilesState>;
-  /** The newest stored discard that can still be offered, or `null`. */
-  recovery: DiscardRecovery | null;
+  /** The newest stored discard that can be restored right now, or `null`. */
+  recovery: RestorableDiscard | null;
   /** What the last remote check brought down, or `null` with nothing waiting. */
   incoming: IncomingState | null;
 };
 
 export type WorkDetailPorts = {
   readCommitFileChanges(query: WorkDetailQuery & { commit: string }): Promise<CommitFileChange[]>;
-  getDiscardRecovery(query: WorkDetailQuery): Promise<DiscardRecovery>;
+  /** The newest stored discard that can be restored right now, or `null`.
+   * Not merely the newest one: that copy stays stored after it is restored or
+   * once the project moves past it, and offering it would open a picker with
+   * nothing to pick. */
+  findRestorableDiscard(query: WorkDetailQuery): Promise<RestorableDiscard | null>;
   readIncomingVersions(query: WorkDetailQuery): Promise<PendingVersionsResult>;
 };
+
+/** The newest record of a listing that can be restored right now. The
+ * listing is newest first. */
+export function newestRestorableDiscard(records: readonly DiscardRecoveryRecord[]): RestorableDiscard | null {
+  const record = records.find((item) => item.availability === "restorable");
+  return record ? { recoveryId: record.recoveryId, createdAtMs: record.createdAtMs, fileCount: record.fileCount } : null;
+}
 
 const EMPTY: WorkDetailSnapshot = { commitFiles: new Map(), recovery: null, incoming: null };
 
@@ -105,15 +119,15 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
         }),
       );
     },
-    /** Reads the newest stored discard. One that cannot be read or does not
-     * exist is simply not offered: the Changes screen owns the full list. */
+    /** Reads the newest restorable discard. One that cannot be read or does
+     * not exist is simply not offered: the Changes screen owns the full list. */
     async refreshRecovery(query: WorkDetailQuery): Promise<void> {
       const key = keyOf(query);
       const generation = (recoveryGenerations.get(key) ?? 0) + 1;
       recoveryGenerations.set(key, generation);
-      let recovery: DiscardRecovery | null;
+      let recovery: RestorableDiscard | null;
       try {
-        recovery = await ports.getDiscardRecovery(query);
+        recovery = await ports.findRestorableDiscard(query);
       } catch {
         recovery = null;
       }

@@ -1105,31 +1105,47 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .work-scene__connect:hover { text-decoration: underline; }
 .work-scene__connect:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
-/* A discard that can still be restored: its own card under the scene, in the
-   unsaved colour, because it is the one thing in the column to act on. Its
-   button opens Changes with the restore picker already open. */
+/* A discard that can still be restored: the scene's sibling under it — the
+   same surface, wash and shadow, its object drawn as one of the scene's
+   places — in the unsaved colour, because it is the one thing in the column
+   to act on. Its button opens the restore picker over the Overview. Under a
+   detail card it goes plain, like the small scene above that card. */
 .overview-restore {
+  --restore-tone: var(--status-warning);
   min-width: 0;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, var(--border-subtle));
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-raised));
+  padding: var(--space-3);
+  border-radius: var(--radius-surface);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--restore-tone) 16%, transparent), transparent 60%),
+    var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  animation: work-scene-in 260ms ease-out;
 }
-.overview-restore__icon {
-  width: 30px;
-  height: 30px;
+:root[data-reduced-motion="true"] .overview-restore { animation: none; }
+.overview-restore--compact {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+.overview-restore__place {
+  width: 38px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--status-warning) 16%, transparent);
-  color: var(--status-warning);
+  border-radius: var(--radius-item);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-sm);
+  color: var(--restore-tone);
 }
-.overview-restore__icon svg { width: 14px; height: 14px; }
-.overview-restore__copy { min-width: 0; display: grid; gap: 1px; }
+.overview-restore__place svg { width: 18px; height: 18px; stroke-width: 1.6; }
+.overview-restore--compact .overview-restore__place { width: 32px; height: 28px; }
+.overview-restore--compact .overview-restore__place svg { width: 16px; height: 16px; }
+.overview-restore__copy { min-width: 0; display: grid; gap: 1px; line-height: var(--leading-snug); }
 .overview-restore__label { font-size: var(--text-label); font-weight: var(--weight-heading); }
 .overview-restore__hint { color: var(--text-secondary-color); font-size: var(--text-caption); }
 .overview-restore__action {

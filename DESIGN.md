@@ -585,8 +585,13 @@ The main desktop window should broadly support:
      opening), the "Now" row, the timeline, the scene, and a detail card's
      list until its files or versions are read. The whole screen's placeholder
      during launch restore is built from the same pieces. A discard
-     that can still be restored is its own amber card under the scene, and
-     "Restore" opens Changes with the restore picker already open. The column
+     that can still be restored is its own card under the scene whenever
+     everything is saved — under a detail card too — dressed like the scene:
+     the same surface, amber wash and shadow, its icon drawn as one of the
+     scene's places (plain and bordered under a detail card, like the small
+     scene). "Restore" opens the restore picker over the Overview: closing it
+     stays there, and only a restore moves on to Changes, which shows what
+     came back. The column
      repeats nothing the status bar or the timeline already says: the remote
      check, the project's path and its technology are not here (the path is
      the folder button's tooltip; the technology is the project's own icon).
