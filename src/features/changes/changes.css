@@ -786,7 +786,7 @@
 .changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: 6px; }
 .changes-diff__note-icon svg { width: 18px; height: 18px; }
 .changes-diff__note h3 { font-size: var(--text-subtitle); color: var(--text-primary-color); }
-.changes-diff__note--attention .changes-diff__note-icon { background: var(--surface-active); color: var(--status-warning); }
+.changes-diff__note--attention .changes-diff__note-icon { background: color-mix(in srgb, var(--status-warning) 14%, transparent); color: var(--status-warning); }
 
 .diff-code {
   /* `flex: 1; min-height: 0` (rather than a percentage height) so this

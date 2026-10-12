@@ -261,7 +261,9 @@ The main desktop window should broadly support:
    line's name are the sentence, with no words in front of them; the name is
    what keeps the strip saying something once the reader has left Overview,
    and both truncate rather than wrap. Unsaved work is the project switcher's
-   own mark — the changes icon with the count riding its corner, and, after it,
+   own mark — the changes icon with the count riding its corner in a neutral
+   capsule (a count is not a state, so it never takes the accent), and, after
+   it,
    the added and removed line totals (`+12 −3`) in the diff's own two inks at
    the label size, quiet enough to read as a second fact rather than a banner.
    The sentence ("28 unsaved changes · 12 lines added, 3 lines removed") is in
@@ -550,17 +552,38 @@ The main desktop window should broadly support:
      safe, only the remote could not be asked.
    - **A living timeline beside a side column.** Versions the last remote
      check found waiting lead the timeline, above *now* — which is where they
-     stand in time — as one blue row with a dashed node ("origin · 3 new
-     versions · Get"). Then *now*, one line: "Now · 4 unsaved changes" on a
-     soft fill of the unsaved colour, the kinds of change as small glyph
+     stand in time — as one row with a dashed blue node ("origin · 3 new
+     versions · Get"). Then *now*, one line: "Now · 4 unsaved changes" with a
+     dashed ring in the unsaved colour, the kinds of change as small glyph
      counts, the whole line a way into Changes; it names no files, the side
      column does, and with nothing unsaved it is one quiet line. Under it, the
-     versions still only on this computer are grouped on the accent's light
-     fill under one label ("Only on this computer · 2 versions") — in the
-     unsaved colour instead when there is no remote at all — then a small
-     cloud on the rail marks where the remote's copy of the line begins, then
-     the published versions. One rail runs the whole list. "Publish up to
-     here" still appears on an unpublished node under the pointer or focus.
+     versions still only on this computer are grouped under one quiet label
+     ("Only on this computer · 2 versions") — in the unsaved colour's ink
+     when there is no remote at all — then a small neutral cloud on the rail
+     (History draws the same mark) marks where the remote's copy of the line
+     begins, then the published versions.
+     One rail runs the whole list. "Publish up to here" still appears on an
+     unpublished node under the pointer or focus, as the status bar's sync
+     pill in a circle: the control surface and a hairline, only the cloud in
+     the accent, fading in without growing, while the half-filled node beneath
+     stays as it is.
+   - **The node's shape says where a version stands, so no row is filled.**
+     Unsaved work is a dashed ring, a version saved but not published is half
+     filled, a published one is a solid neutral disc, and versions waiting on
+     the remote are dashed blue: the same reading Linear gives its status
+     glyphs, and it survives greyscale. History's timeline draws its nodes the
+     same way (an unknown publication stays an empty ring), and both ring the
+     node in the accent under the pointer rather than filling it, so the
+     selected version on History stays the one green node. Selection changes
+     the node's colour, never its shape: a selected local version stays half
+     filled with the filled half in the accent, a published one becomes a
+     solid accent dot, so selecting a row never makes it look published. The
+     timeline therefore has no tinted rows or groups; the next-step card is
+     the only surface on the page that wears a state's colour, and its button
+     the only solid accent. The
+     "current" badge is a neutral capsule (on History too), and the
+     timeline's and side column's links ("Review", "View all", "Connect")
+     are in the primary ink with their chevron, not the accent.
      Beside it, a **side column that follows the card**: one detail of what
      the next step will move — "What you'll save" (files and the line totals
      as a green and red bar), "What you need to decide" (the files with
@@ -568,11 +591,14 @@ The main desktop window should broadly support:
      author), or "What you'll publish" (the files the unpublished versions
      carry, "9+ files" while not all are read) — closing on the consequence in
      one line that fits the column in every language ("Stays here until you
-     publish", "Seen by anyone on this line"). Above the detail, and alone when
+     publish", "Seen by anyone on this line"). The bar is a thin 3px line at
+     reduced strength: the totals carry the diff's inks, the bar only their
+     proportion. Above the detail, and alone when
      nothing is waiting, **the scene**: this computer and the remote drawn as
      two objects and the path between them telling how they stand — a check
-     when they match, green dots leaving for versions not yet published, dashed
-     blue dots arriving for versions waiting, a "?" when the remote could not
+     when they match, solid dots in the primary ink leaving for versions not
+     yet published (their count a neutral badge), dashed blue dots arriving for
+     versions waiting, a "?" when the remote could not
      be asked, an empty dashed cloud ("No copy · Connect") when there is no
      remote. Each place carries one fact ("Here · 3 hours ago", "origin · up to
      date"); the explanation for newcomers is its tooltip, not a sentence on
@@ -624,8 +650,8 @@ The main desktop window should broadly support:
      the latest versions shown and that older ones are in History, where the
      project began, or that a shallow copy's older versions were never
      downloaded. Scrolled to the end of a line that goes on, the header's
-     "View all" takes the accent's light fill and breathes once (it quiets
-     when scrolled back up). The scroll uses the app's auto-hiding scrollbar.
+     "View all" takes the hover surface and breathes once (it quiets when
+     scrolled back up). The scroll uses the app's auto-hiding scrollbar.
      Scrolling and resizing read nothing from Git. Smaller than
      that, the screen scrolls as a page with lists of a fixed length.
 
@@ -938,14 +964,23 @@ History, and the timeline filter's "Only unpublished" switch wears the same
 laptop, as Lines' filter does, and "Only tagged versions" and "Hide branch
 merges" wear theirs, so the panel doubles as the legend. Where the published
 versions begin, a dashed rule crosses the column above the first of them,
-naming both sides — `↑ 4 not published ── Published ↓` — with the remote on
-its tooltip and the rail running through it. A single `Published to
-origin/main` there read as a fact about the row above it, and a release
-branch's name did not fit the column. So "what
+drawn as Overview's timeline draws the same place: a small neutral cloud on
+the rail, "Published on origin" (the remote alone when it is the line's own
+branch, `origin · main` otherwise, truncating rather than wrapping), the rule,
+and at its end the count of what is above it — `4 not published`. The full
+`origin/main` and both sides are on its tooltip. An earlier
+`Published to origin/main` read as a fact about the row above it and a
+release branch's name did not fit; naming only the remote, beside a mark on
+the rail, fixes both. So "what
 haven't I published?" is one line to find rather than a laptop to read off
 every row; nothing is drawn when every version is on one side of it. On the
 current line its count is also a way to act on it: it opens the publish flow,
-with its preview, as a pointer shortcut beside the toolbar's Publish.
+with its preview, as a pointer shortcut beside the toolbar's Publish: the
+count becomes "☁ Publish 4", the cloud (`CloudUpload`) always shown in the
+accent so it reads as an action before the pointer finds it; under the
+pointer the capsule takes the control surface and hairline that Overview's
+"Publish up to here" circle and the status bar's sync pill wear, and the
+words step up to the primary ink.
 
 A title reads from what changed: a Conventional Commits prefix
 (`fix(settings): `) is one tone quieter than the words after it, and a merge's
@@ -2540,7 +2575,8 @@ The **timeline** is the History screen's shape: the incoming row (one blue
 line above *now* while versions wait on the remote, leading to the review and
 get flow), *now* (one line with the unsaved count and its kinds as glyph
 counts, leading to Changes), the versions only on this computer grouped under
-one label on the accent's light fill (the unsaved colour with no remote), a
+one quiet label with half-filled nodes (the label in the unsaved ink with no
+remote), a
 cloud mark on the rail where the remote's copy begins ("Published on origin",
 naming the line only when it differs from the one stood on), then published
 versions, six in all with "View all" in the card's corner. Rows keep "You" for

@@ -331,6 +331,7 @@
   position: relative; height: 26px;
   display: flex; align-items: center; gap: 6px;
   padding: 0 10px 0 41px;
+  min-width: 0;
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-medium);
 }
 .history-boundary::before {
@@ -339,16 +340,31 @@
 .history-boundary[data-rail]::before { background: color-mix(in srgb, var(--accent-primary) 62%, var(--border-divider)); }
 .history-boundary__rule { flex: 1 1 auto; min-width: 12px; height: 0; border-top: 1px dashed var(--border-subtle); }
 .history-boundary__side { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-/* The count, as a way to publish what it counts: a capsule that shows it is
-   pressable only under the pointer, with the publish glyph arriving there. */
+/* Overview's rail mark: a small cloud in a bordered circle on the rail. */
+.history-boundary__mark {
+  position: absolute; z-index: 1; top: 50%; left: 8.5px;
+  width: 20px; height: 20px; display: grid; place-items: center;
+  border: 1px solid var(--border-control); border-radius: var(--radius-round);
+  background: var(--surface-panel); color: var(--text-secondary-color);
+  transform: translateY(-50%);
+}
+.history-boundary__mark svg { width: 11px; height: 11px; }
+.history-boundary__where { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.history-boundary__remote { color: var(--text-primary-color); font-family: var(--font-mono); font-weight: var(--weight-strong); }
+/* The count, as a way to publish what it counts. The publish cloud is always
+   there, in the accent, so the count reads as an action before the pointer
+   finds it; under the pointer the capsule takes the shape Overview's "Publish
+   up to here" and the status bar's sync pill wear — the control surface with
+   a hairline — and the words step up to the primary ink. Only the cloud is
+   ever green. */
 .history-boundary__publish {
-  height: 20px; margin-inline-start: -7px; padding: 0 7px; border: 1px solid transparent; border-radius: var(--radius-pill);
+  height: 20px; margin-inline-end: -7px; padding: 0 7px; border: 1px solid transparent; border-radius: var(--radius-pill);
   background: transparent; color: inherit; font: inherit;
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
-.history-boundary__publish:hover { background: var(--surface-hover); border-color: var(--border-subtle); color: var(--accent-primary); }
-.history-boundary__publish-icon { opacity: 0; transition: opacity var(--duration-fast); }
-.history-boundary__publish:hover .history-boundary__publish-icon { opacity: 1; }
+.history-boundary__publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
+.history-boundary__publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
+.history-boundary__publish-icon { color: var(--accent-primary); }
 .history-boundary svg { width: 12px; height: 12px; }
 /* The first page's rows, at the virtual rows' height and inset. */
 .history-timeline__placeholder { flex: 1; min-height: 0; overflow: hidden; }
@@ -425,9 +441,12 @@
 .history-row[data-rail="half"]::before { bottom: calc(100% - 32px); }
 .history-row[data-first]::before { top: 32px; }
 
-/* The node carries the state, and it carries all of it: a ring at rest, the
-   accent under the pointer, a filled dot with a soft halo when selected. No
-   keyframes — DESIGN.md § Motion asks motion to communicate a state change,
+/* The node carries the state, and it carries all of it. Its shape says where
+   the version stands, as on Overview's timeline: half filled when it is saved
+   only here, a solid neutral disc once published, an empty ring when that is
+   not known. The accent ring comes under the pointer, and the selection turns
+   the node's own shape to the accent with a soft halo — the one green node in
+   the list. No keyframes — DESIGN.md § Motion asks motion to communicate a state change,
    and an `infinite` pulse under the pointer is the definition of decoration.
 
    The resting ring is mixed off the secondary text colour rather than taking a
@@ -446,13 +465,30 @@
   box-shadow: 0 0 0 3px var(--surface-panel);
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
 }
+.history-row--local .history-row__node {
+  border-color: var(--text-primary-color);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+}
+.history-row--published .history-row__node {
+  border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
+  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-panel));
+}
 .history-row:hover .history-row__node,
 .history-row:focus-visible .history-row__node { border-color: var(--accent-primary); }
+/* Selection changes the node's colour, never its shape: a version saved only
+   here stays half filled — the filled half in the accent — and only a
+   published one becomes a solid accent dot, so selecting a row never makes it
+   look published. The hollow half takes the selected row's own tint. An
+   unknown publication stays a ring, in the accent. */
 .history-row--selected .history-row__node {
   border-color: var(--accent-primary);
-  background: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel));
   box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
+.history-row--selected.history-row--local .history-row__node {
+  background: linear-gradient(90deg, var(--accent-primary) 50%, color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)) 50%);
+}
+.history-row--selected.history-row--published .history-row__node { background: var(--accent-primary); }
 .history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
 /* One line, truncated: the subject gets a full line and the message behind it
    is read in the detail strip, which is the surface that has room for it. */
@@ -518,9 +554,11 @@
 }
 .history-ref-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
 .history-ref-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The current line is a fact about the row, not a state to act on: a neutral
+   capsule, so the accent stays with selection and the screen's action. */
 .history-ref-badge--current {
-  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  background: var(--surface-active); color: var(--accent-primary);
+  border-color: var(--border-divider);
+  background: var(--surface-control); color: var(--text-primary-color);
 }
 
 /* The column, not the card: on a narrow window it also carries the button back
@@ -639,7 +677,9 @@
 .history-publication, .history-kind-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
 .history-publication svg { width: 11px; height: 11px; }
 .history-publication--published { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised)); color: var(--status-success); }
-.history-publication--local-only { color: var(--accent-primary); }
+/* Saved here but not published is work still to do, not a success: the
+   primary ink on the neutral capsule, the published capsule keeps its green. */
+.history-publication--local-only { color: var(--text-primary-color); }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; }
 /* Two panes, each opening with its own strip — the shape the screen around it
@@ -801,7 +841,11 @@
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
   .history-row__avatar { border: 1px solid CanvasText; }
-  .history-row--selected .history-row__node { background: Highlight; }
+  .history-row--selected .history-row__node { background: Canvas; border-color: Highlight; }
+  .history-row--local .history-row__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }
+  .history-row--published .history-row__node { background: CanvasText; }
+  .history-row--selected.history-row--local .history-row__node { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); }
+  .history-row--selected.history-row--published .history-row__node { background: Highlight; }
   /* `color-mix` does not survive a forced palette, so the walked rail names a
      system colour instead of losing its fill entirely. */
   .history-row[data-rail="filled"]::before, .history-row[data-rail="half"]::before { background: Highlight; }

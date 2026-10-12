@@ -41,6 +41,8 @@ export interface HistoryTranslations {
   historyFilterTaggedOnly: string;
   historyBoundaryUnpublished: (count: string) => string;
   historyBoundaryPublished: string;
+  historyBoundaryPublishedOn: string;
+  historyBoundaryPublishCount: (count: string) => string;
   historyBoundaryHint: (remote: string | null) => string;
   historyBoundaryPublishHint: string;
   historyMatchAuthor: string;
@@ -207,6 +209,8 @@ const en: HistoryTranslations = {
   historyFilterTaggedOnly: "Only tagged versions",
   historyBoundaryUnpublished: (count) => `${count} not published`,
   historyBoundaryPublished: "Published",
+  historyBoundaryPublishedOn: "Published on",
+  historyBoundaryPublishCount: (count) => `Publish ${count}`,
   historyBoundaryPublishHint: "Publish them — you'll see what's sent first",
   historyMatchAuthor: "author",
   historyMatchCommit: "code",
@@ -367,6 +371,8 @@ const es: HistoryTranslations = {
   historyFilterTaggedOnly: "Solo versiones con etiqueta",
   historyBoundaryUnpublished: (count) => `${count} sin publicar`,
   historyBoundaryPublished: "Publicadas",
+  historyBoundaryPublishedOn: "Publicadas en",
+  historyBoundaryPublishCount: (count) => `Publicar ${count}`,
   historyBoundaryPublishHint: "Publicarlas: antes verás qué se envía",
   historyMatchAuthor: "autor",
   historyMatchCommit: "código",

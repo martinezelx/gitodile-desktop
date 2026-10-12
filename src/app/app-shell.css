@@ -401,8 +401,8 @@
   justify-content: center;
   border-radius: var(--radius-pill);
   border: 2px solid var(--surface-app);
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
+  background: var(--surface-control);
+  color: var(--text-primary-color);
   font-size: var(--text-micro);
   font-weight: var(--weight-title);
   line-height: var(--leading-none);

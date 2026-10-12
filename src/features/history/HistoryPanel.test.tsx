@@ -514,15 +514,31 @@ describe("HistoryPanel", () => {
     const { container, unmount } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
     const boundaries = container.querySelectorAll(".history-boundary");
     expect(boundaries).toHaveLength(1);
-    // Both sides named: two unpublished above it, published below.
+    // Overview's mark — where the remote's copy begins — and the count of
+    // what is above it.
+    expect(boundaries[0]).toHaveTextContent("Published on origin");
     expect(boundaries[0]).toHaveTextContent("2 not published");
-    expect(boundaries[0]).toHaveTextContent("Published");
+    expect(boundaries[0].querySelector(".history-boundary__mark")).not.toBeNull();
     expect(boundaries[0]).toHaveAttribute("data-tooltip", "Versions above are only on this computer; versions below are already on origin/main");
     expect(boundaries[0].closest(".history-timeline__virtual-row")?.querySelector(".history-row")).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
     unmount();
 
     const published = renderPanel({ ...base, versions: [version(2), version(0)] });
     expect(published.container.querySelector(".history-boundary")).toBeNull();
+  });
+
+  it("names the boundary's remote against the scoped line, not the line stood on", () => {
+    const base = state(2);
+    const versions = [version(3), version(1), version(0), version(2)];
+    const releaseUpstream = { remote: "origin", destinationBranch: "release", trackingRef: "refs/remotes/origin/release", commit: version(0).commit };
+    // Looking at another line whose upstream shares its name: the remote alone.
+    const scoped = renderPanel({ ...base, versions, scope: { kind: "line", name: "release" }, snapshot: { ...base.snapshot!, upstream: releaseUpstream } });
+    expect(scoped.container.querySelector(".history-boundary")).toHaveTextContent(/Published on origin(?! ·)/);
+    scoped.unmount();
+
+    // On the current line, an upstream under another name says which branch.
+    const renamed = renderPanel({ ...base, versions, snapshot: { ...base.snapshot!, upstream: releaseUpstream } });
+    expect(renamed.container.querySelector(".history-boundary")).toHaveTextContent("Published on origin · release");
   });
 
   it("quiets a Conventional Commits prefix and a merge's title without changing the text", () => {
@@ -557,6 +573,7 @@ describe("HistoryPanel", () => {
     const publish = container.querySelector<HTMLButtonElement>(".history-boundary__publish");
     expect(publish).not.toBeNull();
     expect(publish).toHaveAttribute("tabindex", "-1");
+    expect(publish).toHaveTextContent("Publish 1");
     fireEvent.click(publish!);
     expect(onPublish).toHaveBeenCalledWith();
   });

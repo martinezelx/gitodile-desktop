@@ -345,8 +345,8 @@
 /* Scrolled to the end of a line that goes on: the rest is this button away. */
 .overview-history__all--lead,
 .overview-history__all--lead:hover {
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
-  color: var(--accent-primary);
+  background: var(--surface-hover);
+  color: var(--text-primary-color);
 }
 .overview-history__all svg { width: 15px; height: 15px; }
 
@@ -441,7 +441,8 @@
 .overview-history__row:hover,
 .overview-history__row:focus-visible { background: var(--surface-hover); }
 /* The same node as the History timeline's, minus the selected state this
-   preview has no room for: a ring at rest, the accent under the pointer. */
+   preview has no room for: its shape says where the version stands (below),
+   and the pointer rings it in the accent, as on History. */
 .overview-history__node {
   position: relative;
   z-index: 1;
@@ -455,12 +456,16 @@
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
 .overview-history__row:hover .overview-history__node,
-.overview-history__row:focus-visible .overview-history__node {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
-}
+.overview-history__row:focus-visible .overview-history__node { border-color: var(--accent-primary); }
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
+/* The node's shape says where the version stands, so the rows need no fill
+   of their own: a published version is a solid neutral disc, one still only on
+   this computer is half filled (below), and "Now" with unsaved work is a
+   dashed ring. Colour stays for the one card that asks for something. */
+.overview-history__item--published .overview-history__node {
+  border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
+  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-raised));
+}
 .overview-history__body { min-width: 0; display: grid; gap: 3px; }
 .overview-history__subject {
   overflow: hidden;
@@ -486,19 +491,22 @@
 .overview-history__date { flex: 0 0 auto; }
 .overview-history__chevron { width: 15px; height: 15px; color: var(--text-secondary-color); }
 
-/* The versions still only on this computer: one group, on the accent's light
-   fill, under one label — the count the old band said, drawn where the
-   versions are. Their nodes are ringed in the accent. */
+/* The versions still only on this computer: one group under one quiet label
+   — the count the old band said, drawn where the versions are. It has no fill:
+   saved-but-not-published is work still to do, not a success, and the
+   next-step card is the one surface that wears a state's colour. Their nodes
+   are half filled. */
 .overview-timeline__group {
-  --group-fill: var(--surface-active);
   min-width: 0;
   padding: 2px 0 4px;
   border-radius: var(--radius-control);
-  background: var(--group-fill);
 }
 .overview-timeline__group .overview-history__node,
 .overview-timeline__group .overview-history__row:not(:hover):not(:focus-visible) .overview-history__node { box-shadow: none; }
-.overview-history__item--local .overview-history__node { border-color: var(--accent-primary); }
+.overview-history__item--local .overview-history__node {
+  border-color: var(--text-primary-color);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-raised) 50%);
+}
 .overview-timeline__group-head {
   display: grid;
   grid-template-columns: 24px auto minmax(0, 1fr);
@@ -516,12 +524,12 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
+  background: var(--surface-control);
+  color: var(--text-secondary-color);
 }
 .overview-timeline__group-icon svg { width: 12px; height: 12px; }
 .overview-timeline__group-label {
-  color: var(--accent-primary);
+  color: var(--text-secondary-color);
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
 }
@@ -539,14 +547,14 @@
   padding: var(--space-2) var(--space-2) var(--space-2) 6px;
   border: 0;
   border-radius: var(--radius-item);
-  background: color-mix(in srgb, var(--status-renamed) 10%, transparent);
+  background: transparent;
   color: var(--text-secondary-color);
   font: inherit;
   font-size: var(--text-body);
   text-align: left;
   transition: background var(--duration-fast);
 }
-.overview-timeline__incoming:hover { background: color-mix(in srgb, var(--status-renamed) 16%, transparent); }
+.overview-timeline__incoming:hover { background: var(--surface-hover); }
 .overview-timeline__incoming:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .overview-timeline__incoming-node {
   position: relative;
@@ -577,10 +585,8 @@
 .overview-timeline__incoming-action svg { width: 12px; height: 12px; }
 /* With no remote at all, everything is only on this computer: the group says
    so in the unsaved colour rather than the accent's "ready to publish". */
-.overview-timeline__group--alone { --group-fill: color-mix(in srgb, var(--status-warning) 9%, transparent); }
-.overview-timeline__group--alone .overview-timeline__group-icon { background: var(--status-warning); color: var(--surface-raised); }
+.overview-timeline__group--alone .overview-timeline__group-icon { color: var(--status-warning); }
 .overview-timeline__group--alone .overview-timeline__group-label { color: var(--status-warning); }
-.overview-timeline__group--alone .overview-history__node { border-color: var(--status-warning); }
 
 /* Where the remote's copy of the line begins: a small cloud on the rail and a
    dashed rule running out from it. */
@@ -602,7 +608,7 @@
   border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
   background: var(--surface-raised);
-  color: var(--status-success);
+  color: var(--text-secondary-color);
 }
 .overview-timeline__mark-icon svg { width: 12px; height: 12px; }
 .overview-timeline__mark-text {
@@ -618,10 +624,13 @@
 .overview-timeline__mono { color: var(--text-primary-color); font-family: var(--font-mono); font-weight: var(--weight-strong); }
 
 /* Where it can be published, the node *is* the action — but only under the
-   pointer or focus: it grows to a pressable 22px, filled solid in the accent,
-   laid over the row's own node because it cannot live inside the row's
-   button. At rest it is hidden, so the next-step card stays the one solid
-   accent on the page. A touch screen, with nothing to hover, always shows it. */
+   pointer or focus: a pressable 22px circle laid over the row's own node,
+   because it cannot live inside the row's button. It wears the status bar's
+   sync pill: the control surface with a hairline, and only the cloud in the
+   accent, so the next-step card's button stays the one solid accent on the
+   page. It fades in without growing or breathing, and the node beneath it
+   keeps its half fill, so nothing flickers between the two. A touch screen,
+   with nothing to hover, always shows it. */
 .overview-history__publish {
   position: absolute;
   z-index: 2;
@@ -634,29 +643,30 @@
   place-items: center;
   border: 0;
   border-radius: var(--radius-round);
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  background: var(--surface-control);
+  color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--surface-raised), inset 0 0 0 1px var(--border-divider);
   opacity: 0;
-  transform: translateY(-50%) scale(0.55);
-  transition: transform var(--duration-fast) ease-out, opacity var(--duration-fast) ease-out;
+  transform: translateY(-50%);
+  transition: opacity var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out;
 }
 .overview-history__item--publishable:hover .overview-history__publish,
-.overview-history__publish:focus-visible {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-}
+.overview-history__publish:focus-visible { opacity: 1; }
 @media (hover: none) {
-  .overview-history__publish { opacity: 1; transform: translateY(-50%) scale(1); }
+  .overview-history__publish { opacity: 1; }
 }
 .overview-history__publish svg { width: 12px; height: 12px; }
-.overview-history__item--publishable .overview-history__publish:hover,
-.overview-history__item--publishable .overview-history__publish:focus-visible {
-  transform: translateY(-50%) scale(1.12);
-  animation: attention-breathe var(--attention-duration) ease-out 1;
-}
+.overview-history__publish:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
+.overview-history__publish:active { background: color-mix(in srgb, var(--text-primary-color) 16%, var(--surface-control)); }
 .overview-history__publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.overview-history__item--publishable .overview-history__publish:active { transform: translateY(-50%) scale(1); }
+/* A publishable row's own node stays as it is under the pointer: the circle
+   above is the change, and an accent node fading in beneath it was the
+   flicker. */
+.overview-history__item--publishable .overview-history__row:hover .overview-history__node {
+  border-color: var(--text-primary-color);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-raised) 50%);
+  box-shadow: none;
+}
 
 .overview-history__state {
   min-height: 84px;
@@ -704,13 +714,13 @@
   grid-template-columns: 24px auto minmax(0, 1fr) 16px;
   border: 0;
   border-radius: var(--radius-item);
-  background: color-mix(in srgb, var(--now-tone) 9%, transparent);
+  background: transparent;
   color: var(--text-primary-color);
   font: inherit;
   text-align: left;
   transition: background var(--duration-fast);
 }
-.overview-now--active:hover { background: color-mix(in srgb, var(--now-tone) 15%, transparent); }
+.overview-now--active:hover { background: var(--surface-hover); }
 .overview-now--active:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .overview-now--conflicts,
 .overview-now--error { --now-tone: var(--status-danger); }
@@ -720,15 +730,16 @@
   width: 14px;
   height: 14px;
   justify-self: center;
-  border: 2.5px solid var(--now-tone);
+  border: 2.5px dashed var(--now-tone);
   border-radius: var(--radius-round);
   background: var(--surface-raised);
-  box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 5px color-mix(in srgb, var(--now-tone) 22%, transparent);
+  box-shadow: 0 0 0 3px var(--surface-raised);
 }
 .overview-now--quiet .overview-now__node {
   width: 12px;
   height: 12px;
   border-width: 2px;
+  border-style: solid;
   border-color: color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
   box-shadow: 0 0 0 3px var(--surface-raised);
 }
@@ -784,7 +795,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent-primary);
+  color: var(--text-primary-color);
   font: inherit;
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
@@ -828,7 +839,7 @@
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--accent-primary);
+  color: var(--text-primary-color);
   font: inherit;
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
@@ -854,7 +865,7 @@
 }
 .overview-detail__added { color: var(--diff-added); }
 .overview-detail__removed { color: var(--diff-removed); }
-.overview-detail__bar { flex: 1; height: 6px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.overview-detail__bar { flex: 1; height: 3px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); opacity: .65; }
 .overview-detail__bar > i { display: block; flex-basis: 0; }
 .overview-detail__bar-added { background: var(--diff-added); }
 .overview-detail__bar-removed { background: var(--diff-removed); }
@@ -1037,7 +1048,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   font-weight: var(--weight-title);
   font-variant-numeric: tabular-nums;
 }
-.work-scene__badge--out { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); }
+.work-scene__badge--out { background: var(--surface-control); color: var(--text-primary-color); box-shadow: 0 0 0 2px var(--surface-raised), inset 0 0 0 1px var(--border-divider); }
 .work-scene__badge--in { background: var(--status-renamed); color: var(--surface-raised); }
 .work-scene__path { position: relative; width: 100%; height: 22px; }
 .work-scene__path::before {
@@ -1075,7 +1086,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 }
 .work-scene__dots { position: absolute; top: 7px; right: 10px; left: 10px; display: flex; justify-content: space-around; }
 .work-scene__dot { width: 8px; height: 8px; border-radius: var(--radius-round); }
-.work-scene__dot--out { background: var(--accent-primary-fill); }
+.work-scene__dot--out { background: var(--text-primary-color); }
 .work-scene__dot--in { border: 2px dashed var(--status-renamed); background: var(--surface-raised); }
 /* A dot that has left the drawing, replayed on its way out (sceneMotion.ts). */
 .work-scene__dot--ghost { position: absolute; top: 7px; left: -4px; }
@@ -1097,7 +1108,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent-primary);
+  color: var(--text-primary-color);
   font: inherit;
   font-size: var(--text-caption);
   font-weight: var(--weight-heading);
@@ -1210,8 +1221,6 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .empty-state__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__node { transition: none; }
-  .overview-history__publish:hover,
-  .overview-history__publish:focus-visible { animation: none; }
   .overview-history__publish,
   .overview-header__icon,
   .overview-header__icon-edit { transition: none; }
@@ -1270,7 +1279,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-timeline__group-head {
     padding-bottom: 2px;
     border-radius: var(--radius-control) var(--radius-control) 0 0;
-    background: linear-gradient(var(--group-fill), var(--group-fill)), var(--surface-raised);
+    background: var(--surface-raised);
   }
   .overview-timeline__mark { background: var(--surface-raised); }
   .overview-timeline__group-head::before,
@@ -1323,9 +1332,15 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-history,
   .overview-detail,
   .work-scene,
-  .overview-restore,
-  .overview-timeline__group {
+  .overview-restore {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }
+  /* The nodes' shapes in system colours: a gradient keeps its own colours
+     under a forced palette unless it names system ones. */
+  .overview-history__item--local .overview-history__node,
+  .overview-history__item--publishable .overview-history__row:hover .overview-history__node {
+    background: linear-gradient(90deg, CanvasText 50%, Canvas 50%);
+  }
+  .overview-history__item--published .overview-history__node { background: CanvasText; }
 }

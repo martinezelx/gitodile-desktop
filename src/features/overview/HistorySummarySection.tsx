@@ -157,7 +157,7 @@ export function HistorySummarySection({
     return (
       <li
         key={version.commit}
-        className={`overview-timeline__item row-in${isLocalOnly ? " overview-history__item--local" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
+        className={`overview-timeline__item row-in${isLocalOnly ? " overview-history__item--local" : ""}${version.publication === "published" ? " overview-history__item--published" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
         style={{ "--row-index": index } as React.CSSProperties}
       >
         <button
