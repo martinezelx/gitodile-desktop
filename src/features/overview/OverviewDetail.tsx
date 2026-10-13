@@ -120,6 +120,7 @@ function LineTotals({ added, removed }: { added: number; removed: number }): Rea
 }
 
 function DetailCard({
+  tone,
   icon,
   title,
   link,
@@ -127,6 +128,8 @@ function DetailCard({
   children,
   note,
 }: {
+  /** The next-step card's colour for this step, worn by the header's glyph alone. */
+  tone: "unsaved" | "blocked" | "remote";
   icon: React.JSX.Element;
   title: string;
   link?: { label: string; onClick: () => void };
@@ -136,7 +139,7 @@ function DetailCard({
 }): React.JSX.Element {
   const titleId = useId();
   return (
-    <section className="overview-detail" aria-labelledby={titleId} aria-busy={busy}>
+    <section className={`overview-detail overview-detail--${tone}`} aria-labelledby={titleId} aria-busy={busy}>
       <header className="overview-detail__head">
         {icon}
         <h2 id={titleId}>{title}</h2>
@@ -237,6 +240,7 @@ export function OverviewDetail({
     const shown = sampleChangesPreview(workingTree.entries, fit.count);
     card = (
       <DetailCard
+        tone="unsaved"
         icon={<Save aria-hidden="true" />}
         title={t.overviewDetailSaveTitle}
         link={{ label: t.overviewDetailReview, onClick: () => onReviewChanges() }}
@@ -262,6 +266,7 @@ export function OverviewDetail({
     const shown = conflicted.slice(0, fit.count);
     card = (
       <DetailCard
+        tone="blocked"
         icon={<Split aria-hidden="true" />}
         title={t.overviewDetailResolveTitle}
         link={{ label: t.overviewJourneyResolve, onClick: onResolve }}
@@ -304,6 +309,7 @@ export function OverviewDetail({
         : null;
     card = (
       <DetailCard
+        tone="remote"
         icon={<CloudUpload aria-hidden="true" />}
         title={t.overviewDetailPublishTitle}
         link={{ label: t.overviewDetailInHistory, onClick: onOpenHistory }}
@@ -341,6 +347,7 @@ export function OverviewDetail({
     const shown = versions.slice(0, fit.count);
     card = (
       <DetailCard
+        tone="remote"
         icon={<ArrowDownToLine aria-hidden="true" />}
         title={t.overviewDetailBringTitle}
         link={{ label: t.overviewDetailReview, onClick: onGetChanges }}

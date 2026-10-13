@@ -295,7 +295,12 @@ export function HistorySummarySection({
                 {local.length > 0 && (
                   <li className={`overview-timeline__group${hasNoRemote ? " overview-timeline__group--alone" : ""}`}>
                     <p className="overview-timeline__group-head">
-                      <span className="overview-timeline__group-icon" aria-hidden="true"><Laptop /></span>
+                      {/* Waiting to be published, the status bar's Publish glyph — not the
+                        scene's laptop, which wears the unsaved yellow beside
+                        it. With nowhere to publish, it stays this computer. */}
+                    <span className="overview-timeline__group-icon" aria-hidden="true">
+                      {hasNoRemote ? <Laptop /> : <CloudUpload />}
+                    </span>
                       <span className="overview-timeline__group-label">{t.overviewTimelineLocalGroup}</span>
                       <span className="overview-timeline__group-count">{t.overviewTimelineLocalCount(localCount)}</span>
                     </p>

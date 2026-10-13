@@ -525,7 +525,7 @@
   place-items: center;
   border-radius: var(--radius-round);
   background: var(--surface-control);
-  color: var(--text-secondary-color);
+  color: var(--accent-primary);
 }
 .overview-timeline__group-icon svg { width: 12px; height: 12px; }
 .overview-timeline__group-label {
@@ -608,7 +608,7 @@
   border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
   background: var(--surface-raised);
-  color: var(--text-secondary-color);
+  color: var(--status-renamed);
 }
 .overview-timeline__mark-icon svg { width: 12px; height: 12px; }
 .overview-timeline__mark-text {
@@ -820,6 +820,11 @@
 }
 .overview-detail__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .overview-detail__head > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
+/* The glyph carries the step's colour — the next-step card's tone — while the
+   card itself stays neutral. */
+.overview-detail--unsaved .overview-detail__head > svg { color: var(--status-warning); }
+.overview-detail--blocked .overview-detail__head > svg { color: var(--status-danger); }
+.overview-detail--remote .overview-detail__head > svg { color: var(--status-renamed); }
 .overview-detail__head h2 {
   min-width: 0;
   margin: 0;
@@ -1118,11 +1123,11 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 
 /* A discard that can still be restored: the scene's sibling under it — the
    same surface and shadow, its object drawn as one of the scene's places. It
-   is a safety net, not a step, so it wears no state's colour: the icon in the
-   secondary ink, its count a neutral badge like the scene's, no wash. It is
-   there when looked for and never pulls the eye from the next-step card. Its
-   button opens the restore picker over the Overview. Under a detail card it
-   goes plain and bordered, like the small scene above that card. */
+   is a safety net, not a step, so only its glyph wears a colour — the unsaved
+   yellow of the work it holds — its count a neutral badge like the scene's, no
+   wash. It is there when looked for and never pulls the eye from the next-step
+   card. Its button opens the restore picker over the Overview. Under a detail
+   card it goes plain and bordered, like the small scene above that card. */
 .overview-restore {
   min-width: 0;
   display: grid;
@@ -1151,7 +1156,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   border-radius: var(--radius-item);
   background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
-  color: var(--text-secondary-color);
+  color: var(--status-warning);
 }
 .overview-restore__place svg { width: 18px; height: 18px; stroke-width: 1.6; }
 /* Several restorable copies, counted the way the scene counts versions. */

@@ -70,6 +70,7 @@ function renderSection(
   onOpenHistory = vi.fn(),
   isRefreshing = false,
   selfEmail: string | null = null,
+  hasNoRemote = false,
 ) {
   const lifecycle = createScreenLifecycleController("active");
   return {
@@ -84,6 +85,7 @@ function renderSection(
             isRefreshing={isRefreshing}
             onOpenHistory={onOpenHistory}
             selfEmail={selfEmail}
+            hasNoRemote={hasNoRemote}
           />
         </ScreenLifecycleProvider>
       </LanguageProvider>,
@@ -253,6 +255,22 @@ describe("HistorySummarySection", () => {
       "overview-timeline__end",
     ]);
     expect(container.querySelector(".overview-timeline__mark")).toHaveTextContent("Published on origin");
+  });
+
+  it("marks the group as waiting to publish, or as this computer with no remote", async () => {
+    const trackingRef = "refs/remotes/origin/main";
+    const upstream = { remote: "origin", destinationBranch: "main", trackingRef, commit: version(1).commit };
+    const controller = createHistoryController(
+      port(vi.fn(async () => ({ ...page([version(2), version(1)]), upstream }))),
+    );
+    await controller.refresh(query);
+
+    const published = renderSection(controller);
+    expect(published.container.querySelector(".overview-timeline__group-icon .lucide-cloud-upload")).not.toBeNull();
+    cleanup();
+
+    const alone = renderSection(controller, vi.fn(), false, null, true);
+    expect(alone.container.querySelector(".overview-timeline__group-icon .lucide-laptop")).not.toBeNull();
   });
 
   it("puts the working tree first when it is given one", async () => {
