@@ -144,8 +144,6 @@ export interface AppTranslations {
   statusBarChangesNotChecked: string;
   statusBarEverythingSaved: string;
   statusBarUnsaved: (count: number) => string;
-  statusBarLinesAdded: (count: number) => string;
-  statusBarLinesRemoved: (count: number) => string;
   statusBarUpToDate: string;
   statusBarAhead: (count: number) => string;
   statusBarBehind: (count: number) => string;
@@ -369,8 +367,6 @@ const en: AppTranslations = {
   statusBarChangesNotChecked: "Changes not checked",
   statusBarEverythingSaved: "Everything is saved",
   statusBarUnsaved: (count) => (count === 1 ? "1 unsaved change" : `${count} unsaved changes`),
-  statusBarLinesAdded: (count) => (count === 1 ? "1 line added" : `${count} lines added`),
-  statusBarLinesRemoved: (count) => (count === 1 ? "1 line removed" : `${count} lines removed`),
   statusBarUpToDate: "Up to date",
   statusBarAhead: (count) => `${count} ${count === 1 ? "version" : "versions"} to publish`,
   statusBarBehind: (count) => `${count} newer ${count === 1 ? "version" : "versions"} available`,
@@ -582,8 +578,6 @@ const es: AppTranslations = {
   statusBarChangesNotChecked: "Cambios sin comprobar",
   statusBarEverythingSaved: "Todo está guardado",
   statusBarUnsaved: (count) => (count === 1 ? "1 cambio sin guardar" : `${count} cambios sin guardar`),
-  statusBarLinesAdded: (count) => (count === 1 ? "1 línea añadida" : `${count} líneas añadidas`),
-  statusBarLinesRemoved: (count) => (count === 1 ? "1 línea eliminada" : `${count} líneas eliminadas`),
   statusBarUpToDate: "Al día",
   statusBarAhead: (count) => `${count} ${count === 1 ? "versión por publicar" : "versiones por publicar"}`,
   statusBarBehind: (count) => `${count} ${count === 1 ? "versión nueva disponible" : "versiones nuevas disponibles"}`,

@@ -229,15 +229,18 @@ describe("StatusBar", () => {
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
   });
 
-  it("opens the active project's settings between its name and version line", async () => {
+  it("opens the active project's settings from its name, right before the version line", async () => {
     const onOpenProjectSettings = vi.fn();
     const onPrefetchProjectSettings = vi.fn();
     renderBar({ onOpenProjectSettings, onPrefetchProjectSettings });
 
     const button = screen.getByRole("button", { name: "Settings for gitodile" });
-    expect(button).toHaveAttribute("data-tooltip", "Project settings");
-    expect(button.previousElementSibling).toHaveClass("status-bar__project");
-    expect(button.nextElementSibling).toHaveClass("version-lines-quick-switch");
+    expect(button).toHaveClass("status-bar__project");
+    expect(button).toHaveTextContent("gitodile");
+    expect(button).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
+    // "project / line": only the slash stands between the two facts.
+    expect(button.nextElementSibling).toHaveClass("status-bar__separator");
+    expect(button.nextElementSibling?.nextElementSibling).toHaveClass("version-lines-quick-switch");
     await userEvent.hover(button);
     button.focus();
     expect(onPrefetchProjectSettings).toHaveBeenCalled();
@@ -251,18 +254,20 @@ describe("StatusBar", () => {
     renderBar({ onCheckTeamChanges, onSwitchVersionLine });
 
     expect(screen.getByText("feature/a-very-long-version-line-name")).toBeInTheDocument();
-    // The working tree is the switcher's own mark: a count riding the icon,
-    // with the sentence kept for the tooltip and the screen reader, and the
-    // added/removed line totals as a quieter second fact beside it.
-    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
-    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 12 lines added, 3 lines removed");
-    expect(changes?.querySelector(".status-bar__changes-count")).toHaveTextContent("4");
-    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+12");
-    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−3");
-    // The remote fact is one word; how it is known lives in its tooltip.
+    // Unsaved work is a dot after the line's name; the sentence is the
+    // trigger's tooltip and the screen reader's.
+    const trigger = screen.getByRole("button", {
+      name: "Change version line (feature/a-very-long-version-line-name)",
+    });
+    expect(trigger.querySelector(".version-line-selector__marker--unsaved")).not.toBeNull();
+    expect(trigger).toHaveAttribute("title", "feature/a-very-long-version-line-name · 4 unsaved changes");
+    expect(screen.getByText("4 unsaved changes")).toHaveClass("visually-hidden");
+    // "Up to date" is said by the cloud and its age; the word stays for the
+    // screen reader, and how it is known lives in the tooltip.
     const sync = screen.getByText("Up to date").closest(".status-bar__sync");
+    expect(screen.getByText("Up to date")).toHaveClass("visually-hidden");
     expect(sync).toHaveClass("status-bar__sync--success");
-    expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/Checked .*3 min/));
+    expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/^Up to date · Checked .*3 min/));
 
     await userEvent.click(screen.getByRole("button", {
       name: "Change version line (feature/a-very-long-version-line-name)",
@@ -274,21 +279,15 @@ describe("StatusBar", () => {
     expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
-  it("hides the line totals when they are unknown or nothing moved", () => {
-    const { unmount } = renderBar({ workingTree: { ...dirtyTree, lineTotals: null } });
-    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
+  it("draws no dot on a clean tree and never the line totals", () => {
+    const { unmount } = renderBar({ workingTree: { ...dirtyTree, isClean: true, lineTotals: null } });
+    expect(document.querySelector(".version-line-selector__marker")).toBeNull();
+    expect(screen.getByText("Everything is saved")).toHaveClass("visually-hidden");
     unmount();
 
-    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 0, removed: 0 } } });
-    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
-  });
-
-  it("names only the side of the line totals that moved", () => {
-    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 5, removed: 0 } } });
-    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
-    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 5 lines added");
-    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+5");
-    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−0");
+    renderBar();
+    expect(screen.queryByText("+12")).toBeNull();
+    expect(screen.queryByText("−3")).toBeNull();
   });
 
   it.each([
@@ -352,6 +351,7 @@ describe("StatusBar", () => {
       teamSync: { ...EMPTY_TEAM_SYNC_STATE, isLoading: true, isCheckingRemote: true },
     });
     expect(screen.getByText("Checking changes…")).toBeInTheDocument();
+    expect(document.querySelector(".version-line-selector__icon.icon--spinning")).not.toBeNull();
     expect(screen.getByText("Checking the remote…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
 
@@ -403,7 +403,8 @@ describe("StatusBar", () => {
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText("Changes unavailable").closest(".status-bar__changes")).toHaveClass("status-bar__changes--error");
+    expect(screen.getByText("Changes unavailable")).toBeInTheDocument();
+    expect(document.querySelector(".version-line-selector__marker--error")).not.toBeNull();
     // Doubt takes the word; the last known state moves to the tooltip.
     const stale = screen.getByText("May be out of date").closest(".status-bar__sync");
     expect(stale).toHaveClass("status-bar__sync--warning");
@@ -448,7 +449,7 @@ describe("formatRelativeCheckTime", () => {
     expect(project).not.toBeNull();
     // The custom tooltip carries the full name, the same way every other item
     // reveals what it had to truncate.
-    expect(project).toHaveAttribute("data-tooltip", "Project: gitodile");
+    expect(project).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
     expect(
       screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
     ).toBeInTheDocument();

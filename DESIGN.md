@@ -257,48 +257,56 @@ The main desktop window should broadly support:
    spanning from the rail's edge to the window's, on every screen including
    Overview. It reports what is true of the project right now: which project,
    its branch, unsaved work, sync state, and the app version. It says each in
-   the fewest marks that stay true at a glance. The project's name and the
-   line's name are the sentence, with no words in front of them; the name is
-   what keeps the strip saying something once the reader has left Overview,
-   and both truncate rather than wrap. Unsaved work is the project switcher's
-   own mark — the changes icon with the count riding its corner in a neutral
-   capsule (a count is not a state, so it never takes the accent), and, after
-   it,
-   the added and removed line totals (`+12 −3`) in the diff's own two inks at
-   the label size, quiet enough to read as a second fact rather than a banner.
-   The sentence ("28 unsaved changes · 12 lines added, 3 lines removed") is in
-   the tooltip and for the screen reader; a total is drawn only when the backend
-   could count the whole tree and at least one line moved, because unknown is
-   not zero and `+0 −0` is noise. Neither the count nor the totals is a run of
-   selectable text: the mark is chrome, so it keeps the default cursor.
-   Overview's band is where the number is read in full. The remote fact is one
-   word in one tone — the cloud green when all is well, amber when the reader
+   the fewest marks that stay true at a glance, and in two shapes only: a
+   *fact* is a glyph and words with no fill, and an *action* is the strip's one
+   capsule — 28px, the quiet hover surface, label-size text at medium weight —
+   with only its glyph in colour. Nothing else gets a shape of its own.
+
+   The project's name and the line's name are the sentence, `project / line`,
+   with no words in front of them and only a slash in the quiet ink between
+   them; the name is what keeps the strip saying something once the reader has
+   left Overview, and both truncate rather than wrap. The name is also the way
+   into that project's settings (it names the project for keyboard and
+   screen-reader users), so no gear splits the sentence. Unsaved work rides the
+   line it belongs to: a dot after the line's name, the way an editor marks an
+   unsaved tab, in the accent because it is the reader's own work in progress
+   and in the danger tone when the tree could not be read; while the tree is
+   being read the line glyph turns into the spinner. How many files and how
+   many lines is not the strip's to say: the sentence ("28 unsaved changes") is
+   the trigger's tooltip and the screen reader's, and Overview's band and
+   Changes give the numbers in full. The strip draws no `+N −N`: the diff's red
+   was the one red in the window and read as an error, and its green competed
+   with the remote's.
+
+   The remote fact is one word in the strip's quiet ink, amber when the reader
    should doubt or act — and *how* it is known (a saved snapshot, when it was
    checked) is the tooltip, not a second item; when a result is stale or a
    check failed, the doubt takes the word and the last known state moves to
    the tooltip, so the strip never reads as current when it is not. "Up to
-   date" alone also says its age beside it ("3 min ago") in the quiet ink, so
-   the calm state can be trusted without hovering. When the relation calls for
-   a sync and is known-current, that same cloud becomes the one sync button —
-   GitHub Desktop's Fetch/Pull/Push in the app's words: ahead is "Publish 3
-   versions" (`CloudUpload`), behind is "Get 2 versions" (`CloudDownload`), and
-   both sides moved is "Get and publish" (`CloudSync`), each opening the same
-   previewed dialog Overview's card does. The button wears the strip's 28px
-   pill on the quiet hover surface in the strip's own ink, with only its glyph
-   in the accent: the shape says it is a button and one green mark is enough to
-   find it, so it never competes with the screen's primary action (Overview's
-   "Save version"). Its tooltip adds when it was checked. The refresh beside
-   it stays the explicit check in every state. A stale, failed
-   or still-loading answer keeps the cloud a plain fact — it is not a state to
-   act from. The
+   date" is the calm state and is not restated: its cloud (`CloudCheck`) and
+   its age ("3 min ago") say it, with the word kept for the screen reader. A
+   project with no remote is a fact, not a problem, and stays quiet. The
+   fact is never the check: a round refresh beside it is, visible in every
+   state — beside the sync action too, where knowing whether the remote moved
+   matters most, and as the strip's only way to ask when automatic checks are
+   set to manual. A fact that turned into a button under the pointer was tried
+   and dropped: nothing showed it could be pressed, touch has no hover, and it
+   vanished whenever the sync action took its place.
+   When the relation calls for a sync and is known-current, that same cloud
+   becomes the one sync action — GitHub Desktop's Fetch/Pull/Push in the
+   app's words: ahead is "Publish 3 versions" (`CloudUpload`), behind is "Get
+   2 versions" (`CloudDownload`), and both sides moved is "Get and publish"
+   (`CloudSync`), each opening the same previewed dialog Overview's card does.
+   It wears the action capsule with only its glyph in the accent: the shape
+   says it is a button and one green mark is enough to find it, so it never
+   competes with the screen's primary action (Overview's "Save version"). Its
+   tooltip adds when it was checked. A stale, failed or still-loading answer
+   keeps the cloud a plain fact — it is not a state to act from. The
    branch is also the app's one global version-line control: its dropdown
    switches, creates — in place, see Lines — and hands off to the Lines
    screen. No screen adds a
    second selector to its own header: two controls answering one question in
-   one window is how a reader stops trusting either. A small project-settings
-   gear sits between the project name and the version-line control on every
-   screen with an open project. It names that project for keyboard and screen-
-   reader users and is absent from the no-project state.
+   one window is how a reader stops trusting either.
    - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
      stacking order, and this strip is the floor of the window rather than
      something resting on it; at 30px tall it could not carry the 14–18px card
@@ -335,24 +343,24 @@ The main desktop window should broadly support:
      is the one thing on the strip that is not about the project. The
      version is shown as `v0.3.0` — the `v` marks the number as a version
      rather than any other figure, and matches the release tags, About and the
-     update copy — beside the house mark: the mascot's back, three saved
-     versions along one line, in the tag's own ink. There is one release
-     channel, so nothing qualifies it, and there is no "all is well" dot: green
-     on this strip belongs to the remote, and the app being fine is not a fact
-     to keep restating. The tag follows the updater instead. A check makes the
-     mark's dots light in turn; a download replaces the mark with a progress
-     ring and keeps the version text, the percentage in the tooltip, so the
-     strip does not move. A state to act on — a new version, one ready to
-     install, one that can't install yet — takes the tag over in About's own
-     words ("New version: v0.3.1", "Ready to install") and wears the strip's
-     action pill in the warning tone, breathing once as it arrives, and leads
-     to the update dialog, the way the cloud leads to publishing. The
-     notification centre announces an update once; the tag is where it stays
-     until it is resolved, with no count of its own. After an update, an
-     accent sparkle replaces the mark until the changelog has been opened. A
-     build that can't update (a development build, an installation the updater
-     can't write to) keeps the tag at rest and says so in the tooltip: a
-     lasting fact is not dimmed as if it were broken.
+     update copy. It is text alone at rest and takes a glyph only while it has
+     something to say. There is one release channel, so nothing qualifies it,
+     and there is no "all is well" dot: green on this strip belongs to the
+     remote, and the app being fine is not a fact to keep restating. The tag
+     follows the updater instead. A check says so in the tooltip; a download
+     puts a progress ring before the version text, the percentage in the
+     tooltip, so the strip does not move. A state to act on — a new version, one
+     ready to install, one that can't install yet — takes the tag over in
+     About's own words ("New version: v0.3.1", "Ready to install") and wears the
+     strip's action capsule with its glyph in the warning tone — amber is
+     GitOdile's own news, as green is the remote's — breathing once as it
+     arrives, and leads to the update dialog, the way the cloud leads to
+     publishing. The notification centre announces an update once; the tag is
+     where it stays until it is resolved, with no count of its own. After an
+     update, an accent sparkle sits before the version until the changelog has
+     been opened. A build that can't update (a development build, an
+     installation the updater can't write to) keeps the tag at rest and says so
+     in the tooltip: a lasting fact is not dimmed as if it were broken.
      Otherwise it is one quiet button that opens
      the Changelog — the version the reader
      can already see is what a release note is *about*, so the tag leads to the
@@ -1558,7 +1566,7 @@ theme that fails one:
   the accent wash.
 - Accent, status and diff colours at 4.5:1 on app, panel, raised and card,
   because each of them is written as words somewhere (a link, a "saved
-  locally" label, a status chip, the status-bar diff stat).
+  locally" label, a status chip, the console's diff stat).
 - A solid button's label at 4.5:1 on its fill. Buttons are 12–13px bold,
   which is not WCAG "large text", so the 3:1 large-text floor does not apply.
 - Diff ink at 4.5:1 on its own tinted line, and syntax at 4.5:1 on the code

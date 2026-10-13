@@ -54,6 +54,12 @@ export type VersionLineQuickSwitchProps = {
    * grows right and the control's backs off its right edge; a trigger at the
    * start of a row, like Overview's breadcrumb, opens rightwards as well. */
   menuAnchor?: "below" | "below-end";
+  /** The working tree, worn by the status strip's trigger: a dot after the
+   * line's name while there is unsaved work (in the danger tone when the tree
+   * could not be read), the line glyph turned spinner while it is being read.
+   * The sentence joins the trigger's tooltip; the strip keeps it for the
+   * screen reader itself, so the trigger's name stays what it changes. */
+  workingTree?: { state: "clean" | "unsaved" | "error" | "checking"; description: string };
 };
 
 /**
@@ -76,6 +82,7 @@ export function VersionLineQuickSwitch({
   create,
   onSeeAll,
   menuAnchor,
+  workingTree,
 }: VersionLineQuickSwitchProps): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -144,6 +151,10 @@ export function VersionLineQuickSwitch({
     "first-control",
   );
   const Chevron = variant === "status" ? ChevronUp : ChevronDown;
+  const triggerTitle = workingTree ? `${currentValue} · ${workingTree.description}` : currentValue;
+  const marker = workingTree?.state === "unsaved" || workingTree?.state === "error"
+    ? <span className={`version-line-selector__marker version-line-selector__marker--${workingTree.state}`} aria-hidden="true" />
+    : null;
   const face = label ? (
     <>
       <span className="version-line-selector__tile" aria-hidden="true">
@@ -156,8 +167,11 @@ export function VersionLineQuickSwitch({
     </>
   ) : (
     <>
-      <GitBranch aria-hidden="true" className="version-line-selector__icon" />
+      {workingTree?.state === "checking"
+        ? <LoaderCircle aria-hidden="true" className="version-line-selector__icon icon--spinning" />
+        : <GitBranch aria-hidden="true" className="version-line-selector__icon" />}
       <span className="version-line-selector__value">{currentValue}</span>
+      {marker}
     </>
   );
 
@@ -188,14 +202,14 @@ export function VersionLineQuickSwitch({
           aria-haspopup="menu"
           aria-expanded={isOpen}
           aria-label={t.versionLinesQuickSwitchChangeLabel(currentValue)}
-          title={currentValue}
+          title={triggerTitle}
           onClick={toggleOpen}
         >
           {face}
           <Chevron aria-hidden="true" className="version-line-selector__chevron" />
         </button>
       ) : (
-        <span className="version-line-selector version-line-selector--static" title={currentValue}>
+        <span className="version-line-selector version-line-selector--static" title={triggerTitle}>
           {face}
         </span>
       )}

@@ -7,13 +7,11 @@ import {
   CloudDownload,
   CloudSync,
   CloudUpload,
-  FileDiff,
   FolderClosed,
   FolderGit2,
   LoaderCircle,
   RotateCcw,
   RotateCw,
-  Settings,
   Sparkles,
 } from "lucide-react";
 
@@ -142,8 +140,10 @@ function teamFreshnessLabel(
   return exactCheckedAt ? `${label} · ${exactCheckedAt}` : label;
 }
 
-/** The tone the cloud takes: the good state green, anything the reader should
- * act on or doubt in the warning colour, and the rest in the strip's own. */
+/** The tone the cloud takes: anything the reader should act on or doubt in
+ * the warning colour, and the rest in the strip's quiet ink. "Up to date" keeps
+ * its own tone for the glyph but is not restated in green, and a project that
+ * only lives on this computer is a fact, not a problem. */
 function teamTone(state: TeamSyncViewState): "success" | "warning" | "neutral" {
   if (state.isCheckingRemote || state.isLoading) return "neutral";
   if (state.error || state.isStale) return "warning";
@@ -151,7 +151,6 @@ function teamTone(state: TeamSyncViewState): "success" | "warning" | "neutral" {
     case "upToDate": return "success";
     case "behind":
     case "diverged":
-    case "noRemote":
     case "noUpstream":
     case "unknown": return "warning";
     default: return "neutral";
@@ -191,27 +190,6 @@ function teamSyncAction(
   }
 }
 
-/** The house mark beside the version: the mascot's back, three saved versions
- * along one line. It is drawn in the strip's ink, never a colour of its own,
- * so the tag gains a glyph like every other fact without adding a signal. */
-function ReleaseMark({ busy = false }: { busy?: boolean }): React.JSX.Element {
-  return (
-    <svg
-      className={`status-bar__release-mark${busy ? " status-bar__release-mark--busy" : ""}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M4 18.5C9 17 15 12 20 5" strokeWidth="1.8" />
-      <circle cx="4.5" cy="18.3" r="2.3" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="13.2" r="2.3" fill="currentColor" stroke="none" />
-      <circle cx="19.3" cy="6" r="2.8" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 const RING_RADIUS = 9;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
@@ -232,9 +210,11 @@ function ProgressRing({ fraction }: { fraction: number }): React.JSX.Element {
 }
 
 type ReleaseTag = {
-  /** `action` wears the warning pill: a state the reader should act on. */
+  /** `action` wears the strip's action pill with the glyph in the warning
+   * tone: a state the reader should act on. */
   variant: "quiet" | "action";
-  mark: React.ReactNode;
+  /** A glyph only while the tag has something to say beyond the version. */
+  mark: React.ReactNode | null;
   /** Replaces the version text; only an action names its state on the strip. */
   label: string | null;
   description: string;
@@ -302,11 +282,11 @@ function releaseTag(
     case "verifying":
       return { variant: "quiet", mark: <ProgressRing fraction={1} />, label: null, description: ut.verifying, target: "update" };
     case "checking":
-      return { variant: "quiet", mark: <ReleaseMark busy />, label: null, description: `${changelog} · ${ut.checking}`, target: "changelog" };
+      return { variant: "quiet", mark: null, label: null, description: `${changelog} · ${ut.checking}`, target: "changelog" };
     case "unavailable":
       // A lasting fact of this build (a development build, an installation
       // the updater can't write to), so it never dims the tag as if broken.
-      return { variant: "quiet", mark: <ReleaseMark />, label: null, description: `${changelog} · ${t.aboutUpdateUnavailable}`, target: "changelog" };
+      return { variant: "quiet", mark: null, label: null, description: `${changelog} · ${t.aboutUpdateUnavailable}`, target: "changelog" };
     default:
       // Only once an update is settled: the version just installed has notes
       // the reader has not opened yet, and the accent sparkle says so.
@@ -319,7 +299,7 @@ function releaseTag(
           target: "changelog",
         };
       }
-      return { variant: "quiet", mark: <ReleaseMark />, label: null, description: changelog, target: "changelog" };
+      return { variant: "quiet", mark: null, label: null, description: changelog, target: "changelog" };
   }
 }
 
@@ -388,20 +368,16 @@ export function StatusBar({
     ? formatRelativeCheckTime(checkedAt, now, formats.language, t.statusBarJustNow)
     : null;
   const changesLabel = workingTreeLabel(workingTree, workingTreeError, isCheckingChanges, t);
-  const changesCount = workingTree && !isCheckingChanges && !workingTreeError ? workingTree.counts.total : 0;
-  // The line totals ride beside the count as a quieter second fact: the count
-  // is how many files, these are how much. They are drawn only when the
-  // backend could count the whole tree and at least one line moved — `null` is
-  // "unknown", never "zero", and "+0 −0" would be noise.
-  const lineTotals = workingTree && !isCheckingChanges && !workingTreeError ? workingTree.lineTotals : null;
-  const hasLineTotals = lineTotals !== null && (lineTotals.added > 0 || lineTotals.removed > 0);
-  const lineTotalsLabel = lineTotals && hasLineTotals
-    ? [
-        lineTotals.added > 0 ? t.statusBarLinesAdded(lineTotals.added) : null,
-        lineTotals.removed > 0 ? t.statusBarLinesRemoved(lineTotals.removed) : null,
-      ].filter((part): part is string => part !== null).join(", ")
-    : null;
-  const changesTooltip = lineTotalsLabel ? `${changesLabel} · ${lineTotalsLabel}` : changesLabel;
+  // The working tree rides the line it belongs to: a dot after the line's
+  // name while there is unsaved work, the sentence in its tooltip and for the
+  // screen reader. How much moved is Overview's and Changes' to say.
+  const workingTreeState = isCheckingChanges
+    ? "checking"
+    : workingTreeError
+      ? "error"
+      : workingTree && !workingTree.isClean
+        ? "unsaved"
+        : "clean";
   const canCheckTeam = Boolean(
     project?.headState === "branch" &&
     project.branch &&
@@ -409,6 +385,9 @@ export function StatusBar({
     !isReadingTeamStatus,
   );
   const isBusy = Boolean(project && (isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote));
+  // With its age beside it the cloud already says "up to date"; the word stays
+  // for the screen reader and comes back whenever there is no age to show.
+  const hidesTeamWord = restingAge !== null;
   const syncIcon = teamSync.isCheckingRemote || isReadingTeamStatus
     ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
     : tone === "success"
@@ -429,21 +408,21 @@ export function StatusBar({
               answering the same question in one window is how the reader
               stops trusting either. */}
           <span className="status-bar__cluster status-bar__working">
-            <span className="status-bar__item status-bar__project" data-tooltip={t.statusBarProjectTooltip(project.name)}>
-              <FolderGit2 aria-hidden="true" />
-              <span>{project.name}</span>
-            </span>
+            {/* The name doubles as the way into the project's settings, so the
+                sentence reads "project / line" with nothing between them. */}
             <button
-              className="status-bar__action status-bar__project-settings"
+              className="status-bar__project"
               type="button"
               aria-label={t.projectSettingsOpenFor(project.name)}
-              data-tooltip={t.projectSettingsOpen}
+              data-tooltip={`${t.statusBarProjectTooltip(project.name)} · ${t.projectSettingsOpen}`}
               onPointerEnter={onPrefetchProjectSettings}
               onFocus={onPrefetchProjectSettings}
               onClick={onOpenProjectSettings}
             >
-              <Settings aria-hidden="true" />
+              <FolderGit2 aria-hidden="true" />
+              <span>{project.name}</span>
             </button>
+            <span className="status-bar__separator" aria-hidden="true">/</span>
             <VersionLineQuickSwitch
               snapshot={versionLines}
               isLoadingSnapshot={isLoadingVersionLines}
@@ -455,34 +434,9 @@ export function StatusBar({
               onSwitch={onSwitchVersionLine}
               create={versionLineCreate}
               onSeeAll={onSeeAllVersionLines}
+              workingTree={{ state: workingTreeState, description: changesLabel }}
             />
-          </span>
-          <span
-            className={`status-bar__item status-bar__changes${workingTreeError && !isCheckingChanges ? " status-bar__changes--error" : ""}`}
-            data-tooltip={changesTooltip}
-          >
-            {/* The icon and its corner badge share one positioned box so the
-                badge rides the icon, not the line totals now sitting beside
-                it. */}
-            <span className="status-bar__changes-mark" aria-hidden="true">
-              {isCheckingChanges ? <LoaderCircle className="icon--spinning" /> : <FileDiff />}
-              {changesCount > 0 && (
-                <span className="status-bar__changes-count">
-                  {changesCount > 99 ? "99+" : changesCount}
-                </span>
-              )}
-            </span>
-            {lineTotals && hasLineTotals && (
-              <span className="status-bar__diff-stats" aria-hidden="true">
-                <span className="status-bar__diff-stat status-bar__diff-stat--added">
-                  {`+${lineTotals.added}`}
-                </span>
-                <span className="status-bar__diff-stat status-bar__diff-stat--removed">
-                  {`−${lineTotals.removed}`}
-                </span>
-              </span>
-            )}
-            <span className="visually-hidden">{changesTooltip}</span>
+            <span className="visually-hidden">{changesLabel}</span>
           </span>
         </div>
       ) : (
@@ -511,14 +465,18 @@ export function StatusBar({
             ) : (
               <span
                 className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
-                data-tooltip={teamTooltip || undefined}
+                data-tooltip={[hidesTeamWord ? visibleTeamLabel : null, teamTooltip].filter(Boolean).join(" · ") || undefined}
               >
                 {syncIcon}
-                <span>{visibleTeamLabel}</span>
+                <span className={hidesTeamWord ? "visually-hidden" : undefined}>{visibleTeamLabel}</span>
                 {restingAge && <span className="status-bar__sync-age" aria-hidden="true">{restingAge}</span>}
                 {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
               </span>
             )}
+            {/* The explicit check, in every state — beside the sync action
+                too, where knowing whether the remote moved matters most. With
+                automatic checks set to manual it is the strip's only way to
+                ask. */}
             <button
               className="status-bar__action"
               type="button"
