@@ -152,7 +152,8 @@ export interface AppTranslations {
   statusBarNoUpstream: string;
   statusBarSyncUnborn: string;
   statusBarSyncDetached: string;
-  statusBarSyncUnknown: string;
+  statusBarUpstreamGone: string;
+  stopTrackingFailedTitle: string;
   statusBarTeamNotChecked: string;
   statusBarCheckingTeam: string;
   statusBarReadingTeam: string;
@@ -375,7 +376,8 @@ const en: AppTranslations = {
   statusBarNoUpstream: "No publish destination",
   statusBarSyncUnborn: "Save a version to compare",
   statusBarSyncDetached: "Switch lines to compare",
-  statusBarSyncUnknown: "Sync status unavailable",
+  statusBarUpstreamGone: "No longer on the remote",
+  stopTrackingFailedTitle: "Couldn't stop following the remote",
   statusBarTeamNotChecked: "Remote not checked",
   statusBarCheckingTeam: "Checking the remote…",
   statusBarReadingTeam: "Reading remote status…",
@@ -586,7 +588,8 @@ const es: AppTranslations = {
   statusBarNoUpstream: "Sin destino de publicación",
   statusBarSyncUnborn: "Guarda una versión para comparar",
   statusBarSyncDetached: "Cambia de línea para comparar",
-  statusBarSyncUnknown: "Sincronización no disponible",
+  statusBarUpstreamGone: "Ya no está en el remoto",
+  stopTrackingFailedTitle: "No se pudo dejar de seguir el remoto",
   statusBarTeamNotChecked: "Remoto sin comprobar",
   statusBarCheckingTeam: "Comprobando el remoto…",
   statusBarReadingTeam: "Leyendo el estado del remoto…",

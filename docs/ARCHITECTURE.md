@@ -554,6 +554,18 @@ same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
 activation, screen visibility, watchers, and cache warming never call the
 network command.
 
+A line whose remote branch no longer exists reads as `upstreamGone`, an answer
+rather than an error: a check whose exact-refspec fetch reports the ref
+missing returns it, and so does a local read whose tracking ref is gone (Git's
+`[gone]`). Fetches pass `--no-prune`, so GitOdile never deletes the kept
+tracking ref; a local read cannot tell that ref from a live one, so the
+frontend sync controller keeps a fresh `upstreamGone` across local reads of
+the same line and kept ref until a check or a publish replaces it. Publishing
+such a line plans `recreatesDeletedBranch` and asks before recreating it; a
+destination with no remote branch counts the versions no branch of that remote
+holds (the gone ref excluded), never the whole history. `stop_tracking_remote`
+unsets only the current line's `branch.<name>.remote` and `.merge`.
+
 Get-team-changes extends that single sync domain
 ([ADR 0030](adr/0030-forecast-and-combine-project-changes.md)). One local
 analysis serves three callers: the `forecast` every team-sync read carries for

@@ -18,6 +18,9 @@ export type NotificationDetails =
    * mapped to a user-facing sentence by the caller's error mapper, like every
    * other error surface in the app. */
   | { kind: "remoteCheckFailed"; reason: string | null }
+  /** An automatic check found the line's remote branch deleted. The line and
+   * remote are what make a second check's same answer "the same news". */
+  | { kind: "upstreamGone"; line: string | null; remote: string | null }
   | { kind: "changesPublished"; versionCount: number; destination: string | null }
   /** The startup check found a newer version of the app itself. Always
    * app-wide (`projectId: null`); the version is what tells "the same
@@ -69,6 +72,7 @@ type NotificationKindSpec = {
 export const NOTIFICATION_KINDS: Record<NotificationKind, NotificationKindSpec> = {
   teamChangesAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
   remoteCheckFailed: { tone: "warning", collapses: true, unreadOnArrival: true },
+  upstreamGone: { tone: "warning", collapses: true, unreadOnArrival: true },
   changesPublished: { tone: "success", collapses: false, unreadOnArrival: false },
   appUpdateAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
 };
@@ -98,6 +102,8 @@ export function notificationDetailsEqual(
       );
     case "remoteCheckFailed":
       return right.kind === "remoteCheckFailed" && left.reason === right.reason;
+    case "upstreamGone":
+      return right.kind === "upstreamGone" && left.line === right.line && left.remote === right.remote;
     case "changesPublished":
       return (
         right.kind === "changesPublished" &&
@@ -181,7 +187,7 @@ export function markNotificationsRead(
 /** What a notification can offer to do about itself. Named so the panel and
  * the composition root agree on it by type rather than by matching string
  * literals in two files. */
-export type NotificationActionId = "reviewTeamChanges" | "reviewAppUpdate";
+export type NotificationActionId = "reviewTeamChanges" | "reviewAppUpdate" | "openOverview";
 
 /** The kinds with somewhere to go. Kept as a function rather than a field on
  * the spec so the panel asks about the entry it is rendering, and a kind whose
@@ -194,6 +200,8 @@ export function notificationAction(
       return notification.projectId !== null ? "reviewTeamChanges" : null;
     case "appUpdateAvailable":
       return "reviewAppUpdate";
+    case "upstreamGone":
+      return notification.projectId !== null ? "openOverview" : null;
     default:
       return null;
   }

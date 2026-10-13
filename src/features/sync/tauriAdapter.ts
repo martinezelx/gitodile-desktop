@@ -8,6 +8,8 @@ export const syncPort: SyncPort = {
     invoke("read_team_sync_status", { path, sessionEpoch }),
   check: ({ projectId: path, sessionEpoch }) =>
     invoke("check_team_changes", { path, sessionEpoch }),
+  stopTracking: ({ projectId: path, sessionEpoch }) =>
+    invoke("stop_tracking_remote", { path, sessionEpoch }),
   planGet: ({ projectId: path, sessionEpoch }) =>
     invoke("plan_get_team_changes", { path, sessionEpoch }),
   get: ({ projectId: path, sessionEpoch, stateToken, recoveryReference, runHooks, onProgress }) => {

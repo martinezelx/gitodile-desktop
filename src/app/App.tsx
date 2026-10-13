@@ -740,6 +740,30 @@ export function App(): React.JSX.Element {
     startSessionOperation("sync", undefined, id);
   };
 
+  /* The same rules for a notification whose way on is Overview's card: a
+     closed project does nothing, and a blocking dialog keeps the window where
+     it is. */
+  const openOverviewFromNotification = (notification: AppNotification): void => {
+    const id = notification.projectId;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (sessionsState.activeId !== id) activateSession(id);
+    navigateToView("overview");
+  };
+
+  /* A local configuration change the person chose from Overview's card: the
+     line forgets the remote branch that was deleted. The controller commits
+     the line's new status; the rest of the project is read again after it. */
+  const stopTrackingRemote = (): void => {
+    if (!activeSession) return;
+    const path = activeSession.id;
+    void syncController
+      .stopTracking(projectRuntime, { projectId: path, sessionEpoch: activeSession.epoch })
+      .then(() => handleMutationSucceeded(path))
+      .catch((error: unknown) =>
+        showErrorDialog(t.stopTrackingFailedTitle, localizeAppError(error, t, t.errorGitCommandFailed)),
+      );
+  };
+
   /* What every successful publish records, from the publish dialog or after
      Get and publish: a receipt in the notification list (already read: the
      person just watched it succeed), the remote knowledge superseded, the
@@ -758,6 +782,7 @@ export function App(): React.JSX.Element {
       },
     });
     const query = { projectId: session.project.path, sessionEpoch: session.epoch };
+    syncController.publishedTo(query, result.localBranch);
     syncController.supersede(projectRuntime, query);
     statusController.commitPublishedResult(projectRuntime, query, result.remainingAfterPublish);
     return handleMutationSucceeded(session.project.path);
@@ -1380,7 +1405,9 @@ export function App(): React.JSX.Element {
   const canPublish = Boolean(
     project &&
       project.headState === "branch" &&
-      (pendingVersions.totalCount > 0 || pendingVersionsError),
+      // A line whose remote branch is gone can be published again on purpose,
+      // even when every version is already on the remote's other lines.
+      (pendingVersions.totalCount > 0 || pendingVersionsError || teamSync.status?.state === "upstreamGone"),
   );
 
   // Typed watcher invalidations are scoped to one Rust-issued session epoch
@@ -1642,11 +1669,26 @@ export function App(): React.JSX.Element {
       // it would report the news back to its own author. Skipping costs
       // nothing: the deduplicated request was never going to reach the network
       // twice, and the tick that started it records for both.
-      if (selectTeamSyncState(projectRuntime.getSnapshot(), projectId).isCheckingRemote) return;
+      const before = selectTeamSyncState(projectRuntime.getSnapshot(), projectId);
+      if (before.isCheckingRemote) return;
+      const previous = before.status;
       void syncController
         .check(projectRuntime, { projectId, sessionEpoch: activeSession.epoch }, mapSyncError)
         .then((status) => {
           if (status) {
+            // The line's remote branch is gone: news when a check first finds
+            // it, not every fifteen minutes after, so a dismissed entry stays
+            // dismissed while nothing changes.
+            if (
+              status.state === "upstreamGone" &&
+              !(previous?.state === "upstreamGone" && previous.localBranch === status.localBranch)
+            ) {
+              notificationCenter.notify({
+                projectId,
+                projectName,
+                details: { kind: "upstreamGone", line: status.localBranch, remote: status.upstreamRemote },
+              });
+            }
             // A diverged line is news too once its forecast says what getting
             // would do: the dialog then combines it, or names what overlaps.
             // Without a forecast there is nothing to offer but a refusal, and
@@ -2399,6 +2441,7 @@ export function App(): React.JSX.Element {
           onToggleEnabled={setNotificationsEnabled}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
           onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
+          onOpenProjectOverview={openOverviewFromNotification}
           onOpenSettings={() => openSettings("notifications")}
         />
 
@@ -2714,6 +2757,7 @@ export function App(): React.JSX.Element {
                   }}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}
+                  onStopTrackingRemote={stopTrackingRemote}
                   historyController={historyController}
                   workDetail={workDetailController}
                   onRestoreDiscarded={() => {
@@ -2829,6 +2873,11 @@ export function App(): React.JSX.Element {
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                           selectLineIntent={linesSelectIntent}
                           onSelectLineIntentHandled={clearLinesSelectIntent}
+                          upstreamGoneLine={
+                            activeSession?.teamSync.status?.state === "upstreamGone"
+                              ? activeSession.teamSync.status.localBranch
+                              : null
+                          }
                         />
                       </Suspense>
                     ),

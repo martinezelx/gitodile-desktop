@@ -1099,6 +1099,20 @@ pub(crate) fn check_team_changes(
     )
 }
 
+#[tauri::command(async)]
+pub(crate) fn stop_tracking_remote(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    report_result(
+        "stop_tracking_remote",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::stop_tracking_remote(path, session_epoch)
+        })(),
+    )
+}
+
 /// Local only: the plan reads the remote as of the last check and never
 /// contacts the network, so the dialog can show it at once.
 #[tauri::command(async)]

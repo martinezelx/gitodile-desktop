@@ -16,6 +16,9 @@ export type PublishPlan = {
   target: PublishTarget;
   localBranch: string;
   willCreateUpstream: boolean;
+  /** The line already tracks this destination, but the remote deleted the
+   * branch: publishing creates it again, and the dialog says so first. */
+  recreatesDeletedBranch: boolean;
   commitCount: number;
   commitSummary: SavedVersionSummary[];
   hasUnsavedFiles: boolean;

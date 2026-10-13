@@ -26,7 +26,9 @@ export type TeamSyncState =
   | "ahead"
   | "behind"
   | "diverged"
-  | "unknown";
+  /** The line tracks a remote branch that no longer exists: a check found it
+   * missing on the remote, or the tracking ref is gone too (Git's `[gone]`). */
+  | "upstreamGone";
 
 export type SyncKnowledge = "cached" | "fresh";
 export type SyncNextAction = "checkAgain" | "publishChanges" | "reviewAndGet";
@@ -262,6 +264,46 @@ export function teamSyncFactsEqual(
     ) &&
     forecastsEqual(left.forecast, right.forecast)
   );
+}
+
+/** What a check found about one line: its remote branch was gone while this
+ * tracking ref still held this commit. */
+export type UpstreamGoneEvidence = {
+  trackingRef: string | null;
+  remoteCommit: string | null;
+};
+
+/** The evidence a fresh `upstreamGone` status leaves for its line. */
+export function upstreamGoneEvidenceOf(status: TeamSyncStatus): UpstreamGoneEvidence | null {
+  return status.state === "upstreamGone" && status.knowledge === "fresh"
+    ? { trackingRef: status.trackingRef, remoteCommit: status.remoteCommit }
+    : null;
+}
+
+const COMPARED_STATES: ReadonlySet<TeamSyncState> = new Set(["upToDate", "ahead", "behind", "diverged"]);
+
+/**
+ * A local read of a line a check found gone.
+ *
+ * A local read compares against the tracking ref, and GitOdile never prunes:
+ * the ref of a branch the remote deleted is still there and still reads as
+ * "up to date". While that ref holds the commit the check saw, the line is
+ * still gone; a ref that moved or vanished is new evidence and wins.
+ */
+export function applyUpstreamGoneEvidence(
+  incoming: TeamSyncStatus,
+  evidence: UpstreamGoneEvidence | undefined,
+): TeamSyncStatus {
+  if (
+    !evidence ||
+    incoming.knowledge !== "cached" ||
+    !COMPARED_STATES.has(incoming.state) ||
+    incoming.trackingRef !== evidence.trackingRef ||
+    incoming.remoteCommit !== evidence.remoteCommit
+  ) {
+    return incoming;
+  }
+  return { ...incoming, state: "upstreamGone", ahead: 0, behind: 0, forecast: null, nextActions: ["checkAgain"] };
 }
 
 /** Plain data from Rust, compared by value. */

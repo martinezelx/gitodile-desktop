@@ -1226,7 +1226,7 @@ fn incoming_versions(
     remote_commit: &str,
 ) -> Result<Vec<IncomingVersion>, AppError> {
     let range = format!("{local_commit}..{remote_commit}");
-    let mut summaries = git_log_summaries(path, &range)?;
+    let mut summaries = git_log_summaries(path, &[&range])?;
     summaries.truncate(MAX_INCOMING_VERSIONS);
     let cap = MAX_INCOMING_VERSIONS.to_string();
     let stats = checked_git_stdout(run_git(
@@ -1280,7 +1280,10 @@ pub(crate) fn plan_get_team_changes(
     let mut local_versions = if validated.relation.ahead > 0 {
         git_log_summaries(
             &path,
-            &format!("{}..{}", validated.remote_commit, validated.local_commit),
+            &[&format!(
+                "{}..{}",
+                validated.remote_commit, validated.local_commit
+            )],
         )?
     } else {
         Vec::new()

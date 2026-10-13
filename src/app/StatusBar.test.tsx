@@ -298,7 +298,7 @@ describe("StatusBar", () => {
     ["noUpstream", "No publish destination"],
     ["unborn", "Save a version to compare"],
     ["detached", "Switch lines to compare"],
-    ["unknown", "Sync status unavailable"],
+    ["upstreamGone", "No longer on the remote"],
   ] satisfies Array<[TeamSyncState, string]>) ("maps %s without falling back to an optimistic state", (state, label) => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) } });
     expect(screen.getByText(label)).toBeInTheDocument();

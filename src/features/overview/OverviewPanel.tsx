@@ -198,6 +198,7 @@ export function OverviewPanel({
   onCheckTeamChanges,
   onReviewAndGetTeamChanges,
   onGetAndPublish,
+  onStopTrackingRemote,
   historyController,
   workDetail,
   onRestoreDiscarded,
@@ -284,6 +285,9 @@ export function OverviewPanel({
   /** Gets the remote's versions, combines them and publishes, in one
    * confirmation. */
   onGetAndPublish: () => void;
+  /** The line forgets the remote branch it tracked — offered once that
+   * branch is gone from the remote. */
+  onStopTrackingRemote: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
   historyController: HistoryController;
@@ -310,7 +314,10 @@ export function OverviewPanel({
       pendingVersionsError,
       teamSync,
     });
-    const nextStep = deriveNextStep(journey, { canPublish });
+    // Where a line whose remote branch is gone usually goes next: the
+    // remote's default line, when this isn't it.
+    const defaultLine = versionLines?.lines.find((line) => line.isDefault && !line.isActive)?.name ?? null;
+    const nextStep = deriveNextStep(journey, { canPublish, defaultLine });
     const isRefreshing = isCheckingChanges || teamSync.isCheckingRemote;
     // Only a line with an upstream can be checked against one; the same gate
     // the status bar's own cloud button uses.
@@ -330,6 +337,10 @@ export function OverviewPanel({
       openLines: onGoToVersionLines,
       explainIncoming: onReviewAndGetTeamChanges,
       getAndPublish: onGetAndPublish,
+      switchToDefault: () => {
+        if (defaultLine) onQuickSwitchVersionLine(defaultLine);
+      },
+      stopTracking: onStopTrackingRemote,
     };
     // Versions waiting on the remote lead the timeline, above "now", which is
     // where they stand in time.
@@ -358,7 +369,7 @@ export function OverviewPanel({
           onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
-        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} />
+        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} defaultLine={defaultLine} />
 
         {/* Where the work is, as one timeline — waiting on the remote, now,
             only on this computer, published — beside what the next step will

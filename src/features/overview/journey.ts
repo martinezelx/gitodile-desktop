@@ -37,6 +37,8 @@ export type Journey = {
       | "diverged"
       | "noRemote"
       | "noUpstream"
+      /** The remote branch this line tracks no longer exists there. */
+      | "upstreamGone"
       | "detached"
       | "unborn"
       | "unavailable";
@@ -123,7 +125,6 @@ export function deriveJourney({
   // that was never asked: saying "not checked" would flash on every opening.
   else if (!status && (teamSync.isLoading || teamSync.generation === 0)) publishState = "reading";
   else if (!status) publishState = "notChecked";
-  else if (status.state === "unknown") publishState = "unavailable";
   else publishState = status.state;
   // The inventory knows about versions the last remote check predates; the
   // check knows about a remote that has moved on. Either alone would leave

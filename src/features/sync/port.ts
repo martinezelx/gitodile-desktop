@@ -22,6 +22,8 @@ export type GetTeamChangesRequest = TeamSyncQuery & {
 export interface SyncPort {
   readLocal(query: TeamSyncQuery): Promise<TeamSyncStatus>;
   check(query: TeamSyncQuery): Promise<TeamSyncStatus>;
+  /** Local mutation: the current line stops following its remote branch. */
+  stopTracking(query: TeamSyncQuery): Promise<TeamSyncStatus>;
   /** Local: reads the remote as of the last check, never the network. */
   planGet(query: TeamSyncQuery): Promise<GetTeamChangesPlan>;
   get(request: GetTeamChangesRequest): Promise<GetTeamChangesResult>;

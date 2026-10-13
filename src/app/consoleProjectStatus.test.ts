@@ -17,7 +17,7 @@ describe("consoleProjectStatus", () => {
   });
 
   it("does not read zeros as up to date when the line was never compared", () => {
-    for (const state of ["noRemote", "noUpstream", "unborn", "detached", "unknown"] as const) {
+    for (const state of ["noRemote", "noUpstream", "unborn", "detached", "upstreamGone"] as const) {
       const status = consoleProjectStatus(tree, null, sync(state, 0));
       expect(status.unpublished, state).toBeNull();
       expect(status.incoming, state).toBeNull();

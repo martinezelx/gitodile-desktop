@@ -114,7 +114,7 @@ function teamStateLabel(
     case "noUpstream": return t.statusBarNoUpstream;
     case "unborn": return t.statusBarSyncUnborn;
     case "detached": return t.statusBarSyncDetached;
-    case "unknown": return t.statusBarSyncUnknown;
+    case "upstreamGone": return t.statusBarUpstreamGone;
   }
 }
 
@@ -152,7 +152,7 @@ function teamTone(state: TeamSyncViewState): "success" | "warning" | "neutral" {
     case "behind":
     case "diverged":
     case "noUpstream":
-    case "unknown": return "warning";
+    case "upstreamGone": return "warning";
     default: return "neutral";
   }
 }

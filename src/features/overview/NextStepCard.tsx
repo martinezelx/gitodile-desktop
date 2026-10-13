@@ -5,6 +5,7 @@ import {
   CircleAlert,
   Cloud,
   CloudCog,
+  CloudOff,
   CloudUpload,
   Eye,
   GitBranch,
@@ -15,6 +16,7 @@ import {
   Save,
   Split,
   TriangleAlert,
+  Unlink,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
@@ -42,6 +44,7 @@ const KIND_ICONS: Record<NextStepKind, React.JSX.Element> = {
   unavailable: <CircleAlert />,
   noRemote: <Check />,
   noUpstream: <CloudCog />,
+  upstreamGone: <CloudOff />,
   detached: <History />,
   unborn: <Save />,
   upToDate: <Check />,
@@ -60,6 +63,8 @@ const ACTION_ICONS: Record<NextStepAction, React.JSX.Element> = {
   openLines: <GitBranch aria-hidden="true" />,
   explainIncoming: <Eye aria-hidden="true" />,
   getAndPublish: <CloudUpload aria-hidden="true" />,
+  switchToDefault: <GitBranch aria-hidden="true" />,
+  stopTracking: <Unlink aria-hidden="true" />,
 };
 
 /**
@@ -78,10 +83,13 @@ export function NextStepCard({
   nextStep,
   journey,
   handlers,
+  defaultLine = null,
 }: {
   nextStep: NextStep;
   journey: Journey;
   handlers: NextStepHandlers;
+  /** Names the switch action's destination. */
+  defaultLine?: string | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const titleId = useId();
@@ -145,6 +153,10 @@ export function NextStepCard({
     case "unavailable": title = t.overviewNextUnavailableTitle(remote); hint = t.overviewNextUnavailableHint; break;
     case "noRemote": title = t.overviewNextNoRemoteTitle; hint = t.overviewNextNoRemoteHint; break;
     case "noUpstream": title = t.overviewJourneyNoUpstream; hint = t.syncNoUpstreamMessage; break;
+    case "upstreamGone":
+      title = t.overviewNextGoneTitle(publish.destinationBranch ?? publish.localBranch, remote);
+      hint = t.overviewNextGoneHint(remote);
+      break;
     case "detached": title = t.overviewNextDetachedTitle; hint = t.overviewNextDetachedHint; break;
     case "unborn": title = t.syncUnbornTitle; hint = t.syncUnbornMessage; break;
     case "upToDate": title = t.overviewNextUpToDateTitle; hint = t.overviewNextUpToDateHint(remote); break;
@@ -155,7 +167,7 @@ export function NextStepCard({
       case "save": return t.overviewSaveVersion;
       case "reviewChanges": return t.overviewReviewChanges;
       case "resolve": return t.overviewJourneyResolve;
-      case "publish": return t.overviewPublishAll(publish.pending);
+      case "publish": return kind === "upstreamGone" ? t.overviewNextPublishAgain : t.overviewPublishAll(publish.pending);
       case "openHistory": return t.changesEmptyViewHistory;
       case "getChanges":
         if (!forecast || forecast.outcome !== "clear") return t.syncReviewAndGet;
@@ -166,6 +178,8 @@ export function NextStepCard({
       case "checkLocal": return t.overviewCheckLocalAgain;
       case "openSettings": return t.overviewNextConnectRemote;
       case "openLines": return t.overviewNextOpenLines;
+      case "switchToDefault": return t.overviewNextSwitchTo(defaultLine ?? "");
+      case "stopTracking": return t.overviewNextStopTracking;
     }
   };
 

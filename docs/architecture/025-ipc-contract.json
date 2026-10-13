@@ -110,6 +110,7 @@
     { "name": "read_project_technology", "arguments": ["path", "sessionEpoch"], "response": "ProjectTechnology" },
     { "name": "read_team_sync_status", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "check_team_changes", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
+    { "name": "stop_tracking_remote", "arguments": ["path", "sessionEpoch"], "response": "TeamSyncStatus" },
     { "name": "plan_get_team_changes", "arguments": ["path", "sessionEpoch"], "response": "GetTeamChangesPlan" },
     { "name": "get_team_changes", "arguments": ["path", "sessionEpoch", "stateToken", "recoveryReference", "runHooks", "onProgress"], "response": "GetTeamChangesResult" },
     { "name": "list_unpublished_versions", "arguments": ["path", "sessionEpoch"], "response": "PendingVersionsResult" },

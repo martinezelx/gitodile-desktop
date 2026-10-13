@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
+import { ArrowDownToLine, ChevronDown, CircleAlert, CloudOff, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, DialogFacts, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
@@ -102,7 +102,15 @@ function PublishSummary({
   return (
     <>
       <p className="app-dialog__summary">
-        <strong>{t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}</strong>
+        <strong>
+          {/* Nothing new can only mean a branch the remote doesn't have yet:
+              Rust refuses a publish with nothing to send to an existing one. */}
+          {plan.commitCount === 0
+            ? "recreatesDeletedBranch" in plan && plan.recreatesDeletedBranch
+              ? t.publishRecreateOnlyLine(plan.target.remote, plan.target.destinationBranch)
+              : t.publishCreateOnlyLine(plan.target.remote, plan.target.destinationBranch)
+            : t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}
+        </strong>
       </p>
       {plan.commitSummary.length > 0 && (
         <ul
@@ -319,6 +327,7 @@ export function PublishDialog({
   const summary: PublishPreview | null =
     plan ?? (isLoading && selectedRemote === null ? preview : null);
   const isFirstPublish = plan?.willCreateUpstream ?? false;
+  const recreatesBranch = plan?.recreatesDeletedBranch ?? false;
   const isUncertain =
     state.status === "publish-error" &&
     isAppError(state.error) &&
@@ -364,7 +373,9 @@ export function PublishDialog({
         // screen to dismiss (DESIGN.md § Dialogs).
         showToast({
           icon: <CloudUpload />,
-          message: t.publishSuccessDescription(result.publishedCount, result.target.remote),
+          message: result.publishedCount === 0
+            ? t.publishBranchCreatedDescription(result.target.destinationBranch, result.target.remote)
+            : t.publishSuccessDescription(result.publishedCount, result.target.remote),
         });
         onCloseRef.current();
       })
@@ -390,7 +401,9 @@ export function PublishDialog({
     ? t.publishChooseRemoteHeading
     : isFirstPublish && plan
       ? t.publishDialogTitleFirst(plan.target.destinationBranch)
-      : t.publishDialogTitle;
+      : recreatesBranch && plan
+        ? t.publishDialogTitleAgain(plan.target.destinationBranch)
+        : t.publishDialogTitle;
 
   return (
     <Dialog
@@ -470,6 +483,14 @@ export function PublishDialog({
               {t.publishCheckingRemote}
             </span>
           )}
+          {/* Before the plan, so the consequence is read before the list. */}
+          {recreatesBranch && plan && (
+            <DialogBanner tone="warning" icon={<CloudOff />}>
+              <p>
+                <strong>{t.publishRecreateWarningTitle(plan.target.remote)}</strong> {t.publishRecreateWarningBody}
+              </p>
+            </DialogBanner>
+          )}
           {summary ? (
             <PublishSummary
               plan={summary}
@@ -533,7 +554,9 @@ export function PublishDialog({
                       ? t.publishCheckRemoteAgain
                       : isStalePlan
                         ? t.publishReviewUpdatedPlan
-                        : t.publishConfirm}
+                        : recreatesBranch
+                          ? t.publishRecreateConfirm
+                          : t.publishConfirm}
                   </>
                 )}
               </button>

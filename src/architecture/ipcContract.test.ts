@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(133);
+    expect(contract.commands).toHaveLength(134);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "get_app_update_state", "get_startup_update_confirmation",
       "check_app_update", "download_app_update", "cancel_app_update", "install_app_update",
@@ -45,7 +45,7 @@ describe("IPC contract snapshot", () => {
       "set_project_identity", "clear_project_identity", "read_ignore_file", "write_ignore_file",
       "read_project_technology",
       "read_team_sync_status",
-      "check_team_changes", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions", "list_incoming_versions",
+      "check_team_changes", "stop_tracking_remote", "plan_get_team_changes", "get_team_changes", "list_unpublished_versions", "list_incoming_versions",
       "read_commit_file_changes", "read_commit_file_diff", "read_history_page",
       "read_saved_version_detail", "read_saved_version_file_diff", "plan_publish", "publish",
       "get_version_lines", "get_version_line_history", "plan_create_version_line", "create_version_line",
@@ -67,7 +67,7 @@ describe("IPC contract snapshot", () => {
       "read_commit_file_diff", "get_version_lines", "get_version_line_history",
       "watch_repository", "unwatch_repository",
       "close_project_session",
-      "plan_save_version", "save_version", "read_team_sync_status", "check_team_changes",
+      "plan_save_version", "save_version", "read_team_sync_status", "check_team_changes", "stop_tracking_remote",
       "plan_connect_remote", "connect_remote",
       "read_project_remotes", "set_remote_url", "read_project_identity", "set_project_identity",
       "read_project_account", "set_project_account",

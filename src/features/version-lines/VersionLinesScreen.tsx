@@ -4,6 +4,7 @@ import { localizeAppError } from "../../shared/i18n";
 import { useLanguage } from "../../i18n";
 import type { VersionLinesController } from "./controller";
 import { useActiveVersionLinesState } from "./hooks";
+import { withActiveLineGone } from "./domain";
 import { VersionLinesPanel } from "./VersionLinesPanel";
 
 export type VersionLinesScreenProps = {
@@ -27,6 +28,12 @@ export type VersionLinesScreenProps = {
   /** A line History asked this screen to select. One-shot; see the panel. */
   selectLineIntent?: string | null;
   onSelectLineIntentHandled?: () => void;
+  /** The current line, when the sync status says its remote branch was
+   * deleted. Git marks a line `[gone]` only once its tracking ref is gone too,
+   * and GitOdile never prunes, so the sync status is what tells this screen in
+   * the common case. Named, so a status still about the previous line cannot
+   * mark the one just switched to. */
+  upstreamGoneLine?: string | null;
 };
 
 export function VersionLinesScreen({
@@ -35,6 +42,7 @@ export function VersionLinesScreen({
   sessionEpoch,
   watcherState,
   onOpenSettings,
+  upstreamGoneLine = null,
   ...callbacks
 }: VersionLinesScreenProps): React.JSX.Element {
   const { t } = useLanguage();
@@ -51,11 +59,15 @@ export function VersionLinesScreen({
     (name: string, tipCommit: string) => controller.peekHistory(query, name, tipCommit),
     [controller, query],
   );
+  const snapshot = useMemo(
+    () => withActiveLineGone(state.snapshot, upstreamGoneLine),
+    [state.snapshot, upstreamGoneLine],
+  );
   return (
     <VersionLinesPanel
       projectPath={projectPath}
       sessionEpoch={sessionEpoch}
-      snapshot={state.snapshot}
+      snapshot={snapshot}
       error={state.error ? localizeAppError(state.error, t, t.versionLinesErrorLoading) : null}
       isLoading={state.isLoading}
       watcherState={watcherState}

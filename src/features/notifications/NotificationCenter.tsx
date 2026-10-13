@@ -52,6 +52,11 @@ function describe(details: NotificationDetails, t: Translations): {
         // all, which is worse than the generic sentence.
         description: details.reason?.trim() || t.notificationRemoteCheckFailedDescription,
       };
+    case "upstreamGone":
+      return {
+        title: t.notificationUpstreamGoneTitle(details.line, details.remote),
+        description: t.notificationUpstreamGoneDescription,
+      };
     case "changesPublished":
       return {
         title: t.notificationChangesPublishedTitle(details.versionCount),
@@ -115,7 +120,11 @@ function NotificationRow({
             type="button"
             onClick={() => onAction(notification)}
           >
-            {action === "reviewTeamChanges" ? t.notificationTeamChangesAction : t.notificationAppUpdateAction}
+            {action === "reviewTeamChanges"
+              ? t.notificationTeamChangesAction
+              : action === "openOverview"
+                ? t.notificationUpstreamGoneAction
+                : t.notificationAppUpdateAction}
           </button>
         )}
       </div>
@@ -149,6 +158,8 @@ export type NotificationCenterProps = {
   onToggleEnabled: (enabled: boolean) => void;
   onReviewTeamChanges: (notification: AppNotification) => void;
   onReviewAppUpdate: () => void;
+  /** Opens Overview on the notification's project. */
+  onOpenProjectOverview: (notification: AppNotification) => void;
   onOpenSettings: () => void;
 };
 
@@ -180,6 +191,7 @@ export function NotificationCenter({
   onToggleEnabled,
   onReviewTeamChanges,
   onReviewAppUpdate,
+  onOpenProjectOverview,
   onOpenSettings,
 }: NotificationCenterProps): React.JSX.Element {
   const { t, formats } = useLanguage();
@@ -322,7 +334,9 @@ export function NotificationCenter({
                   t={t}
                   onAction={(entry) => {
                     close(false);
-                    if (notificationAction(entry) === "reviewAppUpdate") onReviewAppUpdate();
+                    const action = notificationAction(entry);
+                    if (action === "reviewAppUpdate") onReviewAppUpdate();
+                    else if (action === "openOverview") onOpenProjectOverview(entry);
                     else onReviewTeamChanges(entry);
                   }}
                   onDismiss={onDismiss}

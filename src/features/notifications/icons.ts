@@ -1,5 +1,5 @@
 import type React from "react";
-import { CircleArrowUp, CloudDownload, CloudUpload, TriangleAlert } from "lucide-react";
+import { CircleArrowUp, CloudDownload, CloudOff, CloudUpload, TriangleAlert } from "lucide-react";
 import type { NotificationKind } from "./domain";
 
 /** Structural, not lucide's own type: the only thing either call site does with
@@ -26,6 +26,8 @@ export type NotificationIcon = React.ComponentType<{
 export const NOTIFICATION_ICONS: Record<NotificationKind, NotificationIcon> = {
   teamChangesAvailable: CloudDownload,
   remoteCheckFailed: TriangleAlert,
+  // The same cloud Overview's card wears for a line whose remote branch is gone.
+  upstreamGone: CloudOff,
   changesPublished: CloudUpload,
   // The same arrow the Settings rail and the updater's own status line use for
   // "a newer version exists", so the three places agree on what it looks like.

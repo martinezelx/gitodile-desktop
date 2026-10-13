@@ -133,6 +133,11 @@ export interface OverviewTranslations {
   overviewNextDetachedHint: string;
   overviewNextConnectRemote: string;
   overviewNextOpenLines: string;
+  overviewNextGoneTitle: (line: string | null, remote: string | null) => string;
+  overviewNextGoneHint: (remote: string | null) => string;
+  overviewNextSwitchTo: (line: string) => string;
+  overviewNextPublishAgain: string;
+  overviewNextStopTracking: string;
   /** The neutral pill for what comes after this step: "Then: 3 new versions
    * on origin", "Then: publish 2 versions". */
   overviewNextThen: string;
@@ -332,6 +337,13 @@ const en: OverviewTranslations = {
   overviewNextDetachedHint: "You can look around and try things. To keep saving, go back to a version line.",
   overviewNextConnectRemote: "Connect a remote",
   overviewNextOpenLines: "Choose a version line",
+  overviewNextGoneTitle: (line, remote) =>
+    `${line ? `“${line}”` : "This line"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
+  overviewNextGoneHint: (remote) =>
+    `Someone deleted it on ${remote ? `“${remote}”` : "the remote"}, usually after merging its pull request. Your saved versions are still on this computer.`,
+  overviewNextSwitchTo: (line) => `Switch to ${line}`,
+  overviewNextPublishAgain: "Publish again…",
+  overviewNextStopTracking: "Stop following the remote",
   overviewNextThen: "Then:",
   overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewNextThenOn: (remote) => `on ${remote}`,
@@ -521,6 +533,13 @@ const es: OverviewTranslations = {
   overviewNextDetachedHint: "Puedes mirar y probar. Para seguir guardando, vuelve a una línea de versiones.",
   overviewNextConnectRemote: "Conectar un remoto",
   overviewNextOpenLines: "Elegir una línea",
+  overviewNextGoneTitle: (line, remote) =>
+    `${line ? `«${line}»` : "Esta línea"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
+  overviewNextGoneHint: (remote) =>
+    `Alguien la borró en ${remote ? `«${remote}»` : "el remoto"}, normalmente al fusionar su PR. Tus versiones siguen en este ordenador.`,
+  overviewNextSwitchTo: (line) => `Cambiar a ${line}`,
+  overviewNextPublishAgain: "Volver a publicar…",
+  overviewNextStopTracking: "Dejar de seguir el remoto",
   overviewNextThen: "Después:",
   overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewNextThenOn: (remote) => `en ${remote}`,

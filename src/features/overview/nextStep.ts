@@ -34,7 +34,12 @@ export type NextStepAction =
    * what is in the way. */
   | "explainIncoming"
   /** Gets, combines and publishes in one confirmation. */
-  | "getAndPublish";
+  | "getAndPublish"
+  /** Switches to the project's main line, the usual way out once this line's
+   * remote branch is gone. */
+  | "switchToDefault"
+  /** Forgets the remote branch this line tracked. */
+  | "stopTracking";
 
 export type NextStepKind =
   | "loading"
@@ -55,6 +60,8 @@ export type NextStepKind =
   | "unavailable"
   | "noRemote"
   | "noUpstream"
+  /** The remote branch this line tracked was deleted there. */
+  | "upstreamGone"
   | "detached"
   | "unborn"
   | "upToDate";
@@ -107,7 +114,15 @@ export type NextStep = {
  * while files overlap or are unsaved; what the remote holds is then said as
  * what comes after. Once the working tree is clean, the remote side speaks.
  */
-export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: boolean }): NextStep {
+export function deriveNextStep(
+  journey: Journey,
+  { canPublish, defaultLine = null }: {
+    canPublish: boolean;
+    /** The project's main line when it is another line than this one: where
+     * a line whose remote branch is gone usually goes next. */
+    defaultLine?: string | null;
+  },
+): NextStep {
   const { changes, publish } = journey;
   const incoming = (publish.state === "behind" || publish.state === "diverged") && publish.behind > 0
     ? publish.behind
@@ -199,6 +214,16 @@ export function deriveNextStep(journey: Journey, { canPublish }: { canPublish: b
       return step("noRemote", "calm", null, ["openSettings"], { done: 2, current: null });
     case "noUpstream":
       return step("noUpstream", "calm", null, [], { done: 2, current: null });
+    case "upstreamGone":
+      // Nothing is lost, but publishing would recreate a branch the remote
+      // closed: the card names the three ways on and presses none of them.
+      return step(
+        "upstreamGone",
+        "unsaved",
+        defaultLine ? "switchToDefault" : null,
+        [...(canPublish ? (["publish"] as const) : []), "stopTracking"],
+        { done: 2, current: null },
+      );
     case "detached":
       return step("detached", "calm", null, ["openLines"], { done: 2, current: null });
     case "unborn":

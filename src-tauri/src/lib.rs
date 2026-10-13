@@ -239,6 +239,7 @@ pub fn run() {
             ipc::read_project_technology,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
+            ipc::stop_tracking_remote,
             ipc::plan_get_team_changes,
             ipc::get_team_changes,
             ipc::list_unpublished_versions,

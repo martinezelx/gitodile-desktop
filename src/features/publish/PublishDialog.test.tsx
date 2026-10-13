@@ -23,6 +23,7 @@ function plan(overrides: Partial<PublishPlan> = {}): PublishPlan {
     target: { remote: "origin", destinationBranch: "main" },
     localBranch: "main",
     willCreateUpstream: false,
+    recreatesDeletedBranch: false,
     commitCount: 1,
     commitSummary: [{
       commit: "abc123abc123abc123abc123abc123abc123ab",
@@ -286,6 +287,48 @@ describe("PublishDialog", () => {
     renderDialog();
 
     expect(await screen.findByRole("heading", { name: "Publish “main” for the first time" })).toBeInTheDocument();
+  });
+
+  it("warns before recreating a line the remote deleted and says so on the button", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      recreatesDeletedBranch: true,
+      target: { remote: "origin", destinationBranch: "feature/login" },
+      localBranch: "feature/login",
+    }));
+    renderDialog();
+
+    expect(await screen.findByRole("heading", { name: "Publish “feature/login” again" })).toBeInTheDocument();
+    expect(screen.getByText("This line was deleted on “origin”.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recreate and publish" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Publish changes" })).toBeNull();
+  });
+
+  it("says a recreated line brings no new versions when the remote has them all", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      recreatesDeletedBranch: true,
+      commitCount: 0,
+      commitSummary: [],
+      target: { remote: "origin", destinationBranch: "feature/login" },
+    }));
+    renderDialog();
+
+    expect(
+      await screen.findByText("“feature/login” will be created again on “origin”. Its versions are already on the remote."),
+    ).toBeInTheDocument();
+  });
+
+  it("says a new line brings no new versions when the remote has them all", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      willCreateUpstream: true,
+      commitCount: 0,
+      commitSummary: [],
+      target: { remote: "origin", destinationBranch: "empty" },
+    }));
+    renderDialog();
+
+    expect(
+      await screen.findByText("“empty” will be created on “origin”. Its versions are already on the remote."),
+    ).toBeInTheDocument();
   });
 
   it("notes that unsaved files stay local when the plan reports them", async () => {

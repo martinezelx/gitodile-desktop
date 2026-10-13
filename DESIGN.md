@@ -285,7 +285,13 @@ The main desktop window should broadly support:
    the tooltip, so the strip never reads as current when it is not. "Up to
    date" is the calm state and is not restated: its cloud (`CloudCheck`) and
    its age ("3 min ago") say it, with the word kept for the screen reader. A
-   project with no remote is a fact, not a problem, and stays quiet. The
+   project with no remote is a fact, not a problem, and stays quiet. A line
+   whose remote branch was deleted — usually after its pull request was
+   merged — reads "No longer on the remote" in amber, never "Check failed":
+   Overview's card names it and offers switching to the main line, publishing
+   again, or no longer following the remote, pressing none of them for the
+   reader; Lines marks the line "Remote branch deleted"; and Publish asks
+   before it creates the branch again, with "Recreate and publish". The
    fact is never the check: a round refresh beside it is, visible in every
    state — beside the sync action too, where knowing whether the remote moved
    matters most, and as the strip's only way to ask when automatic checks are

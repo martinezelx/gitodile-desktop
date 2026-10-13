@@ -60,6 +60,22 @@ export type VersionLinesSnapshot = {
   unreadableCount: number;
 };
 
+/** The snapshot with the active line marked gone when the sync status says
+ * so of that same line. The same object when nothing changes, so a memoised
+ * panel does not redraw. */
+export function withActiveLineGone(
+  snapshot: VersionLinesSnapshot | null,
+  goneLine: string | null,
+): VersionLinesSnapshot | null {
+  const marks = (line: VersionLine): boolean =>
+    line.isActive && line.name === goneLine && line.upstream !== null && !line.upstreamGone;
+  if (!snapshot || goneLine === null || !snapshot.lines.some(marks)) return snapshot;
+  return {
+    ...snapshot,
+    lines: snapshot.lines.map((line) => (marks(line) ? { ...line, upstreamGone: true } : line)),
+  };
+}
+
 /** Mirrors the Rust `VersionLineVersion` contract — one saved version on a
  * line, as read by the on-demand history call. */
 export type VersionLineVersion = {

@@ -7,6 +7,12 @@
       "icon": "cloud-download",
       "en": "Overview now tells you before you press anything whether getting project changes overlaps your work; when nothing overlaps, one confirmation gets them, combines them with your unpublished versions and can publish too.",
       "es": "Resumen te dice antes de pulsar nada si traer cambios del proyecto choca con tu trabajo; si nada choca, una sola confirmación los trae, los combina con tus versiones sin publicar y también puede publicar."
+    },
+    {
+      "id": "lineLeftTheRemote",
+      "icon": "git-branch",
+      "en": "When a line's branch is deleted on the remote, usually after its pull request is merged, GitOdile says so, offers to switch to the main line, and asks before publishing would create it again.",
+      "es": "Cuando se borra en el remoto la rama de una línea, normalmente al fusionar su PR, GitOdile lo dice, ofrece cambiar a la línea principal y pregunta antes de que publicar la vuelva a crear."
     }
   ]
 }

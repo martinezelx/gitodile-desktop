@@ -31,7 +31,6 @@ use std::process::ExitStatus;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub(crate) const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_WARNINGS: usize = 4;
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -107,7 +106,10 @@ pub(crate) enum TeamSyncState {
     Ahead,
     Behind,
     Diverged,
-    Unknown,
+    /// The line tracks a remote branch that no longer exists: a check found
+    /// it missing on the remote, or the tracking ref is gone too (Git's
+    /// `[gone]`). The stale tracking ref, when there is one, is kept.
+    UpstreamGone,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
@@ -1132,7 +1134,7 @@ fn actions_for(state: TeamSyncState, knowledge: SyncKnowledge) -> Vec<SyncNextAc
         || matches!(
             state,
             TeamSyncState::UpToDate
-                | TeamSyncState::Unknown
+                | TeamSyncState::UpstreamGone
                 | TeamSyncState::NoRemote
                 | TeamSyncState::NoUpstream
         )
@@ -1260,38 +1262,35 @@ pub(super) fn read_team_sync_status_inner(
         ));
     };
 
-    let fetched_commit = if perform_fetch {
-        Some(fetch_remote_target(
-            path,
-            &target.remote,
-            &target.fetch_refspec,
-        )?)
+    // A remote that no longer has the branch is an answer, not a failure: the
+    // line's upstream is gone. The explicit no-prune policy keeps the last
+    // known tracking ref, which is reported but never compared against.
+    let (fetched_commit, remote_branch_missing) = if perform_fetch {
+        match fetch_remote_target(path, &target.remote, &target.fetch_refspec) {
+            Ok(commit) => (Some(commit), false),
+            Err(error) if error.code == AppErrorCode::RemoteRefMissing => (None, true),
+            Err(error) => return Err(error),
+        }
     } else {
-        None
+        (None, false)
     };
-    let remote_commit = match resolve_commit(path, &target.tracking_ref)? {
-        Some(commit) => Some(commit),
-        None => fetched_commit,
-    };
-    let mut warnings = Vec::new();
-    let (state, relation) = if let Some(remote_commit) = remote_commit.as_deref() {
-        let relation = classify_sync(path, &local_commit, Some(remote_commit))?;
-        (relation_state(&relation), relation)
-    } else {
-        warnings.push(SyncWarning {
-            code: "trackingRefUnavailable".to_string(),
-            message: "The configured team version has not been recorded locally yet.".to_string(),
-        });
-        (
-            TeamSyncState::Unknown,
+    let remote_commit = resolve_commit(path, &target.tracking_ref)?.or(fetched_commit);
+    let (state, relation) = match remote_commit.as_deref() {
+        Some(remote_commit) if !remote_branch_missing => {
+            let relation = classify_sync(path, &local_commit, Some(remote_commit))?;
+            (relation_state(&relation), relation)
+        }
+        // A configured upstream with no tracking ref is what Git reports as
+        // `[gone]`; a check that found the branch missing says the same.
+        _ => (
+            TeamSyncState::UpstreamGone,
             SyncRelation {
                 ahead: 0,
                 behind: 0,
                 diverged: false,
             },
-        )
+        ),
     };
-    warnings.truncate(MAX_WARNINGS);
     let forecast = match (state, remote_commit.as_deref()) {
         (TeamSyncState::Behind | TeamSyncState::Diverged, Some(remote_commit)) => {
             forecast_incoming(path, &local_commit, remote_commit, &relation)
@@ -1317,7 +1316,7 @@ pub(super) fn read_team_sync_status_inner(
         behind: relation.behind,
         knowledge,
         checked_at,
-        warnings,
+        warnings: Vec::new(),
         next_actions: actions_for(state, knowledge),
         state_token: compute_team_sync_state_token(
             repository_identity,
@@ -1355,6 +1354,55 @@ pub(crate) fn check_team_changes(
         application::authorize_repository(&path, "check_team_changes", None)?;
     let identity = repository.common_git_dir.match_key().to_string();
     read_team_sync_status_inner(&path, &session_epoch, SyncKnowledge::Fresh, true, &identity)
+}
+
+/// Local mutation, chosen by the person for a line whose remote branch is
+/// gone: forget which remote branch the current line tracks. Only the line's
+/// own `branch.<name>.remote` and `.merge` entries change — the same pair a
+/// first publish writes — so publishing again reconnects it. Files, history
+/// and the kept tracking ref are untouched.
+pub(crate) fn stop_tracking_remote(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "stop_tracking_remote", None)?;
+    let identity = repository.common_git_dir.match_key().to_string();
+    let working = read_working_tree_status(path.clone())?;
+    let (head_state, _) = resolve_head_state(&path, working.upstream.branch.clone())?;
+    let Some(branch) = working
+        .upstream
+        .branch
+        .filter(|_| head_state == HeadState::Branch)
+    else {
+        return Err(AppError::new(
+            AppErrorCode::DetachedHead,
+            "This project isn't on a version line right now.",
+        )
+        .with_remediation("Switch to a version line first."));
+    };
+    validate_branch_ref_name(&path, &branch)?;
+    if read_config_value(&path, &format!("branch.{branch}.merge"))?.is_none() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "This version line doesn't follow a remote branch.",
+        ));
+    }
+    let output = run_git(&path, &["branch", "--unset-upstream", &branch])?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitConfigWriteFailed,
+            "GitOdile couldn't stop this version line from following its remote branch.",
+        )
+        .with_remediation("Check that the project's Git configuration can be written."));
+    }
+    read_team_sync_status_inner(
+        &path,
+        &session_epoch,
+        SyncKnowledge::Cached,
+        false,
+        &identity,
+    )
 }
 
 #[cfg(test)]

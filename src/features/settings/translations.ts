@@ -112,6 +112,8 @@ export interface SettingsTranslations {
   notificationsEventPublishedDescription: string;
   notificationsEventAppUpdateLabel: string;
   notificationsEventAppUpdateDescription: string;
+  notificationsEventUpstreamGoneLabel: string;
+  notificationsEventUpstreamGoneDescription: string;
   settingsGitToolTitle: string;
   settingsGitInstalledVersionLabel: string;
   /** Where Git lives and how it is set up, under the Git row. */
@@ -358,6 +360,8 @@ const en: SettingsTranslations = {
   notificationsEventPublishedDescription: "A receipt of what you sent.",
   notificationsEventAppUpdateLabel: "A newer version of the app is out",
   notificationsEventAppUpdateDescription: "Found at startup, and nothing downloads on its own.",
+  notificationsEventUpstreamGoneLabel: "A line's remote branch is deleted",
+  notificationsEventUpstreamGoneDescription: "Usually after its pull request is merged. Your work stays on your computer.",
   settingsGitToolTitle: "Git on your computer",
   settingsGitInstalledVersionLabel: "Installed version",
   gitInstallation: {
@@ -654,6 +658,8 @@ const es: SettingsTranslations = {
   notificationsEventPublishedDescription: "Un recibo de lo que enviaste.",
   notificationsEventAppUpdateLabel: "Versiones nuevas de la aplicación",
   notificationsEventAppUpdateDescription: "Se detecta al iniciar y no se descarga nada solo.",
+  notificationsEventUpstreamGoneLabel: "Se borra la rama remota de una línea",
+  notificationsEventUpstreamGoneDescription: "Normalmente al fusionar su PR. Tu trabajo se queda en tu ordenador.",
   settingsGitToolTitle: "Git en tu ordenador",
   settingsGitInstalledVersionLabel: "Versión instalada",
   gitInstallation: {

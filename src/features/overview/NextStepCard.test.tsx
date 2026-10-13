@@ -65,6 +65,8 @@ function handlers(): NextStepHandlers {
     openLines: vi.fn(),
     explainIncoming: vi.fn(),
     getAndPublish: vi.fn(),
+    switchToDefault: vi.fn(),
+    stopTracking: vi.fn(),
   };
 }
 
@@ -95,6 +97,59 @@ describe("NextStepCard", () => {
     expect(container.querySelector(".next-step.loading-placeholder")).not.toBeNull();
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("says a line's remote branch is gone and offers the three ways on", async () => {
+    const gone: TeamSyncViewState = {
+      ...ahead,
+      status: {
+        ...ahead.status!,
+        state: "upstreamGone",
+        localBranch: "feature/login",
+        destinationBranch: "feature/login",
+        trackingRef: "refs/remotes/origin/feature/login",
+        ahead: 0,
+        nextActions: ["checkAgain"],
+      },
+    };
+    const journey = deriveJourney({
+      workingTree: tree([]),
+      workingTreeError: null,
+      isCheckingChanges: false,
+      pendingVersionsCount: 0,
+      teamSync: gone,
+    });
+    const actions = handlers();
+    const { container } = wrap(
+      <NextStepCard
+        nextStep={deriveNextStep(journey, { canPublish: true, defaultLine: "main" })}
+        journey={journey}
+        handlers={actions}
+        defaultLine="main"
+      />,
+    );
+
+    expect(container.querySelector(".next-step")).toHaveClass("next-step--unsaved");
+    expect(screen.getByRole("heading", { name: "“feature/login” is no longer on “origin”" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Switch to main" }));
+    expect(actions.switchToDefault).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Publish again…" }));
+    expect(actions.publish).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Stop following the remote" }));
+    expect(actions.stopTracking).toHaveBeenCalledOnce();
+    expect(container.querySelectorAll(".primary-button")).toHaveLength(1);
+  });
+
+  it("offers no switch when the gone line has no main line to go to", () => {
+    const journey = deriveJourney({
+      workingTree: tree([]),
+      workingTreeError: null,
+      isCheckingChanges: false,
+      pendingVersionsCount: 0,
+      teamSync: { ...ahead, status: { ...ahead.status!, state: "upstreamGone", ahead: 0 } },
+    });
+    const step = deriveNextStep(journey, { canPublish: false });
+    expect(step).toMatchObject({ kind: "upstreamGone", primary: null, secondary: ["stopTracking"] });
   });
 
   it("says what to publish and where, with publishing as the one primary action", async () => {

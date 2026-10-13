@@ -225,26 +225,223 @@ fn check_updates_only_the_configured_upstream_tracking_ref() {
     }
 }
 
-#[test]
-fn removed_upstream_fails_without_claiming_freshness_or_pruning_cached_tracking() {
-    let _guard = sync_test_guard();
-    let (repo, remote, branch) = published_repo_and_remote("sync-removed");
-    let tracking = format!("refs/remotes/origin/{branch}");
-    let cached_before = git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap());
-    assert!(git_command(&remote)
+fn delete_remote_branch(remote: &str, branch: &str) {
+    assert!(git_command(remote)
         .args(["update-ref", "-d", &format!("refs/heads/{branch}")])
         .status()
         .unwrap()
         .success());
+}
 
-    let error = check_team_changes(repo.clone(), session("removed"))
-        .expect_err("a removed configured upstream must not look fresh");
-    assert_eq!(error.code, AppErrorCode::RemoteRefMissing);
+fn save_file(repo: &str, name: &str, message: &str) {
+    write_file(repo, name, &format!("{message}\n"));
+    git_add_all(repo);
+    git_commit(repo, message);
+}
+
+fn git_succeeds(repo: &str, args: &[&str]) -> bool {
+    git_command(repo).args(args).status().unwrap().success()
+}
+
+/// The main line published, then `feature` published with one version, then
+/// `feature` deleted on the remote — what a host does after merging a pull
+/// request — while this clone keeps its tracking ref.
+fn line_deleted_on_remote(label: &str) -> (String, String) {
+    let (repo, remote, main) = published_repo_and_remote(label);
+    assert_ne!(main, "feature");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "feature"]));
+    save_file(&repo, "feature.txt", "feature work");
+    assert!(git_succeeds(
+        &repo,
+        &["push", "-q", "-u", "origin", "feature"]
+    ));
+    delete_remote_branch(&remote, "feature");
+    (repo, remote)
+}
+
+#[test]
+fn removed_upstream_reads_as_gone_without_pruning_cached_tracking() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("sync-removed");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let cached_before = git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap());
+    delete_remote_branch(&remote, &branch);
+
+    let gone = check_team_changes(repo.clone(), session("removed"))
+        .expect("a removed upstream is an answer, not a failure");
+    assert_eq!(gone.state, TeamSyncState::UpstreamGone);
+    assert_eq!(gone.knowledge, SyncKnowledge::Fresh);
+    assert!(gone.checked_at.is_some());
+    assert_eq!(gone.remote_commit.as_deref(), Some(cached_before.as_str()));
+    assert_eq!(gone.tracking_ref.as_deref(), Some(tracking.as_str()));
+    assert_eq!((gone.ahead, gone.behind), (0, 0));
+    assert!(gone.forecast.is_none());
+    assert_eq!(gone.next_actions, vec![SyncNextAction::CheckAgain]);
     assert_eq!(
         git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap()),
         cached_before,
         "the explicit no-prune policy retains the last known tracking ref"
     );
+    // A local read cannot tell a kept ref from a live one; the frontend's
+    // sync controller is what keeps the fresh answer across it.
+    let cached = read_team_sync_status(repo.clone(), session("removed")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpToDate);
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_missing_tracking_ref_reads_as_gone_without_a_check() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("sync-gone-cached");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    assert!(git_succeeds(&repo, &["update-ref", "-d", &tracking]));
+
+    let cached = read_team_sync_status(repo.clone(), session("gone-cached")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpstreamGone);
+    assert_eq!(cached.knowledge, SyncKnowledge::Cached);
+    assert!(cached.remote_commit.is_none());
+    assert!(cached.warnings.is_empty());
+    assert_eq!(cached.destination_branch.as_deref(), Some(branch.as_str()));
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn publishing_a_line_deleted_on_the_remote_says_it_recreates_and_counts_only_new_versions() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = line_deleted_on_remote("sync-recreate");
+    save_file(&repo, "more.txt", "more work");
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.recreates_deleted_branch);
+    assert!(!plan.will_create_upstream);
+    assert_eq!(plan.target.destination_branch, "feature");
+    // The two versions on `feature`, not the main line's version under them:
+    // the remote's main line already has that one.
+    assert_eq!(plan.commit_count, 2);
+    assert_eq!(
+        plan.commit_summary
+            .iter()
+            .map(|entry| entry.title.as_str())
+            .collect::<Vec<_>>(),
+        vec!["more work", "feature work"]
+    );
+
+    publish(
+        repo.clone(),
+        "origin".to_string(),
+        plan.state_token,
+        None,
+        true,
+    )
+    .unwrap();
+    assert!(git_succeeds(
+        &remote,
+        &["rev-parse", "--verify", "--quiet", "refs/heads/feature"]
+    ));
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_first_publish_counts_only_what_the_remote_lacks() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _) = published_repo_and_remote("sync-first-count");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "fresh"]));
+    save_file(&repo, "fresh.txt", "fresh work");
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.will_create_upstream);
+    assert!(!plan.recreates_deleted_branch);
+    assert_eq!(plan.commit_count, 1);
+    assert_eq!(plan.commit_summary.len(), 1);
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_new_line_with_nothing_new_plans_only_its_branch() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _) = published_repo_and_remote("sync-empty-line");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "empty"]));
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.will_create_upstream);
+    assert_eq!(plan.commit_count, 0);
+    assert!(plan.commit_summary.is_empty());
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn unpublished_versions_still_follow_a_local_upstream() {
+    let _guard = sync_test_guard();
+    let (repo, remote, main) = published_repo_and_remote("sync-local-upstream");
+    assert!(git_succeeds(
+        &repo,
+        &["switch", "-q", "-c", "topic", "--track", &main]
+    ));
+    save_file(&repo, "topic.txt", "topic work");
+
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "topic work");
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn unpublished_versions_read_past_a_pruned_upstream() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = line_deleted_on_remote("sync-pruned-pending");
+    assert!(git_succeeds(
+        &repo,
+        &["update-ref", "-d", "refs/remotes/origin/feature"]
+    ));
+
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "feature work");
+    let cached = read_team_sync_status(repo.clone(), session("pruned-pending")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpstreamGone);
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn stop_tracking_remote_forgets_the_upstream_and_keeps_everything_else() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = line_deleted_on_remote("sync-stop-tracking");
+    let head_before = head(&repo);
+
+    let status = stop_tracking_remote(repo.clone(), session("stop-tracking")).unwrap();
+    assert_eq!(status.state, TeamSyncState::NoUpstream);
+    assert_eq!(head(&repo), head_before);
+    for key in ["branch.feature.remote", "branch.feature.merge"] {
+        assert!(!git_succeeds(&repo, &["config", "--get", key]));
+    }
+    assert!(
+        git_succeeds(
+            &repo,
+            &[
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/feature"
+            ]
+        ),
+        "the kept tracking ref is not deleted"
+    );
+    let again = stop_tracking_remote(repo.clone(), session("stop-tracking")).unwrap_err();
+    assert_eq!(again.code, AppErrorCode::InvalidRemoteConfiguration);
 
     let _ = fs::remove_dir_all(repo);
     let _ = fs::remove_dir_all(remote);

@@ -6,7 +6,8 @@ use crate::git_command::{checked_git_stdout, git_stdout, run_git};
 use crate::operation::{truncate_detail, OperationKind};
 use crate::repository::{classify_head, read_head_commit, validate_branch_ref_name, HeadState};
 use crate::status::{
-    checked_status_records, git_log_summaries, SavedVersionSummary, UpstreamStatus,
+    checked_status_records, git_log_summaries, not_on_remote_revisions, SavedVersionSummary,
+    UpstreamStatus,
 };
 use crate::sync::{
     classify_sync, destination_for_remote, fetch_remote_target, list_remotes,
@@ -39,6 +40,10 @@ pub(crate) struct PublishPlan {
     pub(crate) target: PublishTarget,
     pub(crate) local_branch: String,
     pub(crate) will_create_upstream: bool,
+    /// The line already tracks this destination, but the remote no longer
+    /// has the branch: publishing creates it again. The dialog asks for that
+    /// explicitly rather than presenting it as an ordinary publish.
+    pub(crate) recreates_deleted_branch: bool,
     pub(crate) commit_count: u32,
     pub(crate) commit_summary: Vec<SavedVersionSummary>,
     pub(crate) has_unsaved_files: bool,
@@ -80,6 +85,7 @@ struct ValidatedPublish {
     target_sha: String,
     remote_sha: Option<String>,
     will_create_upstream: bool,
+    recreates_deleted_branch: bool,
     commit_count: u32,
     remaining_after_publish: u32,
     has_unsaved_files: bool,
@@ -249,6 +255,7 @@ fn validate_and_prepare_publish(
         Err(error) if error.code == AppErrorCode::RemoteRefMissing => None,
         Err(error) => return Err(error),
     };
+    let recreates_deleted_branch = remote_sha.is_none() && !will_create_upstream;
 
     let relation = classify_sync(path, &local_sha, remote_sha.as_deref())?;
     if remote_sha.is_some() {
@@ -293,9 +300,17 @@ fn validate_and_prepare_publish(
         )?)?
         .parse()
         .unwrap_or(0),
-        None => checked_git_stdout(run_git(path, &["rev-list", "--count", &target_sha])?)?
-            .parse()
-            .unwrap_or(1),
+        // No remote branch to compare against: count what no branch of the
+        // remote has, not the line's whole history.
+        None => {
+            let revisions =
+                not_on_remote_revisions(&target_sha, &target.remote, &target.destination_branch);
+            let mut args = vec!["rev-list", "--count"];
+            args.extend(revisions.iter().map(String::as_str));
+            checked_git_stdout(run_git(path, &args)?)?
+                .parse()
+                .unwrap_or(1)
+        }
     };
     let remaining_after_publish = if target_sha == local_sha {
         0
@@ -323,6 +338,7 @@ fn validate_and_prepare_publish(
         target_sha,
         remote_sha,
         will_create_upstream,
+        recreates_deleted_branch,
         commit_count,
         remaining_after_publish,
         has_unsaved_files,
@@ -334,12 +350,14 @@ fn commit_summary_entries(
     path: &str,
     local_sha: &str,
     remote_sha: Option<&str>,
+    target: &PublishTarget,
 ) -> Vec<SavedVersionSummary> {
-    let range = match remote_sha {
-        Some(remote_sha) => format!("{remote_sha}..{local_sha}"),
-        None => local_sha.to_string(),
+    let revisions = match remote_sha {
+        Some(remote_sha) => vec![format!("{remote_sha}..{local_sha}")],
+        None => not_on_remote_revisions(local_sha, &target.remote, &target.destination_branch),
     };
-    git_log_summaries(path, &range).unwrap_or_default()
+    let revisions = revisions.iter().map(String::as_str).collect::<Vec<_>>();
+    git_log_summaries(path, &revisions).unwrap_or_default()
 }
 
 pub(crate) fn plan_publish(
@@ -356,9 +374,17 @@ pub(crate) fn plan_publish(
                     &path,
                     &validated.target_sha,
                     validated.remote_sha.as_deref(),
+                    &validated.target,
                 )
             },
-            || commit_summary_entries(&path, &validated.local_branch, Some(&validated.target_sha)),
+            || {
+                commit_summary_entries(
+                    &path,
+                    &validated.local_branch,
+                    Some(&validated.target_sha),
+                    &validated.target,
+                )
+            },
         )
     } else {
         (
@@ -366,12 +392,18 @@ pub(crate) fn plan_publish(
                 &path,
                 &validated.target_sha,
                 validated.remote_sha.as_deref(),
+                &validated.target,
             ),
             Vec::new(),
         )
     };
 
-    let summary = if validated.remote_sha.is_none() {
+    let summary = if validated.recreates_deleted_branch {
+        format!(
+            "This creates \"{}\" on \"{}\" again: the remote no longer has it.",
+            validated.target.destination_branch, validated.target.remote
+        )
+    } else if validated.remote_sha.is_none() {
         format!(
             "This publishes this version line to \"{}\" for the first time.",
             validated.target.remote
@@ -423,6 +455,7 @@ pub(crate) fn plan_publish(
         target: validated.target,
         local_branch: validated.local_branch.clone(),
         will_create_upstream: validated.will_create_upstream,
+        recreates_deleted_branch: validated.recreates_deleted_branch,
         commit_count: validated.commit_count,
         commit_summary,
         has_unsaved_files: validated.has_unsaved_files,

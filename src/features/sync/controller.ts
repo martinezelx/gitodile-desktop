@@ -1,5 +1,12 @@
 import type { ProjectCacheWarmReason, ProjectRuntime } from "../../runtime/project/runtime";
-import { teamSyncFactsEqual, type GetTeamChangesResult, type TeamSyncStatus } from "./domain";
+import {
+  applyUpstreamGoneEvidence,
+  teamSyncFactsEqual,
+  upstreamGoneEvidenceOf,
+  type GetTeamChangesResult,
+  type TeamSyncStatus,
+  type UpstreamGoneEvidence,
+} from "./domain";
 import type { SyncPort, TeamSyncQuery } from "./port";
 
 export type SyncErrorMapper = (error: unknown) => string;
@@ -20,6 +27,19 @@ function keyOf(query: TeamSyncQuery): string {
 export function createSyncController(port: SyncPort) {
   const generations = new Map<string, number>();
   const inFlight = new Map<string, InFlight>();
+  /** Per session, the lines a check found gone, kept by line so switching
+   * away and back does not turn a deleted branch into "up to date". A check
+   * of the line, or a publish to it, replaces its entry. */
+  const goneEvidence = new Map<string, Map<string, UpstreamGoneEvidence>>();
+
+  const recordCheck = (key: string, status: TeamSyncStatus): void => {
+    if (!status.localBranch) return;
+    const evidence = upstreamGoneEvidenceOf(status);
+    const lines = goneEvidence.get(key) ?? new Map<string, UpstreamGoneEvidence>();
+    if (evidence) lines.set(status.localBranch, evidence);
+    else lines.delete(status.localBranch);
+    goneEvidence.set(key, lines);
+  };
 
   const run = (
     runtime: ProjectRuntime,
@@ -47,13 +67,17 @@ export function createSyncController(port: SyncPort) {
       .then((status) => {
         if (generations.get(key) !== generation) return null;
         const current = runtime.getSnapshot().byId[query.projectId]?.teamSync.status ?? null;
+        if (kind === "check") recordCheck(key, status);
+        const read = kind === "local" && status.localBranch
+          ? applyUpstreamGoneEvidence(status, goneEvidence.get(key)?.get(status.localBranch))
+          : status;
         // A local read immediately after a successful check is expected when
         // shared refs fan out. Keep the fresh session evidence if the facts
         // are identical; otherwise the changed cached relation replaces it.
         const committed =
-          kind === "local" && current?.knowledge === "fresh" && teamSyncFactsEqual(current, status)
+          kind === "local" && current?.knowledge === "fresh" && teamSyncFactsEqual(current, read)
             ? current
-            : status;
+            : read;
         runtime.dispatch({
           type: "applyTeamSyncStatus",
           id: query.projectId,
@@ -108,6 +132,7 @@ export function createSyncController(port: SyncPort) {
     ): void {
       if (result.outcome !== "completed" || !result.syncStatus) return;
       const key = keyOf(query);
+      recordCheck(key, result.syncStatus);
       const generation = (generations.get(key) ?? 0) + 1;
       generations.set(key, generation);
       inFlight.delete(key);
@@ -120,6 +145,29 @@ export function createSyncController(port: SyncPort) {
       });
     },
     supersede,
+    /** A publish created the line's remote branch again: what a check said
+     * about it being gone no longer holds. */
+    publishedTo(query: TeamSyncQuery, line: string): void {
+      goneEvidence.get(keyOf(query))?.delete(line);
+    },
+    /** Forgets the remote branch the current line tracks — the way out the
+     * card offers once that branch is gone. Commits the line's new status (no
+     * upstream) under a fresh generation, so no earlier read can replace it. */
+    async stopTracking(runtime: ProjectRuntime, query: TeamSyncQuery): Promise<TeamSyncStatus> {
+      const status = await port.stopTracking(query);
+      const key = keyOf(query);
+      const generation = (generations.get(key) ?? 0) + 1;
+      generations.set(key, generation);
+      inFlight.delete(key);
+      runtime.dispatch({
+        type: "commitTeamSyncResult",
+        id: query.projectId,
+        epoch: query.sessionEpoch,
+        generation,
+        status,
+      });
+      return status;
+    },
     scheduleWarm(
       runtime: ProjectRuntime,
       query: TeamSyncQuery,
@@ -138,6 +186,7 @@ export function createSyncController(port: SyncPort) {
       supersede(runtime, query);
       generations.delete(keyOf(query));
       inFlight.delete(keyOf(query));
+      goneEvidence.delete(keyOf(query));
     },
   };
 }

@@ -193,6 +193,11 @@ const NOTIFICATION_EVENT_ROWS = [
     description: "notificationsEventCheckFailedDescription",
   },
   {
+    kind: "upstreamGone",
+    label: "notificationsEventUpstreamGoneLabel",
+    description: "notificationsEventUpstreamGoneDescription",
+  },
+  {
     kind: "appUpdateAvailable",
     label: "notificationsEventAppUpdateLabel",
     description: "notificationsEventAppUpdateDescription",
