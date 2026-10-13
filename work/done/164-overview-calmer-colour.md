@@ -83,6 +83,10 @@ artifact "Overview color audit". The user chose the recommendation: option A
 - Counts neutral: the status bar's changes count and the scene's outgoing
   badge; the scene's outgoing dots in the primary ink.
 - The detail's diff bar thinner (3px) and at reduced strength.
+- Overview's "Discarded changes" card (added after the first commit, on the
+  user's review): no amber wash, the icon in the secondary ink, the count of
+  restorable copies a neutral badge like the scene's, and a neutral hover on
+  "Restore" instead of `--surface-active`.
 - DESIGN.md records the node-shape rule and the one-coloured-surface rule.
 
 # Out of scope
@@ -114,6 +118,8 @@ artifact "Overview color audit". The user chose the recommendation: option A
 - [x] History's boundary draws Overview's rail mark and names the remote,
       with the publish action at the end of the rule.
 - [x] A selected local version keeps its half-filled node, in the accent.
+- [x] The "Discarded changes" card wears no state colour: no wash, neutral
+      icon and badge, neutral hover on "Restore".
 - [x] History's nodes use the same shapes as Overview's, and both timelines
       ring the node in the accent on hover without filling it.
 - [x] History's "current" badge and local-only chip, its boundary publish
@@ -127,6 +133,8 @@ artifact "Overview color audit". The user chose the recommendation: option A
 - `src/features/overview/HistorySummarySection.tsx`
 - `src/app/app-shell.css`
 - `src/features/history/history.css`
+- `src/features/overview/OverviewDetail.tsx` (markup unchanged; its card's
+  styles are in `overview.css`)
 - `src/features/changes/changes.css`
 - `DESIGN.md`
 
@@ -166,6 +174,12 @@ direction.
   describes as its mark; it is now a neutral capsule with the primary ink.
 
 # Validation
+
+- Follow-up after the first commit: the "Discarded changes" card, reviewed
+  from the user's screenshot (its solid amber badge was the second loudest
+  mark on a screen whose next step was publishing). Option A of two
+  (neutral, over keeping the icon amber) was chosen and added to this task
+  rather than a new one, at the user's request.
 
 - `pnpm run check` — passed: docs, architecture, TypeScript, 139 frontend
   test files (1,445 tests), build, `cargo fmt`, Clippy and Rust tests (592
