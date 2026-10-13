@@ -352,7 +352,27 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
 });
 
 const ROW_HEIGHT = 64;
-const BOUNDARY_HEIGHT = 26;
+const BOUNDARY_HEIGHT = 32;
+const LOCAL_HEAD_HEIGHT = 34;
+
+/* The head over the versions only on this computer, as Overview's timeline
+   heads its group: the publish cloud on the rail and what the group is. It
+   leaves out the count Overview's carries: the rows under it are the count,
+   and the column needs the room for the label. Beside it, the way to publish
+   them, on the current line only — the publish flow publishes that line, so
+   under another scope it would not send the versions under the head. A
+   pointer shortcut, out of the tab order and hidden with the head it sits
+   on: it lives inside the listbox, where only options belong, and Publish in
+   the toolbar is the same action for a keyboard. */
+function LocalGroupHead({ onPublish, t }: { onPublish?: () => void; t: Translations }): React.JSX.Element {
+  return (
+    <div className="history-local-head" aria-hidden="true">
+      <span className="history-local-head__icon"><CloudUpload /></span>
+      <span className="history-local-head__label">{t.historyLocalGroup}</span>
+      {onPublish && <button className="history-local-head__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => onPublish()}><CloudUpload className="history-local-head__publish-icon" />{t.historyLocalGroupPublish}</button>}
+    </div>
+  );
+}
 
 const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, publishedTo, publishedOn, remoteGone, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
   versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; publishedOn: string | null; remoteGone: boolean; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
@@ -384,23 +404,18 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   const filtered = countActiveFilters(filters) > 0;
   const searchQuery = search.trim().toLocaleLowerCase();
   /* Where what is only on this computer ends and what the remote has begins:
-     the first published version after an unpublished one. It speaks about
-     both sides — how many above are not published, and that those below are —
-     because a single "Published to …" between two rows read as a fact about
-     the row over it, and a remote's full name did not fit the column. The
-     remote goes on the tooltip. Nothing is drawn when everything is on one
-     side. */
+     the first published version after an unpublished one. It is drawn as
+     Overview draws it — a group head over the versions only here and the
+     remote's mark where its copy begins — so the two timelines tell it with
+     the same pieces in the same order. Nothing is drawn when everything is on
+     one side. */
   const boundaryIndex = useMemo(() => versions.findIndex((version, index) =>
     index > 0 && version.publication === "published" && versions[index - 1].publication === "local-only"), [versions]);
-  // A way to act on what it counts, for the line being stood on only: the
-  // publish flow publishes that line, so under another scope the count is
-  // about versions it would not send.
+  const hasLocalHead = boundaryIndex > 0;
   const canPublishFromBoundary = Boolean(actions.onPublish) && scope.kind === "currentLine";
-  const unpublishedAbove = useMemo(() => (boundaryIndex < 0 ? 0
-    : versions.slice(0, boundaryIndex).filter((version) => version.publication === "local-only").length), [boundaryIndex, versions]);
-  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: (index) => (index === boundaryIndex ? ROW_HEIGHT + BOUNDARY_HEIGHT : ROW_HEIGHT), overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
-  // The boundary changes one row's height, which the virtualizer only reads
-  // back when asked.
+  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: (index) => ROW_HEIGHT + (index === boundaryIndex ? BOUNDARY_HEIGHT : 0) + (hasLocalHead && index === 0 ? LOCAL_HEAD_HEIGHT : 0), overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
+  // The boundary and the head change two rows' heights, which the
+  // virtualizer only reads back when asked.
   useLayoutEffect(() => { virtualizer.measure(); }, [boundaryIndex, virtualizer]);
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
@@ -489,12 +504,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
       {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
       <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; const boundary = virtualRow.index === boundaryIndex; return <div key={virtualRow.key} className={`history-timeline__virtual-row${boundary ? " history-timeline__virtual-row--boundary" : ""}`} style={{ transform: `translateY(${virtualRow.start}px)` }}>{boundary && <div className="history-boundary" data-rail={rail ?? undefined} data-tooltip={t.historyBoundaryHint(publishedTo)} aria-hidden="true">{canPublishFromBoundary
-  /* A pointer shortcut, out of the tab order and hidden with the rule it
-     sits on: it lives inside the listbox, where only options belong, and
-     Publish in the toolbar is the same action for a keyboard. */
-  ? <><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /><button className="history-boundary__side history-boundary__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => actions.onPublish?.()}><CloudUpload className="history-boundary__publish-icon" />{t.historyBoundaryPublishCount(formatNumber(unpublishedAbove, formats))}</button></>
-  : <><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /><span className="history-boundary__side">{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}</span></>}</div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; const boundary = virtualRow.index === boundaryIndex; const head = hasLocalHead && virtualRow.index === 0; return <div key={virtualRow.key} className={`history-timeline__virtual-row${boundary ? " history-timeline__virtual-row--boundary" : ""}${head ? " history-timeline__virtual-row--head" : ""}`} style={{ transform: `translateY(${virtualRow.start}px)` }}>{head && <LocalGroupHead onPublish={canPublishFromBoundary ? actions.onPublish : undefined} t={t} />}{boundary && <div className="history-boundary" data-rail={rail ?? undefined} data-tooltip={t.historyBoundaryHint(publishedTo)} aria-hidden="true"><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /></div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}

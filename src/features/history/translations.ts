@@ -39,12 +39,13 @@ export interface HistoryTranslations {
   historyFilterHideMerges: string;
   historyFilterUnpublishedOnly: string;
   historyFilterTaggedOnly: string;
-  historyBoundaryUnpublished: (count: string) => string;
+  /** The head over the versions only on this computer, as Overview's group. */
+  historyLocalGroup: string;
   historyBoundaryPublished: string;
   historyBoundaryPublishedOn: string;
   /** The boundary of a line whose remote branch was deleted. */
   historyBoundaryWasOn: string;
-  historyBoundaryPublishCount: (count: string) => string;
+  historyLocalGroupPublish: string;
   historyBoundaryHint: (remote: string | null) => string;
   historyBoundaryPublishHint: string;
   historyMatchAuthor: string;
@@ -209,11 +210,11 @@ const en: HistoryTranslations = {
   historyFilterHideMerges: "Hide merges",
   historyFilterUnpublishedOnly: "Not published yet",
   historyFilterTaggedOnly: "Only tagged versions",
-  historyBoundaryUnpublished: (count) => `${count} not published`,
+  historyLocalGroup: "Only on this computer",
   historyBoundaryPublished: "Published",
   historyBoundaryPublishedOn: "Published on",
   historyBoundaryWasOn: "Was on",
-  historyBoundaryPublishCount: (count) => `Publish ${count}`,
+  historyLocalGroupPublish: "Publish",
   historyBoundaryPublishHint: "Publish them — you'll see what's sent first",
   historyMatchAuthor: "author",
   historyMatchCommit: "code",
@@ -372,11 +373,11 @@ const es: HistoryTranslations = {
   historyFilterHideMerges: "Ocultar fusiones",
   historyFilterUnpublishedOnly: "Sin publicar",
   historyFilterTaggedOnly: "Solo versiones con etiqueta",
-  historyBoundaryUnpublished: (count) => `${count} sin publicar`,
-  historyBoundaryPublished: "Publicadas",
-  historyBoundaryPublishedOn: "Publicadas en",
+  historyLocalGroup: "Solo en este ordenador",
+  historyBoundaryPublished: "Publicado",
+  historyBoundaryPublishedOn: "Publicado en",
   historyBoundaryWasOn: "Estuvo en",
-  historyBoundaryPublishCount: (count) => `Publicar ${count}`,
+  historyLocalGroupPublish: "Publicar",
   historyBoundaryPublishHint: "Publicarlas: antes verás qué se envía",
   historyMatchAuthor: "autor",
   historyMatchCommit: "código",

@@ -514,17 +514,21 @@ describe("HistoryPanel", () => {
     const { container, unmount } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
     const boundaries = container.querySelectorAll(".history-boundary");
     expect(boundaries).toHaveLength(1);
-    // Overview's mark — where the remote's copy begins — and the count of
-    // what is above it.
+    // Overview's pieces: the mark where the remote's copy begins, and a head
+    // over the versions only here, on the first row.
     expect(boundaries[0]).toHaveTextContent("Published on origin");
-    expect(boundaries[0]).toHaveTextContent("2 not published");
     expect(boundaries[0].querySelector(".history-boundary__mark")).not.toBeNull();
+    const heads = container.querySelectorAll(".history-local-head");
+    expect(heads).toHaveLength(1);
+    expect(heads[0]).toHaveTextContent("Only on this computer");
+    expect(heads[0].closest(".history-timeline__virtual-row")?.querySelector(".history-row")).toHaveAttribute("aria-label", expect.stringContaining("Saved version 3"));
     expect(boundaries[0]).toHaveAttribute("data-tooltip", "Versions above are only on this computer; versions below are already on origin/main");
     expect(boundaries[0].closest(".history-timeline__virtual-row")?.querySelector(".history-row")).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
     unmount();
 
     const published = renderPanel({ ...base, versions: [version(2), version(0)] });
     expect(published.container.querySelector(".history-boundary")).toBeNull();
+    expect(published.container.querySelector(".history-local-head")).toBeNull();
   });
 
   it("names the boundary's remote against the scoped line, not the line stood on", () => {
@@ -567,15 +571,21 @@ describe("HistoryPanel", () => {
     expect(row).toHaveAccessibleDescription(expect.stringContaining("Matches its author"));
   });
 
-  it("publishes from the boundary's count on the current line", () => {
+  it("publishes from the local head on the current line only", () => {
     const onPublish = vi.fn();
     const { container } = renderPanel(state(2), null, "watching", { onPublish });
-    const publish = container.querySelector<HTMLButtonElement>(".history-boundary__publish");
+    const publish = container.querySelector<HTMLButtonElement>(".history-local-head__publish");
     expect(publish).not.toBeNull();
     expect(publish).toHaveAttribute("tabindex", "-1");
-    expect(publish).toHaveTextContent("Publish 1");
+    expect(publish).toHaveTextContent("Publish");
     fireEvent.click(publish!);
     expect(onPublish).toHaveBeenCalledWith();
+    cleanup();
+
+    // Another line's versions are not what the publish flow sends.
+    const scoped = renderPanel(state(2, { scope: { kind: "line", name: "release" } }), null, "watching", { onPublish });
+    expect(scoped.container.querySelector(".history-local-head")).not.toBeNull();
+    expect(scoped.container.querySelector(".history-local-head__publish")).toBeNull();
   });
 
   it("flags where you are, what is unpublished, a tag and a merge as glyphs, read out as the row's description", () => {
