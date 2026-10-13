@@ -140,6 +140,23 @@ describe("NextStepCard", () => {
     expect(container.querySelectorAll(".primary-button")).toHaveLength(1);
   });
 
+  it("offers to publish a line that has no publish destination yet", async () => {
+    const journey = deriveJourney({
+      workingTree: tree([]),
+      workingTreeError: null,
+      isCheckingChanges: false,
+      pendingVersionsCount: 2,
+      teamSync: { ...ahead, status: { ...ahead.status!, state: "noUpstream", ahead: 0, upstreamRemote: null, destinationBranch: null } },
+    });
+    const actions = handlers();
+    wrap(<NextStepCard nextStep={deriveNextStep(journey, { canPublish: true })} journey={journey} handlers={actions} />);
+
+    expect(screen.getByRole("heading", { name: "No publish destination yet" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Publish this line…" }));
+    expect(actions.publish).toHaveBeenCalledOnce();
+    expect(deriveNextStep(journey, { canPublish: false }).primary).toBeNull();
+  });
+
   it("offers no switch when the gone line has no main line to go to", () => {
     const journey = deriveJourney({
       workingTree: tree([]),

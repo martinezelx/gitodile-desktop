@@ -165,6 +165,7 @@ export interface AppTranslations {
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarPublishAction: (count: number) => string;
+  statusBarPublishLineAction: string;
   statusBarGetAction: (count: number) => string;
   statusBarGetAndPublishAction: string;
   statusBarVersion: (version: string) => string;
@@ -389,6 +390,7 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
+  statusBarPublishLineAction: "Publish this line",
   statusBarGetAction: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
   statusBarGetAndPublishAction: "Get and publish",
   statusBarVersion: (version) => version,
@@ -601,6 +603,7 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
+  statusBarPublishLineAction: "Publicar esta línea",
   statusBarGetAction: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
   statusBarGetAndPublishAction: "Traer y publicar",
   statusBarVersion: (version) => version,

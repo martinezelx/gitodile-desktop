@@ -399,6 +399,7 @@ export function OverviewPanel({
               selfEmail={selfEmail}
               incoming={incoming}
               hasNoRemote={journey.publish.state === "noRemote"}
+              remoteBranchGone={journey.publish.state === "upstreamGone"}
               now={
                 <OverviewNow
                   workingTree={workingTree}

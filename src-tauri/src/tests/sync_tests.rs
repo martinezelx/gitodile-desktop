@@ -359,6 +359,11 @@ fn a_first_publish_counts_only_what_the_remote_lacks() {
     assert!(!plan.recreates_deleted_branch);
     assert_eq!(plan.commit_count, 1);
     assert_eq!(plan.commit_summary.len(), 1);
+    // Overview's count agrees with the plan: the main line's version is on
+    // the remote already.
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "fresh work");
 
     let _ = fs::remove_dir_all(repo);
     let _ = fs::remove_dir_all(remote);

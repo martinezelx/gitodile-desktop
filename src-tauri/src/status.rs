@@ -2,6 +2,7 @@ use crate::application;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, run_git};
 use crate::repository::{resolve_head_state, HeadState};
+use crate::sync::{list_remotes, resolve_remote_selection};
 use std::{io::ErrorKind, path::Path};
 
 /// Product-level meaning of a change, rather than Git's index/worktree split.
@@ -563,17 +564,38 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
         });
     }
 
-    let revisions = match &status.upstream.upstream {
-        // The upstream's tracking ref can be gone (Git's `[gone]`) while the
-        // configuration still names it; a range over a missing ref would fail.
+    let upstream = status.upstream.upstream.as_deref();
+    let revisions = match upstream {
         Some(upstream) if upstream_resolves(&path, upstream)? => {
             vec![format!("{upstream}..HEAD")]
         }
-        Some(upstream) => match upstream.split_once('/') {
-            Some((remote, branch)) => not_on_remote_revisions("HEAD", remote, branch),
-            None => vec!["HEAD".to_string()],
-        },
-        None => vec!["HEAD".to_string()],
+        // No upstream, or one whose tracking ref is gone (Git's `[gone]`):
+        // what publishing would send is what no branch of the remote it would
+        // choose holds — the same count the publish plan shows. A range over
+        // a missing ref would fail, and plain `HEAD` would count every version
+        // the remote's other lines already have.
+        _ => {
+            let remotes = list_remotes(&path)?;
+            match resolve_remote_selection(&remotes, upstream, None) {
+                Ok(remote) => {
+                    let branch = upstream
+                        .and_then(|upstream| upstream.strip_prefix(&format!("{remote}/")))
+                        .unwrap_or("");
+                    if branch.is_empty() {
+                        vec![
+                            "HEAD".to_string(),
+                            "--not".to_string(),
+                            format!("--remotes={remote}"),
+                        ]
+                    } else {
+                        not_on_remote_revisions("HEAD", &remote, branch)
+                    }
+                }
+                // No remote, or several with none chosen: nothing to compare
+                // against, so every version is still only here.
+                Err(_) => vec!["HEAD".to_string()],
+            }
+        }
     };
     let revisions = revisions.iter().map(String::as_str).collect::<Vec<_>>();
     versions_in_range(&path, &revisions)

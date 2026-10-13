@@ -196,5 +196,30 @@ None.
   the kept tracking ref of a gone line (now it stops with "no longer exists on
   the remote", at once or after its background check), and Overview's scene
   drew a gone line as synced (now "No copy"). New tests cover both.
-- Not validated in the running Tauri app: the flows were exercised in the
-  review artifact's simulator, which mirrors this logic, not in GitOdile itself.
+- Validation in the running `tauri dev` build against a lab repository
+  (`C:\workspace\gitodile-lab\setup.sh`), driven through Windows UI
+  Automation because computer use could not read the WebView window: B1
+  before/after a check, switching to main and back, recreate and publish, B2,
+  stop following, Get on a gone line, and the automatic-check notification
+  (one entry, not repeated, not recreated after deletion) all behaved as
+  designed. It also found three gaps, fixed here:
+  - A line with no publish destination had no way to be published anywhere
+    in the UI (card, status bar, History, Lines, palette). The card now
+    offers "Publish this line…" and the status bar's action is "Publish this
+    line"; `canPublish` holds for such a line even with nothing new.
+  - Overview counted every version of such a line as unpublished ("in 5
+    versions" where publishing sends 2). `list_unpublished_versions` now
+    counts what no branch of the remote publishing would choose holds,
+    matching the plan.
+  - Both timelines said a gone line's versions were "Published on origin";
+    they now say "Was on origin".
+- After those fixes, retested in `tauri dev`: case A offers "Publish this
+  line…" on the card and "Publish this line" in the status bar, counts 2
+  versions in Overview and in the plan, and publishes with an upstream; the
+  empty line publishes as "is now on origin" and records "Published the
+  line"; B2 after stopping to follow publishes 1 version; the gone line's
+  timeline reads "Was on origin". `pnpm run check` (separate cargo target
+  dir): frontend 140 files / 1460 tests, `cargo test` 599 passed, 1 ignored,
+  fmt and clippy clean.
+- Before that pass the flows had only been exercised in the review
+  artifact's simulator.

@@ -295,7 +295,6 @@ describe("StatusBar", () => {
     ["behind", "Get 3 versions"],
     ["diverged", "Get and publish"],
     ["noRemote", "No remote connected"],
-    ["noUpstream", "No publish destination"],
     ["unborn", "Save a version to compare"],
     ["detached", "Switch lines to compare"],
     ["upstreamGone", "No longer on the remote"],
@@ -308,6 +307,8 @@ describe("StatusBar", () => {
     ["ahead", "Publish 2 versions", "onPublish", "publish"],
     ["behind", "Get 3 versions", "onGetChanges", "get"],
     ["diverged", "Get and publish", "onGetAndPublish", "getAndPublish"],
+    // A line with no destination gets one by publishing.
+    ["noUpstream", "Publish this line", "onPublish", "publish"],
   ] as const)("turns the cloud into the %s sync action", async (state, name, handler, kind) => {
     const handlers = { onPublish: vi.fn(), onGetChanges: vi.fn(), onGetAndPublish: vi.fn() };
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) }, ...handlers });

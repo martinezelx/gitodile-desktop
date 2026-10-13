@@ -185,6 +185,10 @@ function teamSyncAction(
         : null;
     case "diverged":
       return { kind: "getAndPublish", label: t.statusBarGetAndPublishAction, icon: <CloudSync aria-hidden="true" />, onClick: handlers.onGetAndPublish };
+    // A line with no publish destination gets one by publishing, so that is
+    // the action rather than a fact with nowhere to go.
+    case "noUpstream":
+      return { kind: "publish", label: t.statusBarPublishLineAction, icon: <CloudUpload aria-hidden="true" />, onClick: handlers.onPublish };
     default:
       return null;
   }

@@ -58,6 +58,7 @@ export function HistorySummarySection({
   now = null,
   incoming = null,
   hasNoRemote = false,
+  remoteBranchGone = false,
 }: {
   controller: HistoryController;
   projectPath: string;
@@ -82,6 +83,9 @@ export function HistorySummarySection({
   /** With no remote, every version is only on this computer: the group says
    * so in the unsaved colour rather than the accent's "ready". */
   hasNoRemote?: boolean;
+  /** The line's remote branch was deleted: the versions under the boundary
+   * reached the remote once, but the branch that held them is gone. */
+  remoteBranchGone?: boolean;
 }): React.JSX.Element {
   const { formats, t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -313,7 +317,7 @@ export function HistorySummarySection({
                   <li className="overview-timeline__mark" title={upstream.trackingRef}>
                     <span className="overview-timeline__mark-icon" aria-hidden="true"><Cloud /></span>
                     <span className="overview-timeline__mark-text">
-                      {t.overviewTimelinePublishedOn}{" "}
+                      {remoteBranchGone ? t.overviewTimelineWasOn : t.overviewTimelinePublishedOn}{" "}
                       <span className="overview-timeline__mono">
                         {upstream.destinationBranch === currentBranch
                           ? upstream.remote

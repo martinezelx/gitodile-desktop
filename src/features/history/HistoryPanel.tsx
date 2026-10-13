@@ -136,13 +136,13 @@ function publishedOnLabel(snapshot: HistoryState["snapshot"], scope: HistoryScop
 /* Where the remote's copy of the line begins, drawn as Overview's timeline
    draws it: a cloud sitting on the rail and the remote's name, so the two
    timelines mark the same place the same way. */
-function BoundaryMark({ publishedOn, t }: { publishedOn: string | null; t: Translations }): React.JSX.Element {
+function BoundaryMark({ publishedOn, remoteGone, t }: { publishedOn: string | null; remoteGone: boolean; t: Translations }): React.JSX.Element {
   return (
     <>
       <span className="history-boundary__mark" aria-hidden="true"><Cloud /></span>
       <span className="history-boundary__side history-boundary__where">
         {publishedOn
-          ? <>{t.historyBoundaryPublishedOn} <span className="history-boundary__remote">{publishedOn}</span></>
+          ? <>{remoteGone ? t.historyBoundaryWasOn : t.historyBoundaryPublishedOn} <span className="history-boundary__remote">{publishedOn}</span></>
           : t.historyBoundaryPublished}
       </span>
     </>
@@ -354,8 +354,8 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
 const ROW_HEIGHT = 64;
 const BOUNDARY_HEIGHT = 26;
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, publishedTo, publishedOn, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; publishedOn: string | null; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, publishedTo, publishedOn, remoteGone, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; publishedOn: string | null; remoteGone: boolean; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -493,8 +493,8 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   /* A pointer shortcut, out of the tab order and hidden with the rule it
      sits on: it lives inside the listbox, where only options belong, and
      Publish in the toolbar is the same action for a keyboard. */
-  ? <><BoundaryMark publishedOn={publishedOn} t={t} /><span className="history-boundary__rule" /><button className="history-boundary__side history-boundary__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => actions.onPublish?.()}><CloudUpload className="history-boundary__publish-icon" />{t.historyBoundaryPublishCount(formatNumber(unpublishedAbove, formats))}</button></>
-  : <><BoundaryMark publishedOn={publishedOn} t={t} /><span className="history-boundary__rule" /><span className="history-boundary__side">{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}</span></>}</div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+  ? <><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /><button className="history-boundary__side history-boundary__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => actions.onPublish?.()}><CloudUpload className="history-boundary__publish-icon" />{t.historyBoundaryPublishCount(formatNumber(unpublishedAbove, formats))}</button></>
+  : <><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /><span className="history-boundary__side">{t.historyBoundaryUnpublished(formatNumber(unpublishedAbove, formats))}</span></>}</div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
@@ -1432,7 +1432,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   </section>;
 }
 
-export function HistoryPanel({ tabs, controller, query, state, watcherState, actions = {}, selfEmail = null, onOpenSettings, error }: {
+export function HistoryPanel({ tabs, controller, query, state, watcherState, actions = {}, selfEmail = null, upstreamGoneLine = null, onOpenSettings, error }: {
   /** The Work screen's tab pair, drawn as the timeline panel's header in every
    * state this panel has (task 126): it is what names the column now, and the
    * way back to Changes has to stay reachable while History loads or fails. */
@@ -1440,6 +1440,9 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
   controller: HistoryController; query: HistoryQuery; state: HistoryState; watcherState: "starting" | "watching" | "off" | "unavailable"; actions?: HistoryLineActions;
   /** The user's own Git email, so their versions read as theirs. */
   selfEmail?: string | null;
+  /** The current line, when its remote branch was deleted: its boundary says
+   * the versions under it were on the remote, not that they still are. */
+  upstreamGoneLine?: string | null;
   onOpenSettings: () => void; error: string | null;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
@@ -1615,7 +1618,7 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
     isState: false,
     isBusy: state.isLoading,
     isNarrowDetail: showNarrowDetail,
-    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} publishedOn={publishedOnLabel(state.snapshot, state.scope)} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
+    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} publishedOn={publishedOnLabel(state.snapshot, state.scope)} remoteGone={upstreamGoneLine !== null && (state.scope.kind === "line" ? state.scope.name : state.snapshot?.branch) === upstreamGoneLine} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
     detail: <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />,
   });
 }

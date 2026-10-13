@@ -213,7 +213,9 @@ export function deriveNextStep(
     case "noRemote":
       return step("noRemote", "calm", null, ["openSettings"], { done: 2, current: null });
     case "noUpstream":
-      return step("noUpstream", "calm", null, [], { done: 2, current: null });
+      // Publishing is how such a line gets a destination: the card offers it
+      // rather than telling the reader to do something it gives no way to do.
+      return step("noUpstream", "calm", canPublish ? "publish" : null, [], { done: 2, current: null });
     case "upstreamGone":
       // Nothing is lost, but publishing would recreate a branch the remote
       // closed: the card names the three ways on and presses none of them.

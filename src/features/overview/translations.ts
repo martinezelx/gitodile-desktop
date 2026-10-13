@@ -138,6 +138,9 @@ export interface OverviewTranslations {
   overviewNextSwitchTo: (line: string) => string;
   overviewNextPublishAgain: string;
   overviewNextStopTracking: string;
+  overviewNextPublishLine: string;
+  /** The timeline's boundary for a line whose remote branch was deleted. */
+  overviewTimelineWasOn: string;
   /** The neutral pill for what comes after this step: "Then: 3 new versions
    * on origin", "Then: publish 2 versions". */
   overviewNextThen: string;
@@ -344,6 +347,8 @@ const en: OverviewTranslations = {
   overviewNextSwitchTo: (line) => `Switch to ${line}`,
   overviewNextPublishAgain: "Publish again…",
   overviewNextStopTracking: "Stop following the remote",
+  overviewNextPublishLine: "Publish this line…",
+  overviewTimelineWasOn: "Was on",
   overviewNextThen: "Then:",
   overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewNextThenOn: (remote) => `on ${remote}`,
@@ -540,6 +545,8 @@ const es: OverviewTranslations = {
   overviewNextSwitchTo: (line) => `Cambiar a ${line}`,
   overviewNextPublishAgain: "Volver a publicar…",
   overviewNextStopTracking: "Dejar de seguir el remoto",
+  overviewNextPublishLine: "Publicar esta línea…",
+  overviewTimelineWasOn: "Estuvo en",
   overviewNextThen: "Después:",
   overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewNextThenOn: (remote) => `en ${remote}`,

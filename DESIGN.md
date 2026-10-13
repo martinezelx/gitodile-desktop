@@ -291,9 +291,11 @@ The main desktop window should broadly support:
    Overview's card names it and offers switching to the main line, publishing
    again, or no longer following the remote, pressing none of them for the
    reader; its scene draws no copy on the remote; Lines marks the line
-   "Remote branch deleted"; Get project changes stops with nothing to get; and
-   Publish asks before it creates the branch again, with "Recreate and
-   publish". The
+   "Remote branch deleted"; both timelines say its versions "Was on" the
+   remote; Get project changes stops with nothing to get; and Publish asks
+   before it creates the branch again, with "Recreate and publish". A line
+   with no publish destination yet is offered "Publish this line" — on the
+   card and as the strip's action — since publishing is how it gets one. The
    fact is never the check: a round refresh beside it is, visible in every
    state — beside the sync action too, where knowing whether the remote moved
    matters most, and as the strip's only way to ask when automatic checks are

@@ -22,6 +22,7 @@ export function HistoryScreen({
   onPublish,
   onOpenSettings,
   selfEmail = null,
+  upstreamGoneLine = null,
 }: {
   /** The Work screen's tab pair; see `HistoryPanel`. */
   tabs: React.ReactNode;
@@ -51,6 +52,8 @@ export function HistoryScreen({
   onOpenSettings: () => void;
   /** The user's own Git email; see `HistoryPanel`. */
   selfEmail?: string | null;
+  /** See `HistoryPanel`. */
+  upstreamGoneLine?: string | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
@@ -91,6 +94,7 @@ export function HistoryScreen({
       watcherState={watcherState}
       actions={actions}
       selfEmail={selfEmail}
+      upstreamGoneLine={upstreamGoneLine}
       onOpenSettings={onOpenSettings}
       error={state.error ? localizeAppError(state.error, t, t.historyErrorLoading) : null}
     />

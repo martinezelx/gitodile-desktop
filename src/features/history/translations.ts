@@ -42,6 +42,8 @@ export interface HistoryTranslations {
   historyBoundaryUnpublished: (count: string) => string;
   historyBoundaryPublished: string;
   historyBoundaryPublishedOn: string;
+  /** The boundary of a line whose remote branch was deleted. */
+  historyBoundaryWasOn: string;
   historyBoundaryPublishCount: (count: string) => string;
   historyBoundaryHint: (remote: string | null) => string;
   historyBoundaryPublishHint: string;
@@ -210,6 +212,7 @@ const en: HistoryTranslations = {
   historyBoundaryUnpublished: (count) => `${count} not published`,
   historyBoundaryPublished: "Published",
   historyBoundaryPublishedOn: "Published on",
+  historyBoundaryWasOn: "Was on",
   historyBoundaryPublishCount: (count) => `Publish ${count}`,
   historyBoundaryPublishHint: "Publish them — you'll see what's sent first",
   historyMatchAuthor: "author",
@@ -372,6 +375,7 @@ const es: HistoryTranslations = {
   historyBoundaryUnpublished: (count) => `${count} sin publicar`,
   historyBoundaryPublished: "Publicadas",
   historyBoundaryPublishedOn: "Publicadas en",
+  historyBoundaryWasOn: "Estuvo en",
   historyBoundaryPublishCount: (count) => `Publicar ${count}`,
   historyBoundaryPublishHint: "Publicarlas: antes verás qué se envía",
   historyMatchAuthor: "autor",

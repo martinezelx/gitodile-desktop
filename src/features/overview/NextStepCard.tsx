@@ -167,7 +167,12 @@ export function NextStepCard({
       case "save": return t.overviewSaveVersion;
       case "reviewChanges": return t.overviewReviewChanges;
       case "resolve": return t.overviewJourneyResolve;
-      case "publish": return kind === "upstreamGone" ? t.overviewNextPublishAgain : t.overviewPublishAll(publish.pending);
+      case "publish":
+        return kind === "upstreamGone"
+          ? t.overviewNextPublishAgain
+          : kind === "noUpstream"
+            ? t.overviewNextPublishLine
+            : t.overviewPublishAll(publish.pending);
       case "openHistory": return t.changesEmptyViewHistory;
       case "getChanges":
         if (!forecast || forecast.outcome !== "clear") return t.syncReviewAndGet;

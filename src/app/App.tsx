@@ -1402,12 +1402,20 @@ export function App(): React.JSX.Element {
       void workDetailController.ensureIncoming(query, incomingKey);
     });
   }, [activeSessionId, activeSessionEpoch, incomingKey, workDetailController]);
+  // The current line, while its remote branch is known to be deleted: Lines
+  // and History name it, since Git's own `[gone]` needs the tracking ref gone.
+  const upstreamGoneLine =
+    teamSync.status?.state === "upstreamGone" ? teamSync.status.localBranch : null;
   const canPublish = Boolean(
     project &&
       project.headState === "branch" &&
       // A line whose remote branch is gone can be published again on purpose,
-      // even when every version is already on the remote's other lines.
-      (pendingVersions.totalCount > 0 || pendingVersionsError || teamSync.status?.state === "upstreamGone"),
+      // and one with no destination yet gets one by publishing — even when
+      // every version is already on the remote's other lines.
+      (pendingVersions.totalCount > 0 ||
+        pendingVersionsError ||
+        teamSync.status?.state === "upstreamGone" ||
+        teamSync.status?.state === "noUpstream"),
   );
 
   // Typed watcher invalidations are scoped to one Rust-issued session epoch
@@ -2842,6 +2850,7 @@ export function App(): React.JSX.Element {
                               onPublish={() => openPublishDialog()}
                               onOpenSettings={() => openSettings("general")}
                               selfEmail={gitIdentity.identity.email || null}
+                              upstreamGoneLine={upstreamGoneLine}
                             />
                           )}
                         />
@@ -2873,11 +2882,7 @@ export function App(): React.JSX.Element {
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                           selectLineIntent={linesSelectIntent}
                           onSelectLineIntentHandled={clearLinesSelectIntent}
-                          upstreamGoneLine={
-                            activeSession?.teamSync.status?.state === "upstreamGone"
-                              ? activeSession.teamSync.status.localBranch
-                              : null
-                          }
+                          upstreamGoneLine={upstreamGoneLine}
                         />
                       </Suspense>
                     ),
