@@ -9,8 +9,11 @@
    middle; the launcher itself scales with the area through `zoom`, one factor
    for type, icons, rows, radii and the column's width. While the person types
    or browses another tab the space above is held at what rest had, so the
-   greeting never moves as results grow and shrink. A launcher taller than the
-   area starts at its top and the workspace scrolls. */
+   greeting never moves as results grow and shrink. The launcher's row is
+   never taller than the area left below that space: when the results would
+   run past the bottom (an account tab lists more rows than rest did), the
+   results list scrolls inside the card and the greeting, the field and the
+   three ways to start stay where they are. */
 .home-launcher {
   flex: 1 1 0;
   min-height: 0;
@@ -18,19 +21,22 @@
   padding: 0 24px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 2fr) auto minmax(0, 3fr);
+  grid-template-rows: minmax(0, 2fr) minmax(0, auto) minmax(0, 3fr);
 }
-.home-launcher--held { grid-template-rows: var(--home-top, 0px) auto minmax(0, 1fr); }
+.home-launcher--held { grid-template-rows: var(--home-top, 0px) minmax(0, auto) minmax(0, 1fr); }
 .home-launcher__body {
   grid-row: 2;
   width: 100%;
   max-width: 720px;
+  min-height: 0;
   margin: 0 auto;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-5);
   zoom: var(--home-scale, 1);
 }
+.home-launcher__body > * { flex: none; }
+.home-launcher__body > .home-launcher__box { flex: 0 1 auto; min-height: 0; }
 .home-launcher__hello { display: flex; align-items: center; gap: 20px; }
 /* The mascot greets on the front door; its entrance and the crest's wave are
    the mascot's own motions (`enter` and `commits`, primitives.css). */
@@ -73,6 +79,8 @@
 /* The same raised card the open project's Overview is made of, so the front
    door and the room behind it are one house. */
 .home-launcher__box {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
@@ -129,6 +137,10 @@
 .home-launcher__tab[aria-pressed="true"] svg { fill: currentColor; }
 .home-launcher__tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
+/* The results are the only part of the card that gives up height, so a short
+   area scrolls them and keeps the field, the tabs and the footer in view. */
+.home-launcher__box > * { flex: none; }
+.home-launcher__box > .home-launcher__results { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
 .home-launcher__results { display: grid; gap: 2px; padding: var(--space-2) 6px; }
 .home-launcher__section { display: grid; gap: 2px; }
 .home-launcher__section + .home-launcher__section { margin-top: var(--space-1); }

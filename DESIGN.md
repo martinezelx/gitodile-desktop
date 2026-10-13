@@ -2419,8 +2419,12 @@ word as a title.
   scrolls instead. The position is the
   rest state's (empty field, Recent tab): while the person types or browses an
   account the space above is held, so the greeting never moves as the results
-  grow and shrink, and is worked out again only when the window changes. A
-  launcher taller than the area starts at its top and the workspace scrolls.
+  grow and shrink, and is worked out again only when the window changes. The
+  launcher never runs past the bottom of the area: when the results would (an
+  account tab lists more rows than rest did, or the window is short), the
+  results list scrolls inside the card with the shared auto-hide scrollbar,
+  and the greeting, the field, the tabs and the three ways to start stay in
+  view.
 - **Launcher.** One raised card (`--radius-surface`, the Overview's own card)
   holds a field, the results and, at its foot, the three ways to start. The
   field has focus on arrival. Typing filters the recent projects (name matches

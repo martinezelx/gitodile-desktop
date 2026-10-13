@@ -15,6 +15,7 @@ import { useActiveScreenEffect } from "../../runtime/screen/module";
 import type { RecentProject } from "../../runtime/project/recentProjects";
 import { formatRelativeTime } from "../../shared/i18n";
 import {
+  autoHideScrollbarProps,
   HostingProviderIcon,
   Mascot,
   TextPlaceholder,
@@ -611,7 +612,12 @@ export function HomeLauncher({
           )}
 
           {results && (
-            <div className="home-launcher__results" ref={resultsRef} onKeyDown={handleResultsKeyDown}>
+            <div
+              className="home-launcher__results auto-hide-scrollbar"
+              ref={resultsRef}
+              onKeyDown={handleResultsKeyDown}
+              {...autoHideScrollbarProps<HTMLDivElement>()}
+            >
               {results}
             </div>
           )}
