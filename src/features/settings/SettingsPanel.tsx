@@ -1229,7 +1229,7 @@ export function SettingsPanel({
                 </div>
                 {/* A list, not rows, and with no controls on purpose.
                     Per-event muting is a choice nobody can make usefully
-                    before they have seen the events, and four of them do not
+                    before they have seen the events, and five of them do not
                     need a preferences matrix. Each carries the icon the
                     notification itself will wear, so the vocabulary is learned
                     here. While the switch is off the list stays, dimmed and

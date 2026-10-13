@@ -290,8 +290,10 @@ The main desktop window should broadly support:
    merged — reads "No longer on the remote" in amber, never "Check failed":
    Overview's card names it and offers switching to the main line, publishing
    again, or no longer following the remote, pressing none of them for the
-   reader; Lines marks the line "Remote branch deleted"; and Publish asks
-   before it creates the branch again, with "Recreate and publish". The
+   reader; its scene draws no copy on the remote; Lines marks the line
+   "Remote branch deleted"; Get project changes stops with nothing to get; and
+   Publish asks before it creates the branch again, with "Recreate and
+   publish". The
    fact is never the check: a round refresh beside it is, visible in every
    state — beside the sync action too, where knowing whether the remote moved
    matters most, and as the strip's only way to ask when automatic checks are

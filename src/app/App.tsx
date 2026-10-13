@@ -3059,6 +3059,7 @@ export function App(): React.JSX.Element {
                 mapSyncError,
               )
           }
+          upstreamGone={getTeamDialogSession.teamSync.status?.state === "upstreamGone"}
           onClose={() => {
             finishSessionOperation(getTeamDialogSession.id);
             setGetTeamDialogSessionId(null);

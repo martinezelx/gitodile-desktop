@@ -192,5 +192,9 @@ None.
   wording for a branch-only publish, a regression for lines tracking a local
   branch, a status still about the previous line marking the new one in
   Lines, and a duplicated doc comment. New tests cover each.
+- Second review pass found and fixed: Get project changes still planned from
+  the kept tracking ref of a gone line (now it stops with "no longer exists on
+  the remote", at once or after its background check), and Overview's scene
+  drew a gone line as synced (now "No copy"). New tests cover both.
 - Not validated in the running Tauri app: the flows were exercised in the
   review artifact's simulator, which mirrors this logic, not in GitOdile itself.

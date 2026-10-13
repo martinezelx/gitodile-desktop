@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { formatRelativeTime, isAppError, localizeAppError } from "../../shared/i18n";
+import { formatRelativeTime, isAppError, localizeAppError, type AppError } from "../../shared/i18n";
 import {
   Dialog,
   DialogBanner,
@@ -67,6 +67,14 @@ function deterministicBlock(error: unknown): boolean {
   ].includes(error.code);
 }
 
+/** What the dialog says when the line's remote branch is gone: the same
+ * error a plan without a tracking ref returns, so it reads and closes alike. */
+const UPSTREAM_GONE: AppError = {
+  code: "remote_ref_missing",
+  message: "The branch this line tracks no longer exists on the remote.",
+  remediation: null,
+};
+
 function shortCommit(commit: string): string {
   return commit.slice(0, 12);
 }
@@ -80,6 +88,7 @@ export function GetTeamChangesDialog({
   runHooks,
   canPublish = false,
   refreshRemote = null,
+  upstreamGone = false,
   onClose,
   onApplied,
   onPhaseChange,
@@ -100,6 +109,9 @@ export function GetTeamChangesDialog({
    * what it already knows and asks the remote in the background, re-planning
    * in place if something newer arrived. */
   refreshRemote?: (() => Promise<TeamSyncStatus | null>) | null;
+  /** The last check found the line's remote branch deleted. The kept tracking
+   * ref still names versions, but there is nothing on the remote to get. */
+  upstreamGone?: boolean;
   onClose: () => void;
   onApplied: (result: GetTeamChangesResult) => Promise<void>;
   onPhaseChange: (phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success") => void;
@@ -151,6 +163,11 @@ export function GetTeamChangesDialog({
   useEffect(() => {
     if (!isOpen) return undefined;
     let cancelled = false;
+    if (upstreamGone) {
+      setState({ status: "blocked", error: UPSTREAM_GONE });
+      phaseRef.current("error");
+      return undefined;
+    }
     phaseRef.current("planning");
     setState({ status: "planning" });
     controller.planGet({ projectId: projectPath, sessionEpoch }).then(
@@ -164,7 +181,7 @@ export function GetTeamChangesDialog({
       },
     );
     return () => { cancelled = true; };
-  }, [controller, isOpen, projectPath, retryToken, sessionEpoch, setState]);
+  }, [controller, isOpen, projectPath, retryToken, sessionEpoch, setState, upstreamGone]);
 
   // One background check when the last one is old. If the remote moved, the
   // summary is planned again in place and says so; once an update is under
@@ -180,6 +197,13 @@ export function GetTeamChangesDialog({
       .then((status) => {
         if (cancelled || !status) return;
         const current = stateRef.current;
+        if (status.state === "upstreamGone") {
+          if (current.status === "ready" || current.status === "planning" || current.status === "blocked") {
+            setState({ status: "blocked", error: UPSTREAM_GONE });
+            phaseRef.current("error");
+          }
+          return undefined;
+        }
         const shown = current.status === "ready" ? current.plan.remoteCommit : null;
         const stillWaiting = current.status === "planning" || current.status === "blocked";
         if ((shown !== null && status.remoteCommit !== shown) || stillWaiting) {

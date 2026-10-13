@@ -56,7 +56,7 @@ function tree(entries: WorkingTreeEntry[], lineTotals: WorkingTreeStatus["lineTo
   };
 }
 
-function sync(state: "ahead" | "upToDate" | "behind"): TeamSyncViewState {
+function sync(state: "ahead" | "upToDate" | "behind" | "upstreamGone"): TeamSyncViewState {
   return {
     ...EMPTY_TEAM_SYNC_STATE,
     status: {
@@ -89,7 +89,7 @@ async function setup({
 }: {
   workingTree: WorkingTreeStatus | null;
   pending: PendingVersionsResult;
-  state: "ahead" | "upToDate" | "behind";
+  state: "ahead" | "upToDate" | "behind" | "upstreamGone";
   readIncoming?: boolean;
   incomingFails?: boolean;
   /** How many stored discards the picker could restore. */
@@ -146,7 +146,7 @@ async function setup({
     onOpenProjectSettings: vi.fn(),
     onRestoreDiscarded: vi.fn(),
   };
-  const draw = (next: { workingTree: WorkingTreeStatus | null; pending: PendingVersionsResult; state: "ahead" | "upToDate" | "behind" }) => {
+  const draw = (next: { workingTree: WorkingTreeStatus | null; pending: PendingVersionsResult; state: "ahead" | "upToDate" | "behind" | "upstreamGone" }) => {
     const journey = deriveJourney({
       workingTree: next.workingTree,
       workingTreeError: null,
@@ -246,6 +246,16 @@ describe("OverviewDetail", () => {
     expect(document.querySelector(".overview-restore__badge")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
     expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
+  });
+
+  it("draws no copy on the remote for a line whose remote branch is gone", async () => {
+    await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upstreamGone" });
+
+    const scene = screen.getByRole("region", { name: "Where your work is" });
+    expect(scene).toHaveTextContent("No copy");
+    expect(scene).not.toHaveTextContent("up to date");
+    expect(scene.querySelector(".work-scene__path--synced")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Connect/ })).toBeNull();
   });
 
   it("counts the copies when several can be restored, rather than one copy's files", async () => {

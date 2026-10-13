@@ -132,6 +132,7 @@ function renderDialog(
     canPublish?: boolean;
     runHooks?: boolean;
     refreshRemote?: (() => Promise<TeamSyncStatus | null>) | null;
+    upstreamGone?: boolean;
     onSaveVersion?: () => void;
     onRevealFile?: (path: string) => void;
     onPublishAfter?: () => Promise<PublishAfterGet>;
@@ -152,6 +153,7 @@ function renderDialog(
           runHooks={options.runHooks ?? true}
           canPublish={options.canPublish}
           refreshRemote={options.refreshRemote}
+          upstreamGone={options.upstreamGone}
           onClose={onClose}
           onApplied={onApplied}
           onPhaseChange={onPhaseChange}
@@ -304,6 +306,25 @@ describe("Get project changes dialog", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Get" }));
     expect(await screen.findByRole("alertdialog", { name: "Result not confirmed" })).toBeInTheDocument();
     expect(screen.getByText(/refs\/gitodile\/recovery\/v1\/get-team-changes\/worktree-a\/1/)).toBeInTheDocument();
+  });
+
+  it("offers nothing to get from a line whose remote branch is gone", async () => {
+    const sync = controller();
+    renderDialog(sync, { upstreamGone: true });
+    expect(await screen.findByRole("alertdialog", { name: "The update stopped safely" })).toBeInTheDocument();
+    expect(screen.getByText("The branch this line tracks no longer exists on the remote.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    expect(sync.planGet).not.toHaveBeenCalled();
+  });
+
+  it("stops when the background check finds the remote branch gone", async () => {
+    let finishCheck: (status: TeamSyncStatus) => void = () => undefined;
+    const refreshRemote = vi.fn(() => new Promise<TeamSyncStatus | null>((resolve) => { finishCheck = resolve; }));
+    renderDialog(controller(), { refreshRemote });
+    expect(await screen.findByRole("heading", { name: "Get 2 versions from origin" })).toBeInTheDocument();
+    finishCheck({ ...syncStatus(basePlan.remoteCommit), state: "upstreamGone", behind: 0, nextActions: ["checkAgain"] });
+    expect(await screen.findByText("The branch this line tracks no longer exists on the remote.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Get" })).not.toBeInTheDocument();
   });
 
   it("closes a deterministic refusal without offering a retry", async () => {

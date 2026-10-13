@@ -471,7 +471,9 @@ function WorkScene({
 
   const { publish, changes } = journey;
   const ready = Boolean(history.snapshot && workingTree && changes.state !== "loading" && publish.state !== "checking");
-  const hasRemote = publish.state !== "noRemote" && publish.state !== "noUpstream";
+  // A line whose remote branch was deleted has no copy there either: its kept
+  // tracking ref would otherwise draw it as synced beside a card saying it's gone.
+  const hasRemote = publish.state !== "noRemote" && publish.state !== "noUpstream" && publish.state !== "upstreamGone";
   const unknown = ["notChecked", "checking", "unavailable", "unborn", "detached"].includes(publish.state);
   // Versions only travel where there is somewhere for them to go.
   const outgoing = hasRemote ? publish.pending : 0;
