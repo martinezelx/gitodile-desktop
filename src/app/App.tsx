@@ -41,7 +41,13 @@ import {
   type DirectDiscardOutcome,
   type DiscardDialogRequest,
 } from "../features/changes";
-import { CloneDialog, clonePort, createCloneController, type CloneResult } from "../features/clone";
+import {
+  CloneDialog,
+  clonePort,
+  createCloneController,
+  type CloneRepositoriesStart,
+  type CloneResult,
+} from "../features/clone";
 import { accountsPort, useAccounts } from "../features/accounts";
 import { createRepositoryBrowserController, repositoryBrowserPort } from "../features/repository-browser";
 import { readHomeAccounts, type HomeSetup } from "../features/home";
@@ -279,6 +285,10 @@ export function App(): React.JSX.Element {
   /* An address pasted into Home's launcher, filled into Clone when it opens;
      every other way into Clone starts empty. */
   const [cloneInitialSource, setCloneInitialSource] = useState("");
+  /* Or the provider tab and connection Home's "See all in Clone" came from. */
+  const [cloneInitialRepositories, setCloneInitialRepositories] = useState<CloneRepositoriesStart | undefined>(
+    undefined,
+  );
   const [initializeDialogRequest, setInitializeDialogRequest] = useState<{
     mode: InitializeTargetKind;
     existingPath?: string;
@@ -2671,6 +2681,10 @@ export function App(): React.JSX.Element {
                     setCloneInitialSource(url);
                     setIsCloneOpen(true);
                   }}
+                  onBrowseAccountInClone={(kind, accountId) => {
+                    setCloneInitialRepositories({ kind, accountId });
+                    setIsCloneOpen(true);
+                  }}
                   onOpenRecentProject={(path) => void handleOpenProject(path)}
                   onToggleFavouriteRecentProject={toggleFavouriteProject}
                   onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
@@ -2981,10 +2995,12 @@ export function App(): React.JSX.Element {
       <CloneDialog
         isOpen={isCloneOpen}
         initialSource={cloneInitialSource}
+        initialRepositories={cloneInitialRepositories}
         controller={cloneController}
         onClose={() => {
           setIsCloneOpen(false);
           setCloneInitialSource("");
+          setCloneInitialRepositories(undefined);
         }}
         onVerifiedClone={handleVerifiedClone}
       />

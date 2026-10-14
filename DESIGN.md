@@ -2547,8 +2547,8 @@ word as a title.
     heading drops the login ("Your projects on GitLab"). Choosing it is the one network read
     Home makes: the account's first page of projects, through the same
     repository browser as Clone. Typing narrows them; Enter or a click opens
-    Clone filled in with that address; "See all in Clone" leads to the full
-    browser when there are more.
+    Clone filled in with that address; "See all in Clone" opens Clone on that
+    provider's tab, with the same account chosen, when there are more.
 
 Home can be revisited with projects open. Its recent list then excludes
 projects already open in the switcher, and neither the switcher nor the rail

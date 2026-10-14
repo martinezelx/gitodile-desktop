@@ -74,6 +74,9 @@ export type HomeLauncherProps = {
   /** Clone with a pasted address already filled in. Without it the launcher
    * still offers to clone, through the plain dialog. */
   onCloneFromUrl?: (url: string) => void;
+  /** Clone open on this account's provider tab, for the projects Home does
+   * not list. Without it "See all" opens the plain dialog. */
+  onBrowseAccountInClone?: (kind: HomeAccountKind, accountId: string) => void;
   /** Create with a typed folder name already filled in. */
   onCreateNamedProject?: (name: string) => void;
   onToggleFavouriteRecentProject: (path: string) => void;
@@ -132,6 +135,7 @@ export function HomeLauncher({
   onCloneProject,
   onOpenRecentProject,
   onCloneFromUrl,
+  onBrowseAccountInClone,
   onCreateNamedProject,
   onToggleFavouriteRecentProject,
   onForgetRecentProject,
@@ -323,7 +327,11 @@ export function HomeLauncher({
         isDisabled={rowsDisabled}
         onRetry={() => void repositoryBrowser?.load(1)}
         onClone={cloneUrl}
-        onBrowseAll={() => run(onCloneProject)}
+        onBrowseAll={() =>
+          run(() =>
+            onBrowseAccountInClone ? onBrowseAccountInClone(activeAccount.kind, activeAccount.id) : onCloneProject(),
+          )
+        }
       />
     );
   } else if (

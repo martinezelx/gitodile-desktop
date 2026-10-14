@@ -39,6 +39,10 @@ const PROGRESS_STEPS: { step: "downloading" | "checking" | "opening"; phases: Cl
   { step: "opening", phases: ["publishing", "finalizing"] },
 ];
 
+/** Where Clone opens instead of the address field: a provider's tab, showing
+ * one connection's projects. */
+export type CloneRepositoriesStart = { kind: HostingKind; accountId: string };
+
 type DialogStep =
   | "input"
   | "destination"
@@ -53,6 +57,7 @@ type DialogStep =
 export function CloneDialog({
   isOpen,
   initialSource = "",
+  initialRepositories,
   controller,
   onClose,
   onVerifiedClone,
@@ -64,6 +69,9 @@ export function CloneDialog({
    * launcher; it fills the field when the dialog opens and is still checked
    * like anything typed there. */
   initialSource?: string;
+  /** Opens on a provider's tab instead, showing this connection's projects,
+   * such as when Home's account list leads here for the rest of them. */
+  initialRepositories?: CloneRepositoriesStart;
   controller: CloneController;
   onClose: () => void;
   onVerifiedClone: (result: CloneResult) => Promise<void>;
@@ -138,6 +146,11 @@ export function CloneDialog({
     if (isOpen) {
       resetTransientState();
       if (initialSource) { setSourceMode("url"); setSource(initialSource); }
+      else if (initialRepositories) {
+        // Selecting finds its projects at once, so the list arrives with the tab.
+        setSourceMode(initialRepositories.kind);
+        repositoryBrowser.select(initialRepositories.accountId);
+      }
     }
     else { controller.sourceAccess.reset(); repositoryBrowser.cancel(); }
   }, [isOpen]);

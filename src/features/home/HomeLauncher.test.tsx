@@ -31,6 +31,7 @@ function renderLauncher(overrides: Partial<HomeLauncherProps> = {}) {
     onCloneProject: vi.fn(),
     onOpenRecentProject: vi.fn(),
     onCloneFromUrl: vi.fn(),
+    onBrowseAccountInClone: vi.fn(),
     onCreateNamedProject: vi.fn(),
     onToggleFavouriteRecentProject: vi.fn(),
     onForgetRecentProject: vi.fn(),
@@ -257,6 +258,27 @@ describe("HomeLauncher", () => {
     expect(screen.queryByRole("button", { name: "luis-m/portfolio-web" })).not.toBeInTheDocument();
     await user.keyboard("{Enter}");
     expect(props.onCloneFromUrl).toHaveBeenCalledWith("https://github.com/luis-m/pixel-dungeon.git");
+  });
+
+  it("leads See all to Clone on the same account's provider tab", async () => {
+    const user = userEvent.setup();
+    const port: RepositoryBrowserPort = {
+      list: vi.fn(async (accountId: string, page: number) => ({
+        accountId,
+        page,
+        nextPage: 2,
+        repositories: [
+          { id: 1, name: "portfolio-web", fullName: "luis-m/portfolio-web", owner: "luis-m", private: true, archived: false, description: null, cloneUrl: "https://github.com/luis-m/portfolio-web.git" },
+        ],
+      })),
+      cancel: vi.fn(async () => {}),
+    };
+    const { props } = renderLauncher({ setup: readySetup, repositoryBrowser: createRepositoryBrowserController(port) });
+
+    await user.click(within(screen.getByRole("group", { name: "Show" })).getByRole("button", { name: "GitHub" }));
+    await user.click(await screen.findByRole("button", { name: "See all in Clone" }));
+    expect(props.onBrowseAccountInClone).toHaveBeenCalledExactlyOnceWith("github", "github:luis-m");
+    expect(props.onCloneProject).not.toHaveBeenCalled();
   });
 
   it("shows an account and a token on one provider as one status entry and one tab with a chooser", async () => {

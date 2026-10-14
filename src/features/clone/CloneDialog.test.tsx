@@ -44,7 +44,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: AccountsPort, repositoryPort?: RepositoryBrowserPort) {
+function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: AccountsPort, repositoryPort?: RepositoryBrowserPort,
+  initialRepositories?: React.ComponentProps<typeof CloneDialog>["initialRepositories"]) {
   const port: ClonePort = {
     checkSource: async () => "accessible",
     cancelSourceCheck: async () => undefined,
@@ -66,6 +67,7 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: Acco
         isOpen
         accountPort={accountPort}
         repositoryPort={repositoryPort}
+        initialRepositories={initialRepositories}
         controller={createCloneController(port)}
         onClose={onClose}
         onVerifiedClone={onVerifiedClone}
@@ -276,6 +278,23 @@ describe("remembered discovery connection", () => {
     expect(await screen.findByRole("button", { name: "Choose team/project" })).toBeVisible();
     expect(list).toHaveBeenCalledExactlyOnceWith("github:token.work", 1, expect.any(String));
     expect(screen.getByRole("combobox")).toHaveTextContent("Token");
+    localStorage.removeItem("gitodile-clone-connection-github");
+  });
+
+  it("opens on the provider tab and connection it was asked for, ahead of the remembered one", async () => {
+    globalThis.ResizeObserver = class implements ResizeObserver { observe() {} unobserve() {} disconnect() {} };
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function(this: HTMLElement) { return this.classList.contains("repository-browser__list") ? 280 : 76; });
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
+    localStorage.setItem("gitodile-clone-connection-github", "github:token.work");
+    const accounts: AccountsPort = { readCatalog: async () => ({ providers: [{ id: "github", host: "github.com", kind: "github", builtIn: true }], busy: false,
+      accounts: ["github:work", "github:token.work"].map(id => ({ id, provider: "github", host: "github.com", login: "work", avatarDataUrl: null, available: true })) }),
+      check: vi.fn(async function (this: AccountsPort) { return this.readCatalog(); }), readProject: vi.fn(), selectProject: vi.fn() };
+    const list = vi.fn<RepositoryBrowserPort["list"]>(async accountId => ({ accountId, page: 1, nextPage: null,
+      repositories: [{ id: 1, name: "project", fullName: "team/project", owner: "team", private: true, archived: false, description: null, cloneUrl: "https://github.com/team/project.git" }] }));
+    renderDialog({}, accounts, { list, cancel: vi.fn(async () => undefined) }, { kind: "github", accountId: "github:work" });
+    expect(screen.getByRole("button", { name: "GitHub" })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("button", { name: "Choose team/project" })).toBeVisible();
+    expect(list).toHaveBeenCalledExactlyOnceWith("github:work", 1, expect.any(String));
     localStorage.removeItem("gitodile-clone-connection-github");
   });
 });
