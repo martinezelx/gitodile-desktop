@@ -297,6 +297,73 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The part of a name the eye can skip — a prefix shared with other lines, or
+   the middle of a name whose cluster heading already says the first part —
+   is quiet, so the reader scans the part that tells lines apart. */
+.version-line-row__name-quiet { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+
+/* The list's headings. A block ("In progress", "Ready to clean up") is an
+   uppercase label with its count in a capsule, the way Home's launcher heads
+   its sections; a prefix cluster inside one is a step quieter, in the
+   label's own case, so the two levels never compete. Both fold what is under
+   them, and say so with the chevron. */
+.version-lines-group {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 10px var(--space-1);
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  text-align: left;
+  transition: color var(--duration-fast) ease-out;
+}
+.version-lines-group:hover { color: var(--text-primary-color); }
+.version-lines-group--bucket:not(:first-child) { margin-top: var(--space-2); }
+.version-lines-group--cluster { padding-block: 6px 2px; }
+.version-lines-group__title { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.version-lines-group__chevron { width: 14px; height: 14px; flex: 0 0 auto; transition: transform var(--duration-fast) ease-out; }
+.version-lines-group[aria-expanded="true"] .version-lines-group__chevron { transform: rotate(90deg); }
+.version-lines-group__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-group--bucket .version-lines-group__label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.version-lines-group--cluster .version-lines-group__label { font-size: var(--text-label); font-weight: var(--weight-strong); }
+.version-lines-group__count { flex: 0 0 auto; font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.version-lines-group--bucket .version-lines-group__count {
+  margin-inline-start: auto;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-none);
+}
+/* The folded clean-up block says why it is worth opening, as the heading's
+   own second line under its label rather than a box of its own — a box
+   weighed as much as the block it stood for. "Review" is only the heading's
+   action said in words: clearing several lines at once would need its own
+   plan and recovery point. */
+.version-lines-group__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline-start: 20px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+}
+/* One line, always: the hint is a short phrase, and a narrow column clips it
+   rather than growing the heading. */
+.version-lines-group__hint > span:not(.version-lines-group__review) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-group__hint svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--status-success); }
+.version-lines-group__review { margin-inline-start: auto; flex: 0 0 auto; color: var(--accent-primary); font-weight: var(--weight-heading); }
+
 /* The glyphs from the row's start, the date at its end: the date is the
    column's constant, and a row with no states keeps it in the same place as a
    row with three. */
@@ -985,7 +1052,8 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .version-line-row, .version-lines-recent__node, .version-lines-recent code, .version-lines-publish { transition: none; }
+  .version-line-row, .version-lines-recent__node, .version-lines-recent code, .version-lines-publish,
+  .version-lines-group, .version-lines-group__chevron { transition: none; }
   input.version-lines-rename__field,
   .version-lines-rename__note-slot,
   .version-lines-rename__actions,

@@ -110,6 +110,11 @@ export interface VersionLinesTranslations {
   versionLinesFilterStateGroup: string;
   versionLinesFilterPrefixGroup: string;
   versionLinesFilterClear: string;
+  versionLinesGroupInProgress: string;
+  versionLinesGroupCleanUp: string;
+  versionLinesGroupLabel: (name: string, count: number) => string;
+  versionLinesCleanUpHint: string;
+  versionLinesCleanUpReview: string;
   versionLinesSortRecent: string;
   versionLinesSortName: string;
   versionLinesSortUnpublished: string;
@@ -377,6 +382,11 @@ const en: VersionLinesTranslations = {
   versionLinesFilterStateGroup: "State",
   versionLinesFilterPrefixGroup: "Name prefix",
   versionLinesFilterClear: "Clear filters",
+  versionLinesGroupInProgress: "In progress",
+  versionLinesGroupCleanUp: "Ready to clean up",
+  versionLinesGroupLabel: (name, count) => `${name}, ${count === 1 ? "1 line" : `${count} lines`}`,
+  versionLinesCleanUpHint: "Safe to delete",
+  versionLinesCleanUpReview: "Review",
   versionLinesSortRecent: "Recent",
   versionLinesSortName: "Name",
   versionLinesSortUnpublished: "Local first",
@@ -640,6 +650,11 @@ const es: VersionLinesTranslations = {
   versionLinesFilterStateGroup: "Estado",
   versionLinesFilterPrefixGroup: "Prefijo del nombre",
   versionLinesFilterClear: "Quitar filtros",
+  versionLinesGroupInProgress: "En curso",
+  versionLinesGroupCleanUp: "Listas para limpiar",
+  versionLinesGroupLabel: (name, count) => `${name}, ${count === 1 ? "1 línea" : `${count} líneas`}`,
+  versionLinesCleanUpHint: "Se pueden eliminar",
+  versionLinesCleanUpReview: "Revisar",
   versionLinesSortRecent: "Recientes",
   versionLinesSortName: "Nombre",
   versionLinesSortUnpublished: "Locales primero",

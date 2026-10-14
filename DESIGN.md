@@ -956,10 +956,40 @@ not yet deletable a warning triangle. Up to date with its remote draws nothing,
 as it always did. A glyph has to be learned, so each one explains itself: its
 tooltip is a sentence (`Local only — never published, so it's only on this
 computer`), the row's accessible description reads the states out in words,
-and the filter panel lists the same glyphs beside their names, which makes it
+and the filter panel lists the sync glyphs beside their names, which makes it
 the list's legend as well as its filter. `Active` is a word only in the detail
 strip: the active line heads the list and the strip beside it names it, so a
 chip on the row as well was the same word twice on one line of the screen.
+
+**The list is cut by what can be done with a line, then by its name.** A flat
+list of forty `feature/…`, `fix/…` and `codex/…` names read as one wall, and
+the prefix filter only helped a reader who already knew which prefix to ask
+for. So the active line and the main line head the list without a heading —
+the two rows looked for first — and the rest falls into two blocks: **In
+progress**, open, and **Ready to clean up**, folded, decided by the same proof
+the delete plan asks for (the tip is kept by another ref). Folded, that block
+is its count in the heading's capsule and, as the heading's own second line
+rather than a box (a box weighed as much as the block), `Safe to delete` with
+"Review" in the accent — the count is not repeated in the phrase, and the
+phrase stays one line; "Review" only opens it, since clearing several lines
+at once would need its own plan and recovery point. Inside each block lines
+cluster under their first name segment, a step quieter than the block's
+uppercase label; a prefix only one line has stays loose, first, because a
+heading over one row says the same thing twice, and a cluster of more than
+eight starts folded, so one crowded prefix (`dependabot/…`) cannot push the
+rest out of the column. Each row then makes the part
+of its name that tells it apart the loud part: a loose row's prefix is quiet
+(`codex/feature/` before `about-dialog-polish`), and a clustered row drops the
+prefix its heading says and keeps any middle part quiet. Clusters follow their
+first line, so the sort still decides what comes first. "Safe to delete" and
+"Can't be deleted yet" left the filter panel with this: the blocks already
+are that filter. A search or a filter opens every heading, so what it finds
+is never folded away, and clearing it puts the list back as the reader left
+it; what the reader folds or opens is kept per project across launches, and a
+block opened near the column's foot scrolls into view without pushing its own
+heading off the top. The list is a tree for assistive technology and the keyboard — arrows walk
+what is drawn, Right opens a heading or steps in, Left folds it or steps out —
+and when the selected line is folded away, Tab lands on the heading above it.
 
 **History's timeline rows share that shape and that vocabulary.** The subject
 has the first line; under it, from the start, who saved it as initials on

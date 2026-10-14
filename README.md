@@ -90,7 +90,9 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   A line is only called safe to delete when another local or remote-tracking
   reference already holds its saved work; a published line can have its remote
   copy removed with it, and the two halves are reported separately. The remote's
-  own default line is never renamed or deleted.
+  own default line is never renamed or deleted. The list keeps the current and
+  main lines on top, then lines still in progress and lines ready to clean up,
+  each grouped by name prefix and foldable, with folds remembered per project.
 - See one version line's recent saved versions, its saved-version count and
   where it stands against its remote, read on demand for the line you select
   rather than for every branch on every refresh.

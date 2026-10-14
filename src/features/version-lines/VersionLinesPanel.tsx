@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   ArrowRight,
   ArrowUp,
+  ChevronRight,
   CircleAlert,
   CircleCheck,
   CircleDot,
@@ -24,6 +25,18 @@ import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from
 import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
+import {
+  bucketItemId,
+  bucketOf,
+  clusterItemId,
+  groupVersionLines,
+  headingsAbove,
+  lineNameParts,
+  prefixOf,
+  visibleLineTree,
+  type LineTreeItem,
+} from "./lineGroups";
+import { useStoredLineFolds } from "./lineFolds";
 import { VersionLineContextMenu, type VersionLineContextMenuState } from "./VersionLineContextMenu";
 import { VersionLineQuickCreateBox } from "./VersionLineQuickCreateBox";
 import { VersionLineRenameStrip } from "./VersionLineRenameStrip";
@@ -54,11 +67,13 @@ const SORT_LABEL_KEYS = {
   unpublished: "versionLinesSortUnpublished",
 } as const satisfies Record<SortKey, keyof Translations>;
 
-/** The state filters offered beside the sort. They intentionally mirror the
- * chips a row can show, so what you filter by is what you see. */
-type StateFilter = "tracking" | "local-only" | "deletable" | "blocked";
+/** The state filters offered beside the sort. Whether a line can be deleted
+ * is not one of them: the list is cut into "In progress" and "Ready to clean
+ * up" by exactly that, so a filter for it would hide one block to show the
+ * other. */
+type StateFilter = "tracking" | "local-only";
 
-const STATE_KEYS = ["tracking", "local-only", "deletable", "blocked"] as const;
+const STATE_KEYS = ["tracking", "local-only"] as const;
 
 /** The glyph each state wears on a row, drawn beside its name here too: the
  * filter panel is where the glyphs are listed with their words, which makes it
@@ -67,15 +82,11 @@ const STATE_KEYS = ["tracking", "local-only", "deletable", "blocked"] as const;
 const STATE_GLYPHS = {
   tracking: { icon: <Cloud />, tone: "neutral" },
   "local-only": { icon: <Laptop />, tone: "neutral" },
-  deletable: { icon: <CircleCheck />, tone: "positive" },
-  blocked: { icon: <TriangleAlert />, tone: "warning" },
 } as const satisfies Record<StateFilter, { icon: React.ReactNode; tone: StateGlyphTone }>;
 
 const STATE_LABEL_KEYS = {
   tracking: "versionLinesStateTracking",
   "local-only": "versionLinesNoUpstreamLabel",
-  deletable: "versionLinesDeletablePill",
-  blocked: "versionLinesNotDeletablePill",
 } as const satisfies Record<StateFilter, keyof Translations>;
 
 /** How this line compares to its upstream, derived from the last local
@@ -288,10 +299,11 @@ const VersionLineRow = React.memo(function VersionLineRow({
   line,
   selected,
   focusable,
-  index,
+  level,
+  clusterPrefix,
   formats,
   onSelect,
-  onMove,
+  onTreeKey,
   onOpenDetail,
   onContextMenu,
   onRename,
@@ -301,10 +313,15 @@ const VersionLineRow = React.memo(function VersionLineRow({
   line: VersionLine;
   selected: boolean;
   focusable: boolean;
-  index: number;
+  /** Its depth in the list's tree: 1 above every heading, 2 in a block, 3 in
+   * a prefix cluster. */
+  level: number;
+  /** The prefix the cluster's heading already says, dropped from the name. */
+  clusterPrefix: string | null;
   formats: LocaleFormats;
   onSelect: (name: string) => void;
-  onMove: (index: number) => void;
+  /** Arrow keys, Home and End: the panel walks the visible tree. */
+  onTreeKey: (event: React.KeyboardEvent<HTMLElement>, name: string) => void;
   onOpenDetail: () => void;
   onContextMenu: (event: React.MouseEvent) => void;
   /** F2, the rename key every file list answers to. It opens the same edit
@@ -338,27 +355,17 @@ const VersionLineRow = React.memo(function VersionLineRow({
       onRename(line.name);
       return;
     }
-    const target =
-      event.key === "ArrowDown"
-        ? index + 1
-        : event.key === "ArrowUp"
-          ? index - 1
-          : event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? Number.MAX_SAFE_INTEGER
-              : null;
-    if (target === null) return;
-    event.preventDefault();
-    onMove(target);
+    onTreeKey(event, line.name);
   };
+  const nameParts = lineNameParts(line.name, clusterPrefix);
 
   return (
     <button
       id={`version-line-${line.name}`}
       className={`version-line-row${selected ? " version-line-row--selected" : ""}${line.isActive ? " version-line-row--active" : ""}${justRenamed ? " version-line-row--renamed" : ""}`}
       type="button"
-      role="option"
+      role="treeitem"
+      aria-level={level}
       aria-selected={selected}
       aria-label={label}
       aria-description={states || undefined}
@@ -389,8 +396,12 @@ const VersionLineRow = React.memo(function VersionLineRow({
           list, and saying it on the row as well put the same chip twice on
           one line of the screen. */}
       <span className="version-line-row__name-row">
+        {/* The part of the name the eye can skip is quiet: a prefix the
+            line shares with others, or the middle of a name whose cluster
+            heading already says the first part. */}
         <span className="version-line-row__name" title={line.name}>
-          {line.name}
+          {nameParts.quiet && <span className="version-line-row__name-quiet">{nameParts.quiet}</span>}
+          {nameParts.own}
         </span>
       </span>
       <span className="version-line-row__meta">
@@ -406,6 +417,65 @@ const VersionLineRow = React.memo(function VersionLineRow({
     </button>
   );
 });
+
+/** The DOM id of a heading in the list's tree. Rows keep `version-line-<name>`. */
+const headingDomId = (id: string): string => `version-lines-group-${id}`;
+const treeItemDomId = (item: LineTreeItem): string =>
+  item.kind === "line" ? `version-line-${item.line.name}` : headingDomId(item.id);
+
+/** A heading in the list: one of the two blocks, or a prefix cluster inside
+ * one. Each folds what is under it. The clean-up block, folded, says its lines
+ * are safe to delete — the count is already in the heading's capsule, so the
+ * hint does not say it twice — and "Review" only opens it: clearing several
+ * lines at once would need its own plan and recovery point. */
+function VersionLinesGroupHeading({
+  item,
+  focusable,
+  onToggle,
+  onTreeKey,
+}: {
+  item: Extract<LineTreeItem, { kind: "bucket" | "cluster" }>;
+  focusable: boolean;
+  onToggle: (id: string) => void;
+  onTreeKey: (event: React.KeyboardEvent<HTMLElement>, id: string) => void;
+}): React.JSX.Element {
+  const { t, formats } = useLanguage();
+  const label =
+    item.kind === "cluster"
+      ? item.prefix
+      : item.key === "in-progress"
+        ? t.versionLinesGroupInProgress
+        : t.versionLinesGroupCleanUp;
+  const hint = item.kind === "bucket" && item.key === "clean-up" && !item.expanded ? t.versionLinesCleanUpHint : null;
+  return (
+    <button
+      id={headingDomId(item.id)}
+      className={`version-lines-group version-lines-group--${item.kind}`}
+      type="button"
+      role="treeitem"
+      aria-level={item.level}
+      aria-expanded={item.expanded}
+      aria-label={t.versionLinesGroupLabel(label, item.count)}
+      aria-description={hint ?? undefined}
+      tabIndex={focusable ? 0 : -1}
+      onClick={() => onToggle(item.id)}
+      onKeyDown={(event) => onTreeKey(event, item.id)}
+    >
+      <span className="version-lines-group__title">
+        <ChevronRight className="version-lines-group__chevron" aria-hidden="true" />
+        <span className="version-lines-group__label">{label}</span>
+        <span className="version-lines-group__count">{formatNumber(item.count, formats)}</span>
+      </span>
+      {hint && (
+        <span className="version-lines-group__hint">
+          <CircleCheck aria-hidden="true" />
+          <span>{hint}</span>
+          <span className="version-lines-group__review">{t.versionLinesCleanUpReview}</span>
+        </span>
+      )}
+    </button>
+  );
+}
 
 /** Search's neighbour: the sort and the state/prefix filters behind one
  * trigger, the way the History timeline keeps its own. The trigger says *how
@@ -1191,7 +1261,20 @@ export function VersionLinesPanel({
     const timer = window.setTimeout(() => setSettled(null), 700);
     return () => window.clearTimeout(timer);
   }, [settled]);
+  /* The keyboard's place when it is on a heading of the list. On a row it is
+     the selection, so choosing a line clears it. */
+  const [focusedHeading, setFocusedHeading] = useState<string | null>(null);
+  /* A line the reader is sent to — by another screen, or by renaming it — is
+     shown, not left folded under a heading. */
+  function unfoldFor(line: VersionLine | undefined): void {
+    const bucket = line ? bucketOf(line) : null;
+    if (!line || !bucket) return;
+    const prefix = prefixOf(line.name);
+    setFold(bucketItemId(bucket), false);
+    if (prefix) setFold(clusterItemId(bucket, prefix), false);
+  }
   const selectLine = useCallback((name: string) => {
+    setFocusedHeading(null);
     setSelectedName(name);
     setRenaming((current) => (current === name ? current : null));
   }, []);
@@ -1243,7 +1326,9 @@ export function VersionLinesPanel({
 
   useEffect(() => {
     if (!selectLineIntent) return;
+    setFocusedHeading(null);
     setSelectedName(selectLineIntent);
+    unfoldFor(snapshot?.lines.find((line) => line.name === selectLineIntent));
     setShowNarrowDetail(true);
     onSelectLineIntentHandled?.();
     // Same one-shot shape as `autoOpenCreate`: applied once per truthy
@@ -1275,12 +1360,7 @@ export function VersionLinesPanel({
   }, [snapshot]);
 
   const stateCounts = useMemo(() => {
-    const counts: Record<StateFilter, number> = {
-      tracking: 0,
-      "local-only": 0,
-      deletable: 0,
-      blocked: 0,
-    };
+    const counts: Record<StateFilter, number> = { tracking: 0, "local-only": 0 };
     for (const line of snapshot?.lines ?? []) {
       if (line.isActive) {
         continue;
@@ -1289,12 +1369,6 @@ export function VersionLinesPanel({
         counts["local-only"] += 1;
       } else {
         counts.tracking += 1;
-      }
-      const deletability = deletabilityOf(line);
-      if (deletability === "ready") {
-        counts.deletable += 1;
-      } else if (deletability === "unique-work") {
-        counts.blocked += 1;
       }
     }
     return counts;
@@ -1321,21 +1395,11 @@ export function VersionLinesPanel({
       .filter(
         (line) => prefixFilters.length === 0 || prefixFilters.some((prefix) => line.name.startsWith(`${prefix}/`)),
       )
-      .filter((line) => {
-        if (stateFilters.length === 0) {
-          return true;
-        }
-        const deletability = deletabilityOf(line);
-        return stateFilters.some((state) =>
-          state === "local-only"
-            ? line.upstream === null
-            : state === "tracking"
-              ? line.upstream !== null
-              : state === "deletable"
-                ? deletability === "ready"
-                : deletability === "unique-work",
-        );
-      });
+      .filter(
+        (line) =>
+          stateFilters.length === 0 ||
+          stateFilters.some((state) => (state === "local-only" ? line.upstream === null : line.upstream !== null)),
+      );
 
     return [...matches].sort((a, b) => {
       if (sort === "name") {
@@ -1364,11 +1428,148 @@ export function VersionLinesPanel({
   const listed = useMemo(() => (active ? [active, ...others] : others), [active, others]);
   const isFiltered = search.trim().length > 0 || prefixFilters.length > 0 || stateFilters.length > 0;
 
+  /* The list as a tree: the active and main lines pinned, then "In progress"
+     and "Ready to clean up", each clustered by name prefix. What the reader
+     folded is kept apart from what they fold while searching — a search opens
+     everything, so what it finds is never hidden, and clearing it puts the
+     list back the way the reader left it. The reader's own folds are kept per
+     project across launches. */
+  const grouped = useMemo(() => groupVersionLines(active, others), [active, others]);
+  const [folded, setFold] = useStoredLineFolds(projectPath);
+  const [foldedWhileFiltered, setFoldedWhileFiltered] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!isFiltered) setFoldedWhileFiltered({});
+  }, [isFiltered]);
+  const isExpanded = useCallback(
+    (id: string, byDefault: boolean): boolean =>
+      isFiltered ? !(foldedWhileFiltered[id] ?? false) : !(folded[id] ?? !byDefault),
+    [folded, foldedWhileFiltered, isFiltered],
+  );
+  const treeItems = useMemo(
+    () => visibleLineTree(grouped, isExpanded, (name) => `version-line-${name}`),
+    [grouped, isExpanded],
+  );
+  const setExpanded = useCallback(
+    (id: string, expanded: boolean): void => {
+      if (isFiltered) setFoldedWhileFiltered((current) => ({ ...current, [id]: !expanded }));
+      else setFold(id, !expanded);
+      if (expanded) requestAnimationFrame(() => revealOpened(id));
+    },
+    [isFiltered, setFold],
+  );
+  /* A block opened near the foot of the column would open out of sight.
+     Scroll by what it needs — never so far that its own heading leaves the
+     top — so what was just asked for is on screen. */
+  function revealOpened(id: string): void {
+    const list = listScrollRef.current;
+    const items = treeItemsRef.current;
+    const index = items.findIndex((item) => item.id === id);
+    const heading = items[index];
+    if (!list || !heading) return;
+    let end = index;
+    while (end + 1 < items.length && items[end + 1]!.level > heading.level) end += 1;
+    if (end === index) return;
+    const headingElement = document.getElementById(treeItemDomId(heading));
+    const lastElement = document.getElementById(treeItemDomId(items[end]!));
+    if (!headingElement || !lastElement) return;
+    const box = list.getBoundingClientRect();
+    const by = Math.min(
+      lastElement.getBoundingClientRect().bottom - box.bottom,
+      headingElement.getBoundingClientRect().top - box.top,
+    );
+    if (by <= 0 || typeof list.scrollBy !== "function") return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    list.scrollBy({ top: by, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+
   // Derived rather than stored: a line that a filter hides, or that a delete
   // removed, falls back to the active one without an effect racing the render
   // that noticed.
   const selected = listed.find((line) => line.name === selectedName) ?? listed[0] ?? null;
   const selectedTip = selected?.tip.commit ?? null;
+
+  /* The one item Tab lands on: the heading the keyboard is on, else the
+     selected row, else — when the selection is folded away — the innermost
+     visible heading above it. */
+  const tabStop = useMemo(() => {
+    const visible = new Set(treeItems.map((item) => item.id));
+    if (focusedHeading && visible.has(focusedHeading)) return focusedHeading;
+    if (selected) {
+      const own = `version-line-${selected.name}`;
+      if (visible.has(own)) return own;
+      const above = headingsAbove(grouped, selected.name).filter((id) => visible.has(id));
+      if (above.length > 0) return above[above.length - 1]!;
+    }
+    return treeItems[0]?.id ?? null;
+  }, [focusedHeading, grouped, selected, treeItems]);
+
+  /* Arrow keys, Home and End walk what is drawn; Right opens a heading or
+     steps into it, Left folds it or steps out to the heading above. A row
+     reached this way is selected, the way the list always behaved. */
+  const treeItemsRef = useRef(treeItems);
+  treeItemsRef.current = treeItems;
+  const handleTreeKey = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>, key: string): void => {
+      const items = treeItemsRef.current;
+      const index = items.findIndex((item) => (item.kind === "line" ? item.line.name === key : item.id === key));
+      const item = items[index];
+      if (!item) return;
+      let target: number;
+      switch (event.key) {
+        case "ArrowDown":
+          target = index + 1;
+          break;
+        case "ArrowUp":
+          target = index - 1;
+          break;
+        case "Home":
+          target = 0;
+          break;
+        case "End":
+          target = items.length - 1;
+          break;
+        case "ArrowRight":
+          if (item.kind === "line") return;
+          if (!item.expanded) {
+            event.preventDefault();
+            setExpanded(item.id, true);
+            return;
+          }
+          target = index + 1;
+          break;
+        case "ArrowLeft":
+          if (item.kind !== "line" && item.expanded) {
+            event.preventDefault();
+            setExpanded(item.id, false);
+            return;
+          }
+          if (item.parentId === null) return;
+          target = items.findIndex((entry) => entry.id === item.parentId);
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+      const next = items[Math.max(0, Math.min(target, items.length - 1))];
+      if (!next) return;
+      if (next.kind === "line") {
+        selectLine(next.line.name);
+      } else {
+        setFocusedHeading(next.id);
+      }
+      requestAnimationFrame(() => document.getElementById(treeItemDomId(next))?.focus());
+    },
+    [selectLine, setExpanded],
+  );
+  const toggleHeading = useCallback(
+    (id: string): void => {
+      const heading = treeItemsRef.current.find((item) => item.id === id);
+      if (!heading || heading.kind === "line") return;
+      setFocusedHeading(id);
+      setExpanded(id, !heading.expanded);
+    },
+    [setExpanded],
+  );
 
   /* The one read this screen starts on its own, and it is keyed by the tip
      rather than by the selection: a line whose tip has not moved is already
@@ -1445,14 +1646,6 @@ export function VersionLinesPanel({
     },
     [],
   );
-
-  function moveSelection(target: number): void {
-    const index = Math.max(0, Math.min(target, listed.length - 1));
-    const line = listed[index];
-    if (!line) return;
-    selectLine(line.name);
-    requestAnimationFrame(() => document.getElementById(`version-line-${line.name}`)?.focus());
-  }
 
   function handleMutated(next: VersionLinesSnapshot): void {
     onSnapshot(next);
@@ -1719,30 +1912,41 @@ export function VersionLinesPanel({
             {...autoHideScrollbarProps<HTMLDivElement>()}
             ref={listScrollRef}
             className="version-lines-list auto-hide-scrollbar"
-            role="listbox"
+            role="tree"
             aria-label={t.versionLinesListAriaLabel}
           >
-            {listed.map((line, index) => (
-              <VersionLineRow
-                key={line.name}
-                line={line}
-                index={index}
-                selected={selected?.name === line.name}
-                focusable={selected?.name === line.name}
-                formats={formats}
-                onSelect={selectLine}
-                onMove={moveSelection}
-                onRename={startRename}
-                onHoverIntent={handleHoverIntent}
-                justRenamed={settled?.saved === true && settled.name === line.name}
-                onOpenDetail={() => setShowNarrowDetail(true)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  setAnnouncement("");
-                  setContextMenu({ ...contextMenuAnchorFrom(event), line });
-                }}
-              />
-            ))}
+            {treeItems.map((item) =>
+              item.kind === "line" ? (
+                <VersionLineRow
+                  key={item.id}
+                  line={item.line}
+                  level={item.level}
+                  clusterPrefix={item.clusterPrefix}
+                  selected={selected?.name === item.line.name}
+                  focusable={tabStop === item.id}
+                  formats={formats}
+                  onSelect={selectLine}
+                  onTreeKey={handleTreeKey}
+                  onRename={startRename}
+                  onHoverIntent={handleHoverIntent}
+                  justRenamed={settled?.saved === true && settled.name === item.line.name}
+                  onOpenDetail={() => setShowNarrowDetail(true)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setAnnouncement("");
+                    setContextMenu({ ...contextMenuAnchorFrom(event), line: item.line });
+                  }}
+                />
+              ) : (
+                <VersionLinesGroupHeading
+                  key={item.id}
+                  item={item}
+                  focusable={tabStop === item.id}
+                  onToggle={toggleHeading}
+                  onTreeKey={handleTreeKey}
+                />
+              ),
+            )}
             {others.length === 0 && (
               <p className="version-lines-list__empty">
                 {isFiltered ? t.versionLinesNoSearchMatches : t.versionLinesEmptyOthers}
@@ -1815,6 +2019,7 @@ export function VersionLinesPanel({
                     // branched from another and not yet advanced shares its
                     // tip, and the search would find whichever came first.
                     setSelectedName(newName);
+                    unfoldFor(next.lines.find((line) => line.name === newName));
                     handleMutated(next);
                     endRename(newName, true);
                   }}

@@ -79,7 +79,10 @@ function withBugfixLine(): VersionLinesSnapshot {
  * error live in the project session so leaving the screen and coming back
  * renders the known answer instead of a spinner (task 019). These defaults
  * stand in for `app/App.tsx` holding a loaded snapshot. */
-function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPanel>> = {}) {
+function renderPanel(
+  props: Partial<React.ComponentProps<typeof VersionLinesPanel>> = {},
+  { openCleanUp = true }: { openCleanUp?: boolean } = {},
+) {
   const onChanged = vi.fn();
   const onSaveVersion = vi.fn();
   const onRefresh = vi.fn();
@@ -105,6 +108,11 @@ function renderPanel(props: Partial<React.ComponentProps<typeof VersionLinesPane
       />
     </LanguageProvider>,
   );
+  // Most tests are about a line, not about where the list files it: the
+  // fixture's lines are safe to delete, so "Ready to clean up" is opened the
+  // way a reader would before reaching them.
+  const cleanUp = screen.queryByRole("treeitem", { name: /^Ready to clean up/ });
+  if (openCleanUp && cleanUp?.getAttribute("aria-expanded") === "false") fireEvent.click(cleanUp);
   return { onChanged, onSaveVersion, onRefresh, onSnapshot, ...utils };
 }
 
@@ -151,9 +159,9 @@ function history(name: string, overrides: Partial<VersionLineHistory> = {}): Ver
   };
 }
 
-/** The list column's rows, in the order they are shown. */
+/** The list column's rows, in the order they are shown, by full name. */
 const listedNames = (): (string | null)[] =>
-  screen.getAllByRole("option").map((row) => row.querySelector(".version-line-row__name")?.textContent ?? null);
+  [...document.querySelectorAll(".version-line-row__name")].map((name) => name.getAttribute("title"));
 
 /** The detail column for the line currently selected. */
 const detailPanel = (name: string): HTMLElement => screen.getByRole("region", { name: `Details for “${name}”` });
@@ -161,6 +169,8 @@ const detailPanel = (name: string): HTMLElement => screen.getByRole("region", { 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  // Folds are kept per project across launches; each test starts unfolded.
+  localStorage.clear();
 });
 
 describe("VersionLinesPanel", () => {
@@ -189,7 +199,7 @@ describe("VersionLinesPanel", () => {
 
     // The list column: every line as one row, the active one at the head.
     expect(listedNames()).toEqual(["main", "feature/new-thing"]);
-    const activeRow = screen.getByRole("option", { name: "main — Active" });
+    const activeRow = screen.getByRole("treeitem", { name: "main — Active" });
     expect(activeRow).toHaveAttribute("aria-selected", "true");
 
     // The detail column describes it without anything being clicked.
@@ -207,12 +217,12 @@ describe("VersionLinesPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
 
     const detail = detailPanel("feature/new-thing");
     expect(within(detail).getByText("in progress")).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "feature/new-thing" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("option", { name: "main — Active" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("treeitem", { name: "feature/new-thing" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("treeitem", { name: "main — Active" })).toHaveAttribute("aria-selected", "false");
     // Switch belongs to the chosen line, and only to a line that is not the
     // active one.
     expect(within(detail).getByRole("button", { name: "Switch to “feature/new-thing”" })).toBeEnabled();
@@ -222,7 +232,7 @@ describe("VersionLinesPanel", () => {
   it("flags a row's states as glyphs, each explained on its tooltip and read out as the row's description", () => {
     renderPanel();
 
-    const row = screen.getByRole("option", { name: "feature/new-thing" });
+    const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
     expect(row).toHaveAccessibleDescription("Local only, Safe to delete");
     expect(row.querySelector(".state-glyph")).toHaveAttribute(
       "data-tooltip",
@@ -230,7 +240,7 @@ describe("VersionLinesPanel", () => {
     );
     // Active is a glyph on the row — the word is the detail strip's, and the
     // row's accessible name still says it.
-    const active = screen.getByRole("option", { name: "main — Active" });
+    const active = screen.getByRole("treeitem", { name: "main — Active" });
     expect(within(active).queryByText("Active")).not.toBeInTheDocument();
     expect(active.querySelector(".state-glyph--accent")).toHaveAttribute(
       "data-tooltip",
@@ -239,15 +249,32 @@ describe("VersionLinesPanel", () => {
     expect(within(detailPanel("main")).getByText("Active")).toBeInTheDocument();
   });
 
-  it("walks the list with the arrow keys", async () => {
+  it("walks the list with the arrow keys, through its headings", async () => {
     const user = userEvent.setup();
     renderPanel();
+    const heading = screen.getByRole("treeitem", { name: "Ready to clean up, 1 line" });
 
-    screen.getByRole("option", { name: "main — Active" }).focus();
+    screen.getByRole("treeitem", { name: "main — Active" }).focus();
     await user.keyboard("{ArrowDown}");
+    // A heading takes the keyboard without taking the selection.
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(detailPanel("main")).toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByRole("option", { name: "feature/new-thing" })).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(screen.getByRole("treeitem", { name: "feature/new-thing" })).toHaveFocus());
     expect(detailPanel("feature/new-thing")).toBeInTheDocument();
+
+    // Left steps out to the heading, then folds it; Right opens it again.
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(heading).toHaveFocus());
+    await user.keyboard("{ArrowLeft}");
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(listedNames()).toEqual(["main"]);
+    // The selection is folded away, so Tab lands on the heading above it.
+    expect(heading).toHaveAttribute("tabindex", "0");
+    expect(detailPanel("feature/new-thing")).toBeInTheDocument();
+    await user.keyboard("{ArrowRight}");
+    expect(heading).toHaveAttribute("aria-expanded", "true");
   });
 
   it("shows the cached list, not a spinner, while a refresh runs behind it", () => {
@@ -275,6 +302,101 @@ describe("VersionLinesPanel", () => {
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
+  describe("grouping", () => {
+    const base = snapshot().lines[1]!;
+    const entry = (name: string, committedAt: string, overrides: Partial<typeof base> = {}): typeof base => ({
+      ...base,
+      name,
+      tip: { ...base.tip, commit: `${name}-tip`, committedAt },
+      isRetainedElsewhere: false,
+      ...overrides,
+    });
+    const grouped = (): VersionLinesSnapshot =>
+      snapshot({
+        lines: [
+          snapshot().lines[0]!,
+          entry("feature/a", "2026-07-05T00:00:00Z"),
+          entry("fix/x", "2026-07-04T00:00:00Z"),
+          entry("feature/b", "2026-07-03T00:00:00Z"),
+          entry("chore/old", "2026-07-02T00:00:00Z", { isRetainedElsewhere: true }),
+          entry("chore/older", "2026-07-01T00:00:00Z", { isRetainedElsewhere: true }),
+        ],
+        totalCount: 6,
+      });
+
+    it("files the lines under In progress and a folded Ready to clean up, clustered by prefix", () => {
+      renderPanel({ snapshot: grouped() }, { openCleanUp: false });
+
+      expect(screen.getByRole("treeitem", { name: "In progress, 3 lines" })).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("treeitem", { name: "feature, 2 lines" })).toHaveAttribute("aria-level", "2");
+      // A prefix only one line has is not worth a heading: it stays loose,
+      // first, with the prefix quiet.
+      expect(listedNames()).toEqual(["main", "fix/x", "feature/a", "feature/b"]);
+      const clustered = screen.getByRole("treeitem", { name: "feature/a" });
+      expect(clustered).toHaveAttribute("aria-level", "3");
+      expect(clustered.querySelector(".version-line-row__name")).toHaveTextContent(/^a$/);
+      expect(screen.getByRole("treeitem", { name: "fix/x" }).querySelector(".version-line-row__name-quiet")).toHaveTextContent(
+        "fix/",
+      );
+
+      const cleanUp = screen.getByRole("treeitem", { name: "Ready to clean up, 2 lines" });
+      expect(cleanUp).toHaveAttribute("aria-expanded", "false");
+      expect(cleanUp).toHaveAccessibleDescription("Safe to delete");
+    });
+
+    it("opens the clean-up block from its heading", async () => {
+      const user = userEvent.setup();
+      renderPanel({ snapshot: grouped() }, { openCleanUp: false });
+
+      const cleanUp = screen.getByRole("treeitem", { name: "Ready to clean up, 2 lines" });
+      await user.click(cleanUp);
+
+      expect(listedNames()).toEqual(["main", "fix/x", "feature/a", "feature/b", "chore/old", "chore/older"]);
+      expect(cleanUp).not.toHaveAccessibleDescription();
+    });
+
+    it("opens everything while searching, and puts the folds back after", async () => {
+      const user = userEvent.setup();
+      renderPanel({ snapshot: grouped() }, { openCleanUp: false });
+      await user.click(screen.getByRole("treeitem", { name: "feature, 2 lines" }));
+      expect(listedNames()).toEqual(["main", "fix/x"]);
+
+      const search = screen.getByPlaceholderText("Search version lines…");
+      await user.type(search, "o");
+      expect(listedNames()).toEqual(["main", "chore/old", "chore/older"]);
+
+      await user.clear(search);
+      expect(listedNames()).toEqual(["main", "fix/x"]);
+    });
+
+    it("remembers the reader's folds for the project", async () => {
+      const user = userEvent.setup();
+      const first = renderPanel({ snapshot: grouped() }, { openCleanUp: false });
+      await user.click(screen.getByRole("treeitem", { name: "Ready to clean up, 2 lines" }));
+      await user.click(screen.getByRole("treeitem", { name: "feature, 2 lines" }));
+      first.unmount();
+
+      renderPanel({ snapshot: grouped() }, { openCleanUp: false });
+      expect(listedNames()).toEqual(["main", "fix/x", "chore/old", "chore/older"]);
+    });
+
+    it("unfolds the line another screen asks for", () => {
+      renderPanel({ snapshot: grouped(), selectLineIntent: "chore/old" }, { openCleanUp: false });
+
+      expect(screen.getByRole("treeitem", { name: "chore/old" })).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("leaves whether a line can be deleted to the blocks, not the filters", async () => {
+      const user = userEvent.setup();
+      renderPanel({ snapshot: grouped() });
+
+      await user.click(screen.getByRole("button", { name: "Filter and sort" }));
+      expect(screen.getByRole("checkbox", { name: /^Local only/ })).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: /^Safe to delete/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("checkbox", { name: /^Can't be deleted yet/ })).not.toBeInTheDocument();
+    });
   });
 
   it("filters the list by search text without hiding the active line", async () => {
@@ -428,7 +550,7 @@ describe("VersionLinesPanel", () => {
       }),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     expect(within(detail).getByText(/Open in another workspace \(\/other\/workspace\)/)).toBeInTheDocument();
     expect(within(detail).getByRole("button", { name: "Switch to “feature/new-thing”" })).toBeDisabled();
@@ -510,7 +632,7 @@ describe("VersionLinesPanel", () => {
     const onOperationStart = vi.fn(() => true);
     renderPanel({ onOperationStart });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     mockedInvoke.mockResolvedValueOnce({
       operationKind: "local-mutation",
       summary: "Switch",
@@ -543,7 +665,7 @@ describe("VersionLinesPanel", () => {
     expect(screen.queryByRole("button", { name: /Delete “feature\/new-thing”/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Rename “feature\/new-thing”/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     expect(within(detail).getByRole("button", { name: "Switch to “feature/new-thing”" })).toBeEnabled();
     expect(within(detail).getByRole("button", { name: "Rename “feature/new-thing”" })).toBeEnabled();
@@ -574,7 +696,7 @@ describe("VersionLinesPanel", () => {
     const onOperationFinish = vi.fn();
     const { onSnapshot } = renderPanel({ onOperationStart, onOperationFinish });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await user.click(screen.getByRole("button", { name: "Rename “feature/new-thing”" }));
     // Opening the field takes no lock: nothing is asked of Git until the press.
     expect(onOperationStart).not.toHaveBeenCalled();
@@ -632,7 +754,7 @@ describe("VersionLinesPanel", () => {
     const onOperationStart = vi.fn(() => true);
     renderPanel({ onOperationStart });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await user.keyboard("{F2}");
     const detail = detailPanel("feature/new-thing");
     const field = within(detail).getByRole("textbox", { name: "Rename “feature/new-thing”" });
@@ -663,7 +785,7 @@ describe("VersionLinesPanel", () => {
     });
 
     // The list says why, instead of promising a cleanup it would refuse.
-    const row = screen.getByRole("option", { name: "trunk" });
+    const row = screen.getByRole("treeitem", { name: "trunk" });
     expect(row).toHaveAccessibleDescription("Local only, Main line");
 
     await user.click(row);
@@ -713,10 +835,10 @@ describe("VersionLinesPanel", () => {
       }),
     });
 
-    expect(screen.getByRole("option", { name: "feature/new-thing" })).toHaveAccessibleDescription(
+    expect(screen.getByRole("treeitem", { name: "feature/new-thing" })).toHaveAccessibleDescription(
       "Local only, Safe to delete",
     );
-    expect(screen.getByRole("option", { name: "feature/unmerged" })).toHaveAccessibleDescription(
+    expect(screen.getByRole("treeitem", { name: "feature/unmerged" })).toHaveAccessibleDescription(
       "Local only, Can't be deleted yet",
     );
   });
@@ -784,7 +906,7 @@ describe("VersionLinesPanel", () => {
       }),
     });
 
-    const rowFor = (name: string) => screen.getByRole("option", { name });
+    const rowFor = (name: string) => screen.getByRole("treeitem", { name });
     expect(rowFor("feature/ahead")).toHaveAccessibleDescription(expect.stringContaining("2 not published"));
     // Two arrows on the row, one sentence for a screen reader.
     expect(rowFor("feature/diverged")).toHaveAccessibleDescription(
@@ -815,7 +937,7 @@ describe("VersionLinesPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
 
     const detail = detailPanel("feature/new-thing");
     // With no remote copy to count against, the tip's node is the empty ring:
@@ -848,7 +970,7 @@ describe("VersionLinesPanel", () => {
     expect(within(active).getByText("2 versions not on main")).toBeInTheDocument();
 
     // The main line is what the others are counted against.
-    await user.click(screen.getByRole("option", { name: "main" }));
+    await user.click(screen.getByRole("treeitem", { name: "main" }));
     expect(within(detailPanel("main")).queryByText(/versions? not on/)).not.toBeInTheDocument();
   });
 
@@ -862,7 +984,7 @@ describe("VersionLinesPanel", () => {
       "See every version, compare changes and go back to earlier states.",
     );
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     const open = within(detail).getByRole("button", { name: "Open in History" });
     expect(open).toHaveAttribute(
@@ -894,7 +1016,7 @@ describe("VersionLinesPanel", () => {
     expect(within(detail).getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
 
     // Selecting another line asks for that line's history, keyed by its tip.
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await waitFor(() => expect(readHistory).toHaveBeenCalledWith("feature/new-thing", "def456"));
   });
 
@@ -929,7 +1051,7 @@ describe("VersionLinesPanel", () => {
     await within(detailPanel("main")).findByText("first version");
     expect(within(detailPanel("main")).queryByRole("region", { name: "Route" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     // Never published, so both of its own versions are still on this machine.
     expect(
@@ -961,7 +1083,7 @@ describe("VersionLinesPanel", () => {
         ),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     expect(
       within(route).getByText(
@@ -996,7 +1118,7 @@ describe("VersionLinesPanel", () => {
         history(name, name === "feature/new-thing" ? { route: routeFromMain } : {}),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     const actions = await within(detail).findByRole("region", { name: "What you can do" });
     expect(within(actions).getByText("Merge into “main”")).toBeInTheDocument();
@@ -1042,7 +1164,7 @@ describe("VersionLinesPanel", () => {
     expect(detail.querySelector(".version-lines-detail__meta span[title]")?.textContent).toMatch(/ago|yesterday|last|tomorrow/);
 
     // Another line is published from that line, not from here.
-    await user.click(screen.getByRole("option", { name: "main" }));
+    await user.click(screen.getByRole("treeitem", { name: "main" }));
     expect(within(detailPanel("main")).queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
   });
 
@@ -1059,7 +1181,7 @@ describe("VersionLinesPanel", () => {
       readHistory: async (name: string) => history(name, { unpublished: [feature.tip.commit] }),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     await within(detail).findByText("Only on this computer");
     const rows = detail.querySelectorAll(".version-lines-recent__row");
@@ -1102,13 +1224,13 @@ describe("VersionLinesPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await user.keyboard("{F2}");
     await user.click(within(detailPanel("feature/new-thing")).getByRole("button", { name: "Cancel" }));
     // Another line chosen while the cancel fades out.
-    await user.click(screen.getByRole("option", { name: /^main/ }));
+    await user.click(screen.getByRole("treeitem", { name: /^main/ }));
     await new Promise((resolve) => setTimeout(resolve, 250));
-    expect(screen.getByRole("option", { name: "feature/new-thing" })).not.toHaveFocus();
+    expect(screen.getByRole("treeitem", { name: "feature/new-thing" })).not.toHaveFocus();
   });
 
   it("offers the active line what it can do with main, and says when there is nothing to bring in", async () => {
@@ -1143,7 +1265,7 @@ describe("VersionLinesPanel", () => {
       readHistory: async (name: string) => history(name),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
     await within(detail).findByText("Only on this computer");
     expect(detail.querySelector(".version-lines-recent__boundary")).toHaveTextContent("Published on origin");
@@ -1171,7 +1293,7 @@ describe("VersionLinesPanel", () => {
           : Promise.resolve(history(name)),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const waiting = within(detailPanel("feature/new-thing")).getByRole("region", { name: "Route" });
     expect(within(waiting).getByRole("status")).toHaveTextContent("Reading where this line left main…");
 
@@ -1226,10 +1348,10 @@ describe("VersionLinesPanel", () => {
           : Promise.resolve(history(name, name === "feature/new-thing" ? { route: routeOf(2) } : {})),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await within(detailPanel("feature/new-thing")).findByText(/2 versions of its own/);
 
-    await user.click(screen.getByRole("option", { name: "bugfix/other" }));
+    await user.click(screen.getByRole("treeitem", { name: "bugfix/other" }));
     const route = within(detailPanel("bugfix/other")).getByRole("region", { name: "Route" });
     // The previous line's drawing, held quieter — not an empty lane — while
     // this one's is read; the sentence waits under the loading thread.
@@ -1250,12 +1372,12 @@ describe("VersionLinesPanel", () => {
     renderPanel({ readHistory, prefetchHistory });
     await waitFor(() => expect(readHistory).toHaveBeenCalledWith("main", "abc123"));
 
-    fireEvent.pointerEnter(screen.getByRole("option", { name: "feature/new-thing" }));
+    fireEvent.pointerEnter(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await waitFor(() => expect(prefetchHistory).toHaveBeenCalledWith("feature/new-thing", "def456"));
 
     // Passing over a row on the way somewhere else asks nothing.
     prefetchHistory.mockClear();
-    const row = screen.getByRole("option", { name: "feature/new-thing" });
+    const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
     fireEvent.pointerEnter(row);
     fireEvent.pointerLeave(row);
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -1294,7 +1416,7 @@ describe("VersionLinesPanel", () => {
         ),
     });
 
-    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     expect(
       within(route).getByText(/^Left main on .+ and came back on .+ with 2 versions\. main has 4 new versions since\.$/),
@@ -1388,7 +1510,7 @@ describe("VersionLinesPanel", () => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     renderPanel();
 
-    const row = screen.getByRole("option", { name: "feature/new-thing" });
+    const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
     fireEvent.contextMenu(row, { clientX: 210, clientY: 180 });
 
     const menu = screen.getByRole("menu", { name: "Actions for “feature/new-thing”" });
@@ -1425,7 +1547,7 @@ describe("VersionLinesPanel", () => {
     const onOperationStart = vi.fn(() => true);
     renderPanel({ onOperationStart });
 
-    const row = screen.getByRole("option", { name: "feature/new-thing" });
+    const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
     fireEvent.contextMenu(row, { clientX: 210, clientY: 180 });
     await user.click(screen.getByRole("menuitem", { name: "Rename “feature/new-thing”" }));
 
@@ -1437,7 +1559,7 @@ describe("VersionLinesPanel", () => {
     await waitFor(() => expect(field).toHaveFocus());
 
     mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
-    fireEvent.contextMenu(screen.getByRole("option", { name: "feature/new-thing" }), { clientX: 210, clientY: 180 });
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "feature/new-thing" }), { clientX: 210, clientY: 180 });
     await user.click(screen.getByRole("menuitem", { name: "Switch to “feature/new-thing”" }));
     expect(onOperationStart).toHaveBeenCalledOnce();
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
@@ -1456,7 +1578,7 @@ describe("VersionLinesPanel", () => {
 
     // The project's main line: its name is still worth copying, and nothing
     // else is on offer.
-    fireEvent.contextMenu(screen.getByRole("option", { name: "trunk" }), { clientX: 60, clientY: 90 });
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "trunk" }), { clientX: 60, clientY: 90 });
     expect(
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
@@ -1466,7 +1588,7 @@ describe("VersionLinesPanel", () => {
 
     // The active line has nowhere to switch to and cannot be deleted, but it
     // can be renamed.
-    fireEvent.contextMenu(screen.getByRole("option", { name: "main — Active" }), { clientX: 60, clientY: 90 });
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "main — Active" }), { clientX: 60, clientY: 90 });
     expect(
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
@@ -1477,7 +1599,7 @@ describe("VersionLinesPanel", () => {
 
     // A line another workspace holds can only have its name copied — and the
     // active line is never offered merging into itself.
-    fireEvent.contextMenu(screen.getByRole("option", { name: "elsewhere" }), { clientX: 60, clientY: 90 });
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "elsewhere" }), { clientX: 60, clientY: 90 });
     expect(
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
@@ -1504,7 +1626,7 @@ describe("VersionLinesPanel", () => {
       within(detailPanel("main")).queryByRole("button", { name: blocked }),
     ).not.toBeInTheDocument();
 
-    fireEvent.contextMenu(screen.getByRole("option", { name: "feature/new-thing" }), {
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "feature/new-thing" }), {
       clientX: 210,
       clientY: 180,
     });
@@ -1518,7 +1640,7 @@ describe("VersionLinesPanel", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    const row = screen.getByRole("option", { name: "feature/new-thing" });
+    const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
     fireEvent.contextMenu(row, { clientX: 210, clientY: 180 });
     expect(screen.getByRole("menu")).toBeInTheDocument();
 
@@ -1533,7 +1655,7 @@ describe("VersionLinesPanel", () => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     renderPanel();
 
-    fireEvent.contextMenu(screen.getByRole("option", { name: "feature/new-thing" }), {
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "feature/new-thing" }), {
       clientX: 210,
       clientY: 180,
     });
@@ -1553,7 +1675,7 @@ describe("VersionLinesPanel", () => {
     const onOperationStart = vi.fn(() => false);
     renderPanel({ onOperationStart });
 
-    await userEvent.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await userEvent.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     await userEvent.click(
       within(detailPanel("feature/new-thing")).getByRole("button", { name: "Switch to “feature/new-thing”" }),
     );
@@ -1577,7 +1699,7 @@ describe("VersionLinesPanel", () => {
     // The composition root clears the request as soon as it is taken, and from
     // here on the reader owns the selection: this screen stays mounted for the
     // session, so a re-render must not put the earlier line back.
-    await user.click(screen.getByRole("option", { name: "main — Active" }));
+    await user.click(screen.getByRole("treeitem", { name: "main — Active" }));
     expect(detailPanel("main")).toBeInTheDocument();
 
     view.rerender(

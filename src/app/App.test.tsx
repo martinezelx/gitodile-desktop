@@ -1851,7 +1851,7 @@ describe("App project restoration", () => {
           },
           isActive: false,
           upstream: null,
-          isRetainedElsewhere: true,
+          isRetainedElsewhere: false,
           uniqueCommitCount: 1,
           worktreePath: null,
         },
@@ -1872,7 +1872,7 @@ describe("App project restoration", () => {
           },
           isActive: false,
           upstream: null,
-          isRetainedElsewhere: true,
+          isRetainedElsewhere: false,
           uniqueCommitCount: 1,
           worktreePath: null,
         },
@@ -1964,11 +1964,13 @@ describe("App project restoration", () => {
         name: "Lines",
       }),
     );
-    expect(screen.queryByText("stale/old-session")).toBeNull();
+    // By title: Lines quiets a name's prefix in a span of its own, and the
+    // full name is the row's title.
+    expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
 
     resolveNewRequest?.(freshVersionLines);
-    expect(await screen.findAllByText("fresh/reopened-session")).not.toHaveLength(0);
-    expect(screen.queryAllByText("stale/old-session")).toHaveLength(0);
+    expect(await screen.findAllByTitle("fresh/reopened-session")).not.toHaveLength(0);
+    expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
   });
 
   it("reopens Overview's version-line menu from cache, with no spinner", async () => {
