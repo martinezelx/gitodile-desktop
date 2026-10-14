@@ -167,6 +167,8 @@ function renderDialog(
   return { onApplied, onClose, onPhaseChange };
 }
 
+const NOTHING_TO_GET = { code: "nothing_to_get", message: "x", remediation: null };
+
 describe("Get project changes dialog", () => {
   it("says in one line what comes in and what of yours stays, without waiting on the network", async () => {
     const sync = controller();
@@ -329,9 +331,105 @@ describe("Get project changes dialog", () => {
 
   it("closes a deterministic refusal without offering a retry", async () => {
     renderDialog(controller(basePlan, {
-      planGet: vi.fn().mockRejectedValue({ code: "nothing_to_get", message: "x", remediation: null }),
+      planGet: vi.fn().mockRejectedValue({ code: "git_operation_in_progress", message: "x", remediation: null }),
     } as Partial<SyncController>));
     expect(await screen.findByRole("alertdialog", { name: "The update stopped safely" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
+  it("ends on a toast, with no dialog, when the project is already up to date", async () => {
+    const { onClose, onPhaseChange } = renderDialog(controller(basePlan, {
+      planGet: vi.fn().mockRejectedValue(NOTHING_TO_GET),
+    } as Partial<SyncController>));
+    expect(await screen.findByText("Everything is up to date. There are no newer versions to bring in.")).toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onPhaseChange).toHaveBeenLastCalledWith("success");
+    expect(onPhaseChange).not.toHaveBeenCalledWith("error");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps loading while the remote is asked, then says it is up to date", async () => {
+    let finishCheck: (status: TeamSyncStatus | null) => void = () => undefined;
+    const refreshRemote = vi.fn(() => new Promise<TeamSyncStatus | null>((resolve) => { finishCheck = resolve; }));
+    const planGet = vi.fn().mockRejectedValue(NOTHING_TO_GET);
+    const { onClose, onPhaseChange } = renderDialog(
+      controller(basePlan, { planGet } as Partial<SyncController>),
+      { refreshRemote },
+    );
+    // Past the grace period the loading shell shows, and nothing says "stopped".
+    expect(await screen.findByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    finishCheck(syncStatus(basePlan.localCommit));
+    expect(await screen.findByText("Everything is up to date. There are no newer versions to bring in.")).toBeInTheDocument();
+    expect(planGet).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onPhaseChange).not.toHaveBeenCalledWith("error");
+  });
+
+  it("says the remote could not be asked instead of claiming it is up to date", async () => {
+    let failCheck: (error: unknown) => void = () => undefined;
+    const refreshRemote = vi.fn(() => new Promise<TeamSyncStatus | null>((_, reject) => { failCheck = reject; }));
+    const planGet = vi.fn().mockRejectedValue(NOTHING_TO_GET);
+    const { onClose, onPhaseChange } = renderDialog(
+      controller(basePlan, { planGet } as Partial<SyncController>),
+      { refreshRemote },
+    );
+    expect(await screen.findByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
+    failCheck(new Error("Could not connect to origin."));
+    expect(await screen.findByRole("alertdialog", { name: "Couldn't check project changes" })).toBeInTheDocument();
+    expect(screen.getByText("Could not connect to origin.")).toBeInTheDocument();
+    expect(screen.getByText("As far as this computer knows, there are no newer versions to bring in.")).toBeInTheDocument();
+    expect(screen.queryByText("Everything is up to date. There are no newer versions to bring in.")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onPhaseChange).toHaveBeenLastCalledWith("error");
+
+    // Trying again asks the remote again; this time it answers.
+    refreshRemote.mockImplementation(async () => syncStatus(basePlan.localCommit));
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Everything is up to date. There are no newer versions to bring in.")).toBeInTheDocument();
+    expect(refreshRemote).toHaveBeenCalledTimes(2);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to its own words when the failed check gave no reason", async () => {
+    const refreshRemote = vi.fn(async (): Promise<TeamSyncStatus | null> => { throw new Error("Couldn't check project changes"); });
+    renderDialog(
+      controller(basePlan, { planGet: vi.fn().mockRejectedValue(NOTHING_TO_GET) } as Partial<SyncController>),
+      { refreshRemote },
+    );
+    expect(await screen.findByRole("alertdialog", { name: "Couldn't check project changes" })).toBeInTheDocument();
+    expect(screen.getByText("The remote didn't answer. Check your connection and try again.")).toBeInTheDocument();
+  });
+
+  it("waits for the remote check when a stale update finds nothing left to get", async () => {
+    let finishCheck: (status: TeamSyncStatus | null) => void = () => undefined;
+    const refreshRemote = vi.fn(() => new Promise<TeamSyncStatus | null>((resolve) => { finishCheck = resolve; }));
+    const planGet = vi.fn().mockResolvedValueOnce(basePlan).mockRejectedValue(NOTHING_TO_GET);
+    const get = vi.fn().mockRejectedValue({ code: "stale_get_team_changes_plan", message: "stale", remediation: null });
+    const { onClose } = renderDialog(
+      controller(basePlan, { planGet, get } as Partial<SyncController>),
+      { refreshRemote },
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Get" }));
+    // Back to loading, not stuck on "Getting…" with nothing to wait for.
+    expect(await screen.findByRole("heading", { name: "Get project changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(onClose).not.toHaveBeenCalled();
+    finishCheck(syncStatus(basePlan.localCommit));
+    expect(await screen.findByText("Everything is up to date. There are no newer versions to bring in.")).toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes from loading straight to the plan when the remote check finds versions", async () => {
+    let finishCheck: (status: TeamSyncStatus | null) => void = () => undefined;
+    const refreshRemote = vi.fn(() => new Promise<TeamSyncStatus | null>((resolve) => { finishCheck = resolve; }));
+    const planGet = vi.fn().mockRejectedValueOnce(NOTHING_TO_GET).mockResolvedValue(basePlan);
+    renderDialog(controller(basePlan, { planGet } as Partial<SyncController>), { refreshRemote });
+    expect(await screen.findByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
+    finishCheck(syncStatus(basePlan.remoteCommit));
+    expect(await screen.findByRole("heading", { name: "Get 2 versions from origin" })).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

@@ -93,6 +93,12 @@ export interface SyncTranslations {
   getTeamSaveVersion: string;
   getTeamBlockedTitle: string;
   getTeamSuccessToast: (count: number) => string;
+  /** Get project changes found nothing newer, here or on the remote. */
+  getTeamUpToDateToast: string;
+  /** The remote could not be asked, and no reason came back with it. */
+  getTeamUncheckedBody: string;
+  /** What is still known when the remote could not be asked. */
+  getTeamUncheckedLocal: string;
   getTeamMergedToast: (count: number) => string;
   getTeamPublishedToast: (received: number, published: number, remote: string) => string;
   getTeamPublishFailed: string;
@@ -222,6 +228,9 @@ const en: SyncTranslations = {
   getTeamShowInFolder: "Show in folder",
   getTeamSaveVersion: "Save version",
   getTeamBlockedTitle: "The update stopped safely",
+  getTeamUpToDateToast: "Everything is up to date. There are no newer versions to bring in.",
+  getTeamUncheckedBody: "The remote didn't answer. Check your connection and try again.",
+  getTeamUncheckedLocal: "As far as this computer knows, there are no newer versions to bring in.",
   getTeamSuccessToast: (count) => `Project up to date. ${count === 1 ? "1 version came in." : `${count} versions came in.`}`,
   getTeamMergedToast: (count) =>
     `Combined. ${count === 1 ? "1 version came in" : `${count} versions came in`} and a merge version joins ${count === 1 ? "it" : "them"} with yours.`,
@@ -354,6 +363,9 @@ const es: SyncTranslations = {
   getTeamShowInFolder: "Mostrar en carpeta",
   getTeamSaveVersion: "Guardar versión",
   getTeamBlockedTitle: "La actualización se detuvo de forma segura",
+  getTeamUpToDateToast: "Todo al día. No hay versiones nuevas que traer.",
+  getTeamUncheckedBody: "El remoto no ha respondido. Comprueba la conexión e inténtalo de nuevo.",
+  getTeamUncheckedLocal: "Por lo que sabe este ordenador, no hay versiones nuevas que traer.",
   getTeamSuccessToast: (count) => `Proyecto al día. ${count === 1 ? "Ha llegado 1 versión." : `Han llegado ${count} versiones.`}`,
   getTeamMergedToast: (count) =>
     `Combinado. ${count === 1 ? "Ha llegado 1 versión" : `Han llegado ${count} versiones`} y una versión de unión ${count === 1 ? "la junta" : "las junta"} con las tuyas.`,

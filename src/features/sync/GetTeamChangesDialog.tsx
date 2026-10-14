@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDownToLine,
+  CheckCircle2,
   ChevronDown,
   CircleAlert,
   CloudUpload,
@@ -48,16 +49,23 @@ type ExecutingPhase = GetTeamChangesPhase | "publishing";
 type DialogState =
   | { status: "planning" }
   | { status: "blocked"; error: unknown }
+  /** Nothing to get as far as this computer knows, but the remote could not
+   * be asked: a reason to try again, not "up to date". */
+  | { status: "unchecked"; error: unknown }
   | { status: "ready"; plan: GetTeamChangesPlan; remoteMoved: boolean }
   | { status: "executing"; plan: GetTeamChangesPlan; phase: ExecutingPhase }
   | { status: "uncertain"; result: GetTeamChangesResult }
   | { status: "execution-error"; plan: GetTeamChangesPlan; error: unknown }
   | { status: "publish-error"; plan: GetTeamChangesPlan; result: GetTeamChangesResult; error: unknown };
 
+/** How long a plan may take before the dialog shows its loading shell. A local
+ * plan answers well inside it, so a project that is already up to date ends
+ * on its toast without a dialog flashing open first. */
+const SHELL_DELAY_MS = 150;
+
 /** Errors a retry cannot change; the dialog only offers to close. */
 function deterministicBlock(error: unknown): boolean {
   return isAppError(error) && [
-    "nothing_to_get",
     "remote_ref_missing",
     "invalid_remote_configuration",
     "detached_head",
@@ -74,6 +82,11 @@ const UPSTREAM_GONE: AppError = {
   message: "The branch this line tracks no longer exists on the remote.",
   remediation: null,
 };
+
+/** The reason a failed check gave, unless it only repeats the title. */
+function uncheckedReason(error: unknown, title: string): string | null {
+  return error instanceof Error && error.message && error.message !== title ? error.message : null;
+}
 
 function shortCommit(commit: string): string {
   return commit.slice(0, 12);
@@ -107,7 +120,8 @@ export function GetTeamChangesDialog({
   canPublish?: boolean;
   /** Given when the last check of the remote is old: the dialog opens on
    * what it already knows and asks the remote in the background, re-planning
-   * in place if something newer arrived. */
+   * in place if something newer arrived. It rejects when the remote could not
+   * be asked, so silence is never read as "nothing new". */
   refreshRemote?: (() => Promise<TeamSyncStatus | null>) | null;
   /** The last check found the line's remote branch deleted. The kept tracking
    * ref still names versions, but there is nothing on the remote to get. */
@@ -133,6 +147,13 @@ export function GetTeamChangesDialog({
   const [state, setStateValue] = useState<DialogState>({ status: "planning" });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+  const [shellDue, setShellDue] = useState(false);
+  /* True while the background check of the remote is out. A plan that finds
+     nothing to get waits for it, because what the remote says decides. */
+  const refreshPendingRef = useRef(false);
+  /** Why this opening's check of the remote failed, if it did. */
+  const refreshFailureRef = useRef<{ error: unknown } | null>(null);
+  const upToDateRef = useRef(false);
   closeRef.current = onClose;
   phaseRef.current = onPhaseChange;
   const setState = useCallback((next: DialogState) => {
@@ -144,17 +165,53 @@ export function GetTeamChangesDialog({
     const value = typeof next === "function" ? next(true) : next;
     if (!value && !busyRef.current) closeRef.current();
   }, []);
-  useModalFocus(isOpen, dialogRef, setOpen);
+  // Nothing is on screen until the plan takes long enough to need a shell,
+  // so focus moves in only once something is.
+  const isShellVisible = shellDue || state.status !== "planning";
+  useModalFocus(isOpen && isShellVisible, dialogRef, setOpen);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const timer = window.setTimeout(() => setShellDue(true), SHELL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
+
+  /* Being up to date is an answer, not a stop: the dialog closes on a toast
+     instead of a warning to dismiss. While the remote is still being asked
+     the dialog keeps loading, so it never reports "nothing" and then turns
+     into a plan. */
+  const planFailedRef = useRef<(error: unknown) => void>(() => undefined);
+  planFailedRef.current = (error: unknown): void => {
+    if (isAppError(error) && error.code === "nothing_to_get") {
+      if (upToDateRef.current) return;
+      if (refreshPendingRef.current) {
+        // Held as loading — also when it came from a stale update — so the
+        // check's answer plans again instead of leaving a dead state behind.
+        if (stateRef.current.status !== "planning") setState({ status: "planning" });
+        return;
+      }
+      const failure = refreshFailureRef.current;
+      if (failure) {
+        setState({ status: "unchecked", error: failure.error });
+        phaseRef.current("error");
+        return;
+      }
+      upToDateRef.current = true;
+      phaseRef.current("success");
+      showToast({ icon: <CheckCircle2 />, message: t.getTeamUpToDateToast });
+      closeRef.current();
+      return;
+    }
+    setState({ status: "blocked", error });
+    phaseRef.current("error");
+  };
 
   const query = { projectId: projectPath, sessionEpoch };
   const plan = useCallback(
     (remoteMoved: boolean): Promise<void> =>
       controller.planGet({ projectId: projectPath, sessionEpoch }).then(
         (next) => setState({ status: "ready", plan: next, remoteMoved }),
-        (error: unknown) => {
-          setState({ status: "blocked", error });
-          phaseRef.current("error");
-        },
+        (error: unknown) => planFailedRef.current(error),
       ),
     [controller, projectPath, sessionEpoch, setState],
   );
@@ -170,14 +227,13 @@ export function GetTeamChangesDialog({
     }
     phaseRef.current("planning");
     setState({ status: "planning" });
+    refreshFailureRef.current = null;
     controller.planGet({ projectId: projectPath, sessionEpoch }).then(
       (next) => {
         if (!cancelled) setState({ status: "ready", plan: next, remoteMoved: false });
       },
       (error: unknown) => {
-        if (cancelled) return;
-        setState({ status: "blocked", error });
-        phaseRef.current("error");
+        if (!cancelled) planFailedRef.current(error);
       },
     );
     return () => { cancelled = true; };
@@ -186,18 +242,28 @@ export function GetTeamChangesDialog({
   // One background check when the last one is old. If the remote moved, the
   // summary is planned again in place and says so; once an update is under
   // way the check changes nothing here (execution revalidates on its own).
+  // A plan still loading is planned again whatever the check returned: it may
+  // be holding a "nothing to get" that only this check could overturn.
   const refreshRef = useRef(refreshRemote);
   refreshRef.current = refreshRemote;
   useEffect(() => {
     const refresh = refreshRef.current;
     if (!isOpen || !refresh) return undefined;
     let cancelled = false;
+    refreshPendingRef.current = true;
+    refreshFailureRef.current = null;
     setIsRefreshing(true);
     refresh()
+      .catch((error: unknown) => {
+        if (!cancelled) refreshFailureRef.current = { error };
+        return null;
+      })
       .then((status) => {
-        if (cancelled || !status) return;
+        // A newer run (Try again) owns the flags once this one is cancelled.
+        if (cancelled) return undefined;
+        refreshPendingRef.current = false;
         const current = stateRef.current;
-        if (status.state === "upstreamGone") {
+        if (status?.state === "upstreamGone") {
           if (current.status === "ready" || current.status === "planning" || current.status === "blocked") {
             setState({ status: "blocked", error: UPSTREAM_GONE });
             phaseRef.current("error");
@@ -205,8 +271,9 @@ export function GetTeamChangesDialog({
           return undefined;
         }
         const shown = current.status === "ready" ? current.plan.remoteCommit : null;
-        const stillWaiting = current.status === "planning" || current.status === "blocked";
-        if ((shown !== null && status.remoteCommit !== shown) || stillWaiting) {
+        const stillWaiting = current.status === "planning"
+          || (current.status === "blocked" && !deterministicBlock(current.error));
+        if ((status && shown !== null && status.remoteCommit !== shown) || stillWaiting) {
           return plan(shown !== null);
         }
         return undefined;
@@ -215,10 +282,16 @@ export function GetTeamChangesDialog({
       .finally(() => {
         if (!cancelled) setIsRefreshing(false);
       });
-    return () => { cancelled = true; };
-  }, [isOpen, plan]);
+    return () => {
+      cancelled = true;
+      // A cancelled check no longer holds anything back; a newer run raises
+      // the flag again if there is a check to wait for.
+      refreshPendingRef.current = false;
+      setIsRefreshing(false);
+    };
+  }, [isOpen, plan, retryToken]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isShellVisible) return null;
   const isBusy = state.status === "executing";
   busyRef.current = isBusy;
   const requestClose = (): void => {
@@ -310,6 +383,25 @@ export function GetTeamChangesDialog({
             <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
           </>
         )}
+      />
+    );
+  }
+
+  if (state.status === "unchecked") {
+    return (
+      <AlertDialog
+        tone="warning"
+        title={t.syncUnavailableTitle}
+        body={uncheckedReason(state.error, t.syncUnavailableTitle) ?? t.getTeamUncheckedBody}
+        onClose={requestClose}
+        dialogRef={dialogRef}
+        details={<p className="app-dialog__text">{t.getTeamUncheckedLocal}</p>}
+        actions={
+          <>
+            <button className="secondary-button" type="button" onClick={requestClose}>{t.commonClose}</button>
+            <button className="primary-button" type="button" onClick={replan}>{t.getTeamTryAgain}</button>
+          </>
+        }
       />
     );
   }

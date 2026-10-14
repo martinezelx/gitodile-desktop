@@ -13,6 +13,7 @@ import {
   History,
   LoaderCircle,
   RotateCcw,
+  RotateCw,
   Settings,
   Trash2,
   X,
@@ -1165,8 +1166,10 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
   return <ul>{props.rows.map((row) => fileListItem(row, props, undefined, row.kind === "file" ? props.arrivals.get(row.path) : undefined))}</ul>;
 }
 
-/** One actionable control in the clean state's block. */
-type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void };
+/** One actionable control in the clean state's block. `busy` holds it disabled
+ * with a spinner while what it started is still running, so a second press
+ * cannot start it again. */
+type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void; busy?: boolean };
 
 /** The copy and the controls the clean state shows for one repository
  * situation: a headline, a sentence about what that situation means, an
@@ -1194,6 +1197,8 @@ export function ChangesPanel({
   onSaveCompleted,
   onPublishNow,
   onGetChanges,
+  onCheckRemote,
+  isCheckingRemote = false,
   onOpenHistory,
   headState = "branch",
   selectedPath,
@@ -1238,6 +1243,14 @@ export function ChangesPanel({
   /** Brings the remote's newer versions in through the same previewed flow
    * Overview's "review and get team changes" uses. */
   onGetChanges: () => void;
+  /** Asks the remote whether anything newer arrived — the same read-only
+   * check Overview and the status bar run. Offered when the last answer was
+   * that nothing is waiting: Get project changes would only confirm it. A
+   * check that finds newer versions moves this screen to "behind", whose
+   * primary action is Get project changes. */
+  onCheckRemote: () => void;
+  /** A check of the remote is under way for this project. */
+  isCheckingRemote?: boolean;
   /** Switches the Work screen to History — the natural next look when there is
    * nothing to review, and a tab away rather than a screen away. */
   onOpenHistory: () => void;
@@ -1296,6 +1309,13 @@ export function ChangesPanel({
       icon: <ArrowDown aria-hidden="true" />,
       onClick: onGetChanges,
     };
+    const checkRemote: ChangesEmptyAction = {
+      key: "check-remote",
+      label: t.changesEmptyCheckRemote,
+      icon: <RotateCw aria-hidden="true" />,
+      onClick: onCheckRemote,
+      busy: isCheckingRemote,
+    };
     const viewHistory: ChangesEmptyAction = {
       key: "history",
       label: t.changesEmptyViewHistory,
@@ -1313,7 +1333,7 @@ export function ChangesPanel({
             icon: <ArrowUp aria-hidden="true" />,
             onClick: onPublishNow,
           },
-          secondary: [getChanges, viewHistory],
+          secondary: [checkRemote, viewHistory],
         };
       case "behind":
         return {
@@ -1356,10 +1376,10 @@ export function ChangesPanel({
           title: t.changesEmptyUpToDateTitle,
           description: t.changesEmptyUpToDateDescription,
           primary: null,
-          secondary: [getChanges, viewHistory],
+          secondary: [checkRemote, viewHistory],
         };
     }
-  }, [emptyState, t, onGetChanges, onOpenHistory, onOpenSettings, onPublishNow]);
+  }, [emptyState, t, onGetChanges, onCheckRemote, isCheckingRemote, onOpenHistory, onOpenSettings, onPublishNow]);
   useEffect(() => {
     if (!isClean) return undefined;
     let cancelled = false;
@@ -1858,8 +1878,15 @@ export function ChangesPanel({
                 {emptyContent.secondary.length > 0 && (
                   <div className="changes-empty__secondary">
                     {emptyContent.secondary.map((action) => (
-                      <button key={action.key} className="secondary-button" type="button" onClick={action.onClick}>
-                        {action.icon}
+                      <button
+                        key={action.key}
+                        className="secondary-button"
+                        type="button"
+                        onClick={action.onClick}
+                        disabled={action.busy}
+                        aria-busy={action.busy || undefined}
+                      >
+                        {action.busy ? <LoaderCircle aria-hidden="true" className="icon--spinning" /> : action.icon}
                         {action.label}
                       </button>
                     ))}

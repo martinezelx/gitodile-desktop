@@ -119,6 +119,17 @@ export function createSyncController(port: SyncPort) {
     check(runtime: ProjectRuntime, query: TeamSyncQuery, mapError: SyncErrorMapper) {
       return run(runtime, query, "check", mapError);
     },
+    /** The check Get project changes waits on. It records its result like
+     * `check`, but a failure rejects with the mapped reason: the dialog must
+     * say the remote could not be asked instead of reading the silence as
+     * "nothing new". A superseded check still resolves to null. */
+    async checkBeforeGet(runtime: ProjectRuntime, query: TeamSyncQuery, mapError: SyncErrorMapper) {
+      const status = await run(runtime, query, "check", mapError);
+      if (status) return status;
+      const error = runtime.getSnapshot().byId[query.projectId]?.teamSync.error ?? null;
+      if (error !== null) throw new Error(error);
+      return null;
+    },
     planGet(query: TeamSyncQuery) {
       return port.planGet(query);
     },

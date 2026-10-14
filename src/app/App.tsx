@@ -711,6 +711,24 @@ export function App(): React.JSX.Element {
     return true;
   };
 
+  /* The read-only check of the remote that Overview, the status bar and
+     Changes' settled state all offer: it asks, and never brings anything in. */
+  const checkTeamChanges = ({ refreshWorkingTree = false } = {}): void => {
+    if (!activeSession) return;
+    const { project, epoch } = activeSession;
+    void syncController.check(
+      projectRuntime,
+      { projectId: activeSession.id, sessionEpoch: epoch },
+      mapSyncError,
+    ).then((status) => {
+      // Changes reads ahead/behind from the working-tree snapshot, which hears
+      // that the fetch moved the tracking ref only through the watcher.
+      if (status && refreshWorkingTree && activeWatcherState !== "watching") {
+        void checkWorkingTree(project.path, epoch);
+      }
+    });
+  };
+
   // Runs on the render after Get project changes closed, when the sessions
   // state no longer holds its operation (see `saveAfterSyncSessionId`).
   const startSessionOperationRef = useRef(startSessionOperation);
@@ -2769,14 +2787,7 @@ export function App(): React.JSX.Element {
                   }}
                   onOpenSaveVersion={() => startSessionOperation("save")}
                   teamSync={teamSync}
-                  onCheckTeamChanges={() => {
-                    if (!activeSession) return;
-                    void syncController.check(
-                      projectRuntime,
-                      { projectId: activeSession.id, sessionEpoch: activeSession.epoch },
-                      mapSyncError,
-                    );
-                  }}
+                  onCheckTeamChanges={() => checkTeamChanges()}
                   onReviewAndGetTeamChanges={() => startSessionOperation("sync")}
                   onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}
                   onStopTrackingRemote={stopTrackingRemote}
@@ -2821,6 +2832,8 @@ export function App(): React.JSX.Element {
                               onSaveCompleted={() => void handleMutationSucceeded(project.path)}
                               onPublishNow={() => openPublishDialog()}
                               onGetChanges={() => startSessionOperation("sync")}
+                              onCheckRemote={() => checkTeamChanges({ refreshWorkingTree: true })}
+                              isCheckingRemote={teamSync.isCheckingRemote}
                               onOpenHistory={() => openWorkbench("history")}
                               headState={project.headState}
                               selectedPath={activeSession?.changesSelection.selectedPath ?? null}
@@ -2949,14 +2962,7 @@ export function App(): React.JSX.Element {
           }}
           versionLineCreate={versionLineCreate}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
-          onCheckTeamChanges={() => {
-            if (!activeSession) return;
-            void syncController.check(
-              projectRuntime,
-              { projectId: activeSession.id, sessionEpoch: activeSession.epoch },
-              mapSyncError,
-            );
-          }}
+          onCheckTeamChanges={() => checkTeamChanges()}
           onOpenProjectSettings={() => openProjectSettings()}
           onPrefetchProjectSettings={() => prefetchProjectSettings()}
           onPublish={() => openPublishDialog()}
@@ -3076,7 +3082,7 @@ export function App(): React.JSX.Element {
           refreshRemote={
             isRemoteCheckRecent(getTeamDialogSession.teamSync)
               ? null
-              : () => syncController.check(
+              : () => syncController.checkBeforeGet(
                 projectRuntime,
                 { projectId: getTeamDialogSession.id, sessionEpoch: getTeamDialogSession.epoch },
                 mapSyncError,

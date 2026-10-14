@@ -137,6 +137,27 @@ describe("sync controller", () => {
     expect(state.isStale).toBe(true);
   });
 
+  it("rejects the check Get project changes waits on when the remote cannot be asked", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: project("epoch-1") });
+    let fail = true;
+    const controller = createSyncController(readPort({
+      readLocal: async () => status("cached"),
+      check: async () => {
+        if (fail) throw new Error("offline");
+        return status("fresh");
+      },
+    }));
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    await expect(controller.checkBeforeGet(runtime, query, () => "Could not connect"))
+      .rejects.toThrow("Could not connect");
+    // The failure is recorded like any other check.
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.error).toBe("Could not connect");
+    fail = false;
+    await expect(controller.checkBeforeGet(runtime, query, () => "Could not connect"))
+      .resolves.toMatchObject({ state: "upToDate", knowledge: "fresh" });
+  });
+
   it("rejects a late response after close and reopen of the same path", async () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("old") });

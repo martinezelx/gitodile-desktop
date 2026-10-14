@@ -5,6 +5,8 @@ export interface ChangesTranslations {
   changesEmptyPublish: (count: number) => string;
   changesEmptyBehindDescription: (count: number) => string;
   changesEmptyGetChanges: string;
+  /** Asks the remote whether anything newer arrived, without bringing it in. */
+  changesEmptyCheckRemote: string;
   changesEmptyViewHistory: string;
   changesEmptyUpToDateTitle: string;
   changesEmptyUpToDateDescription: string;
@@ -184,6 +186,7 @@ const en: ChangesTranslations = {
       ? "1 newer version is available on the remote."
       : `${count} newer versions are available on the remote.`,
   changesEmptyGetChanges: "Get project changes",
+  changesEmptyCheckRemote: "Check for project changes",
   changesEmptyViewHistory: "View history",
   changesEmptyUpToDateTitle: "You're all caught up",
   changesEmptyUpToDateDescription: "Everything is saved and published.",
@@ -376,6 +379,7 @@ const es: ChangesTranslations = {
       ? "Hay 1 versión nueva en el remoto."
       : `Hay ${count} versiones nuevas en el remoto.`,
   changesEmptyGetChanges: "Traer cambios del proyecto",
+  changesEmptyCheckRemote: "Comprobar cambios del proyecto",
   changesEmptyViewHistory: "Ver historial",
   changesEmptyUpToDateTitle: "Todo al día",
   changesEmptyUpToDateDescription: "Todo está guardado y publicado.",

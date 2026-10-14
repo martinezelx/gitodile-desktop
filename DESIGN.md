@@ -2163,6 +2163,18 @@ A block that only the reader can lift offers the action that lifts it
 ("Save your changes" → `Save version`). `Try again` is for failures that a
 retry may actually pass.
 
+**Being up to date is an answer, not a stop.** Get project changes on a
+project with nothing newer closes on a toast ("Everything is up to date"),
+never on a warning to dismiss. Its loading shell waits 150 ms before it
+appears, so a local answer ends on the toast with no dialog flashing first;
+while an old remote check is being redone, the dialog keeps loading rather
+than saying "nothing" and then turning into a plan. When the remote could not
+be asked, it says so ("Couldn't check project changes", the reason, what this
+computer still knows) and offers `Try again` — silence is never read as "up to
+date". A screen whose last answer was "nothing is waiting" offers to check the
+remote, not to get: Changes' settled and unpublished states show "Check for
+project changes", the same read-only check as Overview and the status bar.
+
 **A plan that is still being read opens in its final shape.** The dialog
 appears at once with its title, `Cancel` and its primary action — held back
 until the plan is in — and faint text placeholders (`.text-placeholder`) where
