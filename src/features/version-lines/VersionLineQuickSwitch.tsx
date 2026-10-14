@@ -102,6 +102,7 @@ export function VersionLineQuickSwitch({
   const openActionsName = actionLine?.name ?? null;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const eligibleLines: VersionLine[] | null = snapshot
     ? snapshot.lines.filter(
         (line) => !line.isActive && line.name !== currentValue && !line.worktreePath,
@@ -117,7 +118,7 @@ export function VersionLineQuickSwitch({
             Number(favouriteLines.has(right.name)) - Number(favouriteLines.has(left.name)),
         )
     : null;
-  const visibleLines = matches?.slice(0, variant === "status" ? 6 : 9) ?? null;
+  const visibleLines = matches?.slice(0, 9) ?? null;
   /* A line can be started from here only where there is a commit for it to
      point at — not on an unborn `HEAD`, the case Lines hides its composer for. */
   const canCreate = create !== undefined && snapshot !== null && snapshot.headState !== "unborn";
@@ -132,6 +133,13 @@ export function VersionLineQuickSwitch({
     setCreating(null);
     if (restoreFocus) triggerRef.current?.focus();
   };
+  const choose = (name: string): void => {
+    close(false);
+    onSwitch(name);
+  };
+  /** The rows the arrow keys walk: every line, and the offer to make one. */
+  const rowButtons = (): HTMLButtonElement[] =>
+    Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>(".version-lines-quick-switch__choose") ?? []);
   const startCreate = (initialName: string): void => {
     setActionLine(null);
     setCreating({ initialName });
@@ -281,14 +289,27 @@ export function VersionLineQuickSwitch({
           <div className="version-lines-quick-switch__search">
             <Search aria-hidden="true" />
             <input
+              ref={searchRef}
               type="search"
               value={query}
               placeholder={t.versionLinesQuickSwitchSearchPlaceholder}
               aria-label={t.versionLinesQuickSwitchSearchPlaceholder}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
-                // Enter on a name no line has is the create row's press.
-                if (event.key === "Enter" && offersCreate && (visibleLines?.length ?? 0) === 0) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  rowButtons()[0]?.focus();
+                  return;
+                }
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                // Enter chooses the first line the search left, which is only
+                // a choice: the switch it starts is previewed like any other.
+                // On a name no line has, it is the create row's press.
+                const first = visibleLines?.[0];
+                if (first) {
+                  event.preventDefault();
+                  choose(first.name);
+                } else if (offersCreate) {
                   event.preventDefault();
                   startCreate(typed);
                 }
@@ -328,7 +349,21 @@ export function VersionLineQuickSwitch({
                   : t.versionLinesQuickSwitchEmpty}
             </p>
           ) : (
-            <ul className="version-lines-quick-switch__list" role="list">
+            <ul
+              className="version-lines-quick-switch__list"
+              role="list"
+              onKeyDown={(event) => {
+                // Up and down walk the rows; up from the first returns to the
+                // search, so the list and its filter read as one control.
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                const rows = rowButtons();
+                const index = rows.indexOf(event.target as HTMLButtonElement);
+                if (index === -1) return;
+                event.preventDefault();
+                if (event.key === "ArrowUp" && index === 0) searchRef.current?.focus();
+                else rows[event.key === "ArrowDown" ? Math.min(index + 1, rows.length - 1) : index - 1]?.focus();
+              }}
+            >
               {(visibleLines ?? []).map((line) => {
                 const isFavourite = favouriteLines.has(line.name);
                 return (
@@ -338,10 +373,7 @@ export function VersionLineQuickSwitch({
                       className="version-lines-quick-switch__choose"
                       aria-label={line.name}
                       title={line.name}
-                      onClick={() => {
-                        close(false);
-                        onSwitch(line.name);
-                      }}
+                      onClick={() => choose(line.name)}
                     >
                       <span className="version-lines-quick-switch__glyph" aria-hidden="true">
                         <GitBranch />

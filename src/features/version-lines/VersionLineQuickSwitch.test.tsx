@@ -51,10 +51,10 @@ const snapshot: VersionLinesSnapshot = {
   currentCommit: "1111111111111111111111111111111111111111",
   lines: [
     line("main", { isActive: true, uniqueCommitCount: null }),
-    ...Array.from({ length: 7 }, (_, index) => line(`feature/${index + 1}`)),
+    ...Array.from({ length: 10 }, (_, index) => line(`feature/${index + 1}`)),
     line("feature/in-other-worktree", { worktreePath: "C:\\other" }),
   ],
-  totalCount: 9,
+  totalCount: 12,
   isTruncated: false,
   unreadableCount: 0,
 };
@@ -85,7 +85,7 @@ describe("VersionLineQuickSwitch", () => {
     expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search version lines…" })).toHaveFocus();
     expect(screen.queryByRole("button", { name: "main" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "feature/7" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "feature/10" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "feature/in-other-worktree" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "feature/2" }));
@@ -97,7 +97,7 @@ describe("VersionLineQuickSwitch", () => {
     expect(trigger).toHaveFocus();
   });
 
-  it("finds an eligible line beyond the initial status-bar rows", async () => {
+  it("finds an eligible line beyond the initial rows", async () => {
     const onSwitch = vi.fn();
     render(
       <LanguageProvider>
@@ -114,9 +114,40 @@ describe("VersionLineQuickSwitch", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
-    await userEvent.type(screen.getByRole("searchbox", { name: "Search version lines…" }), "feature/7");
-    await userEvent.click(screen.getByRole("button", { name: "feature/7" }));
-    expect(onSwitch).toHaveBeenCalledWith("feature/7");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search version lines…" }), "feature/10");
+    await userEvent.click(screen.getByRole("button", { name: "feature/10" }));
+    expect(onSwitch).toHaveBeenCalledWith("feature/10");
+  });
+
+  it("walks the rows with the arrow keys and chooses the first match on Enter", async () => {
+    const onSwitch = vi.fn();
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={onSwitch}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Change version line (main)" });
+    await userEvent.click(trigger);
+    const search = screen.getByRole("searchbox", { name: "Search version lines…" });
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("button", { name: "feature/1" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("button", { name: "feature/2" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowUp}{ArrowUp}");
+    expect(search).toHaveFocus();
+
+    await userEvent.type(search, "feature/3{Enter}");
+    expect(onSwitch).toHaveBeenCalledWith("feature/3");
+    expect(screen.queryByRole("dialog", { name: "Switch version line" })).not.toBeInTheDocument();
   });
 
   it("keeps the status selector open while its own results scroll and shows commit context", async () => {

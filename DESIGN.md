@@ -1301,6 +1301,15 @@ Enter on it must not make a line by accident. Made, the popup closes: the
 control it hangs from names the new line, which is the confirmation. A
 failure stays under the field to retry.
 
+**The quick switch is one popup in both hosts.** The status bar's and
+Overview's open the same size (400 × 338px) with the same nine rows and the
+same row controls; only the side they open towards and the chevron differ. A
+smaller status-bar popup left the docked composer no room for the list it
+docks under. The keyboard walks it as one control: Down from the search moves
+into the rows, Up and Down walk them, Up from the first returns to the search,
+and Enter in the search chooses the first row it left — only a choice, since
+the switch it starts is previewed like any other.
+
 **The quick switch states a line's actions where the line is.** Each row carries
 an always-visible `⋯` — not a hover-only affordance — that shows that line's
 actions in place of the list: merging it into the current line, rebasing the

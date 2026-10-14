@@ -908,10 +908,10 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   max-width: none;
   overflow: hidden;
 }
-.version-lines-quick-switch__menu--status {
-  width: min(320px, calc(100vw - 2 * var(--space-2)));
-  height: min(250px, calc(100vh - 56px));
-}
+/* One size in every host. The status strip's popup was smaller, and the
+   composer docked at its foot then left the list no room at all; it keeps only
+   its own ceiling, since it opens upwards from a strip at the window's foot. */
+.version-lines-quick-switch__menu--status { height: min(338px, calc(100vh - 56px)); }
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .version-lines-quick-switch__search {
   display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
@@ -989,22 +989,17 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
 .version-lines-quick-switch__more:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .version-lines-quick-switch__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .version-lines-quick-switch__more[aria-expanded="true"] { background: var(--surface-active); color: var(--accent-primary); }
-.version-lines-quick-switch__menu--status .version-lines-quick-switch__more { width: 32px; height: 32px; }
 
 /* The line's actions, shown in place of the list rather than in a nested menu:
    the popup clips its overflow and dismisses on a press outside itself, so a
    second floating surface anchored to a row would be cut off or would close the
    control that opened it. Merge, rebase and compare are stated but disabled
    until the flows exist; renaming and deleting stay on the Lines screen. */
-/* The popup sizes to the actions: the fixed height the list needs (so its
-   results can scroll) is shorter on the status variant, and it clipped the note
-   at the bottom. `auto` up to a ceiling lets the same content breathe in both
-   hosts. */
 /* The actions keep the popup's size and place, as the composer does: a popup
    measured and placed once, for the list, and then shrunk to its actions hung
    in the air — above the status bar, a gap opened between it and its trigger.
-   The actions take the popup's height and scroll inside it when the status
-   bar's shorter popup cannot hold the note under them. */
+   The actions take the popup's height and scroll inside it when a short window
+   cannot hold the note under them. */
 .version-lines-quick-switch__actions {
   flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px;
   overflow-y: auto; overscroll-behavior: contain;
@@ -1070,12 +1065,6 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
 .version-lines-quick-switch__actions-note {
   margin: 8px 0 0; padding: 8px 4px 0; border-top: 1px solid var(--border-subtle);
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
-}
-.version-lines-quick-switch__menu--status .version-lines-quick-switch__glyph {
-  width: 24px; height: 24px;
-}
-.version-lines-quick-switch__menu--status .version-lines-quick-switch__favourite {
-  width: 32px; height: 32px;
 }
 /* The two hand-offs at the end of the list, on one row: a line that does not
    exist yet, and everything about a line that is not "which one am I on". A
