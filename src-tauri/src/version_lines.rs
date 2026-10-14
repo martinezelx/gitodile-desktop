@@ -840,6 +840,12 @@ pub(crate) struct VersionLineHistory {
     /// extra record rather than from `total_count`, so it stays true when the
     /// count is unavailable.
     pub(crate) has_more: bool,
+    /// The listed versions not yet on the line's upstream, by commit — asked
+    /// of Git, not inferred from the ahead count by position, which a line
+    /// that merged another one interleaves by date. `None` when the line
+    /// tracks nothing or its tracking branch is gone: where the versions stand
+    /// is then not known.
+    pub(crate) unpublished: Option<Vec<String>>,
     /// Where this line left the project's main line, and how far each has
     /// moved since. `None` for the main line itself, for a project with no
     /// main line, in a shallow clone, and whenever Git cannot say — it is
@@ -879,40 +885,18 @@ pub(crate) struct VersionLineRoute {
     pub(crate) changes: Option<LineChanges>,
 }
 
-/// The files a line changes since it parted from the main line, and by how
-/// much. The totals cover every file; `files` is the ones that change most,
-/// at most `MAX_LINE_CHANGE_FILES`.
+/// How much a line changes since it parted from the main line: how many
+/// files, and the lines written and removed across them. Totals only — the
+/// detail says them in one line beside "Compare", and the files themselves are
+/// the comparison's to list.
 #[derive(serde::Serialize, Debug, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LineChanges {
     pub(crate) files_changed: u32,
     pub(crate) additions: u32,
     pub(crate) deletions: u32,
-    pub(crate) files: Vec<ChangedFile>,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ChangedFile {
-    pub(crate) path: String,
-    pub(crate) status: ChangedFileStatus,
-    /// `None` for a binary file, which has no lines to count.
-    pub(crate) additions: Option<u32>,
-    pub(crate) deletions: Option<u32>,
-}
-
-#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum ChangedFileStatus {
-    Added,
-    Deleted,
-    Modified,
-    Renamed,
-}
-
-/// How many of a line's changed files come with the route: more than any
-/// panel shows, few enough that the answer stays small.
-pub(crate) const MAX_LINE_CHANGE_FILES: usize = 40;
 const MAX_LINE_CHANGE_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(serde::Serialize, Debug, PartialEq)]
@@ -988,15 +972,10 @@ fn read_line_route(
         // asked alongside them, whether its work came back anyway as copies.
         let own_range = format!("{base_ref}..{branch_ref}");
         let base_range = format!("{branch_ref}..{base_ref}");
-        let (((counts, forked_at), (own_versions, base_versions)), copy) = in_parallel(
+        let ((forked_at, (own_versions, base_versions)), ((counts, copy), changes)) = in_parallel(
             || {
                 in_parallel(
-                    || {
-                        in_parallel(
-                            || count_left_right(path, &format!("{base_ref}...{branch_ref}")),
-                            || commit_date(path, &merge_base),
-                        )
-                    },
+                    || commit_date(path, &merge_base),
                     || {
                         in_parallel(
                             || route_versions(path, &own_range),
@@ -1005,16 +984,29 @@ fn read_line_route(
                     },
                 )
             },
-            // A failed check is a question unanswered, not an error: the
-            // route then says what it knows — that the line is still away.
             || {
                 in_parallel(
-                    || detect_copy(path, &base_ref, branch_ref, &merge_base).unwrap_or(None),
+                    || {
+                        let counts = count_left_right(path, &format!("{base_ref}...{branch_ref}"));
+                        // Work can only have come back as copies if the main
+                        // line saved something since the parting. Asked after
+                        // the count, so a line whose main line has not moved
+                        // skips the check's patch reads — the slowest part of
+                        // this answer. A failed check is a question
+                        // unanswered, not an error: the route then says what
+                        // it knows — that the line is still away.
+                        let moved = matches!(counts, Ok(Some((base_count, _))) if base_count > 0);
+                        let copy = if moved {
+                            detect_copy(path, &base_ref, branch_ref, &merge_base).unwrap_or(None)
+                        } else {
+                            None
+                        };
+                        (counts, copy)
+                    },
                     || read_line_changes(path, &merge_base, branch_ref).unwrap_or(None),
                 )
             },
         );
-        let (copy, changes) = copy;
         let (
             Some((base_count, own_count)),
             Some(forked_at),
@@ -1416,91 +1408,37 @@ fn read_copy_return(
     )))
 }
 
-/// What a line changes between `from` and `to`: `--numstat` for the counts,
-/// `--name-status` for what happened to each file, asked side by side. Renames
-/// are followed, so a moved file is one change and not a deletion and an
-/// addition. Read only; `None` when either answer is missing or too large.
+/// What a line changes between `from` and `to`, from one `--numstat`.
+/// Renames are followed, so a moved file is one change and not a deletion and
+/// an addition. Read only; `None` when the answer is missing or too large.
 fn read_line_changes(path: &str, from: &str, to: &str) -> Result<Option<LineChanges>, AppError> {
-    let (numstat, statuses) = in_parallel(
-        || {
-            run_git_capped(
-                path,
-                &[
-                    "diff",
-                    "--numstat",
-                    "-z",
-                    "-M",
-                    "--no-color",
-                    "--no-ext-diff",
-                    "--no-textconv",
-                    from,
-                    to,
-                    "--",
-                ],
-                MAX_LINE_CHANGE_BYTES,
-            )
-        },
-        || {
-            run_git_capped(
-                path,
-                &[
-                    "diff",
-                    "--name-status",
-                    "-z",
-                    "-M",
-                    "--no-color",
-                    "--no-ext-diff",
-                    from,
-                    to,
-                    "--",
-                ],
-                MAX_LINE_CHANGE_BYTES,
-            )
-        },
-    );
-    let (numstat, statuses) = (numstat?, statuses?);
-    let complete = |output: &crate::git_command::CappedOutput| {
-        output.status.success() && !output.limit_exceeded
-    };
-    if !complete(&numstat) || !complete(&statuses) {
+    let numstat = run_git_capped(
+        path,
+        &[
+            "diff",
+            "--numstat",
+            "-z",
+            "-M",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            from,
+            to,
+            "--",
+        ],
+        MAX_LINE_CHANGE_BYTES,
+    )?;
+    if !numstat.status.success() || numstat.limit_exceeded {
         return Ok(None);
     }
-    Ok(Some(parse_line_changes(
-        &numstat.stdout,
-        &statuses.stdout,
-        MAX_LINE_CHANGE_FILES,
-    )))
+    Ok(Some(parse_line_changes(&numstat.stdout)))
 }
 
-/// Joins `git diff --numstat -z` and `--name-status -z` into one list,
-/// largest change first. A path that is not valid UTF-8 is shown lossily —
-/// it names a file in a summary, and nothing addresses it.
-pub(crate) fn parse_line_changes(numstat: &[u8], statuses: &[u8], limit: usize) -> LineChanges {
-    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
-
-    // `--name-status -z`: `M\0path\0`, or `R100\0old\0new\0` for a rename.
-    let mut status_of = std::collections::HashMap::new();
-    let mut fields = statuses
-        .split(|byte| *byte == 0)
-        .filter(|field| !field.is_empty());
-    while let Some(code) = fields.next() {
-        let status = match code.first() {
-            Some(b'A') => ChangedFileStatus::Added,
-            Some(b'D') => ChangedFileStatus::Deleted,
-            Some(b'R') | Some(b'C') => ChangedFileStatus::Renamed,
-            _ => ChangedFileStatus::Modified,
-        };
-        if matches!(code.first(), Some(b'R') | Some(b'C')) {
-            let _old = fields.next();
-        }
-        if let Some(path) = fields.next() {
-            status_of.insert(text(path), status);
-        }
-    }
-
-    // `--numstat -z`: `added\tdeleted\tpath\0`, or, for a rename,
-    // `added\tdeleted\t\0old\0new\0`; `-` counts for a binary file.
-    let mut files = Vec::new();
+/// Totals `git diff --numstat -z`: one record per file, `added\tdeleted\tpath\0`,
+/// or for a rename `added\tdeleted\t\0old\0new\0`. A binary file counts as a
+/// file with no lines (`-\t-`).
+pub(crate) fn parse_line_changes(numstat: &[u8]) -> LineChanges {
+    let mut changes = LineChanges::default();
     let mut records = numstat.split(|byte| *byte == 0);
     while let Some(record) = records.next() {
         if record.is_empty() {
@@ -1511,45 +1449,21 @@ pub(crate) fn parse_line_changes(numstat: &[u8], statuses: &[u8], limit: usize) 
         else {
             continue;
         };
-        let path = if rest.is_empty() {
+        if rest.is_empty() {
+            // A rename: its two paths follow as records of their own.
             let _old = records.next();
-            match records.next() {
-                Some(new) => text(new),
-                None => continue,
-            }
-        } else {
-            text(rest)
-        };
+            let _new = records.next();
+        }
         let count = |value: &[u8]| {
             std::str::from_utf8(value)
                 .ok()
                 .and_then(|value| value.parse::<u32>().ok())
+                .unwrap_or(0)
         };
-        files.push(ChangedFile {
-            status: status_of
-                .get(&path)
-                .copied()
-                .unwrap_or(ChangedFileStatus::Modified),
-            path,
-            additions: count(added),
-            deletions: count(deleted),
-        });
+        changes.files_changed = changes.files_changed.saturating_add(1);
+        changes.additions = changes.additions.saturating_add(count(added));
+        changes.deletions = changes.deletions.saturating_add(count(deleted));
     }
-
-    let mut changes = LineChanges {
-        files_changed: u32::try_from(files.len()).unwrap_or(u32::MAX),
-        additions: files.iter().filter_map(|file| file.additions).sum(),
-        deletions: files.iter().filter_map(|file| file.deletions).sum(),
-        files: Vec::new(),
-    };
-    let churn = |file: &ChangedFile| file.additions.unwrap_or(0) + file.deletions.unwrap_or(0);
-    files.sort_by(|left, right| {
-        churn(right)
-            .cmp(&churn(left))
-            .then_with(|| left.path.cmp(&right.path))
-    });
-    files.truncate(limit);
-    changes.files = files;
     changes
 }
 
@@ -1675,38 +1589,41 @@ pub(crate) fn get_version_line_history(
     path: String,
     name: String,
 ) -> Result<VersionLineHistory, AppError> {
+    // Superseded only by a newer read of the same line: the next line's read,
+    // or one started ahead of a press, is a different question.
     let (_repository, _access) =
-        application::authorize_repository(&path, "get_version_line_history", None)?;
+        application::authorize_repository_read_of(&path, "get_version_line_history", &name)?;
     validate_branch_ref_name(&path, &name)?;
     let branch_ref = format!("refs/heads/{name}");
     // The fully qualified ref: a bare name could resolve to a tag or a
     // remote-tracking branch of the same name, and this screen is only ever
     // describing a local line. One process answers both whether it exists and
     // which version it stands on — the route needs the second.
-    let Some(tip) = rev_parse_commit(
-        &path,
-        &[
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            &format!("{branch_ref}^{{commit}}"),
-        ],
-    )?
-    else {
+    let tip_spec = format!("{branch_ref}^{{commit}}");
+    let (tip, shallow) = in_parallel(
+        || rev_parse_commit(&path, &["rev-parse", "--verify", "--quiet", &tip_spec]),
+        || run_git(&path, &["rev-parse", "--is-shallow-repository"]),
+    );
+    let Some(tip) = tip? else {
         return Err(AppError::new(
             AppErrorCode::InvalidSelection,
             "That version line no longer exists.",
         )
         .with_remediation("Refresh and try again."));
     };
-    let shallow = run_git(&path, &["rev-parse", "--is-shallow-repository"])?;
+    let shallow = shallow?;
     let is_shallow = shallow.status.success() && git_stdout(&shallow) == "true";
 
     // The versions and the route are separate questions, so they are asked
     // side by side: the route is most of this read's Git processes, and the
     // total count below can walk the whole history.
-    let (listed, route) = in_parallel(
-        || read_listed_versions(&path, &branch_ref, is_shallow),
+    let ((listed, unpublished), route) = in_parallel(
+        || {
+            in_parallel(
+                || read_listed_versions(&path, &branch_ref, is_shallow),
+                || read_unpublished(&path, &name, &branch_ref),
+            )
+        },
         || {
             // A shallow clone's merge base is where this machine's history
             // stops, not where the lines parted; a failed read is extra detail
@@ -1725,8 +1642,31 @@ pub(crate) fn get_version_line_history(
         total_count,
         versions,
         has_more,
+        unpublished,
         route,
     })
+}
+
+/// Which of a line's newest versions its upstream does not hold yet. Walked
+/// from the tip in the listing's own order, so every listed version not on the
+/// upstream is within the first few the walk finds; a little past the listing
+/// for slack. `None` without an upstream to ask (none configured, or its
+/// tracking branch gone) or when Git cannot say.
+fn read_unpublished(path: &str, name: &str, branch_ref: &str) -> Option<Vec<String>> {
+    let range = format!("{name}@{{upstream}}..{branch_ref}");
+    let max_count = format!("--max-count={}", VERSION_LINE_HISTORY_LIMIT * 4);
+    let output = run_git(path, &["rev-list", &max_count, &range, "--"]).ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(
+        git_stdout(&output)
+            .lines()
+            .map(str::trim)
+            .filter(|commit| is_object_id(commit))
+            .map(str::to_string)
+            .collect(),
+    )
 }
 
 /// The newest versions on a line, whether there are more, and how many there
@@ -2239,26 +2179,18 @@ mod tests {
     }
 
     #[test]
-    fn parse_line_changes_joins_counts_and_statuses_largest_first() {
+    fn parse_line_changes_totals_every_file_renames_and_binaries_included() {
         let numstat = b"3\t1\tsrc/a.rs\x0010\t0\tsrc/new.rs\x00-\t-\tlogo.png\x002\t2\t\x00old/b.rs\x00new/b.rs\x00";
-        let statuses = b"M\x00src/a.rs\x00A\x00src/new.rs\x00M\x00logo.png\x00R090\x00old/b.rs\x00new/b.rs\x00";
-        let changes = parse_line_changes(numstat, statuses, 3);
-        assert_eq!(changes.files_changed, 4);
-        assert_eq!(changes.additions, 15);
-        assert_eq!(changes.deletions, 3);
-        let files = changes
-            .files
-            .iter()
-            .map(|file| (file.path.as_str(), file.status, file.additions))
-            .collect::<Vec<_>>();
+        let changes = parse_line_changes(numstat);
         assert_eq!(
-            files,
-            [
-                ("src/new.rs", ChangedFileStatus::Added, Some(10)),
-                ("new/b.rs", ChangedFileStatus::Renamed, Some(2)),
-                ("src/a.rs", ChangedFileStatus::Modified, Some(3)),
-            ]
+            changes,
+            LineChanges {
+                files_changed: 4,
+                additions: 15,
+                deletions: 3,
+            }
         );
+        assert_eq!(parse_line_changes(b""), LineChanges::default());
     }
 
     #[test]
@@ -2268,6 +2200,34 @@ mod tests {
         assert_eq!(parse_left_right_count("3"), None);
         assert_eq!(parse_left_right_count("3 5 7"), None);
         assert_eq!(parse_left_right_count("x 5"), None);
+    }
+
+    #[test]
+    fn get_version_line_history_names_the_versions_its_upstream_lacks() {
+        let (repo, remote, main) = published_repo_and_remote("vl-unpublished");
+        write_and_commit(&repo, "b.txt", "local\n", "only here");
+        let tip = git_command(&repo)
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .expect("read the tip");
+        let tip = String::from_utf8_lossy(&tip.stdout).trim().to_string();
+
+        let history =
+            get_version_line_history(repo.clone(), main.clone()).expect("history should read");
+        assert_eq!(history.unpublished, Some(vec![tip]));
+
+        // A line that tracks nothing: where its versions stand is not known.
+        let status = git_command(&repo)
+            .args(["branch", "-q", "local-only"])
+            .status()
+            .expect("create a line");
+        assert!(status.success());
+        let local = get_version_line_history(repo.clone(), "local-only".to_string())
+            .expect("history should read");
+        assert_eq!(local.unpublished, None);
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
     }
 
     #[test]
@@ -2322,11 +2282,16 @@ mod tests {
         );
         assert_eq!(subjects(&route.base_versions), ["main moves on"]);
         assert!(route.merge.is_none());
-        // What it changes against the main line: one file, two lines written.
+        // What it changes against the main line: one new file of one line.
         let changes = route.changes.expect("a line away from main has changes");
-        assert_eq!(changes.files_changed, 1);
-        assert_eq!(changes.files[0].path, "b.txt");
-        assert_eq!(changes.files[0].status, ChangedFileStatus::Added);
+        assert_eq!(
+            changes,
+            LineChanges {
+                files_changed: 1,
+                additions: 1,
+                deletions: 0,
+            }
+        );
 
         // The main line itself is what the others are measured against.
         let main_history =

@@ -10,6 +10,7 @@ import {
   CircleDot,
   Cloud,
   CloudOff,
+  CloudUpload,
   GitBranch,
   Info,
   Laptop,
@@ -27,7 +28,7 @@ import { VersionLineContextMenu, type VersionLineContextMenuState } from "./Vers
 import { VersionLineQuickCreateBox } from "./VersionLineQuickCreateBox";
 import { VersionLineRenameStrip } from "./VersionLineRenameStrip";
 import { VersionLineRoute, type DrawnRoute } from "./VersionLineRoute";
-import { VersionLineChanges } from "./VersionLineChanges";
+import { VersionLineIntegrations } from "./VersionLineIntegrations";
 import {
   CreateVersionLineDialog,
   DeleteVersionLineDialog,
@@ -126,13 +127,6 @@ function syncText(sync: SyncStatus, t: Translations): string {
   }
 }
 
-/** The tip is published only when a remote branch is known to hold it: an
- * upstream that still exists and nothing waiting to be pushed. Anything else
- * is honestly "not published yet" rather than a guess either way. */
-function isTipPublished(line: VersionLine): boolean {
-  return line.upstream !== null && !line.upstreamGone && (line.upstreamAhead ?? 0) === 0;
-}
-
 function tipDate(line: VersionLine): Date | null {
   if (!line.tip.committedAt) {
     return null;
@@ -141,10 +135,37 @@ function tipDate(line: VersionLine): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** How many saved versions the detail lists while the comparison with the
- * main line has the panel's height — enough to see the line's latest work,
- * the rest one press away in History. */
-const VERSIONS_BESIDE_CHANGES = 4;
+/** Where a listed version stands against the line's remote copy. Git's own
+ * answer when the read brought one — the versions the upstream lacks, by
+ * commit — since a line that merged another interleaves the two by date and
+ * a position says nothing. Until then, the line's ahead count by position.
+ * Without a remote copy to count against — none, gone, or not counted — it is
+ * not known, and the node says so rather than guessing. */
+type VersionPublication = "local-only" | "published" | "unknown";
+
+function publicationAt(
+  line: VersionLine,
+  unpublished: readonly string[] | null,
+  commit: string,
+  index: number,
+): VersionPublication {
+  if (line.upstream === null || line.upstreamGone) return "unknown";
+  if (unpublished) return unpublished.includes(commit) ? "local-only" : "published";
+  if (line.upstreamAhead === null) return "unknown";
+  return index < line.upstreamAhead ? "local-only" : "published";
+}
+
+/** The remote named as History's and Overview's boundaries name it: the
+ * remote alone when it holds a branch of the line's own name, `remote ·
+ * branch` otherwise. */
+function publishedOnLabel(line: VersionLine): string | null {
+  if (!line.upstream) return null;
+  const slash = line.upstream.indexOf("/");
+  if (slash < 0) return line.upstream;
+  const remote = line.upstream.slice(0, slash);
+  const branch = line.upstream.slice(slash + 1);
+  return branch === line.name ? remote : `${remote} · ${branch}`;
+}
 
 /* ---------------------------------------------------------------- list ---- */
 
@@ -275,6 +296,7 @@ const VersionLineRow = React.memo(function VersionLineRow({
   onContextMenu,
   onRename,
   onHoverIntent,
+  justRenamed = false,
 }: {
   line: VersionLine;
   selected: boolean;
@@ -292,6 +314,8 @@ const VersionLineRow = React.memo(function VersionLineRow({
    * starts this line's detail read on the first, a moment before the press
    * that would otherwise start it. */
   onHoverIntent?: (line: VersionLine | null) => void;
+  /** The line was just renamed: its name lights once, with the strip's. */
+  justRenamed?: boolean;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const glyphs = rowGlyphs(line, t, formats);
@@ -332,7 +356,7 @@ const VersionLineRow = React.memo(function VersionLineRow({
   return (
     <button
       id={`version-line-${line.name}`}
-      className={`version-line-row${selected ? " version-line-row--selected" : ""}${line.isActive ? " version-line-row--active" : ""}`}
+      className={`version-line-row${selected ? " version-line-row--selected" : ""}${line.isActive ? " version-line-row--active" : ""}${justRenamed ? " version-line-row--renamed" : ""}`}
       type="button"
       role="option"
       aria-selected={selected}
@@ -689,12 +713,25 @@ function relationEntries(
   return entries;
 }
 
+/** The way to publish beside what is waiting to be published, in the shape
+ * History's group head and Overview's "Publish up to here" wear: quiet until
+ * the pointer finds it, with only the cloud in the accent. */
+function PublishCapsule({ onPublish, label }: { onPublish?: () => void; label: string }): React.JSX.Element {
+  return (
+    <button className="version-lines-publish" type="button" onClick={() => onPublish?.()}>
+      <CloudUpload aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
 /** The detail column: the selected line named once at the top with whatever
  * can be done to it, then where it stands and the versions on it. One surface
  * divided by rules — the sibling of the History saved-version card, and it
  * takes the same one. */
 function VersionLineDetail({
   line,
+  activeName,
   mainName,
   history,
   historyLoading,
@@ -704,10 +741,14 @@ function VersionLineDetail({
   onRename,
   onDelete,
   onOpenHistory,
+  onPublish,
   onBack,
   renameEditor,
+  settle = null,
 }: {
   line: VersionLine;
+  /** The line the project is on, `null` when none is checked out. */
+  activeName: string | null;
   /** The project's main line, by name — what this line's own versions are
    * counted against. `null` when the project has none. */
   mainName: string | null;
@@ -728,26 +769,25 @@ function VersionLineDetail({
    * version selected. Lines' own list of saved versions is a preview of the
    * one History draws in full. */
   onOpenHistory?: (name: string, commit?: string) => void;
+  /** Opens the publish flow, which publishes the active line — offered on
+   * that line only. */
+  onPublish?: () => void;
   onBack: () => void;
   /** The strip in its editing state while this line is being renamed —
    * `VersionLineRenameStrip`, owned by the panel — drawn in place of the
    * strip at rest. */
   renameEditor?: React.ReactNode;
+  /** The rename just closed: the strip at rest fades its byline and actions
+   * back in, and — when the name changed — lights the name once. */
+  settle?: "returned" | "renamed" | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
-  const published = isTipPublished(line);
   /* The route section is drawn for a line that has one, and — while the read
      is out — for any line that will: any but the main line, in a project that
      has one. */
   const routeShown =
     history?.route != null || (historyLoading && mainName !== null && line.name !== mainName);
   const [highlighted, setHighlighted] = useState<string | null>(null);
-  /* What the line changes against the main line comes with its route, and
-     takes the height the panel has left — the saved versions, the least of
-     the three, step down to a short preview under it. Kept in place while
-     the read is out, like the route, so the versions do not jump when it
-     lands. */
-  const changesShown = routeShown && (history?.route ? history.route.changes !== null : true);
   const date = tipDate(line);
   /* The tip's own record in the read, matched by commit rather than taken as
    * the first one. The two answers come from two Git calls: the inventory
@@ -766,8 +806,27 @@ function VersionLineDetail({
     { ...line.tip, authorName: author },
     ...(history?.versions ?? []).filter((version) => version.commit !== line.tip.commit),
   ];
-  const shownVersions = changesShown ? versions.slice(0, VERSIONS_BESIDE_CHANGES) : versions;
-  const moreVersions = (history?.totalCount ?? versions.length) - shownVersions.length;
+  /* Where what is only on this computer ends and what the remote has begins,
+     drawn as History and Overview draw it: a head over the versions only here
+     and the remote's cloud where its copy starts. Nothing when every listed
+     version is on one side. */
+  const unpublished = history?.unpublished ?? null;
+  const publications = versions.map((version, index) => publicationAt(line, unpublished, version.commit, index));
+  /* The head goes over the newest run of versions only here, and the remote's
+     mark where the first published one follows it. */
+  const boundaryIndex = publications.findIndex(
+    (publication, index) => index > 0 && publication === "published" && publications[index - 1] === "local-only",
+  );
+  const publishedOn = publishedOnLabel(line);
+  /* Publishing is the active line's: the flow publishes the line the project
+     is on. Offered while it has something to send — versions ahead, or no
+     copy on the remote yet, or one that was deleted — and not while the
+     remote has versions of its own, which have to be got first. */
+  const sync = syncStatusOf(line);
+  const canPublish =
+    onPublish !== undefined &&
+    line.isActive &&
+    (sync.kind === "ahead" || sync.kind === "none" || sync.kind === "gone");
 
   return (
     <section className="version-lines-detail" aria-label={t.versionLinesDetailAriaLabel(line.name)}>
@@ -785,7 +844,11 @@ function VersionLineDetail({
             meta line: taller than the header next to it, and the glyph was the
             rail's own icon a second time. */}
         {renameEditor ?? (
-        <header className="version-lines-detail__strip">
+        <header
+          className={`version-lines-detail__strip${settle ? " version-lines-detail__strip--settling" : ""}${
+            settle === "renamed" ? " version-lines-detail__strip--renamed" : ""
+          }`}
+        >
           <div className="version-lines-detail__identity">
             <h2>
               <span className="version-lines-detail__name" title={line.name}>
@@ -803,7 +866,9 @@ function VersionLineDetail({
               <p className="version-lines-detail__meta">
                 <span className="version-lines-detail__byline-label">{t.versionLinesLatestSavedLabel}</span>
                 {author && <strong>{author}</strong>}
-                {date && <span>{formatDate(date, formats)}</span>}
+                {/* Relative, as the list beside it says when; the exact date
+                    is on the tooltip. */}
+                {date && <span title={formatDate(date, formats)}>{formatRelativeTime(date, formats)}</span>}
               </p>
             )}
           </div>
@@ -841,6 +906,9 @@ function VersionLineDetail({
                       <strong>{entry.title}</strong>
                       {entry.detail}
                     </span>
+                    {entry.key === "remote" && canPublish && (
+                      <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -869,20 +937,24 @@ function VersionLineDetail({
               </section>
             )}
 
-            {changesShown && (
-              <VersionLineChanges
-                changes={history?.route?.changes ?? null}
-                base={history?.route?.base ?? mainName ?? ""}
-                brought={Boolean(history?.route?.merge)}
-              />
-            )}
+            {/* What this line can do with the other end — the active line, or
+                the main line when this is the active one. A few rows that
+                never grow, so the versions below keep the height. */}
+            <VersionLineIntegrations
+              line={line}
+              activeName={activeName}
+              mainName={mainName}
+              route={history?.route ?? null}
+            />
 
             {/* One list, not a card for the latest version and a list of the
                 rest under it. They are the same sequence, and the split cost a
-                heading and a rule to separate a row from the row below it. The
-                newest carries what only it can say — whether it is published,
-                and its hash — and the others carry when they landed. */}
-            <section className={`version-lines-card${changesShown ? "" : " version-lines-card--fill"}`}>
+                heading and a rule to separate a row from the row below it.
+                Each version sits on a rail with History's and Overview's node:
+                half filled while only here, a solid neutral disc once
+                published, an empty ring when that is not known — so no row
+                needs a chip to say it, and the code shows under the pointer. */}
+            <section className="version-lines-card version-lines-card--fill">
               {/* The way on to History heads the list it continues rather than
                   closing the card as a band of its own: the versions here are
                   a preview of the sequence History draws in full, so "all of
@@ -914,22 +986,32 @@ function VersionLineDetail({
                 {...autoHideScrollbarProps<HTMLOListElement>()}
                 className="version-lines-recent auto-hide-scrollbar"
               >
-                {shownVersions.map((version, index) => {
+                {boundaryIndex > 0 && (
+                  <li className="version-lines-recent__head">
+                    <span className="version-lines-recent__mark version-lines-recent__mark--local" aria-hidden="true">
+                      <CloudUpload />
+                    </span>
+                    <span className="version-lines-recent__caption">{t.versionLinesLocalGroup}</span>
+                    {canPublish && <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />}
+                  </li>
+                )}
+                {versions.map((version, index) => {
                   const savedAt = version.committedAt ? new Date(version.committedAt) : null;
                   const valid = savedAt !== null && !Number.isNaN(savedAt.getTime());
+                  const publication = publications[index];
+                  const state =
+                    publication === "published"
+                      ? t.versionLinesPublishedPill
+                      : publication === "local-only"
+                        ? t.versionLinesUnpublishedPill
+                        : undefined;
                   const body = (
                     <>
+                      <span className="version-lines-recent__node" aria-hidden="true" />
                       <span className="version-lines-recent__subject" title={version.subject}>
                         {version.subject}
                       </span>
-                      {index === 0 && (
-                        <span
-                          className={`version-line-chip${published ? " version-line-chip--positive" : ""}`}
-                        >
-                          {published ? t.versionLinesPublishedPill : t.versionLinesUnpublishedPill}
-                        </span>
-                      )}
-                      {index === 0 && <code>{version.shortCommit}</code>}
+                      <code>{version.shortCommit}</code>
                       {valid && (
                         <span
                           className="version-lines-recent__date"
@@ -941,48 +1023,54 @@ function VersionLineDetail({
                     </>
                   );
                   return (
-                    <li
-                      key={version.commit}
-                      // The row the reader is on lights the same version's dot
-                      // in the route above — by keyboard as well as pointer, so
-                      // the drawing answers the list for someone who cannot
-                      // reach its dots.
-                      onFocus={() => setHighlighted(version.commit)}
-                      onBlur={() => setHighlighted(null)}
-                      onMouseEnter={() => setHighlighted(version.commit)}
-                      onMouseLeave={() => setHighlighted(null)}
-                    >
-                      {/* A row opens this version in History, the way a row in
-                          any of the three lists opens what it names. Without a
-                          host to open it the row states the version and stays
-                          a row rather than pretending to be a control. */}
-                      {onOpenHistory ? (
-                        <button
-                          className="version-lines-recent__open"
-                          type="button"
-                          aria-label={t.versionLinesOpenVersionLabel(version.subject)}
-                          onClick={() => onOpenHistory(line.name, version.commit)}
-                        >
-                          {body}
-                        </button>
-                      ) : (
-                        body
+                    <React.Fragment key={version.commit}>
+                      {index === boundaryIndex && (
+                        <li className="version-lines-recent__boundary" aria-hidden="true">
+                          <span className="version-lines-recent__mark version-lines-recent__mark--remote"><Cloud /></span>
+                          <span className="version-lines-recent__caption">
+                            {t.versionLinesBoundaryPublishedOn}{" "}
+                            <span className="version-lines-recent__remote">{publishedOn}</span>
+                          </span>
+                          <span className="version-lines-recent__rule" />
+                        </li>
                       )}
-                    </li>
+                      <li
+                        className={`version-lines-recent__row version-lines-recent__row--${publication}`}
+                        data-first={(index === 0 && boundaryIndex <= 0) || undefined}
+                        data-last={index === versions.length - 1 || undefined}
+                        // The row the reader is on lights the same version's dot
+                        // in the route above — by keyboard as well as pointer, so
+                        // the drawing answers the list for someone who cannot
+                        // reach its dots.
+                        onFocus={() => setHighlighted(version.commit)}
+                        onBlur={() => setHighlighted(null)}
+                        onMouseEnter={() => setHighlighted(version.commit)}
+                        onMouseLeave={() => setHighlighted(null)}
+                      >
+                        {/* A row opens this version in History, the way a row in
+                            any of the three lists opens what it names. Without a
+                            host to open it the row states the version and stays
+                            a row rather than pretending to be a control. The
+                            node is drawn, so where the version stands is said
+                            in words for a screen reader. */}
+                        {onOpenHistory ? (
+                          <button
+                            className="version-lines-recent__open"
+                            type="button"
+                            aria-label={t.versionLinesOpenVersionLabel(version.subject)}
+                            aria-description={state}
+                            onClick={() => onOpenHistory(line.name, version.commit)}
+                          >
+                            {body}
+                          </button>
+                        ) : (
+                          body
+                        )}
+                      </li>
+                    </React.Fragment>
                   );
                 })}
               </ol>
-              {/* Cut short beside the comparison: how many more there are, and
-                  the way to them — the same way the header offers. */}
-              {changesShown && moreVersions > 0 && onOpenHistory && (
-                <button
-                  className="version-lines-recent__more"
-                  type="button"
-                  onClick={() => onOpenHistory(line.name)}
-                >
-                  {t.versionLinesVersionsMore(moreVersions, formatNumber(moreVersions, formats))}
-                </button>
-              )}
             </section>
           </div>
         </div>
@@ -1006,6 +1094,8 @@ export function VersionLinesPanel({
   onSnapshot,
   readHistory,
   peekHistory,
+  prefetchHistory,
+  onPublish,
   onChanged,
   onSaveVersion,
   onOpenChanges,
@@ -1045,6 +1135,10 @@ export function VersionLinesPanel({
    * screen renders the detail whole instead of asking Git again merely
    * because it became visible. Never starts a read. */
   peekHistory?: (name: string, tipCommit: string) => VersionLineHistory | null;
+  /** Starts a line's read ahead of a press, unless another read is out. */
+  prefetchHistory?: (name: string, tipCommit: string) => void;
+  /** Opens the publish flow for the active line. */
+  onPublish?: () => void;
   /** Called after any successful create/switch/delete so the rest of the
    * app (repository facts, working-tree status, selection) can invalidate
    * itself — see `app/App.tsx`'s `handleVersionLineChanged`. */
@@ -1088,6 +1182,15 @@ export function VersionLinesPanel({
      a name rather than to "the selection" so choosing another line drops it
      instead of carrying a half-typed name over to a line it was not for. */
   const [renaming, setRenaming] = useState<string | null>(null);
+  /* The rename that just closed, for the one motion that says so: the strip
+     fading back in, and the new name lighting once in the strip and the row.
+     Cleared once that has played, so a later visit to the line is still. */
+  const [settled, setSettled] = useState<{ name: string; saved: boolean } | null>(null);
+  useEffect(() => {
+    if (!settled) return undefined;
+    const timer = window.setTimeout(() => setSettled(null), 700);
+    return () => window.clearTimeout(timer);
+  }, [settled]);
   const selectLine = useCallback((name: string) => {
     setSelectedName(name);
     setRenaming((current) => (current === name ? current : null));
@@ -1328,13 +1431,13 @@ export function VersionLinesPanel({
         window.clearTimeout(hoverTimerRef.current);
         hoverTimerRef.current = null;
       }
-      if (!line || !readHistory || peekHistory?.(line.name, line.tip.commit)) return;
+      if (!line || !prefetchHistory || peekHistory?.(line.name, line.tip.commit)) return;
       hoverTimerRef.current = window.setTimeout(() => {
         hoverTimerRef.current = null;
-        void readHistory(line.name, line.tip.commit).catch(() => undefined);
+        prefetchHistory(line.name, line.tip.commit);
       }, 120);
     },
-    [peekHistory, readHistory],
+    [peekHistory, prefetchHistory],
   );
   useEffect(
     () => () => {
@@ -1363,6 +1466,7 @@ export function VersionLinesPanel({
    * edited is the one describing it; in a one-column window the detail is
    * brought forward, since that is where the field is. */
   function startRename(name: string): void {
+    setSettled(null);
     setSelectedName(name);
     setRenaming(name);
     setShowNarrowDetail(true);
@@ -1370,8 +1474,9 @@ export function VersionLinesPanel({
 
   /** The row keeps the keyboard's place once the strip closes, under whatever
    * name the line now has. */
-  function endRename(name: string): void {
+  function endRename(name: string, saved: boolean): void {
     setRenaming(null);
+    setSettled({ name, saved });
     requestAnimationFrame(() => document.getElementById(`version-line-${name}`)?.focus());
   }
 
@@ -1629,6 +1734,7 @@ export function VersionLinesPanel({
                 onMove={moveSelection}
                 onRename={startRename}
                 onHoverIntent={handleHoverIntent}
+                justRenamed={settled?.saved === true && settled.name === line.name}
                 onOpenDetail={() => setShowNarrowDetail(true)}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -1679,7 +1785,9 @@ export function VersionLinesPanel({
         {selected ? (
           <VersionLineDetail
             key={selected.name}
+            settle={settled?.name === selected.name ? (settled.saved ? "renamed" : "returned") : null}
             line={selected}
+            activeName={active?.name ?? null}
             mainName={defaultLine?.name ?? null}
             history={history?.name === selected.name ? history : null}
             historyLoading={historyLoading}
@@ -1689,6 +1797,7 @@ export function VersionLinesPanel({
             onRename={() => startRename(selected.name)}
             onDelete={() => openDialog({ kind: "delete", target: selected.name })}
             onOpenHistory={onOpenHistory}
+            onPublish={onPublish}
             onBack={() => setShowNarrowDetail(false)}
             renameEditor={
               renaming === selected.name ? (
@@ -1696,9 +1805,10 @@ export function VersionLinesPanel({
                   projectPath={projectPath}
                   sessionEpoch={sessionEpoch}
                   target={selected.name}
+                  isActive={selected.isActive}
                   upstream={selected.upstream}
                   existingNames={lineNames}
-                  onCancel={() => endRename(selected.name)}
+                  onCancel={() => endRename(selected.name, false)}
                   onRenamed={(next, newName) => {
                     // The selection follows the rename — by the name it was
                     // given, not by looking for the tip commit again: a line
@@ -1706,7 +1816,7 @@ export function VersionLinesPanel({
                     // tip, and the search would find whichever came first.
                     setSelectedName(newName);
                     handleMutated(next);
-                    endRename(newName);
+                    endRename(newName, true);
                   }}
                   onOperationStart={onOperationStart}
                   onOperationFinish={onOperationFinish}

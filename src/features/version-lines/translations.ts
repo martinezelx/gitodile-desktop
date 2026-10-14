@@ -149,22 +149,32 @@ export interface VersionLinesTranslations {
   /** The Lines detail's drawing of where the line left the main line, and
    * the sentence under it that carries its numbers. */
   versionLinesRouteTitle: string;
-  /** The Lines detail's comparison with the main line, under the route. */
-  versionLinesChangesTitle: (base: string) => string;
-  versionLinesChangesBroughtTitle: (base: string) => string;
-  versionLinesChangesFiles: (count: number, formatted: string) => string;
-  versionLinesChangesSince: string;
-  versionLinesChangesMore: (count: number, formatted: string) => string;
-  versionLinesChangesBinary: string;
-  versionLinesCompareShort: string;
-  /** The last row of the shortened saved-versions list. */
-  versionLinesVersionsMore: (count: number, formatted: string) => string;
+  /** The Lines detail's "What you can do": what the selected line can do with
+   * the active line, or the active line with the main line. */
+  versionLinesActionsTitle: string;
+  versionLinesMergeFrom: (base: string) => string;
+  versionLinesActionUpdateFromDetail: (base: string) => string;
+  versionLinesActionUpdateFromCurrent: (base: string) => string;
+  versionLinesActionUpdateFromNews: (base: string, count: number, formatted: string) => string;
+  versionLinesActionUpToDate: string;
+  versionLinesActionBringIntoBase: (base: string, count: number | null, formatted: string) => string;
+  versionLinesActionBringIntoActive: string;
+  versionLinesActionMoveOntoDetail: string;
+  versionLinesActionCompareTotals: (files: number, filesFormatted: string, additions: string, deletions: string) => string;
+  versionLinesActionCompareDetail: string;
+  versionLinesActionCompareLinesDetail: string;
+  /** The saved-versions list's head over the versions only here, and the
+   * remote's mark where its copy begins — History's words. */
+  versionLinesLocalGroup: string;
+  versionLinesBoundaryPublishedOn: string;
+  /** The way to publish beside the count waiting and over the versions only
+   * here. */
+  versionLinesPublish: string;
   versionLinesRouteLoading: string;
   versionLinesRouteSummary: (facts: {
     base: string;
     date: string;
     own: string;
-    unpublished: string | null;
     since: string | null;
   }) => string;
   versionLinesRouteMerged: (base: string, since: string) => string;
@@ -405,20 +415,31 @@ const en: VersionLinesTranslations = {
   versionLinesLatestSavedLabel: "Latest saved",
   versionLinesVersionsTitle: "Saved versions",
   versionLinesRouteTitle: "Route",
-  versionLinesChangesTitle: (base) => `Changes compared to ${base}`,
-  versionLinesChangesBroughtTitle: (base) => `What it brought to ${base}`,
-  versionLinesChangesFiles: (count, formatted) => (count === 1 ? "1 file" : `${formatted} files`),
-  versionLinesChangesSince: "since it left",
-  versionLinesChangesMore: (count, formatted) => (count === 1 ? "and 1 more file" : `and ${formatted} more files`),
-  versionLinesChangesBinary: "binary",
-  versionLinesCompareShort: "Compare",
-  versionLinesVersionsMore: (count, formatted) =>
-    count === 1 ? "1 more in History" : `${formatted} more in History`,
+  versionLinesActionsTitle: "What you can do",
+  versionLinesMergeFrom: (base) => `Merge “${base}” into this`,
+  versionLinesActionUpdateFromDetail: (base) => `Brings ${base}'s newer versions into this line.`,
+  versionLinesActionUpdateFromCurrent: (base) => `${base} hasn't moved since this line left it.`,
+  versionLinesActionUpdateFromNews: (base, count, formatted) =>
+    count === 1 ? `${base} has 1 newer version to bring in.` : `${base} has ${formatted} newer versions to bring in.`,
+  versionLinesActionUpToDate: "Up to date",
+  versionLinesActionBringIntoBase: (base, count, formatted) =>
+    count === null
+      ? `Adds this line's versions to ${base} as one new saved version.`
+      : count === 1
+        ? `Adds this line's version to ${base} as one new saved version.`
+        : `Adds this line's ${formatted} versions to ${base} as one new saved version.`,
+  versionLinesActionBringIntoActive: "Adds its versions to the line you're working on as one new saved version.",
+  versionLinesActionMoveOntoDetail: "Replays your line's own versions after this one's latest.",
+  versionLinesActionCompareTotals: (files, filesFormatted, additions, deletions) =>
+    `${files === 1 ? "1 file" : `${filesFormatted} files`} changed since it left · +${additions} −${deletions}`,
+  versionLinesActionCompareDetail: "See what changed since it left, file by file.",
+  versionLinesActionCompareLinesDetail: "See what differs between the two lines, file by file.",
+  versionLinesLocalGroup: "Only on this computer",
+  versionLinesBoundaryPublishedOn: "Published on",
+  versionLinesPublish: "Publish",
   versionLinesRouteLoading: "Reading where this line left main…",
-  versionLinesRouteSummary: ({ base, date, own, unpublished, since }) =>
-    `Left ${base}${date ? ` on ${date}` : ""}. ${own === "1" ? "1 version" : `${own} versions`} of its own${
-      unpublished ? ` (${unpublished} not published yet)` : ""
-    }. ${since ? `${base} has ${since} new ${since === "1" ? "version" : "versions"} since.` : `${base} hasn't moved since.`}`,
+  versionLinesRouteSummary: ({ base, date, own, since }) =>
+    `Left ${base}${date ? ` on ${date}` : ""}. ${own === "1" ? "1 version" : `${own} versions`} of its own. ${since ? `${base} has ${since} new ${since === "1" ? "version" : "versions"} since.` : `${base} hasn't moved since.`}`,
   versionLinesRouteMerged: (base, since) =>
     `All its work is on ${base}, which has ${since} new ${since === "1" ? "version" : "versions"} since.`,
   versionLinesRouteSame: (base) => `Same point as ${base}. No versions of its own yet.`,
@@ -658,21 +679,31 @@ const es: VersionLinesTranslations = {
   versionLinesLatestSavedLabel: "Última guardada",
   versionLinesVersionsTitle: "Versiones guardadas",
   versionLinesRouteTitle: "Recorrido",
-  versionLinesChangesTitle: (base) => `Cambios respecto a ${base}`,
-  versionLinesChangesBroughtTitle: (base) => `Lo que llevó a ${base}`,
-  versionLinesChangesFiles: (count, formatted) => (count === 1 ? "1 archivo" : `${formatted} archivos`),
-  versionLinesChangesSince: "desde que salió",
-  versionLinesChangesMore: (count, formatted) =>
-    count === 1 ? "y 1 archivo más" : `y ${formatted} archivos más`,
-  versionLinesChangesBinary: "binario",
-  versionLinesCompareShort: "Comparar",
-  versionLinesVersionsMore: (count, formatted) =>
-    count === 1 ? "1 más en Historial" : `${formatted} más en Historial`,
+  versionLinesActionsTitle: "Qué puedes hacer",
+  versionLinesMergeFrom: (base) => `Fusionar «${base}» en esta`,
+  versionLinesActionUpdateFromDetail: (base) => `Trae a esta línea las versiones nuevas de ${base}.`,
+  versionLinesActionUpdateFromCurrent: (base) => `${base} no se ha movido desde que salió esta línea.`,
+  versionLinesActionUpdateFromNews: (base, count, formatted) =>
+    count === 1 ? `${base} tiene 1 versión nueva que traer.` : `${base} tiene ${formatted} versiones nuevas que traer.`,
+  versionLinesActionUpToDate: "Al día",
+  versionLinesActionBringIntoBase: (base, count, formatted) =>
+    count === null
+      ? `Añade a ${base} las versiones de esta línea en una versión guardada nueva.`
+      : count === 1
+        ? `Añade a ${base} la versión de esta línea en una versión guardada nueva.`
+        : `Añade a ${base} las ${formatted} versiones de esta línea en una versión guardada nueva.`,
+  versionLinesActionBringIntoActive: "Añade sus versiones a la línea en la que trabajas en una versión guardada nueva.",
+  versionLinesActionMoveOntoDetail: "Rehace las versiones propias de tu línea después de la última de esta.",
+  versionLinesActionCompareTotals: (files, filesFormatted, additions, deletions) =>
+    `${files === 1 ? "1 archivo cambiado" : `${filesFormatted} archivos cambiados`} desde que salió · +${additions} −${deletions}`,
+  versionLinesActionCompareDetail: "Mira qué cambió desde que salió, archivo a archivo.",
+  versionLinesActionCompareLinesDetail: "Mira en qué se diferencian las dos líneas, archivo a archivo.",
+  versionLinesLocalGroup: "Solo en este ordenador",
+  versionLinesBoundaryPublishedOn: "Publicado en",
+  versionLinesPublish: "Publicar",
   versionLinesRouteLoading: "Leyendo dónde salió esta línea de main…",
-  versionLinesRouteSummary: ({ base, date, own, unpublished, since }) =>
-    `Salió de ${base}${date ? ` el ${date}` : ""}. ${own === "1" ? "1 versión propia" : `${own} versiones propias`}${
-      unpublished ? ` (${unpublished} sin publicar)` : ""
-    }. ${since ? `${base} tiene ${since} ${since === "1" ? "versión nueva" : "versiones nuevas"} desde entonces.` : `${base} no se ha movido desde entonces.`}`,
+  versionLinesRouteSummary: ({ base, date, own, since }) =>
+    `Salió de ${base}${date ? ` el ${date}` : ""}. ${own === "1" ? "1 versión propia" : `${own} versiones propias`}. ${since ? `${base} tiene ${since} ${since === "1" ? "versión nueva" : "versiones nuevas"} desde entonces.` : `${base} no se ha movido desde entonces.`}`,
   versionLinesRouteMerged: (base, since) =>
     `Todo su trabajo está en ${base}, que tiene ${since} ${since === "1" ? "versión nueva" : "versiones nuevas"} desde entonces.`,
   versionLinesRouteSame: (base) => `Está en el mismo punto que ${base}. Aún no tiene versiones propias.`,

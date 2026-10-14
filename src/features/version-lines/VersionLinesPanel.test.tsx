@@ -135,6 +135,7 @@ function history(name: string, overrides: Partial<VersionLineHistory> = {}): Ver
     name,
     totalCount: 12,
     hasMore: true,
+    unpublished: null,
     route: null,
     versions: [
       { ...tip, authorName: "Ada Lovelace" },
@@ -583,6 +584,10 @@ describe("VersionLinesPanel", () => {
     const field = within(detail).getByRole("textbox", { name: "Rename “feature/new-thing”" });
     expect(field).toHaveValue("feature/new-thing");
     expect(field).toHaveFocus();
+    // What a rename usually changes is the part after the last "/".
+    expect([(field as HTMLInputElement).selectionStart, (field as HTMLInputElement).selectionEnd]).toEqual([8, 17]);
+    // Cancel and Rename are the strip's two circles, nothing filled.
+    expect(within(detail).getByRole("button", { name: "Cancel" })).toHaveClass("version-lines-detail__icon-action");
     expect(
       within(detail).getByText("Only the name changes"),
     ).toBeInTheDocument();
@@ -639,8 +644,9 @@ describe("VersionLinesPanel", () => {
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(within(detail).getByRole("button", { name: "Rename" })).toBeDisabled();
 
+    // Escape gives the name back with the fade the edit came in with.
     await user.keyboard("{Escape}");
-    expect(within(detail).queryByRole("textbox")).not.toBeInTheDocument();
+    await waitFor(() => expect(within(detail).queryByRole("textbox")).not.toBeInTheDocument());
     expect(within(detail).getByRole("heading", { level: 2 })).toHaveTextContent("feature/new-thing");
     expect(onOperationStart).not.toHaveBeenCalled();
   });
@@ -801,7 +807,8 @@ describe("VersionLinesPanel", () => {
     // The upstream is named once, in that sentence — not again in the strip
     // over it.
     expect(within(detail).getAllByText(/origin\/feature\/synced/)).toHaveLength(1);
-    expect(within(detail).getByText("Published")).toBeInTheDocument();
+    // Its tip wears the published node rather than a chip saying so.
+    expect(detail.querySelector(".version-lines-recent__row--published")).not.toBeNull();
   });
 
   it("says a local-only line has never been published, and never calls its tip published", async () => {
@@ -811,7 +818,10 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
 
     const detail = detailPanel("feature/new-thing");
-    expect(within(detail).getByText("Not published yet")).toBeInTheDocument();
+    // With no remote copy to count against, the tip's node is the empty ring:
+    // never the published disc.
+    expect(detail.querySelector(".version-lines-recent__row--unknown")).not.toBeNull();
+    expect(detail.querySelector(".version-lines-recent__row--published")).toBeNull();
     expect(
       within(detail).getAllByText("Never published, so it's only on this computer.").length,
     ).toBeGreaterThan(0);
@@ -923,7 +933,7 @@ describe("VersionLinesPanel", () => {
     const route = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "Route" });
     // Never published, so both of its own versions are still on this machine.
     expect(
-      within(route).getByText(/^Left main on .+\. 2 versions of its own \(2 not published yet\)\. main has 3 new versions since\.$/),
+      within(route).getByText(/^Left main on .+\. 2 versions of its own\. main has 3 new versions since\.$/),
     ).toBeInTheDocument();
   });
 
@@ -961,53 +971,189 @@ describe("VersionLinesPanel", () => {
     expect(route.querySelector(".version-lines-route__mark--copy")).not.toBeNull();
   });
 
-  it("says what a line changes against main under its route, and cuts the versions short beside it", async () => {
+  const routeFromMain = {
+    base: "main",
+    forkCommit: "abc123",
+    forkedAt: "2026-07-01T00:00:00Z",
+    ownCount: 2,
+    ownVersions: [],
+    baseCount: 0,
+    baseVersions: [],
+    merge: null,
+    changes: {
+      filesChanged: 3,
+      additions: 42,
+      deletions: 7,
+    },
+  };
+
+  it("offers what another line can do with the active one, naming both ends", async () => {
     const user = userEvent.setup();
     const onOpenHistory = vi.fn();
     renderPanel({
       onOpenHistory,
       readHistory: async (name: string) =>
-        history(
-          name,
-          name === "feature/new-thing"
-            ? {
-                route: {
-                  base: "main",
-                  forkCommit: "abc123",
-                  forkedAt: "2026-07-01T00:00:00Z",
-                  ownCount: 2,
-                  ownVersions: [],
-                  baseCount: 0,
-                  baseVersions: [],
-                  merge: null,
-                  changes: {
-                    filesChanged: 3,
-                    additions: 42,
-                    deletions: 7,
-                    files: [
-                      { path: "src/app/new.ts", status: "added", additions: 30, deletions: 0 },
-                      { path: "src/app/old.ts", status: "modified", additions: 12, deletions: 7 },
-                      { path: "logo.png", status: "modified", additions: null, deletions: null },
-                    ],
-                  },
-                },
-              }
-            : {},
-        ),
+        history(name, name === "feature/new-thing" ? { route: routeFromMain } : {}),
     });
 
     await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
-    const changes = await within(detail).findByRole("region", { name: "Changes compared to main" });
-    expect(changes).toHaveTextContent("3 files+42−7since it left");
-    expect(within(changes).getByText("new.ts")).toBeInTheDocument();
-    expect(within(changes).getAllByText("src/app/")).toHaveLength(2);
-    expect(within(changes).getByText("binary")).toBeInTheDocument();
+    const actions = await within(detail).findByRole("region", { name: "What you can do" });
+    expect(within(actions).getByText("Merge into “main”")).toBeInTheDocument();
+    expect(within(actions).getByText("Rebase “main” onto this")).toBeInTheDocument();
+    expect(within(actions).getByText("Compare with “main”")).toBeInTheDocument();
+    // No flow is behind them yet: stated, marked, and not controls.
+    expect(within(actions).getAllByText("Soon")).toHaveLength(3);
+    expect(within(actions).queryByRole("button")).not.toBeInTheDocument();
+    // The comparison's file list is gone; the versions keep the height.
+    expect(within(detail).queryByText("new.ts")).not.toBeInTheDocument();
 
-    // The versions step down to a short preview, with the way to the rest.
-    // The read lists two of the line's twelve versions.
-    await user.click(within(detail).getByRole("button", { name: "10 more in History" }));
+    // The rest are the header's "Open in History" away; no count repeats it.
+    expect(within(detail).queryByText(/more in History/)).not.toBeInTheDocument();
+    await user.click(within(detail).getByRole("button", { name: "Open in History" }));
     expect(onOpenHistory).toHaveBeenCalledWith("feature/new-thing");
+  });
+
+  it("offers Publish beside what is waiting on the active line only, and says when it was saved relatively", async () => {
+    const user = userEvent.setup();
+    const onPublish = vi.fn();
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      onPublish,
+      onOpenHistory: vi.fn(),
+      snapshot: snapshot({
+        branch: "feature/new-thing",
+        lines: [
+          { ...main, isActive: false, isDefault: true, upstream: "origin/main", upstreamAhead: 0, upstreamBehind: 0 },
+          { ...feature, isActive: true, upstream: "origin/feature/new-thing", upstreamAhead: 1, upstreamBehind: 0 },
+        ],
+      }),
+      readHistory: async (name: string) => history(name),
+    });
+
+    const detail = detailPanel("feature/new-thing");
+    // Beside the fact, and over the versions only here once the list is read.
+    await within(detail).findByText("Only on this computer");
+    const publish = within(detail).getAllByRole("button", { name: "Publish" });
+    expect(publish).toHaveLength(2);
+    await user.click(publish[0]);
+    expect(onPublish).toHaveBeenCalledTimes(1);
+    // When, as the list says it; the exact date is on the tooltip.
+    expect(detail.querySelector(".version-lines-detail__meta span[title]")?.textContent).toMatch(/ago|yesterday|last|tomorrow/);
+
+    // Another line is published from that line, not from here.
+    await user.click(screen.getByRole("option", { name: "main" }));
+    expect(within(detailPanel("main")).queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
+  });
+
+  it("takes where each version stands from Git's answer, not from its position", async () => {
+    // Ahead by two, but the read says only the tip is missing from the remote:
+    // a line that merged another interleaves the two by date.
+    const user = userEvent.setup();
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      onOpenHistory: vi.fn(),
+      snapshot: snapshot({
+        lines: [main, { ...feature, upstream: "origin/feature/new-thing", upstreamAhead: 2, upstreamBehind: 0 }],
+      }),
+      readHistory: async (name: string) => history(name, { unpublished: [feature.tip.commit] }),
+    });
+
+    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    const detail = detailPanel("feature/new-thing");
+    await within(detail).findByText("Only on this computer");
+    const rows = detail.querySelectorAll(".version-lines-recent__row");
+    expect(rows[0]).toHaveClass("version-lines-recent__row--local-only");
+    expect(rows[1]).toHaveClass("version-lines-recent__row--published");
+  });
+
+  it("counts what main saved since a line that came back, the merge and after it", async () => {
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      snapshot: snapshot({
+        branch: "feature/new-thing",
+        lines: [
+          { ...main, isActive: false, isDefault: true },
+          { ...feature, isActive: true },
+        ],
+      }),
+      readHistory: async (name: string) =>
+        history(name, {
+          route: {
+            ...routeFromMain,
+            baseCount: 0,
+            merge: {
+              kind: "merge",
+              commit: "merge1",
+              mergedAt: "2026-07-03T00:00:00Z",
+              afterCount: 2,
+              afterVersions: [],
+            },
+          },
+        }),
+    });
+
+    const actions = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "What you can do" });
+    expect(within(actions).getByText("main has 3 newer versions to bring in.")).toBeInTheDocument();
+    expect(within(actions).queryByText("Up to date")).not.toBeInTheDocument();
+  });
+
+  it("does not take the keyboard back to a line whose rename was cancelled after another was chosen", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    await user.keyboard("{F2}");
+    await user.click(within(detailPanel("feature/new-thing")).getByRole("button", { name: "Cancel" }));
+    // Another line chosen while the cancel fades out.
+    await user.click(screen.getByRole("option", { name: /^main/ }));
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(screen.getByRole("option", { name: "feature/new-thing" })).not.toHaveFocus();
+  });
+
+  it("offers the active line what it can do with main, and says when there is nothing to bring in", async () => {
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      snapshot: snapshot({
+        branch: "feature/new-thing",
+        lines: [
+          { ...main, isActive: false, isDefault: true },
+          { ...feature, isActive: true },
+        ],
+      }),
+      readHistory: async (name: string) => history(name, { route: routeFromMain }),
+    });
+
+    const actions = await within(detailPanel("feature/new-thing")).findByRole("region", { name: "What you can do" });
+    expect(within(actions).getByText("Merge “main” into this")).toBeInTheDocument();
+    expect(within(actions).getByText("main hasn't moved since this line left it.")).toBeInTheDocument();
+    expect(within(actions).getByText("Up to date")).toBeInTheDocument();
+    expect(within(actions).getByText("Adds this line's 2 versions to main as one new saved version.")).toBeInTheDocument();
+    expect(within(actions).getByText("3 files changed since it left · +42 −7")).toBeInTheDocument();
+  });
+
+  it("heads the versions only here and marks where the remote's copy begins", async () => {
+    const user = userEvent.setup();
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      onOpenHistory: vi.fn(),
+      snapshot: snapshot({
+        lines: [main, { ...feature, upstream: "origin/feature/new-thing", upstreamAhead: 1, upstreamBehind: 0 }],
+      }),
+      readHistory: async (name: string) => history(name),
+    });
+
+    await user.click(screen.getByRole("option", { name: "feature/new-thing" }));
+    const detail = detailPanel("feature/new-thing");
+    await within(detail).findByText("Only on this computer");
+    expect(detail.querySelector(".version-lines-recent__boundary")).toHaveTextContent("Published on origin");
+    const rows = detail.querySelectorAll(".version-lines-recent__row");
+    expect(rows[0]).toHaveClass("version-lines-recent__row--local-only");
+    expect(rows[1]).toHaveClass("version-lines-recent__row--published");
+    // The node is drawn, so a screen reader hears where each version stands.
+    expect(within(detail).getByRole("button", { name: "Open “an earlier step” in History" })).toHaveAccessibleDescription(
+      "Published",
+    );
   });
 
   it("keeps the route's place while the line's history is read, then draws it there", async () => {
@@ -1100,19 +1246,20 @@ describe("VersionLinesPanel", () => {
 
   it("starts a line's read when the pointer rests on its row, before the press", async () => {
     const readHistory = vi.fn(async (name: string) => history(name));
-    renderPanel({ readHistory });
+    const prefetchHistory = vi.fn();
+    renderPanel({ readHistory, prefetchHistory });
     await waitFor(() => expect(readHistory).toHaveBeenCalledWith("main", "abc123"));
 
     fireEvent.pointerEnter(screen.getByRole("option", { name: "feature/new-thing" }));
-    await waitFor(() => expect(readHistory).toHaveBeenCalledWith("feature/new-thing", "def456"));
+    await waitFor(() => expect(prefetchHistory).toHaveBeenCalledWith("feature/new-thing", "def456"));
 
     // Passing over a row on the way somewhere else asks nothing.
-    readHistory.mockClear();
+    prefetchHistory.mockClear();
     const row = screen.getByRole("option", { name: "feature/new-thing" });
     fireEvent.pointerEnter(row);
     fireEvent.pointerLeave(row);
     await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(readHistory).not.toHaveBeenCalled();
+    expect(prefetchHistory).not.toHaveBeenCalled();
   });
 
   it("draws a line that came back by a merge, and every dot is a version that opens in History", async () => {

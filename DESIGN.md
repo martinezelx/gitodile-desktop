@@ -1130,7 +1130,8 @@ Its detail panel is one surface divided by rules, not a tray of cards. It
 opens with the line's strip, a fixed `--strip-height` level with the list's
 header, the way History's version strip is level with its tabs: the name (and
 `Active`) on the first line, who last saved to it and when on the second, one
-tone quieter, and the line's actions at the trailing end — Switch as the one
+tone quieter — when said relatively ("2 minutes ago"), as the list beside it
+says it, with the exact date on its tooltip — and the line's actions at the trailing end — Switch as the one
 labelled action, a capsule with a hairline and no fill, and Rename and Delete
 as the icon-only circles History's version strip gives Details and More,
 named on their tooltips (Rename's names its F2), Delete's glyph in the danger
@@ -1180,8 +1181,10 @@ dots and the list of saved versions under it lead to the same place. The dots
 are for the pointer only; the list is the same answer for the keyboard.
 Past eight, the lane says how many earlier versions it leaves out ("+33")
 over its oldest drawn dot, and the sentence under the drawing says the numbers ("Left main on 12 Sept. 5
-versions of its own (2 not published yet). main has 3 new versions since."), which is
-also what a screen reader hears; the drawing is hidden from it. It is measured
+versions of its own. main has 3 new versions since."), which is
+also what a screen reader hears. How many are not published is not in it: the
+state over the route says that ("3 not published"), with Publish beside it on
+the active line, and the drawing shows them hollow; the drawing is hidden from it. It is measured
 against the main line always, the remote's default: "where did it come from"
 is asked of the main line, whichever line is active. The states over it count
 against the same line — "3 versions not on main", "Already on main", for the
@@ -1198,9 +1201,17 @@ sides' counts and their newest versions, and for a line that is back on the
 main line the first-parent walk that finds the merge — never one read per
 listed line. **It is read fast and waited for in place.** The questions that do
 not depend on one another are asked side by side, because on Windows the
-reader waits on process launches more than on the walks; and a row the pointer
-rests on for a moment starts its line's read, so the press usually finds it
-answered. While the read is out, a line that will have a route keeps the
+reader waits on process launches more than on the walks. The check for work
+that came back as copies — the slowest part, a patch read of both sides — is
+asked only when the main line saved something since the parting, since
+nothing can have come back otherwise; and what the line changes is one
+`--numstat` for the totals. A row the pointer rests on for a moment starts its
+line's read, so the press usually finds it answered — but only while no other
+line's read is out, so the pointer never competes for Git with the read the
+detail is waiting on. A history read is superseded only by a newer read of
+the same line (`authorize_repository_read_of`): before, any line's read
+cancelled the one still out, and resting on a row while the selected line
+loaded left its route waiting for an answer that never came. While the read is out, a line that will have a route keeps the
 section's whole place with the main lane already drawn and named, and a
 text placeholder where the sentence will be — the answer grows into a
 space that was waiting for it rather than pushing the versions down when it
@@ -1224,12 +1235,25 @@ is not drawn beside the list: the list's rows are lines ordered by name or
 date, not versions, and a lane joining two neighbouring rows would claim a
 kinship the order does not have. **A line is renamed in its strip,
 not in a dialog.** Rename — from the strip, the row's menu, or F2 on the row —
-turns the name into the field, a pill in mono with the name selected; the line
-under it into what renaming does and does not touch ("Only the name changes —
-it still tracks `origin/…`", the whole sentence on its tooltip), or into why Git
-would refuse the name, said before the press by the composer's own mirror of
-Git's rules; and the actions into Cancel and Rename. Enter renames and Escape
-puts the name back. The strip keeps its height, so nothing on the panel moves.
+makes the name itself editable where it stands: the same type, size and
+place, the letters not moving by a pixel, with one straight accent line
+under the text fading in to say it now takes typing (red while the name would
+be refused). No fill and no radius: a rounded fill on a box one line tall bent
+the line into a curve under the letters that hid them. It arrives with the part after the last `/` selected — `updater-ui`
+in `feat/updater-ui` — since that is what a rename usually changes. It used to
+swap for a mono pill, a different typeface a step to the right, which read as
+a jump rather than an edit. The byline fades into what renaming does and does
+not touch ("Only the name changes — it still tracks `origin/…`", the whole
+sentence on its tooltip), or into why Git would refuse the name, said before
+the press by the composer's own mirror of Git's rules; and Switch, Rename and
+Delete fade into two of the strip's own circles, Cancel and Rename — the check
+in the accent, never a second filled button beside the list's Create. Enter
+renames and Escape gives the name back with the same fade, out and then in.
+While the rename runs the field stops taking typing and the check turns into
+the spinner in its place, nothing dimmed. Once it is done the new name lights
+once in the accent in the strip and in its row together, the row having
+changed with the same answer. The strip keeps its height, so nothing on the
+panel moves.
 A rename moves no saved version and no file, and the dialog it replaces was a
 title, that same field and two notes over the screen that already shows the
 line. The lock is taken at the press and released when the answer is in, the
@@ -1341,24 +1365,22 @@ and the list of versions takes what is left and scrolls inside itself, which
 also keeps the way through to History against the bottom edge where a way out
 belongs.
 
-**Under the route, what the line changes against the main line.** "What
-changes against main" — for a line that came back, "What it brought to main"
-— compares the parting with the line's tip, the way a pull request compares:
-what the main line did meanwhile is not the line's change. The totals on one
-line ("23 files +1482 −356 since it left"), then the files that change most,
-largest first: the glyph and colour Changes and History give a changed, new,
-removed or renamed file, the file's name whole
-and its folder after it, quieter and the part that gives way, the counts, and
-a bar as long as the file's change beside the largest one, split between
-green added and red removed. It takes the height the panel has left and lists
-as many as fit, never scrolled, with the rest counted ("and 14 more files").
-The saved versions, the least of the three, step down to four under it with
-"208 more in History"; on the main line, which has no comparison, they keep
-the height. The section keeps its place while the read is out, like the
-route. Its corner says "Compare · Soon": pressing a file opens nothing yet,
-because a diff between two points in a line is the Compare flow still to come.
-The figures are two more read-only Git calls (`--numstat`, `--name-status`,
-renames followed) in the route's own read.
+**Under the route, what the line can do.** "What you can do" states the quick
+switch's actions for the line on screen, in the quick switch's and the row
+menu's own words, each naming both ends: an action is called the same
+wherever it is offered. For another line the other end is the active one:
+"Merge into “main”", "Rebase “main” onto this", "Compare with “main”". For the
+active line it is the main line the route measures against: "Merge “main”
+into this", "Merge into “main”" (left out once the line came back) and
+"Compare with “main”". Nothing is offered on the main line itself or with no
+line checked out. Each row is a glyph tile, the action, and what it would do
+in plain words in one line under it: how many versions it would carry, or, for the comparison,
+the totals since the parting ("448 files changed since it left · +45,972
+−6,996"). None of the flows exists yet, so every row is stated and marked
+`Soon`, as rows rather than disabled buttons. A row that could not run anyway
+says why instead ("Up to date" when the main line hasn't moved). This
+replaced a list of the files the line changes against the main line: a
+preview of the comparison it could not open was a long way to say "Compare".
 
 **Each fact is stated once on a panel, in the place that says it best.** This
 panel used to close with a Status table whose five pairs were all answered
@@ -1367,11 +1389,22 @@ hash by the latest-version section — which in turn described in full the same
 saved version the list under it opened with. A screen that repeats itself is
 not thorough; it is a screen where the reader has to check whether the second
 statement means something new. The upstream is named in the header, who last
-saved and when in the byline, and every saved version exactly once in the list,
-the newest carrying the two things only it can say: whether it is published,
-and its hash. The list is eight deep where it has the panel to itself — on the main
-line — and four beside the comparison with the main line, and every row opens
-that version in History — the screen that draws the same
+saved and when in the byline, and every saved version exactly once in the list.
+The list draws History's timeline in small: each row's node on a rail says
+where the version stands (half filled while only here, a solid neutral disc
+once published, an empty ring when there is no remote copy to count against).
+Which versions the remote lacks is asked of Git with the history read
+(`<line>@{upstream}..<line>`), not read off the ahead count by position: a
+line that merged another interleaves the two by date.
+Where the line is ahead of its remote copy, the versions only here sit under
+"Only on this computer" and the remote's cloud marks where its copy begins
+("Published on origin", dashed rule). On the active line the head carries
+Publish, History's quiet capsule with only the cloud in the accent, as the
+state "3 not published" above does; another line is published from that line.
+No chip repeats it, and a row's code shows under the pointer. The list takes
+the height the actions leave and scrolls inside itself, with no count of the
+versions it leaves out: "Open in History" over it is the way to them, and
+every row opens that version in History — the screen that draws the same
 sequence in full.
 
 **A third screen asking the same question uses the same surface.** Lines

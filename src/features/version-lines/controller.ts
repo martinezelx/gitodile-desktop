@@ -131,6 +131,20 @@ export function createVersionLinesController(port: VersionLinesPort) {
     return request;
   };
 
+  /* A read started ahead of a press — the pointer resting on a row. Only when
+     no other line's read is out: a history read is a dozen Git processes, and
+     one started by the pointer would compete for them with the read the
+     detail is waiting on. */
+  const prefetchHistory = (query: VersionLinesQuery, name: string, tipCommit: string): void => {
+    const key = historyKeyOf(query, name, tipCommit);
+    if (histories.has(key) || historyRequests.has(key)) return;
+    const prefix = `${keyOf(query)}\0`;
+    for (const pending of historyRequests.keys()) {
+      if (pending.startsWith(prefix)) return;
+    }
+    void readHistory(query, name, tipCommit).catch(() => undefined);
+  };
+
   const commit = (query: VersionLinesQuery, snapshot: VersionLinesSnapshot): void => {
     const entry = entryFor(query);
     const unchanged = versionLinesSnapshotsEqual(entry.state.snapshot, snapshot);
@@ -157,6 +171,7 @@ export function createVersionLinesController(port: VersionLinesPort) {
     refresh,
     commit,
     readHistory,
+    prefetchHistory,
     /** The resolved answer if it is already held, so the detail can render on
      * arrival without a loading frame. Never starts a read. */
     peekHistory(query: VersionLinesQuery, name: string, tipCommit: string): VersionLineHistory | null {

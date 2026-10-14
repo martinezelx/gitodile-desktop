@@ -712,6 +712,29 @@ pub(crate) fn authorize_repository(
     command: &'static str,
     cancellation: Option<&CancellationToken>,
 ) -> Result<(RepositoryContext, CommandAccess), AppError> {
+    authorize_repository_scoped(path, command, cancellation, None)
+}
+
+/// A read that supersedes only an earlier read of the same `subject`, not
+/// every read of the command. A newer read of a command is normally a newer
+/// copy of the same question — the status, the inventory — and cancels the
+/// one still out. Some reads ask a different question each time: one line's
+/// history is not superseded by the next line's, and a read started ahead of a
+/// press must not cancel the read the screen is waiting on.
+pub(crate) fn authorize_repository_read_of(
+    path: &str,
+    command: &'static str,
+    subject: &str,
+) -> Result<(RepositoryContext, CommandAccess), AppError> {
+    authorize_repository_scoped(path, command, None, Some(subject))
+}
+
+fn authorize_repository_scoped(
+    path: &str,
+    command: &'static str,
+    cancellation: Option<&CancellationToken>,
+    subject: Option<&str>,
+) -> Result<(RepositoryContext, CommandAccess), AppError> {
     let policy = *policy(command);
     let parent_cancellation = current_cancellation();
     let initial_cancellation = if policy.install_admission == InstallAdmissionPolicy::Drain {
@@ -783,7 +806,10 @@ pub(crate) fn authorize_repository(
         // refresh (or the workflow that called it).
         (None, parent_cancellation)
     } else if requested == AccessMode::Read {
-        let key = (repository_key, command);
+        let key = match subject {
+            Some(subject) => (format!("{repository_key}\0{subject}"), command),
+            None => (repository_key, command),
+        };
         let token = initial_cancellation
             .clone()
             .unwrap_or_else(CancellationToken::default);
@@ -1040,6 +1066,50 @@ mod tests {
         let first_token = ready_rx.recv().unwrap();
         let (_context, _access) =
             authorize_repository(&path_text, "read_working_tree_status", None).unwrap();
+        assert!(first_token.is_cancelled());
+        finish_tx.send(()).unwrap();
+        assert!(first.join().unwrap());
+        let _ = fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn a_read_of_another_subject_does_not_supersede_the_first() {
+        let path =
+            std::env::temp_dir().join(format!("gitodile-subject-read-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        assert!(Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .arg(&path)
+            .status()
+            .unwrap()
+            .success());
+
+        let path_text = path.to_string_lossy().to_string();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (finish_tx, finish_rx) = mpsc::channel();
+        let first_path = path_text.clone();
+        let first = thread::spawn(move || {
+            let (_context, _access) =
+                authorize_repository_read_of(&first_path, "get_version_line_history", "main")
+                    .unwrap();
+            let token = current_cancellation().unwrap();
+            ready_tx.send(token.clone()).unwrap();
+            finish_rx.recv().unwrap();
+            token.is_cancelled()
+        });
+        let first_token = ready_rx.recv().unwrap();
+        {
+            // Another line's history leaves the first read alone…
+            let (_context, _access) =
+                authorize_repository_read_of(&path_text, "get_version_line_history", "feature")
+                    .unwrap();
+            assert!(!first_token.is_cancelled());
+        }
+        // …and a newer read of the same line still supersedes it.
+        let (_context, _access) =
+            authorize_repository_read_of(&path_text, "get_version_line_history", "main").unwrap();
         assert!(first_token.is_cancelled());
         finish_tx.send(()).unwrap();
         assert!(first.join().unwrap());

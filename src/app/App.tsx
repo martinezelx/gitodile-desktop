@@ -2892,6 +2892,8 @@ export function App(): React.JSX.Element {
                             setHistorySelectCommitIntent(commit ?? null);
                             openWorkbench("history");
                           }}
+                          // As the status bar: with no remote there is nowhere to publish to.
+                          onPublish={activeSession?.teamSync.status?.state === "noRemote" ? undefined : () => openPublishDialog()}
                           autoOpenCreate={versionLinesAutoOpenCreate}
                           onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
                           selectLineIntent={linesSelectIntent}

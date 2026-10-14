@@ -119,12 +119,12 @@ function sentenceOf({ line, route }: DrawnRoute, t: Translations, formats: Local
       ? t.versionLinesRouteSame(route.base)
       : t.versionLinesRouteMerged(route.base, formatNumber(since, formats));
   }
-  const unpublished = unpublishedOf(line, own);
+  // How many are not published is the fact over the route's to say, with the
+  // way to publish beside it; the drawing still shows them hollow.
   return t.versionLinesRouteSummary({
     base: route.base,
     date: forkDate,
     own: formatNumber(own, formats),
-    unpublished: unpublished > 0 ? formatNumber(unpublished, formats) : null,
     since: since > 0 ? formatNumber(since, formats) : null,
   });
 }
@@ -132,7 +132,7 @@ function sentenceOf({ line, route }: DrawnRoute, t: Translations, formats: Local
 /** Whether the reader has asked for no animated movement, by the system or by
  * GitOdile's own switch. The crossfade leans on an animation to take the old
  * drawing away, so without one there is no old drawing to take away. */
-function prefersReducedMotion(): boolean {
+export function prefersReducedMotion(): boolean {
   if (typeof document !== "undefined" && document.documentElement.dataset.reducedMotion === "true") return true;
   return typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia("(prefers-reduced-motion: reduce)").matches

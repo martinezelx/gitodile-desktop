@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createProjectRuntime } from "../../runtime/project/runtime";
 import { createVersionLinesController } from "./controller";
-import type { VersionLinesSnapshot } from "./domain";
+import type { VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import type { VersionLinesPort, VersionLinesQuery } from "./port";
 
 function snapshot(name = "main", commit = "abc123"): VersionLinesSnapshot {
@@ -162,5 +162,26 @@ describe("VersionLinesController", () => {
       controller.getSnapshot({ projectId: `/repo-${index}`, sessionEpoch: `epoch-${index}` });
     }
     expect(controller.size()).toBeLessThanOrEqual(8);
+  });
+
+  it("never prefetches a line's history while another line's read is out", async () => {
+    // A prefetch started now would compete for Git with the read the detail
+    // is waiting on.
+    const selected = deferred<VersionLineHistory>();
+    const versionsPort = port(vi.fn());
+    const readHistory = vi.mocked(versionsPort.readHistory);
+    readHistory.mockImplementation(() => selected.promise);
+    const controller = createVersionLinesController(versionsPort);
+
+    const reading = controller.readHistory(query, "main", "abc123");
+    controller.prefetchHistory(query, "feature", "def456");
+    expect(readHistory).toHaveBeenCalledTimes(1);
+
+    selected.resolve({ name: "main", totalCount: 1, versions: [], hasMore: false, unpublished: null, route: null });
+    await reading;
+    readHistory.mockResolvedValue({ name: "feature", totalCount: 1, versions: [], hasMore: false, unpublished: null, route: null });
+    controller.prefetchHistory(query, "feature", "def456");
+    expect(readHistory).toHaveBeenCalledTimes(2);
+    expect(readHistory).toHaveBeenLastCalledWith({ ...query, name: "feature" });
   });
 });

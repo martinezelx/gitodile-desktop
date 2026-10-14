@@ -20,6 +20,8 @@ export type VersionLinesScreenProps = {
    * version selected. Lines' own list of saved versions is a preview of the
    * one History draws in full. */
   onOpenHistory?: (name: string, commit?: string) => void;
+  /** Opens the publish flow for the active line. */
+  onPublish?: () => void;
   onOperationStart: () => boolean;
   onOperationFinish: () => void;
   onOperationPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
@@ -55,6 +57,10 @@ export function VersionLinesScreen({
     (name: string, tipCommit: string) => controller.readHistory(query, name, tipCommit),
     [controller, query],
   );
+  const prefetchHistory = useCallback(
+    (name: string, tipCommit: string) => controller.prefetchHistory(query, name, tipCommit),
+    [controller, query],
+  );
   const peekHistory = useCallback(
     (name: string, tipCommit: string) => controller.peekHistory(query, name, tipCommit),
     [controller, query],
@@ -76,6 +82,7 @@ export function VersionLinesScreen({
       onSnapshot={(snapshot) => controller.commit(query, snapshot)}
       readHistory={readHistory}
       peekHistory={peekHistory}
+      prefetchHistory={prefetchHistory}
       {...callbacks}
     />
   );

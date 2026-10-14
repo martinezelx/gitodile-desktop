@@ -456,32 +456,90 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
 }
 .version-lines-detail__meta > span:last-child { flex: 0 0 auto; }
 .version-lines-detail__meta > strong + span::before { content: "·"; margin-inline-end: 6px; }
-/* The strip while its line is renamed. The field takes the name's place and
-   the look of the composer's — a pill, the name in mono — at a height that
-   leaves the note line under it inside the same fixed strip. */
-.version-lines-detail__strip--editing .version-lines-detail__identity { gap: 3px; }
+/* The strip while its line is renamed. The name itself takes the typing: the
+   field wears the name's own type, size and place, and says it is editable with
+   one straight accent line under the text that fades in. No fill and no
+   radius: on a box only a line of text tall, a rounded fill bent the line into
+   a curve that ran under the letters and hid them. The box reaches 6px past
+   the text on each side and gives that back as margin, so the letters do not
+   move. The byline fades into the note, the actions into two circles. */
+.version-lines-rename__name {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  display: inline-grid;
+}
+.version-lines-rename__sizer,
+input.version-lines-rename__field {
+  grid-area: 1 / 1;
+  min-width: 4ch;
+  padding: 0 6px;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+.version-lines-rename__sizer { visibility: hidden; overflow: hidden; white-space: pre; }
 input.version-lines-rename__field {
   box-sizing: border-box;
   width: 100%;
-  min-width: 0;
-  height: 28px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--focus-ring);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
+  margin: 0 -6px;
+  border: 0;
+  background: transparent;
+  /* Drawn just outside the box, so it sits under the descenders, never on them. */
+  box-shadow: 0 1.5px 0 var(--focus-ring);
   color: var(--text-primary-color);
-  font-family: var(--font-mono);
-  font-size: var(--text-body);
   outline: none;
+  text-overflow: ellipsis;
+  animation: version-lines-rename-field-in var(--duration-normal) ease-out;
 }
-input.version-lines-rename__field[aria-invalid="true"] { border-color: var(--status-danger); }
-input.version-lines-rename__field:disabled { opacity: 0.6; }
+input.version-lines-rename__field[aria-invalid="true"] { box-shadow: 0 1.5px 0 var(--status-danger); }
+/* While the rename runs the field only stops taking typing; the spinner in the
+   check's place is what says it is working. */
+input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 /* One line like the byline it stands in for; the whole sentence is on its
    tooltip. */
-.version-lines-rename__note { min-width: 0; padding-inline-start: var(--space-3); white-space: nowrap; overflow: hidden; }
+.version-lines-rename__note-slot { min-width: 0; display: grid; }
+.version-lines-rename__note { min-width: 0; white-space: nowrap; overflow: hidden; }
 .version-lines-rename__note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .version-lines-rename__note.field-error { font-size: var(--text-label); line-height: var(--leading-snug); }
 .version-lines-rename__note.field-error svg { width: 13px; height: 13px; }
+.version-lines-detail__strip--editing .version-lines-rename__note-slot,
+.version-lines-detail__strip--editing .version-lines-rename__actions,
+.version-lines-detail__strip--settling .version-lines-detail__meta,
+.version-lines-detail__strip--settling .version-lines-detail__actions {
+  animation: version-lines-rename-swap-in var(--duration-normal) ease-out;
+}
+/* Confirming is the check in the accent, never a second filled button. */
+.version-lines-rename__confirm:not(:disabled) { color: var(--accent-primary); }
+/* Cancel: the fill, the underline, the note and the circles fade out before
+   the name at rest takes their place again. */
+.version-lines-detail__strip--leaving input.version-lines-rename__field {
+  animation: version-lines-rename-field-out 140ms ease-in forwards;
+}
+.version-lines-detail__strip--leaving .version-lines-rename__note-slot,
+.version-lines-detail__strip--leaving .version-lines-rename__actions {
+  animation: version-lines-rename-swap-out 140ms ease-in forwards;
+}
+/* Saved: the new name lights once in the accent, in the strip and in its row. */
+.version-lines-detail__strip--renamed .version-lines-detail__name,
+.version-line-row--renamed .version-line-row__name {
+  animation: version-lines-rename-lit 600ms ease-out;
+}
+@keyframes version-lines-rename-field-in {
+  from { box-shadow: 0 1.5px 0 transparent; }
+}
+@keyframes version-lines-rename-field-out {
+  to { box-shadow: 0 1.5px 0 transparent; }
+}
+@keyframes version-lines-rename-swap-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+@keyframes version-lines-rename-swap-out {
+  to { opacity: 0; transform: translateY(-3px); }
+}
+@keyframes version-lines-rename-lit {
+  from { color: var(--accent-primary); }
+}
 .version-lines-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .version-lines-detail__actions .secondary-button { white-space: nowrap; }
 .version-lines-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
@@ -729,57 +787,17 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   to { opacity: 0; }
 }
 
-/* What the line changes against the main line: the totals, then a list cut to
-   the height left — never scrolled — with the rest counted. */
-.version-lines-changes__soon {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: var(--text-secondary-color); font-size: var(--text-caption); opacity: 0.7;
-}
-.version-lines-changes__total {
-  display: flex; align-items: baseline; gap: var(--space-2); margin: 0 0 var(--space-1);
-  font-size: var(--text-label); font-variant-numeric: tabular-nums;
-}
-.version-lines-changes__total strong { font-weight: var(--weight-strong); color: var(--text-primary-color); }
-.version-lines-changes__since { color: var(--text-secondary-color); font-size: var(--text-caption); }
-.version-lines-changes__added { color: var(--status-success); }
-.version-lines-changes__deleted { color: var(--status-danger); }
-.version-lines-changes__list { flex: 1; min-height: 0; overflow: hidden; }
-.version-lines-changes__list ul { display: grid; margin: 0; padding: 0; list-style: none; }
-.version-lines-changes__list li {
-  height: 24px; min-width: 0;
-  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 64px; align-items: center; gap: var(--space-2);
-  font-size: var(--text-caption);
-}
-.version-lines-changes__glyph { display: grid; place-items: center; color: var(--text-secondary-color); }
-.version-lines-changes__glyph svg { width: 13px; height: 13px; }
-/* The colours the Changes and History file rows give the same glyphs. */
-.version-lines-changes__glyph--new { color: var(--status-success); }
-.version-lines-changes__glyph--deleted { color: var(--status-danger); }
-.version-lines-changes__glyph--renamed { color: var(--status-renamed); }
-/* The name first and whole; its folder after it, quieter, and the part that
-   gives way. */
-.version-lines-changes__path { min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; white-space: nowrap; }
-.version-lines-changes__name { flex: 0 0 auto; color: var(--text-primary-color); font-size: var(--text-body); }
-.version-lines-changes__folder { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary-color); }
-.version-lines-changes__counts { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-secondary-color); }
-.version-lines-changes__bar { display: flex; justify-content: flex-end; }
-.version-lines-changes__bar > span { display: flex; height: 6px; overflow: hidden; border-radius: var(--radius-pill); }
-.version-lines-changes__bar-added { display: block; background: var(--status-success); }
-.version-lines-changes__bar-deleted { display: block; flex: 1; background: var(--status-danger); }
-.version-lines-changes__more { margin: 0; height: 24px; display: flex; align-items: center; color: var(--text-secondary-color); font-size: var(--text-caption); }
-/* The short versions list's last row: how many more, and the way to them. */
-.version-lines-recent__more {
-  align-self: flex-start; margin-top: 2px; padding: 0; border: 0; background: transparent;
-  color: var(--text-secondary-color); font: inherit; font-size: var(--text-caption);
-}
-.version-lines-recent__more:hover { color: var(--text-primary-color); }
-.version-lines-recent__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
-
-/* A few of this line's saved versions, at the tier the History timeline lists
-   them: the subject is the row, and when it happened is the caption beside it. */
-.version-lines-recent { min-height: 0; display: grid; align-content: start; gap: 1px; margin: 0 -6px; padding: 0; list-style: none; }
-.version-lines-card--fill .version-lines-recent { flex: 1; overflow-y: auto; }
+/* This line's saved versions, at the tier the History timeline lists them:
+   the subject is the row, and when it happened is the caption beside it. Each
+   sits on a rail with History's node, and the stretch only on this computer
+   is headed and closed the way History and Overview head and close it. No gap
+   between rows, so the rail runs unbroken. */
+.version-lines-recent { min-height: 0; display: grid; align-content: start; margin: 0 -6px; padding: 0; list-style: none; }
+/* It scrolls down and never across: every row gives way from its subject, so
+   nothing in it is ever wider than the panel. */
+.version-lines-card--fill .version-lines-recent { flex: 1; overflow-x: hidden; overflow-y: auto; }
 .version-lines-recent li {
+  position: relative;
   min-width: 0;
   min-height: 30px;
   display: flex;
@@ -789,6 +807,17 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
 }
+/* The rail, through the nodes' centre (6px inset, 12px node). It is structure,
+   in the divider colour, as on History; it starts at the first node, ends at
+   the last, and runs up into the head when there is one. */
+.version-lines-recent li::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 11.5px; width: 1px;
+  background: var(--border-divider);
+}
+.version-lines-recent__row[data-first]::before,
+.version-lines-recent li.version-lines-recent__head::before { top: 50%; }
+.version-lines-recent__row[data-last]::before { bottom: 50%; }
+.version-lines-recent__row[data-first][data-last]::before { display: none; }
 /* The row is the control: it opens this version in History, so it answers on
    approach the way a row in the list column does, with the same tint and the
    same item radius. It takes the row's own padding with it — the `li` keeps
@@ -814,7 +843,30 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
 }
 .version-lines-recent__open:hover { background: var(--surface-hover); }
 .version-lines-recent__open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.version-lines-recent .version-line-chip { flex: 0 0 auto; }
+/* History's node, at its size: half filled while the version is only here, a
+   solid neutral disc once published, an empty ring when that is not known.
+   The accent ring comes under the pointer; the shape never changes. */
+.version-lines-recent__node {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  width: 12px; height: 12px;
+  border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
+  border-radius: var(--radius-round);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px var(--surface-panel);
+  transition: border-color var(--duration-fast) ease-out;
+}
+.version-lines-recent__row--local-only .version-lines-recent__node {
+  border-color: var(--text-primary-color);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+}
+.version-lines-recent__row--published .version-lines-recent__node {
+  border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
+  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-panel));
+}
+.version-lines-recent__row:hover .version-lines-recent__node,
+.version-lines-recent__row:focus-within .version-lines-recent__node { border-color: var(--accent-primary); }
+/* The code is there for whoever looks for it: under the pointer or focus,
+   never a column every row spends. */
 .version-lines-recent code {
   flex: 0 0 auto;
   padding: 2px 6px;
@@ -822,7 +874,11 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   border-radius: var(--radius-item);
   background: var(--surface-code);
   font-size: var(--text-micro);
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease-out;
 }
+.version-lines-recent__row:hover code,
+.version-lines-recent__row:focus-within code { opacity: 1; }
 .version-lines-recent__subject {
   min-width: 0;
   flex: 1;
@@ -833,6 +889,66 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
   white-space: nowrap;
 }
 .version-lines-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+/* The head over the versions only here and the remote's mark where its copy
+   begins: History's and Overview's pieces — a 22px disc on the rail and a
+   caption that starts where the subjects do. */
+.version-lines-recent__head,
+.version-lines-recent__boundary { gap: 7px; }
+.version-lines-recent__mark {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  width: 22px; height: 22px; margin-inline-start: -5px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-round);
+}
+.version-lines-recent__mark svg { width: 12px; height: 12px; }
+.version-lines-recent__mark--local { background: var(--surface-control); color: var(--accent-primary); }
+.version-lines-recent__mark--remote { border: 1px solid var(--border-control); background: var(--surface-panel); color: var(--status-renamed); }
+.version-lines-recent__caption { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-recent__head .version-lines-recent__caption { font-size: var(--text-label); font-weight: var(--weight-heading); }
+.version-lines-recent__remote { color: var(--text-primary-color); font-family: var(--font-mono); font-weight: var(--weight-strong); }
+.version-lines-recent__rule { flex: 1 1 auto; min-width: 12px; height: 0; border-top: 1px dashed var(--border-control); }
+/* Publishing what is waiting, where it is said: History's group-head capsule.
+   The cloud is always in the accent, so the word reads as an action before
+   the pointer finds it; under the pointer the capsule takes the control
+   surface and a hairline, and the words step up to the primary ink. */
+.version-lines-publish {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
+  height: 20px; margin-inline-start: auto; padding: 0 7px;
+  border: 1px solid transparent; border-radius: var(--radius-pill);
+  background: transparent; color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-caption); font-weight: var(--weight-medium); white-space: nowrap;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
+.version-lines-publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
+.version-lines-publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.version-lines-relations .version-lines-publish svg,
+.version-lines-publish svg { width: 12px; height: 12px; margin: 0; color: var(--accent-primary); }
+
+/* What the line can do with the other end: a glyph tile, the action in the
+   quick switch's words, what it would do under it, and `Soon` until the flow
+   exists. */
+.version-lines-integrations { display: grid; gap: 2px; margin: 0 -6px; padding: 0; list-style: none; }
+.version-lines-integrations li {
+  min-width: 0;
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3);
+  padding: 5px 6px;
+}
+.version-lines-integrations__tile {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  background: var(--surface-control); color: var(--text-secondary-color);
+}
+.version-lines-integrations__tile svg { width: 14px; height: 14px; }
+.version-lines-integrations__text { min-width: 0; display: grid; gap: 1px; }
+.version-lines-integrations__title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.version-lines-integrations__detail {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums;
+}
 
 .version-lines-relations { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .version-lines-relations li { display: flex; align-items: flex-start; gap: var(--space-2); }
@@ -869,12 +985,23 @@ input.version-lines-rename__field:disabled { opacity: 0.6; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .version-line-row { transition: none; }
+  .version-line-row, .version-lines-recent__node, .version-lines-recent code, .version-lines-publish { transition: none; }
+  input.version-lines-rename__field,
+  .version-lines-rename__note-slot,
+  .version-lines-rename__actions,
+  .version-lines-detail__strip--settling .version-lines-detail__meta,
+  .version-lines-detail__strip--settling .version-lines-detail__actions,
+  .version-lines-detail__name,
+  .version-line-row__name { animation: none; }
 }
 
 @media (forced-colors: active) {
   .version-line-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .version-line-chip { border: 1px solid CanvasText; }
+  /* The nodes keep their shapes in the forced palette, as History's do. */
+  .version-lines-recent__node { border-color: ButtonText; }
+  .version-lines-recent__row--local-only .version-lines-recent__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }
+  .version-lines-recent__row--published .version-lines-recent__node { background: CanvasText; }
 }
 
 .delete-version-line-options {

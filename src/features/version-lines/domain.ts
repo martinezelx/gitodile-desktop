@@ -98,6 +98,9 @@ export type VersionLineHistory = {
   totalCount: number | null;
   versions: VersionLineVersion[];
   hasMore: boolean;
+  /** The listed versions not yet on the line's upstream, by commit. `null`
+   * when the line tracks nothing or its tracking branch is gone. */
+  unpublished: string[] | null;
   /** Where this line left the project's main line. `null` for the main line
    * itself, a project with no main line, a shallow clone, or when Git could
    * not say. */
@@ -128,22 +131,12 @@ export type VersionLineRoute = {
   changes: LineChanges | null;
 };
 
-/** Mirrors the Rust `LineChanges` contract: totals over every file, and the
- * files that change most, largest first. */
+/** Mirrors the Rust `LineChanges` contract: totals over every file the line
+ * changes since the parting. */
 export type LineChanges = {
   filesChanged: number;
   additions: number;
   deletions: number;
-  files: ChangedFile[];
-};
-
-/** Mirrors the Rust `ChangedFile` contract. Counts are `null` for a binary
- * file. */
-export type ChangedFile = {
-  path: string;
-  status: "added" | "deleted" | "modified" | "renamed";
-  additions: number | null;
-  deletions: number | null;
 };
 
 /** Mirrors the Rust `VersionLineMerge` contract: the merge by which a line came
