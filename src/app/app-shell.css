@@ -1361,18 +1361,82 @@
    the backdrop, surface, close button, eyebrow and heading are shared, so the
    two surfaces cannot drift apart visually. Slightly wider than About because
    a release note is a sentence, not a label. */
-.changelog-dialog { width: min(100%, 460px); }
+/* The dialog is a column that never scrolls itself: the header (mark, title,
+   update line and close) stays put and only the release list scrolls under it.
+   The inline padding moves onto the two rows so the scrollbar runs along the
+   dialog's own edge instead of inside the text column.
+
+   Mid-scroll the notes would be cut dead against the header and the dialog's
+   bottom edge. Both cuts get the status bar's fade (see `.status-bar::before`
+   for why it is a smoothstep to the surface colour and not a ramp to
+   `transparent`), here to the dialog's own raised surface. Each band is
+   exactly as tall as the body's padding on its side, so at either end of the
+   scroll it covers only padding and costs nothing; it shows only while there
+   is more to see. The same heights are the body's scroll padding, so a
+   release brought into view by the keyboard stops clear of the fade rather
+   than under it, and the bands stop short of the scrollbar so the thumb stays
+   crisp. */
+.changelog-dialog {
+  --changelog-fade-top: 24px;
+  --changelog-fade-bottom: 32px;
+  width: min(100%, 460px);
+  display: flex; flex-direction: column;
+  padding-inline: 0; padding-bottom: 0;
+  overflow: hidden;
+}
+.changelog-dialog__body {
+  flex: 1 1 auto; min-height: 0;
+  padding: var(--changelog-fade-top) 32px var(--changelog-fade-bottom);
+  overflow-y: auto;
+  scroll-padding-block: var(--changelog-fade-top) var(--changelog-fade-bottom);
+  /* The landing point for focus, not a control: the dialog's own surface
+     already says where focus is. */
+  outline: none;
+}
+.changelog-dialog__header::after,
+.changelog-dialog::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 6px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    var(--changelog-fade-direction),
+    var(--surface-raised) 0%,
+    color-mix(in srgb, var(--surface-raised) 95.7%, transparent) 12.5%,
+    color-mix(in srgb, var(--surface-raised) 84.4%, transparent) 25%,
+    color-mix(in srgb, var(--surface-raised) 68.4%, transparent) 37.5%,
+    color-mix(in srgb, var(--surface-raised) 50%, transparent) 50%,
+    color-mix(in srgb, var(--surface-raised) 31.6%, transparent) 62.5%,
+    color-mix(in srgb, var(--surface-raised) 15.6%, transparent) 75%,
+    color-mix(in srgb, var(--surface-raised) 4.3%, transparent) 87.5%,
+    color-mix(in srgb, var(--surface-raised) 0%, transparent) 100%
+  );
+}
+.changelog-dialog__header::after {
+  --changelog-fade-direction: to bottom;
+  top: 100%;
+  height: var(--changelog-fade-top);
+}
+.changelog-dialog::after {
+  --changelog-fade-direction: to top;
+  bottom: 0;
+  height: var(--changelog-fade-bottom);
+}
 /* A glyph on a fill, so it is round — the identity mark belongs to About and
    is not repeated here. */
-/* Mark, then the title over its update line. The row stops short of the
-   corner close control (36px plus a gap), which shares its top, so a long
-   translation never runs beneath it. */
+/* Mark, then the title over its update line, then the close control in the
+   row's own corner, so a long translation wraps before it rather than running
+   beneath it. */
 .changelog-dialog__header {
   display: flex; align-items: center; gap: 14px;
-  min-height: 44px; padding-right: 44px;
+  position: relative;
+  flex-shrink: 0;
+  min-height: 44px; padding: 0 32px;
 }
 .changelog-dialog__heading { flex: 1; min-width: 0; }
-.changelog-dialog > .dialog-close-button { margin-top: 4px; }
+.changelog-dialog__header > .dialog-close-button { align-self: flex-start; margin: 4px calc(-1 * var(--space-3)) 0 0; }
 /* About's update line, left-aligned under the title instead of centred under
    a hero. */
 .changelog-dialog .changelog-dialog__update { justify-content: flex-start; flex-wrap: wrap; gap: 4px 7px; margin: 2px 0 0; }
@@ -1393,7 +1457,7 @@
    click. Everything below it is history. */
 .changelog-current {
   display: grid; gap: 14px;
-  margin: 24px 0 0; padding: 14px 16px 16px;
+  margin: 0; padding: 14px 16px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
   background: var(--surface-control);

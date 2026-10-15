@@ -211,6 +211,24 @@ describe("Changelog dialog", () => {
     expect(setOpen).not.toHaveBeenCalled();
   });
 
+  it("keeps Close in the header and lands focus on the scrolling notes", async () => {
+    render(<TriggerAndDialog />);
+    await userEvent.click(screen.getByRole("button", { name: __APP_VERSION__ }));
+    const dialog = await screen.findByRole("dialog", { name: "What's new" });
+
+    // Close sits beside the title, outside the list that scrolls, so opening
+    // earlier releases never carries it away.
+    const header = within(dialog).getByRole("heading", { name: "What's new" }).closest("header") as HTMLElement;
+    const body = dialog.querySelector(".changelog-dialog__body") as HTMLElement;
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    expect(header).toContainElement(close);
+    expect(body).not.toContainElement(close);
+
+    // Focus lands on the scrolling list, so the arrow and page keys move the
+    // notes straight away instead of being spent on a header that cannot scroll.
+    await vi.waitFor(() => expect(body).toHaveFocus());
+  });
+
   it("returns focus to whatever opened it", async () => {
     render(<TriggerAndDialog />);
     const trigger = screen.getByRole("button", { name: __APP_VERSION__ });
