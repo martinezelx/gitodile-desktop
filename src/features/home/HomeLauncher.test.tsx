@@ -216,7 +216,11 @@ describe("HomeLauncher", () => {
       onInstallGit,
     });
 
-    expect(screen.getByText("GitOdile needs Git to work")).toBeInTheDocument();
+    const title = screen.getByText("GitOdile needs Git to work");
+    // One line: the title, then the hint with the whole of it on its tooltip.
+    const hint = title.nextElementSibling as HTMLElement;
+    expect(title.parentElement).toHaveClass("home-git-notice__body");
+    expect(hint).toHaveAttribute("title", hint.textContent);
     expect(screen.getByRole("button", { name: "Open a project" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "portfolio-web" })).toBeDisabled();
     expect(document.querySelector(".home-launcher__go--quiet")).not.toBeNull();

@@ -468,6 +468,7 @@
 /* ---- Git missing: the one blocking notice, above the results ---- */
 .home-git-notice {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 12px;
   margin: var(--space-2) var(--space-2) 0;
@@ -486,8 +487,11 @@
   color: var(--status-warning);
 }
 .home-git-notice__glyph svg { width: 16px; height: 16px; }
-.home-git-notice__title { font-size: var(--text-body); font-weight: var(--weight-heading); }
-.home-git-notice__hint { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+/* One line, as every in-screen notice (DESIGN.md § Content design): the
+   title, then the hint cut short with the whole of it on its tooltip. */
+.home-git-notice__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.home-git-notice__title { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-body); font-weight: var(--weight-heading); text-overflow: ellipsis; white-space: nowrap; }
+.home-git-notice__hint { flex: 1 1 0; min-width: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); text-overflow: ellipsis; white-space: nowrap; }
 .home-git-notice__action { flex-shrink: 0; }
 .home-git-notice__action svg { width: 14px; height: 14px; }
 

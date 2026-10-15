@@ -150,7 +150,9 @@ function BoundaryMark({ publishedOn, remoteGone, t }: { publishedOn: string | nu
 }
 
 function HistoryBanner({ tone, title, action, children }: { tone: "neutral" | "warning" | "danger"; title: string; action?: React.ReactNode; children: React.ReactNode }): React.JSX.Element {
-  return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div className="history-banner__body"><strong>{title}</strong><p>{children}</p></div>{action}</section>;
+  // One line: the title, then the explanation, cut short with the whole of it
+  // on the tooltip — a notice is read at a glance, not stacked over the list.
+  return <section className={`history-banner history-banner--${tone}`}><CircleAlert aria-hidden="true" /><div className="history-banner__body"><strong>{title}</strong><p title={typeof children === "string" ? children : undefined}>{children}</p></div>{action}</section>;
 }
 
 function HistoryWatchingNotice({ watcherState, busy, onRefresh, onOpenSettings }: { watcherState: "starting" | "watching" | "off" | "unavailable"; busy: boolean; onRefresh: () => void; onOpenSettings: () => void }): React.JSX.Element | null {

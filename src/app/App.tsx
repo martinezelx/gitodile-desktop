@@ -2669,7 +2669,7 @@ export function App(): React.JSX.Element {
 
           {view === "overview" && skippedRestoreCount > 0 && (
             <p className="restore-skipped-notice" role="status">
-              <span>{t.startupRestoreSkippedNotice(skippedRestoreCount)}</span>
+              <span title={t.startupRestoreSkippedNotice(skippedRestoreCount)}>{t.startupRestoreSkippedNotice(skippedRestoreCount)}</span>
               <button
                 type="button"
                 aria-label={t.commonClose}

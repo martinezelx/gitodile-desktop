@@ -1756,8 +1756,11 @@ export function VersionLinesPanel({
       )}
       {snapshot?.headState === "detached" && (
         <div className="version-lines-banner" role="status">
-          <h2>{t.versionLinesDetachedTitle}</h2>
-          <p>{t.versionLinesDetachedDescription}</p>
+          <CircleAlert aria-hidden="true" />
+          <div className="version-lines-banner__body">
+            <h2>{t.versionLinesDetachedTitle}</h2>
+            <p title={t.versionLinesDetachedDescription}>{t.versionLinesDetachedDescription}</p>
+          </div>
           <button
             className="primary-button"
             type="button"
@@ -1770,8 +1773,11 @@ export function VersionLinesPanel({
       )}
       {snapshot?.headState === "unborn" && (
         <div className="version-lines-banner" role="status">
-          <h2>{t.versionLinesUnbornTitle}</h2>
-          <p>{t.versionLinesUnbornDescription}</p>
+          <CircleAlert aria-hidden="true" />
+          <div className="version-lines-banner__body">
+            <h2>{t.versionLinesUnbornTitle}</h2>
+            <p title={t.versionLinesUnbornDescription}>{t.versionLinesUnbornDescription}</p>
+          </div>
         </div>
       )}
     </div>

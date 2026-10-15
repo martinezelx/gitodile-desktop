@@ -2478,6 +2478,23 @@ never copy; say what stays safe instead.
 
 Each screen must define loading, empty, success, warning, and error states.
 
+**A notice on a screen is one line.** Every in-screen notice or banner —
+History's, Changes' failed read and discard result, the automatic-updates
+warning, Lines' detached and unborn banners, Home's Git notice, the skipped
+restore at startup — reads as one row: its icon, the title in the strong
+weight, then the explanation in the secondary ink on the same line, cut short
+with an ellipsis and the whole of it on the text's tooltip, and any action at
+the end, centred on the row. A notice is read at a glance and the screen's
+content is what it sits over; stacked, the title and its sentence spent two
+lines and a gap to say what one line says. The explanation gives way first;
+the title truncates only once the explanation has nothing left. Where the row
+is too narrow for its actions as well (the automatic-updates warning, with
+two), the actions wrap to a row of their own, at the end, and the text keeps
+its one line.
+Tones, colours and actions are each notice's own. Dialog banners
+(`DialogBanner`) are not in-screen notices: they state a consequence before
+it happens and wrap to show all of it.
+
 **A render error never blanks the window.** Each screen, each Work tab and
 the app itself sit inside an error boundary. A failure shows the error form of
 the empty-state block in the place of what failed — "This view ran into a

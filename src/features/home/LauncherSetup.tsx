@@ -152,14 +152,15 @@ export function GitNotice({
   onRecheckGit: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  const hint = state === "missing" ? t.homeGitMissingHint : t.homeGitUnusableHint;
   return (
     <div className="home-git-notice" role="status">
       <span className="home-git-notice__glyph" aria-hidden="true">
         <TriangleAlert />
       </span>
-      <span className="home-launcher__copy">
+      <span className="home-git-notice__body">
         <span className="home-git-notice__title">{state === "missing" ? t.homeGitMissingTitle : t.homeGitUnusableTitle}</span>
-        <span className="home-git-notice__hint">{state === "missing" ? t.homeGitMissingHint : t.homeGitUnusableHint}</span>
+        <span className="home-git-notice__hint" title={hint}>{hint}</span>
       </span>
       <button type="button" className="primary-button primary-button--sm home-git-notice__action" onClick={onInstallGit}>
         {state === "missing" ? t.homeGitInstall : t.homeGitOpenSettings}

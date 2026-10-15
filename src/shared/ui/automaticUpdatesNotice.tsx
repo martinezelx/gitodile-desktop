@@ -28,7 +28,7 @@ export function AutomaticUpdatesNotice({
       <EyeOff aria-hidden="true" />
       <div className="automatic-updates-notice__body">
         <strong>{title}</strong>
-        <p>{description}</p>
+        <p title={description}>{description}</p>
       </div>
       <div className="automatic-updates-notice__actions">
         <button className="ghost-button" type="button" aria-label={busy ? updatingAriaLabel : updateAriaLabel} disabled={busy} onClick={onUpdate}>

@@ -52,13 +52,19 @@
   line-height: var(--leading-snug);
 }
 
+/* One line, as every in-screen notice (DESIGN.md § Content design): the
+   title, then the explanation cut short with the whole of it on its tooltip,
+   and the way out at the end. */
 .version-lines-banner {
-  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
-  padding: var(--space-3) var(--space-4); border-radius: var(--radius-surface);
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-surface);
   background: var(--surface-panel);
 }
-.version-lines-banner h2 { margin: 0; font-size: var(--text-subtitle); }
-.version-lines-banner p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
+.version-lines-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.version-lines-banner h2 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-banner p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.version-lines-banner .primary-button { flex: 0 0 auto; }
 .version-lines-banner .primary-button svg { width: 16px; height: 16px; }
 .version-lines-refresh-error {
   display: flex;

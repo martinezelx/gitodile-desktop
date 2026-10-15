@@ -14,18 +14,19 @@
 
 .history-banner {
   display: flex;
-  align-items: flex-start;
+  min-width: 0;
+  align-items: center;
   gap: 10px;
   padding: 9px 11px;
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
 }
-.history-banner__body { flex: 1; min-width: 0; }
+.history-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
 .history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
 .history-banner > .secondary-button svg { width: 14px; height: 14px; }
-.history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-.history-banner strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
-.history-banner p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; align-self: center; }
+.history-banner strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
+.history-banner p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
 .history-banner--warning > svg { color: var(--status-warning); }
 .history-banner--danger > svg { color: var(--status-danger); }
 .history-banner--warning { outline: 1px solid var(--status-warning); outline-offset: -1px; }

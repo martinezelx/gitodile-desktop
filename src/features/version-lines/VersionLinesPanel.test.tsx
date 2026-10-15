@@ -538,8 +538,13 @@ describe("VersionLinesPanel", () => {
       snapshot: snapshot({ branch: null, headState: "detached", lines: [snapshot().lines[1]], totalCount: 1 }),
     });
 
-    expect(await screen.findByText("Not on a version line")).toBeInTheDocument();
-    expect(screen.getByText("Create a line here")).toBeInTheDocument();
+    const title = await screen.findByText("Not on a version line");
+    // One line: the title, the explanation on its tooltip, the way out last.
+    const body = title.parentElement as HTMLElement;
+    const explanation = title.nextElementSibling as HTMLElement;
+    expect(body).toHaveClass("version-lines-banner__body");
+    expect(explanation).toHaveAttribute("title", explanation.textContent);
+    expect(body.nextElementSibling).toHaveTextContent("Create a line here");
   });
 
   it("disables Switch and Delete for a line checked out in another worktree", async () => {

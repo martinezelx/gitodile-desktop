@@ -1058,6 +1058,11 @@ describe("ChangesPanel review controls", () => {
     const description = await screen.findByText("This screen may be out of date.");
     expect(description).toBeInTheDocument();
     const notice = description.closest(".automatic-updates-notice");
+    // One line: title and explanation share the notice's body, the
+    // explanation cut short with the whole of it on its tooltip.
+    expect(description).toHaveAttribute("title", "This screen may be out of date.");
+    expect(description.parentElement).toHaveClass("automatic-updates-notice__body");
+    expect(description.parentElement).toHaveTextContent(/^Automatic updates are off/);
     const tabs = screen.getByRole("tablist", { name: "Changes or history" });
     expect(notice).not.toBeNull();
     expect((notice as HTMLElement).compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1742,6 +1747,7 @@ describe("ChangesPanel filters", () => {
     // already gone, so the message needs a surface that outlives it.
     const notice = await screen.findByText("Couldn't show that file.");
     expect(notice.closest(".changes-notice--error")).not.toBeNull();
+    expect(notice).toHaveAttribute("title", "Couldn't show that file.");
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText("Couldn't show that file.")).not.toBeInTheDocument();
   });

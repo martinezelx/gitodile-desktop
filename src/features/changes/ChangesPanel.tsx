@@ -310,7 +310,7 @@ function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSetti
   if (error) {
     return <section className="changes-status-notice changes-status-notice--danger" role="alert">
       <CircleAlert aria-hidden="true" />
-      <div className="changes-status-notice__body"><strong>{t.changesRefreshFailedTitle}</strong><p>{error}</p></div>
+      <div className="changes-status-notice__body"><strong>{t.changesRefreshFailedTitle}</strong><p title={error}>{error}</p></div>
       <button className="secondary-button" type="button" onClick={onRefresh}>{t.changesCheckLocal}</button>
     </section>;
   }
@@ -342,6 +342,13 @@ function DiscardOutcomeNotice({
   if (!outcome) {
     return null;
   }
+  const message = outcome.status === "running"
+    ? t.changesDiscardingNow
+    : outcome.status === "error"
+      ? outcome.message
+      : outcome.status === "restored"
+        ? t.changesRestoreSuccess(outcome.restoredFiles)
+        : t.changesDiscardSuccess(outcome.discardedFiles);
   return (
     <div className={`changes-notice changes-notice--${outcome.status}`} role="status">
       {outcome.status === "running" ? (
@@ -351,15 +358,7 @@ function DiscardOutcomeNotice({
       ) : (
         <CheckCircle2 aria-hidden="true" />
       )}
-      <p>
-        {outcome.status === "running"
-          ? t.changesDiscardingNow
-          : outcome.status === "error"
-            ? outcome.message
-            : outcome.status === "restored"
-              ? t.changesRestoreSuccess(outcome.restoredFiles)
-              : t.changesDiscardSuccess(outcome.discardedFiles)}
-      </p>
+      <p title={message}>{message}</p>
       {outcome.status === "discarded" && (
         <button className="secondary-button" type="button" onClick={() => void onUndo(outcome.recovery)}>
           <RotateCcw aria-hidden="true" />
@@ -1649,7 +1648,7 @@ export function ChangesPanel({
       {revealError && (
         <div className="changes-notice changes-notice--error" role="status">
           <CircleAlert aria-hidden="true" />
-          <p>{revealError}</p>
+          <p title={revealError}>{revealError}</p>
           <button
             className="changes-notice__dismiss"
             type="button"
