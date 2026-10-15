@@ -15,8 +15,11 @@ function renderNodes(nodes: readonly MascotNode[]): React.ReactNode[] {
  *   the light that crosses the wordmark (About).
  * - `blink`: both eyes blink now and then, at an uneven pace and sometimes
  *   twice (the welcome screen).
+ * - `hop`: small waiting hops that land with a squash, while the app's own
+ *   update row checks, verifies or installs. It is a state, not a moment, so
+ *   it plays only while that work runs.
  */
-export type MascotMotion = "wink" | "blink";
+export type MascotMotion = "wink" | "blink" | "hop";
 
 export interface MascotProps {
   /**
@@ -27,6 +30,11 @@ export interface MascotProps {
   /** `body` shows the whole mascot; `head` its head, crest to snout tip. */
   variant?: "body" | "head";
   motion?: MascotMotion;
+  /**
+   * Fills the body from the feet up, 0 to 1, over a faint silhouette: the
+   * update row's download. Omitted, the mascot is drawn whole.
+   */
+  progress?: number;
   className?: string;
 }
 
@@ -38,15 +46,19 @@ export interface MascotProps {
  * so the front eye can close. Always decorative: the text beside it names the
  * screen or dialog.
  */
-export function Mascot({ variant = "body", motion, entrance = false, className }: MascotProps) {
+export function Mascot({ variant = "body", motion, entrance = false, progress, className }: MascotProps) {
   const artwork = MASCOT_ARTWORK[variant];
-  const maskId = `${useId()}-eyes`;
+  const id = useId();
+  const maskId = `${id}-eyes`;
+  const levelId = `${id}-level`;
   const { x, y, width, height } = artwork.box;
+  const level = progress === undefined ? null : Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
   return (
     <svg
       className={["gitodile-mascot", `gitodile-mascot--${variant}`, motion && `gitodile-mascot--${motion}`, entrance && "gitodile-mascot--enter", className]
         .filter(Boolean)
         .join(" ")}
+      data-progress={level === null ? undefined : Math.round(level * 100)}
       viewBox={artwork.viewBox}
       aria-hidden="true"
       focusable="false"
@@ -58,7 +70,28 @@ export function Mascot({ variant = "body", motion, entrance = false, className }
           <path className="gitodile-mascot__wink" d={artwork.eyes[1]} />
         </g>
       </mask>
-      <g mask={`url(#${maskId})`}>{renderNodes(artwork.nodes)}</g>
+      {level === null ? (
+        <g mask={`url(#${maskId})`}>{renderNodes(artwork.nodes)}</g>
+      ) : (
+        <>
+          {/* The level is a rect the height of the box, slid down by what is
+              still missing, so a CSS transition can ease it between reports. */}
+          <clipPath id={levelId}>
+            <rect
+              className="gitodile-mascot__level"
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              style={{ transform: `translateY(${(1 - level) * height}px)` }}
+            />
+          </clipPath>
+          <g className="gitodile-mascot__pending" mask={`url(#${maskId})`}>{renderNodes(artwork.nodes)}</g>
+          <g clipPath={`url(#${levelId})`}>
+            <g mask={`url(#${maskId})`}>{renderNodes(artwork.nodes)}</g>
+          </g>
+        </>
+      )}
       {artwork.outline && renderNodes(artwork.outline)}
     </svg>
   );

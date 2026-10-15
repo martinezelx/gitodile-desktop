@@ -67,6 +67,7 @@ const dictionaries = {
     status: {
       idle: "Not checked yet",
       unavailable: "Not available for this installation",
+      developmentBuild: "Development build",
       blocked: "Can't install yet",
     },
     /* The short state word in the update row's chip, beside the app name; the
@@ -83,6 +84,7 @@ const dictionaries = {
       installing: "Installing",
       cancelled: "Cancelled",
       unavailable: "Not available",
+      developmentBuild: "Development build",
       failed: "Needs attention",
     },
     errors: {
@@ -104,7 +106,7 @@ const dictionaries = {
       install_blocked: "Something in progress is keeping the update from installing. Finish it, then try again.",
       install_handoff_failed: "The installer didn't accept the update. Try again or use the manual download.",
       post_install_unconfirmed: "The new version wasn't found after restarting. Use the manual download if needed.",
-      not_configured: "This build can't check for updates. Download the latest one manually.",
+      not_configured: "Development builds don't update themselves.",
       internal: "The update couldn't be completed. Try again or use the manual download.",
     } satisfies Record<UpdateError["code"], string>,
   },
@@ -167,6 +169,7 @@ const dictionaries = {
     status: {
       idle: "Sin comprobar",
       unavailable: "No disponible para esta instalación",
+      developmentBuild: "Versión de desarrollo",
       blocked: "Todavía no se puede instalar",
     },
     /* The short state word in the update row's chip, beside the app name; the
@@ -183,6 +186,7 @@ const dictionaries = {
       installing: "Instalando",
       cancelled: "Cancelada",
       unavailable: "No disponible",
+      developmentBuild: "Versión de desarrollo",
       failed: "Revisar",
     },
     errors: {
@@ -204,7 +208,7 @@ const dictionaries = {
       install_blocked: "Hay algo en curso que impide instalar la actualización. Termínalo y reinténtalo.",
       install_handoff_failed: "El instalador no aceptó la actualización. Reinténtalo o usa la descarga manual.",
       post_install_unconfirmed: "No se encontró la nueva versión tras reiniciar. Usa la descarga manual si hace falta.",
-      not_configured: "Esta versión no puede buscar actualizaciones. Descarga la última a mano.",
+      not_configured: "Las versiones de desarrollo no se actualizan solas.",
       internal: "No se pudo completar la actualización. Reinténtalo o usa la descarga manual.",
     } satisfies Record<UpdateError["code"], string>,
   },

@@ -277,7 +277,24 @@ describe("application update dialog", () => {
     const snapshot: AppUpdatesSnapshot = { state: { kind: "unavailable", error }, startupConfirmation: { kind: "none" }, automaticEnabled: false };
     render(<Harness snapshot={snapshot} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByRole("status")).toHaveTextContent("This build can't check for updates. Download the latest one manually.");
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Development builds don't update themselves.");
+    // Not a problem to fix: the line is calm, not a warning.
+    expect(status).toHaveClass("status-line--neutral");
+  });
+
+  it("shows a development build in the Settings row as calm, not as a warning", () => {
+    const error = { code: "not_configured" as const, stage: "check" as const, retryable: false };
+    render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl snapshot={snapshotOf({ kind: "unavailable", error })} controller={controller()}
+          installed={installed} name="GitOdile" enabled={false} setEnabled={vi.fn()} />
+      </LanguageProvider>,
+    );
+    expect(screen.getByText("Development build")).toBeInTheDocument();
+    expect(screen.queryByText("Not available")).toBeNull();
+    expect(screen.getByText("Development builds don't update themselves.").closest(".status-line")).toHaveClass("status-line--neutral");
+    expect(screen.getByRole("button", { name: "Check for updates" })).toBeDisabled();
   });
 
   it("puts the cause in the Settings row and keeps Details for what only the dialog shows", () => {
@@ -332,6 +349,28 @@ describe("application update dialog", () => {
     expect(appController.download).not.toHaveBeenCalled();
     expect(appController.install).not.toHaveBeenCalled();
     expect(appController.check).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["idle", { kind: "idle" }, null, null],
+    ["checking", { kind: "checking", operationId: "op", source: "manual" }, "hop", null],
+    ["verifying", { kind: "verifying", candidate, receivedBytes: 100 }, "hop", null],
+    ["installing", { kind: "installing", candidateId: candidate.candidateId }, "hop", null],
+    ["a download of unknown size", { kind: "downloading", candidate, transfer: { length: "unknown", receivedBytes: 100 } }, "hop", null],
+    ["a download of known size", { kind: "downloading", candidate, transfer: { length: "known", receivedBytes: 1_048_576, totalBytes: 4_194_304 } }, null, "25"],
+  ] as const)("draws the row's whole mascot for %s", (_label, state, motion, progress) => {
+    const { container } = render(
+      <LanguageProvider>
+        <AppUpdateSettingsControl snapshot={snapshotOf(state as AppUpdatesSnapshot["state"])} controller={controller()}
+          installed={installed} name="GitOdile" enabled={false} setEnabled={vi.fn()} />
+      </LanguageProvider>,
+    );
+    const mascot = container.querySelector(".tool-row__tile .gitodile-mascot");
+    expect(mascot).toHaveClass("gitodile-mascot--body");
+    if (motion) expect(mascot).toHaveClass(`gitodile-mascot--${motion}`);
+    else expect(mascot).not.toHaveClass("gitodile-mascot--hop");
+    if (progress) expect(mascot).toHaveAttribute("data-progress", progress);
+    else expect(mascot).not.toHaveAttribute("data-progress");
   });
 
   it("enables background checks only from the disclosed Settings switch", async () => {

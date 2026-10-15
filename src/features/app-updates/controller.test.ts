@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { setInstallDraftBlocker } from "../../runtime/drafts";
 import type { UpdateAction, UpdateState } from "./domain";
-import { AUTOMATIC_CHECK_CADENCE_MS, createAppUpdatesController } from "./controller";
+import { AUTOMATIC_CHECK_CADENCE_MS, MANUAL_CHECK_MINIMUM_MS, createAppUpdatesController } from "./controller";
 import type { AppUpdatesPort } from "./port";
 
 function action(state: UpdateState, operationId: string | null = null): UpdateAction {
@@ -31,7 +31,7 @@ describe("application update controller", () => {
     let resolveCheck!: (result: UpdateAction) => void;
     const check = vi.fn(() => new Promise<UpdateAction>((resolve) => { resolveCheck = resolve; }));
     const port = createPort({ check });
-    const controller = createAppUpdatesController(port);
+    const controller = createAppUpdatesController(port, { manualCheckMinimumMs: 0 });
 
     await controller.initialize();
     expect(check).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("application update controller", () => {
     const port = createPort({ check: vi.fn(async () => action({ kind: "available", candidate })) });
     const onBackgroundCheckSettled = vi.fn();
     const controller = createAppUpdatesController(port, {
-      automaticEnabled: true, startupSettleMs: 1_000, onBackgroundCheckSettled,
+      automaticEnabled: true, startupSettleMs: 1_000, onBackgroundCheckSettled, manualCheckMinimumMs: 0,
     });
     await controller.initialize();
     await controller.check();
@@ -86,6 +86,60 @@ describe("application update controller", () => {
     expect(onBackgroundCheckSettled).toHaveBeenCalledOnce();
     expect(onBackgroundCheckSettled).toHaveBeenCalledWith(expect.objectContaining({ kind: "available" }));
     controller.dispose();
+  });
+
+  it("keeps a manual check visible for its minimum, even when native answers at once", async () => {
+    vi.useFakeTimers();
+    const unavailable: UpdateState = { kind: "unavailable", error: { code: "not_configured", stage: "check", retryable: false } };
+    const port = createPort({ check: vi.fn(async () => action(unavailable)) });
+    const controller = createAppUpdatesController(port);
+    await controller.initialize();
+    let settled = false;
+    const check = controller.check().then((state) => { settled = true; return state; });
+    // "Checking" shows at once, with no operation to cancel yet.
+    expect(controller.getSnapshot().state).toEqual({ kind: "checking", operationId: "", source: "manual" });
+    await vi.advanceTimersByTimeAsync(MANUAL_CHECK_MINIMUM_MS - 1);
+    expect(controller.getSnapshot().state.kind).toBe("checking");
+    expect(settled).toBe(false);
+    await controller.cancel();
+    expect(port.cancel).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await check).toEqual(unavailable);
+    expect(controller.getSnapshot().state).toEqual(unavailable);
+    controller.dispose();
+  });
+
+  it("never checks again from a development build", async () => {
+    const unavailable: UpdateState = { kind: "unavailable", error: { code: "not_configured", stage: "check", retryable: false } };
+    const port = createPort({ readState: vi.fn(async () => unavailable) });
+    const controller = createAppUpdatesController(port, { automaticEnabled: true, startupSettleMs: 0 });
+    await controller.initialize();
+    expect(await controller.check()).toEqual(unavailable);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(port.check).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("never holds a background check or a check under reduced motion", async () => {
+    vi.useFakeTimers();
+    const port = createPort();
+    const background = createAppUpdatesController(port, { automaticEnabled: true, startupSettleMs: 1_000 });
+    await background.initialize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(port.check).toHaveBeenLastCalledWith("background");
+    expect(background.getSnapshot().state.kind).toBe("current");
+    background.dispose();
+
+    document.documentElement.dataset.reducedMotion = "true";
+    try {
+      const manual = createAppUpdatesController(createPort());
+      await manual.initialize();
+      await manual.check();
+      expect(manual.getSnapshot().state.kind).toBe("current");
+      manual.dispose();
+    } finally {
+      delete document.documentElement.dataset.reducedMotion;
+    }
   });
 
   it("uses the native operation id when cancelling a download", async () => {

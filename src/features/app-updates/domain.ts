@@ -65,3 +65,12 @@ export type NativeDraftPreparation = Readonly<{
   protectedCount: number;
   blockers: readonly string[];
 }>;
+
+/** A build without an update key — a development or local build — cannot
+ * check by design. Native reports it as "unavailable" from startup, like any
+ * dead end, but it is not a problem to fix: it speaks in a neutral tone, and
+ * there is nothing to check again, since a build cannot gain a key while it
+ * runs. */
+export function isDevelopmentBuild(state: UpdateState): boolean {
+  return state.kind === "unavailable" && state.error.code === "not_configured";
+}

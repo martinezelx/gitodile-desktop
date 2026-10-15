@@ -108,12 +108,34 @@
     animation: mascot-enter-draw 700ms ease-in-out both, mascot-enter-fade 500ms ease-out 600ms both;
   }
 }
+/* `--hop` (the app's update row, while it checks, verifies or installs): a
+   small hop that lands with a squash, twice a second, from the feet so the
+   mascot stays standing in its tile. It runs only while that work does, and
+   only where motion is welcome; the app's own setting stops it in base.css. */
+@media (prefers-reduced-motion: no-preference) {
+  .gitodile-mascot--hop > g {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: mascot-hop 600ms cubic-bezier(0.3, 0, 0.3, 1) infinite;
+  }
+}
+@keyframes mascot-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  10% { transform: translateY(0) scale(1.06, 0.92); }
+  45% { transform: translateY(-9%) scale(0.97, 1.04); }
+  80% { transform: translateY(0) scale(1.04, 0.95); }
+}
+/* `progress` (the update row's download): the body fills from the feet up
+   over a faint silhouette of itself, easing between progress reports. */
+.gitodile-mascot__pending { opacity: 0.28; }
+.gitodile-mascot__level { transition: transform var(--duration-normal) ease-out; }
 @keyframes mascot-enter-show { from { opacity: 0; } to { opacity: 1; } }
 @keyframes mascot-enter-draw { from { stroke-dashoffset: 1; stroke-opacity: 1; } to { stroke-dashoffset: 0; stroke-opacity: 1; } }
 @keyframes mascot-enter-fade { from { stroke-opacity: 1; } to { stroke-opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .gitodile-mascot--wink .gitodile-mascot__wink,
   .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
+  .gitodile-mascot__level { transition: none; }
 }
 :root[data-reduced-motion="true"] .gitodile-mascot--wink .gitodile-mascot__wink,
 :root[data-reduced-motion="true"] .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
@@ -1312,8 +1334,9 @@
   border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-primary-color);
 }
 .tool-row__tile svg { width: 16px; height: 16px; }
-/* The app's own mark is a wide head, so it sits a touch larger in the same
-   circle without the tile changing size; its aspect ratio sets the height. */
+/* The app's own mark is the whole mascot, so it sits a touch larger in the
+   same circle without the tile changing size; its aspect ratio sets the height
+   and leaves headroom for the update row's hop. */
 .tool-row__tile .gitodile-mascot { width: 24px; height: auto; }
 .tool-row__name { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
 .tool-row__chip {

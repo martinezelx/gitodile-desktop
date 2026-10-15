@@ -19,7 +19,7 @@ import { useLanguage, type Language } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import { Dialog, Mascot, ReleaseHighlights, ToolInstallationRow, autoHideScrollbarProps, useModalFocus, type ToolChip } from "../../shared/ui";
 import type { AppUpdatesController, AppUpdatesSnapshot } from "./controller";
-import type { StartupUpdateConfirmation, UpdateCandidate, UpdateError, UpdateHighlight, UpdateState } from "./domain";
+import { isDevelopmentBuild, type StartupUpdateConfirmation, type UpdateCandidate, type UpdateError, type UpdateHighlight, type UpdateState } from "./domain";
 import { appUpdateTranslations, candidateFromState } from "./translations";
 
 /** The build the reader is running. It lives in the app shell's release
@@ -99,7 +99,9 @@ function describeState(state: UpdateState, language: Language): StatusLine {
     case "blocked": return { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.status.blocked };
     case "installing": return { tone: "progress", icon: spinner, message: t.installing };
     case "cancelled": return { tone: "neutral", icon: <Info aria-hidden="true" />, message: t.cancelled };
-    case "unavailable": return { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.status.unavailable };
+    case "unavailable": return isDevelopmentBuild(state)
+      ? { tone: "neutral", icon: <Info aria-hidden="true" />, message: t.status.developmentBuild }
+      : { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.status.unavailable };
     case "failed": return { tone: "danger", icon: <CircleAlert aria-hidden="true" />, message: t.errors[state.error.code] };
   }
 }
@@ -234,7 +236,9 @@ function describeChip(state: UpdateState, language: Language): ToolChip {
     case "blocked": return { label: t.chip.blocked, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> };
     case "installing": return { label: t.chip.installing, tone: "neutral", icon: spinner };
     case "cancelled": return { label: t.chip.cancelled, tone: "neutral" };
-    case "unavailable": return { label: t.chip.unavailable, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> };
+    case "unavailable": return isDevelopmentBuild(state)
+      ? { label: t.chip.developmentBuild, tone: "neutral" }
+      : { label: t.chip.unavailable, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> };
     case "failed": return { label: t.chip.failed, tone: "danger", icon: <CircleAlert aria-hidden="true" /> };
   }
 }
@@ -420,7 +424,9 @@ export function AppUpdateSettingsControl({
           ? { label: t.details, disabled: false, run: onOpenDialog, spinner: false }
           : state.kind === "downloading" || state.kind === "verifying" || state.kind === "installing"
             ? { label: t.chip[state.kind], disabled: true, run: () => undefined, spinner: true }
-            : { label: t.check, disabled: false, run: () => void controller.check(), spinner: false };
+            /* A development build has nothing to check: the line beside
+               it says why, so the button stays, disabled. */
+            : { label: t.check, disabled: isDevelopmentBuild(state), run: () => void controller.check(), spinner: false };
   /* The build you have, the manual way out, what changed, and how the next one
      reaches you — none named after the tab it sits in. */
   return (
@@ -428,7 +434,7 @@ export function AppUpdateSettingsControl({
       <section className="settings-group">
         <div className="settings-group__body">
           <ToolInstallationRow
-            mark={<Mascot variant="head" />}
+            mark={<Mascot {...mascotForState(state)} />}
             name={name}
             chip={describeChip(state, language)}
             version={installed.version}
@@ -486,6 +492,26 @@ export function AppUpdateSettingsControl({
 }
 
 /**
+ * The row's mascot carries the work in flight: it hops while the update is
+ * checked, verified or installed, and fills from the feet up with a download
+ * whose size is known. Settled states show it still.
+ */
+function mascotForState(state: UpdateState): { motion?: "hop"; progress?: number } {
+  switch (state.kind) {
+    case "checking":
+    case "verifying":
+    case "installing":
+      return { motion: "hop" };
+    case "downloading":
+      return state.transfer.length === "known" && state.transfer.totalBytes > 0
+        ? { progress: state.transfer.receivedBytes / state.transfer.totalBytes }
+        : { motion: "hop" };
+    default:
+      return {};
+  }
+}
+
+/**
  * The update dialog, on the About shell like the changelog: mark, title, the
  * installed build, then one status line whose tone carries the state, and
  * only under it whatever that state has to show — a cause, the offered
@@ -523,7 +549,9 @@ export function AppUpdateDialog({
   const detail = unconfirmed ? [] : describeDetail(state, language);
   const offersManual = error !== null && MANUAL_DOWNLOAD_CODES.has(error.code);
   const canRetry = !unconfirmed && (error?.retryable || state.kind === "cancelled");
-  const cancelOperation = state.kind === "checking" || state.kind === "downloading";
+  /* A manual check shows "checking" before native names its operation (the
+     controller's placeholder has no id), and there is nothing to cancel yet. */
+  const cancelOperation = (state.kind === "checking" && state.operationId !== "") || state.kind === "downloading";
   const downloadLabel = candidate?.expectedBytes
     ? t.downloadSized(formatBytes(candidate.expectedBytes, language))
     : t.download;

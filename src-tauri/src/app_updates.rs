@@ -423,6 +423,25 @@ impl Drop for InstallPreparation {
     }
 }
 
+/// The state the app starts in. A failed post-install confirmation wins; then a
+/// build without an update key (development and local builds) starts as
+/// unavailable, so the Updates row says so at once instead of offering a check
+/// that can only answer the same; anything else has not been checked yet.
+fn initial_snapshot(
+    startup_confirmation: &StartupUpdateConfirmation,
+    identity_error: Option<UpdateError>,
+) -> UpdateState {
+    match (startup_confirmation, identity_error) {
+        (StartupUpdateConfirmation::Unconfirmed { error, .. }, _) => UpdateState::Failed {
+            error: error.clone(),
+        },
+        (_, Some(error)) if error.code == UpdateErrorCode::NotConfigured => {
+            UpdateState::Unavailable { error }
+        }
+        _ => UpdateState::Idle,
+    }
+}
+
 impl AppUpdateService {
     pub(crate) fn new<R: Runtime>(app: &AppHandle<R>) -> Self {
         let data_dir = app
@@ -431,12 +450,8 @@ impl AppUpdateService {
             .unwrap_or_else(|_| std::env::temp_dir().join("gitodile"));
         let handoff_path = data_dir.join(HANDOFF_FILE);
         let startup_confirmation = confirm_handoff(&handoff_path, env!("CARGO_PKG_VERSION"));
-        let snapshot = match &startup_confirmation {
-            StartupUpdateConfirmation::Unconfirmed { error, .. } => UpdateState::Failed {
-                error: error.clone(),
-            },
-            _ => UpdateState::Idle,
-        };
+        let snapshot =
+            initial_snapshot(&startup_confirmation, BuildUpdateIdentity::current().err());
         Self(Arc::new(ServiceInner {
             next_operation: AtomicU64::new(0),
             state: Mutex::new(ServiceState {
@@ -2103,6 +2118,33 @@ mod tests {
     use crate::watch::WatchPaths;
     use base64::Engine;
     use std::sync::Arc;
+
+    #[test]
+    fn a_build_without_an_update_key_starts_unavailable() {
+        let Err(not_configured) = build_update_identity("0.3.1", "", "") else {
+            panic!("a build without a key must not have an update identity");
+        };
+        assert_eq!(not_configured.code, UpdateErrorCode::NotConfigured);
+        assert_eq!(
+            initial_snapshot(
+                &StartupUpdateConfirmation::None,
+                Some(not_configured.clone())
+            ),
+            UpdateState::Unavailable {
+                error: not_configured.clone()
+            }
+        );
+        assert_eq!(
+            initial_snapshot(&StartupUpdateConfirmation::None, None),
+            UpdateState::Idle
+        );
+        let invalid_version =
+            UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false);
+        assert_eq!(
+            initial_snapshot(&StartupUpdateConfirmation::None, Some(invalid_version)),
+            UpdateState::Idle
+        );
+    }
 
     #[test]
     fn releases_are_plain_versions() {

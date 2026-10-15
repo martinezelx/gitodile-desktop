@@ -44,4 +44,19 @@ describe("Mascot", () => {
     expect(svg?.querySelectorAll(".gitodile-mascot__eyes path")).toHaveLength(2);
     expect(svg?.querySelector(".gitodile-mascot__outline")).toBeNull();
   });
+  it("hops and fills only when asked", () => {
+    expect(render(<Mascot motion="hop" />).container.querySelector("svg")).toHaveClass("gitodile-mascot--hop");
+    const whole = render(<Mascot />).container.querySelector("svg");
+    expect(whole?.querySelector(".gitodile-mascot__level")).toBeNull();
+    expect(whole).not.toHaveAttribute("data-progress");
+  });
+
+  it("fills the body from the feet up with the progress, clamped to the box", () => {
+    const svg = render(<Mascot progress={0.25} />).container.querySelector("svg");
+    expect(svg).toHaveAttribute("data-progress", "25");
+    expect(svg?.querySelector(".gitodile-mascot__pending .gitodile-mascot__fill")).not.toBeNull();
+    expect(svg?.querySelector<SVGRectElement>(".gitodile-mascot__level")?.style.transform).toBe("translateY(742.5px)");
+    expect(render(<Mascot progress={4} />).container.querySelector("svg")).toHaveAttribute("data-progress", "100");
+    expect(render(<Mascot progress={Number.NaN} />).container.querySelector("svg")).toHaveAttribute("data-progress", "0");
+  });
 });

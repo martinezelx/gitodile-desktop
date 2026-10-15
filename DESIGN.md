@@ -1743,8 +1743,8 @@ Do not place the mascot in every panel or use it to trivialize serious errors.
 
 | Crop | Where | File |
 | --- | --- | --- |
-| Body | the application icon at every size and on every platform, welcome screen, About dialog, the console welcome's ASCII mascot, the installer's side panel, brand material | `src/assets/gitodile-mascot.svg` |
-| Head | the in-app mark where only a head fits, the installer's header, brand material | `src/assets/gitodile-mascot-head.svg` |
+| Body | the application icon at every size and on every platform, welcome screen, About dialog, the app's row in Settings › Updates, the console welcome's ASCII mascot, the installer's side panel, brand material | `src/assets/gitodile-mascot.svg` |
+| Head | the installer's header, brand material (`Mascot`'s `head` variant stays for a future in-app mark where only a head fits) | `src/assets/gitodile-mascot-head.svg` |
 
 The head crop runs from the crest to the snout tip and is cut a little under
 the teeth, so the neck runs on below the edge.
@@ -2046,6 +2046,35 @@ Rules:
   only in these three places; the rest of the workbench never decorates. The
   system and app reduced-motion settings remove them; the mascot then shows
   still.
+- **The mascot in Settings › Updates carries the update's work, not a brand
+  moment.** The app's own row shows the whole mascot in its 32px tile, still
+  while the state is settled. While the update is checked, verified or
+  installed it hops: a small jump twice a second that lands with a squash from
+  the feet (`hop`), so it reads as someone waiting, beside the button's own
+  spinner. While a download of known size runs, the body fills from the feet
+  up over a faint silhouette of itself (`progress`), easing between reports; a
+  download of unknown size hops instead. Both stop the moment the state
+  settles. Reduced motion removes the hop; the fill stays, because it is the
+  progress itself, and only loses its easing.
+- **A check the user presses stays visibly "checking" for at least 800ms**
+  (`MANUAL_CHECK_MINIMUM_MS`, the update controller). A build that cannot
+  check answers in a few milliseconds, and a verdict that replaces the press
+  at once reads as a failure rather than a check — the same reason the tool
+  rows' recheck spins for one turn. Only the verdict waits: native has
+  already finished the work, and "checking" shows from the press itself,
+  before native answers. Background checks are never held, nobody is
+  watching them, and reduced motion skips the hold. The held "checking" has
+  no operation yet, so the dialog offers no Cancel until native names one.
+- **A development build is calm, not a warning.** A build without an update
+  key (`not_configured`: development and local builds) cannot check by
+  design, and native knows it at startup, so the app starts in that state
+  rather than "Not checked yet". Its row says "Development build" in a
+  neutral chip, one neutral line says development builds don't update
+  themselves, and "Check for updates" stays in its place, disabled: a build
+  cannot gain a key while it runs, so there is nothing to check again, and
+  the controller refuses the check from every other entry point too. Every
+  other "not available" — no package for this system, no feed yet — keeps
+  the warning tone, because there the reader has something to do.
 
 ## Transparency and native effects
 
