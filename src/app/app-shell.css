@@ -1164,7 +1164,7 @@
   .about-dialog { --about-corner-size: var(--control-height-lg); }
 }
 /* The full mascot at hero scale, on its own line, with its theme fill and
-   the `sweep` glasses motion, never on a tile (DESIGN.md § Brand). The mark
+   the `wink` motion, never on a tile (DESIGN.md § Brand). The mark
    used to be a 24px separator wedged between the name and the promise, which
    read as a divider rather than a logo. */
 .about-dialog__hero { display: flex; flex-direction: column; align-items: center; }
@@ -1174,13 +1174,14 @@
   min-width: 0; margin: var(--space-4) 0 0;
 }
 .about-dialog__product-name { font-size: var(--text-hero); font-weight: var(--weight-title); letter-spacing: var(--tracking-hero); color: var(--text-primary-color); }
-/* The "Odile" half carries the brand sweep the mascot's glasses use: a band of
-   light crosses it in step with `mascot-sweep` (primitives.css) — the same 6.5s
-   cycle, the same 1.2s start and the same 14% travel — so the wordmark and the
-   mark move as one gesture. The band takes the accent fill, not literal white:
-   the word's ink is already near-white in the dark theme, so a white band would
-   vanish, while the accent fill is a saturated brand colour in every theme. The
-   gradient's body is the word's own ink, so it reads normally at rest. */
+/* The "Odile" half carries the brand sweep: a band of light crosses it in step
+   with the mascot's `mascot-wink` (primitives.css) — the same 6.5s cycle and
+   the same 1.2s start, the eye shut while the light is halfway across its 14%
+   travel — so the wordmark and the mark move as one gesture. The band takes
+   the accent fill, not literal white: the word's ink is already near-white in
+   the dark theme, so a white band would vanish, while the accent fill is a
+   saturated brand colour in every theme. The gradient's body is the word's
+   own ink, so it reads normally at rest. */
 .about-dialog__odile {
   background-image: linear-gradient(
     100deg,

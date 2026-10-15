@@ -1107,14 +1107,11 @@ completion, and a listbox of matching names below it drawn like the shortcut
 pane's rows — terminal type, dashed rules, the chosen name marked `❯` on a soft
 wash, no card or shadow; there is no send
 button. An empty transcript shows a fetch-style welcome: the whole mascot
-as ASCII art generated from the icon source (64 columns printed small at
-line-height 1, as fetch tools print their logos; the outline and crest in the
-text colour, the plates and HEAD in the mascot's amber, the body in the brand
+as ASCII art generated from the drawing (96 columns printed small at
+line-height 1, as fetch tools print their logos; in one tone, the brand
 green under the GitOdile themes and the accent fill elsewhere, deepened toward
-the text on light schemes so thin glyphs stay visible, and the white belly left
-as a hole; the sunglasses have their own tones, in the text colour on a light
-console and a smoked grey with white glints on a dark one, where the text
-colour would draw them white) and, behind it, a dim rain of hex digits like
+the text on light schemes so thin glyphs stay visible, with the white belly and
+eyes left as holes) and, behind it, a dim rain of hex digits like
 commit hashes, falling in the body's colour and passing behind the silhouette
 (see Motion), beside a summary drawn as Omarchy's fastfetch draws one: two framed groups,
 each titled in its frame and drawn in its own theme colour — "project" in the
@@ -1542,7 +1539,7 @@ per-project choice is stored per machine, keyed by the project, never in the
 
 Brand identity is not window furniture. Neither the titlebar nor the rail carries a mark or a wordmark: a 40px lockup at the top of the rail once spent that column's most valuable real estate on something that never changes, and a mark in the titlebar corner later did the same to the toolbar. The mascot appears where the app is being introduced or described: the no-project welcome screen and About. The compact layout below 800px adds no wordmark either; the window title and the operating system name the app.
 
-Home shows the full mascot beside its greeting (116px wide): the first time in a session it draws itself and builds its history, then the commits on its crest light amber one after another up to the HEAD now and then. About shows it at hero scale with a calmer sweep of light across the lenses (see Motion). Inside the app the mascot's body and crest follow the theme (ADR 0013) while the ink outline, sunglasses, teeth and amber details stay fixed, so the silhouette is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640` and the deep teal crest `#0f4a43`, matching the application icon. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72 so the outline and glasses keep a clear edge; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light. Their crest is a deep shade of the same accent (OKLCH lightness 0.37, chroma at most 0.09). The ink outline carries the silhouette on light surfaces and the fill carries it on dark ones.
+Home shows the full mascot beside its greeting (116px wide): the first time in a session it draws itself, and it blinks now and then. About shows it at hero scale, winking in step with the light across the wordmark (see Motion). Inside the app the mascot's body follows the theme (ADR 0013) and its belly, toes and eyes are holes that show the surface behind it, so the silhouette alone is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640`. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72, the brand green's own, so the body stays the same light shape; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light.
 
 About leads with the mascot at hero scale, then the name, then the promise, all
 centred. The mascot is the full body with its theme fill, never a tile; the name
@@ -1572,8 +1569,7 @@ Colour is two layers, and a theme is a record that fills only the second one
 
 **Brand identity (never themed).** `--accent-brand` and
 `--accent-brand-contrast` — the fixed brand lime and its contrast — plus
-`--mascot-brand-fill` and `--mascot-brand-crest` (the mascot's green and
-crest in the GitOdile themes),
+`--mascot-brand-fill` (the mascot's green in the GitOdile themes),
 `--avatar-color-*`, `--avatar-foreground`, `--avatar-ring` and `--tooltip-*`,
 are declared once in `src/styles/tokens.css`. No theme may set them.
 `--avatar-ring` is a neutral dark edge the project chip carries so it stays
@@ -1717,23 +1713,21 @@ story.
 
 Working brand: **GitOdile**.
 
-Mascot: a stylized crocodile that feels clever, calm, and trustworthy, with
-dark sunglasses that give it a relaxed, confident personality — a bodyguard
-for your work, which is the product's promise (ADR 0018).
+Mascot: a stylized crocodile that feels clever, calm, and trustworthy — a
+bodyguard for your work, which is the product's promise. It is a flat
+silhouette, simple enough to read at 16px (ADR 0031).
 
 Visual traits:
 
-- a seated crocodile with a long snout, a rounded crest, a white belly, short
-  arms and green feet;
-- green body `#86b640`, one even ink outline `#13251f`, wayfarer sunglasses
-  with two white glints that hide the eyes;
-- the crest is a commit graph: rounded dark-green humps `#0f4a43` threaded by
-  an amber line `#e7b448`, white commits on each hump and a larger amber HEAD
-  at the neck;
-- no mouth line: four white teeth, growing toward the tip, hang from the jaw;
-- three amber plates on the belly;
-- not overly detailed or child-oriented: the eyes, outline and colours were
-  pulled back from the rounder, brighter first drafts on purpose.
+- a seated crocodile with a long, straight snout, a crest of five equal
+  rounded lobes, a white belly, short arms and two feet;
+- one flat green body `#86b640` with no outline; the belly, the toes and two
+  tall pill-shaped eyes are white cut-outs;
+- three body-coloured plates cross the belly, all starting on one vertical;
+- no mouth line: five pointed teeth hang from the level jaw, and the fingers
+  end in the same points;
+- every corner on one small radius scale, so the drawing reads as one system;
+- not overly detailed or child-oriented: no outline, glasses or extra colours.
 
 The mascot may appear in:
 
@@ -1745,33 +1739,37 @@ The mascot may appear in:
 
 Do not place the mascot in every panel or use it to trivialize serious errors.
 
-**Application mark:** there is one drawing, and every surface crops it:
+**Application mark:** there is one drawing, shown whole or cropped:
 
 | Crop | Where | File |
 | --- | --- | --- |
-| Body | welcome screen, About dialog, the console welcome's ASCII mascot, brand material | `src/assets/gitodile-mascot.svg` |
-| Head | brand material | `src/assets/gitodile-mascot-head.svg` |
-| Portrait | the application icon, at every size and on every platform | `src/assets/brand/gitodile-icon.svg` |
+| Body | the application icon at every size and on every platform, welcome screen, About dialog, the console welcome's ASCII mascot, the installer's side panel, brand material | `src/assets/gitodile-mascot.svg` |
+| Head | the in-app mark where only a head fits, the installer's header, brand material | `src/assets/gitodile-mascot-head.svg` |
 
-The application icon is the same everywhere: the portrait (crest to snout tip
-across, the body running off the bottom edge) on a rounded tile with a vertical
-slate gradient, `#2c3542` at the top to `#161b22` at the bottom (ADR 0029). The
-slate keeps the icon in the register of a professional tool, where the earlier
-amber tile read as playful, and lets the lime body and the amber details carry
-the colour. Windows and Linux take the icon filling the
-canvas; macOS takes the identical icon on Apple's 824px grid
+The head crop runs from the crest to the snout tip and is cut a little under
+the teeth, so the neck runs on below the edge.
+
+The application icon is the same everywhere: the whole mascot in ink
+`#0e1512`, with a warm white belly, toes and eyes `#fbf8f0`, on a rounded tile
+with a soft vertical white gradient, `#ffffff` at the top to `#e8e8e8` at the
+bottom (ADR 0031), as the white-tiled tools beside it in the Dock and the
+taskbar do; the grey base keeps the tile's edge on a white desktop. It is drawn large, its height centred in the tile and the snout
+tip just short of the right edge, so the tail tip runs into the rounded corner
+and is cut there; the face stays legible at 32px, and the 16–32px sizes are
+the same icon, downsampled. Windows and Linux take the
+icon filling the canvas; macOS takes the identical icon on Apple's 824px grid
 (`src/assets/brand/gitodile-icon-macos.svg`) and adds its own shadow. The tile
-carries no drawn glow, highlight or shadow. The 16–32px sizes are the same
-portrait, downsampled: the sunglasses carry recognition there. The Windows
-installer wears the same slate: its side panel (Welcome and Finish pages) shows
-the whole mascot clear of every edge, and the header strip of every other page
-shows its head. Neither bitmap carries text, because the installer is
+carries no drawn glow, highlight or shadow. The Windows installer wears the
+same lime: its side panel (Welcome and Finish pages) shows the whole mascot in
+ink clear of every edge, and the header strip of every other page shows its
+head. Neither bitmap carries text, because the installer is
 localised and its pages already name the product. Inside the app the body's green follows the theme (see the welcome
 screen under "Icons" above).
 
-`scripts/icons/mascot.mjs` is the single source for the drawing: it writes
-the SVGs, the element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`),
-the mascot's ASCII art for the console welcome (`src/features/console/mascotAscii.ts`)
+`scripts/icons/mascot.mjs` is the single source for the drawing, built from the
+traced shapes in `scripts/icons/mascot-shapes.mjs`: it writes the SVGs, the
+element tree the in-app mark renders (`src/shared/ui/mascotArtwork.ts`), the
+mascot's ASCII art for the console welcome (`src/features/console/mascotAscii.ts`)
 and the icon sources, and `pnpm icons` regenerates every packaged icon and the
 brand PNGs under `src/assets/brand/png` (the icon at 16–1024px, the macOS icon,
 the mascot and the head) from it (see "Application icon and Windows shortcuts"
@@ -2024,22 +2022,19 @@ Rules:
   follows the same rule — started in the component only when reduced motion is
   off.
 - **The mascot moves differently in each brand moment**
-  (`Mascot`'s `motion`, primitives.css). About uses `sweep`: two slanted
-  white bands, clipped to the lenses, cross them in under a second and rest
-  for about six — calm, for a card someone reads. The no-project welcome
-  uses `commits`, opened once per session by `entrance`: the mascot draws
-  itself and builds its history. Its outline traces in 0.7s, in the text
-  colour because its own ink would vanish on a dark theme; the colours fade
-  in over it while the outline turns ink; then the commits pop in from the
-  tail to the neck and the HEAD last, about 1.6s in all. The entrance used to
-  be a hop inherited from v3, which read as cheap on the v4 drawing; drawing
-  and filling suit a mark that is a history of commits. After it, and on
-  every later visit without it, the six white commits on its crest turn amber one after another, from
-  the tail to the amber HEAD at the neck, each swelling as it lights and
-  breathing back to size; the HEAD answers with one breath and the commits
-  fade back to white, every 6s. It shows
-  what GitOdile keeps — your history, up to where you are now — and neither
-  place moves constantly. The console welcome is the third brand moment:
+  (`Mascot`'s `motion` and `entrance`, primitives.css). About uses `wink`:
+  every 6.5s the front eye closes and opens again, in step with the band of
+  light that crosses the wordmark's "Odile" — the eye is shut while the light
+  is halfway across — a friendly gesture for a card someone reads, over in
+  under a second. The no-project welcome plays `entrance` once per session:
+  the mascot draws itself. Every edge (the silhouette, belly, toes and eyes)
+  traces in 0.7s in the text colour, then the colours fade in while the trace
+  fades out, since the drawing has no outline of its own, about 1.1s in all.
+  After it, and on every later visit, Home uses `blink`: both eyes blink,
+  quicker than the wink, at an uneven pace over a 17s cycle — about every 5s,
+  once as a double blink — so the mascot reads as someone waiting rather than
+  a metronome. Each gesture is a fraction of a second followed by seconds of
+  stillness, so neither place moves constantly. The console welcome is the third brand moment:
   behind its ASCII mascot, short columns of hex digits, like commit hashes,
   fall through the art's box at 3–7s each (a terminal's digital rain), dim,
   in the body's colour, fading toward their top and passing behind the
@@ -2640,8 +2635,8 @@ marks a current destination. Back returns to the project screen that led here;
 Forward can revisit Home until another navigation. The status bar continues to
 show the active project's name, working-tree and remote state, and available
 project actions. With no project open, it shows the no-project state. The
-mascot's entrance plays once per application session; later visits keep the
-periodic wave of commits without another entrance. Home owns the app's only
+mascot's entrance plays once per application session; later visits show it
+blinking, without another entrance. Home owns the app's only
 `h1` while no project is open; the shell does not additionally title it
 "Overview".
 
@@ -2892,7 +2887,7 @@ that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and, for the ones that do not, three rows that put the mark beside a small name-over-version block. The credits were capsules first, then bordered tiles (a mark above a name above a version), then an inline lockup, then rows that pushed each version to the right edge; the tiles gave a fact nobody reads a surface of its own, while the other two either crowded the marks or tore the number away from its name. The beside-the-mark block keeps name and version together and lets three credits sit in one band without shrinking type, which is why the fourth (the build tool's own language) stayed dropped. The heading is kept for assistive technology only, since a mark and a product name already read as a credit. Each credit is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. It is a control, so it takes the pointing hand; the hand is what says the press leaves the app, and mark, name and version stay readable at rest so the credit withholds nothing without hovering. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
-**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries the same light sweep as the mascot's glasses — the same 6.5s cycle, 1.2s start and 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the status bar, the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
+**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries a light sweep in step with the mascot's wink — the same 6.5s cycle and 1.2s start, the eye shut while the light is halfway across its 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the status bar, the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
 
 Licence and source links lead the facts, directly under the intro and above the diagnostics. They are durable project provenance, not part of the product pitch or machine diagnostics, so meeting the project's terms before its machine details keeps the introduction focused. The made-with credit closes the dialog instead, under the diagnostics and the credits it belongs with.
 

@@ -4,7 +4,7 @@
 // NSIS (Modern UI 2) dresses the installer with two fixed-size bitmaps: a
 // 164x314 panel on the Welcome and Finish pages and a 150x57 strip in the
 // header of every other page. Both are drawn in `mascot.mjs` on the icon's
-// slate (ADR 0029):
+// white (ADR 0031):
 //
 //   installer-sidebar.bmp   the whole mascot, clear of every edge
 //   installer-header.bmp    the mascot's head, centred in the strip
@@ -28,10 +28,10 @@ export const brandPngDir = path.join(root, "src", "assets", "brand", "png");
 export const windowsDir = path.join(root, "src-tauri", "windows");
 
 /**
- * What a translucent pixel in a rendered PNG is flattened onto: the slate's
- * darker end. The renders are opaque, so this only guards the BMP's lack of alpha.
+ * What a translucent pixel in a rendered PNG is flattened onto: the white
+ * tile's darker end. The renders are opaque, so this only guards the BMP's lack of alpha.
  */
-export const flattenBackground = [0x16, 0x1b, 0x22];
+export const flattenBackground = [0xe8, 0xe8, 0xe8];
 
 /** The two bitmaps Modern UI 2 expects, at the sizes it draws them, and the PNG each is encoded from. */
 export const images = {

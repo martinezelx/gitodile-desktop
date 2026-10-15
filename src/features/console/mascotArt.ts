@@ -2,8 +2,8 @@ import { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES } from "./mascotAs
 
 export { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES };
 
-/** 0 plain (spaces), 1 skin, 2 outline, 3 amber, 4 sunglasses, 5 glints — see `mascotAscii.ts`. */
-export type MascotTone = 0 | 1 | 2 | 3 | 4 | 5;
+/** 0 plain (spaces), 1 the body — see `mascotAscii.ts`. */
+export type MascotTone = 0 | 1;
 /** `solid` runs sit on the silhouette, so they hide the rain falling behind the art. */
 export type MascotRun = { text: string; tone: MascotTone; solid: boolean };
 

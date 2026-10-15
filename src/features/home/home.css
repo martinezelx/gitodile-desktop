@@ -38,8 +38,8 @@
 .home-launcher__body > * { flex: none; }
 .home-launcher__body > .home-launcher__box { flex: 0 1 auto; min-height: 0; }
 .home-launcher__hello { display: flex; align-items: center; gap: 20px; }
-/* The mascot greets on the front door; its entrance and the crest's wave are
-   the mascot's own motions (`enter` and `commits`, primitives.css). */
+/* The mascot greets on the front door; its entrance and its blink are the
+   mascot's own motions (`enter` and `blink`, primitives.css). */
 .home-launcher__mascot { flex-shrink: 0; width: 116px; }
 .home-launcher__greeting { min-width: 0; display: grid; gap: var(--space-1); }
 .home-launcher__greeting h1 {

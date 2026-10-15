@@ -8,18 +8,19 @@ describe("mascotLines", () => {
     expect(MASCOT_ASCII_TONES).toHaveLength(MASCOT_ASCII.length);
     expect(MASCOT_ASCII_COVER).toHaveLength(MASCOT_ASCII.length);
     MASCOT_ASCII_TONES.forEach((tones, y) => {
-      expect(tones).toMatch(/^[0-5]+$/);
+      expect(tones).toMatch(/^[01]+$/);
       expect([...tones].map((tone) => tone === "0")).toEqual([...MASCOT_ASCII[y]].map((glyph) => glyph === " "));
       expect(MASCOT_ASCII_COVER[y]).toMatch(new RegExp(`^[01]{${MASCOT_ASCII[y].length}}$`));
     });
   });
 
   it("splits each line into runs of one tone and cover that rebuild it", () => {
-    expect(mascotLines(["  +@@ "], ["001220"], ["011110"])).toEqual([[
+    expect(mascotLines(["  + @@ "], ["0010110"], ["0111110"])).toEqual([[
       { text: " ", tone: 0, solid: false },
       { text: " ", tone: 0, solid: true },
       { text: "+", tone: 1, solid: true },
-      { text: "@@", tone: 2, solid: true },
+      { text: " ", tone: 0, solid: true },
+      { text: "@@", tone: 1, solid: true },
       { text: " ", tone: 0, solid: false },
     ]]);
     expect(mascotLines().map((runs) => runs.map((run) => run.text).join(""))).toEqual([...MASCOT_ASCII]);

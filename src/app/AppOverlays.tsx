@@ -555,7 +555,7 @@ export function AppOverlays({
                 the h2 still carries the product name, so the dialog is named by
                 the app it belongs to before it states its promise. */}
             <div className="about-dialog__hero">
-              <span className="about-dialog__mark"><Mascot motion="sweep" /></span>
+              <span className="about-dialog__mark"><Mascot motion="wink" /></span>
               <h2 id="about-title">
                 <span className="about-dialog__product-name">
                   {PRODUCT_NAME_PARTS.lead}

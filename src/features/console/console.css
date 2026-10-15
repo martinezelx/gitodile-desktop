@@ -24,12 +24,12 @@
 .console-welcome { padding: var(--space-2) 0 0; }
 .console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
 .console-art {
-  /* ASCII art in the mark's colours: forced colours would flatten it. Printed
+  /* ASCII art in the mark's colour: forced colours would flatten it. Printed
      small and at line-height 1, as fetch tools print their logos, so the
-     64-column mascot stands about as tall as the summary beside it. */
+     96-column mascot stands about as tall as the summary beside it. */
   forced-color-adjust: none; --console-art-body: var(--accent-primary-fill);
   position: relative; flex: 0 1 auto; max-width: 100%; margin: 0; overflow: hidden;
-  font-family: var(--font-mono); font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-bold);
+  font-family: var(--font-mono); font-size: 6px; line-height: var(--leading-none); font-weight: var(--weight-bold);
   color: var(--text-primary-color); white-space: pre;
 }
 .console-art__mascot { position: relative; margin: 0; font: inherit; }
@@ -37,38 +37,22 @@
    console's background, so the rain passes behind the mascot, not through it. */
 .console-art__solid { display: inline-block; height: 1em; vertical-align: top; background: var(--surface-app); }
 :root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--mascot-brand-fill); }
-/* The art's tones, per colour scheme (light-dark() follows the scheme each
-   theme declares). The outline prints in the text colour so it holds on any
-   console. The sunglasses are black in the mark: on a light console they
-   print in the text colour, and on a dark one, where the text colour would
-   draw them white, in a smoked grey between the text and the background, so
-   they stay darker than the outline and still show. Their glints print white
-   on a dark console and as near-holes on a light one. The amber is the
-   mascot's, pulled toward the text colour: deeper on a light console. The
-   body is the mark's green (or the theme's accent fill), deepened toward the
-   text on a light console, where thin glyphs in a pale fill fade out. */
+/* The art's one tone, per colour scheme (light-dark() follows the scheme each
+   theme declares): the mark's green (or the theme's accent fill), deepened
+   toward the text on a light console, where thin glyphs in a pale fill fade
+   out. Its belly and eyes are spaces, so they read as the mark's white. */
 .console-art {
   --console-art-skin: var(--console-art-body);
-  --console-art-ink: var(--text-primary-color);
-  --console-art-amber: color-mix(in srgb, #e7b448 80%, var(--text-primary-color));
-  --console-art-glasses: var(--text-primary-color);
-  --console-art-glint: var(--surface-app);
   --console-art-rain: color-mix(in srgb, var(--console-art-skin) 50%, transparent);
 }
 @supports (color: light-dark(#000, #fff)) {
   .console-art {
     --console-art-skin: light-dark(color-mix(in srgb, var(--console-art-body) 45%, var(--text-primary-color)), var(--console-art-body));
-    --console-art-glasses: light-dark(var(--text-primary-color), color-mix(in srgb, var(--text-primary-color) 38%, var(--surface-app)));
     /* Thin digits fade faster on a light console, so the rain is a little stronger there. */
     --console-art-rain: light-dark(color-mix(in srgb, var(--console-art-skin) 75%, transparent), color-mix(in srgb, var(--console-art-skin) 50%, transparent));
-    --console-art-glint: light-dark(color-mix(in srgb, var(--text-primary-color) 12%, var(--surface-app)), #ffffff);
   }
 }
 .console-art__tone1 { color: var(--console-art-skin); }
-.console-art__tone2 { color: var(--console-art-ink); }
-.console-art__tone3 { color: var(--console-art-amber); }
-.console-art__tone4 { color: var(--console-art-glasses); }
-.console-art__tone5 { color: var(--console-art-glint); }
 /* The rain behind the mascot (DESIGN.md § Motion): short columns of hex
    digits, like commit hashes, each falling through the art's box at its own
    pace and fading out toward its top, with a brighter leading digit. Dim, in

@@ -22,26 +22,28 @@ test("the committed ICNS carries every entry and the generated mascot files matc
   }
 });
 
-test("both icon sources are the same portrait on the slate tile, at a different margin", () => {
+test("both icon sources are the same mascot on the white tile, at a different margin", () => {
   const tile = (svg) => svg.match(/<rect x="(\d+)" y="\d+" width="(\d+)"/).slice(1).map(Number);
   const flat = iconSourceSvg({ platform: "default" });
   const mac = iconSourceSvg({ platform: "macos" });
   for (const svg of [flat, mac]) {
     assert.match(svg, /width="1024" height="1024" viewBox="0 0 1024 1024"/);
     assert.match(svg, /linearGradient id="tile"/);
-    assert.match(svg, /clip-path="url\(#tile-shape\)"/);
+    assert.match(svg, /stop-color="#ffffff"/);
+    assert.match(svg, /stop-color="#e8e8e8"/);
+    assert.match(svg, /fill="#0e1512"/);
   }
   assert.deepEqual(tile(mac), [100, 824], "macOS sits on Apple's 824px grid");
   assert.ok(tile(flat)[1] > tile(mac)[1], "Windows and Linux fill more of the canvas");
 });
 
-test("the installer sources draw their image in the corner of a square slate canvas", () => {
+test("the installer sources draw their image in the corner of a square white canvas", () => {
   const sidebar = installerSourceSvg("sidebar", { width: 164, height: 314 });
   assert.match(sidebar, /width="314" height="314"/);
-  assert.match(sidebar, /<rect width="164" height="314" fill="url\(#slate\)"\/>/);
+  assert.match(sidebar, /<rect width="164" height="314" fill="url\(#tile\)"\/>/);
   const header = installerSourceSvg("header", { width: 150, height: 57 });
   assert.match(header, /width="150" height="150"/);
-  assert.match(header, /<rect width="150" height="57" fill="url\(#slate\)"\/>/);
+  assert.match(header, /<rect width="150" height="57" fill="url\(#tile\)"\/>/);
   assert.throws(() => installerSourceSvg("banner", { width: 1, height: 1 }), /unknown installer image/);
 });
 

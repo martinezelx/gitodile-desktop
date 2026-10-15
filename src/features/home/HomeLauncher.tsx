@@ -519,11 +519,10 @@ export function HomeLauncher({
       <div ref={fit.aboveRef} className="home-launcher__above" aria-hidden="true" />
       <div ref={fit.bodyRef} className="home-launcher__body">
         {/* The front door is a brand moment, so the mascot greets here: once a
-            session it draws itself and builds its history, then the commits on
-            its crest light amber up to the HEAD now and then. Decorative; the
-            h1 names the screen. */}
+            session it draws itself and fills in, and it blinks now and then.
+            Decorative; the h1 names the screen. */}
         <header className="home-launcher__hello">
-          <Mascot motion="commits" entrance={playGreeting} className="home-launcher__mascot" />
+          <Mascot motion="blink" entrance={playGreeting} className="home-launcher__mascot" />
           <div className="home-launcher__greeting">
             <h1>{t.homeGreeting(slot, greetingName(userName))}</h1>
             <TypingPrompt

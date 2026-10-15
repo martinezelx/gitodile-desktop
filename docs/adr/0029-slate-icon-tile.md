@@ -1,7 +1,9 @@
 # ADR 0029: Put the application icon on a slate tile
 
-- Status: accepted
+- Status: superseded
 - Date: 2026-10-08
+- Superseded by: [ADR 0031](0031-v5-flat-mascot-and-white-icon.md) (the icon
+  tile is white, `#ffffff` to `#e8e8e8`, under the v5 mascot)
 - Replaces: the tile colour in decision 2 of
   [ADR 0018](0018-v4-mascot-and-one-amber-application-icon.md)
 

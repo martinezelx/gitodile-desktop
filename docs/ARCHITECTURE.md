@@ -1012,14 +1012,15 @@ claims.
 ### Application icon and Windows shortcuts
 
 `scripts/icons/mascot.mjs` is the only hand-maintained icon source. It holds
-the mascot as one element tree and crops it three ways (ADR 0018): the body,
-the head and the portrait the application icon uses. `pnpm icons` writes the
+the mascot as one drawing (ADR 0031), built from the traced shapes in
+`scripts/icons/mascot-shapes.mjs`, and crops it two ways: the whole body and
+the head. `pnpm icons` writes the
 standalone SVGs, the element tree the in-app mark renders inline
 (`src/shared/ui/mascotArtwork.ts`, so its fill can follow the theme) and the
 console welcome's ASCII art (`src/features/console/mascotAscii.ts`, sampled by
-the dependency-free `scripts/icons/ascii-art.mjs`) from it, then runs `tauri
-icon` on two 1024×1024 sources: the portrait on the slate tile filling the
-canvas, and the identical icon on Apple's 824px macOS grid. Every PNG, the
+the dependency-free `scripts/icons/ascii-art.mjs`), then runs `tauri icon` on two
+1024×1024 sources: the whole mascot on the white tile filling the canvas, and the
+identical icon on Apple's 824px macOS grid. Every PNG, the
 Windows `.ico` and the Store logos come from the first; the macOS `.icns` comes
 from the second. There is one icon at every size, with no head variant spliced
 into the small layers. The same run renders the brand PNGs under
@@ -1041,8 +1042,8 @@ The Windows installer is dressed from the same drawing. `tauri.windows.conf.json
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
 draws at fixed sizes: `installer-sidebar.bmp` (164×314, the whole mascot on
-the icon's slate, shown on the Welcome and Finish pages) and
-`installer-header.bmp` (150×57, the mascot's head on the slate, shown in the
+the icon's white, shown on the Welcome and Finish pages) and
+`installer-header.bmp` (150×57, the mascot's head on the white, shown in the
 header of every other page). `mascot.mjs` composes both
 (`installerSourceSvg`); `pnpm icons` renders each in the corner of a square,
 because `tauri icon` renders only squares, and crops it to

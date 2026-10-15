@@ -966,6 +966,12 @@
 .image-diff__stage--fade .image-diff__layer--before .image-diff__image {
   max-width: 100%; max-height: 100%;
 }
+/* The original is positioned, so it paints over any layer that is not. The
+   updated picture is positioned too, after it, so it stays on top on its own
+   merits: in fade it only did so while its opacity made it a stacking
+   context, and at 100% (opacity exactly 1) the original jumped back over it. */
+.image-diff__stage--swipe .image-diff__layer--after,
+.image-diff__stage--fade .image-diff__layer--after { position: relative; }
 .image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
 /* The one piece of movement in this view, and it is a cross-fade of state,
    not decoration. The app-wide reduced-motion rule removes it. */

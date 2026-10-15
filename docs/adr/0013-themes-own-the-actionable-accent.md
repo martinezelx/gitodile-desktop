@@ -55,6 +55,11 @@ inside themed content beside a different theme accent.
   theme. It is a deep shade of the same accent (OKLCH lightness 0.37, chroma
   at most 0.09), and the GitOdile themes show the brand teal `#0f4a43`
   through `--mascot-brand-crest`.
+
+  *Update, ADR 0031 (2026-10-14):* the flat v5 mascot keeps this rule for
+  its body. It has no outline, glasses or crest colour any more, so
+  `--mascot-brand-crest` is gone; the belly, toes and eyes stay white in
+  every theme, and the packaged icons are the mascot on a white tile.
 - The guard from ADR 0012 stands unchanged: a `[data-theme]` block still must
   not set a brand-layer token. `themeContrast.test.ts` now also covers
   `--accent-primary-contrast` on `--accent-primary-fill`, which is what a

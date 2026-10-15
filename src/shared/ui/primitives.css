@@ -16,142 +16,107 @@
 }
 
 /* The in-app mascot (`branding.tsx`, drawn by `scripts/icons/mascot.mjs`).
-   The outline, glasses, teeth and amber details keep their own colours; only
-   the body's green and the crest follow the theme (ADR 0013), so the
-   silhouette is the identity in every palette.
+   A flat silhouette (ADR 0031): the body's green follows the theme
+   (ADR 0013) and the belly, toes and eyes are holes that show the surface
+   behind it, so the silhouette alone is the identity in every palette.
 
-   The fill is the theme's accent fill, lifted to at least OKLCH lightness 0.72
-   so the black outline and glasses keep a clear edge against it (about 8:1 or
-   more). Most accents are already lighter; the dark accents of some light
-   themes would otherwise swallow the glasses. A webview without relative
-   colour syntax keeps the plain accent fill. The lift sits behind `@supports`
-   because a custom property keeps a value it cannot compute, and `fill` would
-   then fail where it reads it. The GitOdile themes, and the system default
-   that resolves to them, use the brand green so the in-app mascot matches the
-   application icon.
-
-   The crest is a deep shade of the same accent, at the brand crest's OKLCH
-   lightness (about 0.37) with its chroma held down, so it stays a step above
-   the ink outline and the white commits keep their contrast on it. Without
-   relative colour syntax it is the accent mixed into black. */
+   The fill is the theme's accent fill, lifted to at least OKLCH lightness 0.72,
+   the brand green's own, so the body reads as the same light shape on every
+   surface and its holes keep a clear edge. Most accents are already
+   lighter; the dark accents of some light themes would otherwise turn it into
+   a dark blot. A webview without relative colour syntax keeps the plain accent
+   fill. The lift sits behind `@supports` because a custom property keeps a
+   value it cannot compute, and `fill` would then fail where it reads it. The
+   GitOdile themes, and the system default that resolves to them, use the
+   brand green so the in-app mascot matches the application icon. */
 .gitodile-mascot {
   /* An illustration, not text: forced-colours mode (Windows high contrast)
-     would repaint its fill and outline into a solid block. It is decorative
-     and the text beside it names the surface, so it keeps its own colours. */
+     would repaint its fill into a solid block. It is decorative and the text
+     beside it names the surface, so it keeps its own colours. */
   forced-color-adjust: none;
   --mascot-fill: var(--accent-primary-fill);
-  --mascot-crest: color-mix(in srgb, var(--accent-primary-fill) 40%, #000);
   display: block;
   width: 100%;
   height: auto;
 }
 @supports (color: oklch(from red l c h)) {
-  .gitodile-mascot {
-    --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h);
-    --mascot-crest: oklch(from var(--accent-primary-fill) 0.37 min(c, 0.09) h);
-  }
+  .gitodile-mascot { --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h); }
 }
 :root:not([data-theme]) .gitodile-mascot,
-[data-theme|="gitodile"] .gitodile-mascot {
-  --mascot-fill: var(--mascot-brand-fill);
-  --mascot-crest: var(--mascot-brand-crest);
-}
-.gitodile-mascot--body { aspect-ratio: 1215 / 1095; }
-.gitodile-mascot--head { aspect-ratio: 1000 / 540; }
+[data-theme|="gitodile"] .gitodile-mascot { --mascot-fill: var(--mascot-brand-fill); }
+.gitodile-mascot--body { aspect-ratio: 1160 / 990; }
+.gitodile-mascot--head { aspect-ratio: 920 / 470; }
 .gitodile-mascot__fill { fill: var(--mascot-fill); }
-.gitodile-mascot__crest { fill: var(--mascot-crest); }
+/* The entrance's outline is invisible at rest: it only exists to be traced. */
+.gitodile-mascot__outline { stroke: var(--text-primary-color); stroke-opacity: 0; }
 /* The mascot moves in the brand moments only (DESIGN.md § Motion).
 
-   `--sweep` (About): two slanted bands cross the lenses in under a second,
-   then rest for several — calm, for a card someone reads.
+   `--wink` (About): the front eye closes and opens again every few seconds, in
+   step with the light that crosses the wordmark's "Odile" (app-shell.css): the
+   same 6.5s cycle and 1.2s start, the eye shut while the light is halfway
+   across. It is a friendly gesture for a card someone reads, and brief.
 
-   `--commits` (the welcome screen): the crest's white commits light amber one
-   after another, from the oldest at the tail to the newest at the neck, and
-   the wave ends on the amber HEAD. Each commit swells as it lights and the
-   HEAD breathes once when the wave reaches it. It says what GitOdile does — keeps your
-   history, up to where you are now — and rests for several seconds between
-   waves.
+   `--blink` (the welcome screen): both eyes blink, quicker than the wink,
+   at an uneven pace — after about 5s, then a double blink 5s later, then one
+   more 5.5s on, and the 17s cycle starts over — so it reads as someone
+   waiting rather than a metronome. It starts once the entrance is over.
 
    `--enter` adds the welcome's one-time entrance, described below.
 
    Reduced motion (system or app) removes all of it: the mascot shows still. */
-.gitodile-mascot__shine { fill: #ffffff; opacity: .7; }
-.gitodile-mascot--sweep .gitodile-mascot__shine { animation: mascot-sweep 6.5s ease-in-out 1.2s infinite; }
-@keyframes mascot-sweep {
-  0% { transform: translateX(0); }
-  14%, 100% { transform: translateX(1000px); }
+.gitodile-mascot--wink .gitodile-mascot__wink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-wink 6.5s ease-in-out 1.2s infinite;
 }
-/* Six commits, newest first in the drawing: the last lights first. Each one
-   swells as it lights, breathes back to size and stays amber a moment; when
-   the wave reaches the neck the HEAD answers with one breath of its own. */
-.gitodile-mascot--commits .gitodile-mascot__commits circle,
-.gitodile-mascot--commits .gitodile-mascot__head-node { transform-box: fill-box; transform-origin: center; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle { animation: mascot-commit 6s ease-in-out infinite; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(6) { animation-delay: 1s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(5) { animation-delay: 1.22s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(4) { animation-delay: 1.44s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(3) { animation-delay: 1.66s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(2) { animation-delay: 1.88s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(1) { animation-delay: 2.1s; }
-.gitodile-mascot--commits .gitodile-mascot__head-node { animation: mascot-head-node 6s ease-in-out 2.3s infinite; }
-@keyframes mascot-commit {
-  0% { fill: #ffffff; transform: scale(1); }
-  4% { fill: #e7b448; transform: scale(1.5); }
-  10% { fill: #e7b448; transform: scale(1); }
-  22% { fill: #e7b448; transform: scale(1); }
-  32%, 100% { fill: #ffffff; transform: scale(1); }
+@keyframes mascot-wink {
+  0%, 3% { transform: scaleY(1); }
+  6.5%, 8% { transform: scaleY(0.12); }
+  12%, 100% { transform: scaleY(1); }
 }
-@keyframes mascot-head-node {
-  0% { transform: scale(1); }
-  5% { transform: scale(1.35); }
-  12%, 100% { transform: scale(1); }
+.gitodile-mascot--blink .gitodile-mascot__eyes path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-blink 17s ease-in-out 1.2s infinite;
+}
+/* Each blink closes in about 70ms, stays shut 50ms and opens in 70ms. */
+@keyframes mascot-blink {
+  0%, 27% { transform: scaleY(1); }
+  27.4%, 27.7% { transform: scaleY(0.1); }
+  28.1%, 58.8% { transform: scaleY(1); }
+  59.2%, 59.5% { transform: scaleY(0.1); }
+  59.9%, 60.9% { transform: scaleY(1); }
+  61.3%, 61.6% { transform: scaleY(0.1); }
+  62%, 91.8% { transform: scaleY(1); }
+  92.2%, 92.5% { transform: scaleY(0.1); }
+  92.9%, 100% { transform: scaleY(1); }
 }
 /* `--enter` (the welcome's first appearance in a session): the mascot draws
-   itself, then builds its history. The outline traces in 0.7s, in the text
-   colour since its own ink would vanish on a dark theme; then the colours
-   fade in while the outline turns ink, the commits pop in from the tail to the
-   neck, the HEAD last, and the crest's wave starts once the entrance is over.
-   The outline paths measure pathLength 1 (mascot.mjs), so one dash covers any
-   of them. It exists only where motion is welcome: under the system's reduced
-   motion there is no entrance at all (the app's own setting stops every
-   animation in base.css), so no override has to outrank these selectors. */
+   itself. Every edge (the silhouette, belly, toes and eyes) traces in 0.7s in
+   the text colour, then the colours fade in while the trace fades out, since
+   the drawing itself has no outline. The outline paths measure pathLength 1
+   (mascot.mjs), so one dash covers any of them. It exists only where motion is
+   welcome: under the system's reduced motion there is no entrance at all (the
+   app's own setting stops every animation in base.css), so no override has to
+   outrank these selectors. */
 @media (prefers-reduced-motion: no-preference) {
-  .gitodile-mascot--enter > :not(.gitodile-mascot__outline):not(.gitodile-mascot__commits):not(.gitodile-mascot__head-node) {
+  .gitodile-mascot--enter > :not(.gitodile-mascot__outline):not(mask) {
     animation: mascot-enter-show 500ms ease-out 600ms both;
   }
   .gitodile-mascot--enter .gitodile-mascot__outline path {
     stroke-dasharray: 1;
-    animation: mascot-enter-draw 700ms ease-in-out both, mascot-enter-ink 500ms ease-out 600ms both;
+    animation: mascot-enter-draw 700ms ease-in-out both, mascot-enter-fade 500ms ease-out 600ms both;
   }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle,
-  .gitodile-mascot--enter .gitodile-mascot__head-node { transform-box: fill-box; transform-origin: center; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle { animation: mascot-enter-pop 260ms cubic-bezier(.3, .8, .3, 1.4) both, mascot-commit 6s ease-in-out infinite; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(6) { animation-delay: 950ms, 2.4s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(5) { animation-delay: 1030ms, 2.62s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(4) { animation-delay: 1110ms, 2.84s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(3) { animation-delay: 1190ms, 3.06s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(2) { animation-delay: 1270ms, 3.28s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(1) { animation-delay: 1350ms, 3.5s; }
-  .gitodile-mascot--enter .gitodile-mascot__head-node { animation: mascot-enter-pop 320ms cubic-bezier(.3, .8, .3, 1.5) 1450ms both, mascot-head-node 6s ease-in-out 3.7s infinite; }
 }
 @keyframes mascot-enter-show { from { opacity: 0; } to { opacity: 1; } }
-@keyframes mascot-enter-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes mascot-enter-ink {
-  from { fill-opacity: 0; stroke: var(--text-primary-color); }
-  to { fill-opacity: 1; stroke: #13251f; }
-}
-@keyframes mascot-enter-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes mascot-enter-draw { from { stroke-dashoffset: 1; stroke-opacity: 1; } to { stroke-dashoffset: 0; stroke-opacity: 1; } }
+@keyframes mascot-enter-fade { from { stroke-opacity: 1; } to { stroke-opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .gitodile-mascot__shine { display: none; }
-  .gitodile-mascot--commits .gitodile-mascot__commits circle,
-  .gitodile-mascot--commits .gitodile-mascot__head-node { animation: none; }
+  .gitodile-mascot--wink .gitodile-mascot__wink,
+  .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
 }
-:root[data-reduced-motion="true"] .gitodile-mascot__shine { display: none; }
-:root[data-reduced-motion="true"] .gitodile-mascot--commits .gitodile-mascot__commits circle,
-:root[data-reduced-motion="true"] .gitodile-mascot--commits .gitodile-mascot__head-node { animation: none; }
-/* The app's setting stops the entrance's animations globally (base.css); the
-   outline's dash must go too, or it would hold the undrawn state. */
-:root[data-reduced-motion="true"] .gitodile-mascot--enter .gitodile-mascot__outline path { stroke-dasharray: none; }
+:root[data-reduced-motion="true"] .gitodile-mascot--wink .gitodile-mascot__wink,
+:root[data-reduced-motion="true"] .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
 
 /* A project avatar drawn from a detected technology or a chosen emoji. The box
    itself stays the caller's class (`.sidebar-project__avatar`, …), which owns

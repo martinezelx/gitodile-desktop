@@ -69,7 +69,7 @@ test("buildNsisImages flattens each rendered PNG into the bitmap Modern UI expec
   const sidebarPng = solid(164, 314, [0x2c, 0x35, 0x42]);
   sidebarPng.rgba.set([0x86, 0xb6, 0x40, 255], (157 * 164 + 82) * 4);
   const headerPng = solid(150, 57, [0x2c, 0x35, 0x42]);
-  headerPng.rgba[3] = 0; // a transparent pixel lands on the slate
+  headerPng.rgba[3] = 0; // a transparent pixel lands on the white
   const built = buildNsisImages({ sidebar: encodePng(sidebarPng), header: encodePng(headerPng) });
 
   const sidebar = decodeBmp(built[images.sidebar.file]);

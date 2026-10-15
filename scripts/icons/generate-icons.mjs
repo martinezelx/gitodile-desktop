@@ -1,7 +1,7 @@
 // Regenerates every platform icon, and the brand PNGs, from the mascot in `mascot.mjs`.
 //
 // GitOdile has one application icon on every platform and at every size: the
-// mascot's portrait on the slate tile (ADR 0018, ADR 0029). Windows and Linux take it
+// whole mascot on the white tile (ADR 0031). Windows and Linux take it
 // filling the canvas; macOS takes the same icon on Apple's 824px grid, so the
 // Dock can draw its shadow around the tile.
 //
