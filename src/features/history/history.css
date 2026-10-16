@@ -547,10 +547,11 @@
 
 /* The node carries the state, and it carries all of it. Its shape says where
    the version stands, as on Overview's timeline: half filled when it is saved
-   only here, a solid neutral disc once published, an empty ring when that is
-   not known. The accent ring comes under the pointer, and the selection turns
-   the node's own shape to the accent with a soft halo — the one green node in
-   the list. No keyframes — DESIGN.md § Motion asks motion to communicate a state change,
+   only here, a solid disc in the primary ink once published, an empty ring
+   when that is not known. Both fills are the primary ink, so one family reads
+   "saved" and only the shape says where; the accent ring and a soft halo come
+   under the pointer, and the selection turns the node's own shape to the
+   accent with a halo — the one green node in the list. No keyframes — DESIGN.md § Motion asks motion to communicate a state change,
    and an `infinite` pulse under the pointer is the definition of decoration.
 
    The resting ring is mixed off the secondary text colour rather than taking a
@@ -574,11 +575,17 @@
   background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
 }
 .history-row--published .history-row__node {
-  border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
-  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-panel));
+  border-color: var(--text-primary-color);
+  background: var(--text-primary-color);
 }
-.history-row:hover .history-row__node,
-.history-row:focus-visible .history-row__node { border-color: var(--accent-primary); }
+/* The pointer halo is for the rows that have none of their own: a selected
+   row already carries the accent node and its own halo, so hovering it must
+   not grow that halo. Its hover feedback stays the row's own background. */
+.history-row:not(.history-row--selected):hover .history-row__node,
+.history-row:not(.history-row--selected):focus-visible .history-row__node {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 4.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
 /* Selection changes the node's colour, never its shape: a version saved only
    here stays half filled — the filled half in the accent — and only a
    published one becomes a solid accent dot, so selecting a row never makes it

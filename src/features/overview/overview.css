@@ -448,7 +448,7 @@
 .overview-history__row:focus-visible { background: var(--surface-hover); }
 /* The same node as the History timeline's, minus the selected state this
    preview has no room for: its shape says where the version stands (below),
-   and the pointer rings it in the accent, as on History. */
+   and the pointer rings it in the accent with a soft halo, as on History. */
 .overview-history__node {
   position: relative;
   z-index: 1;
@@ -459,18 +459,21 @@
   border-radius: var(--radius-round);
   background: var(--surface-panel);
   box-shadow: 0 0 0 3px var(--surface-panel);
-  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
+  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
 .overview-history__row:hover .overview-history__node,
-.overview-history__row:focus-visible .overview-history__node { border-color: var(--accent-primary); }
+.overview-history__row:focus-visible .overview-history__node {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
 /* The node's shape says where the version stands, so the rows need no fill
-   of their own: a published version is a solid neutral disc, one still only on
-   this computer is half filled (below), and "Now" with unsaved work is a
-   dashed ring. Colour stays for the one card that asks for something. */
+   of their own: a published version is a solid disc in the primary ink, one
+   still only on this computer is half filled, and "Now" with unsaved work is a
+   dashed ring. The card that asks for something keeps the page's one wash. */
 .overview-history__item--published .overview-history__node {
-  border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
-  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-panel));
+  border-color: var(--text-primary-color);
+  background: var(--text-primary-color);
 }
 .overview-history__body { min-width: 0; display: grid; gap: 3px; }
 .overview-history__subject {

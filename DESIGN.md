@@ -608,14 +608,16 @@ The main desktop window should broadly support:
      stays as it is.
    - **The node's shape says where a version stands, so no row is filled.**
      Unsaved work is a dashed ring, a version saved but not published is half
-     filled, a published one is a solid neutral disc, and versions waiting on
-     the remote are dashed blue: the same reading Linear gives its status
-     glyphs, and it survives greyscale. History's timeline draws its nodes the
+     filled, a published one is a solid disc in the primary ink — the same fill
+     the half circle uses, so one family reads "saved" and only the shape says
+     where — and versions waiting on the remote are dashed blue: the same
+     reading Linear gives its status glyphs, and it survives greyscale.
+     History's timeline draws its nodes the
      same way (an unknown publication stays an empty ring), and both ring the
-     node in the accent under the pointer rather than filling it, so the
-     selected version on History stays the one green node. Selection changes
-     the node's colour, never its shape: a selected local version stays half
-     filled with the filled half in the accent, a published one becomes a
+     node in the accent with a soft halo under the pointer rather than filling
+     it, so the selected version on History stays the one green node. Selection
+     changes the node's colour, never its shape: a selected local version stays
+     half filled with the filled half in the accent, a published one becomes a
      solid accent dot, so selecting a row never makes it look published. The
      timeline therefore has no tinted rows or groups; the next-step card is
      the only surface on the page that wears a state's colour, and its button
@@ -1077,8 +1079,9 @@ panel keeps only the rarer choice of another line by name, which is the one
 scope still stated as a chip under the strip. Lanes are drawn thin: 1px
 strokes 11px apart, the first on the rail's own x, curves where lines part
 and meet. The rail and the lanes are one drawing in both scopes: the same
-10px node with a 1.5px ring (half filled while saved only here, solid once
-published) and the same 1px stroke in the trunk's ink, so switching scope
+10px node with a 1.5px ring (half filled while saved only here, solid in the
+primary ink once published) and the same 1px stroke in the trunk's ink, so
+switching scope
 changes what is drawn, never how — a 12px rail node beside 8px lane nodes
 read as two components. The line read is the trunk in the secondary ink and
 every other line takes a brand avatar hue pulled most of the way to the
@@ -1504,8 +1507,9 @@ not thorough; it is a screen where the reader has to check whether the second
 statement means something new. The upstream is named in the header, who last
 saved and when in the byline, and every saved version exactly once in the list.
 The list draws History's timeline in small: each row's node on a rail says
-where the version stands (half filled while only here, a solid neutral disc
-once published, an empty ring when there is no remote copy to count against).
+where the version stands (half filled while only here, a solid disc in the
+primary ink once published, an empty ring when there is no remote copy
+to count against).
 Which versions the remote lacks is asked of Git with the history read
 (`<line>@{upstream}..<line>`), not read off the ahead count by position: a
 line that merged another interleaves the two by date.
