@@ -41,12 +41,18 @@ export interface HistoryTranslations {
   historyFilterTaggedOnly: string;
   /** The head over the versions only on this computer, as Overview's group. */
   historyLocalGroup: string;
+  historyBlockLabel: (name: string, count: number) => string;
+  historyLaneUnnamed: string;
+  historyLaneMerged: (into: string) => string;
+  historyLaneMissing: (count: number, into: string) => string;
+  historyLaneNotMerged: string;
+  historyLaneAnother: string;
+  historyLaneTrunk: string;
   historyBoundaryPublished: string;
-  historyBoundaryPublishedOn: string;
   /** The boundary of a line whose remote branch was deleted. */
-  historyBoundaryWasOn: string;
   historyLocalGroupPublish: string;
   historyBoundaryHint: (remote: string | null) => string;
+  historyBoundaryGoneHint: (remote: string | null) => string;
   historyBoundaryPublishHint: string;
   historyMatchAuthor: string;
   historyMatchCommit: string;
@@ -54,9 +60,7 @@ export interface HistoryTranslations {
   historyMatchMessage: string;
   historyMatchLabel: (where: string) => string;
   historyScopeLabel: string;
-  historyScopeCurrentLine: string;
   historyScopeAllLines: string;
-  historyScopeAllLinesHint: string;
   historyScopeLineChip: (name: string) => string;
   historyScopeLineHint: (name: string) => string;
   historyScopeLineLabel: string;
@@ -65,6 +69,8 @@ export interface HistoryTranslations {
   historyScopeNoLines: string;
   historyScopeClear: string;
   historyScopeShowCurrentLine: string;
+  historyScopeShowAll: string;
+  historyScopeShowOne: string;
   historyLinesTruncated: string;
   historyVersionActions: string;
   historyMore: string;
@@ -118,6 +124,9 @@ export interface HistoryTranslations {
   historyGlyphCurrent: string;
   historyGlyphLocalOnly: string;
   historyGlyphMerge: string;
+  historyDetourShow: (count: number) => string;
+  historyDetourHide: (count: number) => string;
+  historyDetourLabel: (count: number, open: boolean) => string;
   historyPublicationUnknown: string;
   historyRoot: string;
   historyMerge: string;
@@ -210,10 +219,15 @@ const en: HistoryTranslations = {
   historyFilterHideMerges: "Hide merges",
   historyFilterUnpublishedOnly: "Not published yet",
   historyFilterTaggedOnly: "Only tagged versions",
-  historyLocalGroup: "Only on this computer",
+  historyLocalGroup: "Local",
+  historyBlockLabel: (name, count) => `${name}, ${count === 1 ? "1 version" : `${count} versions`}`,
+  historyLaneUnnamed: "Unnamed line",
+  historyLaneMerged: (into) => `All its versions are in ${into}`,
+  historyLaneMissing: (count, into) => (count === 1 ? `1 version not in ${into} yet` : `${count} versions not in ${into} yet`),
+  historyLaneNotMerged: "Not in any other line yet",
+  historyLaneAnother: "another line",
+  historyLaneTrunk: "The line you're viewing",
   historyBoundaryPublished: "Published",
-  historyBoundaryPublishedOn: "Published on",
-  historyBoundaryWasOn: "Was on",
   historyLocalGroupPublish: "Publish",
   historyBoundaryPublishHint: "Publish them — you'll see what's sent first",
   historyMatchAuthor: "author",
@@ -222,10 +236,9 @@ const en: HistoryTranslations = {
   historyMatchMessage: "message",
   historyMatchLabel: (where) => `Matches its ${where}`,
   historyBoundaryHint: (remote) => `Versions above are only on this computer; versions below are already ${remote ? `on ${remote}` : "published"}`,
+  historyBoundaryGoneHint: (remote) => `Versions above are only on this computer; versions below were published${remote ? ` on ${remote}, a branch that has since been deleted` : ""}`,
   historyScopeLabel: "Version line",
-  historyScopeCurrentLine: "Current line",
   historyScopeAllLines: "All lines",
-  historyScopeAllLinesHint: "Saved versions from every version line.",
   historyScopeLineChip: (name) => `Line: ${name}`,
   historyScopeLineHint: (name) => `Saved versions on “${name}”. Your project stays where it is.`,
   historyScopeLineLabel: "A specific line",
@@ -234,6 +247,8 @@ const en: HistoryTranslations = {
   historyScopeNoLines: "No version line matches that.",
   historyScopeClear: "Back to the current line",
   historyScopeShowCurrentLine: "Show the current line",
+  historyScopeShowAll: "Show all lines",
+  historyScopeShowOne: "Show only this line",
   historyLinesTruncated: "Some version lines aren't included: this project has more than History can read at once.",
   historyVersionActions: "Actions",
   historyMore: "More",
@@ -281,6 +296,12 @@ const en: HistoryTranslations = {
   historyGlyphCurrent: "Where you are — your files are at this version",
   historyGlyphLocalOnly: "Saved locally — not published yet, so it's only on this computer",
   historyGlyphMerge: "Joins two version lines into one",
+  historyDetourShow: (count) =>
+    count === 1 ? "Show the version this merge brought in" : `Show the ${count} versions this merge brought in`,
+  historyDetourHide: (count) =>
+    count === 1 ? "Hide the version this merge brought in" : `Hide the ${count} versions this merge brought in`,
+  historyDetourLabel: (count, open) =>
+    `${count === 1 ? "Brought in 1 version" : `Brought in ${count} versions`}, ${open ? "shown — Left arrow hides them" : "hidden — Right arrow shows them"}`,
   historyPublicationUnknown: "Publish status unknown",
   historyRoot: "First version",
   historyMerge: "Combined version",
@@ -373,10 +394,15 @@ const es: HistoryTranslations = {
   historyFilterHideMerges: "Ocultar fusiones",
   historyFilterUnpublishedOnly: "Sin publicar",
   historyFilterTaggedOnly: "Solo versiones con etiqueta",
-  historyLocalGroup: "Solo en este ordenador",
+  historyLocalGroup: "Local",
+  historyBlockLabel: (name, count) => `${name}, ${count === 1 ? "1 versión" : `${count} versiones`}`,
+  historyLaneUnnamed: "Línea sin nombre",
+  historyLaneMerged: (into) => `Todas sus versiones ya están en ${into}`,
+  historyLaneMissing: (count, into) => (count === 1 ? `Le falta 1 versión por llegar a ${into}` : `Le faltan ${count} versiones por llegar a ${into}`),
+  historyLaneNotMerged: "No se ha unido a ninguna otra línea",
+  historyLaneAnother: "otra línea",
+  historyLaneTrunk: "Es la línea que estás viendo",
   historyBoundaryPublished: "Publicado",
-  historyBoundaryPublishedOn: "Publicado en",
-  historyBoundaryWasOn: "Estuvo en",
   historyLocalGroupPublish: "Publicar",
   historyBoundaryPublishHint: "Publicarlas: antes verás qué se envía",
   historyMatchAuthor: "autor",
@@ -385,10 +411,9 @@ const es: HistoryTranslations = {
   historyMatchMessage: "mensaje",
   historyMatchLabel: (where) => `Coincide en: ${where}`,
   historyBoundaryHint: (remote) => `Las versiones de arriba solo están en este ordenador; las de abajo ya están ${remote ? `en ${remote}` : "publicadas"}`,
+  historyBoundaryGoneHint: (remote) => `Las versiones de arriba solo están en este ordenador; las de abajo se publicaron${remote ? ` en ${remote}, una rama que ya se ha borrado` : ""}`,
   historyScopeLabel: "Línea de versión",
-  historyScopeCurrentLine: "Línea actual",
   historyScopeAllLines: "Todas las líneas",
-  historyScopeAllLinesHint: "Versiones guardadas de todas las líneas de versión.",
   historyScopeLineChip: (name) => `Línea: ${name}`,
   historyScopeLineHint: (name) => `Versiones guardadas en «${name}». Tu proyecto se queda donde está.`,
   historyScopeLineLabel: "Una línea concreta",
@@ -397,6 +422,8 @@ const es: HistoryTranslations = {
   historyScopeNoLines: "Ninguna línea de versión coincide.",
   historyScopeClear: "Volver a la línea actual",
   historyScopeShowCurrentLine: "Ver la línea actual",
+  historyScopeShowAll: "Mostrar todas las líneas",
+  historyScopeShowOne: "Mostrar solo esta línea",
   historyLinesTruncated: "Faltan algunas líneas de versión: el proyecto tiene más de las que el historial puede leer a la vez.",
   historyVersionActions: "Acciones",
   historyMore: "Más",
@@ -444,6 +471,12 @@ const es: HistoryTranslations = {
   historyGlyphCurrent: "Aquí estás: tus archivos están en esta versión",
   historyGlyphLocalOnly: "Guardada en local: aún no se ha publicado, así que solo está en este ordenador",
   historyGlyphMerge: "Une dos líneas de versión en una",
+  historyDetourShow: (count) =>
+    count === 1 ? "Mostrar la versión que trajo esta unión" : `Mostrar las ${count} versiones que trajo esta unión`,
+  historyDetourHide: (count) =>
+    count === 1 ? "Ocultar la versión que trajo esta unión" : `Ocultar las ${count} versiones que trajo esta unión`,
+  historyDetourLabel: (count, open) =>
+    `${count === 1 ? "Trajo 1 versión" : `Trajo ${count} versiones`}, ${open ? "visibles — la flecha izquierda las oculta" : "ocultas — la flecha derecha las muestra"}`,
   historyPublicationUnknown: "Publicación desconocida",
   historyRoot: "Primera versión",
   historyMerge: "Versión combinada",

@@ -1074,6 +1074,153 @@ fn history_scoped_to_all_lines_deduplicates_the_union_of_local_tips() {
     let _ = fs::remove_dir_all(path);
 }
 
+/// "All lines" has no single upstream, so each version is measured against
+/// every remote-tracking line: published when any of them holds it, local
+/// otherwise — the same verdict the line's own scope gives.
+#[test]
+fn all_lines_classifies_publication_against_every_remote_line() {
+    let source = unique_temp_dir("history-all-remotes-source");
+    git_init(&source);
+    write_file(&source, "file.txt", "published\n");
+    commit_all(&source, "published version");
+
+    let clone = unique_temp_dir("history-all-remotes-clone");
+    let file_url = if cfg!(windows) {
+        format!("file:///{}", source.replace('\\', "/"))
+    } else {
+        format!("file://{source}")
+    };
+    assert!(git_command(&clone)
+        .args(["clone", "-q", &file_url, "."])
+        .status()
+        .unwrap()
+        .success());
+    assert!(git_command(&clone)
+        .args(["switch", "-q", "-c", "feature/local"])
+        .status()
+        .unwrap()
+        .success());
+    write_file(&clone, "file.txt", "only here\n");
+    commit_all(&clone, "local on a line with no remote");
+
+    let all = read_history_page(
+        clone.clone(),
+        None,
+        Some(50),
+        None,
+        Some(HistoryScope::AllLines),
+    )
+    .unwrap();
+    assert!(all.upstream.is_none());
+    let publication = |subject: &str| {
+        all.versions
+            .iter()
+            .find(|version| version.subject == subject)
+            .map(|version| version.publication)
+    };
+    assert_eq!(
+        publication("local on a line with no remote"),
+        Some(PublicationState::LocalOnly)
+    );
+    assert_eq!(
+        publication("published version"),
+        Some(PublicationState::Published)
+    );
+
+    let local = all.versions[0].clone();
+    let detail = read_saved_version_detail(
+        clone.clone(),
+        all.snapshot_token.clone(),
+        local.commit.clone(),
+    )
+    .unwrap();
+    assert_eq!(detail.version.publication, PublicationState::LocalOnly);
+
+    // Publishing moves a remote-tracking line without moving a local tip: the
+    // snapshot is a new one, so nothing cached under the old token answers.
+    assert!(git_command(&clone)
+        .args(["push", "-q", "origin", "feature/local"])
+        .status()
+        .unwrap()
+        .success());
+    let published = read_history_page(
+        clone.clone(),
+        None,
+        Some(50),
+        None,
+        Some(HistoryScope::AllLines),
+    )
+    .unwrap();
+    assert_ne!(published.snapshot_token, all.snapshot_token);
+    assert!(published
+        .versions
+        .iter()
+        .all(|version| version.publication == PublicationState::Published));
+
+    let _ = fs::remove_dir_all(source);
+    let _ = fs::remove_dir_all(clone);
+}
+
+/// A filtered page is classified per commit, and Git lists every unpublished
+/// version reachable from it, not only the page's own. That list was once
+/// capped at the page's size, so a filter over more unpublished work than a
+/// page holds failed instead of answering.
+#[test]
+fn a_filtered_page_classifies_more_unpublished_work_than_it_holds() {
+    let source = unique_temp_dir("history-many-unpublished-source");
+    git_init(&source);
+    write_file(
+        &source,
+        "file.txt",
+        "published
+",
+    );
+    commit_all(&source, "published version");
+
+    let clone = unique_temp_dir("history-many-unpublished-clone");
+    let file_url = if cfg!(windows) {
+        format!("file:///{}", source.replace('\\', "/"))
+    } else {
+        format!("file://{source}")
+    };
+    assert!(git_command(&clone)
+        .args(["clone", "-q", &file_url, "."])
+        .status()
+        .unwrap()
+        .success());
+    for index in 0..140 {
+        write_file(
+            &clone,
+            "file.txt",
+            &format!(
+                "local {index}
+"
+            ),
+        );
+        commit_all(&clone, &format!("local {index}"));
+    }
+
+    let page = read_history_page(
+        clone.clone(),
+        None,
+        Some(5),
+        Some(HistoryFilters {
+            author: Some("GitOdile Test".to_string()),
+            ..filters()
+        }),
+        None,
+    )
+    .unwrap();
+    assert_eq!(page.versions.len(), 5);
+    assert!(page
+        .versions
+        .iter()
+        .all(|version| version.publication == PublicationState::LocalOnly));
+
+    let _ = fs::remove_dir_all(source);
+    let _ = fs::remove_dir_all(clone);
+}
+
 #[test]
 fn history_refuses_a_line_this_project_does_not_have() {
     let path = repository_with_three_lines("history-scope-missing");

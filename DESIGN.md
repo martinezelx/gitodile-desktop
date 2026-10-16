@@ -264,13 +264,16 @@ The main desktop window should broadly support:
 
    The project's name and the line's name are the sentence, `project / line`,
    with no words in front of them and only a slash in the quiet ink between
-   them; the name is what keeps the strip saying something once the reader has
-   left Overview, and both truncate rather than wrap. The name is also the way
+   them, both in the same sans at the name weight — the line drops the mono it
+   wears elsewhere, since a typeface change after the slash split the sentence
+   in two. The name is what keeps the strip saying something once the reader
+   has left Overview, and both truncate rather than wrap. The name is also the way
    into that project's settings (it names the project for keyboard and
    screen-reader users), so no gear splits the sentence. Unsaved work rides the
    line it belongs to: a dot after the line's name, the way an editor marks an
-   unsaved tab, in the accent because it is the reader's own work in progress
-   and in the danger tone when the tree could not be read; while the tree is
+   unsaved tab, in the warning tone the rail and the project switcher already
+   give unsaved work (the accent green read as "all good") and in the danger
+   tone when the tree could not be read; while the tree is
    being read the line glyph turns into the spinner. How many files and how
    many lines is not the strip's to say: the sentence ("28 unsaved changes") is
    the trigger's tooltip and the screen reader's, and Overview's band and
@@ -542,8 +545,10 @@ The main desktop window should broadly support:
      — read as an address, "this project, on this line" — and, at the row's
      end, the project's folder and its settings as bare round glyphs. The icon
      is the identity chip the rail shows for the project and opens its icon
-     picker. The line is the shared quick-switch pill, compact, with the name
-     in mono. The technology and the path are properties, not part of the
+     picker. The line is the shared quick switch without its pill: the same
+     sans as the name one step down (subtitle size, secondary ink), with the
+     hover surface and the primary ink saying it opens — mono there made the
+     address two typefaces at two sizes. The technology and the path are properties, not part of the
      address: a row that mixed a 17px name, a 30px pill and 12px text read as
      a mismatch rather than a hierarchy, so both left the row: the path is the
      folder button's tooltip and the technology is the project's own icon.
@@ -1012,24 +1017,80 @@ nothing. Both lists draw them with the shared `StateGlyph` (`.state-glyph` in
 History, and the timeline filter's "Only unpublished" switch wears the same
 laptop, as Lines' filter does, and "Only tagged versions" and "Hide branch
 merges" wear theirs, so the panel doubles as the legend. Where the published
-versions begin, a dashed rule crosses the column above the first of them,
-drawn as Overview's timeline draws the same place: a small neutral cloud on
-the rail, "Published on origin" (the remote alone when it is the line's own
-branch, `origin · main` otherwise, truncating rather than wrapping), the rule,
-and at its end the count of what is above it — `4 not published`. The full
-`origin/main` and both sides are on its tooltip. An earlier
-`Published to origin/main` read as a fact about the row above it and a
-release branch's name did not fit; naming only the remote, beside a mark on
-the rail, fixes both. So "what
-haven't I published?" is one line to find rather than a laptop to read off
-every row; nothing is drawn when every version is on one side of it. On the
-current line its count is also a way to act on it: it opens the publish flow,
-with its preview, as a pointer shortcut beside the toolbar's Publish: the
-count becomes "☁ Publish 4", the cloud (`CloudUpload`) always shown in the
-accent so it reads as an action before the pointer finds it; under the
-pointer the capsule takes the control surface and hairline that Overview's
-"Publish up to here" circle and the status bar's sync pill wear, and the
-words step up to the primary ink.
+versions begin, a block heading opens them, the way Lines heads "In
+progress" and "Ready to clean up": a small cloud on the rail, then
+"PUBLISHED" in the uppercase caption. Where they are published — `origin/main`
+— and both sides are on its tooltip, which also says when that branch has
+since been deleted; the heading named the remote first ("ORIGIN"), which
+said the same less clearly than the word that pairs with "Local". Over the versions only on this computer, the same kind of
+heading — the publish cloud on the remote mark's white disc (Overview's group
+head wears the same) and "LOCAL", with how many in a capsule at its end, as a
+Lines block counts its lines. The two names say what the versions are, one
+word each: "Not published" and "Published on origin" said the same thing at
+three times the width and were cut off in the column. Both headings fold their
+block, with a chevron, as Lines' do (Right opens, Left folds); a folded
+published block offers no older versions. They are drawn only together: when
+nothing is waiting to be published, a lone heading over every version would
+say nothing. It used to be a dashed rule with `4 not published` at its end,
+drawn as Overview's timeline draws it; as two block headings the column reads
+in two blocks, the way Lines does, and "what haven't I published?" is still
+one heading to find rather than a laptop to read off every row. On the
+current line the local head also offers to publish: "☁ Publish" beside its
+count opens the publish flow, with its preview, as a pointer shortcut beside
+the toolbar's Publish, the cloud (`CloudUpload`) always in the accent so it
+reads as an action before the pointer finds it; under the pointer the capsule
+takes the control surface and hairline that Overview's "Publish up to here"
+circle and the status bar's sync pill wear, and the words step up to the
+primary ink.
+
+**The rail opens into lanes only where the history branches.** On a single
+line the column is that line's own versions — each first parent from the tip
+— and a merge says how many versions it brought in, in a small capsule behind
+a chevron: pressing it (or Right on the row; Left folds it again) opens them
+on a lane of their own that leaves the merge and joins the line where they
+parted. "All lines" draws every line at once; it is one glyph in the search
+box, beside the filters, the way Changes keeps its list/folders toggle — a
+single line with a node while one line is read, a graph of lines (pressed, in
+the accent) while all are — with "Show all lines" / "Show only this line" on
+its tooltip. It lived in the filter panel and was hard to find there; the
+panel keeps only the rarer choice of another line by name, which is the one
+scope still stated as a chip under the strip. Lanes are drawn thin: 1px
+strokes 11px apart, the first on the rail's own x, curves where lines part
+and meet. The rail and the lanes are one drawing in both scopes: the same
+10px node with a 1.5px ring (half filled while saved only here, solid once
+published) and the same 1px stroke in the trunk's ink, so switching scope
+changes what is drawn, never how — a 12px rail node beside 8px lane nodes
+read as two components. The line read is the trunk in the secondary ink and
+every other line takes a brand avatar hue pulled most of the way to the
+divider, so they tell apart without colouring the column. "All lines" has no
+single upstream, so each version is measured against every remote-tracking
+line — published once any of them holds it, local otherwise — and its node
+and laptop glyph read as they do on one line. The column mixes lines in Git's
+order there, so the LOCAL and PUBLISHED blocks are drawn only when every local
+version comes before every published one — the usual case, unpublished work
+on top — and a block never holds a version of the other kind; otherwise the
+rows say it one by one. (It used to say
+"unknown" for every version, which drew empty rings and read as a different
+component.) A straight history
+— one lane — keeps the CSS rail and the selection's stretch; a search or a
+filter keeps the plain rail too, because its results are not a connected
+history. Rows keep their
+relative date ("2 hours ago"); headings per day were tried and taken out —
+they split the column more than they helped read it. Pointing at a lane
+names it: an invisible 9px band over each 1px stroke takes the pointer, the
+lane steps up to 2px while the others fall back, the nodes on it take its
+colour, and a card beside the pointer — the app tooltip's dark surface, the
+lane's colour said once by a dot before the name — says the line's name (from
+its reference, or from the merge that brought it in) and one fact: "The line
+you're viewing", "All its versions are in release/0.3.1", "3 versions not in
+main yet" or "Not in any other line yet", from the newest merge and the
+versions loaded. A first card with a coloured edge, a version count and a
+dated sentence said too much and read as decoration; the one fact is what the
+reader asks of a lane. Pointing at a row lifts its lane without the card. Every piece of the
+timeline (a row, the local head, the boundary) carries the rows' transparent
+1px border and draws its stretch of lane at its own height from that edge: on
+a display that paints that border as less than a CSS pixel, a lane measured
+from different edges moved by a fraction between rows.
 
 A title reads from what changed: a Conventional Commits prefix
 (`fix(settings): `) is one tone quieter than the words after it, and a merge's
@@ -2450,6 +2511,23 @@ statement and an instruction don't join well. How GitOdile proves something
 is safe (ownership markers, staging folders, state tokens) is implementation,
 never copy; say what stays safe instead.
 
+**A notice on a screen is one line.** Every in-screen notice or banner —
+History's, Changes' failed read and discard result, the automatic-updates
+warning, Lines' detached and unborn banners, Home's Git notice, the skipped
+restore at startup — reads as one row: its icon, the title in the strong
+weight, then the explanation in the secondary ink on the same line, cut short
+with an ellipsis and the whole of it on the text's tooltip, and any action at
+the end, centred on the row. A notice is read at a glance and the screen's
+content is what it sits over; stacked, the title and its sentence spent two
+lines and a gap to say what one line says. The explanation gives way first;
+the title truncates only once the explanation has nothing left. Where the row
+is too narrow for its actions as well (the automatic-updates warning, with
+two), the actions wrap to a row of their own, at the end, and the text keeps
+its one line.
+Tones, colours and actions are each notice's own. Dialog banners
+(`DialogBanner`) are not in-screen notices: they state a consequence before
+it happens and wrap to show all of it.
+
 **One voice across both languages.**
 
 - An error names what failed without a subject: “Couldn't read this file.”,
@@ -2477,23 +2555,6 @@ never copy; say what stays safe instead.
 9. Settings and Git diagnostics.
 
 Each screen must define loading, empty, success, warning, and error states.
-
-**A notice on a screen is one line.** Every in-screen notice or banner —
-History's, Changes' failed read and discard result, the automatic-updates
-warning, Lines' detached and unborn banners, Home's Git notice, the skipped
-restore at startup — reads as one row: its icon, the title in the strong
-weight, then the explanation in the secondary ink on the same line, cut short
-with an ellipsis and the whole of it on the text's tooltip, and any action at
-the end, centred on the row. A notice is read at a glance and the screen's
-content is what it sits over; stacked, the title and its sentence spent two
-lines and a gap to say what one line says. The explanation gives way first;
-the title truncates only once the explanation has nothing left. Where the row
-is too narrow for its actions as well (the automatic-updates warning, with
-two), the actions wrap to a row of their own, at the end, and the text keeps
-its one line.
-Tones, colours and actions are each notice's own. Dialog banners
-(`DialogBanner`) are not in-screen notices: they state a consequence before
-it happens and wrap to show all of it.
 
 **A render error never blanks the window.** Each screen, each Work tab and
 the app itself sit inside an error boundary. A failure shows the error form of

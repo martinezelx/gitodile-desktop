@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowLeft, Check, ChevronDown, ChevronRight, CircleAlert, Cloud, CloudOff, CloudUpload,
-  CircleDot, Copy, Ellipsis, Folder, GitBranch, GitCommitHorizontal, GitMerge,
+  CircleDot, Copy, Ellipsis, Folder, GitBranch, GitCommitHorizontal, GitCommitVertical, GitGraph, GitMerge,
   Laptop, Search, Tag, UserRound, X,
 } from "lucide-react";
 
@@ -18,11 +18,21 @@ import { formatHistoryDate } from "./formatHistoryDate";
 import { HistoryMetaDot, HistoryRefBadge, localLineFor } from "./HistoryRefBadge";
 import { isSelfAuthor } from "./author";
 import {
+  LANE_TINTS,
+  MAX_LANES,
+  detourHolding,
+  layoutLanes,
+  versionsWithDetours,
+  type Detour,
+  type LaneLayout,
+  type LaneRow,
+  type LaneSlot,
+} from "./timelineLanes";
+import {
   ALL_LINES_SCOPE,
   countActiveFilters,
   CURRENT_LINE_SCOPE,
   NO_HISTORY_FILTERS,
-  sameHistoryScope,
   scopeLineName,
   type HistoryFilters,
   type HistoryQuery,
@@ -122,31 +132,15 @@ function PublicationIcon({ publication }: { publication: PublicationState }): Re
   return <CloudOff aria-hidden="true" />;
 }
 
-/* The boundary's remote, named as Overview names it: the remote alone when it
-   publishes to a branch of the scoped line's own name, `remote · branch`
-   otherwise. The upstream is the scope's, so the line it is compared with is
-   the scoped one, not the line stood on. */
-function publishedOnLabel(snapshot: HistoryState["snapshot"], scope: HistoryScope): string | null {
-  if (!snapshot?.upstream) return null;
-  const { upstream } = snapshot;
-  const line = scope.kind === "line" ? scope.name : snapshot.branch;
-  return upstream.destinationBranch === line ? upstream.remote : `${upstream.remote} · ${upstream.destinationBranch}`;
-}
-
-/* Where the remote's copy of the line begins, drawn as Overview's timeline
-   draws it: a cloud sitting on the rail and the remote's name, so the two
-   timelines mark the same place the same way. */
-function BoundaryMark({ publishedOn, remoteGone, t }: { publishedOn: string | null; remoteGone: boolean; t: Translations }): React.JSX.Element {
-  return (
-    <>
-      <span className="history-boundary__mark" aria-hidden="true"><Cloud /></span>
-      <span className="history-boundary__side history-boundary__where">
-        {publishedOn
-          ? <>{remoteGone ? t.historyBoundaryWasOn : t.historyBoundaryPublishedOn} <span className="history-boundary__remote">{publishedOn}</span></>
-          : t.historyBoundaryPublished}
-      </span>
-    </>
-  );
+/** Right opens a block, Left folds it — the arrows a tree heading answers to;
+ * Enter and Space are the button's own. */
+function blockKeys(expanded: boolean, onToggle: () => void): (event: React.KeyboardEvent<HTMLButtonElement>) => void {
+  return (event) => {
+    if ((event.key === "ArrowRight" && !expanded) || (event.key === "ArrowLeft" && expanded)) {
+      event.preventDefault();
+      onToggle();
+    }
+  };
 }
 
 function HistoryBanner({ tone, title, action, children }: { tone: "neutral" | "warning" | "danger"; title: string; action?: React.ReactNode; children: React.ReactNode }): React.JSX.Element {
@@ -315,8 +309,93 @@ function DetailPlaceholder({ label }: { label?: string }): React.JSX.Element {
   );
 }
 
-const TimelineRow = React.memo(function TimelineRow({ version, index, first, last, selected, rail, focusable, formats, search, arrival, selfEmail, onSelect, onMove, onOpenDetail, onContextMenu }: {
-  version: SavedVersionSummary; index: number; first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; search: string; arrival?: number; selfEmail: string | null; onSelect: (commit: string) => void; onMove: (index: number) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
+/* Lanes, drawn thin: 1px strokes 11px apart, the first on the rail's own x
+   (the row's 1px border and 17.5px, at the line's centre). Each piece of the
+   timeline draws its stretch of every lane at its own real height, from its
+   border edge, so a lane is the same x in every row and heading and the pieces
+   meet exactly. */
+const LANE_START = 19;
+const LANE_GAP = 11;
+/** Where a row's node sits, from the row's border edge. */
+const ROW_NODE_Y = 33;
+const laneX = (lane: number): number => LANE_START + Math.min(lane, MAX_LANES - 1) * LANE_GAP;
+const laneTint = (tint: number): string => `var(--history-lane-${tint === 0 ? 0 : 1 + ((tint - 1) % LANE_TINTS)})`;
+const laneCurve = (x1: number, y1: number, x2: number, y2: number): string =>
+  x1 === x2 ? `M${x1} ${y1}V${y2}` : `M${x1} ${y1}C${x1} ${(y1 + y2) / 2} ${x2} ${(y1 + y2) / 2} ${x2} ${y2}`;
+
+/** One piece's stretch of the lanes. A version row draws what runs into its
+ * node, what leaves it for each parent, and what passes beside it; any other
+ * piece draws the lanes crossing it, from `fromY` down. */
+function LaneDrawing({ width, height, commit, row, passing, fromY = 0, connectTop = false }: {
+  width: number; height: number; commit?: string; row?: LaneRow; passing?: readonly LaneSlot[]; fromY?: number; connectTop?: boolean;
+}): React.JSX.Element {
+  const paths: Array<{ d: string; tint: number }> = [];
+  if (row && commit) {
+    const nx = laneX(row.lane);
+    row.lanesIn.forEach((slot, lane) => {
+      if (!slot) return;
+      const x = laneX(lane);
+      paths.push({ d: slot.commit === commit ? laneCurve(x, 0, nx, ROW_NODE_Y) : `M${x} 0V${ROW_NODE_Y}`, tint: slot.tint });
+    });
+    if (connectTop && !row.lanesIn[row.lane]) paths.push({ d: `M${nx} 0V${ROW_NODE_Y}`, tint: row.tint });
+    row.lanesOut.forEach((slot, lane) => {
+      if (!slot) return;
+      const x = laneX(lane);
+      if (lane !== row.lane && row.lanesIn[lane]?.commit === slot.commit) paths.push({ d: `M${x} ${ROW_NODE_Y}V${height}`, tint: slot.tint });
+      if (row.edges.some((edge) => edge.lane === lane)) paths.push({ d: laneCurve(nx, ROW_NODE_Y, x, height), tint: slot.tint });
+    });
+  } else {
+    passing?.forEach((slot, lane) => { if (slot) paths.push({ d: `M${laneX(lane)} ${fromY}V${height}`, tint: slot.tint }); });
+  }
+  return (
+    <svg className="history-lanes" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      {paths.map((path, index) => <path key={index} className="history-lane-stroke" data-tint={path.tint} d={path.d} stroke={laneTint(path.tint)} />)}
+      {/* A wider, invisible copy of each stroke: a 1px line is no target for a pointer. */}
+      {paths.map((path, index) => <path key={`hit-${index}`} className="history-lane-hit" data-tint={path.tint} d={path.d} />)}
+    </svg>
+  );
+}
+
+/** What the card says under a lane's name: one fact, the one that answers
+ * "are these versions anywhere else?". The line being read is itself;
+ * otherwise the newest merge that took it into another line says whether all
+ * of it went, or how many versions it saved since. Loaded versions only. */
+function laneFact(layout: LaneLayout, tint: number, readingOne: boolean, t: Translations): string {
+  if (tint === 0 && readingOne) return t.historyLaneTrunk;
+  const merge = layout.lines.get(tint)?.lastMerge;
+  if (!merge) return t.historyLaneNotMerged;
+  // A line the timeline cannot name is still a line: say "another line".
+  const into = layout.lines.get(merge.into)?.name ?? t.historyLaneAnother;
+  return merge.after > 0 ? t.historyLaneMissing(merge.after, into) : t.historyLaneMerged(into);
+}
+
+/* The card beside the pointer when it rests on a lane: the app tooltip's own
+   dark surface, the lane's colour said once by a dot before the line's name,
+   and the one fact. Kept inside the window. */
+function LaneCard({ layout, tint, readingOne, x, y, t }: { layout: LaneLayout; tint: number; readingOne: boolean; x: number; y: number; t: Translations }): React.JSX.Element | null {
+  const line = layout.lines.get(tint);
+  if (!line) return null;
+  const left = Math.max(8, Math.min(x + 14, window.innerWidth - 300));
+  return (
+    <div className="history-lane-tip" style={{ left, top: y + 14, "--lane-color": laneTint(tint) } as React.CSSProperties} aria-hidden="true">
+      <span className="history-lane-tip__name">{line.name ?? t.historyLaneUnnamed}</span>
+      <span>{laneFact(layout, tint, readingOne, t)}</span>
+    </div>
+  );
+}
+
+const TimelineRow = React.memo(function TimelineRow({ version, index, level, first, last, selected, rail, focusable, formats, search, arrival, selfEmail, detour, laneRow, laneWidth, connectTop = false, onSelect, onMove, onToggleDetour, onOpenDetail, onContextMenu }: {
+  version: SavedVersionSummary;
+  /** Its place among the rows drawn, for the arrow keys. */
+  index: number;
+  /** Its depth in the timeline's tree: under a block heading, inside a detour. */
+  level: number;
+  first: boolean; last: boolean; selected: boolean; rail: RailFill; focusable: boolean; formats: LocaleFormats; search: string; arrival?: number; selfEmail: string | null;
+  /** A merge on a single line: how many versions it brought in, and whether they are shown. */
+  detour?: { count: number; open: boolean };
+  /** This version's stretch of the lanes, when the timeline draws more than one. */
+  laneRow?: LaneRow; laneWidth?: number; connectTop?: boolean;
+  onSelect: (commit: string) => void; onMove: (index: number) => void; onToggleDetour?: (merge: string, open: boolean) => void; onOpenDetail: () => void; onContextMenu?: (event: React.MouseEvent, version: SavedVersionSummary) => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const title = versionTitle(version, t);
@@ -328,7 +407,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   const match = hiddenMatch(version, title, search, t);
   /* What the avatar and the glyphs say, in words: a description, because the
      row's `aria-label` replaces its content. */
-  const description = [author, ...glyphs.map((glyph) => glyph.label), ...(match ? [t.historyMatchLabel(match)] : [])].join(", ");
+  const description = [author, ...glyphs.map((glyph) => glyph.label), ...(detour ? [t.historyDetourLabel(detour.count, detour.open)] : []), ...(match ? [t.historyMatchLabel(match)] : [])].join(", ");
   // Captured at mount: the arrival belongs to the render the row first
   // appears on (see `useRowArrival`), and a later render must not strip the
   // class mid-animation. The timeline it opens with is simply there.
@@ -338,6 +417,16 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
   // seats itself in the detail strip beside it, which has room for it.
   const label = selected ? t.historySelectedVersion(title) : title;
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>): void => {
+    // Right shows what a merge brought in and Left folds it again, the way a
+    // tree opens a branch.
+    if (detour && onToggleDetour && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+      const open = event.key === "ArrowRight";
+      if (open !== detour.open) {
+        event.preventDefault();
+        onToggleDetour(version.commit, open);
+      }
+      return;
+    }
     const target = event.key === "ArrowDown" ? index + 1 : event.key === "ArrowUp" ? index - 1
       : event.key === "Home" ? 0 : event.key === "End" ? Number.MAX_SAFE_INTEGER
         : event.key === "PageDown" ? index + 8 : event.key === "PageUp" ? index - 8 : null;
@@ -346,9 +435,10 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
     onMove(target);
   };
   return (
-    <button id={`history-version-${version.commit}`} className={`history-row${selected ? " history-row--selected" : ""}${version.publication === "local-only" ? " history-row--local" : version.publication === "published" ? " history-row--published" : ""}${version.isMerge ? " history-row--merge" : ""}${arrivalStyle ? " row-in" : ""}`} style={arrivalStyle} type="button" role="option" aria-selected={selected} aria-label={label} aria-description={description} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
+    <button id={`history-version-${version.commit}`} data-lane-tint={laneRow?.tint} className={`history-row${selected ? " history-row--selected" : ""}${version.publication === "local-only" ? " history-row--local" : version.publication === "published" ? " history-row--published" : ""}${version.isMerge ? " history-row--merge" : ""}${arrivalStyle ? " row-in" : ""}`} type="button" role="treeitem" aria-level={level} aria-expanded={detour ? detour.open : undefined} aria-selected={selected} aria-label={label} aria-description={description} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} style={laneRow ? { ...arrivalStyle, "--history-node-x": `${laneX(laneRow.lane)}px` } as React.CSSProperties : arrivalStyle} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
+      {laneRow && laneWidth !== undefined && <LaneDrawing width={laneWidth} height={ROW_HEIGHT} commit={version.commit} row={laneRow} connectTop={connectTop} />}
       <span className="history-row__node" aria-hidden="true" />
-      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><AuthorAvatar version={version} isSelf={isSelf} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
+      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><AuthorAvatar version={version} isSelf={isSelf} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{detour && onToggleDetour && <span className={`history-detour${detour.open ? " history-detour--open" : ""}`} data-tooltip={detour.open ? t.historyDetourHide(detour.count) : t.historyDetourShow(detour.count)} aria-hidden="true" onClick={(event) => { event.stopPropagation(); onToggleDetour(version.commit, !detour.open); }}><ChevronRight />{formatNumber(detour.count, formats)}</span>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
     </button>
   );
 });
@@ -356,28 +446,42 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, first, las
 const ROW_HEIGHT = 64;
 const BOUNDARY_HEIGHT = 32;
 const LOCAL_HEAD_HEIGHT = 34;
+/** Where the local head's cloud sits, from its top — where its lane begins. */
+const LOCAL_HEAD_NODE_Y = 19;
 
-/* The head over the versions only on this computer, as Overview's timeline
-   heads its group: the publish cloud on the rail and what the group is. It
-   leaves out the count Overview's carries: the rows under it are the count,
-   and the column needs the room for the label. Beside it, the way to publish
+/** What the virtual list draws, one fixed height each: the head over the
+ * versions only on this computer, where the published ones begin, and a
+ * version. */
+type TimelinePiece = { kind: "head" } | { kind: "boundary" } | { kind: "version"; version: SavedVersionSummary; index: number };
+const PIECE_HEIGHT = { head: LOCAL_HEAD_HEIGHT, boundary: BOUNDARY_HEIGHT, version: ROW_HEIGHT } as const;
+const pieceKey = (piece: TimelinePiece): string => (piece.kind === "version" ? piece.version.commit : piece.kind);
+const NO_DETOURS: ReadonlyMap<string, Detour> = new Map();
+
+/* The head over the versions only on this computer: the publish cloud on
+   the rail, then a block heading as Lines draws one — the uppercase label and
+   how many versions the block holds in a capsule. Beside it, the way to publish
    them, on the current line only — the publish flow publishes that line, so
    under another scope it would not send the versions under the head. A
    pointer shortcut, out of the tab order and hidden with the head it sits
    on: it lives inside the listbox, where only options belong, and Publish in
    the toolbar is the same action for a keyboard. */
-function LocalGroupHead({ onPublish, t }: { onPublish?: () => void; t: Translations }): React.JSX.Element {
+function LocalGroupHead({ count, formats, expanded, onToggle, onPublish, t, drawing }: { count: number; formats: LocaleFormats; expanded: boolean; onToggle: () => void; onPublish?: () => void; t: Translations; drawing?: React.ReactNode }): React.JSX.Element {
   return (
-    <div className="history-local-head" aria-hidden="true">
-      <span className="history-local-head__icon"><CloudUpload /></span>
-      <span className="history-local-head__label">{t.historyLocalGroup}</span>
+    <div className="history-local-head">
+      {drawing}
+      <span className="history-local-head__icon" aria-hidden="true"><CloudUpload /></span>
+      <button className="history-block-toggle" type="button" role="treeitem" aria-level={1} aria-expanded={expanded} aria-label={t.historyBlockLabel(t.historyLocalGroup, count)} onClick={onToggle} onKeyDown={blockKeys(expanded, onToggle)}>
+        <ChevronRight className="history-block-toggle__chevron" aria-hidden="true" />
+        <span className="history-local-head__label">{t.historyLocalGroup}</span>
+        <span className="history-block-count" aria-hidden="true">{formatNumber(count, formats)}</span>
+      </button>
       {onPublish && <button className="history-local-head__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => onPublish()}><CloudUpload className="history-local-head__publish-icon" />{t.historyLocalGroupPublish}</button>}
     </div>
   );
 }
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selectedCommit, publishedTo, publishedOn, remoteGone, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; publishedOn: string | null; remoteGone: boolean; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersions, selectedCommit, publishedTo, remoteGone, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; remoteGone: boolean; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryLineActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -396,15 +500,65 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   const scrollRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const focusCommit = versions.some((version) => version.commit === selectedCommit) ? selectedCommit : versions[0]?.commit ?? null;
+  const filtered = countActiveFilters(filters) > 0;
+  const searchQuery = search.trim().toLocaleLowerCase();
+  /* A search or a filter answers with versions that are not a connected
+     history, so its rows stand on the plain rail. Otherwise a single line is
+     read straight — its own versions, with each merge folding what it brought
+     in until the reader opens it — and "All lines" draws every line. */
+  const plain = filtered || searchQuery.length > 0;
+  const [openDetours, setOpenDetours] = useState<ReadonlySet<string>>(() => new Set());
+  /* The two blocks — what is only here, and what the remote has — fold the
+     way Lines' blocks do. Only when both are there: a lone "published"
+     heading over every version would say nothing. */
+  const [foldedBlocks, setFoldedBlocks] = useState({ local: false, published: false });
+  const { visible: versions, detours } = useMemo(
+    () => (plain || scope.kind === "allLines" ? { visible: allVersions, detours: NO_DETOURS } : versionsWithDetours(allVersions, openDetours)),
+    [allVersions, openDetours, plain, scope.kind],
+  );
+  const detoursRef = useRef(detours);
+  detoursRef.current = detours;
+  // A version chosen while folded away — from a search, or another screen —
+  // opens the merge that holds it, so the selection is always on screen.
+  useEffect(() => {
+    if (!selectedCommit || versions.some((version) => version.commit === selectedCommit)) return;
+    const merge = detourHolding(detours, selectedCommit);
+    if (merge) setOpenDetours((current) => new Set(current).add(merge));
+  }, [detours, selectedCommit, versions]);
+  const toggleDetour = useCallback((merge: string, open: boolean): void => {
+    setOpenDetours((current) => {
+      const next = new Set(current);
+      if (open) next.add(merge);
+      else next.delete(merge);
+      return next;
+    });
+    // Folding away the selected version leaves the selection on the merge.
+    if (!open && selectedCommit && detoursRef.current.get(merge)?.versions.includes(selectedCommit)) onSelect(merge);
+  }, [onSelect, selectedCommit]);
+  const layout = useMemo(() => (plain ? null : layoutLanes(versions)), [plain, versions]);
+  /* The lane under the pointer: pointing at a lane names its line and lifts
+     it out of the others; pointing at a row lifts the lane its node is on. */
+  const [hoveredLane, setHoveredLane] = useState<{ tint: number; x: number; y: number; onStroke: boolean } | null>(null);
+  const lanesKey = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const trackLane = useCallback((event: React.PointerEvent<HTMLElement>): void => {
+    const target = event.target as Element;
+    const stroke = target.closest("[data-tint]");
+    const row = stroke ? null : target.closest("[data-lane-tint]");
+    const tint = Number((stroke ?? row)?.getAttribute(stroke ? "data-tint" : "data-lane-tint"));
+    if ((stroke || row) && Number.isFinite(tint)) setHoveredLane({ tint, x: event.clientX, y: event.clientY, onStroke: Boolean(stroke) });
+    else setHoveredLane(null);
+  }, []);
+  /* One lane is the rail as it has always been, selection stretch and all;
+     lanes replace it only where the history really branches. */
+  const lanesOn = layout !== null && layout.width > 1;
+  const laneWidth = layout ? laneX(layout.width - 1) + 8 : 0;
+
   const selectedIndex = versions.findIndex((version) => version.commit === selectedCommit);
   // A version saved while this timeline is open arrives at the head and
   // animates; the timeline it opens with is simply there, and loading an older
   // page is not a set of arrivals (see `useRowArrival`).
   const arrivalKeys = useMemo(() => versions.map((version) => version.commit), [versions]);
   const arrivals = useRowArrival(arrivalKeys, currentBranch ?? "", "prepended");
-  const filtered = countActiveFilters(filters) > 0;
-  const searchQuery = search.trim().toLocaleLowerCase();
   /* Where what is only on this computer ends and what the remote has begins:
      the first published version after an unpublished one. It is drawn as
      Overview draws it — a group head over the versions only here and the
@@ -413,12 +567,54 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
      one side. */
   const boundaryIndex = useMemo(() => versions.findIndex((version, index) =>
     index > 0 && version.publication === "published" && versions[index - 1].publication === "local-only"), [versions]);
-  const hasLocalHead = boundaryIndex > 0;
+  /* Under "All lines" each version is measured against every remote line,
+     but the column mixes lines in Git's order: the blocks are drawn there only
+     when every local version comes before every published one — the usual
+     case, unpublished work on top — so a block never holds a version of the
+     other kind. Otherwise the nodes and the laptop glyph say it per row. */
+  const hasLocalHead = boundaryIndex > 0 && (scope.kind !== "allLines" || versions.slice(boundaryIndex).every((version) => version.publication !== "local-only"));
   const canPublishFromBoundary = Boolean(actions.onPublish) && scope.kind === "currentLine";
-  const virtualizer = useVirtualizer({ count: versions.length, getScrollElement: () => scrollRef.current, estimateSize: (index) => ROW_HEIGHT + (index === boundaryIndex ? BOUNDARY_HEIGHT : 0) + (hasLocalHead && index === 0 ? LOCAL_HEAD_HEIGHT : 0), overscan: 6, getItemKey: (index) => versions[index]?.commit ?? index });
-  // The boundary and the head change two rows' heights, which the
-  // virtualizer only reads back when asked.
-  useLayoutEffect(() => { virtualizer.measure(); }, [boundaryIndex, virtualizer]);
+  /* The pieces the list draws — the local head and the local block's rows,
+     the boundary and the published block's — each with the lanes that
+     cross it from above. A folded block keeps its heading and draws nothing
+     under it; the lanes still run through, from the last version above. */
+  const { pieces, lanesAbove } = useMemo(() => {
+    const out: TimelinePiece[] = [];
+    const above: Array<readonly LaneSlot[]> = [];
+    const lanesAfter = (index: number): readonly LaneSlot[] =>
+      (layout && versions[index] ? layout.rows.get(versions[index].commit)?.lanesOut : undefined) ?? [];
+    const addVersions = (from: number, to: number, start: readonly LaneSlot[]): void => {
+      let current = start;
+      for (let index = from; index < to; index++) {
+        out.push({ kind: "version", version: versions[index]!, index });
+        above.push(current);
+        current = lanesAfter(index);
+      }
+    };
+    if (!hasLocalHead) {
+      addVersions(0, versions.length, []);
+      return { pieces: out, lanesAbove: above };
+    }
+    out.push({ kind: "head" });
+    above.push([]);
+    if (!foldedBlocks.local) addVersions(0, boundaryIndex, []);
+    out.push({ kind: "boundary" });
+    above.push(lanesAfter(boundaryIndex - 1));
+    if (!foldedBlocks.published) addVersions(boundaryIndex, versions.length, lanesAfter(boundaryIndex - 1));
+    return { pieces: out, lanesAbove: above };
+  }, [boundaryIndex, foldedBlocks, hasLocalHead, layout, versions]);
+  const shownVersions = useMemo(() => pieces.flatMap((piece) => (piece.kind === "version" ? [piece.version] : [])), [pieces]);
+  const shownPosition = useMemo(() => new Map(shownVersions.map((version, position) => [version.commit, position])), [shownVersions]);
+  const inOpenDetour = useMemo(() => new Set([...detours.values()].flatMap((detour) => (detour.open ? detour.versions : []))), [detours]);
+  const toggleBlock = useCallback((block: "local" | "published") => setFoldedBlocks((current) => ({ ...current, [block]: !current[block] })), []);
+  const pieceIndex = useMemo(() => new Map(pieces.flatMap((piece, index) => (piece.kind === "version" ? [[piece.version.commit, index] as const] : []))), [pieces]);
+  const firstVersionPiece = pieces.findIndex((piece) => piece.kind === "version");
+  const focusCommit = selectedCommit && shownPosition.has(selectedCommit) ? selectedCommit : shownVersions[0]?.commit ?? null;
+  const selectedPiece = selectedCommit ? pieceIndex.get(selectedCommit) ?? -1 : -1;
+  const virtualizer = useVirtualizer({ count: pieces.length, getScrollElement: () => scrollRef.current, estimateSize: (index) => PIECE_HEIGHT[pieces[index]?.kind ?? "version"], overscan: 6, getItemKey: (index) => (pieces[index] ? pieceKey(pieces[index]) : index) });
+  // Pieces arrive, leave and change kind; the virtualizer only reads their
+  // heights back when asked.
+  useLayoutEffect(() => { virtualizer.measure(); }, [pieces, virtualizer]);
   const rows = virtualizer.getVirtualItems();
   const lastIndex = rows.at(-1)?.index ?? -1;
 
@@ -431,7 +627,9 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return undefined;
-    const save = (): void => { if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => onScrollOffset(element.scrollTop), 120); };
+    // A scroll moves the lanes from under a resting pointer: the card it showed
+    // would name whatever lane used to be there.
+    const save = (): void => { setHoveredLane(null); if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => onScrollOffset(element.scrollTop), 120); };
     element.addEventListener("scroll", save, { passive: true });
     return () => { element.removeEventListener("scroll", save); if (saveTimer.current) clearTimeout(saveTimer.current); if (!search && !filtered) onScrollOffset(element.scrollTop); };
   }, [filtered, onScrollOffset, search]);
@@ -444,17 +642,18 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
     // `isLoading` matters as much as `isLoadingMore`: while the first page of
     // a new question is in flight the rows on screen still belong to the old
     // one, and their tail says nothing about where the new history ends.
-    if (!search && !isLoading && lastIndex >= versions.length - 18 && hasMore && !isLoadingMore) onLoadMore();
-  }, [hasMore, isLoading, isLoadingMore, lastIndex, onLoadMore, search, versions.length]);
+    // A folded published block is not a reason to read the rest of history.
+    if (!search && !isLoading && !(hasLocalHead && foldedBlocks.published) && lastIndex >= pieces.length - 18 && hasMore && !isLoadingMore) onLoadMore();
+  }, [foldedBlocks.published, hasLocalHead, hasMore, isLoading, isLoadingMore, lastIndex, onLoadMore, pieces.length, search]);
 
   const moveSelection = useCallback((target: number): void => {
-    const index = Math.max(0, Math.min(target, versions.length - 1));
-    const version = versions[index];
+    const index = Math.max(0, Math.min(target, shownVersions.length - 1));
+    const version = shownVersions[index];
     if (!version) return;
     onSelect(version.commit);
-    virtualizer.scrollToIndex(index, { align: "auto" });
+    virtualizer.scrollToIndex(pieceIndex.get(version.commit) ?? index, { align: "auto" });
     requestAnimationFrame(() => document.getElementById(`history-version-${version.commit}`)?.focus());
-  }, [onSelect, versions, virtualizer]);
+  }, [onSelect, pieceIndex, shownVersions, virtualizer]);
   // The panel around these rows, and its header with the Work screen's tabs,
   // belong to `HistoryPanel`: they are the same nodes in every state it has.
   return (
@@ -469,33 +668,36 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
           placeholder={t.historySearchPlaceholder}
           ariaLabel={t.historySearchAriaLabel}
           clearLabel={t.commonClearSearch}
-          trailing={<HistoryFilterPanel
-            filters={filters}
-            scope={scope}
-            lines={actions.lines ?? []}
-            authorSuggestions={authorSuggestions}
-            pathSuggestions={pathSuggestions}
-            canFilterPublication={canFilterPublication}
-            onChange={onFilters}
-            onScope={onScope}
-          />}
+          trailing={<>
+            <HistoryFilterPanel
+              filters={filters}
+              scope={scope}
+              lines={actions.lines ?? []}
+              authorSuggestions={authorSuggestions}
+              pathSuggestions={pathSuggestions}
+              canFilterPublication={canFilterPublication}
+              onChange={onFilters}
+              onScope={onScope}
+            />
+            <HistoryScopeToggle scope={scope} onScope={onScope} t={t} />
+          </>}
         />
       </div>
-      {/* The scope, as a chip in a state row of its own — the row the Changes
-          list gives its breakdown — drawn only while the timeline is not the
-          current line's, so the common case keeps its rows one strip down.
-          It stays out of the filter chips: clearing the filters cannot touch
-          it and should not. */}
-      {scope.kind !== "currentLine" && <div className="history-timeline__state">
+      {/* A line chosen by name, as a chip in a state row of its own — the row
+          the Changes list gives its breakdown. All lines says itself on the
+          toggle in the search box, so it needs no chip; the current line
+          needs none either. It stays out of the filter chips: clearing the
+          filters cannot touch it and should not. */}
+      {scope.kind === "line" && <div className="history-timeline__state">
         <button
           className="history-scope-chip"
           type="button"
-          title={scope.kind === "allLines" ? t.historyScopeAllLinesHint : t.historyScopeLineHint(scope.name)}
+          title={t.historyScopeLineHint(scope.name)}
           aria-label={t.historyScopeClear}
           onClick={() => onScope(CURRENT_LINE_SCOPE)}
         >
           <GitBranch aria-hidden="true" />
-          <span>{scope.kind === "allLines" ? t.historyScopeAllLines : scopeLineName(scope)}</span>
+          <span>{scope.name}</span>
           <X aria-hidden="true" />
         </button>
       </div>}
@@ -504,9 +706,39 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
           below are the previous answer and the strip says they are being
           replaced. */}
       {isLoading && versions.length > 0 && <div className="history-timeline__progress"><LoadingBar label={t.historyLoading} /></div>}
-      <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className="history-timeline__scroll auto-hide-scrollbar" role="listbox" aria-label={t.historyTimelineAriaLabel}>
+      {/* The lane under the pointer, lifted out of the others — scoped to this
+          timeline, so another History on the screen keeps its own — and the
+          card naming its line beside the pointer. */}
+      {lanesOn && hoveredLane && <style>{`[data-lanes="${lanesKey}"] .history-lane-stroke:not([data-tint="${hoveredLane.tint}"]) { opacity: 0.32; } [data-lanes="${lanesKey}"] .history-lane-stroke[data-tint="${hoveredLane.tint}"] { stroke-width: 2; } [data-lanes="${lanesKey}"] .history-row[data-lane-tint="${hoveredLane.tint}"] .history-row__node { border-color: ${laneTint(hoveredLane.tint)}; }`}</style>}
+      {lanesOn && hoveredLane?.onStroke && layout && <LaneCard layout={layout} tint={hoveredLane.tint} readingOne={scope.kind !== "allLines"} x={hoveredLane.x} y={hoveredLane.y} t={t} />}
+      <div {...autoHideScrollbarProps<HTMLDivElement>()} ref={scrollRef} className={`history-timeline__scroll auto-hide-scrollbar${lanesOn ? " history-timeline--lanes" : ""}`} style={lanesOn ? { "--history-lanes-inset": `${Math.max(35, laneWidth + 13)}px` } as React.CSSProperties : undefined} role="tree" aria-label={t.historyTimelineAriaLabel} data-lanes={lanesKey} onPointerMove={lanesOn ? trackLane : undefined} onPointerLeave={() => setHoveredLane(null)}>
         {versions.length ? <div className="history-timeline__virtual" style={{ height: virtualizer.getTotalSize() }}>
-          {rows.map((virtualRow) => { const version = versions[virtualRow.index]; const rail: RailFill = selectedIndex < 0 ? null : virtualRow.index < selectedIndex ? "filled" : virtualRow.index === selectedIndex ? "half" : null; const boundary = virtualRow.index === boundaryIndex; const head = hasLocalHead && virtualRow.index === 0; return <div key={virtualRow.key} className={`history-timeline__virtual-row${boundary ? " history-timeline__virtual-row--boundary" : ""}${head ? " history-timeline__virtual-row--head" : ""}`} style={{ transform: `translateY(${virtualRow.start}px)` }}>{head && <LocalGroupHead onPublish={canPublishFromBoundary ? actions.onPublish : undefined} t={t} />}{boundary && <div className="history-boundary" data-rail={rail ?? undefined} data-tooltip={t.historyBoundaryHint(publishedTo)} aria-hidden="true"><BoundaryMark publishedOn={publishedOn} remoteGone={remoteGone} t={t} /><span className="history-boundary__rule" /></div>}<TimelineRow version={version} index={virtualRow.index} first={virtualRow.index === 0} last={virtualRow.index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} onSelect={onSelect} onMove={moveSelection} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} /></div>; })}
+          {rows.map((virtualRow) => {
+            const piece = pieces[virtualRow.index];
+            if (!piece) return null;
+            const passing = lanesAbove[virtualRow.index] ?? [];
+            const aboveSelection = selectedPiece > virtualRow.index && virtualRow.index > firstVersionPiece;
+            let body: React.ReactNode;
+            if (piece.kind === "head") {
+              const first = layout && versions[0] ? layout.rows.get(versions[0].commit) : undefined;
+              const headLane: LaneSlot[] = first ? Array.from({ length: first.lane + 1 }, (_, lane) => (lane === first.lane ? { commit: versions[0]!.commit, tint: first.tint } : null)) : [];
+              body = <LocalGroupHead count={boundaryIndex} formats={formats} expanded={!foldedBlocks.local} onToggle={() => toggleBlock("local")} onPublish={canPublishFromBoundary ? actions.onPublish : undefined} t={t} drawing={lanesOn ? <LaneDrawing width={laneWidth} height={LOCAL_HEAD_HEIGHT} passing={headLane} fromY={LOCAL_HEAD_NODE_Y} /> : undefined} />;
+            } else if (piece.kind === "boundary") {
+              /* "Published", the pair of "Local": one word for what the
+                 versions are. Where they are published — the remote and its
+                 branch — is on the tooltip, which the remote's name in the
+                 heading only repeated less clearly. */
+              const words = t.historyBoundaryPublished;
+              const expanded = !foldedBlocks.published;
+              body = <div className="history-boundary" data-rail={aboveSelection ? "filled" : undefined} data-tooltip={remoteGone ? t.historyBoundaryGoneHint(publishedTo) : t.historyBoundaryHint(publishedTo)}>{lanesOn && <LaneDrawing width={laneWidth} height={BOUNDARY_HEIGHT} passing={passing} />}<span className="history-boundary__mark" aria-hidden="true"><Cloud /></span><button className="history-block-toggle" type="button" role="treeitem" aria-level={1} aria-expanded={expanded} aria-label={words} onClick={() => toggleBlock("published")} onKeyDown={blockKeys(expanded, () => toggleBlock("published"))}><ChevronRight className="history-block-toggle__chevron" aria-hidden="true" /><span className="history-boundary__where">{words}</span></button></div>;
+            } else {
+              const { version, index } = piece;
+              const rail: RailFill = lanesOn || selectedIndex < 0 ? null : index < selectedIndex ? "filled" : index === selectedIndex ? "half" : null;
+              const detour = detours.get(version.commit);
+              body = <TimelineRow version={version} index={shownPosition.get(version.commit) ?? index} level={(hasLocalHead ? 2 : 1) + (inOpenDetour.has(version.commit) ? 1 : 0)} first={index === 0 && !hasLocalHead} last={index === versions.length - 1} selected={version.commit === selectedCommit} rail={rail} focusable={version.commit === focusCommit} formats={formats} search={searchQuery} arrival={arrivals.get(version.commit)} selfEmail={selfEmail} detour={detour ? { count: detour.versions.length, open: detour.open } : undefined} laneRow={lanesOn ? layout?.rows.get(version.commit) : undefined} laneWidth={lanesOn ? laneWidth : undefined} connectTop={index === 0 && hasLocalHead} onSelect={onSelect} onMove={moveSelection} onToggleDetour={detours.size > 0 ? toggleDetour : undefined} onOpenDetail={onOpenDetail} onContextMenu={hasRowActions ? openRowMenu : undefined} />;
+            }
+            return <div key={virtualRow.key} className={`history-timeline__virtual-row history-timeline__virtual-row--${piece.kind}`} style={{ height: PIECE_HEIGHT[piece.kind], transform: `translateY(${virtualRow.start}px)` }}>{body}</div>;
+          })}
         </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
@@ -523,7 +755,8 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions, selected
         />}
         <div className="history-timeline__footer">
           {hasMoreError && <div className="history-inline-error" role="alert"><span>{t.historyMoreError}</span><button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyRetry}</button></div>}
-          {hasMore && !clientTruncated && (isLoadingMore ? <div className="history-timeline__loading-more"><LoadingBar label={t.historyLoadingMore} showLabel /></div> : <button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyLoadMore}</button>)}
+          {/* Older versions belong to the published block: folded, it offers none. */}
+          {hasMore && !clientTruncated && !(hasLocalHead && foldedBlocks.published) && (isLoadingMore ? <div className="history-timeline__loading-more"><LoadingBar label={t.historyLoadingMore} showLabel /></div> : <button className="secondary-button" type="button" onClick={onLoadMore}>{t.historyLoadMore}</button>)}
         </div>
       </div>
     </>
@@ -1049,24 +1282,13 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
 }): React.JSX.Element {
   const { t } = useLanguage();
   const named = scopeLineName(scope);
+  /* "This line" and "All lines" are the toggle beside the filters, in reach
+     the way Changes keeps its list/folders toggle. What stays here is the
+     rarer third state: reading another line by name. A picker showing the
+     line the timeline is reading and a picker waiting to be opened are not
+     the same thing, and it keeps its own way out beside it, so a chosen line
+     is undone here as well as from the chip under the strip. */
   return <FilterGroup label={t.historyScopeLabel}>
-    <FilterCapsules>
-      {[
-        { scope: CURRENT_LINE_SCOPE, label: t.historyScopeCurrentLine },
-        { scope: ALL_LINES_SCOPE, label: t.historyScopeAllLines },
-      ].map((option) => <FilterCapsule
-        key={option.label}
-        name="history-scope"
-        checked={sameHistoryScope(scope, option.scope)}
-        onChange={() => onChange(option.scope)}
-      >
-        {option.label}
-      </FilterCapsule>)}
-    </FilterCapsules>
-    {/* The third state, and it has to look like one: a picker showing the line
-        the timeline is reading and a picker waiting to be opened are not the
-        same thing. It keeps its own way out beside it, so a chosen line is
-        undone here as well as from the chip under the strip. */}
     <div className="history-scope-picker__row">
       <HistoryScopePicker
         lines={lines}
@@ -1083,6 +1305,26 @@ function HistoryScopeGroup({ scope, lines, onChange }: {
       </button>}
     </div>
   </FilterGroup>;
+}
+
+/** "This line" or "All lines", as one glyph that says which: a single line
+ * with a node, or a graph of lines — pressed, in the accent, while every line
+ * is drawn, the way Changes' list/folders toggle sits in its search box. From a
+ * line chosen by name it goes to All lines. */
+function HistoryScopeToggle({ scope, onScope, t }: { scope: HistoryScope; onScope: (scope: HistoryScope) => void; t: Translations }): React.JSX.Element {
+  const all = scope.kind === "allLines";
+  return (
+    <button
+      className={`filter-control__trigger history-scope-toggle${all ? " filter-control__trigger--active" : ""}`}
+      type="button"
+      aria-pressed={all}
+      aria-label={t.historyScopeAllLines}
+      data-tooltip={all ? t.historyScopeShowOne : t.historyScopeShowAll}
+      onClick={() => onScope(all ? CURRENT_LINE_SCOPE : ALL_LINES_SCOPE)}
+    >
+      {all ? <GitGraph aria-hidden="true" /> : <GitCommitVertical aria-hidden="true" />}
+    </button>
+  );
 }
 
 /** The filters, behind one trigger.
@@ -1620,7 +1862,9 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
         {state.selectionRemoved && <p className="history-announcement" role="status">{t.historySelectionRemoved}</p>}
         {state.snapshot?.shallow && <HistoryBanner tone="warning" title={t.historyShallowTitle}>{t.historyShallowDescription}</HistoryBanner>}
         {state.snapshot?.headState === "detached" && <HistoryBanner tone="warning" title={t.historyDetachedTitle}>{t.historyDetachedDescription}</HistoryBanner>}
-        {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
+        {/* "All lines" has no single remote by design — each line answers to its
+            own — so a missing upstream there says nothing about the line. */}
+        {!state.snapshot?.upstream && state.snapshot?.headState === "branch" && state.snapshot.scope.kind !== "allLines" && <HistoryBanner tone="neutral" title={t.historyUnknownUpstreamTitle}>{t.historyUnknownUpstreamDescription}</HistoryBanner>}
         {warnings.includes("linesTruncated") && <p className="history-meta-warning" role="status">{t.historyLinesTruncated}</p>}
         {warnings.includes("unreadableMetadata") && <p className="history-meta-warning" role="status">{t.historyUnreadableMetadata}</p>}
         {(warnings.includes("messagesTruncated") || warnings.includes("decorationsTruncated")) && <p className="history-meta-warning" role="status">{t.historyTruncatedMetadata}</p>}
@@ -1630,7 +1874,7 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
     isState: false,
     isBusy: state.isLoading,
     isNarrowDetail: showNarrowDetail,
-    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} publishedOn={publishedOnLabel(state.snapshot, state.scope)} remoteGone={upstreamGoneLine !== null && (state.scope.kind === "line" ? state.scope.name : state.snapshot?.branch) === upstreamGoneLine} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
+    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} remoteGone={upstreamGoneLine !== null && (state.scope.kind === "line" ? state.scope.name : state.snapshot?.branch) === upstreamGoneLine} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
     detail: <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />,
   });
 }

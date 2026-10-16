@@ -831,6 +831,7 @@ fn compute_snapshot_token(
     head: &HeadContext,
     scope: &ResolvedScope,
     upstream: Option<&UpstreamBoundary>,
+    remote_tips: Option<&str>,
     shallow: bool,
 ) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -847,6 +848,10 @@ fn compute_snapshot_token(
     // point where they did.
     scope.tips.hash(&mut hasher);
     scope.truncated.hash(&mut hasher);
+    // "All lines" measures publication against every remote-tracking line, so
+    // a publish that moves one of them is a new answer even when no local tip
+    // moved — a detail cached under the old token would still say "local".
+    remote_tips.hash(&mut hasher);
     format!("{}:{:016x}", scope_tag(&scope.scope), hasher.finish())
 }
 
@@ -863,7 +868,19 @@ fn read_snapshot(
             Ok(value) => (value, false),
             Err(_) => (None, true),
         };
-    let token = compute_snapshot_token(repository_id, &head, &scope, upstream.as_ref(), shallow);
+    let remote_tips = if matches!(scope.scope, HistoryScope::AllLines) {
+        Some(read_remote_tips(path)?)
+    } else {
+        None
+    };
+    let token = compute_snapshot_token(
+        repository_id,
+        &head,
+        &scope,
+        upstream.as_ref(),
+        remote_tips.as_deref(),
+        shallow,
+    );
     Ok((
         SnapshotContext {
             head,
@@ -1025,41 +1042,101 @@ fn prepare_filters(filters: Option<HistoryFilters>) -> Result<PreparedFilters, A
     })
 }
 
-/// Which of `commits` are not reachable from the upstream tip.
+/// How much `rev-list` may print while classifying a page: one line per
+/// unpublished version reachable from it, about 200,000 of them.
+const CLASSIFY_OUTPUT_LIMIT: usize = 8 * 1024 * 1024;
+
+/// Which of `commits` are not reachable from `published` — the upstream tip of
+/// one line, or `--remotes` for every remote-tracking line at once. `None` when
+/// more versions are unpublished than `CLASSIFY_OUTPUT_LIMIT` lets Git list.
 ///
-/// `--no-walk` keeps the answer bounded by the page rather than by the length
-/// of the branch, which is what lets publication stay correct once a filter
-/// makes the page a non-contiguous slice of history: the windowed walk in
-/// `read_local_only_commits` assumes the page is the next `limit` commits, and
-/// a filtered page is not.
+/// Per commit rather than by the windowed walk in `read_local_only_commits`,
+/// which assumes the page is the next `limit` commits in order — a filtered
+/// page, or the union "All lines" walks, is not. Git ignores `--no-walk` once
+/// a negative revision is given, so this lists every unpublished version
+/// reachable from the page and keeps the page's own; it used to be capped at
+/// the page's size and failed once more than a page's worth was unpublished.
 fn classify_local_only(
     path: &str,
     commits: &[String],
-    upstream: &str,
-) -> Result<HashSet<String>, AppError> {
+    published: &str,
+) -> Result<Option<HashSet<String>>, AppError> {
     if commits.is_empty() {
-        return Ok(HashSet::new());
+        return Ok(Some(HashSet::new()));
     }
-    let mut args = vec!["rev-list", "--no-walk"];
+    let mut args = vec!["rev-list"];
     args.extend(commits.iter().map(String::as_str));
     args.push("--not");
-    args.push(upstream);
-    let output = run_git_capped(path, &args, commits.len() * 80 + 1024)?;
-    if !output.status.success() || output.limit_exceeded {
+    args.push(published);
+    let output = run_git_capped(path, &args, CLASSIFY_OUTPUT_LIMIT)?;
+    if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "Git couldn't classify saved versions against the configured upstream.",
+            "Git couldn't classify saved versions against what is published.",
         ));
     }
-    Ok(git_stdout(&std::process::Output {
-        status: output.status,
-        stdout: output.stdout,
-        stderr: Vec::new(),
+    if output.limit_exceeded {
+        return Ok(None);
+    }
+    let page = commits.iter().map(String::as_str).collect::<HashSet<_>>();
+    Ok(Some(
+        git_stdout(&std::process::Output {
+            status: output.status,
+            stdout: output.stdout,
+            stderr: Vec::new(),
+        })
+        .lines()
+        .filter(|commit| is_valid_oid(commit) && page.contains(commit))
+        .map(str::to_string)
+        .collect(),
+    ))
+}
+
+/// Every remote-tracking line and where it points, as one string for the
+/// snapshot token of "All lines".
+fn read_remote_tips(path: &str) -> Result<String, AppError> {
+    let output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(refname) %(objectname)",
+            "refs/remotes",
+        ],
+    )?;
+    Ok(if output.status.success() {
+        git_stdout(&output)
+    } else {
+        String::new()
     })
-    .lines()
-    .filter(|commit| is_valid_oid(commit))
-    .map(str::to_string)
-    .collect())
+}
+
+/// Whether the project has any remote-tracking line at all. Without one there
+/// is nothing a version could have been published to, and "All lines" says
+/// publication is unknown rather than calling every version local.
+fn has_remote_tracking_lines(path: &str) -> Result<bool, AppError> {
+    let output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--count=1",
+            "--format=%(refname)",
+            "refs/remotes",
+        ],
+    )?;
+    Ok(output.status.success() && !git_stdout(&output).trim().is_empty())
+}
+
+/// What a scope's publication is measured against when it has no single
+/// upstream: under "All lines" each line answers to its own remote, so a
+/// version is published once any remote-tracking line holds it.
+fn publication_against_remotes(
+    path: &str,
+    scope: &HistoryScope,
+    upstream: Option<&UpstreamBoundary>,
+) -> Result<bool, AppError> {
+    Ok(upstream.is_none()
+        && matches!(scope, HistoryScope::AllLines)
+        && has_remote_tracking_lines(path)?)
 }
 
 fn read_graph_page(
@@ -1654,8 +1731,21 @@ fn read_history_page_impl(
     if unreadable_refs {
         warnings.push(HistoryWarningCode::UnreadableMetadata);
     }
+    let page_commits = rows
+        .iter()
+        .map(|row| row.commit.clone())
+        .collect::<Vec<_>>();
+    // "All lines": per commit, against every remote-tracking line. Too much
+    // unpublished work to list leaves publication unknown, as it was.
+    let remotes_local_only =
+        if publication_against_remotes(&path, &snapshot.scope.scope, snapshot.upstream.as_ref())? {
+            classify_local_only(&path, &page_commits, "--remotes")?
+        } else {
+            None
+        };
+    let against_remotes = remotes_local_only.is_some();
     let local_only = match snapshot.upstream.as_ref() {
-        None => HashSet::new(),
+        None => remotes_local_only.unwrap_or_default(),
         // The windowed walk only lines up with a page that is the next
         // `page_size` commits in order. That is exactly what an unfiltered page
         // is, and exactly what a filtered one is not.
@@ -1663,11 +1753,12 @@ fn read_history_page_impl(
             read_local_only_commits(&path, &roots, &upstream.commit, local_only_seen, page_size)?
         }
         Some(upstream) => {
-            let commits = rows
-                .iter()
-                .map(|row| row.commit.clone())
-                .collect::<Vec<_>>();
-            classify_local_only(&path, &commits, &upstream.commit)?
+            classify_local_only(&path, &page_commits, &upstream.commit)?.ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git couldn't classify saved versions against the configured upstream.",
+                )
+            })?
         }
     };
     let page_local_only = rows
@@ -1680,7 +1771,7 @@ fn read_history_page_impl(
             let parsed = objects
                 .get(&row.commit)
                 .map(|bytes| parse_commit_object(bytes, false));
-            let publication = if snapshot.upstream.is_none() {
+            let publication = if snapshot.upstream.is_none() && !against_remotes {
                 PublicationState::Unknown
             } else if local_only.contains(&row.commit) {
                 PublicationState::LocalOnly
@@ -2059,6 +2150,12 @@ fn read_saved_version_detail_authorized(
             PublicationState::Published
         } else {
             PublicationState::LocalOnly
+        }
+    } else if publication_against_remotes(path, &snapshot.scope.scope, None)? {
+        match classify_local_only(path, std::slice::from_ref(&commit), "--remotes")? {
+            Some(local) if local.is_empty() => PublicationState::Published,
+            Some(_) => PublicationState::LocalOnly,
+            None => PublicationState::Unknown,
         }
     } else {
         PublicationState::Unknown

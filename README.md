@@ -120,7 +120,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   cursor and text size. The transcript stays in memory for the open project
   session.
 - Browse the active version line as a bounded, read-only saved-version
-  timeline. Inspect author/date/publication/ref metadata, changed files, and
+  timeline, or every line at once from a toggle beside the filters. Local and
+  published versions read as two foldable blocks; merges fold what they
+  brought in and open it on a thin lane of its own, and pointing at a lane
+  names its line and whether its versions are in another one. Inspect
+  author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
 - Review a bounded, redacted record of this session's app commands, Git
   operations, and failures before reporting an issue; copy it, save it locally to attach, or

@@ -88,8 +88,10 @@
   font-weight: var(--weight-normal);
   line-height: var(--leading-none);
 }
-/* The line, as the breadcrumb's second part: the shared selector's pill,
-   compact, with the name in mono since it is a name Git knows. It truncates
+/* The line, as the breadcrumb's second part: the same sans as the project's
+   name one step down — subtitle size, secondary ink — so the row reads as one
+   address, the way Vercel's and Linear's page tops do. No pill at rest: the
+   hover surface and the primary ink are what say it opens. It truncates
    rather than wrapping; the full name is the trigger's own title. */
 .overview-meta {
   min-width: 0;
@@ -102,20 +104,24 @@
   max-width: 300px;
   min-height: 30px;
   gap: 6px;
-  padding: 3px var(--space-3) 3px 10px;
+  padding: 3px var(--space-2) 3px 8px;
+  border: 0;
   border-radius: var(--radius-item);
-  background: var(--surface-raised);
+  background: transparent;
+  color: var(--text-secondary-color);
 }
-.overview-header .version-line-selector:hover { background: var(--surface-hover); }
-.overview-header .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
+.overview-header .version-line-selector:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.overview-header .version-line-selector[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
 .overview-header .version-line-selector:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.overview-header .version-line-selector__icon { width: 14px; height: 14px; color: var(--text-secondary-color); }
+.overview-header .version-line-selector__icon { width: 14px; height: 14px; color: currentColor; }
+.overview-header .version-line-selector__chevron { color: currentColor; }
 .overview-header .version-line-selector__value {
   min-width: 0;
   overflow: hidden;
   overflow-wrap: normal;
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-subtitle);
   font-weight: var(--weight-strong);
   line-height: var(--leading-snug);
   text-overflow: ellipsis;
@@ -128,7 +134,8 @@
   color: var(--text-secondary-color);
   vertical-align: -2px;
 }
-.overview-meta__branch-note { color: var(--text-secondary-color); font-family: var(--font-mono); font-size: var(--text-label); white-space: nowrap; }
+.overview-meta__branch-note { color: var(--text-secondary-color); font-size: var(--text-subtitle); font-weight: var(--weight-strong); white-space: nowrap; }
+.overview-meta__branch-note .version-line-card__value { color: inherit; font-family: inherit; font-weight: inherit; }
 /* The project's tools at the row's end — its folder, its settings: bare round
    glyphs with no border and no fill until they are pointed at, so the header
    holds no form-control chrome at rest. */
@@ -523,8 +530,10 @@
   place-self: center;
   display: grid;
   place-items: center;
+  /* The same disc as the remote's mark below it, in the accent. */
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
-  background: var(--surface-control);
+  background: var(--surface-raised);
   color: var(--accent-primary);
 }
 .overview-timeline__group-icon svg { width: 12px; height: 12px; }
