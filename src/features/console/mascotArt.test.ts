@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES, mascotLines, mascotRain } from "./mascotArt";
 
 describe("mascotLines", () => {
+  it("fits the compact welcome footprint instead of growing with the source drawing", () => {
+    expect(MASCOT_ASCII.length).toBeLessThanOrEqual(34);
+    expect(Math.max(...MASCOT_ASCII.map((line) => line.length))).toBeLessThanOrEqual(64);
+  });
+
   it("keeps the art rectangular, printable and toned glyph for glyph", () => {
     expect(new Set(MASCOT_ASCII.map((line) => line.length)).size).toBe(1);
     expect(MASCOT_ASCII.join("")).toMatch(/^[ -~]+$/);

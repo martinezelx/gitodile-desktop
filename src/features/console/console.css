@@ -22,14 +22,14 @@
 
 /* Welcome: the whole mascot in ASCII beside a fetch-style summary. */
 .console-welcome { padding: var(--space-2) 0 0; }
-.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-6); }
+.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-4); }
 .console-art {
   /* ASCII art in the mark's colour: forced colours would flatten it. Printed
      small and at line-height 1, as fetch tools print their logos, so the
-     96-column mascot stands about as tall as the summary beside it. */
+     64-column mascot keeps the compact footprint of the v4 welcome. */
   forced-color-adjust: none; --console-art-body: var(--accent-primary-fill);
   position: relative; flex: 0 1 auto; max-width: 100%; margin: 0; overflow: hidden;
-  font-family: var(--font-mono); font-size: 6px; line-height: var(--leading-none); font-weight: var(--weight-bold);
+  font-family: var(--font-mono); font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-bold);
   color: var(--text-primary-color); white-space: pre;
 }
 .console-art__mascot { position: relative; margin: 0; font: inherit; }
@@ -83,15 +83,17 @@
    a title in the frame, each in its own theme colour, an icon per row, and the
    theme's palette underneath. Frames are borders, not box-drawing glyphs, so
    no font leaves gaps in them. */
-.console-welcome__info { display: flex; flex-direction: column; gap: var(--space-4); min-width: min(44ch, 100%); }
+/* Compact fact rows keep both frames and the palette level with the 231px
+   mascot at normal text size. Larger text and wrapped values can grow freely. */
+.console-welcome__info { display: flex; flex-direction: column; gap: var(--space-3); min-width: min(40ch, 100%); line-height: var(--leading-snug); }
 .console-welcome__section {
   --console-section: var(--accent-primary);
-  position: relative; padding: 10px var(--space-4) 8px; border: 1px solid var(--console-section); border-radius: var(--radius-item);
+  position: relative; padding: 8px var(--space-3) 6px; border: 1px solid var(--console-section); border-radius: var(--radius-item);
 }
 .console-welcome__section--environment { --console-section: var(--syntax-keyword); }
 .console-welcome__section-title {
   position: absolute; top: -0.8em; left: var(--space-3); margin: 0; padding: 0 6px; background: var(--surface-app);
-  color: var(--console-section); font: inherit; font-weight: var(--weight-title); line-height: var(--leading-code);
+  color: var(--console-section); font: inherit; font-weight: var(--weight-title);
 }
 .console-welcome__section dl { margin: 0; }
 .console-welcome__row { display: grid; grid-template-columns: 12ch 1fr; column-gap: var(--space-3); }
@@ -105,8 +107,8 @@
 .console-welcome__unknown { color: var(--text-secondary-color); }
 /* Loose under the frames, as fetch tools leave their palette, but starting
    where the frames' rows start (border plus padding), under the icons. */
-.console-welcome__palette { display: inline-flex; gap: 6px; vertical-align: middle; padding-inline-start: calc(var(--space-4) + 1px); }
-.console-welcome__dot { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); }
+.console-welcome__palette { display: inline-flex; gap: var(--space-1); vertical-align: middle; padding-inline-start: calc(var(--space-3) + 1px); }
+.console-welcome__dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-round); }
 .console-welcome__dot--accent { background: var(--accent-primary); }
 .console-welcome__dot--danger { background: var(--status-danger); }
 .console-welcome__dot--warning { background: var(--status-warning); }

@@ -1188,8 +1188,9 @@ completion, and a listbox of matching names below it drawn like the shortcut
 pane's rows — terminal type, dashed rules, the chosen name marked `❯` on a soft
 wash, no card or shadow; there is no send
 button. An empty transcript shows a fetch-style welcome: the whole mascot
-as ASCII art generated from the drawing (96 columns printed small at
-line-height 1, as fetch tools print their logos; in one tone, the brand
+as ASCII art generated from the drawing (64 columns printed at 7px and
+line-height 1, keeping the compact footprint of the v4 welcome, as fetch
+tools print their logos; in one tone, the brand
 green under the GitOdile themes and the accent fill elsewhere, deepened toward
 the text on light schemes so thin glyphs stay visible, with the white belly and
 eyes left as holes) and, behind it, a dim rain of hex digits like
@@ -1201,7 +1202,11 @@ publish and newer ones available) and "environment" in the keyword colour
 (GitOdile version, Git version, the theme actually drawn and whether changes
 are confirmed, in violet when they are not) — with a Lucide icon on every row, then a row of round dots in the
 theme's accent, status and syntax colours, as a terminal's welcome shows its
-ANSI palette. The mascot sits level with the summary's top, and the summary
+ANSI palette. The summary uses snug row leading, compact frame padding and
+12px gaps; its loose 10px palette dots are spaced by 4px. At normal console
+text size the whole block is about as tall as the compact mascot, without
+shrinking the text or fixing its height: larger text and long values may grow.
+The mascot sits level with the summary's top, and the summary
 keeps its height while facts are read: the changes, publish and provider rows
 are always drawn, with a dim dash while their reading is unknown or failed,
 and a re-check keeps the last value, so an edit the watcher picks up never

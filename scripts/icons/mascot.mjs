@@ -317,7 +317,7 @@ export const MASCOT_ARTWORK: Readonly<Record<"body" | "head", MascotArtwork>> = 
 // ---- Console ASCII art --------------------------------------------------------
 
 /** Characters across the body's box: the console prints one per cell. */
-export const CONSOLE_ASCII_COLUMNS = 96;
+export const CONSOLE_ASCII_COLUMNS = 64;
 
 /** Light to dense, as ASCII art shades. */
 const ASCII_RAMP = " .:-=+*#%@";
