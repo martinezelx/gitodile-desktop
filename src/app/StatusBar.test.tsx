@@ -321,8 +321,39 @@ describe("StatusBar", () => {
     for (const [other, fn] of Object.entries(handlers)) {
       if (other !== handler) expect(fn).not.toHaveBeenCalled();
     }
-    // The refresh beside it stays the explicit check.
-    expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeEnabled();
+    // The refresh beside it stays the explicit check, as the second half of
+    // the action's own capsule rather than a loose glyph.
+    const check = screen.getByRole("button", { name: "Check remote project changes" });
+    expect(check).toBeEnabled();
+    expect(check.closest(".status-bar__sync-split")).toBe(cloud.closest(".status-bar__sync-split"));
+  });
+
+  it("keeps one capsule and the last known words while a check runs", () => {
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isCheckingRemote: true } });
+    const held = screen.getByText("Publish 2 versions").closest(".status-bar__sync");
+    expect(held).toHaveClass("status-bar__sync--held");
+    expect(held?.tagName).toBe("SPAN");
+    expect(held?.closest(".status-bar__sync-split")).not.toBeNull();
+    // The sentence stays for the screen reader; one spinner, not two.
+    expect(held).toHaveTextContent("Checking the remote…");
+    const check = screen.getByRole("button", { name: "Checking the remote…" });
+    expect(check).toBeDisabled();
+    expect(check.querySelector(".icon--spinning")).toBeNull();
+  });
+
+  it("wears the same capsule for a fact as for an action", () => {
+    renderBar();
+    expect(screen.getByText("Up to date").closest(".status-bar__sync-split")).not.toBeNull();
+  });
+
+  it("keeps the remote beside the line and only the build at the right end", () => {
+    renderBar();
+    const footer = screen.getByRole("contentinfo");
+    const project = footer.querySelector(".status-bar__group--project");
+    const system = footer.querySelector(".status-bar__group--system");
+    expect(project?.querySelector(".status-bar__sync")).not.toBeNull();
+    expect(system?.querySelector(".status-bar__sync")).toBeNull();
+    expect(system?.querySelector(".status-bar__release")).not.toBeNull();
   });
 
   it("says how fresh an up-to-date answer is without hovering", () => {

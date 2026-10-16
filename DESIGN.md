@@ -69,7 +69,7 @@ The visual language uses:
 - fully rounded controls — a capsule for anything on one line, a circle for anything square — over 18px cards and panels and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
 - layered surfaces distinguished by shadow and a subtle tone shift, not by transparency;
-- thin, low-contrast borders around cards/panels as a secondary depth cue alongside shadow — but not as divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item;
+- one resting-card recipe on every screen — `--surface-panel` with `--border-subtle` and `--shadow-sm` together, at `--radius-surface` (the status bar at the control radius). `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar); in the dark theme it is a step lighter than the panel, so a resting card on it read as a different material from screen to screen. Overview's cards, the workbench panes in Changes, History and Lines, and the status bar all wear it; a screen does not pick border-only or shadow-only for itself, because the two edges read as two different apps the moment the reader switches screens. Only the elevation steps up: `--shadow-md` for the one card meant to be focused (Overview's next step), `--shadow-lg` for what floats. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item;
 - generous spacing around primary actions;
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
@@ -137,8 +137,9 @@ The main desktop window should broadly support:
      still in view.
 
 2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
-   border, no shadow. The window chrome (titlebar, rail, status bar) is one
-   continuous plane, and only *content* sits in cards on top of it. Each
+   border, no shadow. The window chrome (titlebar, rail) is one continuous
+   plane, and only *content* sits in cards on top of it — the status bar
+   included, since it holds controls rather than a window title. Each
    destination is an icon in a 40px circle with its name underneath; the
    active state fills that circle, never the whole cell, so a two-line label
    like "Iniciar sesión" does not make its neighbour look shorter.
@@ -253,9 +254,12 @@ The main desktop window should broadly support:
      order is a trap for keyboard and screen-reader users. The state persists
      across sessions like every other chrome preference.
 
-3. **Status bar** — a 34px strip along the bottom of the content column,
-   spanning from the rail's edge to the window's, on every screen including
-   Overview. It reports what is true of the project right now: which project,
+3. **Status bar** — a 40px card along the bottom of the content column, on
+   the content's own left and right edges, on every screen including
+   Overview: the resting-card recipe of the cards above it (panel surface,
+   subtle border, `--shadow-sm`) at the control radius, since the surface
+   radius on a strip this short reads as a pill. Left loose on the chrome plane, its controls floated in the
+   gap below the content with nothing marking where the window ended. It reports what is true of the project right now: which project,
    its branch, unsaved work, sync state, and the app version. It says each in
    the fewest marks that stay true at a glance, and in two shapes only: a
    *fact* is a glyph and words with no fill, and an *action* is the strip's one
@@ -302,7 +306,17 @@ The main desktop window should broadly support:
    fact is never the check: a round refresh beside it is, visible in every
    state — beside the sync action too, where knowing whether the remote moved
    matters most, and as the strip's only way to ask when automatic checks are
-   set to manual. A fact that turned into a button under the pointer was tried
+   set to manual. The remote is one split capsule in every state, with the
+   refresh as its second half behind a hairline: its left half is a button
+   only while a current relation calls for a sync, and otherwise the fact on
+   the same metrics, so the strip never changes shape. While a check runs the
+   capsule keeps its last words ("Publish 12 versions", "3 min ago") in the
+   quiet ink with the glyph turned spinner — one spinner, the refresh half
+   only goes quiet — and "Checking the remote…" is the tooltip's and the
+   screen reader's, the visible words only when nothing is known yet. The remote sits right
+   after the line's name, since its state belongs to that line — the way an
+   editor's status bar puts sync beside the branch — so the left end reads as
+   one sentence and the right end keeps only the build. A fact that turned into a button under the pointer was tried
    and dropped: nothing showed it could be pressed, touch has no hover, and it
    vanished whenever the sync action took its place.
    When the relation calls for a sync and is known-current, that same cloud
@@ -320,15 +334,12 @@ The main desktop window should broadly support:
    screen. No screen adds a
    second selector to its own header: two controls answering one question in
    one window is how a reader stops trusting either.
-   - it is chrome, not content: no fill, no radius, no shadow. Shadow signals
-     stacking order, and this strip is the floor of the window rather than
-     something resting on it; at 30px tall it could not carry the 14–18px card
-     radius without reading as a pill;
+   - it is a card on the content's edges (see above), at the control radius
+     because the 18px surface radius on a 40px strip reads as a pill;
    - it shares the workspace's horizontal inset through a variable rather than
      repeating the number, so its text sits in the same column as the content
      above it at every breakpoint;
-   - no rules anywhere in it — not between its items, and not along its top
-     edge. Spacing does all the separating, per the rule above: 5px binds an
+   - no rules between its items beyond the split capsule's own hairline. Spacing does all the separating, per the rule above: 5px binds an
      icon to its text, 8px binds the parts of one fact, 24px separates one fact
      from the next, and the workspace's own bottom padding leaves the band
      between the last card and this line of text;
@@ -350,7 +361,8 @@ The main desktop window should broadly support:
    - fixed workbench screens whose panels own their scrolling, such as Changes
      and History, do not use the global fade. Their panel edge is already the
      scroll boundary; fading it makes the surface appear not to end. They keep
-     only a compact 8px gap above the status bar;
+     the same 16px above the status bar that separates their panes, and so does
+     Overview once it fits the window;
    - the release metadata is grouped at the far right, a step further from
      the project facts than they are from each other and a size smaller: it
      is the one thing on the strip that is not about the project. The
@@ -560,9 +572,13 @@ The main desktop window should broadly support:
      unsaved work (the colour the switcher and rail already give it), the
      accent for saved versions waiting to be published, `--status-renamed`
      for newer versions on the remote, `--status-danger` for overlaps or a
-     failed check — and it washes in from the card's top-left corner and tints
-     its edge, the highlighted-card treatment of Linear and Arc. No edge
-     stripe. With nothing waiting the card is plain and offers nothing to
+     failed check — and it is a signal, not a surface: it colours only the
+     glyph in its neutral circle and the current step of the bar, while the
+     kicker stays in the secondary ink and the card wears the plain panel and
+     border with `--shadow-md`. The card stands out by place, size and
+     elevation. A wash, a tinted edge, a tinted tile and a tinted kicker spent
+     the same amber four times and made the primary button compete with the
+     card around it. No edge stripe. With nothing waiting the card is plain and offers nothing to
      press. The primary button keeps the theme's accent in every state except
      overlaps, where the action is "stop and decide" and takes the danger
      colour. The card's glyph circle breathes once as a step becomes current.
@@ -614,9 +630,10 @@ The main desktop window should broadly support:
      author), or "What you'll publish" (the files the unpublished versions
      carry, "9+ files" while not all are read) — closing on the consequence in
      one line that fits the column in every language ("Stays here until you
-     publish", "Seen by anyone on this line"). The bar is a thin 3px line at
-     reduced strength: the totals carry the diff's inks, the bar only their
-     proportion. Above the detail, and alone when
+     publish", "Seen by anyone on this line"). The totals are in the secondary
+     ink and the bar, a thin 2px line at reduced strength, is the one place the
+     diff's colours show, so the card does not open on a red number. The card's
+     head glyph is in the secondary ink; only a blocked state colours it. Above the detail, and alone when
      nothing is waiting, **the scene**: this computer and the remote drawn as
      two objects and the path between them telling how they stand — a check
      when they match, solid dots in the primary ink leaving for versions not
@@ -625,8 +642,11 @@ The main desktop window should broadly support:
      be asked, an empty dashed cloud ("No copy · Connect") when there is no
      remote. Each place carries one fact ("Here · 3 hours ago", "origin · up to
      date"); the explanation for newcomers is its tooltip, not a sentence on
-     the page. Large on a soft light of the two places' colours when nothing is
-     waiting, small and plain above the detail while there is work. Until the
+     the page. The places are drawn in the secondary ink on the plain card and
+     the path is dashed in the quiet ink; the check is the success colour on a
+     neutral disc, so colour stays with the path's signals rather than washes
+     behind them. Large when nothing is waiting, small above the detail while
+     there is work. Until the
      history, the working tree and the remote's last known state are read it
      shows its own shape as a neutral placeholder, then fades in once, so it never
      draws a guess and jumps; captions wrap under their object rather than
@@ -2776,9 +2796,9 @@ what it is and "See why"), not checked, checking, a check that failed (calm, a r
 line"), unborn, and finally "Saved and published" with no action. Its kicker
 names the kind of ask ("Next step", "Before you continue", "Needs your
 decision", "All saved", "All in order") beside the three-segment progress
-bar. The colour is a 135° wash of the state's status token from the top-left
-corner, fading out by 62%, plus a tinted 1px edge; in the calm state the card
-is a plain raised surface.
+bar. The state's status token colours only the glyph and the current
+segment; the card itself is the plain panel with `--shadow-md`, and in the
+calm state `--shadow-sm`.
 
 The **timeline** is the History screen's shape: the incoming row (one blue
 line above *now* while versions wait on the remote, leading to the review and

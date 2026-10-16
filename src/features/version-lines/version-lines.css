@@ -114,6 +114,7 @@
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
   background: var(--surface-panel);
 }
 /* The panel's header is the screen's name, at the height of a strip so the
@@ -458,6 +459,7 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
   background: var(--surface-panel);
 }
 /* The first read's shape under the list panel's real header, and a card of
@@ -471,6 +473,7 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   padding: 28px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
   background: var(--surface-panel);
   color: var(--text-secondary-color);
   text-align: center;

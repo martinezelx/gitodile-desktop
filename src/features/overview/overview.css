@@ -159,12 +159,14 @@
 .overview-header__tool--first { margin-left: auto; }
 
 /* ---- The next-step card ----
-   The one thing to do now, why, and the button that does it. The state's
-   colour comes from the theme's own status tokens and washes in from the
-   top-left corner, tinting the edge with it — a highlighted card in the manner
-   of Linear's and Arc's, not a stripe — and with nothing waiting the card is
-   plain. `--tone` is the wash and the segments; `--ink` is the text and glyph,
-   which for the accent is its readable shade rather than its fill. */
+   The one thing to do now, why, and the button that does it. Colour is a
+   signal here, not a surface: the card stands out by its place, size and
+   `--shadow-md`, and the state's colour (the theme's own status tokens) is
+   spent only on the glyph and the current step. No wash and no tinted edge —
+   with a wash, a tinted border, a tinted tile and a tinted kicker the card
+   spent the same amber four times and the primary button had to compete
+   with it. `--tone` is the current segment; `--ink` is the glyph, which for
+   the accent is its readable shade rather than its fill. */
 .next-step {
   --tone: var(--accent-primary-fill);
   --ink: var(--accent-primary);
@@ -175,11 +177,9 @@
   align-items: center;
   gap: var(--space-3) var(--space-4);
   padding: var(--space-4) var(--space-5);
-  border: 1px solid color-mix(in srgb, var(--tone) 28%, var(--border-subtle));
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--tone) 18%, transparent) 0%, transparent 62%),
-    var(--surface-raised);
+  background: var(--surface-panel);
   box-shadow: var(--shadow-md);
 }
 .next-step--unsaved { --tone: var(--status-warning); --ink: var(--status-warning); }
@@ -188,11 +188,10 @@
 .next-step--calm {
   --tone: var(--border-control);
   --ink: var(--text-secondary-color);
-  border-color: var(--border-subtle);
-  background: var(--surface-raised);
   box-shadow: var(--shadow-sm);
 }
-/* A filled circle, the page's one glyph-tile shape, in the state's colour. */
+/* A neutral circle, the page's one glyph-tile shape, with the glyph in the
+   state's ink. */
 .next-step__glyph {
   flex-shrink: 0;
   width: 44px;
@@ -200,10 +199,9 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--tone) 22%, transparent);
+  background: var(--surface-hover);
   color: var(--ink);
 }
-.next-step--calm .next-step__glyph { background: var(--surface-hover); }
 .next-step__glyph svg { width: 21px; height: 21px; }
 .next-step__copy { flex: 1 1 280px; min-width: 0; display: grid; gap: 2px; }
 .next-step__kicker {
@@ -211,7 +209,7 @@
   align-items: center;
   gap: var(--space-3);
   margin: 0;
-  color: var(--ink);
+  color: var(--text-secondary-color);
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
   line-height: var(--leading-snug);
@@ -225,8 +223,8 @@
   border-radius: var(--radius-pill);
   background: var(--border-control);
 }
-.next-step__segment--done { background: color-mix(in srgb, var(--ink) 55%, transparent); }
-.next-step__segment--current { background: var(--tone); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tone) 30%, transparent); }
+.next-step__segment--done { background: var(--text-secondary-color); }
+.next-step__segment--current { background: var(--tone); }
 .next-step__title {
   margin: 2px 0 0;
   overflow: hidden;
@@ -277,7 +275,7 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
 }
 .next-step__then-glyph svg { width: 11px; height: 11px; }
 /* A check that failed keeps the card calm and puts the failure in its glyph. */
@@ -310,8 +308,9 @@
 .overview-history {
   min-width: 0;
   padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
 }
 .overview-history__header {
@@ -400,7 +399,7 @@
   gap: var(--space-3);
   min-height: 36px;
   padding: 0 var(--space-2) 0 6px;
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
 }
@@ -458,8 +457,8 @@
   place-self: center;
   border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px var(--surface-panel);
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, transform var(--duration-fast) ease-out;
 }
 .overview-history__row:hover .overview-history__node,
@@ -471,7 +470,7 @@
    dashed ring. Colour stays for the one card that asks for something. */
 .overview-history__item--published .overview-history__node {
   border-color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
-  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-raised));
+  background: color-mix(in srgb, var(--text-secondary-color) 70%, var(--surface-panel));
 }
 .overview-history__body { min-width: 0; display: grid; gap: 3px; }
 .overview-history__subject {
@@ -512,7 +511,7 @@
 .overview-timeline__group .overview-history__row:not(:hover):not(:focus-visible) .overview-history__node { box-shadow: none; }
 .overview-history__item--local .overview-history__node {
   border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-raised) 50%);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
 }
 .overview-timeline__group-head {
   display: grid;
@@ -533,7 +532,7 @@
   /* The same disc as the remote's mark below it, in the accent. */
   border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--accent-primary);
 }
 .overview-timeline__group-icon svg { width: 12px; height: 12px; }
@@ -573,8 +572,8 @@
   justify-self: center;
   border: 2px dashed var(--status-renamed);
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px var(--surface-panel);
 }
 .overview-timeline__incoming-text { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
 .overview-timeline__incoming-where { color: var(--text-primary-color); font-family: var(--font-mono); font-size: var(--text-label); font-weight: var(--weight-heading); }
@@ -586,7 +585,7 @@
   min-height: 24px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--status-renamed);
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
@@ -616,7 +615,7 @@
   place-items: center;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--status-renamed);
 }
 .overview-timeline__mark-icon svg { width: 12px; height: 12px; }
@@ -654,7 +653,7 @@
   border-radius: var(--radius-round);
   background: var(--surface-control);
   color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--surface-raised), inset 0 0 0 1px var(--border-divider);
+  box-shadow: 0 0 0 3px var(--surface-panel), inset 0 0 0 1px var(--border-divider);
   opacity: 0;
   transform: translateY(-50%);
   transition: opacity var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out;
@@ -673,7 +672,7 @@
    flicker. */
 .overview-history__item--publishable .overview-history__row:hover .overview-history__node {
   border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-raised) 50%);
+  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
   box-shadow: none;
 }
 
@@ -741,8 +740,8 @@
   justify-self: center;
   border: 2.5px dashed var(--now-tone);
   border-radius: var(--radius-round);
-  background: var(--surface-raised);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px var(--surface-panel);
 }
 .overview-now--quiet .overview-now__node {
   width: 12px;
@@ -750,7 +749,7 @@
   border-width: 2px;
   border-style: solid;
   border-color: color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  box-shadow: 0 0 0 3px var(--surface-panel);
 }
 .overview-now__body { min-width: 0; }
 .overview-now__title {
@@ -765,7 +764,12 @@
   line-height: var(--leading-snug);
 }
 .overview-now__title svg { width: 14px; height: 14px; }
-.overview-now__title strong { color: var(--now-tone); font-weight: var(--weight-heading); }
+/* The count is ink: the dashed node already says "unsaved" in its tone, and
+   repeating the amber in the words made one fact two signals. Overlaps and
+   errors keep their tone in the words too — those are a reason to stop. */
+.overview-now__title strong { color: var(--text-primary-color); font-weight: var(--weight-heading); }
+.overview-now--conflicts .overview-now__title strong,
+.overview-now--error .overview-now__title strong { color: var(--now-tone); }
 .overview-now__label { color: var(--text-primary-color); font-weight: var(--weight-heading); }
 .overview-now--quiet .overview-now__label { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
 .overview-now--error .overview-now__title svg { color: var(--status-danger); }
@@ -778,7 +782,7 @@
   height: 22px;
   padding: 0 7px;
   border-radius: var(--radius-pill);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
   font-weight: var(--weight-heading);
@@ -817,23 +821,24 @@
    shows what that will move — the files, the lines, the incoming versions —
    and closes on the consequence in one line. With nothing waiting the scene
    takes the column. Neither repeats the status bar or the timeline. */
-.overview-side { min-width: 0; display: grid; gap: var(--space-3); align-content: start; }
+/* The same 16px between cards as the page and every workbench's panes. */
+.overview-side { min-width: 0; display: grid; gap: var(--space-4); align-content: start; }
 .overview-detail {
   min-width: 0;
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
 }
 .overview-detail__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .overview-detail__head > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
 /* The glyph carries the step's colour — the next-step card's tone — while the
    card itself stays neutral. */
-.overview-detail--unsaved .overview-detail__head > svg { color: var(--status-warning); }
+.overview-detail__head > svg { color: var(--text-secondary-color); }
 .overview-detail--blocked .overview-detail__head > svg { color: var(--status-danger); }
-.overview-detail--remote .overview-detail__head > svg { color: var(--status-renamed); }
 .overview-detail__head h2 {
   min-width: 0;
   margin: 0;
@@ -877,9 +882,11 @@
   font-family: var(--font-mono);
   font-size: var(--text-label);
 }
-.overview-detail__added { color: var(--diff-added); }
-.overview-detail__removed { color: var(--diff-removed); }
-.overview-detail__bar { flex: 1; height: 3px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); opacity: .65; }
+/* The counts are ink; the thin bar is the one place the diff's colours show,
+   so the card does not open with a red number. */
+.overview-detail__added,
+.overview-detail__removed { color: var(--text-secondary-color); }
+.overview-detail__bar { flex: 1; height: 2px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); opacity: .65; }
 .overview-detail__bar > i { display: block; flex-basis: 0; }
 .overview-detail__bar-added { background: var(--diff-added); }
 .overview-detail__bar-removed { background: var(--diff-removed); }
@@ -972,37 +979,30 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
    green leaving, dashed blue arriving — a "?" when the remote could not be
    asked, an empty dashed cloud when there is none. Large, on a soft light of
    the two places' colours, when nothing is waiting; small and plain under the
-   detail while there is work. The explanation is its tooltip. */
+   detail while there is work. The explanation is its tooltip. The places
+   are drawn in the secondary ink on the plain card — colour stays with the
+   path's signals (the check, the dots), not with washes behind them. */
 .work-scene {
-  --here-tone: var(--status-success);
-  --remote-tone: var(--status-renamed);
+  --here-tone: var(--text-secondary-color);
+  --remote-tone: var(--text-secondary-color);
   min-width: 0;
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--here-tone) 16%, transparent), transparent 60%),
-    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--remote-tone) 16%, transparent), transparent 60%),
-    var(--surface-raised);
+  background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
 }
-.work-scene--unsaved { --here-tone: var(--status-warning); }
-.work-scene--no-copy {
-  --here-tone: var(--status-warning);
-  background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--status-warning) 18%, transparent), transparent 60%),
-    var(--surface-raised);
-}
+/* No copy here at all is the one place that keeps its warning ink. */
+.work-scene--no-copy { --here-tone: var(--status-warning); }
 .work-scene--small {
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
-  box-shadow: none;
+  background: var(--surface-panel);
 }
 /* Its shape while loading wears no state's colour: the state is not known yet. */
-.work-scene--loading { background: var(--surface-raised); }
+.work-scene--loading { background: var(--surface-panel); }
 /* Three flexible columns shared by the objects and their captions, so a
    caption is always centred under its object, however long it is; a caption
    too long for its column wraps rather than spilling past it. */
@@ -1057,13 +1057,13 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   display: grid;
   place-items: center;
   border-radius: var(--radius-pill);
-  box-shadow: 0 0 0 2px var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--surface-panel);
   font-size: var(--text-micro);
   font-weight: var(--weight-title);
   font-variant-numeric: tabular-nums;
 }
-.work-scene__badge--out { background: var(--surface-control); color: var(--text-primary-color); box-shadow: 0 0 0 2px var(--surface-raised), inset 0 0 0 1px var(--border-divider); }
-.work-scene__badge--in { background: var(--status-renamed); color: var(--surface-raised); }
+.work-scene__badge--out { background: var(--surface-control); color: var(--text-primary-color); box-shadow: 0 0 0 2px var(--surface-panel), inset 0 0 0 1px var(--border-divider); }
+.work-scene__badge--in { background: var(--status-renamed); color: var(--surface-panel); }
 .work-scene__path { position: relative; width: 100%; height: 22px; }
 .work-scene__path::before {
   content: "";
@@ -1073,9 +1073,8 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   left: 6px;
   border-top: 2px dashed color-mix(in srgb, var(--text-secondary-color) 45%, transparent);
 }
-/* Always a dashed path — it reads as a way between two places. Matching is
-   said by its colour and the check, not by turning the line solid. */
-.work-scene__path--synced::before { border-color: var(--status-success); }
+/* Always a dashed path in the quiet ink — it reads as a way between two
+   places. Matching is said by the check alone, not by the line's colour. */
 .work-scene__mark {
   position: absolute;
   top: 0;
@@ -1085,15 +1084,15 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: var(--status-success);
-  color: var(--surface-raised);
-  box-shadow: 0 0 0 3px var(--surface-raised);
+  background: var(--surface-control);
+  color: var(--status-success);
+  box-shadow: 0 0 0 3px var(--surface-panel), inset 0 0 0 1px var(--border-subtle);
   transform: translateX(-50%);
 }
 .work-scene__mark svg { width: 12px; height: 12px; stroke-width: 3; }
 /* Opaque, so the dashed path never shows through the "?". */
 .work-scene__mark--unknown {
-  background: color-mix(in srgb, var(--text-secondary-color) 22%, var(--surface-raised));
+  background: color-mix(in srgb, var(--text-secondary-color) 22%, var(--surface-panel));
   color: var(--text-primary-color);
   font-size: var(--text-label);
   font-weight: var(--weight-title);
@@ -1101,7 +1100,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .work-scene__dots { position: absolute; top: 7px; right: 10px; left: 10px; display: flex; justify-content: space-around; }
 .work-scene__dot { width: 8px; height: 8px; border-radius: var(--radius-round); }
 .work-scene__dot--out { background: var(--text-primary-color); }
-.work-scene__dot--in { border: 2px dashed var(--status-renamed); background: var(--surface-raised); }
+.work-scene__dot--in { border: 2px dashed var(--status-renamed); background: var(--surface-panel); }
 /* A dot that has left the drawing, replayed on its way out (sceneMotion.ts). */
 .work-scene__dot--ghost { position: absolute; top: 7px; left: -4px; }
 /* State changes ease the colours; the one-shot movement lives in sceneMotion.ts. */
@@ -1136,7 +1135,8 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
    yellow of the work it holds — its count a neutral badge like the scene's, no
    wash. It is there when looked for and never pulls the eye from the next-step
    card. Its button opens the restore picker over the Overview. Under a detail
-   card it goes plain and bordered, like the small scene above that card. */
+   card it drops its wash, like the small scene above that card, and keeps
+   the resting-card edge every card wears. */
 .overview-restore {
   min-width: 0;
   display: grid;
@@ -1144,17 +1144,16 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  background: var(--surface-panel);
   box-shadow: var(--shadow-sm);
   animation: work-scene-in 260ms ease-out;
 }
 :root[data-reduced-motion="true"] .overview-restore { animation: none; }
 .overview-restore--compact {
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
-  box-shadow: none;
+  background: var(--surface-panel);
 }
 .overview-restore__place {
   position: relative;
@@ -1181,7 +1180,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   border-radius: var(--radius-pill);
   background: var(--surface-control);
   color: var(--text-primary-color);
-  box-shadow: 0 0 0 2px var(--surface-raised), inset 0 0 0 1px var(--border-divider);
+  box-shadow: 0 0 0 2px var(--surface-panel), inset 0 0 0 1px var(--border-divider);
   font-size: var(--text-micro);
   font-weight: var(--weight-title);
   font-variant-numeric: tabular-nums;
@@ -1292,9 +1291,9 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-timeline__group-head {
     padding-bottom: 2px;
     border-radius: var(--radius-control) var(--radius-control) 0 0;
-    background: var(--surface-raised);
+    background: var(--surface-panel);
   }
-  .overview-timeline__mark { background: var(--surface-raised); }
+  .overview-timeline__mark { background: var(--surface-panel); }
   .overview-timeline__group-head::before,
   .overview-timeline__mark::before {
     content: "";

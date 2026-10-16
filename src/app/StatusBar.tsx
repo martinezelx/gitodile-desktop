@@ -342,6 +342,7 @@ export function StatusBar({
   const openRelease = release.target === "update" && onOpenAppUpdate ? onOpenAppUpdate : onOpenChangelog;
   const now = useStatusBarClock();
   const isReadingTeamStatus = teamSync.isLoading && !teamSync.status;
+  const isWaiting = teamSync.isCheckingRemote || isReadingTeamStatus;
   const teamLabel = teamSync.isCheckingRemote
     ? t.statusBarCheckingTeam
     : isReadingTeamStatus
@@ -355,22 +356,25 @@ export function StatusBar({
   const tone = teamTone(teamSync);
   // A stale or failed result still shows the last known state, but the strip
   // must not read as current: the doubt becomes the word, the state the tooltip.
-  const visibleTeamLabel = !teamSync.isCheckingRemote && !isReadingTeamStatus && teamSync.status && (teamSync.error || teamSync.isStale)
+  const doubtLabel = teamSync.status && (teamSync.error || teamSync.isStale)
     ? (teamSync.error ? t.statusBarCheckFailed : t.statusBarMayBeOutdated)
-    : teamLabel;
+    : null;
+  const visibleTeamLabel = !isWaiting && doubtLabel ? doubtLabel : teamLabel;
   const teamTooltip = [teamLabel !== visibleTeamLabel ? teamLabel : null, freshness].filter(Boolean).join(" · ");
   // The cloud becomes the sync action the relation calls for — publish, get,
   // or both — when the relation is known and current. A stale, failed or
   // still-loading answer keeps it a plain fact: it is not a state to act from.
-  const isCurrent = !teamSync.isCheckingRemote && !isReadingTeamStatus && !teamSync.error && !teamSync.isStale;
-  const syncAction = isCurrent ? teamSyncAction(teamSync.status, t, { onPublish, onGetChanges, onGetAndPublish }) : null;
+  const isCurrent = !isWaiting && !teamSync.error && !teamSync.isStale;
+  const knownAction = teamSyncAction(teamSync.status, t, { onPublish, onGetChanges, onGetAndPublish });
+  const syncAction = isCurrent ? knownAction : null;
   const syncActionTooltip = syncAction ? [syncAction.label, freshness].filter(Boolean).join(" · ") : null;
   // At rest the strip says how fresh "up to date" is, so the reader does not
   // have to hover to trust it.
   const checkedAt = teamSync.status?.checkedAt ?? null;
-  const restingAge = isCurrent && teamSync.status?.state === "upToDate" && teamSync.status.knowledge !== "cached" && checkedAt !== null
+  const upToDateAge = teamSync.status?.state === "upToDate" && teamSync.status.knowledge !== "cached" && checkedAt !== null
     ? formatRelativeCheckTime(checkedAt, now, formats.language, t.statusBarJustNow)
     : null;
+  const restingAge = isCurrent ? upToDateAge : null;
   const changesLabel = workingTreeLabel(workingTree, workingTreeError, isCheckingChanges, t);
   // The working tree rides the line it belongs to: a dot after the line's
   // name while there is unsaved work, the sentence in its tooltip and for the
@@ -385,20 +389,49 @@ export function StatusBar({
   const canCheckTeam = Boolean(
     project?.headState === "branch" &&
     project.branch &&
-    !teamSync.isCheckingRemote &&
-    !isReadingTeamStatus,
+    !isWaiting,
   );
   const isBusy = Boolean(project && (isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote));
   // With its age beside it the cloud already says "up to date"; the word stays
   // for the screen reader and comes back whenever there is no age to show.
   const hidesTeamWord = restingAge !== null;
-  const syncIcon = teamSync.isCheckingRemote || isReadingTeamStatus
+  // While a check or the first read runs, the capsule keeps saying what it
+  // last knew — "Publish 12 versions", "3 min ago", "Check failed" — in the
+  // quiet ink with its glyph turned spinner, so neither its words nor its
+  // width jump to "Checking the remote…" and back. That sentence stays the
+  // tooltip's and the screen reader's. With nothing known yet it is the
+  // visible words too.
+  const heldLabel = isWaiting && teamSync.status
+    ? doubtLabel
+      ?? knownAction?.label
+      ?? upToDateAge
+      ?? teamStateLabel(teamSync.status.state, teamSync.status.ahead, teamSync.status.behind, t)
+    : null;
+  const syncIcon = isWaiting
     ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
     : tone === "success"
       ? <CloudCheck aria-hidden="true" />
       : tone === "warning"
         ? <CloudAlert aria-hidden="true" />
         : <Cloud aria-hidden="true" />;
+
+  // The explicit check, in every state — beside the sync action too, where
+  // knowing whether the remote moved matters most. With automatic checks set
+  // to manual it is the strip's only way to ask. It is always the second half
+  // of the sync capsule rather than a loose glyph.
+  const checkButton = (
+    <button
+      className="status-bar__action"
+      type="button"
+      disabled={!canCheckTeam}
+      onClick={onCheckTeamChanges}
+      aria-label={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
+      data-tooltip={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
+    >
+      {/* The glyph beside it is the one spinner; this half only goes quiet. */}
+      <RotateCw aria-hidden="true" />
+    </button>
+  );
 
   return (
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
@@ -442,6 +475,49 @@ export function StatusBar({
             />
             <span className="visually-hidden">{changesLabel}</span>
           </span>
+          {/* The remote rides beside the line it belongs to, the way an
+              editor's status bar puts sync next to the branch, so the left
+              reads as one sentence and the right keeps only the build. It is
+              one split capsule in every state, so the strip never changes
+              shape under the reader: the left half says the remote fact and
+              is a button only while a current relation calls for a sync; the
+              right half is always the explicit check. */}
+          <span className="status-bar__cluster" aria-live="polite">
+            <span className="status-bar__sync-split">
+              {syncAction ? (
+                <button
+                  className={`status-bar__item status-bar__sync status-bar__sync-action status-bar__sync-action--${syncAction.kind}`}
+                  type="button"
+                  onClick={syncAction.onClick}
+                  aria-label={syncAction.label}
+                  data-tooltip={syncActionTooltip ?? undefined}
+                >
+                  {syncAction.icon}
+                  <span>{syncAction.label}</span>
+                </button>
+              ) : heldLabel ? (
+                <span
+                  className="status-bar__item status-bar__sync status-bar__sync--neutral status-bar__sync--held"
+                  data-tooltip={[teamLabel, freshness].filter(Boolean).join(" · ")}
+                >
+                  {syncIcon}
+                  <span aria-hidden="true">{heldLabel}</span>
+                  <span className="visually-hidden">{teamLabel}</span>
+                </span>
+              ) : (
+                <span
+                  className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
+                  data-tooltip={[hidesTeamWord ? visibleTeamLabel : null, teamTooltip].filter(Boolean).join(" · ") || undefined}
+                >
+                  {syncIcon}
+                  <span className={hidesTeamWord ? "visually-hidden" : undefined}>{visibleTeamLabel}</span>
+                  {restingAge && <span className="status-bar__sync-age" aria-hidden="true">{restingAge}</span>}
+                  {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
+                </span>
+              )}
+              {checkButton}
+            </span>
+          </span>
         </div>
       ) : (
         <div className="status-bar__group status-bar__group--project">
@@ -453,46 +529,6 @@ export function StatusBar({
       )}
 
       <div className="status-bar__group status-bar__group--system">
-        {project && (
-          <span className="status-bar__cluster" aria-live="polite">
-            {syncAction ? (
-              <button
-                className={`status-bar__item status-bar__sync status-bar__sync-action status-bar__sync-action--${syncAction.kind}`}
-                type="button"
-                onClick={syncAction.onClick}
-                aria-label={syncAction.label}
-                data-tooltip={syncActionTooltip ?? undefined}
-              >
-                {syncAction.icon}
-                <span>{syncAction.label}</span>
-              </button>
-            ) : (
-              <span
-                className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
-                data-tooltip={[hidesTeamWord ? visibleTeamLabel : null, teamTooltip].filter(Boolean).join(" · ") || undefined}
-              >
-                {syncIcon}
-                <span className={hidesTeamWord ? "visually-hidden" : undefined}>{visibleTeamLabel}</span>
-                {restingAge && <span className="status-bar__sync-age" aria-hidden="true">{restingAge}</span>}
-                {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
-              </span>
-            )}
-            {/* The explicit check, in every state — beside the sync action
-                too, where knowing whether the remote moved matters most. With
-                automatic checks set to manual it is the strip's only way to
-                ask. */}
-            <button
-              className="status-bar__action"
-              type="button"
-              disabled={!canCheckTeam}
-              onClick={onCheckTeamChanges}
-              aria-label={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
-              data-tooltip={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
-            >
-              <RotateCw className={teamSync.isCheckingRemote ? "icon--spinning" : undefined} aria-hidden="true" />
-            </button>
-          </span>
-        )}
         <button
           className={`status-bar__release status-bar__release--${release.variant}`}
           type="button"

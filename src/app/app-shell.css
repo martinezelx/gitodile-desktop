@@ -177,27 +177,31 @@
 .workspace { grid-column: 2; grid-row: 1; }
 .status-bar { grid-column: 2; grid-row: 2; }
 
-/* Chrome, not content: no fill, no radius, no shadow. Friendly Card is the
-   language for surfaces that stack — DESIGN.md reserves shadow for stacking
-   order, and this strip is the floor of the window rather than something
-   resting on it. It also could not carry the system's 14-18px card radius at
-   34px tall without reading as a pill. Same reasoning that took the panel off
-   the rail: the window chrome is one continuous plane, and only content sits
-   in cards on top of it. */
+/* A card under the content, on the content's own edges, in the one recipe
+   every resting card wears: the panel surface, the subtle border and
+   `--shadow-sm`. Loose on the chrome plane, the strip's controls (the line
+   switch, the sync action) floated in the gap below the content with nothing
+   to say where the window ended. The radius is the control step, not the
+   surface one: 18px on a 40px strip reads as a pill. */
 .status-bar {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  height: 34px;
-  padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
+  height: 40px;
+  margin: 0 var(--workspace-inset-right) 10px var(--workspace-inset-left);
+  padding: 0 5px 0 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-sm);
   color: var(--text-primary-color);
   font-size: var(--text-body);
   line-height: var(--leading-snug);
 }
-/* No rule above it either — a hairline was drawing a boundary the layout
-   already draws. What was missing is what happens *mid-scroll*, where content
+/* No hairline across the column — the card's own border is the boundary.
+   What was missing is what happens *mid-scroll*, where content
    was clipped dead against this strip with nothing marking the cut.
 
    So: a short fade to the window's own colour, sitting directly above the bar.
@@ -215,9 +219,11 @@
 .status-bar::before {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
+  /* The fade spans the whole column, not just the card: it marks where the
+     scroll is cut, and that cut runs from the rail's edge to the window's. */
+  left: calc(-1px - var(--workspace-inset-left));
+  right: calc(-1px - var(--workspace-inset-right));
+  bottom: calc(100% + 1px);
   height: var(--workspace-inset-bottom);
   pointer-events: none;
   /* Smoothstep, not a straight ramp. A linear alpha ramp changes by the same
@@ -361,7 +367,12 @@
   transition: background var(--duration-fast);
 }
 .status-bar__project svg { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar__project > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.status-bar__project > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: var(--weight-strong);
+}
 .status-bar__project:hover { background: var(--surface-hover); }
 .status-bar__project:active { background: var(--surface-active); }
 .status-bar__project:focus-visible {
@@ -383,15 +394,16 @@
   max-width: min(32vw, 340px);
 }
 /* Unsaved work is a dot after the line's name, the way an editor marks an
-   unsaved tab: in the accent, because it is the reader's own work in
-   progress, and in the danger tone when the tree could not be read. The count
-   and the sentence are the trigger's tooltip and the screen reader's. */
+   unsaved tab: in the warning tone the rail and the project switcher already
+   give unsaved work (green read as "all good"), and in the danger tone when
+   the tree could not be read. The count and the sentence are the trigger's
+   tooltip and the screen reader's. */
 .status-bar .version-line-selector__marker {
   width: 7px;
   height: 7px;
   flex-shrink: 0;
   border-radius: var(--radius-round);
-  background: var(--accent-primary);
+  background: var(--status-warning);
 }
 .status-bar .version-line-selector__marker--error { background: var(--status-danger); }
 /* The remote fact, in the strip's quiet ink unless the reader should doubt
@@ -419,6 +431,51 @@
   transition: background var(--duration-fast);
 }
 .status-bar__sync-action svg { color: var(--accent-primary); }
+/* The remote is one split capsule in every state — an action, a fact, a
+   check in flight — so the strip never changes shape under the reader. The
+   check is always its second half, split by a hairline. Each half keeps its
+   own hover, and the outer capsule only draws the shared surface. */
+.status-bar__sync-split {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+.status-bar__sync-split .status-bar__sync-action {
+  padding: 0 8px 0 10px;
+  border-radius: 0;
+  background: transparent;
+}
+/* A fact in the left half sits on the action's own metrics, so turning from
+   one into the other moves nothing but the words. */
+.status-bar__sync-split .status-bar__sync:not(.status-bar__sync-action) {
+  height: 28px;
+  padding: 0 8px 0 10px;
+  font-size: var(--text-label);
+}
+/* What it last knew, held while the check runs: quiet ink, glyph spinning. */
+.status-bar__sync--held { color: var(--text-secondary-color); }
+.status-bar__sync-split .status-bar__action {
+  position: relative;
+  width: 32px;
+  height: 28px;
+  border-radius: 0;
+}
+.status-bar__sync-split .status-bar__action::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--border-divider);
+}
+/* The capsule clips, so focus draws inside each half. */
+.status-bar__sync-split .status-bar__sync-action:focus-visible,
+.status-bar__sync-split .status-bar__action:focus-visible { outline-offset: -2px; }
 .status-bar__sync-action:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, transparent); }
 .status-bar__sync-action:active { background: color-mix(in srgb, var(--text-primary-color) 15%, transparent); }
 /* How fresh "up to date" is, beside its cloud. */
@@ -450,6 +507,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* The same type as the project's name: `project / line` is one sentence,
+     so the line drops the selector's mono rather than switching typeface
+     after the slash. */
+  font-family: inherit;
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
 }
@@ -775,11 +836,20 @@
 /* Work and Lines are fixed workbenches whose child panes own
    scrolling. The shell's full bottom inset is useful for document-style
    screens, where it creates the quiet end of the outer scroll, but here it
-   becomes a permanent empty strip. Keep only one compact step so the panel has
-   a visible ending without giving back the space recovered from the old 40px
-   gap. */
+   becomes a permanent empty strip. Keep the same 16px that separates the
+   panes from each other, so the status bar card reads as one more card in the
+   layout rather than something pressed against the last one. */
 .workspace--workbench,
-.workspace--version-lines { padding-bottom: var(--space-2); }
+.workspace--version-lines { padding-bottom: var(--space-4); }
+/* Overview is a workbench too once it fits the window: its timeline scrolls
+   inside its card and the page itself does not, so the document inset and the
+   fade over it were a 40px empty band above the status bar. Below that size it
+   scrolls as a page and keeps both. The query must match OVERVIEW_FIT_QUERY in
+   features/overview/fit.ts. */
+@media (min-height: 620px) and (min-width: 981px) {
+  .app-shell--overview .workspace { padding-bottom: var(--space-4); }
+  .app-shell--overview .status-bar::before { display: none; }
+}
 /* Console hides the status bar and draws its own status line in the same
    place, flush with the window's foot, so it keeps no bottom inset. */
 .workspace--console { padding-top: var(--space-3); padding-bottom: 0; }
@@ -1816,8 +1886,10 @@
     width: 44px;
     height: 44px;
   }
-  .status-bar { height: 48px; }
+  .status-bar { height: 52px; }
+  .status-bar__sync-split .status-bar__action { height: 44px; }
   .status-bar .version-line-selector,
+  .status-bar__sync-split,
   .status-bar__project,
   .status-bar__action,
   .status-bar__sync-action,

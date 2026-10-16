@@ -291,7 +291,8 @@
 }
 .changes-file-list {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface); background: var(--surface-panel);
+  border-radius: var(--radius-surface); box-shadow: var(--shadow-sm);
+  background: var(--surface-panel);
   /* The strips own their spacing through padding; the panel itself must not
      insert gutters between the paired list and diff headers. */
   gap: 0;
@@ -562,7 +563,8 @@
 
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface); background: var(--surface-panel); overflow: hidden;
+  border-radius: var(--radius-surface); box-shadow: var(--shadow-sm);
+  background: var(--surface-panel); overflow: hidden;
 }
 .changes-diff__back {
   display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;

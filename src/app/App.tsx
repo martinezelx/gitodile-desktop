@@ -2514,7 +2514,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}`}
+        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}${view === "overview" ? " app-shell--overview" : ""}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}

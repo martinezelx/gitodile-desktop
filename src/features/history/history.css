@@ -72,6 +72,7 @@
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
   background: var(--surface-panel);
 }
 /* No rule under it. The search box is already a bordered capsule floating on
@@ -682,9 +683,10 @@
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
   background: var(--surface-panel);
 }
-.history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
+.history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); box-shadow: var(--shadow-sm); background: var(--surface-panel); }
 .history-detail--state { align-items: center; justify-content: center; padding: 28px; color: var(--text-secondary-color); text-align: center; }
 .history-detail--state > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--status-danger); }
 .history-detail--state h2, .history-detail--state p { margin: 0 0 10px; }
