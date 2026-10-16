@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from "react";
-import { Check, CircleAlert, LoaderCircle } from "lucide-react";
+import { Check, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
@@ -264,6 +264,7 @@ export function LineCreateFields({
   flow,
   nameRef,
   expanded,
+  onClose,
 }: {
   flow: LineCreateFlow;
   nameRef: React.RefObject<HTMLInputElement | null>;
@@ -271,6 +272,8 @@ export function LineCreateFields({
    * says only "Create", so the field's question is not cut; open, beside the
    * "Switch to it" that decides it, it says the whole consequence. */
   expanded: boolean;
+  /** Only the docked frame folds; the quick-switch frame owns its header. */
+  onClose?: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const { status, isBusy, forceSwitch, mainLine, activeLine, source, nameIssue } = flow;
@@ -283,8 +286,8 @@ export function LineCreateFields({
           made right here rather than in the foot. On a detached `HEAD` the
           slot explains the one honest starting point instead. Once created,
           the same slot says what was created. */}
-      <div className="docked-composer__head">
-        <div>
+      <div className="docked-composer__head" inert={!expanded}>
+        <div className={onClose ? "docked-composer__heading" : undefined}>
           {status.kind === "success" ? (
             <p className="docked-composer__line docked-composer__success row-in" role="status">
               <Check aria-hidden="true" />
@@ -345,6 +348,18 @@ export function LineCreateFields({
               <span className="docked-composer__mono">{flow.resolvedSource.name}</span>
             </p>
           ) : null}
+          {expanded && onClose && (
+            <button
+              type="button"
+              className="docked-composer__close"
+              aria-label={t.versionLinesQuickCreateClose}
+              data-tooltip={t.commonClose}
+              disabled={isBusy}
+              onClick={onClose}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -369,7 +384,7 @@ export function LineCreateFields({
         }}
       />
 
-      <div className="docked-composer__extra">
+      <div className="docked-composer__extra" inert={!expanded}>
         <div>
           {/* The shared field-error look, at the field's own inset. Polite,
               so a reader using a screen reader hears it without it cutting
@@ -521,6 +536,12 @@ export function VersionLineQuickCreateBox({
     flow.resetStatus();
   }
 
+  function dismiss(): void {
+    if (flow.isBusy) return;
+    containerRef.current?.focus({ preventScroll: true });
+    collapse();
+  }
+
   // When the box opens and folds is the rule every docked compose box shares:
   // see `useDockedComposerFocus`. Folding loses nothing only with no create
   // in flight and no name typed.
@@ -537,21 +558,19 @@ export function VersionLineQuickCreateBox({
   return (
     <div
       ref={containerRef}
+      tabIndex={-1}
       className={`docked-composer version-lines-quick-create${expanded ? " docked-composer--expanded" : ""}`}
       {...focusHandlers}
       onKeyDown={(event) => {
-        // Escape is the way out for "opened this by accident": it clears the
-        // draft and folds the box back to its one-row rest state. Not offered
-        // mid-create — the disabled fields are the signal then.
+        // Escape and the close button fold without losing the draft.
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
-          if (flow.isBusy) return;
-          flow.clearName();
-          collapse();
+          event.stopPropagation();
+          dismiss();
         }
       }}
     >
-      <LineCreateFields flow={flow} nameRef={nameRef} expanded={expanded} />
+      <LineCreateFields flow={flow} nameRef={nameRef} expanded={expanded} onClose={dismiss} />
     </div>
   );
 }

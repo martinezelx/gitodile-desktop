@@ -238,15 +238,37 @@ describe("VersionLineQuickCreateBox", () => {
     expect(isExpanded(container)).toBe(true);
   });
 
-  it("Escape clears the draft and closes the box", async () => {
+  it.each(["Escape", "close button"])("%s folds without losing the draft or options and can reopen", async (method) => {
     const { container } = renderBox();
+    expect(screen.queryByRole("button", { name: "Close create line form" })).not.toBeInTheDocument();
     const name = screen.getByLabelText("New line name");
     await userEvent.type(name, "feature/z");
 
-    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Switch to it" }));
+    if (method === "Escape") await userEvent.keyboard("{Escape}");
+    else await userEvent.click(screen.getByRole("button", { name: "Close create line form" }));
 
-    expect(name).toHaveValue("");
+    expect(name).toHaveValue("feature/z");
+    expect(screen.getByRole("checkbox", { name: "Switch to it" })).not.toBeChecked();
     expect(isExpanded(container)).toBe(false);
+    expect(container.querySelector(".version-lines-quick-create")).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Close create line form" })).not.toBeInTheDocument();
+    await userEvent.tab();
+    expect(name).toHaveFocus();
+    expect(isExpanded(container)).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Close create line form" }));
+    await userEvent.click(name);
+    expect(isExpanded(container)).toBe(true);
+  });
+
+  it("cannot close while creation is in flight", async () => {
+    mockedInvoke.mockImplementation(() => new Promise(() => {}));
+    const { container } = renderBox();
+    await userEvent.type(screen.getByLabelText("New line name"), "feature/z");
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Close create line form" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    expect(isExpanded(container)).toBe(true);
   });
 
   it("creates and switches by default, then clears the draft", async () => {

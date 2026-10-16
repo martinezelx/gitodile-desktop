@@ -1510,6 +1510,24 @@
   transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
 }
 .docked-composer__head > div { transform-origin: bottom; }
+.docked-composer__head > .docked-composer__heading {
+  flex-direction: row; align-items: center; gap: var(--space-2);
+}
+.docked-composer__heading > :first-child:not(.docked-composer__close) { flex: 1; min-width: 0; }
+.docked-composer__close {
+  display: grid; place-items: center; flex: 0 0 auto; margin-left: auto;
+  width: var(--control-height-sm); height: var(--control-height-sm); padding: 0;
+  border: 0; border-radius: var(--radius-item); background: transparent;
+  color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.docked-composer__close:hover:enabled { background: var(--surface-hover); color: var(--text-primary-color); }
+.docked-composer__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.docked-composer__close:disabled { opacity: 0.5; }
+.docked-composer__close svg { width: 14px; height: 14px; }
+@media (pointer: coarse) {
+  .docked-composer__close { width: var(--control-height-lg); height: var(--control-height-lg); }
+}
 .docked-composer__extra > div { transform-origin: top; }
 .docked-composer--expanded .docked-composer__head > div,
 .docked-composer--expanded .docked-composer__extra > div { opacity: 1; transform: scaleY(1); }

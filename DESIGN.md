@@ -2877,8 +2877,13 @@ brings the option back.
 
 **The box folds only when leaving it loses nothing, and never under the
 pointer.** It closes when focus leaves it with nothing written and nothing
-in flight; a draft or a save keeps it open, and Escape clears the draft and
-folds it on purpose. Pressing inside the box on something that takes no
+in flight; a draft or a save keeps it open automatically. An explicit close
+button at the right of the plan line, visible only while expanded, and Escape
+fold it on purpose while preserving the draft and options. The close uses a
+14px X in a small transparent button, secondary ink, the item radius and the
+shared hover/focus treatment; it is disabled while saving or creating a line.
+Explicit closing moves focus to the composer itself so it neither disappears
+with the button nor immediately reopens the field. Pressing inside the box on something that takes no
 focus — the option's words, a disabled Save, the plan line — is not
 leaving. Neither is the window losing focus: minimized or behind another
 app, the page keeps its focus on the field and hands it back on return, so

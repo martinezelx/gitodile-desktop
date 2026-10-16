@@ -114,6 +114,7 @@ export interface ChangesTranslations {
   changesSaveVersionNoSelectionHint: string;
   changesQuickCommitFiles: (saved: number, total: number) => string;
   changesQuickCommitSaving: string;
+  changesQuickCommitClose: string;
 
   changesSelectAll: string;
   changesSelectNone: string;
@@ -301,6 +302,7 @@ const en: ChangesTranslations = {
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 file" : `${total} files`) : `${saved} of ${total} files`,
   changesQuickCommitSaving: "Saving…",
+  changesQuickCommitClose: "Close save version form",
 
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -489,6 +491,7 @@ const es: ChangesTranslations = {
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 archivo" : `${total} archivos`) : `${saved} de ${total} archivos`,
   changesQuickCommitSaving: "Guardando…",
+  changesQuickCommitClose: "Cerrar formulario de guardar versión",
 
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",

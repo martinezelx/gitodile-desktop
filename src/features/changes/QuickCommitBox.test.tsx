@@ -340,17 +340,30 @@ describe("QuickCommitBox", () => {
     }
   });
 
-  it("Escape clears the draft and closes the box", async () => {
+  it.each(["Escape", "close button"])("%s folds without losing the draft or options and can reopen", async (method) => {
+    stubGit();
     const { container } = renderBox();
+    expect(screen.queryByRole("button", { name: "Close save version form" })).not.toBeInTheDocument();
     const title = screen.getByLabelText("Version name");
     await userEvent.type(title, "half-written thought");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "and some detail");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Also publish" }));
 
-    await userEvent.keyboard("{Escape}");
+    if (method === "Escape") await userEvent.keyboard("{Escape}");
+    else await userEvent.click(screen.getByRole("button", { name: "Close save version form" }));
 
-    expect(title).toHaveValue("");
-    expect(screen.getByLabelText("More details (optional)")).toHaveValue("");
+    expect(title).toHaveValue("half-written thought");
+    expect(screen.getByLabelText("More details (optional)")).toHaveValue("and some detail");
+    expect(screen.getByRole("checkbox", { name: "Also publish" })).toBeChecked();
     expect(isExpanded(container)).toBe(false);
+    expect(container.querySelector(".changes-quick-commit")).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Close save version form" })).not.toBeInTheDocument();
+    await userEvent.tab();
+    expect(title).toHaveFocus();
+    expect(isExpanded(container)).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Close save version form" }));
+    await userEvent.click(title);
+    expect(isExpanded(container)).toBe(true);
   });
 
   it("saves with the typed title and description, then clears the draft", async () => {
@@ -446,11 +459,14 @@ describe("QuickCommitBox", () => {
     mockedInvoke.mockImplementation((command) =>
       command === "plan_save_version" ? Promise.resolve(plan()) : new Promise(() => {}),
     );
-    renderBox();
+    const { container } = renderBox();
     await userEvent.type(screen.getByLabelText("Version name"), "fix the thing");
     await userEvent.keyboard("{Enter}");
 
     expect(await screen.findByRole("button", { name: "Saving…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Close save version form" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    expect(isExpanded(container)).toBe(true);
   });
 
   it("remembers the publish option across remounts, same key SaveVersionDialog reads", () => {

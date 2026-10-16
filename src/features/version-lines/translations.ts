@@ -63,6 +63,7 @@ export interface VersionLinesTranslations {
    * two live controls would be as ambiguous to a screen reader as it is to
    * an automated query. */
   versionLinesQuickCreateNameLabel: string;
+  versionLinesQuickCreateClose: string;
   /** The name field's question, asked the way the save box asks "What
    * changed?" — the name is what the line is for. */
   versionLinesQuickCreateNamePlaceholder: string;
@@ -326,6 +327,7 @@ const en: VersionLinesTranslations = {
   createVersionLineToast: (name, switched) => switched ? `“${name}” created, and you're on it now.` : `“${name}” created.`,
   createVersionLineCreating: "Creating…",
   versionLinesQuickCreateNameLabel: "New line name",
+  versionLinesQuickCreateClose: "Close create line form",
   versionLinesQuickCreateNamePlaceholder: "What will you work on?",
   versionLinesQuickCreateNameHint: "Like",
   versionLinesQuickCreateNameExample: "feature/new-feature",
@@ -594,6 +596,7 @@ const es: VersionLinesTranslations = {
   createVersionLineToast: (name, switched) => switched ? `«${name}» creada, y ya estás en ella.` : `«${name}» creada.`,
   createVersionLineCreating: "Creando…",
   versionLinesQuickCreateNameLabel: "Nombre de la nueva línea",
+  versionLinesQuickCreateClose: "Cerrar formulario de crear línea",
   versionLinesQuickCreateNamePlaceholder: "¿En qué vas a trabajar?",
   versionLinesQuickCreateNameHint: "Como",
   versionLinesQuickCreateNameExample: "feature/nueva-funcionalidad",
