@@ -686,6 +686,27 @@ describe("ChangesPanel review controls", () => {
     expect(list.getByText("edited.txt").closest(".changes-file-row")).not.toHaveClass("row-in");
   });
 
+  it("draws the include control as a node, marks the open row, and toggles from the node", async () => {
+    renderPanel();
+    await screen.findByText("File 1 of 2");
+
+    const openBox = screen.getByRole("checkbox", { name: "Include edited.txt in this version" });
+    const openRow = openBox.closest("li");
+    expect(openRow).toHaveClass("changes-file-row--active");
+    expect(openBox).toHaveClass("changes-file-row__pick-input");
+    expect(openBox.closest(".changes-file-row__pick")).not.toBeNull();
+    const node = openBox.nextElementSibling;
+    expect(node).toHaveClass("changes-file-row__node");
+
+    // The visible node is inside the label: pressing it must work without
+    // aiming at the 1px native input.
+    await userEvent.click(node as HTMLElement);
+    expect(openBox).not.toBeChecked();
+
+    const otherRow = screen.getByRole("checkbox", { name: "Include new.txt in this version" }).closest("li");
+    expect(otherRow).not.toHaveClass("changes-file-row--active");
+  });
+
   it("expands the unchanged lines between hunks, and keeps a marker for the rest", async () => {
     // The first hunk covers old lines 1-2, the second starts at old line 50,
     // so the gap is 47 lines starting at new line 3. The stub returns two.

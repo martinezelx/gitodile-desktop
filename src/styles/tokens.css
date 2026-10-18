@@ -166,6 +166,15 @@
      once here because two features now say it, and a recipe copied a third
      time is a recipe that drifts. */
   --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
+  /* The fill of a version node's filled and half states — the included file in
+     Changes, a published version in Overview, History and the Lines recent
+     list. 65% of the primary ink over the panel: a soft charcoal in light and a
+     soft stone in dark, the same recipe in both schemes. The accent stays for
+     the selected/active node, and the neutral fill still measures 5.4:1 on the
+     official light panel and 7.6:1 on the dark, so the shape reads without the
+     column out-shouting the one green node. One derived value, no per-theme
+     colour to maintain; `themeContrast.test.ts` holds its 3:1 floor. */
+  --node-fill: color-mix(in srgb, var(--text-primary-color) 65%, var(--surface-panel));
   /* How much of `--accent-primary-fill` an accent wash mixes into
      `--surface-raised` — an unread notification row today. The fill, not
      `--accent-primary`: in the official Light theme that accent is a deep

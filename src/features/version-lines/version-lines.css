@@ -920,7 +920,7 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 .version-lines-recent__open:hover { background: var(--surface-hover); }
 .version-lines-recent__open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* History's node, at its size: half filled while the version is only here, a
-   solid disc in the primary ink once published, an empty ring when that is not
+   solid disc in the node fill once published, an empty ring when that is not
    known. The accent ring and a soft halo come under the pointer; the shape
    never changes. */
 .version-lines-recent__node {
@@ -933,12 +933,12 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
 }
 .version-lines-recent__row--local-only .version-lines-recent__node {
-  border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
 }
 .version-lines-recent__row--published .version-lines-recent__node {
-  border-color: var(--text-primary-color);
-  background: var(--text-primary-color);
+  border-color: var(--node-fill);
+  background: var(--node-fill);
 }
 .version-lines-recent__row:hover .version-lines-recent__node,
 .version-lines-recent__row:focus-within .version-lines-recent__node {

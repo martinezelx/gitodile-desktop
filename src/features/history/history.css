@@ -547,12 +547,13 @@
 
 /* The node carries the state, and it carries all of it. Its shape says where
    the version stands, as on Overview's timeline: half filled when it is saved
-   only here, a solid disc in the primary ink once published, an empty ring
-   when that is not known. Both fills are the primary ink, so one family reads
-   "saved" and only the shape says where; the accent ring and a soft halo come
-   under the pointer, and the selection turns the node's own shape to the
-   accent with a halo — the one green node in the list. No keyframes — DESIGN.md § Motion asks motion to communicate a state change,
-   and an `infinite` pulse under the pointer is the definition of decoration.
+   only here, a solid disc in the node fill once published, an empty ring when
+   that is not known. Both fills are the node fill, so one family reads "saved"
+   and only the shape says where; the accent ring and a soft halo come under
+   the pointer, and the selection turns the node's own shape to the accent with
+   a halo — the one green node in the list. No keyframes — DESIGN.md § Motion
+   asks motion to communicate a state change, and an `infinite` pulse under the
+   pointer is the definition of decoration.
 
    The resting ring is mixed off the secondary text colour rather than taking a
    border token: it has to sit a clear step above the rail it stands on, and
@@ -571,12 +572,12 @@
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
 }
 .history-row--local .history-row__node {
-  border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
 }
 .history-row--published .history-row__node {
-  border-color: var(--text-primary-color);
-  background: var(--text-primary-color);
+  border-color: var(--node-fill);
+  background: var(--node-fill);
 }
 /* The pointer halo is for the rows that have none of their own: a selected
    row already carries the accent node and its own halo, so hovering it must

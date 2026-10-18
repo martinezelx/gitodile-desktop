@@ -289,6 +289,26 @@ describe("theme contrast contract", () => {
     expect(failures).toEqual([]);
   });
 
+  // The version node's filled and half states are `--node-fill` in tokens.css:
+  // a 65% mix of the primary ink over the panel. It is a state mark, not text,
+  // so it keeps the non-text floor in every theme; the selected/active accent
+  // is measured with the accent pairs.
+  it("keeps the version node fill at 3:1 over the panel in every theme", () => {
+    const definition = TOKENS_CSS.match(
+      /--node-fill:\s*color-mix\(in srgb,\s*var\(--text-primary-color\)\s*(\d+(?:\.\d+)?)%,\s*var\(--surface-panel\)\s*\)/,
+    );
+    expect(definition, "tokens.css defines --node-fill as an ink/panel mix").not.toBeNull();
+    if (!definition) return;
+    const weight = Number(definition[1]) / 100;
+    const failures: string[] = [];
+    for (const block of blocks) {
+      const { hex, panel } = paletteOf(block);
+      const fill = blend(hex("--text-primary-color"), weight, panel);
+      measure(failures, block.id, "--node-fill on panel", fill, panel, NON_TEXT_FLOOR);
+    }
+    expect(failures).toEqual([]);
+  });
+
   // A popover, menu or dialog is `--surface-raised`. On a dark palette it has
   // to lift off the panel beneath it, or a menu reads as a hole in the page;
   // light palettes lift with a shadow instead, like the official Light theme.

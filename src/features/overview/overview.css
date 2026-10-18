@@ -468,12 +468,12 @@
 }
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
 /* The node's shape says where the version stands, so the rows need no fill
-   of their own: a published version is a solid disc in the primary ink, one
+   of their own: a published version is a solid disc in the node fill, one
    still only on this computer is half filled, and "Now" with unsaved work is a
    dashed ring. The card that asks for something keeps the page's one wash. */
 .overview-history__item--published .overview-history__node {
-  border-color: var(--text-primary-color);
-  background: var(--text-primary-color);
+  border-color: var(--node-fill);
+  background: var(--node-fill);
 }
 .overview-history__body { min-width: 0; display: grid; gap: 3px; }
 .overview-history__subject {
@@ -513,8 +513,8 @@
 .overview-timeline__group .overview-history__node,
 .overview-timeline__group .overview-history__row:not(:hover):not(:focus-visible) .overview-history__node { box-shadow: none; }
 .overview-history__item--local .overview-history__node {
-  border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
 }
 .overview-timeline__group-head {
   display: grid;
@@ -674,8 +674,8 @@
    above is the change, and an accent node fading in beneath it was the
    flicker. */
 .overview-history__item--publishable .overview-history__row:hover .overview-history__node {
-  border-color: var(--text-primary-color);
-  background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--surface-panel) 50%);
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
   box-shadow: none;
 }
 

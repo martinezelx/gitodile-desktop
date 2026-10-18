@@ -638,10 +638,13 @@ The main desktop window should broadly support:
      stays as it is.
    - **The node's shape says where a version stands, so no row is filled.**
      Unsaved work is a dashed ring, a version saved but not published is half
-     filled, a published one is a solid disc in the primary ink — the same fill
+     filled, a published one is a solid disc in the node fill — the same fill
      the half circle uses, so one family reads "saved" and only the shape says
      where — and versions waiting on the remote are dashed blue: the same
-     reading Linear gives its status glyphs, and it survives greyscale.
+     reading Linear gives its status glyphs, and it survives greyscale. The fill is
+      `--node-fill`: 65% of the primary ink over the panel, the same recipe in
+      light and dark, so a column of saved nodes sits a step below the one
+      accent node without losing the solid state.
      History's timeline draws its nodes the
      same way (an unknown publication stays an empty ring), and both ring the
      node in the accent with a soft halo under the pointer rather than filling
@@ -1110,7 +1113,7 @@ scope still stated as a chip under the strip. Lanes are drawn thin: 1px
 strokes 11px apart, the first on the rail's own x, curves where lines part
 and meet. The rail and the lanes are one drawing in both scopes: the same
 10px node with a 1.5px ring (half filled while saved only here, solid in the
-primary ink once published) and the same 1px stroke in the trunk's ink, so
+node fill once published) and the same 1px stroke in the trunk's ink, so
 switching scope
 changes what is drawn, never how — a 12px rail node beside 8px lane nodes
 read as two components. The line read is the trunk in the secondary ink and
@@ -1160,7 +1163,7 @@ name, or the files grouped in the folders they live in, as an IDE shows them.
 The switch is a single icon after the rule in the list's search pill — the
 part of the pill that acts on the list rather than on what is typed — beside
 Filters in Changes; one control rather than a segmented pair, because the
-Changes strip already carries the select-all box, the pill and `⋯` in ~300px.
+Changes strip already carries the select-all control, the pill and `⋯` in ~300px.
 It shows the layout in use and is pressed, in the accent, while the list is
 in folders. In folders, a chain of folders that hold nothing but the next one
 is one row (`src/features/history`); a folder shows how many files it holds
@@ -1170,25 +1173,30 @@ with a hairline under the parent. The project root's own files come last and
 loose, as an IDE draws them, and keep the list's row — name and `Project root`
 under it — because no folder stands over them: the switch never reshapes a
 row it is not grouping. (A `Project root` folder was tried and dropped: it
-added a level that grouped nothing and read as one more real folder.) In Changes a folder carries an include box
-for everything under it — ticked, clear, or indeterminate for part of it. `←`
+added a level that grouped nothing and read as one more real folder.) In Changes a folder carries an include control
+for everything under it — filled, empty, or half-filled for part of it. `←`
 and `→` fold and unfold a folder, and stepping through the files follows the
 order they are drawn in, opening a folded folder it steps into. The rows stay
 one flat, virtualized list: the tree changes where a row sits, not the DOM. The pill's placeholder is short —
 `Search changes` — and the field's accessible name says it in full; its two trailing controls sit tight at 22px, so the
-word survives beside the select-all box and `⋯`.
+word survives beside the select-all node and `⋯`.
 
-**The Changes include boxes are a size down and say the usual state
-quietly.** 14px rather than the shared control's 18px, closer to the file
-icon: they stand on every row, and at full size with their fill the column was
-louder than the names. Included — the default — is a soft ring and the tick,
-with no fill; left out is an empty ring and the row itself dimmed, so the
-exception is what the eye finds. The tick is the app's Lucide check, masked in the
-accent with round ends, rather than two borders turned 45°, which sat half a
-pixel off centre at this size. A search pill with trailing controls folds its
-empty clear button away, since those controls already keep the text off the
-border. The row's
-accessible description reads the author and the states out in words.
+**The Changes include control is a timeline node, not a checkbox.** It is
+10px rather than the shared checkbox's 18px, because it stands on every row.
+Filled in the node fill is included — the default; an empty ring is left
+out, and the row itself dimmed, so the exception is what the eye finds; a half
+moon is a folder only partly in. Those are the three states History already
+uses, so the list reads as the same timeline rather than a form. The accent
+belongs to the file that is open: its node is the one green mark, and selecting
+it changes the colour, never the shape. A ring under the pointer says the node
+can be pressed without putting a tick back. The visible node is 10px, but the
+label around it is 18px wide and the row high and reaches into the row's
+padding for a 24px target, so the control costs less width than the tick it
+replaced without shrinking what the pointer has to hit. The edge is a 1.5px
+mix of the secondary text colour; the shared `.app-checkbox` stays the option
+checkbox in the History filter panel and the save box. A search pill with
+trailing controls folds its empty clear button away, since those controls
+already keep the text off the border.
 
 **Console is a terminal across the workspace, not a panel with a terminal in
 it.** It is the one screen without a card: the monospace transcript sits on
@@ -1550,7 +1558,7 @@ statement means something new. The upstream is named in the header, who last
 saved and when in the byline, and every saved version exactly once in the list.
 The list draws History's timeline in small: each row's node on a rail says
 where the version stands (half filled while only here, a solid disc in the
-primary ink once published, an empty ring when there is no remote copy
+node fill once published, an empty ring when there is no remote copy
 to count against).
 Which versions the remote lacks is asked of Git with the history read
 (`<line>@{upstream}..<line>`), not read off the ahead count by position: a
@@ -3040,16 +3048,21 @@ and a project left on History comes back to History. A hand-off from another
 screen — the band's tiles, "view on History" from Lines, the palette's "Go to
 Changes" and "Go to History" — opens Work on that tab.
 The "everything is saved" state's circle is the band's done tile, light fill
-and no shadow, since nothing there rests on anything. A checked checkbox —
-the app's one definition, `.app-checkbox` — is that same light fill with the
-tick in the accent, everywhere it appears: a file included in the next
-version is a decision made, and a column of solid accent circles beside the
-list competed with the one control on the screen that asks to be pressed.
-Solid is reserved for "do this". **A row that arrives while the screen is
-open animates; the list the screen opens with does not.** Work is a surface
-you act on, so it is readable the instant it appears — nothing assembles
-itself — and `.row-in` is kept for the work that genuinely shows up: a file
-the watcher just noticed, a version just saved. `useRowArrival`
+and no shadow, since nothing there rests on anything. The shared
+`.app-checkbox` remains the checkbox for option rows — the History filter
+panel, a save's "Also publish" — that same light fill with the tick in the
+accent. The Changes file list does not use it: its include control is History's
+timeline node at 10px. Filled in the node fill means the file is in, an empty
+ring means it is out, and a half moon means only part of a folder is in. The
+accent belongs to the file that is open, as it does on History's selected row;
+the include state itself is carried by the fill, not by a second green
+mark. The node sits in an 18px leading column, 4px narrower than the tick it
+replaced, and the label around it carries the hit area without spending layout
+width. A solid accent control is still reserved for "do this". **A row that
+arrives while the screen is open animates; the list the screen opens with does
+not.** Work is a surface you act on, so it is readable the instant it appears —
+nothing assembles itself — and `.row-in` is kept for the work that genuinely
+shows up: a file the watcher just noticed, a version just saved. `useRowArrival`
 (rowArrival.ts, shared by Changes and History) decides that, and the two tabs
 answer it the same way: any file added to the Changes list, and only a commit
 prepended at the head of History's timeline, so loading an older page is not

@@ -874,6 +874,45 @@ function DiffWorkspace({
   );
 }
 
+/** The Changes list's include control, in History's node language: a filled
+ * disc when the file is in, a ring when it is out and a half moon when only
+ * part of a folder is in. The native checkbox is still the control — it keeps
+ * the label, the indeterminate state and the keyboard — but it is visually
+ * hidden inside a label wide enough to hit; the node is the drawing.
+ *
+ * The 18px column is 4px narrower than the old tick's 22px. The label's
+ * `::after` reaches 6px into the file item's padding, so the target is 24px
+ * wide without spending layout width. */
+function InclusionNode({ checked, indeterminate = false, disabled = false, label, onChange, tooltip }: {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: () => void;
+  tooltip?: string;
+}): React.JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Layout effect, not effect: a folder that opens partly included must draw
+  // its half moon in the same frame as the rest of the row.
+  useLayoutEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <label className="changes-file-row__pick" data-tooltip={tooltip}>
+      <input
+        ref={inputRef}
+        className="changes-file-row__pick-input"
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        aria-label={label}
+        onChange={onChange}
+      />
+      <span className="changes-file-row__node" aria-hidden="true" />
+    </label>
+  );
+}
+
 function FileListItem({
   entry,
   isSelected,
@@ -933,19 +972,17 @@ function FileListItem({
 
   return (
     <li
-      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${arrivalStyle ? " row-in" : ""}`}
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${isSelected ? " changes-file-row--active" : ""}${arrivalStyle ? " row-in" : ""}`}
       data-index={virtualIndex}
       ref={measureElement}
       aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
       aria-setsize={virtualCount}
       style={{ ...(virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }), ...(depth === undefined ? undefined : treeIndentStyle(depth)) }}
     >
-      <input
-        className="app-checkbox changes-file-row__checkbox"
-        type="checkbox"
+      <InclusionNode
         checked={isIncluded}
         disabled={!canChoose}
-        aria-label={t.changesIncludeFile(entry.path)}
+        label={t.changesIncludeFile(entry.path)}
         onChange={onToggleIncluded}
       />
       <button
@@ -992,14 +1029,18 @@ function FileListPlaceholder({ label }: { label: string }): React.JSX.Element {
   return (
     <LoadingPlaceholder label={label} className="changes-file-list__placeholder">
       <div className="changes-file-list__toolbar">
-        <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+        <span className="changes-file-row__pick-placeholder" aria-hidden="true">
+          <TextPlaceholder className="text-placeholder--glyph" />
+        </span>
         <TextPlaceholder width="100%" />
       </div>
       <div className="changes-file-list__scroll">
         <ul>
           {FILE_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
             <li key={name} className="changes-file-row">
-              <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+              <span className="changes-file-row__pick-placeholder" aria-hidden="true">
+                <TextPlaceholder className="text-placeholder--glyph" />
+              </span>
               <div className="changes-file-item">
                 <span className="changes-file-item__icon">
                   <TextPlaceholder className="text-placeholder--glyph" />
@@ -1037,13 +1078,11 @@ function FolderListItem({ row, props, virtual }: {
       aria-setsize={virtual?.count}
       style={{ ...(virtual ? { transform: `translateY(${virtual.start}px)` } : undefined), ...treeIndentStyle(row.depth) }}
     >
-      <input
-        ref={(node) => { if (node) node.indeterminate = partial; }}
-        className="app-checkbox changes-file-row__checkbox"
-        type="checkbox"
+      <InclusionNode
         checked={included === row.files.length}
+        indeterminate={partial}
         disabled={!props.canChoose}
-        aria-label={props.t.changesIncludeFolder(row.path)}
+        label={props.t.changesIncludeFolder(row.path)}
         onChange={() => props.onToggleFolderIncluded(row.files, included < row.files.length)}
       />
       <FileTreeFolderButton row={row} formats={props.formats} onToggle={props.onToggleFolder} t={props.t} />
@@ -1599,7 +1638,6 @@ export function ChangesPanel({
   const canSaveSelection = includedCount > 0;
   const totalCount = workingTree?.counts.total ?? 0;
   const allSelected = totalCount > 0 && includedCount === totalCount;
-  const selectAllRef = useRef<HTMLInputElement>(null);
   const fileListScrollRef = useRef<HTMLDivElement>(null);
   const quickCommitRef = useRef<QuickCommitBoxHandle>(null);
   // The desktop convention for "save", pointed at the one place this screen
@@ -1617,12 +1655,6 @@ export function ChangesPanel({
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
-    }
-  }, [includedCount, totalCount]);
-
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file
   // hidden behind the filter.
@@ -1698,12 +1730,10 @@ export function ChangesPanel({
               <div className="changes-file-list__toolbar">
                 <span className="changes-file-list__select-all">
                   {canChooseFiles ? (
-                    <input
-                      ref={selectAllRef}
-                      className="app-checkbox changes-file-row__checkbox"
-                      type="checkbox"
+                    <InclusionNode
                       checked={allSelected}
-                      aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                      indeterminate={includedCount > 0 && includedCount < totalCount}
+                      label={allSelected ? t.changesSelectNone : t.changesSelectAll}
                       onChange={() =>
                         allSelected
                           ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
@@ -1711,14 +1741,12 @@ export function ChangesPanel({
                       }
                     />
                   ) : (
-                    <input
-                      className="app-checkbox changes-file-row__checkbox"
-                      type="checkbox"
+                    <InclusionNode
                       checked
                       disabled
-                      aria-label={t.changesPartialUnavailableTruncated}
-                      data-tooltip={t.changesPartialUnavailableTruncated}
-                      readOnly
+                      label={t.changesPartialUnavailableTruncated}
+                      tooltip={t.changesPartialUnavailableTruncated}
+                      onChange={() => {}}
                     />
                   )}
                 </span>
