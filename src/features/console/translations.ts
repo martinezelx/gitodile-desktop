@@ -6,7 +6,8 @@ export interface ConsoleTranslations {
   consoleShortcuts: string;
   consolePromptLabel: string;
   consolePromptOn: string;
-  consoleHint: string;
+  consoleHintComplete: string;
+  consoleHintNavigate: string;
   consoleEmpty: string;
   consoleWelcomeProject: string;
   consoleWelcomeLine: string;
@@ -25,7 +26,6 @@ export interface ConsoleTranslations {
   consoleWelcomeUpToDate: string;
   consoleStatusSaved: string;
   consoleStatusUnsaved: (files: number) => string;
-  consoleStatusUnpublished: (versions: number) => string;
   consoleStatusIncoming: (versions: number) => string;
   consoleHelpIntro: string;
   consoleHelpNames: string;
@@ -41,8 +41,12 @@ export interface ConsoleTranslations {
   consoleOpenSettings: string;
   consoleCompletions: string;
   consoleStatusLine: string;
+  consoleSearch: string;
+  consoleSearchLabel: string;
   consoleStatusConfirm: string;
+  consoleStatusConfirmShort: string;
   consoleStatusNoConfirm: string;
+  consoleStatusNoConfirmShort: string;
   consoleCopy: string;
   consoleCopied: string;
   consoleRerun: string;
@@ -134,7 +138,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
   en: {
     consoleTitle: "Console", consoleShortcuts: "Shortcuts",
     consolePromptLabel: "Console command", consolePromptOn: "on",
-    consoleHint: "Tab completes · Enter runs · ↑↓ history · Ctrl+L clears",
+    consoleHintComplete: "Tab completes · Enter runs", consoleHintNavigate: "↑↓ history · Ctrl+L clears",
     consoleEmpty: "Type help to see the shortcuts, or a Git command such as git log --oneline.",
     consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
     consoleWelcomeConfirmOn: "before each change", consoleWelcomeConfirmOff: "off",
@@ -154,7 +158,6 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "version" : "versions"}`, consoleWelcomeUpToDate: "up to date",
     consoleStatusSaved: "everything saved",
     consoleStatusUnsaved: (files) => `${files} unsaved`,
-    consoleStatusUnpublished: (versions) => `↑${versions} to publish`,
     consoleStatusIncoming: (versions) => `↓${versions} new`,
     consoleHelpIntro: "Available shortcuts (read-only)",
     consoleHelpNames: "Shortcut", consoleHelpMeaning: "What it shows", consoleHelpCommand: "Git command",
@@ -167,8 +170,11 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     }, consoleHelpActions: "Also: help git lists the Git commands you can type, clear empties the view, shortcuts edits the names, settings opens the console settings.",
     consoleControlHelp: "List the shortcuts", consoleControlClear: "Clear the view", consoleControlShortcuts: "Edit shortcut names",
     consoleControlSettings: "Open the console settings", consoleOpenSettings: "Console settings",
-    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleStatusConfirm: "confirms changes",
+    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleSearch: "Search or do something…", consoleSearchLabel: "Open command palette",
+    consoleStatusConfirm: "confirms changes",
+    consoleStatusConfirmShort: "Confirms",
     consoleStatusNoConfirm: "no confirmation",
+    consoleStatusNoConfirmShort: "No confirm",
     consoleCopy: "Copy output", consoleCopied: "Copied", consoleRerun: "Run again",
     consoleDuration: (ms) => formatDuration(ms, "en"), consoleTruncatedShort: "Shortened", consoleSucceeded: "Finished",
     consoleUnknown: (input) => `“${input}” isn't a shortcut or a Git command. Type help to see the names, or help git for Git commands.`,
@@ -294,7 +300,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
   es: {
     consoleTitle: "Consola", consoleShortcuts: "Atajos",
     consolePromptLabel: "Comando de consola", consolePromptOn: "en",
-    consoleHint: "Tab completa · Intro ejecuta · ↑↓ historial · Ctrl+L limpia",
+    consoleHintComplete: "Tab completa · Intro ejecuta", consoleHintNavigate: "↑↓ historial · Ctrl+L limpia",
     consoleEmpty: "Escribe help para ver los atajos, o un comando Git como git log --oneline.",
     consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
     consoleWelcomeConfirmOn: "antes de cada cambio", consoleWelcomeConfirmOff: "desactivada",
@@ -314,7 +320,6 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "versión" : "versiones"}`, consoleWelcomeUpToDate: "al día",
     consoleStatusSaved: "todo guardado",
     consoleStatusUnsaved: (files) => `${files} sin guardar`,
-    consoleStatusUnpublished: (versions) => `↑${versions} sin publicar`,
     consoleStatusIncoming: (versions) => `↓${versions} nuevas`,
     consoleHelpIntro: "Atajos disponibles (solo lectura)",
     consoleHelpNames: "Atajo", consoleHelpMeaning: "Qué muestra", consoleHelpCommand: "Comando Git",
@@ -327,8 +332,11 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     }, consoleHelpActions: "Además: help git lista los comandos Git que puedes escribir, clear vacía la vista, shortcuts edita los nombres y settings abre los ajustes de la consola.",
     consoleControlHelp: "Ver los atajos", consoleControlClear: "Limpiar la vista", consoleControlShortcuts: "Editar los nombres",
     consoleControlSettings: "Abrir los ajustes de la consola", consoleOpenSettings: "Ajustes de la consola",
-    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleStatusConfirm: "confirma cambios",
+    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleSearch: "Buscar o hacer algo…", consoleSearchLabel: "Abrir la paleta de comandos",
+    consoleStatusConfirm: "confirma cambios",
+    consoleStatusConfirmShort: "Confirma",
     consoleStatusNoConfirm: "sin confirmación",
+    consoleStatusNoConfirmShort: "Sin confirmar",
     consoleCopy: "Copiar salida", consoleCopied: "Copiado", consoleRerun: "Repetir",
     consoleDuration: (ms) => formatDuration(ms, "es"), consoleTruncatedShort: "Acortada", consoleSucceeded: "Terminada",
     consoleUnknown: (input) => `«${input}» no es un atajo ni un comando Git. Escribe help para ver los nombres, o help git para los comandos Git.`,

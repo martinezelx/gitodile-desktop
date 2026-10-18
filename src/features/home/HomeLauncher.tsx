@@ -545,6 +545,7 @@ export function HomeLauncher({
               // The launcher is the screen's reason to exist; landing on Home
               // with the cursor already in it is the whole point of the field.
               autoFocus
+              data-screen-focus
               value={query}
               spellCheck={false}
               autoComplete="off"

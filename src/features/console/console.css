@@ -205,28 +205,64 @@
 .console-completions__name { color: var(--accent-primary); font-weight: var(--weight-strong); }
 .console-completions__label { min-width: 0; overflow: hidden; color: var(--text-secondary-color); text-overflow: ellipsis; white-space: nowrap; }
 
-/* Status line, as a multiplexer draws one: state on the left, keys on the right. */
+/* Status line, as a multiplexer draws one: state on the left, the search in
+   the middle, the prompt's keys and the actions on the right. The three tracks
+   keep the field centred on the window like the strip's. */
 .console-statusline {
-  position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-3); height: 34px;
+  position: relative; flex: 0 0 auto; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px) minmax(0, 1fr);
+  align-items: center; gap: var(--space-3); height: 34px;
   margin: 0 calc(-1 * var(--workspace-inset-right)) 0 calc(-1 * var(--workspace-inset-left));
   padding: 0 calc(var(--workspace-inset-right) - 6px) 0 var(--workspace-inset-left);
   color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono);
 }
-/* The confirmation setting leads the line as a chip: tinted while changes
-   are confirmed, solid when they run without asking, so the more permissive
-   setting is the one that stands out. */
+/* The confirmation setting leads the line as one compact chip: a glyph and a
+   short word, with the full sentence in the tooltip and for the screen reader.
+   Tinted while changes are confirmed, solid when they run without asking, so
+   the more permissive setting is the one that stands out. */
+/* The chip and the prompt's first keys lead the line; the search sits between
+   them and the rest of the keys, which is why the hint can stay whole. */
+.console-statusline__lead { grid-column: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; max-width: 100%; }
 .console-statusline__state {
-  display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; height: 20px; padding: 0 9px;
-  border-radius: var(--radius-pill); font-weight: var(--weight-strong);
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px; border-radius: var(--radius-pill);
+  font-weight: var(--weight-strong); white-space: nowrap;
 }
+.console-statusline__state svg { width: 12px; height: 12px; }
 .console-statusline__state--confirm { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
-.console-statusline__dot { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--status-success); }
-.console-statusline__added { color: var(--diff-added); }
-.console-statusline__removed { color: var(--diff-removed); }
-.console-statusline__incoming { color: var(--status-warning); }
-/* The hint takes the free space, which sets the project facts to the right. */
-.console-statusline__hint { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.console-statusline__button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
+.console-statusline__search-slot { grid-column: 2; min-width: 0; width: 100%; }
+/* The app search wears the palette modal's material — the raised panel surface,
+   its subtle border and a small card radius — rather than the shortcut pane's
+   underline: the field and the results it deploys read as one object. The
+   keycap spells the shortcut that reaches it. */
+.console-statusline__search {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-raised); color: var(--text-secondary-color);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.console-statusline__search:hover { border-color: var(--text-secondary-color); }
+.console-statusline__search:focus-within,
+.console-statusline__search--open {
+  border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--focus-ring);
+  color: var(--text-primary-color);
+}
+.console-statusline__search svg { width: 12px; height: 12px; flex-shrink: 0; }
+.console-statusline__search-input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  color: var(--text-primary-color); font: inherit;
+}
+.console-statusline__search-input::placeholder { color: var(--text-secondary-color); }
+.console-statusline__search-kbd {
+  flex-shrink: 0; padding: 0 4px; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item); color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-micro);
+}
+/* The prompt's keys and the actions sit together at the right; the hint gives
+   way first when the window narrows. */
+.console-statusline__actions { grid-column: 3; display: flex; align-items: center; justify-self: end; gap: var(--space-3); min-width: 0; max-width: 100%; }
+.console-statusline__hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.console-statusline__button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
 .console-statusline__button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .console-statusline__button:disabled { opacity: .45; cursor: default; }
 .console-statusline__button svg { width: 14px; height: 14px; }
@@ -307,7 +343,10 @@
 .console-shortcuts__error { margin: 0 0 var(--space-2) 2ch; color: var(--status-danger); font-size: var(--text-label); }
 .console-panel button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .console-block--running .console-block__state, .console-prompt__cursor { animation: none; } }
-@media (max-width: 700px) { .console-panel__transcript { padding: var(--space-3) 0; } .console-statusline__hint { display: none; } .console-statusline > span:not(.console-statusline__state) { display: none; } .console-statusline__button:first-of-type { margin-left: auto; } }
+/* The line has room for both hint halves to about 1040px; below that they are
+   hidden rather than clipped mid-sentence. */
+@media (max-width: 1040px) { .console-statusline__hint { display: none; } }
+@media (max-width: 700px) { .console-panel__transcript { padding: var(--space-3) 0; } }
 .console-shortcuts__field--line { flex: 1 1 40ch; }
 .console-shortcuts__status { margin: 0 0 var(--space-2) 2ch; color: var(--text-secondary-color); font-size: var(--text-label); }
 .console-help__line { color: var(--text-primary-color); overflow-wrap: anywhere; }
@@ -322,7 +361,6 @@
 /* Changes that run without asking wear `--console-root`, a colour no status
    tone uses. */
 .console-statusline__state--unconfirmed { background: var(--console-root); color: var(--console-root-contrast); }
-.console-statusline__state--unconfirmed .console-statusline__dot { background: var(--console-root-contrast); }
 .console-welcome__unconfirmed { color: var(--console-root); font-weight: var(--weight-strong); }
 /* The Git command a shortcut runs, beside what it shows. */
 .console-shortcuts__command {

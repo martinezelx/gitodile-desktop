@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitOdile · Opción D — cinco colocaciones del buscador</title>
+<!--
+  Ronda 3: la opción D (barra-omnibox) en cinco colocaciones. El buscador sale
+  del título y vive abajo, siempre disponible. La paleta es funcional: escribe
+  para filtrar, ↑↓ para mover, Esc para cerrar, ⌘K / Ctrl+K para abrir.
+  Tokens: src/styles/*.css. Textos: src/app/translations.ts. Iconos: lucide.
+-->
+<style>
+/* ------------------------------------------------------------------ tokens */
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  --radius-item: 10px; --radius-control: 14px; --radius-surface: 18px; --radius-pill: 999px; --radius-round: 50%; --radius-identity: 28%;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --text-hero: 28px; --text-display: 22px; --text-title: 17px; --text-subtitle: 15px; --text-lead: 14px;
+  --text-body: 13px; --text-label: 12px; --text-caption: 11px; --text-micro: 10px;
+  --weight-normal: 400; --weight-medium: 500; --weight-strong: 600; --weight-heading: 650; --weight-title: 700;
+  --leading-none: 1; --leading-tight: 1.2; --leading-snug: 1.35; --leading-normal: 1.5;
+  --tracking-tight: -0.01em; --tracking-wide: 0.02em; --tracking-caps: 0.06em;
+  --duration-fast: 120ms; --duration-normal: 180ms;
+  --tooltip-surface: #171717; --tooltip-text: #f5f5f5; --tooltip-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --avatar-color-3: #5c6ed6; --avatar-foreground: #fff;
+  --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9));
+}
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-app: #0c0a09; --surface-panel: #1c1917; --surface-raised: #292524; --surface-code: #201d1b;
+  --surface-hover: rgba(250, 250, 249, 0.06); --surface-active: rgba(155, 214, 90, 0.14); --surface-control: #24211f;
+  --border-control: #44403c; --border-subtle: #38322f; --border-divider: #44403c;
+  --text-primary-color: #fafaf9; --text-secondary-color: #a8a29e;
+  --accent-primary: #86c24a; --accent-primary-contrast: #0c0a09; --accent-primary-fill: #9bd65a;
+  --status-success: #9bd65a; --status-warning: #e8b339; --status-danger: #ff6b5b; --status-renamed: #6ea8fe;
+  --focus-ring: #9bd65a; --overlay: rgba(0, 0, 0, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22); --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3); --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+body[data-theme="light"] {
+  color-scheme: light;
+  --surface-app: #faf8f5; --surface-panel: #ffffff; --surface-raised: #ffffff; --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05); --surface-active: rgba(107, 155, 46, 0.12); --surface-control: #f4f2ef;
+  --border-control: #dcd9d4; --border-subtle: #e7e5e4; --border-divider: #dedad6;
+  --text-primary-color: #1c1917; --text-secondary-color: #6f6a64;
+  --accent-primary: #4b7521; --accent-primary-contrast: #14170f; --accent-primary-fill: #9bd65a;
+  --status-success: #44691c; --status-warning: #8a5b00; --status-danger: #b3261e; --status-renamed: #2f6fb3;
+  --focus-ring: #4b7521; --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06); --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08); --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--surface-app); color: var(--text-primary-color); font-family: var(--font-sans); font-size: var(--text-body); line-height: var(--leading-normal); -webkit-font-smoothing: antialiased; }
+.page-hero { max-width: 1180px; margin: 0 auto; padding: 40px 28px 8px; }
+.eyebrow { margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.page-hero h1 { margin: 0 0 10px; font-size: var(--text-hero); font-weight: var(--weight-title); letter-spacing: -0.02em; line-height: var(--leading-tight); }
+.page-hero p { max-width: 82ch; margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-lead); }
+.page-hero p strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.legend-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.chip-note { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-panel); color: var(--text-secondary-color); font-size: var(--text-label); }
+
+.toolbar { position: sticky; top: 0; z-index: 30; margin-top: 22px; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--surface-raised) 92%, transparent); backdrop-filter: blur(10px); }
+.toolbar__inner { max-width: 1180px; margin: 0 auto; padding: 10px 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.control { display: inline-flex; align-items: center; gap: 8px; }
+.control__label { color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-heading); }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-control); }
+.seg__btn { min-height: 26px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-label); font-weight: var(--weight-medium); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.seg__btn:hover { color: var(--text-primary-color); }
+.seg__btn[aria-pressed="true"] { background: var(--surface-active); color: var(--text-primary-color); font-weight: var(--weight-heading); }
+.field { height: 30px; min-width: 168px; padding: 0 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-control); color: var(--text-primary-color); font: inherit; font-size: var(--text-label); }
+.field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 0 28px 72px; }
+.section { margin-top: 56px; }
+.section__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.section__kicker { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--surface-control); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.section__kicker--rec { background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-panel)); color: var(--accent-primary); }
+.section h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.section__sub { margin: 2px 0 20px; max-width: 90ch; color: var(--text-secondary-color); font-size: var(--text-lead); }
+
+.stage { position: relative; }
+.stage--narrow .window { width: 640px; max-width: 100%; margin: 0 auto; }
+.window { position: relative; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); overflow: hidden; background: var(--surface-app); box-shadow: var(--shadow-md); }
+.window__titlebar { height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; user-select: none; }
+.window__drag { flex: 1; height: 100%; min-width: 8px; }
+.tb-btn { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.tb-btn:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.tb-btn:disabled { opacity: 0.35; }
+.tb-btn svg { width: 16px; height: 16px; }
+.titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
+.window--narrow .titlebar-history-controls { display: none; }
+.window-controls { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.window-control { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); cursor: pointer; }
+.window-control:hover { background: var(--surface-hover); }
+.window-control--close:hover { background: var(--status-danger); color: #fff; }
+.wc-min { width: 12px; height: 1.5px; background: currentColor; border-radius: 1px; }
+.wc-max { width: 11px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px; }
+.wc-close { position: relative; width: 12px; height: 12px; }
+.wc-close::before, .wc-close::after { content: ""; position: absolute; top: 5px; left: 0; width: 12px; height: 1.5px; background: currentColor; }
+.wc-close::before { transform: rotate(45deg); } .wc-close::after { transform: rotate(-45deg); }
+
+.app-shell { height: 268px; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+.rail { grid-column: 1; grid-row: 1 / -1; padding: 10px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.window--narrow .app-shell { grid-template-columns: minmax(0, 1fr); }
+.window--narrow .rail { display: none; }
+.window--narrow .workspace, .window--narrow .omni-bar { grid-column: 1; }
+.rail-item { width: 100%; display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: transparent; color: var(--text-secondary-color); cursor: pointer; }
+.rail-item__icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); }
+.rail-item__icon svg { width: 21px; height: 21px; }
+.rail-item__label { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; font-size: 11px; font-weight: var(--weight-medium); letter-spacing: var(--tracking-tight); line-height: var(--leading-snug); text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.rail-item:hover { color: var(--text-primary-color); }
+.rail-item:hover .rail-item__icon { background: var(--surface-hover); }
+.rail-item--active { color: var(--text-primary-color); }
+.rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
+.rail-item--active .rail-item__label { font-weight: var(--weight-strong); }
+.rail-spacer { flex: 1; }
+.rail-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-identity); background: var(--avatar-color-3); color: var(--avatar-foreground); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide); box-shadow: var(--avatar-ring); }
+.rail-round { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color); cursor: pointer; }
+.rail-round svg { width: 18px; height: 18px; }
+.rail-round:hover { color: var(--text-primary-color); }
+.workspace { grid-column: 2; grid-row: 1; padding: 28px 24px 40px; overflow: hidden; min-width: 0; }
+.workspace--flush { padding-bottom: 14px; }
+.ws-card { height: 100%; max-width: 720px; display: grid; align-content: start; gap: 12px; padding: 18px 20px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.ws-bar { height: 10px; border-radius: 6px; background: var(--surface-hover); }
+.ws-bar--title { width: 38%; height: 14px; } .ws-bar--60 { width: 60%; } .ws-bar--70 { width: 70%; } .ws-bar--42 { width: 42%; } .ws-bar--52 { width: 52%; }
+
+/* ------------------------------------------------------- primitivas de la barra */
+.sb-fact { display: inline-flex; align-items: center; gap: 5px; height: 28px; min-width: 0; white-space: nowrap; color: var(--text-secondary-color); font-size: var(--text-body); font-weight: var(--weight-medium); }
+.sb-fact svg { width: 14px; height: 14px; flex-shrink: 0; }
+.sb-fact > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sb-fact--warning { color: var(--status-warning); }
+.sb-fact--held { color: var(--text-secondary-color); }
+.sb-fact__age { font-size: var(--text-label); font-variant-numeric: tabular-nums; color: var(--text-secondary-color); }
+.sb-pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: var(--radius-pill); background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-body); font-weight: var(--weight-medium); white-space: nowrap; cursor: pointer; }
+.sb-pill svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--accent-primary); }
+.sb-iconbtn { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.sb-iconbtn svg { width: 14px; height: 14px; }
+.sb-iconbtn:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.sb-num { font-family: var(--font-mono); font-size: var(--text-label); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.sb-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font-family: var(--font-mono); font-size: var(--text-label); font-weight: var(--weight-medium); white-space: nowrap; cursor: pointer; }
+.sb-chip svg { width: 14px; height: 14px; flex-shrink: 0; }
+.sb-chip--attention { border-color: color-mix(in srgb, var(--status-warning) 45%, transparent); color: var(--text-primary-color); font-family: var(--font-sans); }
+.sb-chip--attention svg { color: var(--status-warning); }
+.status-bar__release-ring { width: 14px; height: 14px; }
+.status-bar__release-ring circle { fill: none; stroke-width: 3; }
+.status-bar__release-ring-track { stroke: var(--border-subtle); }
+.status-bar__release-ring-bar { stroke: currentColor; stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; }
+.icon--spinning { display: inline-flex; flex-shrink: 0; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* --------------------------------------------------------------- identidad */
+.omni-id { display: inline-flex; align-items: center; gap: 5px; height: 32px; min-width: 0; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--text-body); font-weight: var(--weight-strong); white-space: nowrap; cursor: pointer; transition: background var(--duration-fast); }
+.omni-id:hover { background: var(--surface-hover); }
+.omni-id svg { width: 14px; height: 14px; flex-shrink: 0; }
+.omni-id > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.omni-id--inline { height: 28px; padding: 0 6px; }
+.omni-id__marker { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--status-warning); }
+.omni-id__marker--error { background: var(--status-danger); }
+.omni-id__chevron { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-secondary-color); }
+.omni-sep { flex-shrink: 0; color: var(--text-secondary-color); }
+
+/* ---------------------------------------------------------------- campo */
+.omni-bar { grid-column: 2; grid-row: 2; padding: 0 24px 10px; min-width: 0; }
+.omni-bar--window { grid-column: 1 / -1; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding-left: calc(64px + 24px); padding-right: 24px; }
+.window--narrow .omni-bar--window { padding-left: 24px; }
+.omni-bar--grid { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.omni-left { justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.omni-right { justify-self: end; display: inline-flex; align-items: center; gap: 8px; }
+.omni-center { justify-self: center; min-width: 0; }
+.omni-field {
+  position: relative; display: flex; align-items: center; gap: 8px; min-width: 0;
+  height: 42px; padding: 0 8px 0 12px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-panel); box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.omni-field[data-open="true"] { border-color: var(--focus-ring); }
+.omni-field--480 { width: 480px; } .omni-field--520 { width: 520px; } .omni-field--640 { width: 640px; } .omni-field--wide { flex: 1; width: auto; }
+.omni-field--window { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 520px; }
+.omni-field__icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.omni-field > svg, .omni-trigger > svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.omni-field__input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-body); color: var(--text-primary-color); }
+.omni-field__input::placeholder { color: var(--text-secondary-color); }
+.omni-field__kbd { flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--border-subtle); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-control); color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-caption); font-weight: var(--weight-strong); }
+.omni-field__divider { width: 1px; height: 22px; flex-shrink: 0; background: var(--border-divider); }
+.omni-trigger {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-panel); box-shadow: var(--shadow-sm);
+  color: var(--text-secondary-color); font: inherit; font-size: var(--text-body); cursor: pointer;
+  transition: border-color var(--duration-fast), color var(--duration-fast);
+}
+.omni-trigger:hover { border-color: var(--border-control); color: var(--text-primary-color); }
+.omni-trigger svg { width: 15px; height: 15px; flex-shrink: 0; }
+.omni-trigger kbd, .omni-field__kbd { }
+.omni-trigger .omni-field__kbd { margin-left: 6px; }
+
+/* ---------------------------------------------------------------- paleta */
+.omni-menu {
+  position: absolute; z-index: 8; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  width: min(560px, calc(100vw - 48px));
+  padding: 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  background: var(--surface-raised); box-shadow: var(--shadow-lg);
+}
+.omni-menu__list { max-height: 300px; overflow-y: auto; }
+.omni-menu__group { padding: 8px 10px 4px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.omni-menu__row { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: var(--radius-item); color: var(--text-primary-color); font-size: var(--text-body); cursor: pointer; }
+.omni-menu__row svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
+.omni-menu__row[aria-selected="true"] { background: var(--surface-active); }
+.omni-menu__row[aria-selected="true"] svg { color: var(--accent-primary); }
+.omni-menu__label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.omni-menu__row .omni-field__kbd { flex-shrink: 0; }
+.omni-menu__empty { padding: 18px 10px; color: var(--text-secondary-color); font-size: var(--text-body); text-align: center; }
+.omni-menu__footer { display: flex; align-items: center; gap: 14px; margin-top: 4px; padding: 8px 10px 4px; border-top: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
+.omni-menu__footer span { display: inline-flex; align-items: center; gap: 5px; }
+.omni-menu__footer kbd { padding: 1px 5px; border: 1px solid var(--border-subtle); border-radius: 5px; background: var(--surface-control); font-family: var(--font-sans); font-size: var(--text-micro); font-weight: var(--weight-strong); }
+
+/* ----------------------------------------------- píldora flotante (D2) */
+.float-wrap { position: absolute; left: 0; right: 0; bottom: 16px; display: flex; justify-content: center; z-index: 5; pointer-events: none; }
+.float-wrap .omni-field { pointer-events: auto; }
+.float-pill {
+  display: flex; align-items: center; gap: 8px; width: min(780px, calc(100% - 48px)); height: 48px; padding: 0 10px 0 12px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 75%, transparent); border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-raised) 74%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: var(--shadow-md);
+}
+.float-pill .omni-field { height: 40px; border: 0; background: transparent; box-shadow: none; flex: 1; padding: 0; }
+.float-pill .omni-field[data-open="true"] { border: 0; }
+
+/* -------------------------------------------------------------- notas */
+.notes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.note-card { padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.note-card h3 { margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.note-card p { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
+.note-card strong { font-weight: var(--weight-strong); }
+.reference-line { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.reference-line svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+.reference-line strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+table.matrix { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: var(--text-label); }
+table.matrix th, table.matrix td { padding: 9px 10px; border-bottom: 1px solid var(--border-divider); text-align: left; vertical-align: top; }
+table.matrix th { color: var(--text-secondary-color); font-weight: var(--weight-heading); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-size: var(--text-caption); }
+table.matrix td:first-child { color: var(--text-primary-color); font-weight: var(--weight-strong); white-space: nowrap; }
+table.matrix td { color: var(--text-secondary-color); }
+table.matrix tr.is-rec td { background: color-mix(in srgb, var(--accent-primary) 7%, transparent); }
+.pick { display: grid; gap: 12px; padding: 20px 22px; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, var(--border-subtle)); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.pick p { margin: 0; max-width: 92ch; line-height: var(--leading-normal); }
+.pick p strong { font-weight: var(--weight-strong); }
+.pick ul { margin: 0; padding-left: 20px; color: var(--text-secondary-color); display: grid; gap: 6px; }
+.pick li strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.pick code, .page-foot code, .section__sub code { padding: 1px 5px; border: 1px solid var(--border-divider); border-radius: 6px; background: var(--surface-code); font-family: var(--font-mono); font-size: var(--text-label); }
+.page-foot { max-width: 1180px; margin: 56px auto 0; padding: 24px 28px 56px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.page-foot p { margin: 0 0 6px; }
+
+.app-tooltip { position: fixed; max-width: 260px; width: max-content; z-index: 1000; padding: 5px 8px; border-radius: var(--radius-item); background: var(--tooltip-surface); color: var(--tooltip-text); box-shadow: var(--tooltip-shadow); font-size: var(--text-label); font-weight: var(--weight-medium); line-height: var(--leading-normal); text-align: center; white-space: normal; overflow-wrap: anywhere; pointer-events: none; animation: tooltip-in 120ms ease-out both; }
+@keyframes tooltip-in { from { opacity: 0; transform: translateY(3px); } }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.omni-field .omni-field__input:focus-visible { outline: none; }
+
+@media (max-width: 900px) {
+  .notes-grid { grid-template-columns: 1fr; }
+  .toolbar__inner { padding: 10px 16px; }
+  .page-hero, main, .page-foot { padding-left: 16px; padding-right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .icon--spinning, .app-tooltip { animation: none; } }
+</style>
+</head>
+<body data-theme="dark">
+
+<header class="page-hero">
+  <p class="eyebrow">GitOdile · revisión de UI · opción D</p>
+  <h1>El buscador abajo, siempre a mano</h1>
+  <p>
+    Se acepta la opción D: <strong>la búsqueda sale del título y vive en la barra inferior</strong>.
+    No hay que ir a buscarla: está ahí, en reposo, y con <code>⌘K</code> / <code>Ctrl+K</code>
+    enfoca desde cualquier sitio. Lo que queda por decidir es <strong>dónde cae el campo</strong>
+    y qué comparte la barra con él.
+  </p>
+  <p>
+    La paleta de estas maquetas es real: haz clic en el campo (o pulsa <code>⌘K</code>) y escribe.
+    Filtra, se mueve con ↑↓, se cierra con Esc. Cambia el estado de remoto/versión arriba para ver
+    cómo conviven la búsqueda y el estado.
+  </p>
+  <div class="legend-chips">
+    <span class="chip-note">Sin buscador en el título en todas las variantes</span>
+    <span class="chip-note">Paleta filtrable de verdad</span>
+    <span class="chip-note">Tokens y textos reales de la app</span>
+  </div>
+</header>
+
+<nav class="toolbar" aria-label="Controles de la demo">
+  <div class="toolbar__inner">
+    <span class="control">
+      <span class="control__label">Tema</span>
+      <span class="seg">
+        <button class="seg__btn" type="button" data-theme-set="light">Claro</button>
+        <button class="seg__btn" type="button" data-theme-set="dark">Oscuro</button>
+      </span>
+    </span>
+    <span class="control">
+      <span class="control__label">Ventana</span>
+      <span class="seg">
+        <button class="seg__btn" type="button" data-width-set="normal">Normal</button>
+        <button class="seg__btn" type="button" data-width-set="narrow">Estrecha</button>
+      </span>
+    </span>
+    <span class="control">
+      <span class="control__label">Búsqueda</span>
+      <span class="seg">
+        <button class="seg__btn" type="button" data-search-set="rest">En reposo</button>
+        <button class="seg__btn" type="button" data-search-set="open">Buscando</button>
+      </span>
+    </span>
+    <span class="control">
+      <label class="control__label" for="remote-select">Remoto</label>
+      <select class="field" id="remote-select"></select>
+    </span>
+    <span class="control">
+      <label class="control__label" for="tree-select">Cambios</label>
+      <select class="field" id="tree-select"></select>
+    </span>
+    <span class="control">
+      <label class="control__label" for="version-select">Versión</label>
+      <select class="field" id="version-select"></select>
+    </span>
+  </div>
+</nav>
+
+<main>
+  <section class="section" id="baseline">
+    <div class="section__head">
+      <span class="section__kicker">Punto de partida</span>
+      <h2>Ronda 2 · D, tal cual</h2>
+    </div>
+    <p class="section__sub">
+      El campo ocupaba todo el centro elástico entre «dónde estás» y el estado. El campo crece o
+      encoge con la ventana; no tiene un centro fijo.
+    </p>
+    <div class="stage" data-mock="baseline"></div>
+  </section>
+
+  <section class="section" id="d1">
+    <div class="section__head">
+      <span class="section__kicker section__kicker--rec">D1 · recomendada</span>
+      <h2>Campo centrado en la barra</h2>
+    </div>
+    <p class="section__sub">
+      La barra se parte en tres columnas: identidad a la izquierda, estado a la derecha y el campo
+      <strong>clavado en el centro</strong> con un ancho fijo (480 px). Es la lectura literal de
+      «más en el medio»: el campo no se estira ni se mueve, y las dos orillas se reparten lo que sobra.
+    </p>
+    <div class="stage" data-mock="d1"></div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <h3>Qué cambia</h3>
+        <p>Rejilla `1fr auto 1fr`: el campo mide siempre 480 px y su centro es el de la barra. Identidad y estado se anclan a los bordes con `justify-self`.</p>
+      </div>
+      <div class="note-card">
+        <h3>Por qué</h3>
+        <p>Es la estructura de las barras de búsqueda centradas (Safari, el Spotlight de macOS, la barra de Vercel): <strong>un punto fijo para el pulgar y para el ojo</strong>, y el estado no desplaza la búsqueda.</p>
+      </div>
+      <div class="note-card">
+        <h3>Compromiso</h3>
+        <p>Con texto largo a los lados (un nombre de proyecto largo + «Publicar 12 versiones») las orillas se pelean por el ancho y el campo puede encogerse; en ventana estrecha hay que bajar a 360 px.</p>
+      </div>
+    </div>
+    <p class="reference-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Referencias: <strong>Safari</strong> (barra centrada), <strong>Spotlight</strong>, <strong>Vercel</strong> (barra con centro fijo).</span>
+    </p>
+  </section>
+
+  <section class="section" id="d2">
+    <div class="section__head">
+      <span class="section__kicker">D2</span>
+      <h2>Una píldora centrada que flota</h2>
+    </div>
+    <p class="section__sub">
+      Nada de franja: una sola píldora de cristal centrada, con identidad, campo y estado dentro.
+      El contenido pasa por debajo. Es el modelo del «command bar» flotante de Arc y de Raycast.
+    </p>
+    <div class="stage" data-mock="d2"></div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <h3>Qué cambia</h3>
+        <p>Todo el chrome inferior es una píldora translúcida de 780 px centrada en la ventana, sobre el contenido. Al abrir la paleta, el panel sale por encima.</p>
+      </div>
+      <div class="note-card">
+        <h3>Por qué</h3>
+        <p>Es lo más moderno y lo más «buscador»: <strong>la barra es la búsqueda</strong>, no un tablero con una búsqueda dentro. El cristal la deja respirar sobre cualquier pantalla.</p>
+      </div>
+      <div class="note-card">
+        <h3>Compromiso</h3>
+        <p>Vuelve a flotar sobre el final de las listas (lo que 176 descartó) y el desenfoque cuesta en equipos modestos. Con estados largos («Publicar 12 versiones») la píldora se ensancha mucho.</p>
+      </div>
+    </div>
+    <p class="reference-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Referencias: <strong>Arc</strong> (command bar flotante), <strong>Raycast</strong>, <strong>Liquid Glass</strong> (Apple).</span>
+    </p>
+  </section>
+
+  <section class="section" id="d3">
+    <div class="section__head">
+      <span class="section__kicker">D3</span>
+      <h2>El campo que crece</h2>
+    </div>
+    <p class="section__sub">
+      En reposo solo hay un botón compacto y centrado: «Buscar o hacer algo · ⌘K». Al abrirlo se
+      convierte en el campo de verdad, con la paleta. Es el patrón de Linear y Vercel: la búsqueda
+      ocupa poco hasta que la llamas.
+    </p>
+    <div class="stage" data-mock="d3"></div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <h3>Qué cambia</h3>
+        <p>El centro no es un campo de 480 px sino un botón de 300 px que, al activarse, se sustituye por el campo y su paleta. Pulsa «Buscando» o el propio botón para verlo.</p>
+      </div>
+      <div class="note-card">
+        <h3>Por qué</h3>
+        <p>La barra en reposo queda más tranquila y el ojo no lee «hay un input esperando»; cuando aparece, ya es lo único en foco. Es el equilibrio entre <strong>siempre disponible</strong> y <strong>no siempre presente</strong>.</p>
+      </div>
+      <div class="note-card">
+        <h3>Compromiso</h3>
+        <p>Al abrir, la identidad y el estado siguen ahí pero compiten con la paleta; en ventana estrecha el campo no cabe y hay que tapar las orillas. Añade un estado (reposo/abierto) a la barra.</p>
+      </div>
+    </div>
+    <p class="reference-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Referencias: <strong>Linear</strong> (⌘K compacto), <strong>Vercel</strong>, <strong>Notion</strong> (búsqueda que se despliega).</span>
+    </p>
+  </section>
+
+  <section class="section" id="d4">
+    <div class="section__head">
+      <span class="section__kicker">D4</span>
+      <h2>Barra de direcciones</h2>
+    </div>
+    <p class="section__sub">
+      El modelo del navegador: un solo control ancho y centrado que contiene todo —«dónde estás» a
+      la izquierda como identidad del sitio, el texto en medio y el estado a la derecha—. Nada más
+      en la barra.
+    </p>
+    <div class="stage" data-mock="d4"></div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <h3>Qué cambia</h3>
+        <p>Identidad y estado entran <strong>dentro</strong> del campo (640 px, centrado). Los segmentos de identidad se comportan como la información de sitio de Chrome (icono + dominio) y el estado como las acciones del extremo derecho.</p>
+      </div>
+      <div class="note-card">
+        <h3>Por qué</h3>
+        <p>Un único objeto, una única jerarquía: es el control que todo el mundo sabe usar. El ancho libre se va entero al texto, así que la búsqueda es la protagonista de la barra.</p>
+      </div>
+      <div class="note-card">
+        <h3>Compromiso</h3>
+        <p>Mete dos cosas accionables (proyecto/línea, sync) dentro de un control que <em>parece</em> un input; el clic puede querer decir dos cosas. Y el estado, al ir dentro, queda más escondido que en las otras variantes.</p>
+      </div>
+    </div>
+    <p class="reference-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Referencias: <strong>Chrome</strong> y <strong>Edge</strong> (barra de direcciones con identidad y acciones dentro).</span>
+    </p>
+  </section>
+
+  <section class="section" id="d5">
+    <div class="section__head">
+      <span class="section__kicker">D5</span>
+      <h2>Centrado en la ventana, no en la barra</h2>
+    </div>
+    <p class="section__sub">
+      Mismo reparto que D1, pero el campo se centra sobre <strong>toda la ventana</strong> (incluido el
+      carril), no sobre el ancho que queda a su derecha. El centro óptico coincide con el de la
+      ventana y con el del contenido cuando el carril está colapsado.
+    </p>
+    <div class="stage" data-mock="d5"></div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <h3>Qué cambia</h3>
+        <p>La barra ocupa las dos columnas del shell y el campo se coloca en `left: 50%` de la ventana; la identidad arranca después del carril y el estado se va al borde derecho.</p>
+      </div>
+      <div class="note-card">
+        <h3>Por qué</h3>
+        <p>Si de verdad te molesta que el buscador «no esté en el medio», la causa es el carril de 64 px: D1 lo centra respecto al contenido, D5 respecto a la ventana. <strong>Es la diferencia entre centrar el campo y centrar la mirada.</strong></p>
+      </div>
+      <div class="note-card">
+        <h3>Compromiso</h3>
+        <p>Con el carril visible, el campo queda 32 px a la izquierda del centro del contenido; si más adelante el carril cambia de ancho o se colapsa, el centro del campo se mueve. Es una decisión que hay que fijar y documentar.</p>
+      </div>
+    </div>
+    <p class="reference-line">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Referencias: <strong>Spotlight</strong> y las barras centradas en la pantalla, no en el panel activo.</span>
+    </p>
+  </section>
+
+  <section class="section" id="matrix">
+    <div class="section__head">
+      <span class="section__kicker">Comparación</span>
+      <h2>Las cinco, de un vistazo</h2>
+    </div>
+    <table class="matrix">
+      <thead>
+        <tr><th>Variante</th><th>Centro</th><th>Ancho del campo</th><th>Identidad / estado</th><th>Riesgo</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Ronda 2 · D</td><td>Barra (elástico)</td><td>Todo lo que sobra</td><td>Fuera</td><td>Bajo, pero sin centro fijo</td></tr>
+        <tr class="is-rec"><td>D1 · Centrado</td><td>Barra</td><td>480 px fijo</td><td>Fuera, en las orillas</td><td>Bajo</td></tr>
+        <tr><td>D2 · Píldora flotante</td><td>Ventana</td><td>780 px de píldora</td><td>Dentro</td><td>Medio: flota sobre el contenido</td></tr>
+        <tr><td>D3 · Crece</td><td>Barra</td><td>300 → 480 px</td><td>Fuera</td><td>Bajo; añade estado abierto</td></tr>
+        <tr><td>D4 · Dirección</td><td>Barra</td><td>640 px fijo</td><td>Dentro</td><td>Medio: dos cosas en un control</td></tr>
+        <tr><td>D5 · Ventana</td><td>Ventana</td><td>520 px fijo</td><td>Fuera</td><td>Bajo; el centro depende del carril</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section" id="pick">
+    <div class="section__head">
+      <span class="section__kicker section__kicker--rec">Recomendación</span>
+      <h2>Qué elegiría</h2>
+    </div>
+    <div class="pick">
+      <p>
+        <strong>D1, campo centrado en la barra.</strong> Es exactamente lo que pediste —el buscador
+        abajo, siempre disponible— con un centro fijo y sin mover nada más. Si lo que te chirría es
+        que el campo «no cae en el medio de la ventana», entonces <strong>D5</strong>: misma estructura,
+        centro sobre la ventana.
+      </p>
+      <ul>
+        <li><strong>D3</strong> si prefieres que en reposo la búsqueda sea discreta (un botón, no un input) y se despliegue al llamarla; es la más calmada y la más «Linear».</li>
+        <li><strong>D4</strong> si quieres que la búsqueda sea la única protagonista de la barra y no te importa meter identidad y estado dentro del campo.</li>
+        <li><strong>D2</strong> es la más bonita en una captura y la más frágil en una lista larga; solo si aceptas reintroducir el flotante de cristal.</li>
+      </ul>
+      <p>
+        En todas, el título pierde el icono de búsqueda y queda solo con el menú, el historial, el
+        tema y los controles de ventana. Implementación de D1: la barra pasa a
+        <code>grid-template-columns: minmax(0,1fr) auto minmax(0,1fr)</code> en
+        <code>src/app/app-shell.css</code>, con el estado en <code>StatusBar.tsx</code> y el campo
+        montando la paleta existente (<code>command palette</code>). Sin cambios en Rust.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="page-foot">
+  <p>
+    Ronda 3 del artilugio de la barra de estado. Tokens y medidas de
+    <code>src/styles/tokens.css</code> y <code>src/styles/themes.css</code>; textos de
+    <code>src/app/translations.ts</code> (HEAD <code>eee3860</code>, v0.3.1); iconos lucide.
+    La paleta es una simulación funcional: filtra, navega y cierra como la de verdad, pero no
+    ejecuta operaciones.
+  </p>
+  <p>
+    Las rondas anteriores siguen en <code>status-bar-options.html</code> (tres formas de la barra) y
+    <code>status-bar-round-2.html</code> (cinco estructuras, incluida esta opción D).
+  </p>
+</footer>
+
+<script>
+"use strict";
+
+const wrap = (paths) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + "</svg>";
+const withClass = (svg, cls) => svg.replace("<svg ", '<svg class="' + cls + '" ');
+const I = {
+  folderGit2: wrap('<path d="M18 19a5 5 0 0 1-5-5v8"/><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"/><circle cx="13" cy="12" r="2"/><circle cx="20" cy="19" r="2"/>'),
+  gitBranch: wrap('<path d="M15 6a9 9 0 0 0-9 9V3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>'),
+  chevronUp: wrap('<path d="m18 15-6-6-6 6"/>'),
+  chevronDown: wrap('<path d="m6 9 6 6 6-6"/>'),
+  rotateCw: wrap('<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>'),
+  cloud: wrap('<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>'),
+  cloudCheck: wrap('<path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/>'),
+  cloudAlert: wrap('<path d="M12 12v4"/><path d="M12 20h.01"/><path d="M8.128 16.949A7 7 0 1 1 15.71 8h1.79a1 1 0 0 1 0 9h-1.642"/>'),
+  cloudUpload: wrap('<path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/>'),
+  cloudDownload: wrap('<path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/>'),
+  cloudSync: wrap('<path d="m17 18-1.535 1.605a5 5 0 0 1-8-1.5"/><path d="M17 22v-4h-4"/><path d="M20.996 15.251A4.5 4.5 0 0 0 17.495 8h-1.79a7 7 0 1 0-12.709 5.607"/><path d="M7 10v4h4"/><path d="m7 14 1.535-1.605a5 5 0 0 1 8 1.5"/>'),
+  loader: wrap('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>'),
+  circleArrowUp: wrap('<circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/>'),
+  rotateCcw: wrap('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
+  sparkles: wrap('<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>'),
+  ellipsis: wrap('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),
+  search: wrap('<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>'),
+  sun: wrap('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'),
+  moon: wrap('<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>'),
+  arrowLeft: wrap('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'),
+  arrowRight: wrap('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
+  settings: wrap('<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>'),
+  house: wrap('<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  fileDiff: wrap('<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/>'),
+  history: wrap('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'),
+  gitCommit: wrap('<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>'),
+  undo2: wrap('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>')
+};
+
+/* ------------------------------------------------------------ estado */
+const state = { theme: "dark", width: "normal", remote: "upToDate", tree: "clean", version: "current", searching: false, query: "", highlight: 0 };
+const REMOTE_OPTIONS = [
+  ["upToDate", "Al día (hace 3 min)"], ["ahead", "3 versiones por publicar"], ["behind", "2 versiones por traer"],
+  ["diverged", "Ambos lados han cambiado"], ["noUpstream", "Sin destino de publicación"], ["checking", "Comprobando el remoto…"],
+  ["error", "La comprobación falló"], ["noRemote", "Sin remoto conectado"], ["upstreamGone", "Ya no está en el remoto"]
+];
+const TREE_OPTIONS = [["clean", "Todo guardado"], ["unsaved", "28 cambios sin guardar"], ["checking", "Comprobando cambios…"], ["error", "Cambios no disponibles"]];
+const VERSION_OPTIONS = [
+  ["current", "Novedades (al día)"], ["whatsNew", "Novedades sin leer"], ["available", "Nueva versión: 0.4.0"],
+  ["ready", "Lista para instalar"], ["downloading", "Descargando (42 %)"], ["unavailable", "Actualizaciones no disponibles"]
+];
+
+function treeModel(kind) {
+  if (kind === "unsaved") return { label: "28 cambios sin guardar", dot: "unsaved" };
+  if (kind === "checking") return { label: "Comprobando cambios…", spinner: true };
+  if (kind === "error") return { label: "Cambios no disponibles", dot: "error" };
+  return { label: "Todo está guardado" };
+}
+function remoteModel(kind) {
+  switch (kind) {
+    case "ahead": return { shape: "action", mark: "cloudUpload", words: "Publicar 3 versiones", tooltip: "Publicar 3 versiones · Comprobado hace 3 min" };
+    case "behind": return { shape: "action", mark: "cloudDownload", words: "Traer 2 versiones", tooltip: "Traer 2 versiones · Comprobado hace 3 min" };
+    case "diverged": return { shape: "action", mark: "cloudSync", words: "Traer y publicar", tooltip: "Traer y publicar · Comprobado hace 3 min" };
+    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta línea", tooltip: "Publicar esta línea · Sin destino de publicación" };
+    case "checking": return { shape: "held", mark: "loader", words: "Publicar 3 versiones", tooltip: "Comprobando el remoto…" };
+    case "error": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "La comprobación falló", showWords: true, tooltip: "Al día · La comprobación falló" };
+    case "noRemote": return { shape: "fact", tone: "neutral", mark: "cloud", words: "Sin remoto conectado", showWords: true, tooltip: "Sin remoto conectado" };
+    case "upstreamGone": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "Ya no está en el remoto", showWords: true, tooltip: "Ya no está en el remoto" };
+    default: return { shape: "fact", tone: "success", mark: "cloudCheck", words: "Al día", age: "hace 3 min", showWords: false, tooltip: "Al día · Comprobado hace 3 min" };
+  }
+}
+function releaseModel(kind) {
+  switch (kind) {
+    case "whatsNew": return { variant: "new", mark: "sparkles", text: "0.3.1", tooltip: "Actualizado a 0.3.1 · Ver novedades" };
+    case "available": return { variant: "attention", mark: "circleArrowUp", text: "Nueva versión: 0.4.0", tooltip: "Nueva versión: 0.4.0 · Abrir actualizaciones" };
+    case "ready": return { variant: "attention", mark: "rotateCcw", text: "Lista para instalar", tooltip: "Lista para instalar · Nueva versión: 0.4.0" };
+    case "downloading": return { variant: "quiet", ring: 0.42, text: "0.3.1", tooltip: "Descargando 0.4.0 · 42 %" };
+    case "unavailable": return { variant: "quiet", text: "0.3.1", tooltip: "Novedades de GitOdile 0.3.1 · Actualizaciones no disponibles" };
+    default: return { variant: "quiet", text: "0.3.1", tooltip: "Novedades de GitOdile 0.3.1" };
+  }
+}
+function model() { return { tree: treeModel(state.tree), remote: remoteModel(state.remote), release: releaseModel(state.version) }; }
+
+const RING = 2 * Math.PI * 9;
+function ring(f) {
+  const off = RING * (1 - Math.min(1, Math.max(0, f)));
+  return '<svg class="status-bar__release-ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="status-bar__release-ring-track" cx="12" cy="12" r="9"/><circle class="status-bar__release-ring-bar" cx="12" cy="12" r="9" stroke-dasharray="' + RING.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '"/></svg>';
+}
+
+/* ------------------------------------------------------------ datos */
+const COMMANDS = [
+  { group: "Hacer", icon: "gitCommit", label: "Guardar versión", hint: "⌘↵" },
+  { group: "Hacer", icon: "cloudUpload", label: "Publicar 3 versiones", hint: "" },
+  { group: "Hacer", icon: "cloudDownload", label: "Traer 2 versiones", hint: "" },
+  { group: "Hacer", icon: "undo2", label: "Deshacer el último cambio", hint: "" },
+  { group: "Ir", icon: "gitBranch", label: "Cambiar de línea…", hint: "" },
+  { group: "Ir", icon: "fileDiff", label: "Ver cambios", hint: "" },
+  { group: "Ir", icon: "history", label: "Abrir historial", hint: "" },
+  { group: "App", icon: "circleArrowUp", label: "Buscar actualizaciones", hint: "" },
+  { group: "App", icon: "settings", label: "Abrir ajustes", hint: "" }
+];
+
+function escapeHtml(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function filteredCommands() {
+  const q = state.query.trim().toLowerCase();
+  return q === "" ? COMMANDS : COMMANDS.filter((c) => c.label.toLowerCase().includes(q));
+}
+function menuInner() {
+  const q = state.query.trim();
+  const list = filteredCommands();
+  if (state.highlight >= list.length) state.highlight = Math.max(0, list.length - 1);
+  let body = "";
+  if (list.length === 0) {
+    body = '<div class="omni-menu__empty">Nada coincide con «' + escapeHtml(q) + '»</div>';
+  } else if (q === "") {
+    let group = null;
+    list.forEach((c, i) => {
+      if (c.group !== group) { body += '<div class="omni-menu__group">' + c.group + "</div>"; group = c.group; }
+      body += menuRow(c, i);
+    });
+  } else {
+    list.forEach((c, i) => { body += menuRow(c, i); });
+  }
+  return '<div class="omni-menu__list" role="listbox" aria-label="Comandos">' + body + "</div>" +
+    '<div class="omni-menu__footer"><span><kbd>↑</kbd><kbd>↓</kbd> mover</span><span><kbd>↵</kbd> abrir</span><span><kbd>esc</kbd> cerrar</span></div>';
+}
+function menuRow(command, index) {
+  const selected = index === state.highlight;
+  return '<div class="omni-menu__row" role="option" aria-selected="' + selected + '" data-index="' + index + '">' +
+    I[command.icon] + '<span class="omni-menu__label">' + command.label + "</span>" +
+    (command.hint ? '<kbd class="omni-field__kbd">' + command.hint + "</kbd>" : "") + "</div>";
+}
+function menuBlock() {
+  return state.searching ? '<div class="omni-menu" data-menu="1">' + menuInner() + "</div>" : "";
+}
+
+/* -------------------------------------------------- piezas de la barra */
+function syncFactOrAction() {
+  const r = remoteModel(state.remote);
+  if (r.shape === "action") return '<button class="sb-pill" type="button" data-tooltip="' + r.tooltip + '">' + I[r.mark] + "<span>" + r.words + "</span></button>";
+  if (r.shape === "held") return '<span class="sb-fact sb-fact--held" data-tooltip="' + r.tooltip + '"><span class="icon--spinning">' + I[r.mark] + "</span><span>" + r.words + "</span></span>";
+  const tone = r.tone === "warning" ? " sb-fact--warning" : "";
+  const words = r.showWords ? "<span>" + r.words + "</span>" : '<span class="visually-hidden">' + r.words + "</span>";
+  return '<span class="sb-fact' + tone + '" data-tooltip="' + r.tooltip + '">' + I[r.mark] + words + (r.age ? '<span class="sb-fact__age">' + r.age + "</span>" : "") + "</span>";
+}
+function refBtn() {
+  return '<button class="sb-iconbtn" type="button" data-tooltip="Comprobar cambios del proyecto remoto">' + I.rotateCw + "</button>";
+}
+function versionChip() {
+  const rel = releaseModel(state.version);
+  if (rel.variant === "attention") {
+    return '<button class="sb-chip sb-chip--attention" type="button" data-tooltip="' + rel.tooltip + '">' + I[rel.mark] + "<span>" + rel.text + "</span></button>";
+  }
+  const mark = rel.ring ? ring(rel.ring) : rel.variant === "new" ? withClass(I[rel.mark], "status-bar__release-new") : "";
+  return '<button class="sb-chip" type="button" data-tooltip="' + rel.tooltip + '">' + mark + "<span>" + rel.text + "</span></button>";
+}
+function stateCluster() {
+  return syncFactOrAction() + refBtn() + versionChip();
+}
+function identity(inline, chevrons) {
+  const tree = treeModel(state.tree);
+  const face = tree.spinner
+    ? '<span class="icon--spinning">' + I.loader + "</span>"
+    : I.gitBranch + "<span>main</span>" + (tree.dot ? '<span class="omni-id__marker' + (tree.dot === "error" ? " omni-id__marker--error" : "") + '"></span>' : "");
+  const cls = "omni-id" + (inline ? " omni-id--inline" : "");
+  const chev = chevrons ? withClass(I.chevronUp, "omni-id__chevron") : "";
+  return '<button class="' + cls + '" type="button" data-no-open data-tooltip="Proyecto: gitodile · Ajustes del proyecto">' + I.folderGit2 + "<span>gitodile</span></button>" +
+    '<span class="omni-sep" aria-hidden="true">/</span>' +
+    '<button class="' + cls + '" type="button" data-no-open data-tooltip="main · ' + tree.label + '">' + face + chev + "</button>";
+}
+function fieldBody(placeholder) {
+  return withClass(I.search, "omni-field__icon") +
+    '<input class="omni-field__input" type="text" placeholder="' + (placeholder || "Buscar o hacer algo…") + '" aria-label="Buscar o hacer algo" value="' + escapeHtml(state.query) + '" />' +
+    '<kbd class="omni-field__kbd">⌘K</kbd>';
+}
+function field(widthClass, extraLeft, extraRight) {
+  return '<div class="omni-field ' + widthClass + '" data-field="1" data-open="' + state.searching + '">' +
+    (extraLeft || "") + (extraLeft ? '<span class="omni-field__divider"></span>' : "") +
+    fieldBody() +
+    (extraRight ? '<span class="omni-field__divider"></span>' + extraRight : "") +
+    menuBlock() + "</div>";
+}
+
+/* ---------------------------------------------------------- ventanas */
+function titlebar() {
+  const dark = state.theme === "dark";
+  return '<div class="window__titlebar">' +
+    '<button class="tb-btn" type="button" data-tooltip="Más acciones">' + I.ellipsis + "</button>" +
+    '<span class="window__drag"></span>' +
+    '<span class="titlebar-history-controls">' +
+    '<button class="tb-btn" type="button" disabled data-tooltip="Atrás">' + I.arrowLeft + "</button>" +
+    '<button class="tb-btn" type="button" disabled data-tooltip="Adelante">' + I.arrowRight + "</button></span>" +
+    '<button class="tb-btn" type="button" data-tooltip="' + (dark ? "Cambiar a tema claro" : "Cambiar a tema oscuro") + '">' + (dark ? I.sun : I.moon) + "</button>" +
+    '<div class="window-controls">' +
+    '<button class="window-control" type="button" aria-label="Minimizar"><span class="wc-min"></span></button>' +
+    '<button class="window-control" type="button" aria-label="Maximizar"><span class="wc-max"></span></button>' +
+    '<button class="window-control window-control--close" type="button" aria-label="Cerrar"><span class="wc-close"></span></button>' +
+    "</div></div>";
+}
+function rail() {
+  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Líneas" }];
+  return '<aside class="rail">' + items.map((it) =>
+    '<button class="rail-item' + (it.active ? " rail-item--active" : "") + '" type="button" data-tooltip="' + it.label + '"><span class="rail-item__icon">' + I[it.icon] + '</span><span class="rail-item__label">' + it.label + "</span></button>"
+  ).join("") + '<span class="rail-spacer"></span><span class="rail-avatar" title="gitodile">gi</span>' +
+    '<button class="rail-round" type="button" data-tooltip="Ajustes">' + I.settings + "</button></aside>";
+}
+function workspace(flush) {
+  return '<div class="workspace' + (flush ? " workspace--flush" : "") + '"><div class="ws-card">' +
+    '<div class="ws-bar ws-bar--title"></div><div class="ws-bar ws-bar--60"></div><div class="ws-bar ws-bar--70"></div>' +
+    '<div class="ws-bar ws-bar--42"></div><div class="ws-bar ws-bar--52"></div></div></div>';
+}
+
+function renderBaseline() {
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(false) +
+    '<div class="omni-bar"><div class="omni-field omni-field--wide" data-field="1" data-open="' + state.searching + '">' +
+    identity(false, false) + '<span class="omni-field__divider"></span>' + fieldBody("Buscar o hacer algo: guardar, publicar, cambiar de línea…") +
+    '<span class="omni-field__divider"></span>' + stateCluster() + menuBlock() +
+    "</div></div></div></div>";
+}
+function renderD1() {
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(false) +
+    '<div class="omni-bar omni-bar--grid">' +
+    '<div class="omni-left">' + identity(false, false) + "</div>" +
+    '<div class="omni-center">' + field("omni-field--480") + "</div>" +
+    '<div class="omni-right">' + stateCluster() + "</div>" +
+    "</div></div></div>";
+}
+function renderD2() {
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(true) +
+    "</div>" +
+    '<div class="float-wrap"><div class="float-pill omni-field" data-field="1" data-open="' + state.searching + '">' +
+    identity(false, false) + '<span class="omni-field__divider"></span>' + fieldBody() +
+    '<span class="omni-field__divider"></span>' + stateCluster() + menuBlock() +
+    "</div></div></div>";
+}
+function renderD3() {
+  const center = state.searching
+    ? field("omni-field--480")
+    : '<button class="omni-trigger" type="button" data-field="1">' + I.search + "<span>Buscar o hacer algo</span><kbd class=\"omni-field__kbd\">⌘K</kbd></button>";
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(false) +
+    '<div class="omni-bar omni-bar--grid">' +
+    '<div class="omni-left">' + identity(false, false) + "</div>" +
+    '<div class="omni-center">' + center + "</div>" +
+    '<div class="omni-right">' + stateCluster() + "</div>" +
+    "</div></div></div>";
+}
+function renderD4() {
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(false) +
+    '<div class="omni-bar omni-bar--grid">' +
+    '<div class="omni-left"></div>' +
+    '<div class="omni-center">' + field("omni-field--640", identity(true, true), stateCluster()) + "</div>" +
+    '<div class="omni-right"></div>' +
+    "</div></div></div>";
+}
+function renderD5() {
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace(false) +
+    '<div class="omni-bar omni-bar--window">' +
+    '<div class="omni-left">' + identity(false, false) + "</div>" +
+    '<div class="omni-field omni-field--window" data-field="1" data-open="' + state.searching + '">' +
+    fieldBody() + menuBlock() + "</div>" +
+    '<div class="omni-right">' + stateCluster() + "</div>" +
+    "</div></div></div>";
+}
+
+function windowFor(variant) {
+  switch (variant) {
+    case "d1": return renderD1();
+    case "d2": return renderD2();
+    case "d3": return renderD3();
+    case "d4": return renderD4();
+    case "d5": return renderD5();
+    default: return renderBaseline();
+  }
+}
+
+/* ----------------------------------------------------------- pintado */
+function renderAll() {
+  document.body.dataset.theme = state.theme;
+  document.querySelectorAll("[data-mock]").forEach(function (el) {
+    el.classList.toggle("stage--narrow", state.width === "narrow");
+    el.innerHTML = windowFor(el.dataset.mock);
+  });
+  document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === state.theme)));
+  document.querySelectorAll("[data-width-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.widthSet === state.width)));
+  document.querySelectorAll("[data-search-set]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.searchSet === "open") === state.searching)));
+}
+function refreshMenus() {
+  document.querySelectorAll(".omni-menu").forEach((el) => { el.innerHTML = menuInner(); });
+  document.querySelectorAll(".omni-field__input").forEach((input) => {
+    if (document.activeElement !== input) input.value = state.query;
+  });
+}
+function openSearch(variantEl) {
+  state.searching = true;
+  renderAll();
+  const scope = variantEl || document.querySelector("[data-mock]");
+  const input = scope && scope.querySelector(".omni-field__input");
+  if (input) input.focus();
+}
+function closeSearch() {
+  if (!state.searching) return;
+  state.searching = false; state.query = ""; state.highlight = 0;
+  document.querySelectorAll(".omni-field__input").forEach((input) => { input.value = ""; });
+  renderAll();
+}
+function fillSelect(id, options, key) {
+  const select = document.getElementById(id);
+  select.innerHTML = options.map((o) => '<option value="' + o[0] + '">' + o[1] + "</option>").join("");
+  select.value = state[key];
+  select.addEventListener("change", function () { state[key] = select.value; renderAll(); });
+}
+
+/* ---------------------------------------------------------- tooltips */
+const tooltip = document.createElement("div");
+tooltip.className = "app-tooltip";
+tooltip.hidden = true;
+document.body.appendChild(tooltip);
+let tooltipAnchor = null;
+function positionTooltip() {
+  if (!tooltipAnchor) return;
+  const rect = tooltipAnchor.getBoundingClientRect();
+  const tip = tooltip.getBoundingClientRect();
+  let x = rect.left + rect.width / 2 - tip.width / 2;
+  x = Math.max(8, Math.min(window.innerWidth - tip.width - 8, x));
+  let y = rect.top - tip.height - 8;
+  if (y < 8) y = rect.bottom + 8;
+  tooltip.style.left = x + "px"; tooltip.style.top = y + "px";
+}
+function showTooltip(el) { const text = el.getAttribute("data-tooltip"); if (!text) return; tooltipAnchor = el; tooltip.textContent = text; tooltip.hidden = false; positionTooltip(); }
+function hideTooltip() { tooltipAnchor = null; tooltip.hidden = true; }
+document.addEventListener("pointerover", (e) => { const el = e.target.closest && e.target.closest("[data-tooltip]"); if (el) showTooltip(el); });
+document.addEventListener("pointerout", (e) => {
+  const el = e.target.closest && e.target.closest("[data-tooltip]");
+  if (!el) return;
+  if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+  hideTooltip();
+});
+document.addEventListener("focusin", (e) => { const el = e.target.closest && e.target.closest("[data-tooltip]"); if (el) showTooltip(el); });
+document.addEventListener("focusout", hideTooltip);
+window.addEventListener("scroll", () => { if (tooltipAnchor) positionTooltip(); }, true);
+
+/* -------------------------------------------------- búsqueda funcional */
+document.addEventListener("pointerdown", function (event) {
+  const field = event.target.closest && event.target.closest("[data-field]");
+  if (field) {
+    if (event.target.closest("[data-no-open]")) return;
+    if (!state.searching) openSearch(field.closest("[data-mock]"));
+    return;
+  }
+  if (event.target.closest && event.target.closest(".omni-menu")) return;
+  if (event.target.closest && event.target.closest(".toolbar")) return;
+  closeSearch();
+});
+document.addEventListener("input", function (event) {
+  if (!event.target.classList || !event.target.classList.contains("omni-field__input")) return;
+  state.query = event.target.value;
+  state.highlight = 0;
+  refreshMenus();
+});
+document.addEventListener("keydown", function (event) {
+  const combo = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+  if (combo) {
+    event.preventDefault();
+    if (!state.searching) openSearch(document.querySelector("[data-mock] .omni-field"));
+    return;
+  }
+  if (!state.searching) return;
+  if (event.key === "Escape") { event.preventDefault(); closeSearch(); return; }
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const count = filteredCommands().length;
+    if (count === 0) return;
+    state.highlight = (state.highlight + (event.key === "ArrowDown" ? 1 : count - 1)) % count;
+    refreshMenus();
+  }
+});
+document.querySelectorAll("[data-theme-set]").forEach((b) => b.addEventListener("click", () => { state.theme = b.dataset.themeSet; renderAll(); }));
+document.querySelectorAll("[data-width-set]").forEach((b) => b.addEventListener("click", () => { state.width = b.dataset.widthSet; renderAll(); }));
+document.querySelectorAll("[data-search-set]").forEach((b) => b.addEventListener("click", () => {
+  if (b.dataset.searchSet === "open") openSearch(document.querySelector("[data-mock] .omni-field"));
+  else closeSearch();
+}));
+fillSelect("remote-select", REMOTE_OPTIONS, "remote");
+fillSelect("tree-select", TREE_OPTIONS, "tree");
+fillSelect("version-select", VERSION_OPTIONS, "version");
+renderAll();
+</script>
+</body>
+</html>

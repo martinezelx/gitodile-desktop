@@ -1,7 +1,5 @@
 
 export interface AppTranslations {
-  titlebarOpenCommandPalette: string;
-  titlebarJumpToHint: string;
   titlebarMoreActions: string;
   titlebarOpenProject: string;
   titlebarCreateProject: string;
@@ -74,8 +72,18 @@ export interface AppTranslations {
   dropFolderTitle: string;
   dropFolderHint: string;
   paletteAriaLabel: string;
-  palettePlaceholder: string;
   paletteNoMatches: string;
+  /* The results panel's footer: the three keys it answers to. */
+  paletteMove: string;
+  paletteOpen: string;
+  paletteClose: string;
+  /* The palette's own sections, in the reader's words; a section groups the
+     commands of one kind so a long list still scans. */
+  paletteGroupGo: string;
+  paletteGroupProject: string;
+  paletteGroupRefresh: string;
+  paletteGroupTheme: string;
+  paletteGroupApp: string;
   commandGoOverview: string;
   commandGoHome: string;
   commandGoVersionLines: string;
@@ -159,7 +167,7 @@ export interface AppTranslations {
   statusBarReadingTeam: string;
   statusBarTeamUnavailable: string;
   statusBarLocalSnapshot: string;
-  statusBarMayBeOutdated: string;
+  statusBarCheckAgain: string;
   statusBarCheckFailed: string;
   statusBarJustNow: string;
   statusBarLastChecked: (relative: string) => string;
@@ -168,9 +176,8 @@ export interface AppTranslations {
   statusBarPublishLineAction: string;
   statusBarGetAction: (count: number) => string;
   statusBarGetAndPublishAction: string;
-  statusBarVersion: (version: string) => string;
-  statusBarOpenChangelog: (version: string) => string;
-  statusBarOpenUpdates: string;
+  statusBarSearch: string;
+  statusBarSearchLabel: string;
   titlebarHideSidebar: string;
   titlebarShowSidebar: string;
   titlebarSwitchToLightTheme: string;
@@ -224,8 +231,6 @@ export interface AppTranslations {
 }
 
 const en: AppTranslations = {
-  titlebarOpenCommandPalette: "Open command palette",
-  titlebarJumpToHint: "Jump to a view or action",
   titlebarMoreActions: "More actions",
   titlebarOpenProject: "Open project…",
   titlebarCreateProject: "Create local project…",
@@ -297,8 +302,15 @@ const en: AppTranslations = {
   dropFolderTitle: "Drop a folder to open it",
   dropFolderHint: "One folder at a time, and if it isn't a project yet, GitOdile can make it one.",
   paletteAriaLabel: "Command palette",
-  palettePlaceholder: "Jump to a view or action…",
   paletteNoMatches: "No matching commands",
+  paletteMove: "move",
+  paletteOpen: "open",
+  paletteClose: "close",
+  paletteGroupGo: "Go",
+  paletteGroupProject: "Project",
+  paletteGroupRefresh: "Refresh",
+  paletteGroupTheme: "Theme",
+  paletteGroupApp: "App",
   commandGoOverview: "Go to Overview",
   commandGoHome: "Go to Home",
   commandGoVersionLines: "Go to Lines",
@@ -384,7 +396,7 @@ const en: AppTranslations = {
   statusBarReadingTeam: "Reading remote status…",
   statusBarTeamUnavailable: "Couldn't check the remote",
   statusBarLocalSnapshot: "Local snapshot",
-  statusBarMayBeOutdated: "May be out of date",
+  statusBarCheckAgain: "Check again",
   statusBarCheckFailed: "Check failed",
   statusBarJustNow: "just now",
   statusBarLastChecked: (relative) => `Checked ${relative}`,
@@ -393,9 +405,8 @@ const en: AppTranslations = {
   statusBarPublishLineAction: "Publish this line",
   statusBarGetAction: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
   statusBarGetAndPublishAction: "Get and publish",
-  statusBarVersion: (version) => version,
-  statusBarOpenChangelog: (version) => `What's new in GitOdile ${version}`,
-  statusBarOpenUpdates: "Open updates",
+  statusBarSearch: "Search or do something…",
+  statusBarSearchLabel: "Open command palette",
   titlebarHideSidebar: "Hide sidebar",
   titlebarShowSidebar: "Show sidebar",
   titlebarSwitchToLightTheme: "Switch to light theme",
@@ -437,8 +448,6 @@ const en: AppTranslations = {
 };
 
 const es: AppTranslations = {
-  titlebarOpenCommandPalette: "Abrir la paleta de comandos",
-  titlebarJumpToHint: "Ir a una vista o acción",
   titlebarMoreActions: "Más acciones",
   titlebarOpenProject: "Abrir proyecto…",
   titlebarCreateProject: "Crear proyecto local…",
@@ -510,8 +519,15 @@ const es: AppTranslations = {
   dropFolderTitle: "Suelta una carpeta para abrirla",
   dropFolderHint: "Una carpeta cada vez y, si aún no es un proyecto, GitOdile puede convertirla en uno.",
   paletteAriaLabel: "Paleta de comandos",
-  palettePlaceholder: "Ir a una vista o acción…",
   paletteNoMatches: "No hay coincidencias",
+  paletteMove: "mover",
+  paletteOpen: "abrir",
+  paletteClose: "cerrar",
+  paletteGroupGo: "Ir",
+  paletteGroupProject: "Proyecto",
+  paletteGroupRefresh: "Actualizar",
+  paletteGroupTheme: "Tema",
+  paletteGroupApp: "App",
   commandGoOverview: "Ir a Resumen",
   commandGoHome: "Ir a Inicio",
   commandGoVersionLines: "Ir a Líneas",
@@ -597,7 +613,7 @@ const es: AppTranslations = {
   statusBarReadingTeam: "Leyendo el estado del remoto…",
   statusBarTeamUnavailable: "No se pudo comprobar el remoto",
   statusBarLocalSnapshot: "Estado local",
-  statusBarMayBeOutdated: "Puede estar desactualizado",
+  statusBarCheckAgain: "Comprobar de nuevo",
   statusBarCheckFailed: "La comprobación falló",
   statusBarJustNow: "ahora mismo",
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
@@ -606,9 +622,8 @@ const es: AppTranslations = {
   statusBarPublishLineAction: "Publicar esta línea",
   statusBarGetAction: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
   statusBarGetAndPublishAction: "Traer y publicar",
-  statusBarVersion: (version) => version,
-  statusBarOpenChangelog: (version) => `Novedades de GitOdile ${version}`,
-  statusBarOpenUpdates: "Abrir actualizaciones",
+  statusBarSearch: "Buscar o hacer algo…",
+  statusBarSearchLabel: "Abrir la paleta de comandos",
   titlebarHideSidebar: "Ocultar la barra lateral",
   titlebarShowSidebar: "Mostrar la barra lateral",
   titlebarSwitchToLightTheme: "Cambiar a tema claro",

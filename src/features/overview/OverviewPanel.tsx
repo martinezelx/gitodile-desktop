@@ -116,7 +116,7 @@ function OverviewHeader({
           <Pencil />
         </span>
       </button>
-      <h1 id="project-summary-heading" className="overview-header__name" title={project.name}>{project.name}</h1>
+      <h1 id="project-summary-heading" className="overview-header__name" title={project.name} tabIndex={-1} data-screen-focus>{project.name}</h1>
       <span className="overview-header__slash" aria-hidden="true">/</span>
       <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
         {overview.isUnborn ? (

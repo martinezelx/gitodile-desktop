@@ -1836,7 +1836,7 @@ export function VersionLinesPanel({
           <div className="empty-state__icon" aria-hidden="true">
             <CircleAlert />
           </div>
-          <h1>{t.versionLinesTitle}</h1>
+          <h1 tabIndex={-1} data-screen-focus>{t.versionLinesTitle}</h1>
           <p>{error ?? t.versionLinesErrorLoading}</p>
           <div className="empty-state__actions">
             <button className="primary-button" type="button" onClick={onRefresh}>
@@ -1868,7 +1868,7 @@ export function VersionLinesPanel({
               row was a name the rail already states. */}
           <header className="version-lines-list-panel__header">
             <GitBranch aria-hidden="true" />
-            <h1>{t.versionLinesTitle}</h1>
+            <h1 tabIndex={-1} data-screen-focus>{t.versionLinesTitle}</h1>
           </header>
           <div className="version-lines-list-panel__toolbar">
             <SearchBox

@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import React from "react";
 
 import { LanguageProvider } from "../i18n";
 import type { WorkingTreeStatus } from "../features/status";
@@ -11,7 +12,6 @@ import {
   type TeamSyncStatus,
   type TeamSyncViewState,
 } from "../features/sync";
-import type { UpdateCandidate } from "../features/app-updates";
 import { formatRelativeCheckTime, StatusBar, type StatusBarProps } from "./StatusBar";
 
 const dirtyTree: WorkingTreeStatus = {
@@ -92,6 +92,20 @@ function syncStatus(state: TeamSyncState = "upToDate"): TeamSyncStatus {
   };
 }
 
+/** The strip's search wiring, in one place so a test overrides one field. */
+function paletteProps(overrides: Partial<StatusBarProps["commandPalette"]> = {}): StatusBarProps["commandPalette"] {
+  return {
+    isOpen: false,
+    query: "",
+    inputRef: React.createRef<HTMLInputElement>(),
+    shortcut: "Ctrl+K",
+    onOpen: vi.fn(),
+    onQueryChange: vi.fn(),
+    onKeyDown: vi.fn(),
+    ...overrides,
+  };
+}
+
 function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof render> {
   const props = {
     project: { name: "gitodile", branch: "feature/a-very-long-version-line-name", headState: "branch" },
@@ -116,7 +130,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     onPublish: vi.fn(),
     onGetChanges: vi.fn(),
     onGetAndPublish: vi.fn(),
-    onOpenChangelog: vi.fn(),
+    commandPalette: paletteProps(),
     ...overrides,
   } as StatusBarProps;
   return render(<LanguageProvider><StatusBar {...props} /></LanguageProvider>);
@@ -129,107 +143,68 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("StatusBar", () => {
-  describe("release tag", () => {
-    const candidate: UpdateCandidate = {
-      candidateId: "c1", version: "9.9.9", target: "windows-x86_64",
-      publishedAt: null, notes: "", highlights: [], expectedBytes: null,
-    };
-
-    it("stays the version and the changelog while there is nothing to do", async () => {
-      const onOpenChangelog = vi.fn();
-      const onOpenAppUpdate = vi.fn();
-      renderBar({ appUpdate: { kind: "current", checkedAt: "2026-10-01T00:00:00Z" }, onOpenChangelog, onOpenAppUpdate });
-
-      const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` });
-      expect(release).toHaveClass("status-bar__release--quiet");
-      expect(release).toHaveTextContent(__APP_VERSION__);
-      await userEvent.click(release);
-      expect(onOpenChangelog).toHaveBeenCalledOnce();
-      expect(onOpenAppUpdate).not.toHaveBeenCalled();
-    });
-
-    it("names a new version in About's words and leads to the update dialog", async () => {
-      const onOpenChangelog = vi.fn();
-      const onOpenAppUpdate = vi.fn();
-      renderBar({ appUpdate: { kind: "available", candidate }, onOpenChangelog, onOpenAppUpdate });
-
-      const release = screen.getByRole("button", { name: "New version: 9.9.9 · Open updates" });
-      expect(release).toHaveClass("status-bar__release--action");
-      expect(release).toHaveTextContent("New version: 9.9.9");
-      await userEvent.click(release);
-      expect(onOpenAppUpdate).toHaveBeenCalledOnce();
-      expect(onOpenChangelog).not.toHaveBeenCalled();
-    });
-
-    it("asks for the restart once the download is ready", () => {
-      renderBar({ appUpdate: { kind: "ready", candidate }, onOpenAppUpdate: vi.fn() });
-
-      const release = screen.getByRole("button", { name: "Ready to install · New version: 9.9.9" });
-      expect(release).toHaveTextContent("Ready to install");
-    });
-
-    it("keeps the version while downloading and puts the progress in the tooltip", () => {
-      renderBar({
-        appUpdate: { kind: "downloading", candidate, transfer: { length: "known", receivedBytes: 42, totalBytes: 100 } },
-        onOpenAppUpdate: vi.fn(),
-      });
-
-      const release = screen.getByRole("button", { name: `${__APP_VERSION__} · Downloading 9.9.9 · 42%` });
-      expect(release).toHaveAttribute("data-tooltip", "Downloading 9.9.9 · 42%");
-      expect(release).toHaveTextContent(__APP_VERSION__);
-    });
-
-    it("never reports more than the whole download", () => {
-      renderBar({
-        appUpdate: { kind: "downloading", candidate, transfer: { length: "known", receivedBytes: 120, totalBytes: 100 } },
-        onOpenAppUpdate: vi.fn(),
-      });
-
-      expect(screen.getByRole("button", { name: /Downloading 9\.9\.9 · 100%$/ })).toBeInTheDocument();
-    });
-
-    it("keeps a build without updates looking at rest", () => {
-      renderBar({ appUpdate: { kind: "unavailable", error: { code: "not_configured", stage: "check", retryable: false } } });
-
-      const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__} · Updates unavailable` });
-      expect(release).toHaveClass("status-bar__release--quiet");
-    });
-
-    it("marks unseen release notes until the changelog is opened", () => {
-      renderBar({ appUpdate: { kind: "current", checkedAt: "2026-10-01T00:00:00Z" }, hasUnseenWhatsNew: true });
-
-      expect(
-        screen.getByRole("button", { name: `Updated to ${__APP_VERSION__} · See what's new` }),
-      ).toHaveTextContent(__APP_VERSION__);
-    });
-
-    it("lets an action outrank unseen notes", () => {
-      renderBar({ appUpdate: { kind: "available", candidate }, hasUnseenWhatsNew: true, onOpenAppUpdate: vi.fn() });
-
-      expect(screen.getByRole("button", { name: "New version: 9.9.9 · Open updates" })).toBeInTheDocument();
-    });
-  });
-
-  it("renders honest no-project state and opens the changelog", async () => {
-    const onOpenChangelog = vi.fn();
+  it("renders honest no-project state and keeps the field", () => {
     renderBar({
       project: null,
       workingTree: null,
       teamSync: EMPTY_TEAM_SYNC_STATE,
-      onOpenChangelog,
     });
 
     expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` });
-    expect(release).toHaveTextContent(__APP_VERSION__);
-    await userEvent.click(release);
-    expect(onOpenChangelog).toHaveBeenCalledOnce();
+    // The field is global: it works with no project at all.
+    expect(screen.getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Settings for/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
+    // With nothing to describe there is no remote block.
+    expect(document.querySelector(".status-bar__block--remote")).toBeNull();
   });
 
-  it("opens the active project's settings from its name, right before the version line", async () => {
+  it("is the app's search: the caller owns the query and the field reports typing", async () => {
+    const onQueryChange = vi.fn();
+    const onOpen = vi.fn();
+    renderBar({ commandPalette: paletteProps({ query: "main", onQueryChange, onOpen }) });
+
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    expect(field).toHaveValue("main");
+    expect(field).toHaveAttribute("placeholder", "Search or do something…");
+    expect(field.className).toContain("status-bar__search-input");
+
+    await userEvent.type(field, "x");
+    expect(onOpen).toHaveBeenCalled();
+    expect(onQueryChange).toHaveBeenCalled();
+  });
+
+  it("builds where you are and the remote as the same block, split by a hairline", () => {
+    const { container } = renderBar();
+
+    const blocks = container.querySelectorAll(".status-bar__block");
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toHaveClass("status-bar__block--where");
+    expect(blocks[1]).toHaveClass("status-bar__block--remote");
+    // Both blocks carry their own hairline, at the same size.
+    for (const block of blocks) expect(block.querySelector(".status-bar__hair")).not.toBeNull();
+    // The strip no longer carries the app version: its release notes live in
+    // the menu and the notification centre now.
+    expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  it("puts the field between where you are and the remote", () => {
+    renderBar();
+    const footer = screen.getByRole("contentinfo");
+    const children = Array.from(footer.children);
+
+    expect(children[0]).toHaveClass("status-bar__block--where");
+    expect(children[1]).toHaveClass("status-bar__search-slot");
+    expect(children[2]).toHaveClass("status-bar__block--remote");
+    expect(footer.querySelector(".status-bar__sync")).not.toBeNull();
+    // The remote's two segments — the fact and the check — split by a hairline.
+    const remote = footer.querySelector(".status-bar__block--remote");
+    expect(remote?.querySelectorAll(".status-bar__seg")).toHaveLength(2);
+    expect(remote?.querySelector(".status-bar__hair")).not.toBeNull();
+  });
+
+  it("opens the active project's settings from its name, before the line", async () => {
     const onOpenProjectSettings = vi.fn();
     const onPrefetchProjectSettings = vi.fn();
     renderBar({ onOpenProjectSettings, onPrefetchProjectSettings });
@@ -238,8 +213,8 @@ describe("StatusBar", () => {
     expect(button).toHaveClass("status-bar__project");
     expect(button).toHaveTextContent("gitodile");
     expect(button).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
-    // "project / line": only the slash stands between the two facts.
-    expect(button.nextElementSibling).toHaveClass("status-bar__separator");
+    // "project │ line": only the block's hairline stands between the two facts.
+    expect(button.nextElementSibling).toHaveClass("status-bar__hair");
     expect(button.nextElementSibling?.nextElementSibling).toHaveClass("version-lines-quick-switch");
     await userEvent.hover(button);
     button.focus();
@@ -321,19 +296,19 @@ describe("StatusBar", () => {
     for (const [other, fn] of Object.entries(handlers)) {
       if (other !== handler) expect(fn).not.toHaveBeenCalled();
     }
-    // The refresh beside it stays the explicit check, as the second half of
-    // the action's own capsule rather than a loose glyph.
+    // The refresh beside it stays the explicit check, behind the block's own
+    // hairline rather than a loose glyph.
     const check = screen.getByRole("button", { name: "Check remote project changes" });
     expect(check).toBeEnabled();
-    expect(check.closest(".status-bar__sync-split")).toBe(cloud.closest(".status-bar__sync-split"));
+    expect(check.closest(".status-bar__block--remote")).toBe(cloud.closest(".status-bar__block--remote"));
   });
 
-  it("keeps one capsule and the last known words while a check runs", () => {
+  it("keeps the last known words on the fact while a check runs", () => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isCheckingRemote: true } });
     const held = screen.getByText("Publish 2 versions").closest(".status-bar__sync");
     expect(held).toHaveClass("status-bar__sync--held");
     expect(held?.tagName).toBe("SPAN");
-    expect(held?.closest(".status-bar__sync-split")).not.toBeNull();
+    expect(held?.closest(".status-bar__block--remote")).not.toBeNull();
     // The sentence stays for the screen reader; one spinner, not two.
     expect(held).toHaveTextContent("Checking the remote…");
     const check = screen.getByRole("button", { name: "Checking the remote…" });
@@ -341,25 +316,32 @@ describe("StatusBar", () => {
     expect(check.querySelector(".icon--spinning")).toBeNull();
   });
 
-  it("wears the same capsule for a fact as for an action", () => {
-    renderBar();
-    expect(screen.getByText("Up to date").closest(".status-bar__sync-split")).not.toBeNull();
+  it("keeps a fact and an action in the same block", () => {
+    const { unmount } = renderBar();
+    expect(screen.getByText("Up to date").closest(".status-bar__block--remote")).not.toBeNull();
+    unmount();
+
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead") } });
+    expect(
+      screen.getByRole("button", { name: "Publish 2 versions" }).closest(".status-bar__block--remote"),
+    ).not.toBeNull();
   });
 
-  it("keeps the remote beside the line and only the build at the right end", () => {
-    renderBar();
-    const footer = screen.getByRole("contentinfo");
-    const project = footer.querySelector(".status-bar__group--project");
-    const system = footer.querySelector(".status-bar__group--system");
-    expect(project?.querySelector(".status-bar__sync")).not.toBeNull();
-    expect(system?.querySelector(".status-bar__sync")).toBeNull();
-    expect(system?.querySelector(".status-bar__release")).not.toBeNull();
+  it("asks to check again when the reader's own change overtook the answer", () => {
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("upToDate"), isStale: true } });
+
+    const stale = screen.getByText("Check again").closest(".status-bar__sync");
+    expect(stale).toHaveClass("status-bar__sync--warning");
+    // The state it doubts, and how old it is, are the tooltip's; the action the
+    // reader can take is the word itself, so it is not restated after it.
+    expect(stale).toHaveAttribute("data-tooltip", expect.stringMatching(/^Up to date · Checked /));
+    expect(stale).toHaveAccessibleName("Up to date · Check remote project changes");
   });
 
   it("says how fresh an up-to-date answer is without hovering", () => {
     renderBar();
-    const sync = screen.getByText("Up to date").closest(".status-bar__sync");
-    expect(sync?.querySelector(".status-bar__sync-age")).toHaveTextContent(/3 min/);
+    expect(screen.getByRole("button", { name: "Check remote project changes" }))
+      .toHaveTextContent(/3 min/);
   });
 
   it("keeps the cloud a plain fact when there is nothing to publish or the answer is doubted", () => {
@@ -375,6 +357,29 @@ describe("StatusBar", () => {
 
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("behind"), error: "offline" } });
     expect(screen.queryByRole("button", { name: /^Get / })).toBeNull();
+  });
+
+  it("gives both blocks the same press, with no fill held at rest", async () => {
+    const onCheckTeamChanges = vi.fn();
+    renderBar({ onCheckTeamChanges });
+
+    const footer = screen.getByRole("contentinfo");
+    const blocks = footer.querySelectorAll(".status-bar__block");
+    // Two segments each, all of them pressable, so hovering the two halves of
+    // the strip does the same thing.
+    for (const block of blocks) {
+      expect(block.querySelectorAll("button")).toHaveLength(2);
+    }
+    // Neither block holds a fill: the fill is what hovering or pressing a
+    // segment looks like, and nothing on the strip wears it at rest.
+    expect(footer.querySelector(".status-bar__block--action")).toBeNull();
+
+    // The state segment is a press of its own: it says the relation and asks
+    // for the check, named so it is never mistaken for a label.
+    const state = screen.getByRole("button", { name: "Up to date · Check remote project changes" });
+    expect(state).toHaveClass("status-bar__sync");
+    await userEvent.click(state);
+    expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
   it("distinguishes loading, failed, cached, and stale knowledge", () => {
@@ -405,7 +410,7 @@ describe("StatusBar", () => {
           onPublish={vi.fn()}
           onGetChanges={vi.fn()}
           onGetAndPublish={vi.fn()}
-          onOpenChangelog={vi.fn()}
+          commandPalette={paletteProps()}
         />
       </LanguageProvider>,
     );
@@ -431,14 +436,14 @@ describe("StatusBar", () => {
           onPublish={vi.fn()}
           onGetChanges={vi.fn()}
           onGetAndPublish={vi.fn()}
-          onOpenChangelog={vi.fn()}
+          commandPalette={paletteProps()}
         />
       </LanguageProvider>,
     );
     expect(screen.getByText("Changes unavailable")).toBeInTheDocument();
     expect(document.querySelector(".version-line-selector__marker--error")).not.toBeNull();
     // Doubt takes the word; the last known state moves to the tooltip.
-    const stale = screen.getByText("May be out of date").closest(".status-bar__sync");
+    const stale = screen.getByText("Check again").closest(".status-bar__sync");
     expect(stale).toHaveClass("status-bar__sync--warning");
     expect(stale).toHaveAttribute("data-tooltip", expect.stringContaining("Up to date"));
   });

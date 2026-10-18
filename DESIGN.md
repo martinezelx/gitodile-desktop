@@ -100,7 +100,7 @@ The main desktop window should broadly support:
    - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination; the titlebar and rail add no permanent Projects button.
    - the overflow menu's rules separate four groups, in the order they are reached for: the project (Home, then open, create, clone and close), setting the app up (Settings, Keyboard shortcuts), the app itself (What's new, Check for updates, About GitOdile), and the way out when something is wrong (Report an issue, Reload window). Reload once sat beside Settings, pairing a daily entry with a rare recovery one; it belongs with the problem report. Entries that open a dialog asking for more end in an ellipsis, a shortcut the app owns is shown as quiet text at the row's end (`Ctrl+,` beside Settings), and no glyph appears twice in the menu. Opening a project is `FolderOpen` and creating one `FolderPlus` wherever either appears — Home, this menu, the project switcher's add menu, the collapsed rail's jump menu and the create dialog itself — and the three menus spell the actions the same way, ellipsis included.
    - no brand: the titlebar is controls only and starts with the overflow menu, centred over the rail's icon column so the titlebar and the rail share one vertical axis (with no rail, it sits at the plain edge inset). It once carried the app mark in the corner (later the full mascot); a colour illustration in a row of line icons drew the eye to a spot that does nothing, and the operating system already shows the app icon. The mascot lives in the brand moments instead (see "Brand and mascot").
-   - left: the command-palette trigger (`Ctrl`/`Cmd`+`K`), the rail collapse control, and a compact overflow menu. The palette is a labeled rounded control, making it the visual entry point for app-wide actions instead of another anonymous icon.
+   - left: the rail collapse control and a compact overflow menu. The palette's trigger is not here: it is the field at the foot of the strip (see Status bar), and the shortcut (`Ctrl`/`Cmd`+`K`) reaches it from anywhere.
    - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's three groups — destinations, projects (favourites only), and the app-level utilities — with the project group's two nested menus flattened, since a list this short can just say what those menus would have said. It is a menu, not a miniature rail — same furniture as every other flyout in the app.
    - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
    - center: the remaining native drag region, including double-click maximize/restore.
@@ -254,42 +254,53 @@ The main desktop window should broadly support:
      order is a trap for keyboard and screen-reader users. The state persists
      across sessions like every other chrome preference.
 
-3. **Status bar** — a 40px card along the bottom of the content column, on
+3. **Status bar** — a 44px card along the bottom of the content column, on
    the content's own left and right edges, on every screen including
    Overview: the resting-card recipe of the cards above it (panel surface,
    subtle border, `--shadow-sm`) at the control radius, since the surface
-   radius on a strip this short reads as a pill. Left loose on the chrome plane, its controls floated in the
-   gap below the content with nothing marking where the window ended. It reports what is true of the project right now: which project,
-   its branch, unsaved work, sync state, and the app version. It says each in
-   the fewest marks that stay true at a glance, and in two shapes only: a
-   *fact* is a glyph and words with no fill, and an *action* is the strip's one
-   capsule — 28px, the quiet hover surface, label-size text at medium weight —
-   with only its glyph in colour. Nothing else gets a shape of its own.
+   radius on a strip this short reads as a pill. Inside it the strip is three
+   columns — where you are, the field, the remote — so the field sits at the
+   strip's centre at any width rather than pushed around by how long the names
+   happen to be. It reports what is true of the project right now: which
+   project, its line, unsaved work, and the remote's relation. It reports no
+   version of its own: a version is a fact about the app, not about the project
+   the reader is working on, and the strip exists to be believed about the
+   project. Every fact is a glyph and words with no fill, and the one shape a
+   state earns is the sync action's — the whole right block filled, and nothing
+   else on the strip.
 
-   The project's name and the line's name are the sentence, `project / line`,
-   with no words in front of them and only a slash in the quiet ink between
-   them, both in the same sans at the name weight — the line drops the mono it
-   wears elsewhere, since a typeface change after the slash split the sentence
-   in two. The name is what keeps the strip saying something once the reader
-   has left Overview, and both truncate rather than wrap. The name is also the way
-   into that project's settings (it names the project for keyboard and
-   screen-reader users), so no gear splits the sentence. Unsaved work rides the
-   line it belongs to: a dot after the line's name, the way an editor marks an
-   unsaved tab, in the warning tone the rail and the project switcher already
-   give unsaved work (the accent green read as "all good") and in the danger
-   tone when the tree could not be read; while the tree is
-   being read the line glyph turns into the spinner. How many files and how
-   many lines is not the strip's to say: the sentence ("28 unsaved changes") is
-   the trigger's tooltip and the screen reader's, and Overview's band and
-   Changes give the numbers in full. The strip draws no `+N −N`: the diff's red
-   was the one red in the window and read as an error, and its green competed
-   with the remote's.
+   The strip is two blocks of the *same object* and a field between them: the
+   left block says where you are and the right one says what is happening to
+   it. A block is segments of one size, weight and hover, split by a single 1px
+   hairline — the same divider on both sides — so the two halves read as one
+   component rather than as two systems.
+
+   The project's name and the line's name are the left block, `project │ line`,
+   with no words in front of them: the name is a segment and the line is the
+   next one, separated by the block's hairline. Both sit in the same sans at
+   the name weight — the line drops the mono it wears elsewhere, since a
+   typeface change inside one block split it in two. The name is what keeps the
+   strip saying something once the reader has left Overview, and both truncate
+   rather than wrap. The name is also the way into that project's settings (it
+   names the project for keyboard and screen-reader users). Unsaved work rides
+   the line it belongs to: a dot after the line's name, the way an editor marks
+   an unsaved tab, in the warning tone the rail and the project switcher already
+   give unsaved work and in the danger tone when the tree could not be read;
+   while the tree is being read the line glyph turns into the spinner. How many
+   files and how many lines is not the strip's to say: the sentence ("28 unsaved
+   changes") is the trigger's tooltip and the screen reader's, and Overview's
+   band and Changes give the numbers in full. The strip draws no `+N −N`: the
+   diff's red was the one red in the window and read as an error, and its green
+   competed with the remote's.
 
    The remote fact is one word in the strip's quiet ink, amber when the reader
    should doubt or act — and *how* it is known (a saved snapshot, when it was
    checked) is the tooltip, not a second item; when a result is stale or a
-   check failed, the doubt takes the word and the last known state moves to
-   the tooltip, so the strip never reads as current when it is not. "Up to
+   check failed, the strip must not read as current: a failed check says
+   "Check failed", and an answer the reader's own latest change has overtaken
+   says "Check again" — the one thing left to do — while the known state and
+   the exact time move into the tooltip, so the doubt is never a vague
+   judgement about the project itself. "Up to
    date" is the calm state and is not restated: its cloud (`CloudCheck`) and
    its age ("3 min ago") say it, with the word kept for the screen reader. A
    project with no remote is a fact, not a problem, and stays quiet. A line
@@ -303,20 +314,21 @@ The main desktop window should broadly support:
    before it creates the branch again, with "Recreate and publish". A line
    with no publish destination yet is offered "Publish this line" — on the
    card and as the strip's action — since publishing is how it gets one. The
-   fact is never the check: a round refresh beside it is, visible in every
-   state — beside the sync action too, where knowing whether the remote moved
+   fact is never the check: the block's second segment is, visible in every
+   state — with a sync action too, where knowing whether the remote moved
    matters most, and as the strip's only way to ask when automatic checks are
-   set to manual. The remote is one split capsule in every state, with the
-   refresh as its second half behind a hairline: its left half is a button
-   only while a current relation calls for a sync, and otherwise the fact on
-   the same metrics, so the strip never changes shape. While a check runs the
-   capsule keeps its last words ("Publish 12 versions", "3 min ago") in the
-   quiet ink with the glyph turned spinner — one spinner, the refresh half
-   only goes quiet — and "Checking the remote…" is the tooltip's and the
-   screen reader's, the visible words only when nothing is known yet. The remote sits right
-   after the line's name, since its state belongs to that line — the way an
-   editor's status bar puts sync beside the branch — so the left end reads as
-   one sentence and the right end keeps only the build. A fact that turned into a button under the pointer was tried
+   set to manual. The remote block is the project block's twin: the fact and
+   the check are two segments split by the same hairline, at the same size and
+   weight. The fact is not a control while nothing can be done with it; when a
+   current relation calls for a sync it becomes that verb as a button and the
+   whole block fills, so the shape — not only the words — says there is
+   something to do. While a check runs the fact keeps its last words
+   ("Publish 12 versions", "3 min ago") in the quiet ink with the glyph turned
+   spinner — one spinner, the check goes quiet — and "Checking the remote…" is
+   the tooltip's and the screen reader's, the visible words only when nothing is
+   known yet. The block sits at the right end, opposite where you are, since its
+   state belongs to that line — the way an editor's status bar puts sync beside
+   the branch — so the strip reads as two equal halves. A fact that turned into a button under the pointer was tried
    and dropped: nothing showed it could be pressed, touch has no hover, and it
    vanished whenever the sync action took its place.
    When the relation calls for a sync and is known-current, that same cloud
@@ -324,10 +336,10 @@ The main desktop window should broadly support:
    app's words: ahead is "Publish 3 versions" (`CloudUpload`), behind is "Get
    2 versions" (`CloudDownload`), and both sides moved is "Get and publish"
    (`CloudSync`), each opening the same previewed dialog Overview's card does.
-   It wears the action capsule with only its glyph in the accent: the shape
-   says it is a button and one green mark is enough to find it, so it never
-   competes with the screen's primary action (Overview's "Save version"). Its
-   tooltip adds when it was checked. A stale, failed or still-loading answer
+   It wears the block's fill with only its glyph in the accent: the shape says
+   it is a button and one green mark is enough to find it, so it never competes
+   with the screen's primary action (Overview's "Save version"). Its tooltip
+   adds when it was checked. A stale, failed or still-loading answer
    keeps the cloud a plain fact — it is not a state to act from. The
    branch is also the app's one global version-line control: its dropdown
    switches, creates — in place, see Lines — and hands off to the Lines
@@ -335,14 +347,50 @@ The main desktop window should broadly support:
    second selector to its own header: two controls answering one question in
    one window is how a reader stops trusting either.
    - it is a card on the content's edges (see above), at the control radius
-     because the 18px surface radius on a 40px strip reads as a pill;
+     because the 18px surface radius on a 44px strip reads as a pill;
    - it shares the workspace's horizontal inset through a variable rather than
      repeating the number, so its text sits in the same column as the content
      above it at every breakpoint;
-   - no rules between its items beyond the split capsule's own hairline. Spacing does all the separating, per the rule above: 5px binds an
-     icon to its text, 8px binds the parts of one fact, 24px separates one fact
-     from the next, and the workspace's own bottom padding leaves the band
-     between the last card and this line of text;
+   - no rules *between* its items, only inside them: the one hairline a block
+     owns sits between its two segments — 1px, 16px tall — and the strip's own
+     12px gap separates the left block, the field and the right block. Within a
+     segment 6px binds a glyph to its words, and the workspace's own bottom
+     padding leaves the band between the last card and this line of text;
+   - the field is the middle column, and it is the app's search: a real input
+     in a `--surface-control` well, 32px tall, with the search glyph beside it
+     and the shortcut (`⌘K` / `Ctrl+K`) spelled at its end, so a search starts
+     from anywhere without leaving the screen. The field owns the query and the
+     keyboard — `↑`/`↓` walk the results (the list follows the chosen row into
+     view), `↵` runs the chosen one, `Esc` puts
+     them away — and the focus never leaves it, so there is nothing to trap and
+     nothing to give back. It truncates its own text before the shortcut does,
+     and it stays present with no project open, since search is global.
+     **The results deploy from this field**: one panel, anchored to the field,
+     centred on it and eight pixels above it — 480px wide, narrower than the
+     two-line palette it replaced, since a row here is a glyph, a name and a
+     shortcut and a wider panel would leave a river of empty space — with a
+     section label per kind of work, the glyph each action already wears in the
+     menus, the shortcut on the row that has one, and the keys it answers to at
+     its foot, centred. It arrives from the field with the curve and the 120ms
+     the app's menus already use, and leaves in 90ms, holding its last results
+     while it fades so nothing empties out on the way; reduced motion drops
+     both. The panel clips its own scrollbar, whose track would otherwise cross
+     the top and bottom corners, and its list shrinks with it in a short window
+     rather than spilling past them. It is a popover,
+     not a dialog: no backdrop dims the app, an outside press or a focus
+     anywhere else puts it away, and the window behind stays usable. A screen
+     with no field to hang from — its chunk is still loading — opens the same
+     panel at the foot of the window, centred, rather than leaving the shortcut
+     dead, and Escape closes it from the document while nothing owns the
+     keyboard. The panel keeps its centre 12px inside the window's edges, so a
+     field near one — as can happen in a narrow window — cannot push the
+     results off screen. Choosing a destination lets the focus go with the
+     screen: the field gives it up and the screen's own target takes it —
+     Home's launcher, Console's prompt, the Work tab, or the Overview and Lines
+     headings — so the keyboard lands where the new screen starts rather than
+     in the chrome that asked. It replaced the modal that opened centred at
+     `14vh`, a position it inherited from the titlebar button it used to hang
+     from and which left the results far from the control that asked for them;
    - the cut mid-scroll is softened by a fade to the window's colour drawn
      directly above the strip, not by a rule. It is drawn from the strip rather
      than masked onto the workspace because a mask on a scroll container
@@ -363,33 +411,14 @@ The main desktop window should broadly support:
      scroll boundary; fading it makes the surface appear not to end. They keep
      the same 16px above the status bar that separates their panes, and so does
      Overview once it fits the window;
-   - the release metadata is grouped at the far right, a step further from
-     the project facts than they are from each other and a size smaller: it
-     is the one thing on the strip that is not about the project. The
-     version is shown as `v0.3.0` — the `v` marks the number as a version
-     rather than any other figure, and matches the release tags, About and the
-     update copy. It is text alone at rest and takes a glyph only while it has
-     something to say. There is one release channel, so nothing qualifies it,
-     and there is no "all is well" dot: green on this strip belongs to the
-     remote, and the app being fine is not a fact to keep restating. The tag
-     follows the updater instead. A check says so in the tooltip; a download
-     puts a progress ring before the version text, the percentage in the
-     tooltip, so the strip does not move. A state to act on — a new version, one
-     ready to install, one that can't install yet — takes the tag over in
-     About's own words ("New version: v0.3.1", "Ready to install") and wears the
-     strip's action capsule with its glyph in the warning tone — amber is
-     GitOdile's own news, as green is the remote's — breathing once as it
-     arrives, and leads to the update dialog, the way the cloud leads to
-     publishing. The notification centre announces an update once; the tag is
-     where it stays until it is resolved, with no count of its own. After an
-     update, an accent sparkle sits before the version until the changelog has
-     been opened. A build that can't update (a development build, an
-     installation the updater can't write to) keeps the tag at rest and says so
-     in the tooltip: a lasting fact is not dimmed as if it were broken.
-     Otherwise it is one quiet button that opens
-     the Changelog — the version the reader
-     can already see is what a release note is *about*, so the tag leads to the
-     notes and not to the product description. The changelog shares the About
+   - the strip carries no version and no update state. A version is a fact
+     about the app, not about the project the reader is working on, so the
+     update belongs where its news belongs: the notification centre announces
+     one once and is where it stays until it is resolved, the More actions menu
+     holds What's new and Check for updates, and the field reaches the updater
+     as a command. Nothing about the app's own state earns a shape here: green
+     belongs to the remote, and the app being fine is not a fact to restate.
+     The strip also carries no "all is well" dot, for the same reason. The changelog shares the About
      dialog's shell and lists each release with its version, publication date
      when known, notes, and a
      marker for the build being run. Its header is the glyph mark beside the
@@ -513,9 +542,10 @@ The main desktop window should broadly support:
      and the manual download. Determinate and indeterminate progress use the
      same stable region, dynamic state changes are announced, and reduced
      motion replaces the moving indeterminate bar with a static fill;
-   - interactive chrome raised the text to 13px, inline icons to 14px, and the
-     remote-check target to 28px. Coarse pointers receive the standard 44px
-     target and a correspondingly taller strip;
+   - interactive chrome keeps the text at 13px and inline icons at 14px; a
+     block segment stands 30px tall and the field 32px, on a 44px strip. Coarse
+     pointers receive the standard 44px target and a correspondingly taller
+     strip;
    - it must never state something untrue about a repository. It is the one
      surface in the app whose whole purpose is to be believed at a glance.
 
@@ -1027,7 +1057,7 @@ user's own versions wear a person glyph on the neutral tint instead of their
 initials — "you" is the one author never told apart by colour — with "You
 (name)" on the tooltip; the detail strip says "You" with the name on hover,
 as Overview's Recent history does, and names the line stood on "current",
-since the status bar's "Working on" already names it. Then
+since the status bar already names the line. Then
 come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
 the states the row could not say at all. The glyphs are Lines': where you are
@@ -1062,7 +1092,7 @@ count opens the publish flow, with its preview, as a pointer shortcut beside
 the toolbar's Publish, the cloud (`CloudUpload`) always in the accent so it
 reads as an action before the pointer finds it; under the pointer the capsule
 takes the control surface and hairline that Overview's "Publish up to here"
-circle and the status bar's sync pill wear, and the words step up to the
+circle and the status bar's sync action wear, and the words step up to the
 primary ink.
 
 **The rail opens into lanes only where the history branches.** On a single
@@ -1169,13 +1199,25 @@ place — 34px, the workspace insets, flush with the window's foot — so nothin
 below moves on the way in. Unlike the bar it has no fade above it: the
 transcript simply ends against it, and the suggestions under the prompt are
 never veiled. It stands in for
-the app status bar, which is hidden on this screen alone: whether changes are confirmed (tinted in the success tone, or solid in the console's own violet when they run without asking), unsaved files with
-their added and removed lines, versions to publish, newer versions available
-and the Git version on the left, the keyboard hint and an icon for the shortcut
-editor on the right. The line is left out because every prompt already shows
-it, and clearing has `clear` and Ctrl+L rather than a button. It shows the same facts the
-bar does, read-only; switching lines, publishing and project settings stay one
-rail click away. The prompt takes focus whenever the screen is shown. Each query repeats the prompt it ran at, as Starship
+the app status bar, which is hidden on this screen alone. Three tracks keep the
+search centred exactly as the strip's field is: the confirmation setting leads
+as a compact chip — a glyph and one short word, the full sentence in its
+tooltip and for the screen reader, tinted in the success tone or solid in the
+console's own violet when changes run without asking — the search holds the
+middle, and the prompt's keys are split around it: completion and running ride
+with the chip, history and clearing with the Settings and shortcut-editor
+actions at the right. The two halves are hidden rather than clipped when the
+line narrows. The line carries no project facts: unsaved files, versions
+to publish, incoming versions and the Git version belong to the welcome, where
+they have room, and switching lines, publishing and project settings stay one
+rail click away. The search is a small raised card — the app palette's
+surface, its subtle border and a small radius, with the shortcut spelled at
+its end — and, with the strip gone, it is where Ctrl/Cmd+K lands. The results
+deploy from it as they do from the strip's field, then wear the terminal's
+pane on this screen: the console surface, the mono face, the accent action
+names and the dashed rules the shortcut pane uses. Escape gives the keyboard
+back to the prompt so the next command can be typed at once. The prompt takes
+focus whenever the screen is shown. Each query repeats the prompt it ran at, as Starship
 prints one: a context line of coloured text — the project in the accent, "on",
 and the line it was on in the keyword colour — and below it a bare `❯`, the
 name typed, then a ✓/✗/! and the elapsed time, so every command starts at the
@@ -1639,8 +1681,8 @@ directly below the promise, and the line under it is the one thing About can
 honestly say about updates — "Up to date", or whichever state
 the release model is in — with the link to the changelog beside it. Version
 and update line come from the same release model
-as the status bar and changelog, so these surfaces cannot describe one build
-differently. The line names the state it is in — "Up to date" when the build is
+as the changelog and the update dialog, so these surfaces cannot describe one
+build differently. The line names the state it is in — "Up to date" when the build is
 current, "Not checked yet" before the first check, "Updates unavailable" when
 the build carries no feed — so it is never blank, and the slot reads as a state
 rather than a fault. Only a failure About cannot explain stays silent, because
@@ -2497,7 +2539,7 @@ honestly ("continues in your browser") and never say "securely" or "seamless".
 The interface should explain Git in plain language while preserving technical truth.
 
 **Application versions use the plain number.** Show `X.Y.Z` without a `v`
-prefix in About, What's new, the status bar, Settings, update dialogs,
+prefix in About, What's new, Settings, update dialogs,
 notifications, Console, tooltips and accessible names. Badges and release
 headings need only the number where their context identifies it. Prose uses
 "version" / "versión" when needed: "Installed version: 0.3.1" / "Versión
@@ -2853,7 +2895,7 @@ led the field with the Overview band's solid, breathing glyph circle; it
 looked like a button and was not one, so it is gone, and the breathing halo
 stays the band's. Focus opens the box upward without changing its shape:
 the plan over the field — `3 of 7 files → main`, the count first and the
-line in the status bar's own mono, since the panel header is the tab pair
+line in the status bar's own type, since the panel header is the tab pair
 and names no line — then the details, only the notes the plan line cannot
 say (a first version, changes already prepared, no line to land on; files
 left behind are the line's to count), any failure, and a foot with "Also
@@ -3028,7 +3070,7 @@ that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and, for the ones that do not, three rows that put the mark beside a small name-over-version block. The credits were capsules first, then bordered tiles (a mark above a name above a version), then an inline lockup, then rows that pushed each version to the right edge; the tiles gave a fact nobody reads a surface of its own, while the other two either crowded the marks or tore the number away from its name. The beside-the-mark block keeps name and version together and lets three credits sit in one band without shrinking type, which is why the fourth (the build tool's own language) stayed dropped. The heading is kept for assistive technology only, since a mark and a product name already read as a credit. Each credit is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. It is a control, so it takes the pointing hand; the hand is what says the press leaves the app, and mark, name and version stay readable at rest so the credit withholds nothing without hovering. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
-**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries a light sweep in step with the mascot's wink — the same 6.5s cycle and 1.2s start, the eye shut while the light is halfway across its 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the status bar, the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
+**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries a light sweep in step with the mascot's wink — the same 6.5s cycle and 1.2s start, the eye shut while the light is halfway across its 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
 
 Licence and source links lead the facts, directly under the intro and above the diagnostics. They are durable project provenance, not part of the product pitch or machine diagnostics, so meeting the project's terms before its machine details keeps the introduction focused. The made-with credit closes the dialog instead, under the diagnostics and the credits it belongs with.
 

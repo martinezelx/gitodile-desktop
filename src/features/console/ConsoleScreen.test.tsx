@@ -1,9 +1,10 @@
+import { createRef } from "react";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
-import { ConsoleScreen } from "./ConsoleScreen";
+import { ConsoleScreen, type ConsoleCommandPalette } from "./ConsoleScreen";
 import type { ConsoleProjectStatus } from "./domain";
 import { consolePort } from "./tauriAdapter";
 
@@ -11,11 +12,29 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); localStorage.clear(); });
 
 const KNOWN_STATUS: ConsoleProjectStatus = { changes: 3, linesAdded: 12, linesRemoved: 4, unpublished: 2, incoming: 0 };
 
-function renderConsole(epoch = "epoch-1", projectStatus: ConsoleProjectStatus = KNOWN_STATUS) {
+/** The app search's contract, as the composition root passes it. */
+function palette(overrides: Partial<ConsoleCommandPalette> = {}): ConsoleCommandPalette {
+  return {
+    isOpen: false,
+    query: "",
+    inputRef: createRef<HTMLInputElement>(),
+    shortcut: "Ctrl+K",
+    onOpen: vi.fn(),
+    onQueryChange: vi.fn(),
+    onKeyDown: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderConsole(
+  epoch = "epoch-1",
+  projectStatus: ConsoleProjectStatus = KNOWN_STATUS,
+  commandPalette?: ConsoleCommandPalette,
+) {
   const lifecycle = createScreenLifecycleController("active");
   const result = render(<LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
     <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch={epoch} gitVersion="2.47.1"
-      projectStatus={projectStatus} />
+      projectStatus={projectStatus} commandPalette={commandPalette} />
   </ScreenLifecycleProvider></LanguageProvider>);
   return { lifecycle, ...result };
 }
@@ -37,6 +56,45 @@ describe("ConsoleScreen", () => {
     expect(screen.getByText("git status", { selector: "code" })).toBeInTheDocument();
     await user.type(input, "{ArrowUp}");
     expect(input).toHaveValue("look");
+  });
+
+  it("carries the app search in its status line and keeps Ctrl+L out of the transcript", async () => {
+    vi.spyOn(consolePort, "run").mockResolvedValue({ operationId: "status", command: "git status", stdout: "On branch main\n", stderr: "", exitCode: 0, success: true, truncated: false });
+    const onOpen = vi.fn();
+    const onQueryChange = vi.fn();
+    const onKeyDown = vi.fn();
+    const inputRef = createRef<HTMLInputElement>();
+    const user = userEvent.setup();
+    renderConsole("epoch-1", KNOWN_STATUS, palette({ onOpen, onQueryChange, onKeyDown, inputRef }));
+
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    expect(field).toHaveAttribute("placeholder", "Search or do something…");
+    expect(inputRef.current).toBe(field);
+
+    await user.type(field, "m");
+    expect(onOpen).toHaveBeenCalled();
+    expect(onQueryChange).toHaveBeenCalled();
+
+    // A run puts a line in the transcript; Ctrl+L in the search must not clear
+    // it (that gesture belongs to the prompt).
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "look{Enter}");
+    expect(await screen.findByText("git status", { selector: "code" })).toBeInTheDocument();
+    await user.click(field);
+    await user.keyboard("{Control>}l{/Control}");
+    expect(onKeyDown).toHaveBeenCalled();
+    expect(screen.getByText("git status", { selector: "code" })).toBeInTheDocument();
+  });
+
+  it("gives the keyboard back to the prompt when Escape closes the search", async () => {
+    const onKeyDown = vi.fn();
+    const user = userEvent.setup();
+    renderConsole("epoch-1", KNOWN_STATUS, palette({ isOpen: true, onKeyDown }));
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    await user.click(field);
+    expect(field).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(onKeyDown).toHaveBeenCalledOnce();
+    expect(screen.getByRole("combobox", { name: "Console command" })).toHaveFocus();
   });
 
   it("has help, editing, reset, empty and error states", async () => {
@@ -125,17 +183,25 @@ describe("ConsoleScreen", () => {
     expect(screen.getByText(/Type help/)).toBeInTheDocument();
   });
 
-  it("carries the project facts in its status line, as the app status bar does elsewhere", () => {
+  it("keeps its status line for the chip and the search, leaving the project facts to the welcome", () => {
     renderConsole();
     const status = screen.getByRole("contentinfo", { name: "Console status" });
+    // The chip names the setting in one short word; the full sentence stays in
+    // the tree for hover and the screen reader.
+    expect(status).toHaveTextContent("Confirms");
     expect(status).toHaveTextContent("confirms changes");
-    expect(status).not.toHaveTextContent("main");
-    expect(status).toHaveTextContent("3 unsaved +12 −4");
-    expect(status).toHaveTextContent("↑2 to publish");
-    expect(status).not.toHaveTextContent("new");
-    // The Git version belongs to the environment: the welcome shows it, not this line.
+    // The prompt's keys are split around the search: completion and running
+    // lead, history and clearing follow the field.
+    expect(status).toHaveTextContent("Tab completes · Enter runs");
+    expect(status).toHaveTextContent("↑↓ history · Ctrl+L clears");
+    // The project facts and the Git version live in the welcome, not on this
+    // line: the middle track belongs to the search.
+    expect(status).not.toHaveTextContent("unsaved");
+    expect(status).not.toHaveTextContent("to publish");
     expect(status).not.toHaveTextContent("2.47.1");
-    expect(document.querySelector(".console-welcome")).toHaveTextContent(/git2\.47\.1/);
+    const welcome = document.querySelector(".console-welcome");
+    expect(welcome).toHaveTextContent("3 unsaved");
+    expect(welcome).toHaveTextContent(/git2\.47\.1/);
   });
 
   it("opens the shortcut pane from the prompt and gives focus back to it on Escape", async () => {

@@ -1,5 +1,5 @@
 import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Server, Settings, ShieldCheck, SquareTerminal, X } from "lucide-react";
+import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Search, Server, Settings, ShieldCheck, ShieldOff, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
 import { localizeAppError } from "../../shared/i18n";
@@ -387,7 +387,22 @@ function PromptContext({ projectName, branch, on }: { projectName: string; branc
 /** The answers that run a change; anything else, an empty line included, cancels. */
 const YES = /^(s|si|sí|y|yes)$/i;
 
-export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings }: {
+/** The app search as Console shows it: the composition root owns the query,
+ * the selection and the results; this field owns the focus and the keyboard
+ * while the screen is active, and is the panel's anchor. */
+export type ConsoleCommandPalette = {
+  isOpen: boolean;
+  query: string;
+  selectedOptionId?: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  /** The keycap the field prints, spelled by the composition root. */
+  shortcut: string;
+  onOpen: () => void;
+  onQueryChange: (query: string) => void;
+  onKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
+};
+
+export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings, commandPalette }: {
   projectPath: string;
   projectName: string;
   branch: string | null;
@@ -406,6 +421,8 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   onRepositoryChanged?: () => void;
   /** Opens Settings at the Console section: the `settings` word and the gear. */
   onOpenSettings?: () => void;
+  /** The app search: the status line's field, and the palette's anchor. */
+  commandPalette?: ConsoleCommandPalette;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const lifecycle = useScreenLifecycle();
@@ -920,6 +937,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
               <span className="console-prompt__line">
                 <input ref={inputRef} role="combobox" aria-autocomplete="both" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}
                   aria-activedescendant={menuOpen ? `${menuId}-${activeIndex}` : undefined}
+                  data-screen-focus
                   value={input} onChange={(event) => { editInput(event.target.value); setCaret(event.target.selectionStart); setHistoryIndex(null); }}
                   onKeyDown={onPromptKeyDown} onSelect={(event) => trackCaret(event.currentTarget)}
                   autoComplete="off" autoCapitalize="off" spellCheck={false} maxLength={MAX_LINE_LENGTH} disabled={running} />
@@ -952,20 +970,71 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
         </p>
         {managerOpen && <ShortcutsManager shortcuts={shortcuts} host={host?.kind ?? null} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
         <footer className="console-statusline" aria-label={t.consoleStatusLine}>
-          <span className={`console-statusline__state console-statusline__state--${confirmChanges ? "confirm" : "unconfirmed"}`}><span className="console-statusline__dot" aria-hidden="true" />{confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}</span>
-          <span className="console-statusline__hint">{t.consoleHint}</span>
-          {projectStatus?.changes === 0 && <span>{t.consoleStatusSaved}</span>}
-          {projectStatus && projectStatus.changes !== null && projectStatus.changes > 0 && (
-            <span>
-              {t.consoleStatusUnsaved(projectStatus.changes)}
-              {projectStatus.linesAdded > 0 && <span className="console-statusline__added"> +{projectStatus.linesAdded}</span>}
-              {projectStatus.linesRemoved > 0 && <span className="console-statusline__removed"> −{projectStatus.linesRemoved}</span>}
+          {/* The chip and the first half of the prompt's keys lead the line;
+              the search holds the middle, and the rest of the keys with the
+              actions sit at the right. Splitting the hint around the field is
+              what keeps it whole at the window's edge. */}
+          <div className="console-statusline__lead">
+            {/* One compact state chip: the glyph carries the setting and the
+                short word names it, while the full sentence stays for hover and
+                the screen reader. The project facts live in the welcome; the
+                line leaves its middle to the search. */}
+            <span
+              className={`console-statusline__state console-statusline__state--${confirmChanges ? "confirm" : "unconfirmed"}`}
+              title={confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}
+            >
+              {confirmChanges ? <ShieldCheck aria-hidden="true" /> : <ShieldOff aria-hidden="true" />}
+              <span aria-hidden="true">{confirmChanges ? t.consoleStatusConfirmShort : t.consoleStatusNoConfirmShort}</span>
+              <span className="visually-hidden">{confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}</span>
             </span>
+            <span className="console-statusline__hint">{t.consoleHintComplete}</span>
+          </div>
+          {/* The app search, in the terminal's own type: the strip is hidden
+              here, so this field is the palette's owner on this screen. It
+              sits in the middle track, centred like the strip's. */}
+          {commandPalette && (
+            <div className="console-statusline__search-slot">
+              <div className={`console-statusline__search${commandPalette.isOpen ? " console-statusline__search--open" : ""}`}>
+                <Search aria-hidden="true" />
+                <input
+                  ref={commandPalette.inputRef}
+                  className="console-statusline__search-input"
+                  type="text"
+                  role="combobox"
+                  aria-expanded={commandPalette.isOpen}
+                  aria-controls={commandPalette.isOpen ? "palette-list" : undefined}
+                  aria-activedescendant={commandPalette.isOpen ? commandPalette.selectedOptionId : undefined}
+                  aria-autocomplete="list"
+                  aria-label={t.consoleSearchLabel}
+                  placeholder={t.consoleSearch}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={commandPalette.query}
+                  onChange={(event) => commandPalette.onQueryChange(event.target.value)}
+                  onFocus={commandPalette.onOpen}
+                  onClick={commandPalette.onOpen}
+                  onKeyDown={(event) => {
+                    // Ctrl+L clears the transcript for the prompt; a search
+                    // field is not the place that gesture belongs.
+                    if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === "l") {
+                      event.stopPropagation();
+                    }
+                    // Escape leaves the search and gives the keyboard back to
+                    // the prompt, so the next command is typed without the mouse.
+                    const returnsToPrompt = event.key === "Escape" && commandPalette.isOpen;
+                    commandPalette.onKeyDown(event);
+                    if (returnsToPrompt) inputRef.current?.focus({ preventScroll: true });
+                  }}
+                />
+                <kbd className="console-statusline__search-kbd" aria-hidden="true">{commandPalette.shortcut}</kbd>
+              </div>
+            </div>
           )}
-          {projectStatus?.unpublished ? <span>{t.consoleStatusUnpublished(projectStatus.unpublished)}</span> : null}
-          {projectStatus?.incoming ? <span className="console-statusline__incoming">{t.consoleStatusIncoming(projectStatus.incoming)}</span> : null}
-          {onOpenSettings && <button type="button" className="console-statusline__button" aria-label={t.consoleOpenSettings} title={t.consoleOpenSettings} onClick={onOpenSettings}><Settings aria-hidden="true" /></button>}
-          <button ref={managerButtonRef} type="button" className="console-statusline__button" aria-expanded={managerOpen} aria-label={t.consoleShortcuts} title={t.consoleShortcuts} onClick={() => (managerOpen ? closeManager() : openManager("button"))}><Keyboard aria-hidden="true" /></button>
+          <div className="console-statusline__actions">
+            <span className="console-statusline__hint">{t.consoleHintNavigate}</span>
+            {onOpenSettings && <button type="button" className="console-statusline__button" aria-label={t.consoleOpenSettings} title={t.consoleOpenSettings} onClick={onOpenSettings}><Settings aria-hidden="true" /></button>}
+            <button ref={managerButtonRef} type="button" className="console-statusline__button" aria-expanded={managerOpen} aria-label={t.consoleShortcuts} title={t.consoleShortcuts} onClick={() => (managerOpen ? closeManager() : openManager("button"))}><Keyboard aria-hidden="true" /></button>
+          </div>
         </footer>
       </section>
     </div>

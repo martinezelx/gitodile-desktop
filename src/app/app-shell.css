@@ -140,18 +140,145 @@
 .window-control__close::before { transform: rotate(45deg); }
 .window-control__close::after { transform: rotate(-45deg); }
 
-.palette-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: center; padding: 14vh 24px 24px; background: var(--overlay); }
-.palette-dialog { width: min(100%, 560px); height: fit-content; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-raised); box-shadow: var(--shadow-lg); overflow: hidden; }
-.palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary-color); }
-.palette-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
-.palette-input-row svg { width: 16px; height: 16px; flex-shrink: 0; }
-.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-subtitle); color: var(--text-primary-color); }
-.palette-input::placeholder { color: var(--text-secondary-color); }
-.palette-list { list-style: none; margin: 0; max-height: 280px; overflow-y: auto; padding: var(--space-2); }
-.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: var(--text-body); color: var(--text-primary-color); }
+/* The results of the strip's search: not a dialog of its own but the field's
+   own surface, deployed from it — centred on it and eight pixels above it — so
+   what a search answers to arrives next to the control that asked. The field
+   keeps the query and the keyboard; this only shows what matches. */
+.palette-panel {
+  position: fixed;
+  z-index: 20;
+  /* Narrower than the two-line palette it replaced: the rows here are a glyph,
+     a name and a shortcut, so 480px holds them without a river of empty space
+     to the right of every label. */
+  width: min(480px, calc(100vw - 48px));
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  /* It arrives from the field, with the curve and the 120ms the app's menus
+     already use. */
+  animation: palette-rise-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Clips its own scrollbar, whose track would otherwise cross the top and
+     bottom corners. */
+  overflow: hidden;
+}
+/* Leaving is quicker and only a fade and a small drop: the reader has already
+   decided, and a long goodbye is in the way. */
+.palette-panel--closing {
+  animation: palette-rise-out 90ms ease-in both;
+  pointer-events: none;
+}
+@keyframes palette-rise-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.99); }
+}
+@keyframes palette-rise-out {
+  to { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.99); }
+}
+.palette-list { list-style: none; margin: 0; max-height: 300px; overflow-y: auto; padding: var(--space-2); }
+/* Shrinks with the panel when the window is short, so the list never spills
+   past the corners the panel has to clip. */
+.palette-panel .palette-list { min-height: 0; flex: 1 1 auto; }
+/* A section label, the way a menu groups what it lists: the glyphs beside the
+   rows carry the meaning, so the heading only has to name the kind of work. */
+.palette-group {
+  padding: 8px 10px 4px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  list-style: none;
+}
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-item);
+  font-size: var(--text-body);
+  color: var(--text-primary-color);
+  list-style: none;
+}
+.palette-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
 .palette-item[aria-selected="true"] { background: var(--surface-active); }
-.palette-item__hint { color: var(--text-secondary-color); font-size: var(--text-label); }
+.palette-item[aria-selected="true"] svg { color: var(--accent-primary); }
+.palette-item__label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A shortcut, not a keycap to press: quiet text at the row's end. */
+.palette-item__hint { flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary-color); font-size: var(--text-body); list-style: none; }
+/* The keys the results answer to, spelled once at the panel's foot. */
+.palette-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 0 var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.palette-footer span { display: inline-flex; align-items: center; gap: 5px; }
+.palette-footer kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item);
+  background: var(--surface-control);
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+/* On Console the results are a pane of the terminal, not the app's raised card:
+   the console's own surface, the mono face, the accent action names and the
+   dashed rules the shortcut pane already wears. Only Console asks for this; the
+   strip's field keeps the app's card so a search started there still reads as
+   chrome. */
+.palette-panel--console {
+  border-radius: var(--radius-item);
+  background: var(--surface-app);
+  box-shadow: none;
+}
+.palette-panel--console .palette-list { padding: var(--space-2) var(--space-3); }
+.palette-panel--console .palette-group {
+  padding: 10px 4px 6px;
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.palette-panel--console .palette-group::before { content: "> "; }
+.palette-panel--console .palette-item {
+  min-height: 34px;
+  padding: 0 6px;
+  border-bottom: 1px dashed var(--border-subtle);
+  border-radius: 0;
+  font-family: var(--font-mono);
+}
+.palette-panel--console .palette-item:last-child { border-bottom: 0; }
+.palette-panel--console .palette-item__label { color: var(--accent-primary); font-weight: var(--weight-strong); }
+.palette-panel--console .palette-item__hint { font-family: var(--font-mono); }
+.palette-panel--console .palette-empty { font-family: var(--font-mono); }
+.palette-panel--console .palette-footer {
+  border-top: 1px dashed var(--border-subtle);
+  font-family: var(--font-mono);
+}
+.palette-panel--console .palette-footer kbd {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-panel);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-title);
+}
 
 /* Grid rather than a row of two, so the status bar can span from the rail's
    edge to the window's without the workspace being wrapped in a column of its
@@ -179,19 +306,23 @@
 
 /* A card under the content, on the content's own edges, in the one recipe
    every resting card wears: the panel surface, the subtle border and
-   `--shadow-sm`. Loose on the chrome plane, the strip's controls (the line
-   switch, the sync action) floated in the gap below the content with nothing
-   to say where the window ended. The radius is the control step, not the
-   surface one: 18px on a 40px strip reads as a pill. */
+   `--shadow-sm`. Inside it the strip is three columns — where you are, the
+   search, the remote — so the field is centred on the window at any width
+   rather than pushed around by how long the names happen to be. */
 .status-bar {
   position: relative;
-  display: flex;
+  display: grid;
+  /* The middle track is a measure, not the field's intrinsic width: `auto`
+     let a grid `auto` track collapse to the input's default size (235px),
+     which left the strip's centre a small pill instead of the field the
+     design asks for. It grows to 430 and no further; the two blocks share
+     what is left. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 430px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  height: 40px;
+  gap: var(--space-3);
+  height: 44px;
   margin: 0 var(--workspace-inset-right) 10px var(--workspace-inset-left);
-  padding: 0 5px 0 3px;
+  padding: 0 5px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-panel);
@@ -254,246 +385,84 @@
   );
 }
 .app-shell--internal-scroll .status-bar::before { display: none; }
-/* Three tiers of gap and no rules between them: 5px binds an icon to its own
-   text, 8px binds the parts of one fact, 24px separates one fact from the
-   next. DESIGN.md reserves hairlines for the edges of cards and asks for
-   spacing alone inside a row of items — the rail already groups this way, and
-   a strip this short reads more calmly for it. */
-.status-bar__group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  min-width: 0;
-}
-.status-bar__group--project {
-  flex: 1 1 auto;
-  overflow: hidden;
-}
-.status-bar__group--system { flex: 0 1 auto; gap: var(--space-6); }
-.status-bar__cluster {
+/* Two blocks and a field. A block is one object: segments of the same size,
+   weight and hover, split by one hairline. The left block says where you are
+   — the project, then the line — and the right block says what is happening
+   to it and carries the one gesture that renews it. Within a block, 6px binds
+   a glyph to its words; the hairline divides the two segments; the strip's own
+   12px gap separates the blocks from the field. */
+.status-bar__block {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0;
   min-width: 0;
+  height: 30px;
+  border-radius: var(--radius-pill);
 }
-.status-bar__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.status-bar__item svg { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar__item > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.status-bar__sync { max-width: min(30vw, 320px); }
-.status-bar__release {
+.status-bar__block--where { justify-self: start; }
+.status-bar__block--remote { justify-self: end; }
+.status-bar__seg {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 5px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--text-secondary-color);
-  font: inherit;
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.status-bar__release:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.status-bar__release:active { background: var(--surface-active); }
-.status-bar__release:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
-}
-.status-bar__version { font-size: var(--text-label); font-variant-numeric: tabular-nums; }
-.status-bar__release svg { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar__release-ring circle { fill: none; stroke-width: 3; }
-.status-bar__release-ring-track { stroke: var(--border-subtle); }
-.status-bar__release-ring-bar {
-  stroke: currentColor;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: center;
-  transition: stroke-dashoffset var(--duration-fast);
-}
-.status-bar__release-new { color: var(--accent-primary); }
-/* A state to act on wears the strip's one action recipe — the same neutral
-   capsule as the sync action, at the label size — with only the glyph in the
-   warning tone: amber is GitOdile's own news, green the remote's. It breathes
-   once as it arrives, not in a loop: the notification centre announced it,
-   this only keeps it where it can be found. */
-.status-bar__release--action {
-  --attention-color: var(--status-warning);
-  padding: 0 10px;
-  background: var(--surface-hover);
-  color: var(--text-primary-color);
-  font-weight: var(--weight-medium);
-  animation: attention-breathe var(--attention-duration) ease-out 1;
-}
-.status-bar__release--action svg { color: var(--status-warning); }
-.status-bar__release--action:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, transparent); }
-.status-bar__release--action:active { background: color-mix(in srgb, var(--text-primary-color) 15%, transparent); }
-@media (prefers-reduced-motion: reduce) {
-  .status-bar__release--action { animation: none; }
-}
-/* "<project> / <line>": the two facts, one statement. The project's name is
-   also the way into its settings, so nothing stands between the two words but
-   a slash in the quiet ink. Each may take about a third of the window and
-   gives the rest back with an ellipsis, the name first. */
-.status-bar__working { flex: 0 1 auto; gap: 0; }
-.status-bar__project {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: 0 1 auto;
+  height: 30px;
   min-width: 0;
-  max-width: min(18vw, 240px);
-  height: 28px;
-  padding: 0 6px;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-primary-color);
   font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
   white-space: nowrap;
   transition: background var(--duration-fast);
 }
-.status-bar__project svg { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar__project > span {
+button.status-bar__seg:hover { background: var(--surface-hover); }
+.status-bar__seg svg { width: 14px; height: 14px; flex-shrink: 0; }
+.status-bar__seg > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: var(--weight-strong);
 }
-.status-bar__project:hover { background: var(--surface-hover); }
-.status-bar__project:active { background: var(--surface-active); }
-.status-bar__project:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
-}
-.status-bar__separator {
+/* A fact is not a control: no hover and no hand, so the strip never invites a
+   press it cannot honour. */
+.status-bar__seg--fact { cursor: default; }
+.status-bar__seg--muted { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+/* The one divider a block owns, at the same size on both sides. */
+.status-bar__hair {
+  width: 1px;
+  height: 16px;
   flex-shrink: 0;
-  padding: 0 1px;
-  color: var(--text-secondary-color);
-  user-select: none;
+  margin: 0 3px;
+  background: var(--border-divider);
 }
+/* "project │ line", one statement, split by the block's hairline. The name is
+   also the way into its settings and the line is the one global way to change
+   it; each may take about a third of the window and gives the rest back with
+   an ellipsis, the name first. */
+.status-bar .status-bar__project { max-width: min(20vw, 240px); }
 .status-bar .version-lines-quick-switch {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: min(32vw, 340px);
-}
-/* Unsaved work is a dot after the line's name, the way an editor marks an
-   unsaved tab: in the warning tone the rail and the project switcher already
-   give unsaved work (green read as "all good"), and in the danger tone when
-   the tree could not be read. The count and the sentence are the trigger's
-   tooltip and the screen reader's. */
-.status-bar .version-line-selector__marker {
-  width: 7px;
-  height: 7px;
-  flex-shrink: 0;
-  border-radius: var(--radius-round);
-  background: var(--status-warning);
-}
-.status-bar .version-line-selector__marker--error { background: var(--status-danger); }
-/* The remote fact, in the strip's quiet ink unless the reader should doubt
-   or act, which takes the warning tone. "Up to date" is the calm state: the
-   cloud and its age say it, and green stays with the sync action's glyph. */
-.status-bar__sync { color: var(--text-secondary-color); }
-.status-bar__sync--warning { color: var(--status-warning); }
-/* When the relation calls for a sync — publish when ahead, get when behind,
-   get and publish when both moved — the cloud becomes that verb as a button:
-   the strip's 28px pill on its quiet hover surface, in the strip's own ink,
-   with only the glyph in the accent. The shape says "button"; one green mark
-   is enough to find it, and the screen's strong green stays with its primary
-   action. A stale, failed or still-loading relation never takes this shape. */
-.status-bar__sync-action {
-  height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  color: var(--text-primary-color);
-  font: inherit;
-  font-size: var(--text-label);
-  font-weight: var(--weight-medium);
-  cursor: default;
-  transition: background var(--duration-fast);
-}
-.status-bar__sync-action svg { color: var(--accent-primary); }
-/* The remote is one split capsule in every state — an action, a fact, a
-   check in flight — so the strip never changes shape under the reader. The
-   check is always its second half, split by a hairline. Each half keeps its
-   own hover, and the outer capsule only draws the shared surface. */
-.status-bar__sync-split {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  height: 28px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  overflow: hidden;
-}
-.status-bar__sync-split .status-bar__sync-action {
-  padding: 0 8px 0 10px;
-  border-radius: 0;
-  background: transparent;
-}
-/* A fact in the left half sits on the action's own metrics, so turning from
-   one into the other moves nothing but the words. */
-.status-bar__sync-split .status-bar__sync:not(.status-bar__sync-action) {
-  height: 28px;
-  padding: 0 8px 0 10px;
-  font-size: var(--text-label);
-}
-/* What it last knew, held while the check runs: quiet ink, glyph spinning. */
-.status-bar__sync--held { color: var(--text-secondary-color); }
-.status-bar__sync-split .status-bar__action {
-  position: relative;
-  width: 32px;
-  height: 28px;
-  border-radius: 0;
-}
-.status-bar__sync-split .status-bar__action::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 7px;
-  bottom: 7px;
-  width: 1px;
-  background: var(--border-divider);
-}
-/* The capsule clips, so focus draws inside each half. */
-.status-bar__sync-split .status-bar__sync-action:focus-visible,
-.status-bar__sync-split .status-bar__action:focus-visible { outline-offset: -2px; }
-.status-bar__sync-action:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, transparent); }
-.status-bar__sync-action:active { background: color-mix(in srgb, var(--text-primary-color) 15%, transparent); }
-/* How fresh "up to date" is, beside its cloud. */
-.status-bar__sync-age { font-variant-numeric: tabular-nums; }
-.status-bar__sync-action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
+  max-width: min(32vw, 320px);
 }
 .status-bar .version-line-selector {
-  width: 100%;
-  height: 28px;
+  height: 30px;
   min-width: 0;
-  padding: 0 6px;
-  gap: 5px;
+  padding: 0 8px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-primary-color);
+  font: inherit;
+  transition: background var(--duration-fast);
 }
 .status-bar .version-line-selector:hover { background: var(--surface-hover); }
 .status-bar .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
@@ -507,34 +476,109 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* The same type as the project's name: `project / line` is one sentence,
-     so the line drops the selector's mono rather than switching typeface
-     after the slash. */
+  /* The same type as the project's name: `project │ line` is one sentence, so
+     the line drops the selector's mono rather than switching typeface after
+     the hairline. */
   font-family: inherit;
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
 }
-.status-bar .version-line-selector__chevron { width: 12px; height: 12px; }
-/* The hierarchy is two text tokens, not one token at two opacities. Fading
-   `--text-secondary-color` to 0.72 to make a third tier measured 2.92:1 on the light
-   surface and 4.45:1 on the dark one — both under the 4.5:1 that small text
-   needs. Primary against secondary gives the same separation at 16.5:1 and
-   5.05:1. */
-.status-bar__item--muted { color: var(--text-secondary-color); }
-/* The remote check: a round single-glyph control beside the remote fact. */
-.status-bar__action {
-  width: 28px; height: 28px; flex-shrink: 0;
-  display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-round);
-  background: transparent; color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
+.status-bar .version-line-selector__chevron {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--text-secondary-color);
 }
-.status-bar__action svg { width: 14px; height: 14px; }
-.status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.status-bar__action:disabled { opacity: 0.45; }
-.status-bar__action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+/* Unsaved work is a dot after the line's name, the way an editor marks an
+   unsaved tab: in the warning tone the rail and the project switcher already
+   give unsaved work, and in the danger tone when the tree could not be read.
+   The count and the sentence are the trigger's tooltip and the reader's. */
+.status-bar .version-line-selector__marker {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: var(--radius-round);
+  background: var(--status-warning);
+}
+.status-bar .version-line-selector__marker--error { background: var(--status-danger); }
+/* The remote fact wears the strip's own ink, the same as the line's name: the
+   two blocks read as the same object. It takes the warning tone when the
+   reader should doubt it, and the quiet ink while a check holds the last
+   answer. */
+.status-bar__sync { color: var(--text-primary-color); }
+.status-bar__sync--warning { color: var(--status-warning); }
+.status-bar__sync--held { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+/* The action is the block's first segment: the fact's own metrics with the
+   glyph in the accent and the verb in the reader's words, so turning from one
+   into the other moves nothing but the words. The fill belongs to the block,
+   not here. */
+.status-bar__sync-action { font-weight: var(--weight-medium); }
+.status-bar__sync-action svg { color: var(--accent-primary); }
+/* The check: the gesture that renews the fact, right after it and behind the
+   same hairline the project block uses. At rest it carries how fresh the
+   answer is — "3 min ago" — so "up to date" is trusted without hovering;
+   while a check runs the remote's one spinner lives on the fact, and this
+   segment only goes quiet. */
+.status-bar__refresh { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+.status-bar__refresh:disabled { opacity: 0.45; cursor: default; }
+.status-bar__refresh:disabled:hover { background: transparent; }
+/* How fresh "up to date" is, before the check's glyph. */
+.status-bar__sync-age { font-size: var(--text-label); font-variant-numeric: tabular-nums; color: var(--text-secondary-color); }
+/* The field: one press opens the palette, and the shortcut is spelled on it,
+   so a search can start from anywhere without leaving the strip. A well in the
+   panel — the same control surface every other field in the app wears — keeps
+   the strip to one material instead of adding a second border. */
+.status-bar__search-slot {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 460px;
+}
+.status-bar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  color: var(--text-secondary-color);
+  font: inherit;
+  font-size: var(--text-body);
+  text-align: left;
+  transition: background var(--duration-fast), box-shadow var(--duration-fast);
+}
+/* Focus is on the input inside, so the well says it as a ring — the way a
+   search field does when it is ready to be typed in. */
+.status-bar__search--open,
+.status-bar__search:focus-within { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+.status-bar__search svg { width: 15px; height: 15px; flex-shrink: 0; }
+.status-bar__search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-primary-color);
+}
+.status-bar__search-input::placeholder { color: var(--text-secondary-color); }
+.status-bar__search-input:focus-visible { outline: none; }
+.status-bar__search-kbd {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-item);
+  background: var(--surface-panel);
+  color: var(--text-secondary-color);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
 }
 
 /* One width, always. The rail carries an icon in a 40px square with its name
@@ -1790,6 +1834,8 @@
   .titlebar-menu__list { animation: none; }
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }
+  .palette-panel,
+  .palette-panel--closing { animation: none; }
   .rail-item__icon,
   .sidebar-tray::before,
   .sidebar-round,
@@ -1887,17 +1933,17 @@
     height: 44px;
   }
   .status-bar { height: 52px; }
-  .status-bar__sync-split .status-bar__action { height: 44px; }
+  .status-bar__block,
   .status-bar .version-line-selector,
-  .status-bar__sync-split,
+  .status-bar__seg,
   .status-bar__project,
-  .status-bar__action,
   .status-bar__sync-action,
-  .status-bar__release {
+  .status-bar__refresh,
+  .status-bar__search {
     height: 44px;
     min-height: 44px;
   }
-  .status-bar__action { width: 44px; }
+  .status-bar__search-slot { max-width: none; }
   .project-switcher__button,
   .project-switcher-compact__popover .project-switcher__button,
   .project-switcher__add {

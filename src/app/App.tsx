@@ -19,7 +19,6 @@ import {
   FolderPlus,
   PanelLeftClose,
   PanelLeftOpen,
-  Search,
   Square,
   UserRound,
   X,
@@ -122,7 +121,8 @@ import { TooltipHost } from "../shared/ui/tooltip";
 import { LoadingBar } from "../shared/ui/loadingBar";
 import { AppOverlays } from "./AppOverlays";
 import { useIssueReport } from "./useIssueReport";
-import { CommandPalette, type AppCommand } from "./CommandPalette";
+import { IS_MAC, modifierKeyLabels } from "./branding";
+import { CommandPalette, filterAppCommands, paletteMeta, type AppCommand, type AppCommandDraft } from "./CommandPalette";
 import {
   CONFIRM_CLOSE_PROJECT_DEFAULT,
   CONFIRM_CLOSE_PROJECT_STORAGE_KEY,
@@ -158,7 +158,6 @@ import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
 import { RailNav, type RailNavItem } from "./RailNav";
 import { StatusBar } from "./StatusBar";
-import { CURRENT_APP_RELEASE } from "./appRelease";
 import {
   EMPTY_CHANGES_SELECTION,
   EMPTY_PENDING_VERSIONS,
@@ -277,6 +276,18 @@ export function App(): React.JSX.Element {
      epoch, so a reopened project never sees the previous session's answers. */
   const projectSettingsCache = useRef(createProjectSettingsCache()).current;
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  /* The field is the app's search: it owns the query and the selection, so the
+     panel above it and the input's aria-activedescendant cannot disagree. */
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const [paletteSelectedIndex, setPaletteSelectedIndex] = useState(0);
+  /* A destination chosen from the palette hands the keyboard to the screen it
+     opens; the flag pairs with the tick that wakes the effect below. */
+  const paletteFocusPending = useRef(false);
+  const [paletteFocusTick, setPaletteFocusTick] = useState(0);
+  /* Spelled the way the shortcut sheet spells it: ⌘K on a Mac, Ctrl+K elsewhere.
+     Both the strip's field and the Console's print it, so it is spelled once. */
+  const { mod: paletteModifier } = modifierKeyLabels(null);
+  const paletteShortcut = IS_MAC ? `${paletteModifier}K` : `${paletteModifier}+K`;
   const [isCloneOpen, setIsCloneOpen] = useState(false);
   const [watcherRegistrations, setWatcherRegistrations] = useState<Record<string, WatcherRegistration>>({});
   const [repositoryListenerState, setRepositoryListenerState] = useState<"starting" | "listening" | "unavailable">(
@@ -928,14 +939,6 @@ export function App(): React.JSX.Element {
     onBackgroundCheckSettled: (state) => backgroundUpdateResultRef.current(state),
   }));
   const appUpdates = useAppUpdatesController(appUpdatesController, automaticAppUpdates);
-  /* The status bar marks the release just installed until its changelog is
-     opened — from the tag, the startup toast or the menu — in this session. */
-  const [hasOpenedChangelog, setHasOpenedChangelog] = useState(false);
-  if (isChangelogOpen && !hasOpenedChangelog) setHasOpenedChangelog(true);
-  const hasUnseenWhatsNew =
-    !hasOpenedChangelog &&
-    appUpdates.startupConfirmation.kind === "confirmed" &&
-    CURRENT_APP_RELEASE.highlights.length > 0;
   const activeWatcherRegistration = activeSession ? watcherRegistrations[activeSession.id] : undefined;
   const activeWatcherState: "starting" | "watching" | "off" | "unavailable" =
     !watchProjects
@@ -1033,8 +1036,14 @@ export function App(): React.JSX.Element {
   );
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const paletteTriggerRef = useRef<HTMLButtonElement>(null);
-  const palettePreviouslyFocusedRef = useRef<HTMLElement | null>(null);
+  // The strip's field: the search's own control, and the anchor the results
+  // deploy from.
+  const commandPaletteAnchorRef = useRef<HTMLInputElement>(null);
+  // Console hides the strip and draws its own status line; its field is the
+  // anchor there, chosen by the active screen rather than "last mounted" —
+  // Console stays mounted while hidden, so a shared ref would be cleared by
+  // the strip's unmount without Console re-registering.
+  const consolePaletteAnchorRef = useRef<HTMLInputElement>(null);
 
   // Whichever path closed the confirmation (Cancel, Escape, or confirming
   // the close), the target it referred to stops being relevant.
@@ -1133,14 +1142,34 @@ export function App(): React.JSX.Element {
       avatarStyle: projectAvatarStyle,
     }));
 
+  /* The field keeps the focus while the results are open, so opening and
+     closing only resets the query: nothing is captured, and nothing has to be
+     given back. */
   const openPalette = (): void => {
-    palettePreviouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Already searching: a press or a focus in the field must not wipe what the
+    // reader has typed. Only the opening itself resets the query.
+    if (isPaletteOpen) return;
+    setPaletteQuery("");
+    setPaletteSelectedIndex(0);
     setIsPaletteOpen(true);
   };
 
   const closePalette = (): void => {
     setIsPaletteOpen(false);
-    (palettePreviouslyFocusedRef.current ?? paletteTriggerRef.current)?.focus();
+    setPaletteQuery("");
+    setPaletteSelectedIndex(0);
+  };
+
+  const runPaletteCommand = (command: AppCommand | undefined): void => {
+    if (!command) return;
+    closePalette();
+    // A destination gives the keyboard back to the screen it opens; actions
+    // and dialogs keep their own focus behaviour.
+    if (command.id.startsWith("go-")) {
+      paletteFocusPending.current = true;
+      setPaletteFocusTick((tick) => tick + 1);
+    }
+    command.action();
   };
 
   const checkWorkingTree = async (path: string, requestedEpoch?: string): Promise<void> => {
@@ -1890,6 +1919,9 @@ export function App(): React.JSX.Element {
         event.preventDefault();
         if (hasOpenDialog) return;
         openPalette();
+        // The field is the search itself: the shortcut puts the cursor in the
+        // one the active screen shows — the strip's, or the Console's own.
+        (view === "console" ? consolePaletteAnchorRef : commandPaletteAnchorRef).current?.focus();
         return;
       }
       // The desktop convention for collapsing a sidebar. Guarded like the
@@ -1935,7 +1967,7 @@ export function App(): React.JSX.Element {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [sessionsState, hasBlockingDialog, hasOpenDialog, view]);
 
-  const commands: AppCommand[] = [
+  const commandDrafts: AppCommandDraft[] = [
     // "Go to X" comes from the screen registry, in nav order, so a new screen
     // reaches the palette by being registered rather than by being remembered
     // here. Actions *within* a screen are not destinations and stay explicit.
@@ -1968,7 +2000,7 @@ export function App(): React.JSX.Element {
       if (screen === null) {
         return [];
       }
-      const entries: AppCommand[] = [
+      const entries: AppCommandDraft[] = [
         {
           id: `go-${destination.id}`,
           label: t[destination.commandLabelKey],
@@ -2089,6 +2121,115 @@ export function App(): React.JSX.Element {
     },
     { id: "about", label: t.aboutGitOdile, action: () => setIsAboutOpen(true) },
   ];
+
+  /* The palette's sections and glyphs are its own presentation, keyed off the
+     id: a caller here only says what a command does. */
+  const commands: AppCommand[] = commandDrafts.map((command) => ({
+    ...command,
+    ...paletteMeta(command.id, t),
+  }));
+  const paletteMatches = filterAppCommands(commands, paletteQuery);
+  const paletteSelected = paletteMatches[paletteSelectedIndex];
+  const paletteSelectedOptionId = paletteSelected ? `palette-option-${paletteSelected.id}` : undefined;
+
+  const handlePaletteQueryChange = (query: string): void => {
+    setPaletteQuery(query);
+    setPaletteSelectedIndex(0);
+    setIsPaletteOpen(true);
+  };
+
+  const handlePaletteKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (!isPaletteOpen) {
+      // The field keeps the focus after Escape, so arrows and Enter go back to
+      // the caret instead of moving an unseen selection or running a command.
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePalette();
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setPaletteSelectedIndex((index) => Math.min(index + 1, Math.max(paletteMatches.length - 1, 0)));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setPaletteSelectedIndex((index) => Math.max(index - 1, 0));
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      runPaletteCommand(paletteSelected);
+    }
+  };
+
+  // A search is a popover, not a modal: a press or a focus anywhere outside the
+  // field and its results puts them away, and the app underneath stays usable.
+  useEffect(() => {
+    if (!isPaletteOpen) return;
+    const isInsidePalette = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Node)) return false;
+      if (commandPaletteAnchorRef.current?.contains(target)) return true;
+      if (consolePaletteAnchorRef.current?.contains(target)) return true;
+      return target instanceof Element && target.closest("[data-palette-panel]") !== null;
+    };
+    const handlePointerDown = (event: MouseEvent): void => {
+      if (!isInsidePalette(event.target)) closePalette();
+    };
+    const handleFocusIn = (event: FocusEvent): void => {
+      if (!isInsidePalette(event.target)) closePalette();
+    };
+    // The one key that must work even when no field is mounted (a screen whose
+    // chunk is still loading): with nothing focused to own it, Escape would
+    // otherwise leave the panel on screen.
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") closePalette();
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("focusin", handleFocusIn, true);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("focusin", handleFocusIn, true);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isPaletteOpen]);
+
+  // The commands are the open project's, so switching projects puts the results
+  // away rather than offering actions for the project the reader just left.
+  const paletteProjectRef = useRef(sessionsState.activeId);
+  useEffect(() => {
+    if (paletteProjectRef.current !== sessionsState.activeId) closePalette();
+    paletteProjectRef.current = sessionsState.activeId;
+  }, [sessionsState.activeId]);
+
+  // The field lives in the strip and survives navigation, so a destination run
+  // from the palette would leave the focus in chrome that no longer describes
+  // the screen. Each screen names its own target — Home's launcher, Console's
+  // prompt, the Work screen's active tab, the Overview and Lines headings — and
+  // it takes the focus once the navigation has committed. The retry covers a
+  // lazy chunk arriving after this effect; a dialog opened by a command keeps
+  // its own focus.
+  useEffect(() => {
+    if (!paletteFocusPending.current) return;
+    paletteFocusPending.current = false;
+    let frame = 0;
+    const deadline = performance.now() + 1500;
+    const takeFocus = (): void => {
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const slot = document.querySelector<HTMLElement>(".screen-slot:not([hidden])");
+      const target = slot?.querySelector<HTMLElement>("[data-screen-focus]");
+      if (target) {
+        target.focus();
+        return;
+      }
+      if (performance.now() < deadline) frame = requestAnimationFrame(takeFocus);
+    };
+    frame = requestAnimationFrame(takeFocus);
+    return () => cancelAnimationFrame(frame);
+  }, [paletteFocusTick, view]);
 
   const projectNameCounts = sessionsState.order.reduce<Record<string, number>>((counts, id) => {
     const name = sessionsState.byId[id].project.name.toLocaleLowerCase();
@@ -2414,16 +2555,6 @@ export function App(): React.JSX.Element {
             </div>,
             document.body,
           )}
-          <button
-            className="titlebar-icon-button"
-            type="button"
-            ref={paletteTriggerRef}
-            aria-label={t.titlebarOpenCommandPalette}
-            data-tooltip={t.titlebarJumpToHint}
-            onClick={openPalette}
-          >
-            <Search aria-hidden="true" />
-          </button>
           <div className="titlebar-history-controls">
             <button
               className="titlebar-icon-button"
@@ -2930,6 +3061,16 @@ export function App(): React.JSX.Element {
                           runHooks={runGitHooks}
                           onRepositoryChanged={() => void handleMutationSucceeded(project.path)}
                           onOpenSettings={() => openSettings("console")}
+                          commandPalette={{
+                            isOpen: isPaletteOpen,
+                            query: paletteQuery,
+                            selectedOptionId: paletteSelectedOptionId,
+                            inputRef: consolePaletteAnchorRef,
+                            shortcut: paletteShortcut,
+                            onOpen: openPalette,
+                            onQueryChange: handlePaletteQueryChange,
+                            onKeyDown: handlePaletteKeyDown,
+                          }}
                         />
                       </Suspense>
                     ),
@@ -2968,10 +3109,16 @@ export function App(): React.JSX.Element {
           onPublish={() => openPublishDialog()}
           onGetChanges={() => startSessionOperation("sync")}
           onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}
-          onOpenChangelog={() => setIsChangelogOpen(true)}
-          appUpdate={appUpdates.state}
-          hasUnseenWhatsNew={hasUnseenWhatsNew}
-          onOpenAppUpdate={() => setIsAppUpdateOpen(true)}
+          commandPalette={{
+            isOpen: isPaletteOpen,
+            query: paletteQuery,
+            selectedOptionId: paletteSelectedOptionId,
+            inputRef: commandPaletteAnchorRef,
+            shortcut: paletteShortcut,
+            onOpen: openPalette,
+            onQueryChange: handlePaletteQueryChange,
+            onKeyDown: handlePaletteKeyDown,
+          }}
         />}
       </main>
 
@@ -2995,9 +3142,15 @@ export function App(): React.JSX.Element {
 
       <CommandPalette
         isOpen={isPaletteOpen}
-        onClose={closePalette}
-        commands={commands}
-        contextKey={sessionsState.activeId}
+        matches={paletteMatches}
+        selectedIndex={paletteSelectedIndex}
+        // The field the active screen shows: Console owns one in its own status
+        // line, and the strip is not mounted there.
+        anchorRef={view === "console" ? consolePaletteAnchorRef : commandPaletteAnchorRef}
+        reducedMotion={reducedMotion}
+        variant={view === "console" ? "console" : "app"}
+        onSelect={runPaletteCommand}
+        onHover={setPaletteSelectedIndex}
       />
 
       <CloneDialog

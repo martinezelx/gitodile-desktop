@@ -481,7 +481,7 @@ describe("App project restoration", () => {
     });
 
     await userEvent.keyboard("{Control>}k{/Control}");
-    const palette = screen.getByRole("dialog", { name: "Command palette" });
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
     expect(within(palette).getByText("Check local changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check for updates")).toBeInTheDocument();
@@ -489,10 +489,11 @@ describe("App project restoration", () => {
     expect(screen.getByRole("dialog", { name: "Updates" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
-    // The version tag is the changelog's entry point; About is in the menu.
-    await userEvent.click(
-      within(statusBar).getByRole("button", { name: `What's new in GitOdile ${__APP_VERSION__}` }),
-    );
+    // The strip carries no version: the release notes open from the overflow
+    // menu now, where the update check sits beside them.
+    expect(within(statusBar).queryByRole("button", { name: /What's new/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "What's new" }));
     const changelog = screen.getByRole("dialog", { name: "What's new" });
     expect(within(changelog).getByRole("heading", { name: __APP_VERSION__ })).toBeInTheDocument();
     expect(within(changelog).getByText("Your version")).toBeInTheDocument();
@@ -1136,7 +1137,7 @@ describe("App project restoration", () => {
 
     // …but never on top of another dialog: two focus traps would compete.
     await user.keyboard("{Control>}k{/Control}");
-    expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
     await user.keyboard("{Control>},{/Control}");
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     await user.keyboard("{Escape}");
@@ -2184,12 +2185,148 @@ describe("App project restoration", () => {
     const user = userEvent.setup();
     render(<LanguageProvider><App /></LanguageProvider>);
     await screen.findByRole("heading", { name: restoredProject.name });
-    await user.click(screen.getByRole("button", { name: "Open command palette" }));
-    const palette = screen.getByRole("dialog", { name: "Command palette" });
+    await user.click(screen.getByRole("combobox", { name: "Open command palette" }));
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
     expect(within(palette).getAllByRole("option")[0]).toHaveTextContent("Go to Home");
     expect(within(palette).getByText("Go to Home")).toBeInTheDocument();
     await user.click(within(palette).getByText("Go to Home"));
     expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+  });
+
+  it("runs the search from the field: filtering, Enter, and an idle field after Escape", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+
+    await user.click(field);
+    expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
+    );
+    // The field keeps the focus after Escape, so Enter must not run the first
+    // command the cleared query leaves behind (it would open Home).
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: /^Good / })).toBeNull();
+
+    await user.click(field);
+    await user.type(field, "home");
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
+    // The strip's search keeps the app's raised card, not the Console pane.
+    expect(palette.parentElement).not.toHaveClass("palette-panel--console");
+    const options = within(palette).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Go to Home");
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+  });
+
+  it("hands the palette to the Console's own field, keys included", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      if (command === "get_console_settings") return Promise.resolve({ confirmChanges: true });
+      if (command === "read_console_host") return Promise.reject(new Error("no host"));
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    const nav = screen.getByRole("navigation", { name: "Project navigation" });
+    await user.click(within(nav).getByRole("button", { name: "Console" }));
+
+    // Console replaces the strip; its status line owns the search now.
+    const field = await screen.findByRole("combobox", { name: "Open command palette" }, { timeout: 5000 });
+    expect(screen.queryByRole("contentinfo", { name: "Project status" })).toBeNull();
+
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    const consolePalette = await screen.findByRole("listbox", { name: "Command palette" });
+    expect(consolePalette).toBeInTheDocument();
+    // The Console's field opens the results as a terminal pane.
+    expect(consolePalette.parentElement).toHaveClass("palette-panel--console");
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
+    );
+    // The keyboard goes back to the Console prompt, so the next command can be
+    // typed at once; Ctrl+K reaches the search again.
+    const prompt = screen.getByRole("combobox", { name: "Console command" });
+    expect(prompt).toHaveFocus();
+    // Choosing Console itself also hands the keyboard to the prompt, even
+    // though the search field lives inside the same screen.
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    await user.type(field, "go to console");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(prompt).toHaveFocus());
+    // And a destination on another screen takes the focus too.
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    await user.type(field, "overview");
+    const options = within(screen.getByRole("listbox", { name: "Command palette" })).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Go to Overview");
+    await user.keyboard("{Enter}");
+    const overviewHeading = await screen.findByRole("heading", { name: restoredProject.name });
+    await waitFor(() => expect(overviewHeading).toHaveFocus());
+  });
+
+  it("moves the focus to the screen a palette destination opens", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    await user.click(field);
+    await user.type(field, "work");
+    await user.keyboard("{Enter}");
+
+    // The search no longer keeps the keyboard: the screen's active tab does.
+    const tab = await screen.findByRole("tab", { name: "Changes" }, { timeout: 5000 });
+    await waitFor(() => expect(tab).toHaveFocus(), { timeout: 5000 });
   });
 
   it("keeps a project open when a recent project fails to open from Inicio", async () => {

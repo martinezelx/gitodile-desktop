@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitOdile · H3 — micro-variantes</title>
+<!--
+  Ronda 6. H3 confirmada (dos segmentos por bloque, hairline en medio, una tarjeta,
+  buscador dentro, sin versión). Aquí se cierran los detalles que quedaban abiertos
+  en el bloque derecho: dónde va su gesto, qué es pulsable, cómo se comporta con una
+  acción de sync, y si el hover es por segmento o por bloque.
+  Paleta funcional: clic o ⌘K/Ctrl+K, escribe, ↑↓, Esc.
+-->
+<style>
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  --radius-item: 10px; --radius-control: 14px; --radius-surface: 18px; --radius-pill: 999px; --radius-round: 50%; --radius-identity: 28%;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  --text-hero: 28px; --text-display: 22px; --text-title: 17px; --text-subtitle: 15px; --text-lead: 14px;
+  --text-body: 13px; --text-label: 12px; --text-caption: 11px; --text-micro: 10px;
+  --weight-normal: 400; --weight-medium: 500; --weight-strong: 600; --weight-heading: 650; --weight-title: 700;
+  --leading-none: 1; --leading-tight: 1.2; --leading-snug: 1.35; --leading-normal: 1.5;
+  --tracking-tight: -0.01em; --tracking-wide: 0.02em; --tracking-caps: 0.06em;
+  --duration-fast: 120ms; --duration-normal: 180ms;
+  --tooltip-surface: #171717; --tooltip-text: #f5f5f5; --tooltip-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --avatar-color-3: #5c6ed6; --avatar-foreground: #fff;
+  --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9));
+}
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-app: #0c0a09; --surface-panel: #1c1917; --surface-raised: #292524; --surface-code: #201d1b;
+  --surface-hover: rgba(250, 250, 249, 0.06); --surface-active: rgba(155, 214, 90, 0.14); --surface-control: #24211f;
+  --border-control: #44403c; --border-subtle: #38322f; --border-divider: #44403c;
+  --text-primary-color: #fafaf9; --text-secondary-color: #a8a29e;
+  --accent-primary: #86c24a; --accent-primary-contrast: #0c0a09; --accent-primary-fill: #9bd65a;
+  --status-success: #9bd65a; --status-warning: #e8b339; --status-danger: #ff6b5b; --status-renamed: #6ea8fe;
+  --focus-ring: #9bd65a; --overlay: rgba(0, 0, 0, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22); --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3); --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+body[data-theme="light"] {
+  color-scheme: light;
+  --surface-app: #faf8f5; --surface-panel: #ffffff; --surface-raised: #ffffff; --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05); --surface-active: rgba(107, 155, 46, 0.12); --surface-control: #f4f2ef;
+  --border-control: #dcd9d4; --border-subtle: #e7e5e4; --border-divider: #dedad6;
+  --text-primary-color: #1c1917; --text-secondary-color: #6f6a64;
+  --accent-primary: #4b7521; --accent-primary-contrast: #14170f; --accent-primary-fill: #9bd65a;
+  --status-success: #44691c; --status-warning: #8a5b00; --status-danger: #b3261e; --status-renamed: #2f6fb3;
+  --focus-ring: #4b7521; --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06); --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08); --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--surface-app); color: var(--text-primary-color); font-family: var(--font-sans); font-size: var(--text-body); line-height: var(--leading-normal); -webkit-font-smoothing: antialiased; }
+.page-hero { max-width: 1180px; margin: 0 auto; padding: 40px 28px 8px; }
+.eyebrow { margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.page-hero h1 { margin: 0 0 10px; font-size: var(--text-hero); font-weight: var(--weight-title); letter-spacing: -0.02em; line-height: var(--leading-tight); }
+.page-hero p { max-width: 84ch; margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-lead); }
+.page-hero p strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.brief { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 0; }
+.brief__item { padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.brief__item b { display: block; margin-bottom: 3px; font-size: var(--text-label); font-weight: var(--weight-title); }
+.brief__item span { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.toolbar { position: sticky; top: 0; z-index: 30; margin-top: 22px; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--surface-raised) 92%, transparent); backdrop-filter: blur(10px); }
+.toolbar__inner { max-width: 1180px; margin: 0 auto; padding: 10px 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.control { display: inline-flex; align-items: center; gap: 8px; }
+.control__label { color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-heading); }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-control); }
+.seg__btn { min-height: 26px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-label); font-weight: var(--weight-medium); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.seg__btn:hover { color: var(--text-primary-color); }
+.seg__btn[aria-pressed="true"] { background: var(--surface-active); color: var(--text-primary-color); font-weight: var(--weight-heading); }
+.field { height: 30px; min-width: 168px; padding: 0 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-control); color: var(--text-primary-color); font: inherit; font-size: var(--text-label); }
+.field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+main { max-width: 1180px; margin: 0 auto; padding: 0 28px 72px; }
+.section { margin-top: 56px; }
+.section__head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.section__kicker { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--surface-control); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.section__kicker--base { background: color-mix(in srgb, var(--text-secondary-color) 14%, var(--surface-panel)); }
+.section__kicker--rec { background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-panel)); color: var(--accent-primary); }
+.section h2 { margin: 0; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
+.section__sub { margin: 2px 0 20px; max-width: 90ch; color: var(--text-secondary-color); font-size: var(--text-lead); }
+.stage { position: relative; }
+.stage--narrow .window { width: 640px; max-width: 100%; margin: 0 auto; }
+.window { position: relative; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); overflow: hidden; background: var(--surface-app); box-shadow: var(--shadow-md); }
+.window__titlebar { height: 44px; display: flex; align-items: center; gap: 4px; padding: 0 6px 0 8px; user-select: none; }
+.window__drag { flex: 1; height: 100%; min-width: 8px; }
+.tb-btn { position: relative; width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+.tb-btn:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.tb-btn:disabled { opacity: 0.35; }
+.tb-btn svg { width: 16px; height: 16px; }
+.titlebar-history-controls { display: flex; align-items: center; gap: 2px; }
+.window--narrow .titlebar-history-controls { display: none; }
+.window-controls { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.window-control { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); cursor: pointer; }
+.window-control:hover { background: var(--surface-hover); }
+.window-control--close:hover { background: var(--status-danger); color: #fff; }
+.wc-min { width: 12px; height: 1.5px; background: currentColor; border-radius: 1px; }
+.wc-max { width: 11px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px; }
+.wc-close { position: relative; width: 12px; height: 12px; }
+.wc-close::before, .wc-close::after { content: ""; position: absolute; top: 5px; left: 0; width: 12px; height: 1.5px; background: currentColor; }
+.wc-close::before { transform: rotate(45deg); } .wc-close::after { transform: rotate(-45deg); }
+.app-shell { height: 268px; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+.rail { grid-column: 1; grid-row: 1 / -1; padding: 10px 8px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.window--narrow .app-shell { grid-template-columns: minmax(0, 1fr); }
+.window--narrow .rail { display: none; }
+.window--narrow .workspace, .window--narrow .bar-card { grid-column: 1; }
+.rail-item { width: 100%; display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: transparent; color: var(--text-secondary-color); cursor: pointer; }
+.rail-item__icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); }
+.rail-item__icon svg { width: 21px; height: 21px; }
+.rail-item__label { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; font-size: 11px; font-weight: var(--weight-medium); letter-spacing: var(--tracking-tight); line-height: var(--leading-snug); text-align: center; }
+.rail-item:hover { color: var(--text-primary-color); }
+.rail-item:hover .rail-item__icon { background: var(--surface-hover); }
+.rail-item--active { color: var(--text-primary-color); }
+.rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
+.rail-item--active .rail-item__label { font-weight: var(--weight-strong); }
+.rail-spacer { flex: 1; }
+.rail-avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-identity); background: var(--avatar-color-3); color: var(--avatar-foreground); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide); box-shadow: var(--avatar-ring); }
+.rail-round { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color); cursor: pointer; }
+.rail-round svg { width: 18px; height: 18px; }
+.rail-round:hover { color: var(--text-primary-color); }
+.workspace { grid-column: 2; grid-row: 1; padding: 28px 24px 40px; overflow: hidden; min-width: 0; }
+.ws-card { height: 100%; max-width: 720px; display: grid; align-content: start; gap: 12px; padding: 18px 20px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.ws-bar { height: 10px; border-radius: 6px; background: var(--surface-hover); }
+.ws-bar--title { width: 38%; height: 14px; } .ws-bar--60 { width: 60%; } .ws-bar--70 { width: 70%; } .ws-bar--42 { width: 42%; } .ws-bar--52 { width: 52%; }
+
+/* ========================== la barra (H3) ========================== */
+.bar-card { position: relative; grid-column: 2; grid-row: 2; display: flex; align-items: center; gap: 12px; height: 44px; margin: 0 24px 10px; padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-panel); box-shadow: var(--shadow-sm); color: var(--text-primary-color); font-size: var(--text-body); line-height: var(--leading-snug); }
+.bar-card::before { content: ""; position: absolute; left: -25px; right: -25px; bottom: calc(100% + 1px); height: 40px; pointer-events: none; background: linear-gradient(to top, var(--surface-app) 0%, color-mix(in srgb, var(--surface-app) 95.7%, transparent) 12.5%, color-mix(in srgb, var(--surface-app) 84.4%, transparent) 25%, color-mix(in srgb, var(--surface-app) 68.4%, transparent) 37.5%, color-mix(in srgb, var(--surface-app) 50%, transparent) 50%, color-mix(in srgb, var(--surface-app) 31.6%, transparent) 62.5%, color-mix(in srgb, var(--surface-app) 15.6%, transparent) 75%, color-mix(in srgb, var(--surface-app) 4.3%, transparent) 87.5%, color-mix(in srgb, var(--surface-app) 0%, transparent) 100%); }
+.bar-side { display: inline-flex; align-items: center; gap: 2px; min-width: 0; flex-shrink: 0; }
+.bar-center { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.bar-center--fixed { flex: 0 1 430px; margin: 0 auto; }
+
+.hb { display: inline-flex; align-items: center; gap: 6px; height: 30px; min-width: 0; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--text-body); font-weight: var(--weight-strong); white-space: nowrap; cursor: pointer; transition: background var(--duration-fast); }
+.hb:hover { background: var(--surface-hover); }
+.hb svg { width: 14px; height: 14px; flex-shrink: 0; }
+.hb__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hb__qual { color: var(--text-secondary-color); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.hb__qual--age { font-size: var(--text-label); }
+.hb__chev { width: 13px !important; height: 13px !important; flex-shrink: 0; color: var(--text-secondary-color); }
+.hb__marker { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--status-warning); }
+.hb__marker--error { background: var(--status-danger); }
+.hb--action { color: var(--text-primary-color); font-weight: var(--weight-medium); }
+.hb--action svg:first-child { color: var(--accent-primary); }
+.hb--warning { color: var(--status-warning); }
+.hb--warning svg:first-child { color: var(--status-warning); }
+.hb--static { cursor: default; }
+.hb--static:hover { background: transparent; }
+.hb-group { display: inline-flex; align-items: center; gap: 0; height: 30px; border-radius: var(--radius-pill); }
+.hb-hair { width: 1px; height: 16px; flex-shrink: 0; margin: 0 3px; background: var(--border-divider); }
+.hb-seg { padding: 0 7px; }
+/* hover por bloque: el grupo entero se ilumina, no cada segmento */
+.hb-group--block-hover:hover, .hb-group--block-hover:focus-within { background: var(--surface-hover); }
+.hb-group--block-hover .hb { border-radius: 0; }
+.hb-group--block-hover .hb:hover { background: transparent; }
+/* acción de grupo: la cápsula entera se rellena cuando hay algo que hacer */
+.hb-group--action { background: var(--surface-hover); }
+.hb-group--action .hb--action { background: transparent; }
+
+.srch { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; height: 32px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--surface-control); transition: box-shadow var(--duration-fast); }
+.srch[data-open="true"] { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+.srch__icon { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.srch__input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-body); color: var(--text-primary-color); }
+.srch__input::placeholder { color: var(--text-secondary-color); }
+.srch__kbd { flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--border-subtle); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-control); color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-caption); font-weight: var(--weight-strong); }
+.omni-menu { position: absolute; z-index: 8; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 48px)); padding: 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-raised); box-shadow: var(--shadow-lg); }
+.omni-menu__list { max-height: 300px; overflow-y: auto; }
+.omni-menu__group { padding: 8px 10px 4px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.omni-menu__row { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: var(--radius-item); color: var(--text-primary-color); font-size: var(--text-body); cursor: pointer; }
+.omni-menu__row svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
+.omni-menu__row[aria-selected="true"] { background: var(--surface-active); }
+.omni-menu__row[aria-selected="true"] svg { color: var(--accent-primary); }
+.omni-menu__label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.omni-menu__kbd { flex-shrink: 0; padding: 2px 6px; border: 1px solid var(--border-subtle); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-control); color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-caption); font-weight: var(--weight-strong); }
+.omni-menu__empty { padding: 18px 10px; color: var(--text-secondary-color); font-size: var(--text-body); text-align: center; }
+.omni-menu__footer { display: flex; align-items: center; gap: 14px; margin-top: 4px; padding: 8px 10px 4px; border-top: 1px solid var(--border-divider); color: var(--text-secondary-color); font-size: var(--text-caption); }
+.omni-menu__footer span { display: inline-flex; align-items: center; gap: 5px; }
+.omni-menu__footer kbd { padding: 1px 5px; border: 1px solid var(--border-subtle); border-radius: 5px; background: var(--surface-control); font-family: var(--font-sans); font-size: var(--text-micro); font-weight: var(--weight-strong); }
+.icon--spinning { display: inline-flex; flex-shrink: 0; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.notes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.note-card { padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.note-card h3 { margin: 0 0 6px; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.note-card p { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
+.note-card strong { font-weight: var(--weight-strong); }
+table.matrix { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: var(--text-label); }
+table.matrix th, table.matrix td { padding: 9px 10px; border-bottom: 1px solid var(--border-divider); text-align: left; vertical-align: top; }
+table.matrix th { color: var(--text-secondary-color); font-weight: var(--weight-heading); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-size: var(--text-caption); }
+table.matrix td:first-child { color: var(--text-primary-color); font-weight: var(--weight-strong); white-space: nowrap; }
+table.matrix td { color: var(--text-secondary-color); }
+table.matrix tr.is-rec td { background: color-mix(in srgb, var(--accent-primary) 7%, transparent); }
+.pick { display: grid; gap: 12px; padding: 20px 22px; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, var(--border-subtle)); border-radius: var(--radius-surface); background: var(--surface-panel); box-shadow: var(--shadow-sm); }
+.pick p { margin: 0; max-width: 92ch; line-height: var(--leading-normal); }
+.pick p strong { font-weight: var(--weight-strong); }
+.pick ul { margin: 0; padding-left: 20px; color: var(--text-secondary-color); display: grid; gap: 6px; }
+.pick li strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.pick code, .page-foot code, .section__sub code { padding: 1px 5px; border: 1px solid var(--border-divider); border-radius: 6px; background: var(--surface-code); font-family: var(--font-mono); font-size: var(--text-label); }
+.page-foot { max-width: 1180px; margin: 56px auto 0; padding: 24px 28px 56px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.page-foot p { margin: 0 0 6px; }
+.app-tooltip { position: fixed; max-width: 260px; width: max-content; z-index: 1000; padding: 5px 8px; border-radius: var(--radius-item); background: var(--tooltip-surface); color: var(--tooltip-text); box-shadow: var(--tooltip-shadow); font-size: var(--text-label); font-weight: var(--weight-medium); line-height: var(--leading-normal); text-align: center; white-space: normal; overflow-wrap: anywhere; pointer-events: none; animation: tooltip-in 120ms ease-out both; }
+@keyframes tooltip-in { from { opacity: 0; transform: translateY(3px); } }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.srch__input:focus-visible { outline: none; }
+@media (max-width: 1100px) { .brief { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .notes-grid { grid-template-columns: 1fr; } .toolbar__inner { padding: 10px 16px; } .page-hero, main, .page-foot { padding-left: 16px; padding-right: 16px; } }
+@media (prefers-reduced-motion: reduce) { .icon--spinning, .app-tooltip { animation: none; } }
+</style>
+</head>
+<body data-theme="dark">
+
+<header class="page-hero">
+  <p class="eyebrow">GitOdile · barra de estado · ronda 6</p>
+  <h1>H3, con los detalles cerrados</h1>
+  <p>
+    H3 queda como base: <strong>dos segmentos por bloque y una hairline en medio</strong>, sobre una
+    tarjeta, con el buscador dentro y sin versión. Antes de implementarla hay cinco decisiones
+    pequeñas, todas en el bloque derecho: dónde va su gesto, si su primer segmento es pulsable,
+    cómo se comporta con una acción de sync, y si el hover es por segmento o por bloque.
+    <strong>R0 es la H3 tal cual, para comparar.</strong>
+  </p>
+  <div class="brief">
+    <div class="brief__item"><b>Cómo mirarlo</b><span>Cada propuesta sale en reposo; mueve «Remoto» a «3 versiones por publicar» para ver el estado de acción de todas a la vez.</span></div>
+    <div class="brief__item"><b>Qué no cambia</b><span>En las cinco, los dos bloques mantienen el mismo tamaño, tinta y hover de base. Solo se mueve el gesto y el reparto de la acción.</span></div>
+  </div>
+</header>
+
+<nav class="toolbar" aria-label="Controles de la demo">
+  <div class="toolbar__inner">
+    <span class="control"><span class="control__label">Tema</span><span class="seg"><button class="seg__btn" type="button" data-theme-set="light">Claro</button><button class="seg__btn" type="button" data-theme-set="dark">Oscuro</button></span></span>
+    <span class="control"><span class="control__label">Ventana</span><span class="seg"><button class="seg__btn" type="button" data-width-set="normal">Normal</button><button class="seg__btn" type="button" data-width-set="narrow">Estrecha</button></span></span>
+    <span class="control"><span class="control__label">Búsqueda</span><span class="seg"><button class="seg__btn" type="button" data-search-set="rest">En reposo</button><button class="seg__btn" type="button" data-search-set="open">Buscando</button></span></span>
+    <span class="control"><label class="control__label" for="remote-select">Remoto</label><select class="field" id="remote-select"></select></span>
+    <span class="control"><label class="control__label" for="tree-select">Cambios</label><select class="field" id="tree-select"></select></span>
+  </div>
+</nav>
+
+<main>
+  <section class="section" id="r0">
+    <div class="section__head"><span class="section__kicker section__kicker--base">R0 · base</span><h2>H3 tal cual</h2></div>
+    <p class="section__sub">
+      `☁ al día │ ⟳ hace 3 min`. El gesto (refresco) abre su segmento y la edad lo sigue. Es la
+      referencia: aquí el remate del bloque izquierdo es una flecha <em>al final</em> y el del derecho
+      un refresco <em>al principio</em>.
+    </p>
+    <div class="stage" data-mock="r0"></div>
+  </section>
+
+  <section class="section" id="m1">
+    <div class="section__head"><span class="section__kicker section__kicker--rec">M1 · recomendada</span><h2>El gesto, al final en los dos</h2></div>
+    <p class="section__sub">
+      Un solo cambio: en el bloque derecho la edad va antes y el refresco cierra el segmento
+      (`hace 3 min ⟳`), igual que la flecha cierra el izquierdo (`main ⌃`). Los dos bloques terminan
+      en su gesto.
+    </p>
+    <div class="stage" data-mock="m1"></div>
+    <div class="notes-grid">
+      <div class="note-card"><h3>Qué cambia</h3><p>Se invierte el orden dentro del segundo segmento derecho: edad, punto medio, refresco.</p></div>
+      <div class="note-card"><h3>Por qué</h3><p>Es la corrección que le falta a H3: <strong>el gesto ocupa el mismo lugar</strong> en los dos bloques (el final), y el ojo deja de tener que reaprender la mitad derecha.</p></div>
+      <div class="note-card"><h3>Compromiso</h3><p>Ninguno real; solo que el refresco queda un poco más lejos del estado y más cerca del borde.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="m2">
+    <div class="section__head"><span class="section__kicker">M2</span><h2>Todo pulsable: el primer segmento también</h2></div>
+    <p class="section__sub">
+      En R0 el `☁ al día` es solo un dato en reposo: no se pulsa hasta que hay algo que publicar o
+      traer. Aquí es siempre un botón —al pasar el ratón se ilumina y abre la comprobación del
+      remoto—, así los dos bloques tienen <strong>sus dos segmentos pulsables</strong>.
+    </p>
+    <div class="stage" data-mock="m2"></div>
+    <div class="notes-grid">
+      <div class="note-card"><h3>Qué cambia</h3><p>El segmento del estado remoto siempre responde al puntero; en reposo comprueba el remoto, con acción publica o trae.</p></div>
+      <div class="note-card"><h3>Por qué</h3><p>Simetría de comportamiento, no solo de forma: en el bloque izquierdo los dos segmentos se pulsan, y aquí también. Y el estado remoto gana un sitio claro donde pedir la comprobación.</p></div>
+      <div class="note-card"><h3>Compromiso</h3><p>Un dato que a veces no hace nada ahora siempre «invita» a pulsarlo; hay que dejar muy claro en el tooltip qué hará en cada estado para no prometer de más.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="m3">
+    <div class="section__head"><span class="section__kicker">M3</span><h2>La acción se lleva todo el bloque</h2></div>
+    <p class="section__sub">
+      Cuando hay algo que publicar o traer, no se rellena solo el primer segmento: se rellena
+      <strong>la cápsula entera</strong> del bloque derecho (`☁ publicar 3 versiones │ ⟳ hace 3 min`),
+      como una sola pieza. En reposo vuelve a ser dos segmentos planos.
+    </p>
+    <div class="stage" data-mock="m3"></div>
+    <div class="notes-grid">
+      <div class="note-card"><h3>Qué cambia</h3><p>El relleno pasa del segmento al grupo, sin tocar el resto: en reposo no hay ninguna pastilla, con acción hay una sola.</p></div>
+      <div class="note-card"><h3>Por qué</h3><p>Cuando el bloque entero es una acción, la forma lo dice de un vistazo; y conserva la lectura de «cápsula partida» que ya tenías, pero solo mientras importa.</p></div>
+      <div class="note-card"><h3>Compromiso</h3><p>El refresco queda dentro de una zona que se ve pulsable aunque comprueba otra cosa; hay que mantener su afordancia propia (la hairline ayuda).</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="m4">
+    <div class="section__head"><span class="section__kicker">M4</span><h2>El hover, por bloque y no por segmento</h2></div>
+    <p class="section__sub">
+      Ahora cada segmento se ilumina por su cuenta. Aquí se ilumina <strong>el bloque entero</strong>
+      al pasar el ratón, tanto a izquierda como a derecha: dos objetos, dos zonas de puntero.
+    </p>
+    <div class="stage" data-mock="m4"></div>
+    <div class="notes-grid">
+      <div class="note-card"><h3>Qué cambia</h3><p>El relleno de hover se muda del segmento al grupo; los segmentos de dentro dejan de responderte por separado.</p></div>
+      <div class="note-card"><h3>Por qué</h3><p>Refuerza «esto es un componente»: el puntero no distingue mitades, así que el ojo tampoco. Y desaparecen dos hover vecinos que podían encenderse a la vez.</p></div>
+      <div class="note-card"><h3>Compromiso</h3><p>Dos acciones distintas (proyecto y línea; estado y refresco) comparten una sola zona de hover; el usuario no sabe cuál va a pulsar hasta que clica. Solo funciona con un `cursor: default` honesto y tooltips por segmento.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="m5">
+    <div class="section__head"><span class="section__kicker">M5</span><h2>Sin edad: el segundo segmento es solo el refresco</h2></div>
+    <p class="section__sub">
+      La edad sale del texto y se va al tooltip; el segundo segmento queda como el gesto solo:
+      `☁ al día │ ⟳`. Los dos bloques pasan a ser «dato │ gesto» exactamente, sin calificador de por
+      medio.
+    </p>
+    <div class="stage" data-mock="m5"></div>
+    <div class="notes-grid">
+      <div class="note-card"><h3>Qué cambia</h3><p>Se retira «hace 3 min» de la barra; sigue en el tooltip del refresco.</p></div>
+      <div class="note-card"><h3>Por qué</h3><p>Es la simetría más limpia: `gitodile │ main ⌃` y `al día │ ⟳`. Nada dentro de los bloques salvo el dato y su gesto.</p></div>
+      <div class="note-card"><h3>Compromiso</h3><p>Pierdes a la vista la frescura de «al día», que es justo lo que hace fiable ese estado sin tener que pasar el ratón; lo pide DESIGN.md, así que no lo recomiendo.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="matrix">
+    <div class="section__head"><span class="section__kicker">Comparación</span><h2>Las cinco, de un vistazo</h2></div>
+    <table class="matrix">
+      <thead><tr><th>Variante</th><th>Gesto</th><th>Primer segmento derecho</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td>R0 · base</td><td>Refresco al principio</td><td>Dato (no pulsable)</td><td>Rellena su segmento</td></tr>
+        <tr class="is-rec"><td>M1 · Gesto al final</td><td>En el mismo sitio que el izquierdo</td><td>Dato (no pulsable)</td><td>Rellena su segmento</td></tr>
+        <tr><td>M2 · Todo pulsable</td><td>Refresco al principio</td><td>Siempre botón</td><td>Rellena su segmento</td></tr>
+        <tr><td>M3 · Acción de grupo</td><td>Refresco al principio</td><td>Dato (no pulsable)</td><td>Rellena el bloque entero</td></tr>
+        <tr><td>M4 · Hover por bloque</td><td>Refresco al principio</td><td>Dato (no pulsable)</td><td>Rellena su segmento</td></tr>
+        <tr><td>M5 · Sin edad</td><td>Refresco solo</td><td>Dato (no pulsable)</td><td>Rellena su segmento</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section" id="pick">
+    <div class="section__head"><span class="section__kicker section__kicker--rec">Recomendación</span><h2>Qué cerraría</h2></div>
+    <div class="pick">
+      <p>
+        <strong>M1 como base</strong> — es la H3 que ya te gusta, con el gesto en el mismo sitio en los
+        dos bloques. Y le sumaría <strong>M3 para el estado de acción</strong>: en reposo, dos segmentos
+        planos; con algo que publicar, la cápsula entera enciende. El hover lo dejaría
+        <strong>por segmento</strong> (como R0): cada mitad dice qué hace al tocarla, que es más honesto
+        que fundirlas.
+      </p>
+      <ul>
+        <li><strong>M1</strong>: imprescindible. Es un intercambio de orden, coste cero.</li>
+        <li><strong>M3</strong>: muy recomendable; devuelve la «cápsula partida» del diseño actual, solo cuando hay acción.</li>
+        <li><strong>M2</strong>: buena si quieres que hasta el dato remoto responda; yo la dejaría para más adelante.</li>
+        <li><strong>M4 / M5</strong>: descartadas — M4 esconde dos acciones bajo una zona y M5 quita la frescura del estado.</li>
+      </ul>
+      <p>
+        Si te vale, el siguiente paso es implementarlo: un componente de bloque con dos segmentos en
+        <code>src/app/StatusBar.tsx</code>, las reglas en <code>src/app/app-shell.css</code> y una
+        nota en <code>DESIGN.md</code> § Status bar.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="page-foot">
+  <p>Ronda 6. Tokens de <code>src/styles/tokens.css</code> y <code>src/styles/themes.css</code>; textos de <code>src/app/translations.ts</code> (HEAD <code>eee3860</code>, v0.3.1); iconos lucide. Ronda anterior: <code>status-bar-round-5-harmonised-blocks.html</code>.</p>
+</footer>
+
+<script>
+"use strict";
+const wrap = (paths) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + "</svg>";
+const withClass = (svg, cls) => svg.replace("<svg ", '<svg class="' + cls + '" ');
+const I = {
+  folderGit2: wrap('<path d="M18 19a5 5 0 0 1-5-5v8"/><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"/><circle cx="13" cy="12" r="2"/><circle cx="20" cy="19" r="2"/>'),
+  gitBranch: wrap('<path d="M15 6a9 9 0 0 0-9 9V3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>'),
+  chevronUp: wrap('<path d="m18 15-6-6-6 6"/>'),
+  rotateCw: wrap('<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>'),
+  cloud: wrap('<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>'),
+  cloudCheck: wrap('<path d="m17 15-5.5 5.5L9 18"/><path d="M5.516 16.07A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 3.501 7.327"/>'),
+  cloudAlert: wrap('<path d="M12 12v4"/><path d="M12 20h.01"/><path d="M8.128 16.949A7 7 0 1 1 15.71 8h1.79a1 1 0 0 1 0 9h-1.642"/>'),
+  cloudUpload: wrap('<path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/>'),
+  cloudDownload: wrap('<path d="M12 13v8l-4-4"/><path d="m12 21 4-4"/><path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284"/>'),
+  cloudSync: wrap('<path d="m17 18-1.535 1.605a5 5 0 0 1-8-1.5"/><path d="M17 22v-4h-4"/><path d="M20.996 15.251A4.5 4.5 0 0 0 17.495 8h-1.79a7 7 0 1 0-12.709 5.607"/><path d="M7 10v4h4"/><path d="m7 14 1.535-1.605a5 5 0 0 1 8 1.5"/>'),
+  loader: wrap('<path d="M21 12a9 9 0 1 1-6.219-8.56"/>'),
+  circleArrowUp: wrap('<circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/>'),
+  sparkles: wrap('<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>'),
+  ellipsis: wrap('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>'),
+  search: wrap('<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>'),
+  sun: wrap('<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'),
+  moon: wrap('<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/>'),
+  arrowLeft: wrap('<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>'),
+  arrowRight: wrap('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
+  bell: wrap('<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>'),
+  settings: wrap('<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>'),
+  house: wrap('<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  fileDiff: wrap('<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/>'),
+  history: wrap('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'),
+  gitCommit: wrap('<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>'),
+  undo2: wrap('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>')
+};
+
+const state = { theme: "dark", width: "normal", remote: "upToDate", tree: "clean", searching: false, query: "", highlight: 0 };
+const REMOTE_OPTIONS = [["upToDate", "Al día (hace 3 min)"], ["ahead", "3 versiones por publicar"], ["behind", "2 versiones por traer"], ["diverged", "Ambos lados han cambiado"], ["noUpstream", "Sin destino de publicación"], ["checking", "Comprobando el remoto…"], ["error", "La comprobación falló"], ["noRemote", "Sin remoto conectado"], ["upstreamGone", "Ya no está en el remoto"]];
+const TREE_OPTIONS = [["clean", "Todo guardado"], ["unsaved", "28 cambios sin guardar"], ["checking", "Comprobando cambios…"], ["error", "Cambios no disponibles"]];
+
+function treeModel(kind) {
+  if (kind === "unsaved") return { label: "28 cambios sin guardar", dot: "unsaved" };
+  if (kind === "checking") return { label: "Comprobando cambios…", spinner: true };
+  if (kind === "error") return { label: "Cambios no disponibles", dot: "error" };
+  return { label: "Todo está guardado" };
+}
+function remoteModel(kind) {
+  switch (kind) {
+    case "ahead": return { shape: "action", mark: "cloudUpload", words: "Publicar 3 versiones", tooltip: "Publicar 3 versiones · Comprobado hace 3 min" };
+    case "behind": return { shape: "action", mark: "cloudDownload", words: "Traer 2 versiones", tooltip: "Traer 2 versiones · Comprobado hace 3 min" };
+    case "diverged": return { shape: "action", mark: "cloudSync", words: "Traer y publicar", tooltip: "Traer y publicar · Comprobado hace 3 min" };
+    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta línea", tooltip: "Publicar esta línea · Sin destino de publicación" };
+    case "checking": return { shape: "held", mark: "loader", words: "Publicar 3 versiones", tooltip: "Comprobando el remoto…" };
+    case "error": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "La comprobación falló", tooltip: "La comprobación falló · Al día antes" };
+    case "noRemote": return { shape: "fact", tone: "neutral", mark: "cloud", words: "Sin remoto conectado", tooltip: "Sin remoto conectado" };
+    case "upstreamGone": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "Ya no está en el remoto", tooltip: "Ya no está en el remoto" };
+    default: return { shape: "fact", tone: "success", mark: "cloudCheck", words: "Al día", age: "hace 3 min", tooltip: "Al día · Comprobado hace 3 min" };
+  }
+}
+const COMMANDS = [
+  { group: "Hacer", icon: "gitCommit", label: "Guardar versión", hint: "⌘↵" },
+  { group: "Hacer", icon: "cloudUpload", label: "Publicar 3 versiones", hint: "" },
+  { group: "Hacer", icon: "cloudDownload", label: "Traer 2 versiones", hint: "" },
+  { group: "Hacer", icon: "undo2", label: "Deshacer el último cambio", hint: "" },
+  { group: "Ir", icon: "gitBranch", label: "Cambiar de línea…", hint: "" },
+  { group: "Ir", icon: "fileDiff", label: "Ver cambios", hint: "" },
+  { group: "Ir", icon: "history", label: "Abrir historial", hint: "" },
+  { group: "App", icon: "circleArrowUp", label: "Buscar actualizaciones", hint: "" },
+  { group: "App", icon: "settings", label: "Abrir ajustes", hint: "" }
+];
+function escapeHtml(v) { return String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function filteredCommands() { const q = state.query.trim().toLowerCase(); return q === "" ? COMMANDS : COMMANDS.filter((c) => c.label.toLowerCase().includes(q)); }
+function menuRow(c, i) { const sel = i === state.highlight; return '<div class="omni-menu__row" role="option" aria-selected="' + sel + '">' + I[c.icon] + '<span class="omni-menu__label">' + c.label + "</span>" + (c.hint ? '<kbd class="omni-menu__kbd">' + c.hint + "</kbd>" : "") + "</div>"; }
+function menuInner() {
+  const q = state.query.trim(); const list = filteredCommands();
+  if (state.highlight >= list.length) state.highlight = Math.max(0, list.length - 1);
+  let body = "";
+  if (list.length === 0) body = '<div class="omni-menu__empty">Nada coincide con «' + escapeHtml(q) + '»</div>';
+  else if (q === "") { let g = null; list.forEach((c, i) => { if (c.group !== g) { body += '<div class="omni-menu__group">' + c.group + "</div>"; g = c.group; } body += menuRow(c, i); }); }
+  else list.forEach((c, i) => { body += menuRow(c, i); });
+  return '<div class="omni-menu__list" role="listbox" aria-label="Comandos">' + body + "</div>" +
+    '<div class="omni-menu__footer"><span><kbd>↑</kbd><kbd>↓</kbd> mover</span><span><kbd>↵</kbd> abrir</span><span><kbd>esc</kbd> cerrar</span></div>';
+}
+function menuBlock() { return state.searching ? '<div class="omni-menu" data-menu="1">' + menuInner() + "</div>" : ""; }
+function searchMarkup() {
+  return '<div class="srch" data-field="1" data-open="' + state.searching + '">' + withClass(I.search, "srch__icon") +
+    '<input class="srch__input" type="text" placeholder="Buscar o hacer algo…" aria-label="Buscar o hacer algo" value="' + escapeHtml(state.query) + '" />' +
+    '<kbd class="srch__kbd">⌘K</kbd>' + menuBlock() + "</div>";
+}
+
+/* ------------------------------------------------ piezas del bloque */
+function branchBits() {
+  const tree = treeModel(state.tree);
+  const face = tree.spinner ? '<span class="icon--spinning">' + I.loader + "</span>" : I.gitBranch;
+  const dot = tree.dot ? '<span class="hb__marker' + (tree.dot === "error" ? " hb__marker--error" : "") + '"></span>' : "";
+  return { tree, face, dot };
+}
+function remoteBits() {
+  const r = remoteModel(state.remote);
+  const glyph = r.shape === "held" ? '<span class="icon--spinning">' + I.loader + "</span>" : I[r.mark];
+  return { r, glyph, warning: r.tone === "warning", action: r.shape === "action" };
+}
+const HAIR = '<span class="hb-hair"></span>';
+function projectSeg() { return '<button class="hb hb-seg" type="button" data-no-open data-tooltip="Proyecto: gitodile · Ajustes del proyecto">' + I.folderGit2 + '<span class="hb__value">gitodile</span></button>'; }
+function lineSeg() { const b = branchBits(); return '<button class="hb hb-seg" type="button" data-no-open data-tooltip="main · ' + b.tree.label + '">' + b.face + '<span class="hb__value">main</span>' + b.dot + withClass(I.chevronUp, "hb__chev") + "</button>"; }
+function leftGroup(blockHover) { return '<span class="hb-group' + (blockHover ? " hb-group--block-hover" : "") + '">' + projectSeg() + HAIR + lineSeg() + "</span>"; }
+
+/* first segment: dato (span) o boton; alwaysButton fuerza boton siempre */
+function remoteFirst(alwaysButton) {
+  const f = remoteBits();
+  const tone = f.warning ? " hb--warning" : f.action ? " hb--action" : "";
+  const inner = f.glyph + '<span class="hb__value">' + f.r.words + "</span>";
+  if (f.action || alwaysButton) {
+    const tip = f.action ? f.r.tooltip : "Comprobar cambios del proyecto remoto";
+    return '<button class="hb hb-seg' + tone + '" type="button" data-tooltip="' + tip + '">' + inner + "</button>";
+  }
+  return '<span class="hb hb-seg hb--static' + tone + '" data-tooltip="' + f.r.tooltip + '">' + inner + "</span>";
+}
+/* second segment: refresco y edad, con el orden y el contenido elegidos */
+function remoteSecond(order, withAge) {
+  const f = remoteBits();
+  const age = f.r.age && withAge ? '<span class="hb__qual hb__qual--age">' + f.r.age + "</span>" : "";
+  const tip = withAge || !f.r.age ? "Comprobar cambios del proyecto remoto" : "Comprobar el remoto · " + f.r.tooltip;
+  const glyph = I.rotateCw;
+  const inner = order === "gesture-last"
+    ? age + glyph
+    : glyph + age;
+  return '<button class="hb hb-seg" type="button" data-tooltip="' + tip + '">' + inner + "</button>";
+}
+function rightGroup(opts) {
+  const f = remoteBits();
+  const classes = "hb-group" +
+    (opts.blockHover ? " hb-group--block-hover" : "") +
+    (opts.groupAction && f.action ? " hb-group--action" : "");
+  return '<span class="' + classes + '">' + remoteFirst(opts.alwaysButton) + HAIR + remoteSecond(opts.order, opts.withAge) + "</span>";
+}
+
+function barCard(inner) { return '<div class="bar-card">' + inner + "</div>"; }
+function centered(m) { return '<div class="bar-center bar-center--fixed">' + m + "</div>"; }
+function stage(variant) {
+  const mocks = { r0: 0, m1: 1, m2: 2, m3: 3, m4: 4, m5: 5 };
+  const idx = mocks[variant];
+  const left = leftGroup(idx === 4);
+  const right = rightGroup({
+    order: idx === 1 ? "gesture-last" : "gesture-first",
+    withAge: idx !== 5,
+    alwaysButton: idx === 2,
+    groupAction: idx === 3,
+    blockHover: idx === 4
+  });
+  return '<div class="window">' + titlebar() + '<div class="app-shell">' + rail() + workspace() +
+    barCard('<span class="bar-side">' + left + "</span>" + centered(searchMarkup()) + '<span class="bar-side">' + right + "</span>") +
+    "</div></div>";
+}
+function titlebar() {
+  const dark = state.theme === "dark";
+  return '<div class="window__titlebar"><button class="tb-btn" type="button" data-tooltip="Más acciones">' + I.ellipsis + "</button>" +
+    '<span class="window__drag"></span><span class="titlebar-history-controls">' +
+    '<button class="tb-btn" type="button" disabled data-tooltip="Atrás">' + I.arrowLeft + "</button>" +
+    '<button class="tb-btn" type="button" disabled data-tooltip="Adelante">' + I.arrowRight + "</button></span>" +
+    '<button class="tb-btn" type="button" data-tooltip="Centro de notificaciones">' + I.bell + "</button>" +
+    '<button class="tb-btn" type="button" data-tooltip="' + (dark ? "Cambiar a tema claro" : "Cambiar a tema oscuro") + '">' + (dark ? I.sun : I.moon) + "</button>" +
+    '<div class="window-controls"><button class="window-control" type="button" aria-label="Minimizar"><span class="wc-min"></span></button>' +
+    '<button class="window-control" type="button" aria-label="Maximizar"><span class="wc-max"></span></button>' +
+    '<button class="window-control window-control--close" type="button" aria-label="Cerrar"><span class="wc-close"></span></button></div></div>';
+}
+function rail() {
+  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Líneas" }];
+  return '<aside class="rail">' + items.map((it) => '<button class="rail-item' + (it.active ? " rail-item--active" : "") + '" type="button" data-tooltip="' + it.label + '"><span class="rail-item__icon">' + I[it.icon] + '</span><span class="rail-item__label">' + it.label + "</span></button>").join("") +
+    '<span class="rail-spacer"></span><span class="rail-avatar" title="gitodile">gi</span><button class="rail-round" type="button" data-tooltip="Ajustes">' + I.settings + "</button></aside>";
+}
+function workspace() { return '<div class="workspace"><div class="ws-card"><div class="ws-bar ws-bar--title"></div><div class="ws-bar ws-bar--60"></div><div class="ws-bar ws-bar--70"></div><div class="ws-bar ws-bar--42"></div><div class="ws-bar ws-bar--52"></div></div></div>'; }
+
+function renderAll() {
+  document.body.dataset.theme = state.theme;
+  document.querySelectorAll("[data-mock]").forEach(function (el) { el.classList.toggle("stage--narrow", state.width === "narrow"); el.innerHTML = stage(el.dataset.mock); });
+  document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === state.theme)));
+  document.querySelectorAll("[data-width-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.widthSet === state.width)));
+  document.querySelectorAll("[data-search-set]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.searchSet === "open") === state.searching)));
+}
+function refreshMenus() {
+  document.querySelectorAll(".omni-menu").forEach((el) => { el.innerHTML = menuInner(); });
+  document.querySelectorAll(".srch__input").forEach((i) => { if (document.activeElement !== i) i.value = state.query; });
+}
+function openSearch(variantEl) { state.searching = true; renderAll(); const s = variantEl || document.querySelector("[data-mock]"); const i = s && s.querySelector(".srch__input"); if (i) i.focus(); }
+function closeSearch() { if (!state.searching) return; state.searching = false; state.query = ""; state.highlight = 0; document.querySelectorAll(".srch__input").forEach((i) => { i.value = ""; }); renderAll(); }
+function fillSelect(id, options, key) { const s = document.getElementById(id); s.innerHTML = options.map((o) => '<option value="' + o[0] + '">' + o[1] + "</option>").join(""); s.value = state[key]; s.addEventListener("change", () => { state[key] = s.value; renderAll(); }); }
+
+const tooltip = document.createElement("div"); tooltip.className = "app-tooltip"; tooltip.hidden = true; document.body.appendChild(tooltip);
+let tooltipAnchor = null;
+function positionTooltip() { if (!tooltipAnchor) return; const r = tooltipAnchor.getBoundingClientRect(); const t = tooltip.getBoundingClientRect(); let x = Math.max(8, Math.min(window.innerWidth - t.width - 8, r.left + r.width / 2 - t.width / 2)); let y = r.top - t.height - 8; if (y < 8) y = r.bottom + 8; tooltip.style.left = x + "px"; tooltip.style.top = y + "px"; }
+function showTooltip(el) { const text = el.getAttribute("data-tooltip"); if (!text) return; tooltipAnchor = el; tooltip.textContent = text; tooltip.hidden = false; positionTooltip(); }
+function hideTooltip() { tooltipAnchor = null; tooltip.hidden = true; }
+document.addEventListener("pointerover", (e) => { const el = e.target.closest && e.target.closest("[data-tooltip]"); if (el) showTooltip(el); });
+document.addEventListener("pointerout", (e) => { const el = e.target.closest && e.target.closest("[data-tooltip]"); if (!el) return; if (e.relatedTarget && el.contains(e.relatedTarget)) return; hideTooltip(); });
+document.addEventListener("focusin", (e) => { const el = e.target.closest && e.target.closest("[data-tooltip]"); if (el) showTooltip(el); });
+document.addEventListener("focusout", hideTooltip);
+window.addEventListener("scroll", () => { if (tooltipAnchor) positionTooltip(); }, true);
+document.addEventListener("pointerdown", function (event) {
+  const field = event.target.closest && event.target.closest("[data-field]");
+  if (field) { if (event.target.closest("[data-no-open]")) return; if (!state.searching) openSearch(field.closest("[data-mock]")); return; }
+  if (event.target.closest && event.target.closest(".omni-menu")) return;
+  if (event.target.closest && event.target.closest(".toolbar")) return;
+  closeSearch();
+});
+document.addEventListener("input", function (event) { if (!event.target.classList || !event.target.classList.contains("srch__input")) return; state.query = event.target.value; state.highlight = 0; refreshMenus(); });
+document.addEventListener("keydown", function (event) {
+  const combo = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+  if (combo) { event.preventDefault(); if (!state.searching) openSearch(document.querySelector("[data-mock] .srch")); return; }
+  if (!state.searching) return;
+  if (event.key === "Escape") { event.preventDefault(); closeSearch(); return; }
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); const n = filteredCommands().length; if (!n) return; state.highlight = (state.highlight + (event.key === "ArrowDown" ? 1 : n - 1)) % n; refreshMenus(); }
+});
+document.querySelectorAll("[data-theme-set]").forEach((b) => b.addEventListener("click", () => { state.theme = b.dataset.themeSet; renderAll(); }));
+document.querySelectorAll("[data-width-set]").forEach((b) => b.addEventListener("click", () => { state.width = b.dataset.widthSet; renderAll(); }));
+document.querySelectorAll("[data-search-set]").forEach((b) => b.addEventListener("click", () => { if (b.dataset.searchSet === "open") openSearch(document.querySelector("[data-mock] .srch")); else closeSearch(); }));
+fillSelect("remote-select", REMOTE_OPTIONS, "remote");
+fillSelect("tree-select", TREE_OPTIONS, "tree");
+renderAll();
+</script>
+</body>
+</html>

@@ -22,8 +22,6 @@ export interface SyncTranslations {
   syncUnknownTitle: string;
   syncUnknownMessage: string;
   syncUnavailableTitle: string;
-  syncCachedNote: string;
-  syncStaleNote: string;
   syncLastChecked: (value: string) => string;
   syncCheck: string;
   syncChecking: string;
@@ -139,8 +137,6 @@ const en: SyncTranslations = {
   syncUnknownTitle: "Comparison unavailable",
   syncUnknownMessage: "Couldn't compare with the remote branch.",
   syncUnavailableTitle: "Couldn't check project changes",
-  syncCachedNote: "Not checked this session · showing the last known state.",
-  syncStaleNote: "This may be out of date.",
   syncLastChecked: (value) => `Checked ${value}.`,
   syncCheck: "Check for project changes",
   syncChecking: "Checking…",
@@ -274,8 +270,6 @@ const es: SyncTranslations = {
   syncUnknownTitle: "Comparación no disponible",
   syncUnknownMessage: "No se pudo comparar con la rama remota.",
   syncUnavailableTitle: "No se pudieron comprobar los cambios del proyecto",
-  syncCachedNote: "Sin comprobar en esta sesión · se muestra el último estado conocido.",
-  syncStaleNote: "Puede estar desactualizado.",
   syncLastChecked: (value) => `Comprobado ${value}.`,
   syncCheck: "Comprobar cambios del proyecto",
   syncChecking: "Comprobando…",

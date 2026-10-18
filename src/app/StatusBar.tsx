@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  CircleArrowUp,
   Cloud,
   CloudAlert,
   CloudCheck,
@@ -10,14 +9,12 @@ import {
   FolderClosed,
   FolderGit2,
   LoaderCircle,
-  RotateCcw,
   RotateCw,
-  Sparkles,
+  Search,
 } from "lucide-react";
 
-import { useLanguage, type Language, type Translations } from "../i18n";
+import { useLanguage, type Translations } from "../i18n";
 import { formatDate, formatRelativeCheckTime, type LocaleFormats } from "../shared/i18n";
-import { appUpdateTranslations, type UpdateState } from "../features/app-updates";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
@@ -26,7 +23,6 @@ import {
   type VersionLineCreateContext,
   type VersionLinesSnapshot,
 } from "../features/version-lines";
-import { CURRENT_APP_RELEASE } from "./appRelease";
 
 const CLOCK_TICK_MS = 30_000;
 const NO_FAVOURITE_VERSION_LINES: ReadonlySet<string> = new Set();
@@ -54,13 +50,21 @@ export type StatusBarProps = {
   onPublish: () => void;
   onGetChanges: () => void;
   onGetAndPublish: () => void;
-  onOpenChangelog: () => void;
-  /** The updater's state. The release tag stays quiet while there is nothing
-   * to do and becomes the way to the update when there is. */
-  appUpdate?: UpdateState;
-  /** From a confirmed update until the reader opens the changelog. */
-  hasUnseenWhatsNew?: boolean;
-  onOpenAppUpdate?: () => void;
+  /** The one field on the strip: the app's search. It holds the query and the
+   * keyboard, and the palette's results deploy from it, so the strip is where
+   * the work starts rather than only where its state is reported. */
+  commandPalette: {
+    isOpen: boolean;
+    query: string;
+    selectedOptionId?: string;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    /** The keycap the field prints, spelled by the composition root so the
+     * Console's field prints the same one. */
+    shortcut: string;
+    onOpen: () => void;
+    onQueryChange: (query: string) => void;
+    onKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
+  };
 };
 
 function useStatusBarClock(): number {
@@ -119,8 +123,9 @@ function teamStateLabel(
 }
 
 /** How the remote fact is known — from a check just now, from a saved
- * snapshot, or from a result that may since have gone stale — as one line for
- * the fact's tooltip, with the exact time after it when there is one. */
+ * snapshot — as one line for the fact's tooltip, with the exact time after it
+ * when there is one. A stale answer says how old it is rather than restating
+ * the doubt: the doubt is already the visible word. */
 function teamFreshnessLabel(
   state: TeamSyncViewState,
   now: number,
@@ -131,7 +136,6 @@ function teamFreshnessLabel(
   const exactCheckedAt = checkedAt === null ? null : formatDate(new Date(checkedAt), formats, "date-time");
   let label: string | null = null;
   if (state.error) label = t.statusBarCheckFailed;
-  else if (state.isStale) label = t.statusBarMayBeOutdated;
   else if (state.status?.knowledge === "cached") label = t.statusBarLocalSnapshot;
   else if (checkedAt !== null) {
     label = t.statusBarLastChecked(formatRelativeCheckTime(checkedAt, now, formats.language, t.statusBarJustNow));
@@ -194,119 +198,6 @@ function teamSyncAction(
   }
 }
 
-const RING_RADIUS = 9;
-const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
-
-function ProgressRing({ fraction }: { fraction: number }): React.JSX.Element {
-  return (
-    <svg className="status-bar__release-ring" viewBox="0 0 24 24" aria-hidden="true">
-      <circle className="status-bar__release-ring-track" cx="12" cy="12" r={RING_RADIUS} />
-      <circle
-        className="status-bar__release-ring-bar"
-        cx="12"
-        cy="12"
-        r={RING_RADIUS}
-        strokeDasharray={RING_LENGTH}
-        strokeDashoffset={RING_LENGTH * (1 - Math.min(1, Math.max(0, fraction)))}
-      />
-    </svg>
-  );
-}
-
-type ReleaseTag = {
-  /** `action` wears the strip's action pill with the glyph in the warning
-   * tone: a state the reader should act on. */
-  variant: "quiet" | "action";
-  /** A glyph only while the tag has something to say beyond the version. */
-  mark: React.ReactNode | null;
-  /** Replaces the version text; only an action names its state on the strip. */
-  label: string | null;
-  description: string;
-  target: "changelog" | "update";
-};
-
-/** What the release tag says. At rest it is the version and the changelog; a
- * state to act on (a new version, one ready to install, one that can't install
- * yet) takes the tag over in the words About and the rail use, and leads to the
- * update dialog. A download in flight shows its progress without moving the
- * strip. The notification centre announces an update once; this is where it
- * stays until it is resolved, with no count of its own. */
-function releaseTag(
-  update: UpdateState | undefined,
-  hasUnseenWhatsNew: boolean,
-  language: Language,
-  t: Translations,
-): ReleaseTag {
-  const version = CURRENT_APP_RELEASE.version;
-  const changelog = t.statusBarOpenChangelog(version);
-  const ut = appUpdateTranslations(language);
-  switch (update?.kind) {
-    case "available": {
-      const label = ut.available(update.candidate.version);
-      return {
-        variant: "action",
-        mark: <CircleArrowUp aria-hidden="true" />,
-        label,
-        description: `${label} · ${t.statusBarOpenUpdates}`,
-        target: "update",
-      };
-    }
-    case "ready":
-      return {
-        variant: "action",
-        mark: <RotateCcw aria-hidden="true" />,
-        label: ut.ready,
-        description: `${ut.ready} · ${ut.available(update.candidate.version)}`,
-        target: "update",
-      };
-    case "blocked":
-      return {
-        variant: "action",
-        mark: <CircleArrowUp aria-hidden="true" />,
-        label: ut.status.blocked,
-        description: `${ut.status.blocked} · ${t.statusBarOpenUpdates}`,
-        target: "update",
-      };
-    case "downloading": {
-      const { transfer } = update;
-      const fraction = transfer.length === "known" && transfer.totalBytes > 0
-        ? Math.min(1, transfer.receivedBytes / transfer.totalBytes)
-        : null;
-      const title = ut.titleDownloading(update.candidate.version);
-      return {
-        variant: "quiet",
-        mark: fraction === null
-          ? <LoaderCircle className="icon--spinning" aria-hidden="true" />
-          : <ProgressRing fraction={fraction} />,
-        label: null,
-        description: fraction === null ? title : `${title} · ${Math.floor(fraction * 100)}%`,
-        target: "update",
-      };
-    }
-    case "verifying":
-      return { variant: "quiet", mark: <ProgressRing fraction={1} />, label: null, description: ut.verifying, target: "update" };
-    case "checking":
-      return { variant: "quiet", mark: null, label: null, description: `${changelog} · ${ut.checking}`, target: "changelog" };
-    case "unavailable":
-      // A lasting fact of this build (a development build, an installation
-      // the updater can't write to), so it never dims the tag as if broken.
-      return { variant: "quiet", mark: null, label: null, description: `${changelog} · ${t.aboutUpdateUnavailable}`, target: "changelog" };
-    default:
-      // Only once an update is settled: the version just installed has notes
-      // the reader has not opened yet, and the accent sparkle says so.
-      if (hasUnseenWhatsNew) {
-        return {
-          variant: "quiet",
-          mark: <Sparkles className="status-bar__release-new" aria-hidden="true" />,
-          label: null,
-          description: `${ut.startupConfirmed(version)} · ${ut.seeWhatsNew}`,
-          target: "changelog",
-        };
-      }
-      return { variant: "quiet", mark: null, label: null, description: changelog, target: "changelog" };
-  }
-}
-
 export function StatusBar({
   project,
   workingTree,
@@ -326,20 +217,9 @@ export function StatusBar({
   onPublish,
   onGetChanges,
   onGetAndPublish,
-  onOpenChangelog,
-  appUpdate,
-  hasUnseenWhatsNew = false,
-  onOpenAppUpdate,
+  commandPalette,
 }: StatusBarProps): React.JSX.Element {
-  const { t, formats, language } = useLanguage();
-  const release = releaseTag(appUpdate, hasUnseenWhatsNew, language, t);
-  const releaseText = release.label ?? t.statusBarVersion(CURRENT_APP_RELEASE.version);
-  // The accessible name keeps the visible words, so "click 0.3.1" still
-  // finds the button while the tooltip talks about a download.
-  const releaseName = release.description.includes(releaseText)
-    ? release.description
-    : `${releaseText} · ${release.description}`;
-  const openRelease = release.target === "update" && onOpenAppUpdate ? onOpenAppUpdate : onOpenChangelog;
+  const { t, formats } = useLanguage();
   const now = useStatusBarClock();
   const isReadingTeamStatus = teamSync.isLoading && !teamSync.status;
   const isWaiting = teamSync.isCheckingRemote || isReadingTeamStatus;
@@ -355,9 +235,11 @@ export function StatusBar({
   const freshness = teamFreshnessLabel(teamSync, now, formats, t);
   const tone = teamTone(teamSync);
   // A stale or failed result still shows the last known state, but the strip
-  // must not read as current: the doubt becomes the word, the state the tooltip.
+  // must not read as current: a failed check says so, and an answer the reader's
+  // own latest change has overtaken says the one thing left to do — check again.
+  // The state and the exact time move to the tooltip.
   const doubtLabel = teamSync.status && (teamSync.error || teamSync.isStale)
-    ? (teamSync.error ? t.statusBarCheckFailed : t.statusBarMayBeOutdated)
+    ? (teamSync.error ? t.statusBarCheckFailed : t.statusBarCheckAgain)
     : null;
   const visibleTeamLabel = !isWaiting && doubtLabel ? doubtLabel : teamLabel;
   const teamTooltip = [teamLabel !== visibleTeamLabel ? teamLabel : null, freshness].filter(Boolean).join(" · ");
@@ -369,7 +251,7 @@ export function StatusBar({
   const syncAction = isCurrent ? knownAction : null;
   const syncActionTooltip = syncAction ? [syncAction.label, freshness].filter(Boolean).join(" · ") : null;
   // At rest the strip says how fresh "up to date" is, so the reader does not
-  // have to hover to trust it.
+  // have to hover to trust it. It rides the check, the gesture that renews it.
   const checkedAt = teamSync.status?.checkedAt ?? null;
   const upToDateAge = teamSync.status?.state === "upToDate" && teamSync.status.knowledge !== "cached" && checkedAt !== null
     ? formatRelativeCheckTime(checkedAt, now, formats.language, t.statusBarJustNow)
@@ -392,17 +274,18 @@ export function StatusBar({
     !isWaiting,
   );
   const isBusy = Boolean(project && (isCheckingChanges || teamSync.isLoading || teamSync.isCheckingRemote));
-  // With its age beside it the cloud already says "up to date"; the word stays
+  // With its age beside it the check already says "up to date"; the word stays
   // for the screen reader and comes back whenever there is no age to show.
   const hidesTeamWord = restingAge !== null;
-  // While a check or the first read runs, the capsule keeps saying what it
-  // last knew — "Publish 12 versions", "3 min ago", "Check failed" — in the
-  // quiet ink with its glyph turned spinner, so neither its words nor its
-  // width jump to "Checking the remote…" and back. That sentence stays the
-  // tooltip's and the screen reader's. With nothing known yet it is the
-  // visible words too.
+  // While a check or the first read runs, the fact keeps saying what it last
+  // knew — "Publish 12 versions", "3 min ago", "Check failed" — in the quiet
+  // ink with its glyph turned spinner, so neither its words nor its width jump
+  // to "Checking the remote…" and back. A stale answer holds the state itself,
+  // never its "Check again": that would ask for the check already running.
+  // That sentence stays the tooltip's and the screen reader's. With nothing
+  // known yet it is the visible words too.
   const heldLabel = isWaiting && teamSync.status
-    ? doubtLabel
+    ? (teamSync.error ? t.statusBarCheckFailed : null)
       ?? knownAction?.label
       ?? upToDateAge
       ?? teamStateLabel(teamSync.status.state, teamSync.status.ahead, teamSync.status.behind, t)
@@ -415,20 +298,19 @@ export function StatusBar({
         ? <CloudAlert aria-hidden="true" />
         : <Cloud aria-hidden="true" />;
 
-  // The explicit check, in every state — beside the sync action too, where
-  // knowing whether the remote moved matters most. With automatic checks set
-  // to manual it is the strip's only way to ask. It is always the second half
-  // of the sync capsule rather than a loose glyph.
+  // The explicit check, in every state, as the second segment of the remote
+  // block: the gesture right after the fact it renews. It is the strip's only
+  // way to ask when automatic checks are set to manual, so it never leaves.
   const checkButton = (
     <button
-      className="status-bar__action"
+      className="status-bar__seg status-bar__refresh"
       type="button"
       disabled={!canCheckTeam}
       onClick={onCheckTeamChanges}
       aria-label={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
       data-tooltip={teamSync.isCheckingRemote ? t.statusBarCheckingTeam : t.statusBarCheckNow}
     >
-      {/* The glyph beside it is the one spinner; this half only goes quiet. */}
+      {restingAge && <span className="status-bar__sync-age">{restingAge}</span>}
       <RotateCw aria-hidden="true" />
     </button>
   );
@@ -436,110 +318,135 @@ export function StatusBar({
   return (
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
       {project ? (
-        <div className="status-bar__group status-bar__group--project">
-          {/* The one persistent statement of what is being worked on — which
-              project, and which line of it — and the one global way to change
-              the line. The two facts are the sentence; the project's name is
-              what makes the strip still say something after leaving Overview.
-              No screen adds a second selector to its own header: two controls
-              answering the same question in one window is how the reader
-              stops trusting either. */}
-          <span className="status-bar__cluster status-bar__working">
-            {/* The name doubles as the way into the project's settings, so the
-                sentence reads "project / line" with nothing between them. */}
-            <button
-              className="status-bar__project"
-              type="button"
-              aria-label={t.projectSettingsOpenFor(project.name)}
-              data-tooltip={`${t.statusBarProjectTooltip(project.name)} · ${t.projectSettingsOpen}`}
-              onPointerEnter={onPrefetchProjectSettings}
-              onFocus={onPrefetchProjectSettings}
-              onClick={onOpenProjectSettings}
-            >
-              <FolderGit2 aria-hidden="true" />
-              <span>{project.name}</span>
-            </button>
-            <span className="status-bar__separator" aria-hidden="true">/</span>
-            <VersionLineQuickSwitch
-              snapshot={versionLines}
-              isLoadingSnapshot={isLoadingVersionLines}
-              currentValue={versionLineLabel(project, t)}
-              canSwitch={project.headState === "branch" && Boolean(project.branch)}
-              variant="status"
-              favouriteLines={favouriteVersionLines}
-              onToggleFavourite={onToggleFavouriteVersionLine}
-              onSwitch={onSwitchVersionLine}
-              create={versionLineCreate}
-              onSeeAll={onSeeAllVersionLines}
-              workingTree={{ state: workingTreeState, description: changesLabel }}
-            />
-            <span className="visually-hidden">{changesLabel}</span>
-          </span>
-          {/* The remote rides beside the line it belongs to, the way an
-              editor's status bar puts sync next to the branch, so the left
-              reads as one sentence and the right keeps only the build. It is
-              one split capsule in every state, so the strip never changes
-              shape under the reader: the left half says the remote fact and
-              is a button only while a current relation calls for a sync; the
-              right half is always the explicit check. */}
-          <span className="status-bar__cluster" aria-live="polite">
-            <span className="status-bar__sync-split">
-              {syncAction ? (
-                <button
-                  className={`status-bar__item status-bar__sync status-bar__sync-action status-bar__sync-action--${syncAction.kind}`}
-                  type="button"
-                  onClick={syncAction.onClick}
-                  aria-label={syncAction.label}
-                  data-tooltip={syncActionTooltip ?? undefined}
-                >
-                  {syncAction.icon}
-                  <span>{syncAction.label}</span>
-                </button>
-              ) : heldLabel ? (
-                <span
-                  className="status-bar__item status-bar__sync status-bar__sync--neutral status-bar__sync--held"
-                  data-tooltip={[teamLabel, freshness].filter(Boolean).join(" · ")}
-                >
-                  {syncIcon}
-                  <span aria-hidden="true">{heldLabel}</span>
-                  <span className="visually-hidden">{teamLabel}</span>
-                </span>
-              ) : (
-                <span
-                  className={`status-bar__item status-bar__sync status-bar__sync--${tone}`}
-                  data-tooltip={[hidesTeamWord ? visibleTeamLabel : null, teamTooltip].filter(Boolean).join(" · ") || undefined}
-                >
-                  {syncIcon}
-                  <span className={hidesTeamWord ? "visually-hidden" : undefined}>{visibleTeamLabel}</span>
-                  {restingAge && <span className="status-bar__sync-age" aria-hidden="true">{restingAge}</span>}
-                  {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
-                </span>
-              )}
-              {checkButton}
-            </span>
-          </span>
-        </div>
+        // The one persistent statement of what is being worked on — which
+        // project, and which line of it — and the one global way to change the
+        // line. The two facts are the sentence, split by the same hairline the
+        // remote block uses, so the strip reads as two equal blocks.
+        <span className="status-bar__block status-bar__block--where">
+          {/* The name doubles as the way into the project's settings, so the
+              sentence reads "project / line" with nothing between them but the
+              hairline. */}
+          <button
+            className="status-bar__seg status-bar__project"
+            type="button"
+            aria-label={t.projectSettingsOpenFor(project.name)}
+            data-tooltip={`${t.statusBarProjectTooltip(project.name)} · ${t.projectSettingsOpen}`}
+            onPointerEnter={onPrefetchProjectSettings}
+            onFocus={onPrefetchProjectSettings}
+            onClick={onOpenProjectSettings}
+          >
+            <FolderGit2 aria-hidden="true" />
+            <span>{project.name}</span>
+          </button>
+          <span className="status-bar__hair" aria-hidden="true" />
+          <VersionLineQuickSwitch
+            snapshot={versionLines}
+            isLoadingSnapshot={isLoadingVersionLines}
+            currentValue={versionLineLabel(project, t)}
+            canSwitch={project.headState === "branch" && Boolean(project.branch)}
+            variant="status"
+            favouriteLines={favouriteVersionLines}
+            onToggleFavourite={onToggleFavouriteVersionLine}
+            onSwitch={onSwitchVersionLine}
+            create={versionLineCreate}
+            onSeeAll={onSeeAllVersionLines}
+            workingTree={{ state: workingTreeState, description: changesLabel }}
+          />
+          <span className="visually-hidden">{changesLabel}</span>
+        </span>
       ) : (
-        <div className="status-bar__group status-bar__group--project">
-          <span className="status-bar__item status-bar__item--muted">
+        <span className="status-bar__block status-bar__block--where">
+          <span className="status-bar__seg status-bar__seg--muted status-bar__seg--fact">
             <FolderClosed aria-hidden="true" />
             <span>{t.statusBarNoProject}</span>
           </span>
-        </div>
+        </span>
       )}
 
-      <div className="status-bar__group status-bar__group--system">
-        <button
-          className={`status-bar__release status-bar__release--${release.variant}`}
-          type="button"
-          onClick={openRelease}
-          aria-label={releaseName}
-          data-tooltip={release.description}
-        >
-          {release.mark}
-          <span className="status-bar__version">{releaseText}</span>
-        </button>
+      {/* The field: the app's search. Typing filters the palette above it and
+          the shortcut is spelled on it, so a search starts from anywhere; the
+          results deploy from this control (see CommandPalette). */}
+      <div className="status-bar__search-slot">
+        <div className={`status-bar__search${commandPalette.isOpen ? " status-bar__search--open" : ""}`}>
+          <Search aria-hidden="true" />
+          <input
+            ref={commandPalette.inputRef}
+            className="status-bar__search-input"
+            type="text"
+            role="combobox"
+            aria-expanded={commandPalette.isOpen}
+            aria-controls={commandPalette.isOpen ? "palette-list" : undefined}
+            aria-activedescendant={commandPalette.isOpen ? commandPalette.selectedOptionId : undefined}
+                  aria-autocomplete="list"
+                  aria-label={t.statusBarSearchLabel}
+                  placeholder={t.statusBarSearch}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={commandPalette.query}
+            onChange={(event) => commandPalette.onQueryChange(event.target.value)}
+            onFocus={commandPalette.onOpen}
+            onClick={commandPalette.onOpen}
+            onKeyDown={commandPalette.onKeyDown}
+          />
+          <kbd className="status-bar__search-kbd" aria-hidden="true">{commandPalette.shortcut}</kbd>
+        </div>
       </div>
+
+      {project && (
+        // The remote block, built exactly like the project one: two segments of
+        // one size, weight and hover, split by the same hairline. The first is
+        // the state and its press; the second is the check. Neither block holds
+        // a fill at rest — the fill is what hovering or pressing a segment
+        // looks like — and a state that calls for a sync keeps its accent glyph
+        // and says its verb in words instead of filling the block.
+        <span className="status-bar__block status-bar__block--remote" aria-live="polite">
+          {syncAction ? (
+            <button
+              className={`status-bar__seg status-bar__sync status-bar__sync-action status-bar__sync-action--${syncAction.kind}`}
+              type="button"
+              onClick={syncAction.onClick}
+              aria-label={syncAction.label}
+              data-tooltip={syncActionTooltip ?? undefined}
+            >
+              {syncAction.icon}
+              <span>{syncAction.label}</span>
+            </button>
+          ) : heldLabel ? (
+            <span
+              className="status-bar__seg status-bar__seg--fact status-bar__sync status-bar__sync--held"
+              data-tooltip={[teamLabel, freshness].filter(Boolean).join(" · ")}
+            >
+              {syncIcon}
+              <span aria-hidden="true">{heldLabel}</span>
+              <span className="visually-hidden">{teamLabel}</span>
+            </span>
+          ) : (
+            // The state is a press like the project's and the line's: it says
+            // the relation and renews it. Its name says both, so it is never
+            // mistaken for a label that does nothing. A word that is already
+            // the action ("Check again") does not have the action restated
+            // after it, so its name starts from the state it doubts.
+            <button
+              className={`status-bar__seg status-bar__sync status-bar__sync--${tone}`}
+              type="button"
+              disabled={!canCheckTeam}
+              onClick={onCheckTeamChanges}
+              aria-label={[doubtLabel ? teamLabel : visibleTeamLabel, t.statusBarCheckNow].filter(Boolean).join(" · ")}
+              data-tooltip={[
+                doubtLabel ? null : (hidesTeamWord ? visibleTeamLabel : null),
+                teamTooltip,
+                doubtLabel ? null : t.statusBarCheckNow,
+              ].filter(Boolean).join(" · ")}
+            >
+              {syncIcon}
+              <span className={hidesTeamWord ? "visually-hidden" : undefined}>{visibleTeamLabel}</span>
+              {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
+            </button>
+          )}
+          <span className="status-bar__hair" aria-hidden="true" />
+          {checkButton}
+        </span>
+      )}
     </footer>
   );
 }
