@@ -707,10 +707,9 @@ The main desktop window should broadly support:
      as a green and red bar), "What you'll decide" (the files with
      overlapping parts), "What you'll get" (the incoming versions by title and
      author), or "What you'll publish" (the files the unpublished versions
-     carry, "9+ files" while not all are read). A card whose step reaches
-     past this computer closes on the consequence in one line that fits the
-     column in every language ("Seen by anyone on this line"); saving stays
-     here, so its card says nothing more. The totals are in the secondary
+     carry, "9+ files" while not all are read). No card says anything more
+     under its list: the next-step card above already says what the step
+     does and where the work goes. The totals are in the secondary
      ink and the bar, a thin 2px line at reduced strength, is the one place the
      diff's colours show, so the card does not open on a red number. The card's
      head glyph is in the secondary ink whatever the step, overlaps included:
@@ -750,13 +749,12 @@ The main desktop window should broadly support:
 
      **Fitted to the window.** Tall and wide enough (620px by 981px), Overview
      has no scroll of its own: the header and the card keep their height and
-     the body takes the rest. "What you'll save" scrolls its files (up to 50,
-     the rest counted at the end), fading at the bottom while there is more
-     below; scrolled to the end, "Review" takes the lead and breathes once, as
-     "View all" does at the end of the timeline. The other detail cards show
-     as many whole rows as fit — never a half row — so a maximised window
-     shows more. The
-     timeline is the one scroll inside the page: "Now" stays pinned at its
+     the body takes the rest. Every detail card scrolls its list (up to 50
+     rows, the rest counted at the end), fading at the bottom while there is
+     more below; scrolled to the end, its link ("Review", "Resolve",
+     "History") takes the lead and breathes once, as "View all" does at the
+     end of the timeline. The
+     timeline scrolls inside the page too: "Now" stays pinned at its
      top, and the versions of the history's first page scroll under it, its
      bottom edge fading while there is more below. The group's label and the
      remote's mark stick to the top while their versions pass, so what is in

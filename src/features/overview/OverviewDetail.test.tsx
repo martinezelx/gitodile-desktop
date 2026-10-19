@@ -170,7 +170,25 @@ describe("OverviewDetail", () => {
     expect(screen.getByRole("heading", { name: "What you'll publish" })).toBeInTheDocument();
     expect(screen.getByText("2 files")).toBeInTheDocument();
     expect(screen.getByText("in 1 version")).toBeInTheDocument();
-    expect(screen.getByText("Seen by anyone on this line.")).toBeInTheDocument();
+    expect(screen.queryByText("Seen by anyone on this line.")).toBeNull();
+  });
+
+  it("scrolls what you'll publish too while the screen fits, and points to History at the end", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    });
+    const { container } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
+
+    const list = container.querySelector<HTMLElement>(".overview-detail__files--scroll");
+    if (!list) throw new Error("no scrolling list");
+    expect(list.querySelectorAll(".overview-detail__file")).toHaveLength(2);
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 40 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 80 });
+    const history = screen.getByRole("button", { name: "History" });
+    list.scrollTop = 40;
+    fireEvent.scroll(list);
+    await waitFor(() => expect(history).toHaveClass("overview-detail__link--lead"));
   });
 
   it("gives the column to the discard once nothing is waiting, and opens the restore picker", async () => {
@@ -257,7 +275,7 @@ describe("OverviewDetail", () => {
     expect(screen.getByRole("heading", { name: "What you'll get" })).toBeInTheDocument();
     expect(screen.getByText("2 versions")).toBeInTheDocument();
     expect(screen.getByText("fix(sync): keep the check")).toBeInTheDocument();
-    expect(screen.getByText("You'll see what changes first.")).toBeInTheDocument();
+    expect(screen.queryByText("You'll see what changes first.")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Review/ }));
     expect(handlers.onGetChanges).toHaveBeenCalledOnce();
   });

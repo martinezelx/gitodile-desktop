@@ -44,6 +44,11 @@ option was applied. Each decision below records the option chosen.
   screen fits the window its files scroll (up to 50, the rest counted at the
   end) and fade at the bottom while there is more; scrolled to the end,
   "Review" takes the lead and breathes once, as "View all" does.
+- **What you'll publish, decide and get.** The same: no note under any
+  card's list ("Seen by anyone on this line", "You'll see what changes
+  first" and the overlaps note are gone), and every card's list scrolls,
+  its link leading at the end. With nothing left to fit, `useFitCount`
+  (whole rows measured to the box) is removed.
 - **Glyphs.** "Recent history" leads its title with a history glyph, in its
   loading shapes too. The side cards' head glyph and the restore row's glyph
   stay in the secondary ink in every state (overlaps' red and the discard's

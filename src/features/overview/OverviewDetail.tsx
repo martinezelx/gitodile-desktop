@@ -2,9 +2,7 @@ import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   ChevronRight,
-  Cloud,
   CloudUpload,
-  Eye,
   RotateCcw,
   Save,
   Split,
@@ -19,20 +17,16 @@ import type { PendingVersionsResult } from "../publish";
 import { splitPath, type ChangeCategory, type WorkingTreeStatus } from "../status";
 import { sampleChangesPreview } from "./changesPreview";
 import type { Journey } from "./journey";
-import { useFitCount, useMoreBelow, useOverviewFits } from "./fit";
+import { useMoreBelow, useOverviewFits } from "./fit";
 import { CHANGE_ICONS } from "./OverviewNow";
 import { DetailListPlaceholder } from "./OverviewPlaceholder";
 import { useActiveWorkDetail, WORK_DETAIL_COMMIT_LIMIT, type WorkDetailController } from "./workDetail";
 
 /** Rows a detail card lists while the screen scrolls as a page. */
 const DETAIL_LIST_LIMIT = 5;
-/** The most rows a detail card draws when the screen fits the window. */
-const DETAIL_FIT_LIMIT = 30;
-/** The "and N more" line under the rows, kept free when some are left out. */
-const DETAIL_MORE_SPACE = 26;
-/** The most files "What you'll save" lists while its list scrolls; the rest
- * are counted under the last one, and Changes has them all. */
-const SAVE_SCROLL_LIMIT = 50;
+/** The most rows a detail card lists while its list scrolls; the rest are
+ * counted under the last one, and Changes or History has them all. */
+const SCROLL_LIST_LIMIT = 50;
 
 export type OverviewDetailMode = "save" | "resolve" | "publish" | "bring" | "calm";
 
@@ -63,7 +57,7 @@ function FileList({
   files: FileItem[];
   hidden: number;
   onOpen?: (path: string) => void;
-  /** The box the rows are fitted to, or that scrolls, while the screen fits the window. */
+  /** The list's box, which scrolls while the screen fits the window. */
   listRef?: React.Ref<HTMLUListElement>;
   /** The list scrolls rather than fitting whole rows; `moreBelow` fades its bottom edge. */
   scroll?: { moreBelow: boolean };
@@ -90,7 +84,7 @@ function FileList({
           </>
         );
         return (
-          <li key={file.path} data-fit-row="">
+          <li key={file.path}>
             {onOpen ? (
               <button
                 className="overview-detail__file"
@@ -133,7 +127,6 @@ function DetailCard({
   link,
   busy,
   children,
-  note,
 }: {
   icon: React.JSX.Element;
   title: string;
@@ -141,7 +134,6 @@ function DetailCard({
   link?: { label: string; onClick: () => void; lead?: boolean };
   busy?: boolean;
   children: React.ReactNode;
-  note?: { icon: React.JSX.Element; text: string };
 }): React.JSX.Element {
   const titleId = useId();
   return (
@@ -161,12 +153,6 @@ function DetailCard({
         )}
       </header>
       {children}
-      {note && (
-        <p className="overview-detail__note">
-          {note.icon}
-          <span>{note.text}</span>
-        </p>
-      )}
     </section>
   );
 }
@@ -212,8 +198,8 @@ export function OverviewDetail({
   const detail = useActiveWorkDetail(workDetail, query);
   const { publish } = journey;
   const [now, setNow] = useState(() => Date.now());
-  // The card's list shows as many whole rows as its box has room for when the
-  // screen fits the window; what changes the rows measures them again.
+  // While the screen fits the window, a card's list scrolls inside the column;
+  // otherwise the screen scrolls as a page and the list keeps a short length.
   const fits = useOverviewFits();
   const publishStates = pendingVersions.versions
     .slice(0, WORK_DETAIL_COMMIT_LIMIT)
@@ -227,22 +213,13 @@ export function OverviewDetail({
         : mode === "bring"
           ? `bring|${detail.incoming?.status ?? "-"}|${detail.incoming?.status === "ready" ? detail.incoming.result.versions.length : 0}`
           : mode;
-  // While the screen fits the window, what you'll save scrolls rather than
-  // fitting whole rows: the files are the reason to look at it. The other
-  // cards fit theirs.
-  const scrollsFiles = fits && mode === "save";
-  const fit = useFitCount<HTMLUListElement>({
-    fits: fits && !scrollsFiles,
-    max: DETAIL_FIT_LIMIT,
-    fallback: DETAIL_LIST_LIMIT,
-    reserve: DETAIL_MORE_SPACE,
-    contentKey: listKey,
-  });
-  const saveScroll = useMoreBelow<HTMLUListElement>(scrollsFiles, listKey);
+  const scrollsFiles = fits && mode !== "calm";
+  const listLimit = scrollsFiles ? SCROLL_LIST_LIMIT : DETAIL_LIST_LIMIT;
+  const listScroll = useMoreBelow<HTMLUListElement>(scrollsFiles, listKey);
   // A new project starts at the top of its list, not where the last one was left.
   useEffect(() => {
-    saveScroll.ref.current?.scrollTo?.({ top: 0 });
-  }, [projectPath, saveScroll.ref]);
+    listScroll.ref.current?.scrollTo?.({ top: 0 });
+  }, [projectPath, listScroll.ref]);
   useActiveScreenEffect(() => {
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -251,14 +228,14 @@ export function OverviewDetail({
 
   let card: React.JSX.Element | null = null;
   if (mode === "save" && workingTree) {
-    const shown = sampleChangesPreview(workingTree.entries, scrollsFiles ? SAVE_SCROLL_LIMIT : fit.count);
+    const shown = sampleChangesPreview(workingTree.entries, listLimit);
     card = (
       <DetailCard
         icon={<Save aria-hidden="true" />}
         title={t.overviewDetailSaveTitle}
         // Scrolled to the end, Review is the way on to every file, as
         // "View all" is at the end of the timeline.
-        link={{ label: t.overviewDetailReview, onClick: () => onReviewChanges(), lead: scrollsFiles && saveScroll.reachedEnd }}
+        link={{ label: t.overviewDetailReview, onClick: () => onReviewChanges(), lead: scrollsFiles && listScroll.reachedEnd }}
       >
         <p className="overview-detail__sum">
           <strong>{t.overviewDetailFiles(workingTree.counts.total)}</strong>
@@ -271,20 +248,19 @@ export function OverviewDetail({
           files={shown.map((entry) => ({ path: entry.path, category: entry.category }))}
           hidden={workingTree.counts.total - shown.length}
           onOpen={(path) => onReviewChanges(path)}
-          listRef={scrollsFiles ? saveScroll.ref : fit.ref}
-          scroll={scrollsFiles ? { moreBelow: saveScroll.moreBelow } : undefined}
+          listRef={listScroll.ref}
+          scroll={scrollsFiles ? { moreBelow: listScroll.moreBelow } : undefined}
         />
       </DetailCard>
     );
   } else if (mode === "resolve" && workingTree) {
     const conflicted = workingTree.entries.filter((entry) => entry.category === "conflicted");
-    const shown = conflicted.slice(0, fit.count);
+    const shown = conflicted.slice(0, listLimit);
     card = (
       <DetailCard
         icon={<Split aria-hidden="true" />}
         title={t.overviewDetailResolveTitle}
-        link={{ label: t.overviewJourneyResolve, onClick: onResolve }}
-        note={{ icon: <Eye aria-hidden="true" />, text: t.overviewDetailResolveNote }}
+        link={{ label: t.overviewJourneyResolve, onClick: onResolve, lead: scrollsFiles && listScroll.reachedEnd }}
       >
         <p className="overview-detail__sum">
           <strong>{t.overviewDetailFiles(workingTree.counts.conflicted)}</strong>
@@ -294,7 +270,8 @@ export function OverviewDetail({
           files={shown.map((entry) => ({ path: entry.path, category: entry.category }))}
           hidden={workingTree.counts.conflicted - shown.length}
           onOpen={(path) => onReviewChanges(path)}
-          listRef={fit.ref}
+          listRef={listScroll.ref}
+          scroll={scrollsFiles ? { moreBelow: listScroll.moreBelow } : undefined}
         />
       </DetailCard>
     );
@@ -315,21 +292,14 @@ export function OverviewDetail({
       pendingVersions.isTruncated
       || pendingVersions.totalCount > considered.length
       || states.some((state) => state?.status !== "ready");
-    // "This line" is only true when the remote line has the project's line's
-    // name; otherwise the note names where it goes.
-    const otherLine =
-      publish.remote && publish.destinationBranch && publish.destinationBranch !== publish.localBranch
-        ? `${publish.remote} · ${publish.destinationBranch}`
-        : null;
+    const shown = files.slice(0, listLimit);
     card = (
       <DetailCard
         icon={<CloudUpload aria-hidden="true" />}
         title={t.overviewDetailPublishTitle}
-        link={{ label: t.overviewDetailInHistory, onClick: onOpenHistory }}
+        // Scrolled to the end, History is the way on to every version.
+        link={{ label: t.overviewDetailInHistory, onClick: onOpenHistory, lead: scrollsFiles && listScroll.reachedEnd }}
         busy={isReading}
-        note={publish.remote
-          ? { icon: <Cloud aria-hidden="true" />, text: otherLine ? t.overviewDetailPublishNoteTo(otherLine) : t.overviewDetailPublishNote }
-          : undefined}
       >
         {files.length > 0 ? (
           <>
@@ -338,9 +308,10 @@ export function OverviewDetail({
               <span>{t.overviewDetailInVersions(pendingVersions.totalCount)}</span>
             </p>
             <FileList
-              files={files.slice(0, fit.count)}
-              hidden={files.length - Math.min(files.length, fit.count)}
-              listRef={fit.ref}
+              files={shown}
+              hidden={files.length - shown.length}
+              listRef={listScroll.ref}
+              scroll={scrollsFiles ? { moreBelow: listScroll.moreBelow } : undefined}
             />
           </>
         ) : failed ? (
@@ -357,14 +328,13 @@ export function OverviewDetail({
     const incoming = detail.incoming;
     const versions = incoming?.status === "ready" ? incoming.result.versions : [];
     const total = incoming?.status === "ready" ? incoming.result.totalCount : publish.behind;
-    const shown = versions.slice(0, fit.count);
+    const shown = versions.slice(0, listLimit);
     card = (
       <DetailCard
         icon={<ArrowDownToLine aria-hidden="true" />}
         title={t.overviewDetailBringTitle}
-        link={{ label: t.overviewDetailReview, onClick: onGetChanges }}
+        link={{ label: t.overviewDetailReview, onClick: onGetChanges, lead: scrollsFiles && listScroll.reachedEnd }}
         busy={!incoming || incoming.status === "loading"}
-        note={{ icon: <Eye aria-hidden="true" />, text: t.overviewDetailBringNote }}
       >
         {!incoming || incoming.status === "loading" ? (
           // Not read yet, or being read: the list's shape holds its place.
@@ -381,9 +351,14 @@ export function OverviewDetail({
           </p>
         )}
         {shown.length > 0 && (
-          <ul className="overview-detail__files" ref={fit.ref}>
+          <ul
+            {...(scrollsFiles ? autoHideScrollbarProps<HTMLUListElement>() : {})}
+            className={scrollsFiles ? "overview-detail__files overview-detail__files--scroll auto-hide-scrollbar" : "overview-detail__files"}
+            data-more-below={(scrollsFiles && listScroll.moreBelow) || undefined}
+            ref={listScroll.ref}
+          >
             {shown.map((version) => (
-              <li key={version.commit} data-fit-row="">
+              <li key={version.commit}>
                 <span className="overview-detail__version" title={version.title}>
                   <span className="overview-detail__incoming" aria-hidden="true" />
                   <span className="overview-detail__name">{version.title}</span>

@@ -89,9 +89,7 @@ export interface OverviewTranslations {
   overviewDetailLines: (added: number, removed: number) => string;
   /** The column's closing line, the consequence in one line that fits the
    * column in every language: where the work stays, or who will see it. */
-  overviewDetailPublishNote: string;
   /** When the remote line has another name than the project's line. */
-  overviewDetailPublishNoteTo: (destination: string) => string;
   overviewDetailLoading: string;
   overviewDetailFilesError: string;
   overviewDetailVersionsError: string;
@@ -151,9 +149,7 @@ export interface OverviewTranslations {
   /** The side column's other details. */
   overviewDetailResolveTitle: string;
   overviewDetailResolveSum: string;
-  overviewDetailResolveNote: string;
   overviewDetailBringTitle: string;
-  overviewDetailBringNote: string;
   overviewDetailVersions: (count: number) => string;
   overviewDetailFrom: (remote: string) => string;
   overviewDetailVersionsLoading: string;
@@ -274,8 +270,6 @@ const en: OverviewTranslations = {
   overviewDetailInVersions: (count) => (count === 1 ? "in 1 version" : `in ${count} versions`),
   overviewDetailMore: (count) => `and ${count} more`,
   overviewDetailLines: (added, removed) => `${added} lines added, ${removed} removed`,
-  overviewDetailPublishNote: "Seen by anyone on this line.",
-  overviewDetailPublishNoteTo: (destination) => `Seen by anyone on ${destination}.`,
   overviewDetailLoading: "Reading the files…",
   overviewDetailFilesError: "Couldn't read the files in these versions.",
   overviewDetailVersionsError: "Couldn't read the versions waiting. Review them to see what changes.",
@@ -340,9 +334,7 @@ const en: OverviewTranslations = {
   overviewNextThenPublishWith: (count) => (count === 0 ? "publish it" : `publish it along with ${count} more`),
   overviewDetailResolveTitle: "What you'll decide",
   overviewDetailResolveSum: "with overlapping parts",
-  overviewDetailResolveNote: "Open each one to choose what stays.",
   overviewDetailBringTitle: "What you'll get",
-  overviewDetailBringNote: "You'll see what changes first.",
   overviewDetailVersions: (count) => (count === 1 ? "1 version" : `${count} versions`),
   overviewDetailFrom: (remote) => `from ${remote}`,
   overviewDetailVersionsLoading: "Reading the versions…",
@@ -457,8 +449,6 @@ const es: OverviewTranslations = {
   overviewDetailInVersions: (count) => (count === 1 ? "en 1 versión" : `en ${count} versiones`),
   overviewDetailMore: (count) => `y ${count} más`,
   overviewDetailLines: (added, removed) => `${added} líneas añadidas, ${removed} quitadas`,
-  overviewDetailPublishNote: "Lo verá quien use esta línea.",
-  overviewDetailPublishNoteTo: (destination) => `Lo verá quien use ${destination}.`,
   overviewDetailLoading: "Leyendo los archivos…",
   overviewDetailFilesError: "No se pudieron leer los archivos de estas versiones.",
   overviewDetailVersionsError: "No se pudieron leer las versiones que esperan. Revísalas para ver qué cambia.",
@@ -524,9 +514,7 @@ const es: OverviewTranslations = {
     count === 0 ? "publicarla" : count === 1 ? "publicarla junto a otra" : `publicarla junto a otras ${count}`,
   overviewDetailResolveTitle: "Lo que vas a decidir",
   overviewDetailResolveSum: "con partes superpuestas",
-  overviewDetailResolveNote: "Abre cada uno para elegir qué queda.",
   overviewDetailBringTitle: "Lo que vas a traer",
-  overviewDetailBringNote: "Verás qué cambia antes de traerlo.",
   overviewDetailVersions: (count) => (count === 1 ? "1 versión" : `${count} versiones`),
   overviewDetailFrom: (remote) => `de ${remote}`,
   overviewDetailVersionsLoading: "Leyendo las versiones…",
