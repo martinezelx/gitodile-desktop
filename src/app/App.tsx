@@ -210,6 +210,7 @@ import { previewFromPendingVersions } from "../features/publish/domain";
 // dialog, which stays in its own lazy chunk.
 import { publishPort } from "../features/publish/tauriAdapter";
 import { createWorkDetailController, newestRestorableDiscard } from "../features/overview/workDetail";
+import { overviewPort } from "../features/overview/tauriAdapter";
 import "../styles.css";
 
 // Lazily loaded: none of these are needed for Home's first paint, and
@@ -375,9 +376,10 @@ export function App(): React.JSX.Element {
   );
   const [statusController] = useState(() => createStatusController(statusPort));
   const [changesController] = useState(() => createChangesController(changesPort));
-  // Overview's side column: the files the unpublished versions carry, and the
-  // newest discard that can still be restored. Filled from here, on project
-  // activation and repository invalidations, never because Overview is shown.
+  // Overview's cache: the files the unpublished versions carry, the newest
+  // discard that can still be restored, and where the project lives. Filled
+  // from here, on project activation and repository invalidations, never
+  // because Overview is shown.
   const [workDetailController] = useState(() =>
     createWorkDetailController({
       readCommitFileChanges: (query) => publishPort.readCommitFileChanges(query),
@@ -391,6 +393,8 @@ export function App(): React.JSX.Element {
         return newestRestorableDiscard(records);
       },
       readIncomingVersions: (query) => statusPort.readIncomingVersions(query),
+      readRemoteHome: (query) =>
+        overviewPort.readRemoteHome({ path: query.projectId, sessionEpoch: query.sessionEpoch }),
     }),
   );
   const [syncController] = useState(() => createSyncController(syncPort));
@@ -453,6 +457,18 @@ export function App(): React.JSX.Element {
         blocking: false,
         refresh: (query) => {
           scheduleIdleTask(() => void workDetailController.refreshRecovery(query));
+        },
+        supersede: () => undefined,
+      },
+      {
+        // Where the project lives, for Overview's header: remotes live in the
+        // config, a shared change. Speculative for every other screen, so it
+        // waits for an idle moment.
+        id: "overview-remote-home",
+        refreshOn: "shared-change",
+        blocking: false,
+        refresh: (query) => {
+          scheduleIdleTask(() => void workDetailController.refreshRemoteHome(query));
         },
         supersede: () => undefined,
       },
@@ -1453,6 +1469,18 @@ export function App(): React.JSX.Element {
       void workDetailController.refreshRecovery({ projectId: activeSessionId, sessionEpoch: activeSessionEpoch });
     });
   }, [activeSessionId, activeSessionEpoch, activeIsClean, workDetailController]);
+  // Where the active project lives, for Overview's header: read the first
+  // time the project becomes active, at an idle moment; switching back to it
+  // reads nothing, and a config change reads it again through the shared
+  // invalidation above.
+  useEffect(() => {
+    if (!activeSessionId || !activeSessionEpoch) return undefined;
+    const query = { projectId: activeSessionId, sessionEpoch: activeSessionEpoch };
+    if (workDetailController.getSnapshot(query).home.status === "ready") return undefined;
+    return scheduleIdleTask(() => {
+      void workDetailController.refreshRemoteHome(query);
+    });
+  }, [activeSessionId, activeSessionEpoch, workDetailController]);
   // When a remote check finds versions waiting, name them: read locally from
   // the tracking ref the check just moved, once per pair of commits.
   const incomingKey =
@@ -2906,15 +2934,22 @@ export function App(): React.JSX.Element {
                   pendingVersions={pendingVersions}
                   pendingVersionsError={pendingVersionsError}
                   versionLines={activeVersionLines.snapshot}
-                  isLoadingVersionLines={activeVersionLines.isLoading}
-                  favouriteVersionLines={favouriteVersionLines}
-                  onToggleFavouriteVersionLine={toggleFavouriteVersionLine}
                   onQuickSwitchVersionLine={(target) => {
                     if (projectPath && startVersionLineOperation(projectPath)) {
                       setVersionLineSwitchTarget(target);
                     }
                   }}
-                  versionLineCreate={versionLineCreate}
+                  onOpenRemoteHome={(remote) => {
+                    if (!project || !activeSession) return;
+                    void overviewPort
+                      .openRemoteHome({ path: project.path, sessionEpoch: activeSession.epoch, remote })
+                      .catch((error: unknown) =>
+                        showErrorDialog(
+                          t.overviewHomeOpenFailedTitle,
+                          localizeAppError(error, t, t.overviewHomeOpenFailedMessage),
+                        ),
+                      );
+                  }}
                   onOpenProjectSettings={() => openProjectSettings()}
                   onChangeProjectIcon={() => openProjectSettings(undefined, "icon")}
                   onPrefetchProjectSettings={() => prefetchProjectSettings()}

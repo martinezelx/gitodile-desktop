@@ -230,6 +230,8 @@ pub fn run() {
             ipc::plan_connect_remote,
             ipc::connect_remote,
             ipc::read_project_remotes,
+            ipc::read_remote_home,
+            ipc::open_remote_home,
             ipc::set_remote_url,
             ipc::read_project_identity,
             ipc::set_project_identity,

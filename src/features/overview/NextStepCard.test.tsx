@@ -184,8 +184,9 @@ describe("NextStepCard", () => {
 
     expect(container.querySelector(".next-step")).toHaveClass("next-step--ready");
     expect(screen.getByRole("heading", { name: "Publish 2 versions to origin" })).toBeInTheDocument();
-    expect(screen.getByText("Next step")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "2 of 3 steps done" })).toBeInTheDocument();
+    // The title leads: no caption above it and no steps beside it.
+    expect(screen.queryByText("Next step")).toBeNull();
+    expect(container.querySelector(".next-step__progress")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Publish all 2" }));
     expect(actions.publish).toHaveBeenCalledOnce();
     expect(container.querySelectorAll(".primary-button")).toHaveLength(1);

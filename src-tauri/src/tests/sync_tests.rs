@@ -1931,3 +1931,81 @@ fn a_split_index_still_lets_the_plan_prove_separate_unsaved_work_can_be_carried(
         let _ = fs::remove_dir_all(path);
     }
 }
+
+#[test]
+fn remote_home_names_the_published_remote_and_never_reports_one_missing() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _branch) = published_repo_and_remote("remote-home");
+    let leaf = std::path::Path::new(&remote)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap()
+        .to_string();
+
+    // The line publishes to origin, a folder on this machine: named by its
+    // folder, with no page to open.
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "origin");
+    assert_eq!(home.provider, crate::sync::RemoteHomeProvider::Other);
+    assert_eq!(home.label, leaf);
+    assert!(!home.has_web_page);
+
+    // An address this cannot read is still a remote, named by its own name.
+    wire_remote(&repo, "mirror", "sso://team/app");
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["branch", "--unset-upstream"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "rename", "origin", "backup"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "backup");
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "remove", "backup"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "mirror");
+    assert_eq!(home.label, "mirror");
+    assert!(!home.has_web_page);
+
+    // No page can be opened for a remote that has none, or does not exist.
+    // (`open_remote_home` authorizes the project before asking.)
+    let access = application::authorize_repository(&repo, "open_remote_home", None).unwrap();
+    assert_eq!(
+        crate::sync::remote_web_page(&repo, "mirror")
+            .unwrap_err()
+            .code,
+        AppErrorCode::RemoteNotFound
+    );
+    assert_eq!(
+        crate::sync::remote_web_page(&repo, "elsewhere")
+            .unwrap_err()
+            .code,
+        AppErrorCode::RemoteNotFound
+    );
+    drop(access);
+
+    // With no remote at all, there is none to name.
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "remove", "mirror"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    assert_eq!(crate::sync::read_remote_home(repo).unwrap(), None);
+}

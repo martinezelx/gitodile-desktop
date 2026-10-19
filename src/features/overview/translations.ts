@@ -6,9 +6,15 @@ export interface OverviewTranslations {
   overviewUnbornReady: string;
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
-  overviewCurrentVersionLine: string;
-  overviewSpecificSavedVersion: string;
-  overviewNoSavedVersions: string;
+  overviewHomeLoading: string;
+  overviewHomeLocal: string;
+  overviewHomeLocalHint: string;
+  /** Opens `label` on `service` ("GitHub", or "the web" for another server). */
+  overviewHomeOpen: (label: string, service: string) => string;
+  overviewHomeRemote: (remote: string) => string;
+  overviewHomeWeb: string;
+  overviewHomeOpenFailedTitle: string;
+  overviewHomeOpenFailedMessage: string;
   overviewVersionLineDescription: string;
   overviewDetachedDescription: string;
   overviewUnbornDescription: string;
@@ -43,13 +49,7 @@ export interface OverviewTranslations {
   overviewJourneyNoteIdle: string;
   overviewPublishAll: (count: number) => string;
   /** The next-step card: the words over its title, by what the card asks. */
-  overviewNextKickerNext: string;
-  overviewNextKickerBefore: string;
-  overviewNextKickerDecide: string;
-  overviewNextKickerAllGood: string;
-  overviewNextKickerStatus: string;
   /** The card's three-segment progress, read out: "2 of 3 steps done". */
-  overviewNextProgress: (done: number) => string;
   overviewNextConflictsTitle: (count: number) => string;
   overviewNextConflictsHint: string;
   overviewNextSaveTitle: (count: number) => string;
@@ -63,9 +63,8 @@ export interface OverviewTranslations {
   overviewNowConflicts: (count: number) => string;
   /** The group of versions that have not left this computer. */
   overviewTimelineLocalGroup: string;
-  overviewTimelineLocalCount: (count: number) => string;
   /** The mark above the newest version the remote has: "Published on". */
-  overviewTimelinePublishedOn: string;
+  overviewTimelinePublished: string;
   /** The row above "now" for versions waiting on the remote. */
   overviewTimelineIncoming: (count: number) => string;
   overviewTimelineGet: string;
@@ -90,7 +89,6 @@ export interface OverviewTranslations {
   overviewDetailLines: (added: number, removed: number) => string;
   /** The column's closing line, the consequence in one line that fits the
    * column in every language: where the work stays, or who will see it. */
-  overviewDetailSaveNote: string;
   overviewDetailPublishNote: string;
   /** When the remote line has another name than the project's line. */
   overviewDetailPublishNoteTo: (destination: string) => string;
@@ -103,9 +101,9 @@ export interface OverviewTranslations {
    * for assistive technology), and when the newest was made. */
   overviewSafetyDiscardedCopies: (copies: number) => string;
   overviewSafetyDiscardedLatest: (when: string) => string;
+  overviewSafetyDiscardedWhen: (when: string) => string;
   /** The card's other cases: the first save, versions waiting on the remote,
    * both sides moved, a check that failed, no remote, an older version. */
-  overviewNextKickerSaved: string;
   overviewNextFirstSaveTitle: string;
   overviewNextFirstSaveHint: (count: number) => string;
   overviewNextBehindTitle: (count: number, remote: string | null) => string;
@@ -140,7 +138,7 @@ export interface OverviewTranslations {
   overviewNextStopTracking: string;
   overviewNextPublishLine: string;
   /** The timeline's boundary for a line whose remote branch was deleted. */
-  overviewTimelineWasOn: string;
+  overviewTimelineWasPublished: string;
   /** The neutral pill for what comes after this step: "Then: 3 new versions
    * on origin", "Then: publish 2 versions". */
   overviewNextThen: string;
@@ -160,19 +158,8 @@ export interface OverviewTranslations {
   overviewDetailFrom: (remote: string) => string;
   overviewDetailVersionsLoading: string;
   overviewDiscardRestore: string;
-  /** The scene: this computer, the remote, and how they stand. */
-  overviewSceneLabel: string;
-  overviewSceneLoading: string;
-  overviewSceneTooltip: (remote: string) => string;
-  overviewSceneHere: string;
-  overviewSceneRemote: string;
-  overviewSceneSynced: string;
-  overviewSceneNotChecked: string;
-  overviewSceneNoCopy: string;
-  overviewSceneConnect: string;
-  overviewSceneMissingYours: (count: number) => string;
-  overviewSceneNew: (count: number) => string;
-  overviewSceneUnsaved: (count: number) => string;
+  /** The remote's name in the timeline when it has none. */
+  overviewTimelineRemote: string;
   overviewFactsCheck: string;
   overviewHistoryTitle: string;
   overviewHistoryViewAll: string;
@@ -216,9 +203,14 @@ const en: OverviewTranslations = {
   overviewUnbornReady: "Your new project is ready",
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
-  overviewCurrentVersionLine: "Current version line",
-  overviewSpecificSavedVersion: "Specific saved version",
-  overviewNoSavedVersions: "No saved versions yet",
+  overviewHomeLoading: "Reading where this project lives…",
+  overviewHomeLocal: "Only on this computer",
+  overviewHomeLocalHint: "No remote yet: connect one in the project's settings to publish it.",
+  overviewHomeOpen: (label, service) => `Open ${label} on ${service}`,
+  overviewHomeRemote: (remote) => `Remote “${remote}”`,
+  overviewHomeWeb: "the web",
+  overviewHomeOpenFailedTitle: "Couldn't open the page",
+  overviewHomeOpenFailedMessage: "Open the project's page from your browser.",
   overviewVersionLineDescription: "New work goes on this line.",
   overviewDetachedDescription: "You're looking at a specific point in history.",
   overviewUnbornDescription: "Your first saved version starts this project's history.",
@@ -249,12 +241,6 @@ const en: OverviewTranslations = {
   overviewJourneyNoteAhead: "Your saved versions are only on this computer until you publish them.",
   overviewJourneyNoteIdle: "Checking your project…",
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
-  overviewNextKickerNext: "Next step",
-  overviewNextKickerBefore: "Before you continue",
-  overviewNextKickerDecide: "Needs your decision",
-  overviewNextKickerAllGood: "All in order",
-  overviewNextKickerStatus: "Project status",
-  overviewNextProgress: (done) => `${done} of 3 steps done`,
   overviewNextConflictsTitle: (count) =>
     count === 1 ? "1 file has overlapping changes" : `${count} files have overlapping changes`,
   overviewNextConflictsHint: "Choose what stays in each part. Nothing is saved until you finish.",
@@ -270,9 +256,8 @@ const en: OverviewTranslations = {
   overviewNowClean: "Nothing unsaved",
   overviewNowConflicts: (count) =>
     count === 1 ? "1 file with overlapping changes" : `${count} files with overlapping changes`,
-  overviewTimelineLocalGroup: "Only on this computer",
-  overviewTimelineLocalCount: (count) => (count === 1 ? "1 version" : `${count} versions`),
-  overviewTimelinePublishedOn: "Published on",
+  overviewTimelineLocalGroup: "On this computer",
+  overviewTimelinePublished: "Published",
   overviewTimelineIncoming: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewTimelineGet: "Get",
   overviewTimelineEndMore: (count) =>
@@ -282,14 +267,13 @@ const en: OverviewTranslations = {
   overviewDetailSaveTitle: "What you'll save",
   overviewDetailPublishTitle: "What you'll publish",
   overviewDetailReview: "Review",
-  overviewDetailInHistory: "In history",
+  overviewDetailInHistory: "History",
   overviewDetailFiles: (count) => (count === 1 ? "1 file" : `${count} files`),
   overviewDetailFilesAtLeast: (count) => `${count}+ files`,
   overviewDetailInNextVersion: "in your next version",
   overviewDetailInVersions: (count) => (count === 1 ? "in 1 version" : `in ${count} versions`),
   overviewDetailMore: (count) => `and ${count} more`,
   overviewDetailLines: (added, removed) => `${added} lines added, ${removed} removed`,
-  overviewDetailSaveNote: "Stays here until you publish.",
   overviewDetailPublishNote: "Seen by anyone on this line.",
   overviewDetailPublishNoteTo: (destination) => `Seen by anyone on ${destination}.`,
   overviewDetailLoading: "Reading the files…",
@@ -299,7 +283,7 @@ const en: OverviewTranslations = {
   overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 file" : `${count} files`} · ${when}`,
   overviewSafetyDiscardedCopies: (copies) => `${copies} copies`,
   overviewSafetyDiscardedLatest: (when) => `latest ${when}`,
-  overviewNextKickerSaved: "All saved",
+  overviewSafetyDiscardedWhen: (when) => `discarded ${when}`,
   overviewNextFirstSaveTitle: "Save your first version",
   overviewNextFirstSaveHint: (count) =>
     count === 1
@@ -348,13 +332,13 @@ const en: OverviewTranslations = {
   overviewNextPublishAgain: "Publish again…",
   overviewNextStopTracking: "Stop following the remote",
   overviewNextPublishLine: "Publish this line…",
-  overviewTimelineWasOn: "Was on",
+  overviewTimelineWasPublished: "Was published",
   overviewNextThen: "Then:",
   overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
   overviewNextThenOn: (remote) => `on ${remote}`,
   overviewNextThenPublish: (count) => (count === 1 ? "publish 1 version" : `publish ${count} versions`),
   overviewNextThenPublishWith: (count) => (count === 0 ? "publish it" : `publish it along with ${count} more`),
-  overviewDetailResolveTitle: "What you need to decide",
+  overviewDetailResolveTitle: "What you'll decide",
   overviewDetailResolveSum: "with overlapping parts",
   overviewDetailResolveNote: "Open each one to choose what stays.",
   overviewDetailBringTitle: "What you'll get",
@@ -363,19 +347,7 @@ const en: OverviewTranslations = {
   overviewDetailFrom: (remote) => `from ${remote}`,
   overviewDetailVersionsLoading: "Reading the versions…",
   overviewDiscardRestore: "Restore",
-  overviewSceneLabel: "Where your work is",
-  overviewSceneLoading: "Reading where your work is…",
-  overviewSceneTooltip: (remote) =>
-    `Your work is here and on ${remote}: if something happens to one, it's still on the other.`,
-  overviewSceneHere: "Here",
-  overviewSceneRemote: "Remote",
-  overviewSceneSynced: "up to date",
-  overviewSceneNotChecked: "not checked",
-  overviewSceneNoCopy: "No copy",
-  overviewSceneConnect: "Connect",
-  overviewSceneMissingYours: (count) => (count === 1 ? "without your latest" : `without your last ${count}`),
-  overviewSceneNew: (count) => `${count} new`,
-  overviewSceneUnsaved: (count) => `${count} unsaved`,
+  overviewTimelineRemote: "Remote",
   overviewFactsCheck: "Check",
   overviewHistoryTitle: "Recent history",
   overviewHistoryViewAll: "View all",
@@ -414,9 +386,14 @@ const es: OverviewTranslations = {
   overviewUnbornReady: "Tu proyecto nuevo está listo",
   overviewDetachedReady: "Tienes abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
-  overviewCurrentVersionLine: "Línea de versión actual",
-  overviewSpecificSavedVersion: "Versión guardada concreta",
-  overviewNoSavedVersions: "Aún no hay versiones guardadas",
+  overviewHomeLoading: "Viendo dónde vive este proyecto…",
+  overviewHomeLocal: "Solo en este ordenador",
+  overviewHomeLocalHint: "Aún no tiene remoto: conecta uno en los ajustes del proyecto para publicarlo.",
+  overviewHomeOpen: (label, service) => `Abrir ${label} en ${service}`,
+  overviewHomeRemote: (remote) => `Remoto «${remote}»`,
+  overviewHomeWeb: "la web",
+  overviewHomeOpenFailedTitle: "No se pudo abrir la página",
+  overviewHomeOpenFailedMessage: "Abre la página del proyecto desde tu navegador.",
   overviewVersionLineDescription: "El trabajo nuevo va a esta línea.",
   overviewDetachedDescription: "Estás viendo un punto concreto del historial.",
   overviewUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
@@ -447,12 +424,6 @@ const es: OverviewTranslations = {
   overviewJourneyNoteAhead: "Tus versiones guardadas solo están en este ordenador hasta que las publiques.",
   overviewJourneyNoteIdle: "Revisando tu proyecto…",
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
-  overviewNextKickerNext: "Siguiente paso",
-  overviewNextKickerBefore: "Antes de seguir",
-  overviewNextKickerDecide: "Necesita tu decisión",
-  overviewNextKickerAllGood: "Todo en orden",
-  overviewNextKickerStatus: "Estado del proyecto",
-  overviewNextProgress: (done) => `${done} de 3 pasos hechos`,
   overviewNextConflictsTitle: (count) =>
     count === 1 ? "1 archivo tiene cambios superpuestos" : `${count} archivos tienen cambios superpuestos`,
   overviewNextConflictsHint: "Elige qué se queda en cada parte. No se guarda nada hasta que termines.",
@@ -468,9 +439,8 @@ const es: OverviewTranslations = {
   overviewNowClean: "Nada sin guardar",
   overviewNowConflicts: (count) =>
     count === 1 ? "1 archivo con cambios superpuestos" : `${count} archivos con cambios superpuestos`,
-  overviewTimelineLocalGroup: "Solo en este ordenador",
-  overviewTimelineLocalCount: (count) => (count === 1 ? "1 versión" : `${count} versiones`),
-  overviewTimelinePublishedOn: "Publicado en",
+  overviewTimelineLocalGroup: "En este ordenador",
+  overviewTimelinePublished: "Publicado",
   overviewTimelineIncoming: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewTimelineGet: "Traer",
   overviewTimelineEndMore: (count) =>
@@ -480,14 +450,13 @@ const es: OverviewTranslations = {
   overviewDetailSaveTitle: "Lo que vas a guardar",
   overviewDetailPublishTitle: "Lo que vas a publicar",
   overviewDetailReview: "Revisar",
-  overviewDetailInHistory: "En el historial",
+  overviewDetailInHistory: "Historial",
   overviewDetailFiles: (count) => (count === 1 ? "1 archivo" : `${count} archivos`),
   overviewDetailFilesAtLeast: (count) => `${count}+ archivos`,
   overviewDetailInNextVersion: "en tu próxima versión",
   overviewDetailInVersions: (count) => (count === 1 ? "en 1 versión" : `en ${count} versiones`),
   overviewDetailMore: (count) => `y ${count} más`,
   overviewDetailLines: (added, removed) => `${added} líneas añadidas, ${removed} quitadas`,
-  overviewDetailSaveNote: "Se queda aquí hasta que publiques.",
   overviewDetailPublishNote: "Lo verá quien use esta línea.",
   overviewDetailPublishNoteTo: (destination) => `Lo verá quien use ${destination}.`,
   overviewDetailLoading: "Leyendo los archivos…",
@@ -497,7 +466,7 @@ const es: OverviewTranslations = {
   overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 archivo" : `${count} archivos`} · ${when}`,
   overviewSafetyDiscardedCopies: (copies) => `${copies} copias`,
   overviewSafetyDiscardedLatest: (when) => `la última ${when}`,
-  overviewNextKickerSaved: "Todo guardado",
+  overviewSafetyDiscardedWhen: (when) => `descartados ${when}`,
   overviewNextFirstSaveTitle: "Guarda tu primera versión",
   overviewNextFirstSaveHint: (count) =>
     count === 1
@@ -546,14 +515,14 @@ const es: OverviewTranslations = {
   overviewNextPublishAgain: "Volver a publicar…",
   overviewNextStopTracking: "Dejar de seguir el remoto",
   overviewNextPublishLine: "Publicar esta línea…",
-  overviewTimelineWasOn: "Estuvo en",
+  overviewTimelineWasPublished: "Estuvo publicado",
   overviewNextThen: "Después:",
   overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
   overviewNextThenOn: (remote) => `en ${remote}`,
   overviewNextThenPublish: (count) => (count === 1 ? "publicar 1 versión" : `publicar ${count} versiones`),
   overviewNextThenPublishWith: (count) =>
     count === 0 ? "publicarla" : count === 1 ? "publicarla junto a otra" : `publicarla junto a otras ${count}`,
-  overviewDetailResolveTitle: "Lo que tienes que decidir",
+  overviewDetailResolveTitle: "Lo que vas a decidir",
   overviewDetailResolveSum: "con partes superpuestas",
   overviewDetailResolveNote: "Abre cada uno para elegir qué queda.",
   overviewDetailBringTitle: "Lo que vas a traer",
@@ -562,19 +531,7 @@ const es: OverviewTranslations = {
   overviewDetailFrom: (remote) => `de ${remote}`,
   overviewDetailVersionsLoading: "Leyendo las versiones…",
   overviewDiscardRestore: "Recuperar",
-  overviewSceneLabel: "Dónde está tu trabajo",
-  overviewSceneLoading: "Viendo dónde está tu trabajo…",
-  overviewSceneTooltip: (remote) =>
-    `Tu trabajo está aquí y en ${remote}: si algo le pasa a uno, sigue en el otro.`,
-  overviewSceneHere: "Aquí",
-  overviewSceneRemote: "Remoto",
-  overviewSceneSynced: "al día",
-  overviewSceneNotChecked: "sin comprobar",
-  overviewSceneNoCopy: "Sin copia",
-  overviewSceneConnect: "Conectar",
-  overviewSceneMissingYours: (count) => (count === 1 ? "sin tu última" : `sin tus ${count} últimas`),
-  overviewSceneNew: (count) => (count === 1 ? "1 nueva" : `${count} nuevas`),
-  overviewSceneUnsaved: (count) => `${count} sin guardar`,
+  overviewTimelineRemote: "Remoto",
   overviewFactsCheck: "Comprobar",
   overviewHistoryTitle: "Historial reciente",
   overviewHistoryViewAll: "Ver todo",

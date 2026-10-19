@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, LocalOnlyMark, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
+import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, TimelineChip, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
 import {
@@ -1057,8 +1057,7 @@ function VersionLineDetail({
               >
                 {boundaryIndex > 0 && (
                   <li className="version-lines-recent__head">
-                    <LocalOnlyMark className="version-lines-recent__mark" />
-                    <span className="version-lines-recent__caption">{t.versionLinesLocalGroup}</span>
+                    <TimelineChip kind="local" label={t.versionLinesLocalGroup} compact className="version-lines-recent__chip" />
                     {canPublish && <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />}
                   </li>
                 )}
@@ -1093,12 +1092,13 @@ function VersionLineDetail({
                     <React.Fragment key={version.commit}>
                       {index === boundaryIndex && (
                         <li className="version-lines-recent__boundary" aria-hidden="true">
-                          <span className="version-lines-recent__mark version-lines-recent__mark--remote"><Cloud /></span>
-                          <span className="version-lines-recent__caption">
-                            {t.versionLinesBoundaryPublishedOn}{" "}
-                            <span className="version-lines-recent__remote">{publishedOn}</span>
-                          </span>
-                          <span className="version-lines-recent__rule" />
+                          <TimelineChip
+                            kind="published"
+                            label={t.versionLinesBoundaryPublished}
+                            title={publishedOn ?? undefined}
+                            compact
+                            className="version-lines-recent__chip"
+                          />
                         </li>
                       )}
                       <li

@@ -10,7 +10,7 @@ describe("work detail controller", () => {
     const readCommitFileChanges = vi.fn(async ({ commit }: { commit: string }) => [
       { path: `${commit}.ts`, originalPath: null, category: "changed" as const },
     ]);
-    const controller = createWorkDetailController({ readCommitFileChanges, findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn() });
+    const controller = createWorkDetailController({ readCommitFileChanges, findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn(), readRemoteHome: vi.fn() });
     const commits = Array.from({ length: WORK_DETAIL_COMMIT_LIMIT + 5 }, (_, index) => `c${index}`);
 
     await controller.ensureCommitFiles(query, commits);
@@ -30,7 +30,7 @@ describe("work detail controller", () => {
       .fn()
       .mockRejectedValueOnce(new Error("busy"))
       .mockResolvedValueOnce([]);
-    const controller = createWorkDetailController({ readCommitFileChanges, findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn() });
+    const controller = createWorkDetailController({ readCommitFileChanges, findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn(), readRemoteHome: vi.fn() });
 
     await controller.ensureCommitFiles(query, ["c0"]);
     expect(controller.getSnapshot(query).commitFiles.get("c0")).toEqual({ status: "error" });
@@ -41,7 +41,7 @@ describe("work detail controller", () => {
   it("keeps the newest restorable discard, and offers none when there is none to read", async () => {
     const recovery = { recoveryId: "r1", createdAtMs: 1, fileCount: 3, restorableCount: 1 };
     const findRestorableDiscard = vi.fn().mockResolvedValueOnce(recovery).mockRejectedValueOnce(new Error("none"));
-    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard, readIncomingVersions: vi.fn() });
+    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard, readIncomingVersions: vi.fn(), readRemoteHome: vi.fn() });
     const listener = vi.fn();
     controller.subscribe(query, listener);
 
@@ -69,7 +69,7 @@ describe("work detail controller", () => {
   it("reads the incoming versions once per pair of commits, and forgets them when none wait", async () => {
     const result = { totalCount: 1, versions: [], isTruncated: false };
     const readIncomingVersions = vi.fn(async () => result);
-    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard: vi.fn(), readIncomingVersions });
+    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard: vi.fn(), readIncomingVersions, readRemoteHome: vi.fn() });
 
     await controller.ensureIncoming(query, "a..b");
     await controller.ensureIncoming(query, "a..b");
@@ -80,5 +80,27 @@ describe("work detail controller", () => {
     expect(readIncomingVersions).toHaveBeenCalledTimes(2);
     controller.clearIncoming(query);
     expect(controller.getSnapshot(query).incoming).toBeNull();
+  });
+  it("says where the project lives is unavailable when the first read fails", async () => {
+    const readRemoteHome = vi.fn().mockRejectedValueOnce(new Error("busy"));
+    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn(), readRemoteHome });
+
+    await controller.refreshRemoteHome(query);
+    expect(controller.getSnapshot(query).home).toEqual({ status: "unavailable" });
+  });
+
+  it("reads where the project lives, and keeps it when a read fails", async () => {
+    const home = { remote: "origin", provider: "github" as const, label: "acme/app", hasWebPage: true };
+    const readRemoteHome = vi.fn().mockResolvedValueOnce(home).mockRejectedValueOnce(new Error("busy")).mockResolvedValueOnce(null);
+    const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard: vi.fn(), readIncomingVersions: vi.fn(), readRemoteHome });
+
+    // Unknown until read, so the header never claims there is no remote.
+    expect(controller.getSnapshot(query).home).toEqual({ status: "unknown" });
+    await controller.refreshRemoteHome(query);
+    expect(controller.getSnapshot(query).home).toEqual({ status: "ready", home });
+    await controller.refreshRemoteHome(query);
+    expect(controller.getSnapshot(query).home).toEqual({ status: "ready", home });
+    await controller.refreshRemoteHome(query);
+    expect(controller.getSnapshot(query).home).toEqual({ status: "ready", home: null });
   });
 });

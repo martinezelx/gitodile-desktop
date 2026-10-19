@@ -1,11 +1,3 @@
-.version-line-card__value {
-  display: inline;
-  margin-right: 4px;
-  color: var(--text-primary-color);
-  font-weight: var(--weight-title);
-  overflow-wrap: anywhere;
-  font-family: var(--font-mono);
-}
 .version-line-selector {
   display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
   padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
@@ -862,6 +854,16 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 /* It scrolls down and never across: every row gives way from its subject, so
    nothing in it is ever wider than the panel. */
 .version-lines-card--fill .version-lines-recent { flex: 1; overflow-x: hidden; overflow-y: auto; }
+/* While the list scrolls, its two chips stay at the top as their versions pass
+   — Overview's timeline does the same — so what is in view always says
+   whether it is published. Opaque, with the rail drawn through them. */
+.version-lines-card--fill .version-lines-recent__head,
+.version-lines-card--fill .version-lines-recent__boundary {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface-panel);
+}
 .version-lines-recent li {
   position: relative;
   min-width: 0;
@@ -959,23 +961,12 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
   white-space: nowrap;
 }
 .version-lines-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-/* The head over the versions only here and the remote's mark where its copy
-   begins: History's and Overview's pieces — a 22px disc on the rail and a
-   caption that starts where the subjects do. */
+/* The head over the versions only here and the mark where the remote's copy
+   begins: Overview's TimelineChip, at its compact size, its glyph over the
+   rail (the rail is 11.5px in; the chip's glyph centre lands on it). */
 .version-lines-recent__head,
 .version-lines-recent__boundary { gap: 7px; }
-.version-lines-recent__mark {
-  position: relative; z-index: 1; flex: 0 0 auto;
-  width: 22px; height: 22px; margin-inline-start: -5px;
-  display: grid; place-items: center;
-  border-radius: var(--radius-round);
-}
-.version-lines-recent__mark svg { width: 12px; height: 12px; }
-.version-lines-recent__mark--remote { border: 1px solid var(--border-control); background: var(--surface-panel); color: var(--status-renamed); }
-.version-lines-recent__caption { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.version-lines-recent__head .version-lines-recent__caption { font-size: var(--text-label); font-weight: var(--weight-heading); }
-.version-lines-recent__remote { color: var(--text-primary-color); font-family: var(--font-mono); font-weight: var(--weight-strong); }
-.version-lines-recent__rule { flex: 1 1 auto; min-width: 12px; height: 0; border-top: 1px dashed var(--border-control); }
+.version-lines-recent__chip { margin-inline-start: -4px; }
 /* Publishing what is waiting, where it is said: History's group-head capsule.
    The cloud is always in the accent, so the word reads as an action before
    the pointer finds it; under the pointer the capsule takes the control
@@ -1294,11 +1285,6 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 }
 .version-lines-quick-switch__status { display: grid; place-items: center; min-height: 100%; padding: 10px; }
 .version-lines-quick-switch__status svg { width: 16px; height: 16px; color: var(--text-secondary-color); }
-
-@media (max-width: 800px) {
-  .overview-meta .version-lines-quick-switch { flex: 1 1 auto; }
-  .overview-meta .version-line-selector { flex: 1 1 auto; justify-content: space-between; }
-}
 
 @media (forced-colors: active) {
   .version-lines-banner { outline: 1px solid CanvasText; outline-offset: -1px; }

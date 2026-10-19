@@ -602,13 +602,13 @@ describe("HistoryPanel", () => {
     const { container, unmount } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
     const boundaries = container.querySelectorAll(".history-boundary");
     expect(boundaries).toHaveLength(1);
-    // Overview's pieces: the mark where the remote's copy begins, and a head
-    // over the versions only here, on the first row.
+    // Overview's chips: "Published" where the remote's copy begins, and "On
+    // this computer" over the versions only here, on the first row.
     expect(boundaries[0]).toHaveTextContent(/^Published$/);
-    expect(boundaries[0].querySelector(".history-boundary__mark")).not.toBeNull();
+    expect(boundaries[0].querySelector(".timeline-chip--published")).not.toBeNull();
     const heads = container.querySelectorAll(".history-local-head");
     expect(heads).toHaveLength(1);
-    expect(heads[0]).toHaveTextContent("Local");
+    expect(heads[0].querySelector(".timeline-chip--local")).toHaveTextContent(/^On this computer$/);
     expect(rowAfter(heads[0])).toHaveAttribute("aria-label", expect.stringContaining("Saved version 3"));
     expect(boundaries[0]).toHaveAttribute("data-tooltip", "Versions above are only on this computer; versions below are already on origin/main");
     expect(rowAfter(boundaries[0])).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
@@ -624,18 +624,22 @@ describe("HistoryPanel", () => {
     const base = state(2);
     const { container } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
     const titles = (): string[] => [...container.querySelectorAll(".history-row__title")].map((title) => title.getAttribute("title") ?? "");
-    const local = screen.getByRole("treeitem", { name: "Local, 2 versions" });
+    const local = screen.getByRole("treeitem", { name: "On this computer, 2 versions" });
     const published = screen.getByRole("treeitem", { name: "Published" });
     expect(local).toHaveAttribute("aria-expanded", "true");
 
     await user.click(local);
     expect(local).toHaveAttribute("aria-expanded", "false");
     expect(titles()).toEqual(["Saved version 0", "Saved version 2"]);
+    // Folded or not, the chip carries no count.
+    expect(local).toHaveTextContent(/^On this computer$/);
 
     published.focus();
     await user.keyboard("{ArrowLeft}");
     expect(published).toHaveAttribute("aria-expanded", "false");
     expect(titles()).toEqual([]);
+    // Nothing follows a folded "Published": its rail ends under the chip.
+    expect(container.querySelector(".history-boundary")).toHaveAttribute("data-folded");
     await user.keyboard("{ArrowRight}");
     await user.click(local);
     expect(titles()).toEqual(["Saved version 3", "Saved version 1", "Saved version 0", "Saved version 2"]);

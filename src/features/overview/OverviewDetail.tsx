@@ -1,12 +1,10 @@
-import React, { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
-  Check,
   ChevronRight,
   Cloud,
   CloudUpload,
   Eye,
-  Laptop,
   RotateCcw,
   Save,
   Split,
@@ -14,17 +12,16 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { useActiveScreenEffect, useScreenLifecycle } from "../../runtime/screen/module";
-import { formatRelativeCheckTime } from "../../shared/i18n";
-import { formatHistoryDate, useActiveHistoryState, type HistoryController } from "../history";
+import { useActiveScreenEffect } from "../../runtime/screen/module";
+import { formatRelativeTime } from "../../shared/i18n";
+import { autoHideScrollbarProps } from "../../shared/ui";
 import type { PendingVersionsResult } from "../publish";
 import { splitPath, type ChangeCategory, type WorkingTreeStatus } from "../status";
 import { sampleChangesPreview } from "./changesPreview";
 import type { Journey } from "./journey";
-import { useFitCount, useOverviewFits } from "./fit";
+import { useFitCount, useMoreBelow, useOverviewFits } from "./fit";
 import { CHANGE_ICONS } from "./OverviewNow";
-import { DetailListPlaceholder, WorkScenePlaceholder } from "./OverviewPlaceholder";
-import { playSceneTransition, sameSceneFacts, type SceneFacts } from "./sceneMotion";
+import { DetailListPlaceholder } from "./OverviewPlaceholder";
 import { useActiveWorkDetail, WORK_DETAIL_COMMIT_LIMIT, type WorkDetailController } from "./workDetail";
 
 /** Rows a detail card lists while the screen scrolls as a page. */
@@ -33,22 +30,23 @@ const DETAIL_LIST_LIMIT = 5;
 const DETAIL_FIT_LIMIT = 30;
 /** The "and N more" line under the rows, kept free when some are left out. */
 const DETAIL_MORE_SPACE = 26;
-/** How many dots the scene's path draws, whatever the real count. */
-const SCENE_DOTS = 3;
+/** The most files "What you'll save" lists while its list scrolls; the rest
+ * are counted under the last one, and Changes has them all. */
+const SAVE_SCROLL_LIMIT = 50;
 
 export type OverviewDetailMode = "save" | "resolve" | "publish" | "bring" | "calm";
 
 /** Which detail the column shows: it follows the next step. Local work comes
  * first; once it is saved, what waits on the remote, then what waits to be
- * published; with nothing waiting, where the work is. */
+ * published; with nothing waiting, no card. */
 export function overviewDetailMode(journey: Journey): OverviewDetailMode {
   const { changes, publish } = journey;
   if (changes.state === "conflicts") return "resolve";
   if (changes.state === "dirty") return "save";
   if (changes.state !== "clean") return "calm";
   if ((publish.state === "behind" || publish.state === "diverged") && publish.behind > 0) return "bring";
-  // With no remote there is nowhere to publish to: the scene, with its empty
-  // cloud and "Connect", is the useful answer.
+  // With no remote there is nowhere to publish to: the next-step card's
+  // "Connect" is the useful answer.
   if (publish.pending > 0 && publish.state !== "noRemote") return "publish";
   return "calm";
 }
@@ -60,16 +58,26 @@ function FileList({
   hidden,
   onOpen,
   listRef,
+  scroll,
 }: {
   files: FileItem[];
   hidden: number;
   onOpen?: (path: string) => void;
-  /** The box the rows are fitted to, while the screen fits the window. */
+  /** The box the rows are fitted to, or that scrolls, while the screen fits the window. */
   listRef?: React.Ref<HTMLUListElement>;
+  /** The list scrolls rather than fitting whole rows; `moreBelow` fades its bottom edge. */
+  scroll?: { moreBelow: boolean };
 }): React.JSX.Element {
   const { t } = useLanguage();
   return (
-    <ul className="overview-detail__files" ref={listRef}>
+    <ul
+      {...(scroll ? autoHideScrollbarProps<HTMLUListElement>() : {})}
+      // The class stays fixed while it scrolls: the scrollbar's pointer state
+      // is set outside React. The fade rides on an attribute.
+      className={scroll ? "overview-detail__files overview-detail__files--scroll auto-hide-scrollbar" : "overview-detail__files"}
+      data-more-below={scroll?.moreBelow || undefined}
+      ref={listRef}
+    >
       {files.map((file) => {
         const { name, dir } = splitPath(file.path);
         const body = (
@@ -120,7 +128,6 @@ function LineTotals({ added, removed }: { added: number; removed: number }): Rea
 }
 
 function DetailCard({
-  tone,
   icon,
   title,
   link,
@@ -128,23 +135,26 @@ function DetailCard({
   children,
   note,
 }: {
-  /** The next-step card's colour for this step, worn by the header's glyph alone. */
-  tone: "unsaved" | "blocked" | "remote";
   icon: React.JSX.Element;
   title: string;
-  link?: { label: string; onClick: () => void };
+  /** `lead` points the link out, as the way on from the end of the list. */
+  link?: { label: string; onClick: () => void; lead?: boolean };
   busy?: boolean;
   children: React.ReactNode;
   note?: { icon: React.JSX.Element; text: string };
 }): React.JSX.Element {
   const titleId = useId();
   return (
-    <section className={`overview-detail overview-detail--${tone}`} aria-labelledby={titleId} aria-busy={busy}>
+    <section className="overview-detail" aria-labelledby={titleId} aria-busy={busy}>
       <header className="overview-detail__head">
         {icon}
         <h2 id={titleId}>{title}</h2>
         {link && (
-          <button className="overview-detail__link" type="button" onClick={link.onClick}>
+          <button
+            className={`overview-detail__link${link.lead ? " overview-detail__link--lead attention-breathe" : ""}`}
+            type="button"
+            onClick={link.onClick}
+          >
             {link.label}
             <ChevronRight aria-hidden="true" />
           </button>
@@ -163,11 +173,10 @@ function DetailCard({
 
 /**
  * The column beside the timeline. It follows the next-step card: while the
- * card asks to save, resolve, get or publish, a small scene of where the work
- * is leads it and, under the scene, what that step will move; with nothing
- * waiting the scene takes the column. A discard that can still be restored
- * sits under them whenever everything is saved, and its button opens the
- * restore picker over the Overview.
+ * card asks to save, resolve, get or publish, it shows what that step will
+ * move. A discard that can still be restored sits under it whenever
+ * everything is saved, and its button opens the restore picker over the
+ * Overview. With neither there is no column, and the timeline takes the width.
  */
 export function OverviewDetail({
   mode,
@@ -175,14 +184,12 @@ export function OverviewDetail({
   workingTree,
   pendingVersions,
   workDetail,
-  historyController,
   projectPath,
   sessionEpoch,
   onReviewChanges,
   onResolve,
   onGetChanges,
   onOpenHistory,
-  onOpenProjectSettings,
   onRestoreDiscarded,
 }: {
   mode: OverviewDetailMode;
@@ -190,7 +197,6 @@ export function OverviewDetail({
   workingTree: WorkingTreeStatus | null;
   pendingVersions: PendingVersionsResult;
   workDetail: WorkDetailController;
-  historyController: HistoryController;
   projectPath: string;
   sessionEpoch: string;
   /** Opens Changes, with a file selected when given one. */
@@ -198,10 +204,9 @@ export function OverviewDetail({
   onResolve: () => void;
   onGetChanges: () => void;
   onOpenHistory: () => void;
-  onOpenProjectSettings: () => void;
   /** Opens the restore picker over the Overview. */
   onRestoreDiscarded: () => void;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const { t, formats } = useLanguage();
   const query = useMemo(() => ({ projectId: projectPath, sessionEpoch }), [projectPath, sessionEpoch]);
   const detail = useActiveWorkDetail(workDetail, query);
@@ -222,13 +227,22 @@ export function OverviewDetail({
         : mode === "bring"
           ? `bring|${detail.incoming?.status ?? "-"}|${detail.incoming?.status === "ready" ? detail.incoming.result.versions.length : 0}`
           : mode;
+  // While the screen fits the window, what you'll save scrolls rather than
+  // fitting whole rows: the files are the reason to look at it. The other
+  // cards fit theirs.
+  const scrollsFiles = fits && mode === "save";
   const fit = useFitCount<HTMLUListElement>({
-    fits,
+    fits: fits && !scrollsFiles,
     max: DETAIL_FIT_LIMIT,
     fallback: DETAIL_LIST_LIMIT,
     reserve: DETAIL_MORE_SPACE,
     contentKey: listKey,
   });
+  const saveScroll = useMoreBelow<HTMLUListElement>(scrollsFiles, listKey);
+  // A new project starts at the top of its list, not where the last one was left.
+  useEffect(() => {
+    saveScroll.ref.current?.scrollTo?.({ top: 0 });
+  }, [projectPath, saveScroll.ref]);
   useActiveScreenEffect(() => {
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -237,14 +251,14 @@ export function OverviewDetail({
 
   let card: React.JSX.Element | null = null;
   if (mode === "save" && workingTree) {
-    const shown = sampleChangesPreview(workingTree.entries, fit.count);
+    const shown = sampleChangesPreview(workingTree.entries, scrollsFiles ? SAVE_SCROLL_LIMIT : fit.count);
     card = (
       <DetailCard
-        tone="unsaved"
         icon={<Save aria-hidden="true" />}
         title={t.overviewDetailSaveTitle}
-        link={{ label: t.overviewDetailReview, onClick: () => onReviewChanges() }}
-        note={{ icon: <Laptop aria-hidden="true" />, text: t.overviewDetailSaveNote }}
+        // Scrolled to the end, Review is the way on to every file, as
+        // "View all" is at the end of the timeline.
+        link={{ label: t.overviewDetailReview, onClick: () => onReviewChanges(), lead: scrollsFiles && saveScroll.reachedEnd }}
       >
         <p className="overview-detail__sum">
           <strong>{t.overviewDetailFiles(workingTree.counts.total)}</strong>
@@ -257,7 +271,8 @@ export function OverviewDetail({
           files={shown.map((entry) => ({ path: entry.path, category: entry.category }))}
           hidden={workingTree.counts.total - shown.length}
           onOpen={(path) => onReviewChanges(path)}
-          listRef={fit.ref}
+          listRef={scrollsFiles ? saveScroll.ref : fit.ref}
+          scroll={scrollsFiles ? { moreBelow: saveScroll.moreBelow } : undefined}
         />
       </DetailCard>
     );
@@ -266,7 +281,6 @@ export function OverviewDetail({
     const shown = conflicted.slice(0, fit.count);
     card = (
       <DetailCard
-        tone="blocked"
         icon={<Split aria-hidden="true" />}
         title={t.overviewDetailResolveTitle}
         link={{ label: t.overviewJourneyResolve, onClick: onResolve }}
@@ -309,7 +323,6 @@ export function OverviewDetail({
         : null;
     card = (
       <DetailCard
-        tone="remote"
         icon={<CloudUpload aria-hidden="true" />}
         title={t.overviewDetailPublishTitle}
         link={{ label: t.overviewDetailInHistory, onClick: onOpenHistory }}
@@ -347,7 +360,6 @@ export function OverviewDetail({
     const shown = versions.slice(0, fit.count);
     card = (
       <DetailCard
-        tone="remote"
         icon={<ArrowDownToLine aria-hidden="true" />}
         title={t.overviewDetailBringTitle}
         link={{ label: t.overviewDetailReview, onClick: onGetChanges }}
@@ -386,221 +398,62 @@ export function OverviewDetail({
     );
   }
 
-  // One copy says what it holds; several are counted on the icon, like the
-  // scene's badges, and the line dates the newest, since the picker is where
-  // each one is told apart. Files are never added up: copies can share them.
+  // One copy says what it holds; several are counted, and the line dates the
+  // newest, since the picker is where each one is told apart. Files are never
+  // added up: copies can share them. "When" reads as the timeline's does.
   const recovery = detail.recovery;
   const restoreCopies = recovery && recovery.restorableCount > 1 ? recovery.restorableCount : 0;
-  const restoreWhen = recovery
-    ? formatRelativeCheckTime(recovery.createdAtMs, now, formats.language, t.statusBarJustNow)
-    : "";
+  const restoreWhen = recovery ? formatRelativeTime(new Date(recovery.createdAtMs), formats, now) : "";
   const restoreHint = !recovery
     ? ""
     : restoreCopies > 0
       ? t.overviewSafetyDiscardedLatest(restoreWhen)
       : t.overviewSafetyDiscardedHint(recovery.fileCount, restoreWhen);
 
+  // Whenever everything is saved, whatever the remote waits on: with work on
+  // screen a restore would land on top of it, and Changes is where that
+  // choice is made. Under a detail card it is a compact row; alone in the
+  // column it is a card of its own, headed like its siblings.
+  const restore = journey.changes.state !== "clean" || !recovery ? null : !card ? (
+    <DetailCard
+      icon={<RotateCcw aria-hidden="true" />}
+      title={t.overviewSafetyDiscarded}
+      link={{ label: t.overviewDiscardRestore, onClick: onRestoreDiscarded }}
+    >
+      <p className="overview-detail__sum">
+        <strong>
+          {restoreCopies > 0 ? t.overviewSafetyDiscardedCopies(restoreCopies) : t.overviewDetailFiles(recovery.fileCount)}
+        </strong>
+        <span>{restoreCopies > 0 ? t.overviewSafetyDiscardedLatest(restoreWhen) : t.overviewSafetyDiscardedWhen(restoreWhen)}</span>
+      </p>
+    </DetailCard>
+  ) : (
+    <div className="overview-restore">
+      <span className="overview-restore__place" aria-hidden="true">
+        <RotateCcw />
+        {restoreCopies > 0 && <span className="overview-restore__badge">{restoreCopies}</span>}
+      </span>
+      <span className="overview-restore__copy">
+        <span className="overview-restore__label">{t.overviewSafetyDiscarded}</span>
+        {restoreCopies > 0 && <span className="visually-hidden">{t.overviewSafetyDiscardedCopies(restoreCopies)}</span>}
+        <span className="overview-restore__hint">
+          {restoreHint}
+        </span>
+      </span>
+      <button className="overview-restore__action" type="button" onClick={onRestoreDiscarded}>
+        {t.overviewDiscardRestore}
+      </button>
+    </div>
+  );
+
+  // With nothing to move and nothing to restore there is no column: the
+  // timeline takes the width.
+  if (!card && !restore) return null;
+
   return (
     <aside className={`overview-side${card ? " overview-side--working" : ""}`}>
-      {/* Where the work is first, then what the next step will move. */}
-      <WorkScene
-        size={card ? "small" : "large"}
-        journey={journey}
-        workingTree={workingTree}
-        historyController={historyController}
-        query={query}
-        now={now}
-        onOpenProjectSettings={onOpenProjectSettings}
-      />
       {card}
-      {/* Whenever everything is saved, whatever the remote waits on: with work
-          on screen a restore would land on top of it, and Changes is where
-          that choice is made. */}
-      {journey.changes.state === "clean" && detail.recovery && (
-        <div className={`overview-restore${card ? " overview-restore--compact" : ""}`}>
-          <span className="overview-restore__place" aria-hidden="true">
-            <RotateCcw />
-            {restoreCopies > 0 && <span className="overview-restore__badge">{restoreCopies}</span>}
-          </span>
-          <span className="overview-restore__copy">
-            <span className="overview-restore__label">{t.overviewSafetyDiscarded}</span>
-            {restoreCopies > 0 && <span className="visually-hidden">{t.overviewSafetyDiscardedCopies(restoreCopies)}</span>}
-            <span className="overview-restore__hint">
-              {restoreHint}
-            </span>
-          </span>
-          <button className="overview-restore__action" type="button" onClick={onRestoreDiscarded}>
-            {t.overviewDiscardRestore}
-          </button>
-        </div>
-      )}
+      {restore}
     </aside>
   );
-}
-
-/**
- * Where the work is, drawn: this computer and the remote as two objects, and
- * the path between them telling how they stand — a check when they match,
- * green dots leaving for versions not yet published, dashed blue dots arriving
- * for versions waiting on the remote, a "?" when the remote could not be
- * asked, and an empty dashed cloud when there is no remote at all. Large when
- * nothing is waiting; small above the detail while there is work.
- */
-function WorkScene({
-  size,
-  journey,
-  workingTree,
-  historyController,
-  query,
-  now,
-  onOpenProjectSettings,
-}: {
-  size: "large" | "small";
-  journey: Journey;
-  workingTree: WorkingTreeStatus | null;
-  historyController: HistoryController;
-  query: { projectId: string; sessionEpoch: string };
-  now: number;
-  onOpenProjectSettings: () => void;
-}): React.JSX.Element {
-  const { t, formats } = useLanguage();
-  const history = useActiveHistoryState(historyController, query);
-  const headCommit = history.snapshot?.headCommit ?? null;
-  const head = headCommit ? history.versions.find((version) => version.commit === headCommit) : undefined;
-  const headWhen = head ? (formatHistoryDate(head.committedAt ?? head.authoredAt, formats, now)?.relative ?? null) : null;
-
-  const { publish, changes } = journey;
-  const ready = Boolean(history.snapshot && workingTree && changes.state !== "loading" && publish.state !== "checking");
-  // A line whose remote branch was deleted has no copy there either: its kept
-  // tracking ref would otherwise draw it as synced beside a card saying it's gone.
-  const hasRemote = publish.state !== "noRemote" && publish.state !== "noUpstream" && publish.state !== "upstreamGone";
-  const unknown = ["notChecked", "checking", "unavailable", "unborn", "detached"].includes(publish.state);
-  // Versions only travel where there is somewhere for them to go.
-  const outgoing = hasRemote ? publish.pending : 0;
-  const incoming = (publish.state === "behind" || publish.state === "diverged") ? publish.behind : 0;
-  const synced = hasRemote && !unknown && outgoing === 0 && incoming === 0;
-  const asking = unknown && hasRemote && outgoing === 0 && incoming === 0;
-  const facts: SceneFacts | null = ready ? { outgoing, incoming, synced, unknown: asking, hasRemote } : null;
-  const sceneRef = useSceneMotion(facts, query.projectId);
-
-  // Until the history, the working tree and the remote's last known state are
-  // read, the scene would draw a guess and then jump: its shape stands in
-  // instead, and the real scene fades in once.
-  if (!ready || !workingTree) {
-    return <WorkScenePlaceholder size={size} label={t.overviewSceneLoading} />;
-  }
-  const unsaved = changes.state === "dirty" || changes.state === "conflicts" ? workingTree.counts.total : 0;
-
-  const hereNote = unsaved > 0 ? t.overviewSceneUnsaved(unsaved) : (headWhen ?? "");
-  const remoteNote = !hasRemote
-    ? null
-    : publish.state === "unavailable"
-      ? t.overviewSceneNotChecked
-      : incoming > 0
-        ? t.overviewSceneNew(incoming)
-        : outgoing > 0
-          ? t.overviewSceneMissingYours(outgoing)
-          : unknown
-            ? t.overviewSceneNotChecked
-            : t.overviewSceneSynced;
-  const remoteName = publish.remote ?? t.overviewSceneRemote;
-  const classes = [
-    "work-scene",
-    `work-scene--${size}`,
-    !hasRemote ? "work-scene--no-copy" : "",
-    unsaved > 0 ? "work-scene--unsaved" : "",
-  ].filter(Boolean).join(" ");
-
-  return (
-    <section
-      ref={sceneRef}
-      className={classes}
-      aria-label={t.overviewSceneLabel}
-      title={hasRemote ? t.overviewSceneTooltip(remoteName) : undefined}
-    >
-      <div className="work-scene__row">
-        <span className="work-scene__place work-scene__place--here" aria-hidden="true">
-          <Laptop />
-          {outgoing > 0 && <span className="work-scene__badge work-scene__badge--out">{outgoing}</span>}
-        </span>
-        <span
-          className={`work-scene__path${synced ? " work-scene__path--synced" : ""}${unknown && hasRemote ? " work-scene__path--unknown" : ""}`}
-          aria-hidden="true"
-        >
-          {synced && <span className="work-scene__mark"><Check /></span>}
-          {asking && <span className="work-scene__mark work-scene__mark--unknown">?</span>}
-          {(outgoing > 0 || incoming > 0) && (
-            <span className="work-scene__dots">
-              {Array.from({ length: Math.min(outgoing, SCENE_DOTS) }, (_, index) => <i key={`o${index}`} className="work-scene__dot work-scene__dot--out" />)}
-              {Array.from({ length: Math.min(incoming, SCENE_DOTS) }, (_, index) => <i key={`i${index}`} className="work-scene__dot work-scene__dot--in" />)}
-            </span>
-          )}
-        </span>
-        <span className={`work-scene__place work-scene__place--remote${hasRemote ? "" : " work-scene__place--empty"}`} aria-hidden="true">
-          <Cloud />
-          {incoming > 0 && <span className="work-scene__badge work-scene__badge--in">{incoming}</span>}
-        </span>
-      </div>
-      <div className="work-scene__captions">
-        <p className="work-scene__caption">
-          <span className="work-scene__name">{t.overviewSceneHere}</span>
-          <span className="work-scene__note">{hereNote}</span>
-        </p>
-        <span />
-        {hasRemote ? (
-          <p className="work-scene__caption">
-            <span className="work-scene__name work-scene__name--mono">{remoteName}</span>
-            <span className={`work-scene__note${publish.state === "unavailable" ? " work-scene__note--failed" : ""}`}>{remoteNote}</span>
-          </p>
-        ) : (
-          <p className="work-scene__caption">
-            <span className="work-scene__name">{t.overviewSceneNoCopy}</span>
-            {/* A line with no publish destination has a remote already; only a
-                project with none is sent to connect one. */}
-            {publish.state === "noRemote" && (
-              <button className="work-scene__connect" type="button" onClick={onOpenProjectSettings}>
-                {t.overviewSceneConnect}
-              </button>
-            )}
-          </p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/**
- * Plays one short animation when the scene's state changes while the Overview
- * is on screen, or on coming back to it after a change made elsewhere. Never
- * on the first drawing of a project, and never while the screen is hidden:
- * the last state seen stays the one the next animation starts from.
- */
-function useSceneMotion(facts: SceneFacts | null, projectId: string): React.RefObject<HTMLElement | null> {
-  const sceneRef = useRef<HTMLElement | null>(null);
-  const seen = useRef<{ projectId: string; facts: SceneFacts } | null>(null);
-  const lifecycle = useScreenLifecycle();
-  const wasActive = useRef(lifecycle === "active");
-  const key = facts ? `${facts.outgoing}|${facts.incoming}|${facts.synced}|${facts.unknown}|${facts.hasRemote}` : "";
-  useLayoutEffect(() => {
-    const returning = lifecycle === "active" && !wasActive.current;
-    wasActive.current = lifecycle === "active";
-    if (lifecycle !== "active" || !facts) return undefined;
-    const before = seen.current;
-    seen.current = { projectId, facts };
-    if (!before || before.projectId !== projectId || sameSceneFacts(before.facts, facts)) return undefined;
-    const play = () => {
-      if (sceneRef.current) playSceneTransition(sceneRef.current, before.facts, facts);
-    };
-    // A screen coming back is laid out a frame later; the scene is measured
-    // once it is visible again.
-    if (!returning || typeof window.requestAnimationFrame !== "function") {
-      play();
-      return undefined;
-    }
-    const frame = window.requestAnimationFrame(play);
-    return () => window.cancelAnimationFrame(frame);
-    // `key` stands for `facts`, which is rebuilt on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, lifecycle, projectId]);
-  return sceneRef;
 }

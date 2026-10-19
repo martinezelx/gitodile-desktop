@@ -1,6 +1,7 @@
 import React, { useId } from "react";
 import {
   ArrowDownToLine,
+  ArrowRight,
   Check,
   CircleAlert,
   Cloud,
@@ -69,8 +70,8 @@ const ACTION_ICONS: Record<NextStepAction, React.JSX.Element> = {
 
 /**
  * The one card that says what to do now, and why, with the button that does
- * it. The three steps of the model survive as a thin progress bar in the
- * card's caption.
+ * it. Its title leads: no caption above it and no steps beside it — the
+ * glyph's colour says what kind of step this is.
  *
  * The state's colour washes in from the card's top-left corner (Linear's and
  * Arc's highlighted cards) and tints its edge, from the theme's own status
@@ -94,7 +95,7 @@ export function NextStepCard({
   const { t } = useLanguage();
   const titleId = useId();
   const { changes, publish } = journey;
-  const { kind, tone, primary, secondary, progress, isPending, then, note } = nextStep;
+  const { kind, tone, primary, secondary, isPending, then, note } = nextStep;
   const remote = publish.remote;
   const forecast = publish.forecast;
   const isMerge = forecast?.integration === "merge";
@@ -102,15 +103,6 @@ export function NextStepCard({
   // The project not read yet: the card's shape, as on the whole screen's
   // placeholder, so it fills in place instead of saying "checking" first.
   if (kind === "loading") return <NextStepPlaceholder label={t.overviewJourneyNoteIdle} />;
-
-  const kicker =
-    kind === "conflicts" ? t.overviewNextKickerDecide
-      : kind === "behind" || kind === "diverged" || kind === "overlap" || kind === "incomingBlocked"
-        ? t.overviewNextKickerBefore
-        : primary ? t.overviewNextKickerNext
-          : kind === "upToDate" ? t.overviewNextKickerAllGood
-            : kind === "noRemote" ? t.overviewNextKickerSaved
-              : t.overviewNextKickerStatus;
 
   let title: string;
   let hint: string;
@@ -190,9 +182,6 @@ export function NextStepCard({
 
   const glyphIcon = isPending ? <LoaderCircle className="icon--spinning" /> : KIND_ICONS[kind];
   const failed = kind === "unavailable" || kind === "localError";
-  const segments = [0, 1, 2].map((index) =>
-    index === progress.current ? "current" : index < progress.done ? "done" : "todo",
-  );
 
   return (
     <section className={`next-step next-step--${tone}`} aria-labelledby={titleId}>
@@ -206,22 +195,18 @@ export function NextStepCard({
         {glyphIcon}
       </span>
       <div className="next-step__copy">
-        <p className="next-step__kicker">
-          <span>{kicker}</span>
-          <span className="next-step__progress" role="img" aria-label={t.overviewNextProgress(progress.done)}>
-            {segments.map((segment, index) => (
-              <i key={index} className={`next-step__segment next-step__segment--${segment}`} />
-            ))}
-          </span>
-        </p>
         <h2 id={titleId} className="next-step__title">{title}</h2>
         <p className="next-step__hint">{hint}</p>
         {note && <NoteLine note={note} remote={remote} />}
         {then && (
           <p className="next-step__then">
-            <span className="next-step__then-glyph" aria-hidden="true">
-              {then.kind === "get" ? <ArrowDownToLine /> : <CloudUpload />}
-            </span>
+            <ArrowRight
+              // Nudges forward with the glyph's breath, and only then: the
+              // same key replays both when a step becomes current.
+              key={primary ? kind : "idle"}
+              className={`next-step__then-arrow${primary ? " next-step__then-arrow--nudge" : ""}`}
+              aria-hidden="true"
+            />
             <span>
               {t.overviewNextThen}{" "}
               {then.kind === "get" ? (

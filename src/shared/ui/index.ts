@@ -127,7 +127,7 @@ export {
    the way the old version pills did. The glyphs are shared; which states a row
    flags stays with the screen that knows its rows. */
 export { StateGlyph, StateGlyphs, type StateGlyphTone } from "./stateGlyph";
-export { LocalOnlyIcon, LocalOnlyMark } from "./localOnly";
+export { LocalOnlyIcon, TimelineChip } from "./localOnly";
 /* ADR 0003's two-consumer bar, passed by three: the app keeps a render error
    in the screen it happened in, the Work screen in the tab it happened in,
    and the root in a window that can still be reloaded — all with one notice. */

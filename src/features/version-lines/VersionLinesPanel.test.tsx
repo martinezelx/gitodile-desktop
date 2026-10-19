@@ -1160,7 +1160,7 @@ describe("VersionLinesPanel", () => {
 
     const detail = detailPanel("feature/new-thing");
     // Beside the fact, and over the versions only here once the list is read.
-    await within(detail).findByText("Only on this computer");
+    await within(detail).findByText("On this computer");
     const publish = within(detail).getAllByRole("button", { name: "Publish" });
     expect(publish).toHaveLength(2);
     await user.click(publish[0]);
@@ -1188,7 +1188,7 @@ describe("VersionLinesPanel", () => {
 
     await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
-    await within(detail).findByText("Only on this computer");
+    await within(detail).findByText("On this computer");
     const rows = detail.querySelectorAll(".version-lines-recent__row");
     expect(rows[0]).toHaveClass("version-lines-recent__row--local-only");
     expect(rows[1]).toHaveClass("version-lines-recent__row--published");
@@ -1272,8 +1272,11 @@ describe("VersionLinesPanel", () => {
 
     await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
     const detail = detailPanel("feature/new-thing");
-    await within(detail).findByText("Only on this computer");
-    expect(detail.querySelector(".version-lines-recent__boundary")).toHaveTextContent("Published on origin");
+    await within(detail).findByText("On this computer");
+    // Where the remote's copy begins: a chip that says "Published", the
+    // remote in its tooltip.
+    expect(detail.querySelector(".version-lines-recent__boundary")).toHaveTextContent(/^Published$/);
+    expect(detail.querySelector(".version-lines-recent__boundary .timeline-chip")).toHaveAttribute("title", "origin");
     const rows = detail.querySelectorAll(".version-lines-recent__row");
     expect(rows[0]).toHaveClass("version-lines-recent__row--local-only");
     expect(rows[1]).toHaveClass("version-lines-recent__row--published");

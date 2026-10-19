@@ -480,6 +480,220 @@ pub(crate) fn read_project_remotes(path: String) -> Result<ProjectRemotes, AppEr
     project_remotes(&path)
 }
 
+/// The hosting service a remote's address names, as far as its host says.
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum RemoteHomeProvider {
+    Github,
+    Gitlab,
+    Bitbucket,
+    Other,
+}
+
+/// Where the project lives, as Overview's header names it: the service and
+/// the `owner/name` path of the remote the current line publishes to (else
+/// `origin`, else the first one). Read from the raw configured address here,
+/// so the label and the page `remote_web_page` opens come from one reading;
+/// neither carries userinfo, a query or a fragment.
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RemoteHome {
+    pub(crate) remote: String,
+    pub(crate) provider: RemoteHomeProvider,
+    /// `owner/name` (with GitLab's groups), or the folder of a local remote.
+    pub(crate) label: String,
+    /// Whether a web page can be derived for it and opened.
+    pub(crate) has_web_page: bool,
+}
+
+/// What a remote address says about where it lives.
+#[derive(Debug, PartialEq, Eq)]
+struct RemoteAddress {
+    provider: RemoteHomeProvider,
+    label: String,
+    web_page: Option<String>,
+}
+
+fn remote_home_provider(host: &str) -> RemoteHomeProvider {
+    let host = host.to_ascii_lowercase();
+    if host == "github.com" || host == "www.github.com" {
+        RemoteHomeProvider::Github
+    } else if host == "gitlab.com" || host.starts_with("gitlab.") {
+        RemoteHomeProvider::Gitlab
+    } else if host == "bitbucket.org" {
+        RemoteHomeProvider::Bitbucket
+    } else {
+        RemoteHomeProvider::Other
+    }
+}
+
+/// A repository path as hosting services lay it out: plain segments, no
+/// empty or dot-only parts, the `.git` suffix dropped.
+fn hosted_path(path: &str) -> Option<String> {
+    let trimmed = path.trim_matches('/');
+    let trimmed = trimmed.strip_suffix(".git").unwrap_or(trimmed);
+    let segments: Vec<&str> = trimmed.split('/').collect();
+    let valid = segments.iter().all(|segment| {
+        !segment.is_empty()
+            && *segment != "."
+            && *segment != ".."
+            && segment
+                .chars()
+                .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '~'))
+    });
+    valid.then(|| segments.join("/"))
+}
+
+/// Reads a configured remote address. HTTP(S) pages are the address itself;
+/// SSH and SCP-like addresses get a page only on a service whose web address
+/// is known to follow its SSH host, never guessed for any other server.
+fn remote_address(raw: &str) -> Option<RemoteAddress> {
+    let value = raw.trim().split(['?', '#']).next().unwrap_or_default();
+    let (scheme, rest) = match value.split_once("://") {
+        Some((scheme, rest)) => (Some(scheme.to_ascii_lowercase()), rest),
+        None => (None, value),
+    };
+    let (authority, path, web_scheme) = match scheme.as_deref() {
+        Some("https") | Some("http") => {
+            let (authority, path) = rest.split_once('/')?;
+            let host_port = authority.rsplit('@').next().unwrap_or(authority);
+            (host_port.to_string(), path, scheme.clone())
+        }
+        Some("ssh") | Some("git") | Some("git+ssh") | Some("ssh+git") => {
+            let (authority, path) = rest.split_once('/')?;
+            let host_port = authority.rsplit('@').next().unwrap_or(authority);
+            let host = host_port.split(':').next().unwrap_or(host_port);
+            (host.to_string(), path, None)
+        }
+        Some("file") => return local_remote_address(rest),
+        Some(_) => return None,
+        None => {
+            // SCP-like `[user@]host:path`; a Windows drive or a plain path is a
+            // folder on this machine.
+            let (authority, path) = match value.split_once(':') {
+                Some((authority, path))
+                    if authority.len() > 1 && !authority.contains(['/', '\\']) =>
+                {
+                    (authority, path)
+                }
+                _ => return local_remote_address(value),
+            };
+            let host = authority.rsplit('@').next().unwrap_or(authority);
+            (host.to_string(), path, None)
+        }
+    };
+    let host = authority.split(':').next().unwrap_or(&authority);
+    if host.is_empty() {
+        return None;
+    }
+    let provider = remote_home_provider(host);
+    let label = hosted_path(path)?;
+    // Only a plain host name (and, over HTTP(S), a numeric port) ever reaches
+    // the opener: an address that bends the authority gets no page.
+    let plain_host = host
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.'));
+    let plain_port = authority
+        .split_once(':')
+        .is_none_or(|(_, port)| !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()));
+    let web_page = match web_scheme {
+        _ if !plain_host => None,
+        Some(_) if !plain_port => None,
+        Some(scheme) => Some(format!(
+            "{scheme}://{}/{label}",
+            authority.to_ascii_lowercase()
+        )),
+        None if provider != RemoteHomeProvider::Other => {
+            Some(format!("https://{}/{label}", host.to_ascii_lowercase()))
+        }
+        None => None,
+    };
+    Some(RemoteAddress {
+        provider,
+        label,
+        web_page,
+    })
+}
+
+fn local_remote_address(path: &str) -> Option<RemoteAddress> {
+    let leaf = path
+        .trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default();
+    let leaf = leaf.strip_suffix(".git").unwrap_or(leaf);
+    (!leaf.is_empty()).then(|| RemoteAddress {
+        provider: RemoteHomeProvider::Other,
+        label: leaf.to_string(),
+        web_page: None,
+    })
+}
+
+/// Each remote's name and raw fetch address, in `git remote -v` order. The
+/// raw values stay on this side of IPC.
+fn raw_fetch_urls(output: &str) -> Vec<(String, String)> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let (name, rest) = line.split_once('\t')?;
+            let url = rest.strip_suffix(" (fetch)")?;
+            Some((name.to_string(), url.to_string()))
+        })
+        .collect()
+}
+
+pub(crate) fn read_remote_home(path: String) -> Result<Option<RemoteHome>, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_remote_home", None)?;
+    let output = checked_git_stdout(run_git(&path, &["remote", "-v"])?)?;
+    let remotes = raw_fetch_urls(&output);
+    if remotes.is_empty() {
+        return Ok(None);
+    }
+    let upstream = current_upstream_remote(&path);
+    let (name, url) = upstream
+        .and_then(|name| remotes.iter().find(|(remote, _)| *remote == name))
+        .or_else(|| remotes.iter().find(|(remote, _)| remote == "origin"))
+        .unwrap_or(&remotes[0]);
+    // A remote whose address this cannot read (an unknown scheme, an encoded
+    // path) is still a remote: it is named by its own name, with no page,
+    // never reported as missing.
+    Ok(Some(match remote_address(url) {
+        Some(address) => RemoteHome {
+            remote: name.clone(),
+            provider: address.provider,
+            label: address.label,
+            has_web_page: address.web_page.is_some(),
+        },
+        None => RemoteHome {
+            remote: name.clone(),
+            provider: RemoteHomeProvider::Other,
+            label: name.clone(),
+            has_web_page: false,
+        },
+    }))
+}
+
+/// The web page of one of the project's remotes, derived from its configured
+/// address. The renderer names the remote; it never supplies the address.
+pub(crate) fn remote_web_page(path: &str, remote: &str) -> Result<String, AppError> {
+    let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
+    let no_page = || {
+        AppError::new(
+            AppErrorCode::RemoteNotFound,
+            "This remote has no web page GitOdile can open.",
+        )
+        .with_remediation("Open the project's settings to see its remotes.")
+    };
+    let (_, url) = raw_fetch_urls(&output)
+        .into_iter()
+        .find(|(name, _)| name == remote)
+        .ok_or_else(no_page)?;
+    remote_address(&url)
+        .and_then(|address| address.web_page)
+        .ok_or_else(no_page)
+}
+
 /// Points an existing remote somewhere else.
 ///
 /// Adding, renaming and removing remotes stay out of this: the first has its
@@ -1530,6 +1744,81 @@ mod tests {
                 Some(&target),
                 Some("ccc"),
             )
+        );
+    }
+
+    #[test]
+    fn remote_home_reads_hosted_addresses_and_derives_pages() {
+        let github = remote_address("https://alice:secret@github.com/acme/app.git?x=1#y").unwrap();
+        assert_eq!(github.provider, RemoteHomeProvider::Github);
+        assert_eq!(github.label, "acme/app");
+        assert_eq!(
+            github.web_page.as_deref(),
+            Some("https://github.com/acme/app")
+        );
+
+        let scp = remote_address("git@github.com:acme/app.git").unwrap();
+        assert_eq!(scp.label, "acme/app");
+        assert_eq!(scp.web_page.as_deref(), Some("https://github.com/acme/app"));
+
+        let gitlab = remote_address("ssh://git@gitlab.com:2222/group/sub/app.git").unwrap();
+        assert_eq!(gitlab.provider, RemoteHomeProvider::Gitlab);
+        assert_eq!(gitlab.label, "group/sub/app");
+        assert_eq!(
+            gitlab.web_page.as_deref(),
+            Some("https://gitlab.com/group/sub/app")
+        );
+
+        let bitbucket = remote_address("https://bitbucket.org/team/repo").unwrap();
+        assert_eq!(bitbucket.provider, RemoteHomeProvider::Bitbucket);
+
+        // A company server over HTTPS keeps its own address, port included.
+        let company = remote_address("https://git.example.test:8443/team/repo.git").unwrap();
+        assert_eq!(company.provider, RemoteHomeProvider::Other);
+        assert_eq!(
+            company.web_page.as_deref(),
+            Some("https://git.example.test:8443/team/repo")
+        );
+    }
+
+    #[test]
+    fn remote_home_never_guesses_a_page_for_unknown_ssh_or_local_remotes() {
+        let ssh = remote_address("git@git.example.test:team/repo.git").unwrap();
+        assert_eq!(ssh.provider, RemoteHomeProvider::Other);
+        assert_eq!(ssh.label, "team/repo");
+        assert_eq!(ssh.web_page, None);
+
+        let local = remote_address("C:\\work\\shared\\app.git").unwrap();
+        assert_eq!(local.label, "app");
+        assert_eq!(local.web_page, None);
+        let file = remote_address("file:///srv/git/app.git").unwrap();
+        assert_eq!(file.label, "app");
+        assert_eq!(file.web_page, None);
+
+        assert_eq!(remote_address("https://github.com/acme/../app"), None);
+        // An authority that is not a plain host and port gets no page.
+        let odd = remote_address("https://git.example.test:80x/team/repo").unwrap();
+        assert_eq!(odd.web_page, None);
+        let spaced = remote_address("https://git example.test/team/repo").unwrap();
+        assert_eq!(spaced.web_page, None);
+        assert_eq!(
+            remote_address("javascript:alert(1)").and_then(|a| a.web_page),
+            None
+        );
+    }
+
+    #[test]
+    fn raw_fetch_urls_pairs_names_with_fetch_addresses_only() {
+        let output = "origin\thttps://github.com/acme/app.git (fetch)\norigin\tgit@github.com:acme/app.git (push)\nfork\tgit@github.com:me/app.git (fetch)\n";
+        assert_eq!(
+            raw_fetch_urls(output),
+            vec![
+                (
+                    "origin".to_string(),
+                    "https://github.com/acme/app.git".to_string()
+                ),
+                ("fork".to_string(), "git@github.com:me/app.git".to_string()),
+            ]
         );
     }
 }

@@ -220,15 +220,29 @@
 .state-glyph--warning { color: var(--status-warning); }
 .state-glyph--accent { color: var(--accent-primary); }
 .state-glyph--local { color: var(--tone-local); }
-/* "Only on this computer" heading a block of versions (localOnly.tsx): a
-   22px disc on the rail in the local tone, the same in Overview, History and
-   Lines. Each host only places it. */
-.local-only-mark {
-  width: 22px; height: 22px; display: grid; place-items: center;
-  border: 1px solid var(--border-control); border-radius: var(--radius-round);
-  background: var(--surface-panel); color: var(--tone-local);
+/* A timeline's "On this computer" and "Published" (TimelineChip): one chip
+   on the rail, its glyph where the nodes are, no count and no rule. Overview
+   draws it at the label size; Lines, denser, at the caption size. */
+.timeline-chip {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 24px; padding: 0 var(--space-3) 0 5px;
+  border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
+  background: var(--surface-panel); color: var(--text-primary-color);
+  font-size: var(--text-label); font-weight: var(--weight-heading); white-space: nowrap;
 }
-.local-only-mark svg { width: 12px; height: 12px; }
+.timeline-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.timeline-chip--local > svg:first-child { color: var(--tone-local); }
+.timeline-chip--noRemote > svg:first-child { color: var(--status-warning); }
+.timeline-chip--published > svg:first-child { color: var(--tone-remote); }
+/* As a button (History's, which folds its block): the hover tint mixed into
+   the panel rather than laid over it, so the rail behind never shows through
+   the chip, and the app's focus ring. */
+.timeline-chip--button { font-family: inherit; transition: background var(--duration-fast); }
+.timeline-chip--button:hover { background: color-mix(in srgb, var(--text-primary-color) 6%, var(--surface-panel)); }
+.timeline-chip--button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.timeline-chip--compact { gap: 5px; min-height: 22px; padding: 0 var(--space-2) 0 4px; font-size: var(--text-caption); }
+.timeline-chip--compact svg { width: 11px; height: 11px; }
 
 /* A release's highlights — one tinted glyph and one sentence per line — as
    What's new and the update dialog both draw them. The host owns the

@@ -172,7 +172,7 @@ export interface VersionLinesTranslations {
   /** The saved-versions list's head over the versions only here, and the
    * remote's mark where its copy begins — History's words. */
   versionLinesLocalGroup: string;
-  versionLinesBoundaryPublishedOn: string;
+  versionLinesBoundaryPublished: string;
   /** The way to publish beside the count waiting and over the versions only
    * here. */
   versionLinesPublish: string;
@@ -446,8 +446,8 @@ const en: VersionLinesTranslations = {
     `${files === 1 ? "1 file" : `${filesFormatted} files`} changed since it left · +${additions} −${deletions}`,
   versionLinesActionCompareDetail: "See what changed since it left, file by file.",
   versionLinesActionCompareLinesDetail: "See what differs between the two lines, file by file.",
-  versionLinesLocalGroup: "Only on this computer",
-  versionLinesBoundaryPublishedOn: "Published on",
+  versionLinesLocalGroup: "On this computer",
+  versionLinesBoundaryPublished: "Published",
   versionLinesPublish: "Publish",
   versionLinesRouteLoading: "Reading where this line left main…",
   versionLinesRouteSummary: ({ base, date, own, since }) =>
@@ -716,8 +716,8 @@ const es: VersionLinesTranslations = {
     `${files === 1 ? "1 archivo cambiado" : `${filesFormatted} archivos cambiados`} desde que salió · +${additions} −${deletions}`,
   versionLinesActionCompareDetail: "Mira qué cambió desde que salió, archivo a archivo.",
   versionLinesActionCompareLinesDetail: "Mira en qué se diferencian las dos líneas, archivo a archivo.",
-  versionLinesLocalGroup: "Solo en este ordenador",
-  versionLinesBoundaryPublishedOn: "Publicado en",
+  versionLinesLocalGroup: "En este ordenador",
+  versionLinesBoundaryPublished: "Publicado",
   versionLinesPublish: "Publicar",
   versionLinesRouteLoading: "Leyendo dónde salió esta línea de main…",
   versionLinesRouteSummary: ({ base, date, own, since }) =>

@@ -2009,7 +2009,7 @@ describe("App project restoration", () => {
     expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
   });
 
-  it("reopens Overview's version-line menu from cache, with no spinner", async () => {
+  it("reopens the status bar's version-line menu from cache, with no spinner", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
       "gitodile-projects",
@@ -2051,10 +2051,9 @@ describe("App project restoration", () => {
     );
 
     await screen.findByRole("heading", { name: restoredProject.name });
-    const trigger = within(screen.getByRole("group", { name: "Current version line" })).getByRole(
-      "button",
-      { name: "Change version line (main)" },
-    );
+    // The line is switched from the status bar; Overview's header names
+    // where the project lives instead.
+    const trigger = screen.getByRole("button", { name: "Change version line (main)" });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("button", { name: "feature/spike" })).toBeInTheDocument();
@@ -2064,6 +2063,56 @@ describe("App project restoration", () => {
     // blank itself to a spinner while it waited (task 019).
     await userEvent.click(trigger);
     expect(screen.getByRole("button", { name: "feature/spike" })).toBeInTheDocument();
+  });
+
+  it("names where the project lives in Overview's header once the project is active", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        // Live working-tree updates (task 020). Answered so the watch
+        // lifecycle stays a background no-op in these tests; the listener
+        // itself is inert outside Tauri.
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_version_lines") {
+        return Promise.resolve(versionLines);
+      }
+      if (command === "read_remote_home") {
+        return Promise.resolve({ remote: "origin", provider: "github", label: "acme/app", hasWebPage: true });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    // Read on activation, not only after a config change: it must not stay
+    // a loading shape.
+    expect(await screen.findByRole("button", { name: "Open acme/app on GitHub" })).toBeInTheDocument();
   });
 
   it("replaces Overview's switch dialog instead of stacking a second one on top", async () => {

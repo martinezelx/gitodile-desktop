@@ -9,7 +9,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, LocalOnlyMark, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, FileTreeFolderButton, FileViewToggle, flatFileRows, flattenFileTree, isGroupedFileRow, PictureDiffControls, treeIndentStyle, useCollapsedFolders, useFileListView, usePictureDiff, type FileTreeRow, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -457,24 +457,22 @@ const PIECE_HEIGHT = { head: LOCAL_HEAD_HEIGHT, boundary: BOUNDARY_HEIGHT, versi
 const pieceKey = (piece: TimelinePiece): string => (piece.kind === "version" ? piece.version.commit : piece.kind);
 const NO_DETOURS: ReadonlyMap<string, Detour> = new Map();
 
-/* The head over the versions only on this computer: the publish cloud on
-   the rail, then a block heading as Lines draws one — the uppercase label and
-   how many versions the block holds in a capsule. Beside it, the way to publish
-   them, on the current line only — the publish flow publishes that line, so
-   under another scope it would not send the versions under the head. A
-   pointer shortcut, out of the tab order and hidden with the head it sits
-   on: it lives inside the listbox, where only options belong, and Publish in
-   the toolbar is the same action for a keyboard. */
-function LocalGroupHead({ count, formats, expanded, onToggle, onPublish, t, drawing }: { count: number; formats: LocaleFormats; expanded: boolean; onToggle: () => void; onPublish?: () => void; t: Translations; drawing?: React.ReactNode }): React.JSX.Element {
+/* The head over the versions only on this computer: Overview's and Lines'
+   chip on the rail, which is also the button that folds the block — its
+   chevron inside it, and no count (a screen reader hears it in the label).
+   Beside it, the way to publish them, on the current
+   line only — the publish flow publishes that line, so under another scope it
+   would not send the versions under the head. A pointer shortcut, out of the
+   tab order and hidden with the head it sits on: it lives inside the listbox,
+   where only options belong, and Publish in the toolbar is the same action
+   for a keyboard. */
+function LocalGroupHead({ count, expanded, onToggle, onPublish, t, drawing }: { count: number; expanded: boolean; onToggle: () => void; onPublish?: () => void; t: Translations; drawing?: React.ReactNode }): React.JSX.Element {
   return (
     <div className="history-local-head">
       {drawing}
-      <LocalOnlyMark className="history-local-head__icon" />
-      <button className="history-block-toggle" type="button" role="treeitem" aria-level={1} aria-expanded={expanded} aria-label={t.historyBlockLabel(t.historyLocalGroup, count)} onClick={onToggle} onKeyDown={blockKeys(expanded, onToggle)}>
-        <ChevronRight className="history-block-toggle__chevron" aria-hidden="true" />
-        <span className="history-local-head__label">{t.historyLocalGroup}</span>
-        <span className="history-block-count" aria-hidden="true">{formatNumber(count, formats)}</span>
-      </button>
+      <TimelineChip kind="local" label={t.historyLocalGroup} className="history-block-chip" button={{ role: "treeitem", "aria-level": 1, "aria-expanded": expanded, "aria-label": t.historyBlockLabel(t.historyLocalGroup, count), onClick: onToggle, onKeyDown: blockKeys(expanded, onToggle) }}>
+        <ChevronRight className="history-block-chip__chevron" aria-hidden="true" />
+      </TimelineChip>
       {onPublish && <button className="history-local-head__publish" type="button" tabIndex={-1} data-tooltip={t.historyBoundaryPublishHint} onMouseDown={(event) => event.preventDefault()} onClick={() => onPublish()}><CloudUpload className="history-local-head__publish-icon" />{t.historyLocalGroupPublish}</button>}
     </div>
   );
@@ -722,7 +720,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
             if (piece.kind === "head") {
               const first = layout && versions[0] ? layout.rows.get(versions[0].commit) : undefined;
               const headLane: LaneSlot[] = first ? Array.from({ length: first.lane + 1 }, (_, lane) => (lane === first.lane ? { commit: versions[0]!.commit, tint: first.tint } : null)) : [];
-              body = <LocalGroupHead count={boundaryIndex} formats={formats} expanded={!foldedBlocks.local} onToggle={() => toggleBlock("local")} onPublish={canPublishFromBoundary ? actions.onPublish : undefined} t={t} drawing={lanesOn ? <LaneDrawing width={laneWidth} height={LOCAL_HEAD_HEIGHT} passing={headLane} fromY={LOCAL_HEAD_NODE_Y} /> : undefined} />;
+              body = <LocalGroupHead count={boundaryIndex} expanded={!foldedBlocks.local} onToggle={() => toggleBlock("local")} onPublish={canPublishFromBoundary ? actions.onPublish : undefined} t={t} drawing={lanesOn ? <LaneDrawing width={laneWidth} height={LOCAL_HEAD_HEIGHT} passing={headLane} fromY={LOCAL_HEAD_NODE_Y} /> : undefined} />;
             } else if (piece.kind === "boundary") {
               /* "Published", the pair of "Local": one word for what the
                  versions are. Where they are published — the remote and its
@@ -730,7 +728,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
                  heading only repeated less clearly. */
               const words = t.historyBoundaryPublished;
               const expanded = !foldedBlocks.published;
-              body = <div className="history-boundary" data-rail={aboveSelection ? "filled" : undefined} data-tooltip={remoteGone ? t.historyBoundaryGoneHint(publishedTo) : t.historyBoundaryHint(publishedTo)}>{lanesOn && <LaneDrawing width={laneWidth} height={BOUNDARY_HEIGHT} passing={passing} />}<span className="history-boundary__mark" aria-hidden="true"><Cloud /></span><button className="history-block-toggle" type="button" role="treeitem" aria-level={1} aria-expanded={expanded} aria-label={words} onClick={() => toggleBlock("published")} onKeyDown={blockKeys(expanded, () => toggleBlock("published"))}><ChevronRight className="history-block-toggle__chevron" aria-hidden="true" /><span className="history-boundary__where">{words}</span></button></div>;
+              body = <div className="history-boundary" data-rail={aboveSelection ? "filled" : undefined} data-folded={expanded ? undefined : ""} data-tooltip={remoteGone ? t.historyBoundaryGoneHint(publishedTo) : t.historyBoundaryHint(publishedTo)}>{lanesOn && <LaneDrawing width={laneWidth} height={BOUNDARY_HEIGHT} passing={passing} />}<TimelineChip kind="published" label={words} className="history-block-chip" button={{ role: "treeitem", "aria-level": 1, "aria-expanded": expanded, "aria-label": words, onClick: () => toggleBlock("published"), onKeyDown: blockKeys(expanded, () => toggleBlock("published")) }}><ChevronRight className="history-block-chip__chevron" aria-hidden="true" /></TimelineChip></div>;
             } else {
               const { version, index } = piece;
               const rail: RailFill = lanesOn || selectedIndex < 0 ? null : index < selectedIndex ? "filled" : index === selectedIndex ? "half" : null;

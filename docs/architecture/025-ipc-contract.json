@@ -101,6 +101,8 @@
     { "name": "plan_connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl"], "response": "ConnectRemotePlan" },
     { "name": "connect_remote", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl", "stateToken"], "response": "ConnectRemoteResult" },
     { "name": "read_project_remotes", "arguments": ["path", "sessionEpoch"], "response": "ProjectRemotes" },
+    { "name": "read_remote_home", "arguments": ["path", "sessionEpoch"], "response": "RemoteHome | null" },
+    { "name": "open_remote_home", "arguments": ["path", "sessionEpoch", "remote"], "response": "void" },
     { "name": "set_remote_url", "arguments": ["path", "sessionEpoch", "remoteName", "remoteUrl"], "response": "ProjectRemotes" },
     { "name": "read_project_identity", "arguments": ["path", "sessionEpoch"], "response": "ProjectIdentity" },
     { "name": "set_project_identity", "arguments": ["path", "sessionEpoch", "name", "email"], "response": "ProjectIdentity" },

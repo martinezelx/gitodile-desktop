@@ -69,7 +69,7 @@ Four rules hold it together, on every screen and in every overlay:
 1. **One frame.** The titlebar and the rail are a flat plane on `--surface-app`: no fill, no tint, no gradient, no translucency.
 2. **One sheet per screen.** The content sits on a single sheet with the same 16px of frame on all four sides. Home and Console are the documented exceptions: Home's launcher floats alone on the plane, Console is a terminal across the workspace.
 3. **Regions, not cards.** Inside the sheet, panels and bands meet on 1px hairlines and wear no border, shadow or radius of their own. A card *inside* a region — a fact, a section, an in-screen notice — is `--surface-card` with the subtle border and no shadow.
-4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`). A small object lifted inside a region (a scene place, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
+4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`). A small object lifted inside a region (the restore row's tile, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
 
 The visual language uses:
 
@@ -325,9 +325,9 @@ The main desktop window should broadly support:
    merged — reads "No longer on the remote" in amber, never "Check failed":
    Overview's card names it and offers switching to the main line, publishing
    again, or no longer following the remote, pressing none of them for the
-   reader; its scene draws no copy on the remote; Lines marks the line
-   "Remote branch deleted"; both timelines say its versions "Was on" the
-   remote; Get project changes stops with nothing to get; and Publish asks
+   reader; Lines marks the line
+   "Remote branch deleted"; History says its versions "Was on" the remote
+   and Overview's timeline "Was published"; Get project changes stops with nothing to get; and Publish asks
    before it creates the branch again, with "Recreate and publish". A line
    with no publish destination yet is offered "Publish this line" — on the
    card and as the strip's action — since publishing is how it gets one. The
@@ -611,32 +611,42 @@ The main desktop window should broadly support:
    found the band weighed two done steps as much as the waiting one and said
    "publish" four times on one screen. Its parts, top to bottom:
 
-   - **A breadcrumb, not a header block** (Vercel's and Linear's page
-     tops): the project's own icon, its name, a slash, and the line it is on
-     — read as an address, "this project, on this line" — and, at the row's
-     end, the project's folder and its settings as bare round glyphs. The icon
-     is the identity chip the rail shows for the project and opens its icon
-     picker. The line is the shared quick switch without its pill: the same
-     sans as the name one step down (subtitle size, secondary ink), with the
-     hover surface and the primary ink saying it opens — mono there made the
-     address two typefaces at two sizes. The technology and the path are properties, not part of the
+   - **One row, not a header block** (Vercel's and Linear's page tops): the
+     project's own icon, its name, and where it lives as a chip beside it —
+     no slash: before an `owner/name` it read as one long path — and, at the
+     row's end, the project's folder and its settings as bare round glyphs.
+     The icon is the identity chip the rail shows for the project and opens
+     its icon picker. The chip is hairline-edged and unfilled at rest. Where
+     it lives is the remote the line publishes
+     to (else `origin`, else the first): the service's mark (GitHub, GitLab,
+     Bitbucket, a cloud for any other server) and the remote's `owner/name`
+     in mono, in the secondary ink, opening the page in the browser when one
+     can be derived — the hover surface, the primary ink and a small arrow
+     say so. Rust derives that page from the project's own configuration and
+     opens it; the renderer names the remote, never an address. With no
+     remote it reads "Only on this computer" beside a laptop. Until it is
+     read its shape holds the place, so it never claims a remote is missing.
+     The line it is on is not here: the status bar names it and switches it,
+     and two switches for one line on one screen was a duplicate. The
+     technology and the path are properties, not part of the
      address: a row that mixed a 17px name, a 30px pill and 12px text read as
      a mismatch rather than a hierarchy, so both left the row: the path is the
      folder button's tooltip and the technology is the project's own icon.
    - **The next-step card**: the one thing to do now, a sentence saying why,
-     and the button that does it — the page's one primary button. The three
-     steps of the model survive as a thin three-segment bar in the card's
-     caption (done, current, still to come), not as tiles. The state's colour
+     and the button that does it — the page's one primary button. Its title
+     leads: no caption above it and no bar of steps beside it (the three
+     steps of the model were drawn as a three-segment bar until 0.3.1; on a
+     calmer, more professional page they read as a tutorial's chrome). The
+     glyph keeps its circle: square shapes belong to a project's identity
+     (its icon, the switcher), not to a state. The state's colour
      is one of the status tokens every theme defines — `--status-warning` for
      unsaved work (the colour the switcher and rail already give it), the
      accent for saved versions waiting to be published, `--status-renamed`
      for newer versions on the remote, `--status-danger` for overlaps or a
-     failed check — and it is a signal, not a surface: it fills the glyph's
-     circle (the glyph drawn in the panel's ink, or the accent's contrast on
-     the accent), colours the kicker and the current step of the bar, and the
-     band itself stays the plain sheet. With no elevation on the sheet
-     (ADR 0032) that filled circle is the band's one point of colour, where the
-     eye lands first; with nothing waiting it is the neutral circle again. A wash, a tinted edge, a tinted tile and a tinted kicker spent
+     failed check — and it is a signal, not a surface: it inks the glyph on
+     its circle, washes the band faintly, and nothing else. The glyph is the
+     band's one strong point of colour, where the eye lands first; with
+     nothing waiting it is the neutral circle again. A wash, a tinted edge, a tinted tile and a tinted kicker spent
      the same amber four times and made the primary button compete with the
      card around it. No edge stripe. With nothing waiting the card is plain and offers nothing to
      press. The primary button keeps the theme's accent in every state except
@@ -644,9 +654,10 @@ The main desktop window should broadly support:
      colour. The card's glyph circle breathes once as a step becomes current.
      **The card is always one colour.** What comes after the current step —
      versions waiting on the remote, or saved versions still to publish — is
-     said in a neutral pill under the sentence ("Then: 3 new versions on
-     origin"), never in a second hue: unsaved work with news on the remote is
-     an amber card with a grey pill, not amber and blue. A check that failed
+     said in one quiet line under the sentence, an arrow and the secondary
+     ink ("→ Then: 3 new versions on origin"), never in a second hue: unsaved
+     work with news on the remote is an amber card with a grey line, not
+     amber and blue. A check that failed
      keeps the card calm and puts the failure in its glyph alone: the work is
      safe, only the remote could not be asked.
    - **A living timeline beside a side column.** Versions the last remote
@@ -656,11 +667,14 @@ The main desktop window should broadly support:
      dashed ring in the unsaved colour, the kinds of change as small glyph
      counts, the whole line a way into Changes; it names no files, the side
      column does, and with nothing unsaved it is one quiet line. Under it, the
-     versions still only on this computer are grouped under one quiet label
-     ("Only on this computer · 2 versions") — in the unsaved colour's ink
-     when there is no remote at all — then a small neutral cloud on the rail
-     (History draws the same mark) marks where the remote's copy of the line
-     begins, then the published versions.
+     versions still only on this computer are grouped under a chip on the
+     rail, "On this computer", its Publish glyph in the local green (a laptop
+     in the unsaved colour when there is no remote at all); then the same
+     chip, "Published", its cloud in the remote's blue, marks where the
+     remote's copy of the line begins, then the published versions. The
+     chips' glyphs sit over the rail where the nodes are; they carry no count
+     (the rows say how many) and no rule running to the edge, and the
+     remote and its line are the "Published" chip's tooltip.
      One rail runs the whole list. "Publish up to here" still appears on an
      unpublished node under the pointer or focus, as the status bar's sync
      pill in a circle: the control surface and a hairline, only the cloud in
@@ -690,53 +704,42 @@ The main desktop window should broadly support:
      are in the primary ink with their chevron, not the accent.
      Beside it, a **side column that follows the card**: one detail of what
      the next step will move — "What you'll save" (files and the line totals
-     as a green and red bar), "What you need to decide" (the files with
+     as a green and red bar), "What you'll decide" (the files with
      overlapping parts), "What you'll get" (the incoming versions by title and
      author), or "What you'll publish" (the files the unpublished versions
-     carry, "9+ files" while not all are read) — closing on the consequence in
-     one line that fits the column in every language ("Stays here until you
-     publish", "Seen by anyone on this line"). The totals are in the secondary
+     carry, "9+ files" while not all are read). A card whose step reaches
+     past this computer closes on the consequence in one line that fits the
+     column in every language ("Seen by anyone on this line"); saving stays
+     here, so its card says nothing more. The totals are in the secondary
      ink and the bar, a thin 2px line at reduced strength, is the one place the
      diff's colours show, so the card does not open on a red number. The card's
-     head glyph is in the secondary ink; only a blocked state colours it. Above the detail, and alone when
-     nothing is waiting, **the scene**: this computer and the remote drawn as
-     two objects and the path between them telling how they stand — a check
-     when they match, solid dots in the primary ink leaving for versions not
-     yet published (their count a neutral badge), dashed blue dots arriving for
-     versions waiting, a "?" when the remote could not
-     be asked, an empty dashed cloud ("No copy · Connect") when there is no
-     remote. Each place carries one fact ("Here · 3 hours ago", "origin · up to
-     date"); the explanation for newcomers is its tooltip, not a sentence on
-     the page. The places are drawn in the secondary ink on the plain card and
-     the path is dashed in the quiet ink; the check is the success colour on a
-     neutral disc, so colour stays with the path's signals rather than washes
-     behind them. Large when nothing is waiting, small above the detail while
-     there is work. Until the
-     history, the working tree and the remote's last known state are read it
-     shows its own shape as a neutral placeholder, then fades in once, so it never
-     draws a guess and jumps; captions wrap under their object rather than
-     spilling past it. When its state changes it moves once to say what just
-     happened, then rests: published dots travel to the cloud and the check
-     appears, got versions travel to this computer, news slides in from the
-     remote, a new version is born at the laptop, a check gives way to a "?",
-     a connected cloud fills in; colours ease rather than switch. Nothing
-     moves on the first drawing, while the Overview is hidden (a change made
-     elsewhere plays on coming back), or with reduced motion. Every part of
+     head glyph is in the secondary ink whatever the step, overlaps included:
+     the step's colour belongs to the next-step card alone.
+     The two cards side by side both lead their title with a glyph: the
+     step's own here, a history clock on "Recent history", which keeps it in
+     its loading shapes too so nothing shifts when it lands.
+     Their heads match: the same title size (`--text-subtitle`), a 16px
+     glyph and the same link at the end ("View all", "Review"), so they read
+     as sibling cards and the hierarchy is the content's.
+     There is no drawing of this computer and the remote beside it: the
+     next-step card, the timeline and the status bar already say how they
+     stand, so the column holds only what the next step moves. Every part of
      the screen loads the same way — its own shape in placeholder text, never a
      spinner or a guessed state: the next-step card until both the files and
      the remote's last known state are read (so "not checked" never flashes on
-     opening), the "Now" row, the timeline, the scene, and a detail card's
+     opening), the "Now" row, the timeline, and a detail card's
      list until its files or versions are read. The whole screen's placeholder
      during launch restore is built from the same pieces. A discard
-     that can still be restored is its own card under the scene whenever
-     everything is saved — under a detail card too — dressed like the scene:
-     the same surface and shadow, its icon drawn as one of the scene's places
-     (plain and bordered under a detail card, like the small scene). It is a
-     safety net rather than a step, so it wears no state's colour: no wash,
-     the icon in the secondary ink. Its line under the title describes one
-     copy — its files and when; when several can be restored, a neutral badge
-     on the icon counts them the way the scene counts versions and the line dates the newest ("latest 10
-     days ago"), so it stays on one line. Files are never added up across
+     that can still be restored is offered whenever everything is saved:
+     alone in the column it is a card headed like its siblings ("Discarded
+     changes", "Restore ›") over its count — "3 files, discarded yesterday",
+     or "2 copies, latest yesterday" — and under a detail card it is a
+     compact row, its icon a small lifted tile and several copies a neutral
+     badge on it. With neither a detail nor a discard there is no column,
+     and the timeline takes the screen's width. "When" is said as the
+     timeline says it ("yesterday", "3 days ago"). It is a safety net rather
+     than a step, so it wears no state's colour: no wash, the icon in the
+     secondary ink. Files are never added up across
      copies, which can share them.
      "Restore" opens the restore picker over the Overview: closing it
      stays there, and only a restore moves on to Changes, which shows what
@@ -747,8 +750,12 @@ The main desktop window should broadly support:
 
      **Fitted to the window.** Tall and wide enough (620px by 981px), Overview
      has no scroll of its own: the header and the card keep their height and
-     the body takes the rest. The detail card's list shows as many whole rows
-     as fit — never a half row — so a maximised window shows more files. The
+     the body takes the rest. "What you'll save" scrolls its files (up to 50,
+     the rest counted at the end), fading at the bottom while there is more
+     below; scrolled to the end, "Review" takes the lead and breathes once, as
+     "View all" does at the end of the timeline. The other detail cards show
+     as many whole rows as fit — never a half row — so a maximised window
+     shows more. The
      timeline is the one scroll inside the page: "Now" stays pinned at its
      top, and the versions of the history's first page scroll under it, its
      bottom edge fading while there is more below. The group's label and the
@@ -876,7 +883,7 @@ Do not hard-code product colors throughout components.
 
 ### Elevation
 
-Use shadows to signal stacking order, not to decorate: `--shadow-sm` for the screen's one sheet and for controls, `--shadow-md` for a lifted object inside a region (Overview's scene places, a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). Regions of the sheet cast none ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
+Use shadows to signal stacking order, not to decorate: `--shadow-sm` for the screen's one sheet and for controls, `--shadow-md` for a lifted object inside a region (a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). Regions of the sheet cast none ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
 
 ### Shape
 
@@ -1103,22 +1110,24 @@ nothing. Both lists draw them with the shared `StateGlyph` (`.state-glyph` in
 History, and the timeline filter's "Only unpublished" switch wears the same
 laptop, as Lines' filter does, and "Only tagged versions" and "Hide branch
 merges" wear theirs, so the panel doubles as the legend. Where the published
-versions begin, a block heading opens them, the way Lines heads "In
-progress" and "Ready to clean up": a small cloud on the rail, then
-"PUBLISHED" in the uppercase caption. Where they are published — `origin/main`
-— and both sides are on its tooltip, which also says when that branch has
-since been deleted; the heading named the remote first ("ORIGIN"), which
-said the same less clearly than the word that pairs with "Local". Over the versions only on this computer, the same kind of
-heading — the publish cloud on the remote mark's white disc (Overview's group
-head wears the same) and "LOCAL", with how many in a capsule at its end, as a
-Lines block counts its lines. The two names say what the versions are, one
-word each: "Not published" and "Published on origin" said the same thing at
+versions begin, a block heading opens them: Overview's and Lines'
+"Published" chip on the rail (`TimelineChip`), its cloud in the remote's
+blue. Where they are published — `origin/main` — and both sides are on its
+tooltip, which also says when that branch has since been deleted; the
+heading named the remote first ("ORIGIN"), which said the same less clearly.
+Over the versions only on this computer, the "On this computer" chip, its
+Publish glyph in the local green. Each chip is the button that folds its
+block, its chevron inside it, and neither carries a count. Under the
+pointer the chip's tint is mixed into the panel, never laid over it, so the
+rail never shows through. They replaced uppercase captions ("LOCAL" with a count capsule,
+"PUBLISHED") beside a disc on the rail. The two names say what the versions
+are, a few words each: "Not published" and "Published on origin" said the same thing at
 three times the width and were cut off in the column. Both headings fold their
-block, with a chevron, as Lines' do (Right opens, Left folds); a folded
+block from its chip (Right opens, Left folds); a folded
 published block offers no older versions. They are drawn only together: when
 nothing is waiting to be published, a lone heading over every version would
 say nothing. It used to be a dashed rule with `4 not published` at its end,
-drawn as Overview's timeline draws it; as two block headings the column reads
+as Overview's timeline once drew it; as two block headings the column reads
 in two blocks, the way Lines does, and "what haven't I published?" is still
 one heading to find rather than a laptop to read off every row. On the
 current line the local head also offers to publish: "☁ Publish" beside its
@@ -1153,7 +1162,7 @@ divider, so they tell apart without colouring the column. "All lines" has no
 single upstream, so each version is measured against every remote-tracking
 line — published once any of them holds it, local otherwise — and its node
 and laptop glyph read as they do on one line. The column mixes lines in Git's
-order there, so the LOCAL and PUBLISHED blocks are drawn only when every local
+order there, so the two blocks are drawn only when every local
 version comes before every published one — the usual case, unpublished work
 on top — and a block never holds a version of the other kind; otherwise the
 rows say it one by one. (It used to say
@@ -1504,8 +1513,7 @@ line's actions, since both opened a form for what the box already does. The
 dialog with its full plan stays for the palette's "New version line" and the
 detached-`HEAD` banner.
 
-**The quick switch makes a line in place too.** In the status bar and on
-Overview, "New line" — and a search that names no line, offered as the last
+**The quick switch makes a line in place too.** In the status bar, "New line" — and a search that names no line, offered as the last
 row, "Create “feature/login”" — open the composer's own fields docked at the
 popup's foot, where the footer was, under the list that stays: a title row
 ("New line", and an × back to the footer), where the new line starts, the
@@ -1522,11 +1530,10 @@ Enter on it must not make a line by accident. Made, the popup closes: the
 control it hangs from names the new line, which is the confirmation. A
 failure stays under the field to retry.
 
-**The quick switch is one popup in both hosts.** The status bar's and
-Overview's open the same size (400 × 338px) with the same nine rows and the
-same row controls; only the side they open towards and the chevron differ. A
-smaller status-bar popup left the docked composer no room for the list it
-docks under. The keyboard walks it as one control: Down from the search moves
+**The quick switch is one popup, in the status bar.** It opens at 400 ×
+338px with nine rows and their controls; Overview's header once hosted a
+second one and no longer does (it names where the project lives). A smaller
+popup left the docked composer no room for the list it docks under. The keyboard walks it as one control: Down from the search moves
 into the rows, Up and Down walk them, Up from the first returns to the search,
 and Enter in the search chooses the first row it left — only a choice, since
 the switch it starts is previewed like any other.
@@ -1595,8 +1602,11 @@ Which versions the remote lacks is asked of Git with the history read
 (`<line>@{upstream}..<line>`), not read off the ahead count by position: a
 line that merged another interleaves the two by date.
 Where the line is ahead of its remote copy, the versions only here sit under
-"Only on this computer" and the remote's cloud marks where its copy begins
-("Published on origin", dashed rule). On the active line the head carries
+an "On this computer" chip on the rail and a "Published" chip marks where the
+remote's copy begins — Overview's `TimelineChip` at its compact size, no
+count and no rule, the remote in the "Published" chip's tooltip. While the
+list scrolls, the chips stay at its top as their versions pass, as
+Overview's do. On the active line the head carries
 Publish, History's quiet capsule with only the cloud in the accent, as the
 state "3 not published" above does; another line is published from that line.
 No chip repeats it, and a row's code shows under the pointer. The list takes
@@ -1799,9 +1809,9 @@ option in a menu or picker is selection, not success, and stays in the ink.
 
 | Tone | Token | Means | Where |
 |---|---|---|---|
-| Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, the scene's remote, a published version, Clone, Get changes, Connect a remote and Update dialogs |
-| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "Only on this computer" in Overview, History and Lines, the scene's computer, Publish, the Create project and publish dialogs |
-| Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, the scene's synced mark, done steps in dialogs and Home's setup, a saved version, a created project, "up to date" in About |
+| Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, a published version, Clone, Get changes, Connect a remote and Update dialogs |
+| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "On this computer" in the timelines of Overview, History and Lines, Publish, the Create project and publish dialogs |
+| Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, done steps in dialogs and Home's setup, a saved version, a created project, "up to date" in About |
 | App | `--tone-app` (violet, per scheme) | GitOdile itself | What's new, Keyboard shortcuts, Report a problem |
 
 **A glyph's circle is never coloured.** The tone goes on the glyph alone; the
@@ -2881,8 +2891,8 @@ blinking, without another entrance. Home owns the app's only
 **With a project open, Overview is the Journey page** (§ Layout concept,
 Primary workspace): it answers one question — what do I do now — and then
 shows where all the work is. Top to bottom: a one-row breadcrumb (the
-project's own icon, name, a slash, the line's compact quick-switch pill, and
-the folder and settings glyphs at the end); the next-step card; and a
+project's own icon, name, where the project lives as a chip, and the folder
+and settings glyphs at the end); the next-step card; and a
 timeline beside the project's properties.
 
 The **next-step card** is derived by `deriveNextStep` from the same journey
@@ -2904,27 +2914,25 @@ no primary action), something of the person's in the way (warning colour,
 what it is and "See why"), not checked, checking, a check that failed (calm, a red glyph,
 "Your work is saved", "Try again"), no remote ("Saved on this computer",
 "Connect a remote"), no upstream, an older version open ("Choose a version
-line"), unborn, and finally "Saved and published" with no action. Its kicker
-names the kind of ask ("Next step", "Before you continue", "Needs your
-decision", "All saved", "All in order") beside the three-segment progress
-bar. The band is washed with 7% of its state's tone — amber with unsaved
-work, the local green ready to publish, the remote's blue with newer changes,
-red when blocked — and the same tone colours the glyph (in a neutral circle),
-the kicker and the current segment. With nothing waiting the band is the
-plain sheet.
+line"), unborn, and finally "Saved and published" with no action. Its title
+leads, with no kicker or progress bar above it. The band is washed with 7%
+of its state's tone — amber with unsaved work, the local green ready to
+publish, the remote's blue with newer changes, red when blocked — and the
+same tone inks the glyph on its neutral circle. With nothing
+waiting the band is the plain sheet.
 
 The **timeline** is the History screen's shape: the incoming row (one blue
 line above *now* while versions wait on the remote, leading to the review and
 get flow), *now* (one line with the unsaved count and its kinds as glyph
 counts, leading to Changes), the versions only on this computer grouped under
-one quiet label with half-filled nodes (the label in the unsaved ink with no
-remote), a
-cloud mark on the rail where the remote's copy begins ("Published on origin",
-naming the line only when it differs from the one stood on), then published
-versions, six in all with "View all" in the card's corner. Rows keep "You" for
+an "On this computer" chip with half-filled nodes (its glyph in the unsaved
+ink with no remote), a "Published" chip where the remote's copy begins (the
+remote, and the line when it differs from the one stood on, in its tooltip),
+then published versions, six in all with "View all" in the card's corner. Rows keep "You" for
 the user's own versions and the "current" badge.
 The **side column** is `OverviewDetail`, choosing its detail with
-`overviewDetailMode` and drawing the scene with `WorkScene`. Its data never
+`overviewDetailMode`; with no detail and no discard it renders nothing and the
+timeline takes the width. Its data never
 loads because Overview became visible: the composition root reads the files of
 each unpublished version when the unpublished list changes (once per version,
 since a saved version never changes, at most 20), the incoming versions when a

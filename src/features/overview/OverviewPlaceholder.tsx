@@ -1,4 +1,5 @@
 import React from "react";
+import { History } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { LoadingPlaceholder, TextPlaceholder } from "../../shared/ui";
@@ -39,35 +40,9 @@ export function NextStepPlaceholder({ label }: { label?: string }): React.JSX.El
     <LoadingPlaceholder label={label} className="next-step next-step--calm">
       <span className="next-step__glyph" aria-hidden="true"><TextPlaceholder className="text-placeholder--glyph" /></span>
       <div className="next-step__copy" aria-hidden="true">
-        <p className="next-step__kicker"><TextPlaceholder width="6em" /></p>
         <p className="next-step__title"><TextPlaceholder width="40%" /></p>
         <p className="next-step__hint"><TextPlaceholder width="60%" /></p>
       </div>
-    </LoadingPlaceholder>
-  );
-}
-
-/** The scene's own shape — two places and the path between them — until it
- * knows where the work is. */
-export function WorkScenePlaceholder({ size, label }: { size: "large" | "small"; label?: string }): React.JSX.Element {
-  const shape = (
-    <>
-      <div className="work-scene__row" aria-hidden="true">
-        <TextPlaceholder className="work-scene__place-placeholder" />
-        <span className="work-scene__path" />
-        <TextPlaceholder className="work-scene__place-placeholder" />
-      </div>
-      <div className="work-scene__captions" aria-hidden="true">
-        <p className="work-scene__caption"><TextPlaceholder width="3.5em" /><TextPlaceholder width="5em" /></p>
-        <span />
-        <p className="work-scene__caption"><TextPlaceholder width="3.5em" /><TextPlaceholder width="4em" /></p>
-      </div>
-    </>
-  );
-  // Inside the whole screen's placeholder the label is already said once.
-  return (
-    <LoadingPlaceholder label={label} className={`work-scene work-scene--${size} work-scene--loading`}>
-      {shape}
     </LoadingPlaceholder>
   );
 }
@@ -99,8 +74,8 @@ export function DetailListPlaceholder({ label }: { label: string }): React.JSX.E
 
 /**
  * The whole of Overview before launch restore has a project to show: the
- * breadcrumb, the next-step card, the timeline and the scene beside it, drawn
- * with the real content's classes so the project lands in the space that was
+ * header, the next-step card and the timeline, drawn with the real
+ * content's classes so the project lands in the space that was
  * held for it. Only the label is said; the shape is hidden from assistive tech.
  */
 export function OverviewPlaceholder(): React.JSX.Element {
@@ -113,8 +88,7 @@ export function OverviewPlaceholder(): React.JSX.Element {
           <TextPlaceholder className="overview-placeholder__avatar" />
         </span>
         <span className="overview-header__name overview-placeholder__name"><TextPlaceholder width="8em" /></span>
-        <span className="overview-header__slash">/</span>
-        <TextPlaceholder className="overview-placeholder__switch" />
+        <TextPlaceholder className="overview-home__placeholder" />
         <TextPlaceholder className="overview-header__tool overview-header__tool--first overview-placeholder__tool" />
         <TextPlaceholder className="overview-header__tool overview-placeholder__tool" />
       </div>
@@ -124,12 +98,12 @@ export function OverviewPlaceholder(): React.JSX.Element {
       <div className="overview-body" aria-hidden="true">
         <div className="overview-history">
           <div className="overview-history__header">
-            <h2>{t.overviewHistoryTitle}</h2>
+            <h2>
+              <History className="overview-history__glyph" aria-hidden="true" />
+              {t.overviewHistoryTitle}
+            </h2>
           </div>
           <HistoryPlaceholderList />
-        </div>
-        <div className="overview-side">
-          <WorkScenePlaceholder size="large" />
         </div>
       </div>
     </LoadingPlaceholder>

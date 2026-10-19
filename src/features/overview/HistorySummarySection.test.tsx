@@ -114,8 +114,8 @@ describe("HistorySummarySection", () => {
     expect(screen.getByRole("heading", { name: "Recent history" })).toBeInTheDocument();
     expect(screen.getByText("Saved version 2")).toBeInTheDocument();
     // The unpublished version leads the timeline, grouped under one label.
-    expect(screen.getByText("Only on this computer")).toBeInTheDocument();
-    expect(screen.getByText("1 version")).toBeInTheDocument();
+    expect(screen.getByText("On this computer")).toBeInTheDocument();
+    expect(screen.queryByText("1 version")).toBeNull();
     expect(screen.queryByText(version(2).shortCommit)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View all" })).toBeInTheDocument();
     expect(readPage).not.toHaveBeenCalled();
@@ -171,7 +171,6 @@ describe("HistorySummarySection", () => {
     const local = [...container.querySelectorAll(".overview-history__item--local .overview-history__subject")]
       .map((node) => node.textContent);
     expect(local).toEqual(["Merge remote-tracking branch 'origin/main'", "Saved version 3", "Saved version 5"]);
-    expect(container.querySelector(".overview-timeline__group-count")).toHaveTextContent("3");
     const subjects = [...container.querySelectorAll(".overview-history__subject")].map((node) => node.textContent);
     expect(subjects.at(-1)).toBe("From the remote");
   });
@@ -241,11 +240,11 @@ describe("HistorySummarySection", () => {
 
     const group = container.querySelector<HTMLElement>(".overview-timeline__group");
     expect(group).not.toBeNull();
-    expect(group).toHaveTextContent("Only on this computer");
-    expect(group).toHaveTextContent("2 versions");
+    expect(group).toHaveTextContent("On this computer");
+    expect(group).not.toHaveTextContent("2 versions");
     expect(group?.querySelectorAll(".overview-history__row")).toHaveLength(2);
-    // The mark sits between the group and the published version, and names
-    // only the remote when the line has the same name as the one stood on.
+    // The mark sits between the group and the published version, as a chip
+    // that says "Published" and names the remote in its tooltip.
     const timeline = container.querySelector<HTMLElement>(".overview-timeline");
     const children = [...(timeline?.children ?? [])].map((child) => child.className.split(" ")[0]);
     expect(children).toEqual([
@@ -254,7 +253,9 @@ describe("HistorySummarySection", () => {
       "overview-timeline__item",
       "overview-timeline__end",
     ]);
-    expect(container.querySelector(".overview-timeline__mark")).toHaveTextContent("Published on origin");
+    const mark = container.querySelector(".overview-timeline__mark");
+    expect(mark).toHaveTextContent(/^Published$/);
+    expect(mark?.querySelector(".timeline-chip")).toHaveAttribute("title", "origin");
   });
 
   it("marks the group as waiting to publish, or as this computer with no remote", async () => {
@@ -266,11 +267,11 @@ describe("HistorySummarySection", () => {
     await controller.refresh(query);
 
     const published = renderSection(controller);
-    expect(published.container.querySelector(".overview-timeline__group-icon .lucide-cloud-upload")).not.toBeNull();
+    expect(published.container.querySelector(".timeline-chip--local .lucide-cloud-upload")).not.toBeNull();
     cleanup();
 
     const alone = renderSection(controller, vi.fn(), false, null, true);
-    expect(alone.container.querySelector(".overview-timeline__group-icon .lucide-laptop")).not.toBeNull();
+    expect(alone.container.querySelector(".timeline-chip--noRemote .lucide-laptop")).not.toBeNull();
   });
 
   it("puts the working tree first when it is given one", async () => {

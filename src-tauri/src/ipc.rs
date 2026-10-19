@@ -42,7 +42,7 @@ use crate::{
     status::{self, PendingVersionsResult, WorkingTreeStatus},
     sync::{
         self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
-        GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, TeamSyncStatus,
+        GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, RemoteHome, TeamSyncStatus,
     },
     technology::{self, ProjectTechnology},
     tooling::{
@@ -963,6 +963,37 @@ pub(crate) fn read_project_remotes(
     )
 }
 
+/// Where the project lives, for Overview's header: the service and path of
+/// the remote its line publishes to. Raw addresses stay on the Rust side.
+#[tauri::command(async)]
+pub(crate) fn read_remote_home(
+    path: String,
+    session_epoch: String,
+) -> Result<Option<RemoteHome>, AppError> {
+    report_result(
+        "read_remote_home",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::read_remote_home(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn open_remote_home(
+    path: String,
+    session_epoch: String,
+    remote: String,
+) -> Result<(), AppError> {
+    report_result(
+        "open_remote_home",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            desktop::open_remote_home(path, remote)
+        })(),
+    )
+}
+
 #[tauri::command(async)]
 pub(crate) fn set_remote_url(
     path: String,
@@ -1666,6 +1697,9 @@ mod contract_tests {
             "&'staticstr" => "string".to_string(),
             value if value.starts_with("Vec<") && value.ends_with('>') => {
                 format!("{}[]", &value[4..value.len() - 1])
+            }
+            value if value.starts_with("Option<") && value.ends_with('>') => {
+                format!("{} | null", &value[7..value.len() - 1])
             }
             value => value.to_string(),
         }

@@ -336,15 +336,14 @@
 /* Each piece — a row, the local head, the boundary — is a
    virtual item of its own fixed height (`PIECE_HEIGHT`), set inline. */
 .history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 64px; padding: 0 5px; contain: layout paint style; }
-/* Both are Overview's pieces, at Overview's sizes: a 22px circle on the rail
-   and a caption 12px past it. The rail runs through them at the rows' x (the
-   row's 1px border and 17.5px, inside the 5px inset), in the accent while the
-   selection sits below the boundary. */
+/* Both are Overview's chips, at Overview's size, their glyph on the rail.
+   The rail runs through them at the rows' x (the row's 1px border and 17.5px,
+   inside the 5px inset), in the accent while the selection sits below the
+   boundary. */
 
-/* Where the remote's copy of the line begins: a cloud in the remote's blue
-   on the rail and the block's heading — "Published on" and the remote's name
-   — with its air above. It used to end in a dashed rule out to the edge; as
-   a block heading, like Lines', the heading itself is the divide. */
+/* Where the remote's copy of the line begins: the "Published" chip on the
+   rail (TimelineChip, as on Overview and Lines), which folds the block, with
+   its air above. The remote and its branch are the piece's tooltip. */
 .history-boundary {
   position: relative; height: 32px;
   /* The rows' transparent 1px border, so every piece of the timeline measures
@@ -353,7 +352,7 @@
      other. */
   border: 1px solid transparent;
   display: flex; align-items: center; gap: var(--space-2);
-  padding: 5px 10px 0 40px;
+  padding: 5px 10px 0 6px;
   min-width: 0;
   color: var(--text-secondary-color); font-size: var(--text-caption);
 }
@@ -361,63 +360,26 @@
   content: ""; position: absolute; top: -1px; bottom: -1px; left: 17.5px; width: 1px; background: var(--history-lane-0, var(--border-divider));
 }
 .history-boundary[data-rail]::before { background: color-mix(in srgb, var(--accent-primary) 62%, var(--border-divider)); }
-.history-boundary__mark {
-  position: absolute; z-index: 1; top: calc(50% + 3px); left: 7px;
-  width: 22px; height: 22px; display: grid; place-items: center;
-  border: 1px solid var(--border-control); border-radius: var(--radius-round);
-  background: var(--surface-panel); color: var(--status-renamed);
-  transform: translateY(-50%);
-}
-.history-boundary__mark svg { width: 12px; height: 12px; }
-.history-boundary__where { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Folded, nothing comes after the chip: the rail ends under it. */
+.history-boundary[data-folded]::before { bottom: 50%; }
 
-/* Over the versions only on this computer, Overview's group head: the
-   publish cloud on a control disc and what the group is. Its rail
-   starts at the disc and runs into the first row's. */
+/* Over the versions only on this computer: the "On this computer" chip on
+   the rail, which folds the block. Its rail starts at the chip and runs into
+   the first row's. */
 .history-local-head {
   position: relative; height: 34px;
   border: 1px solid transparent;
   display: flex; align-items: center; gap: var(--space-2);
-  padding: 3px 10px 0 40px;
+  padding: 3px 10px 0 6px;
   min-width: 0;
 }
 .history-local-head::before {
   content: ""; position: absolute; top: calc(50% + 2px); bottom: -1px; left: 17.5px; width: 1px; background: var(--history-lane-0, var(--border-divider));
 }
-.history-local-head__icon {
-  position: absolute; z-index: 1; top: calc(50% + 2px); left: 7px;
-  /* The shared mark (local-only-mark), on the boundary's rail. */
-  transform: translateY(-50%);
-}
-.history-local-head__label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The two blocks' heads read as Lines' block headings: a chevron, an
-   uppercase caption in the secondary ink — the remote's name said in it, as
-   part of the sentence — and the local head's count in a capsule at the end.
-   The heading is the button that folds its block. */
-.history-block-toggle {
-  flex: 1 1 auto; min-width: 0; height: 22px;
-  display: flex; align-items: center; gap: 6px;
-  padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary-color); font: inherit; text-align: left;
-  transition: color var(--duration-fast) ease-out;
-}
-.history-block-toggle:hover { color: var(--text-primary-color); }
-.history-block-toggle:hover .history-local-head__label,
-.history-block-toggle:hover .history-boundary__where { color: var(--text-primary-color); }
-.history-block-toggle__chevron { width: 13px; height: 13px; flex: 0 0 auto; transition: transform var(--duration-fast) ease-out; }
-.history-block-toggle[aria-expanded="true"] .history-block-toggle__chevron { transform: rotate(90deg); }
-.history-local-head__label,
-.history-boundary__where {
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption); font-weight: var(--weight-heading);
-  letter-spacing: var(--tracking-caps); text-transform: uppercase;
-}
-.history-block-count {
-  flex: 0 0 auto; margin-inline-start: auto;
-  padding: 2px 7px; border-radius: var(--radius-pill);
-  background: var(--surface-control); color: var(--text-secondary-color);
-  font-size: var(--text-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; line-height: var(--leading-none);
-}
+/* The chip folds its block: its chevron turns with it. */
+.history-block-chip { min-width: 0; }
+.history-block-chip__chevron { width: 12px; height: 12px; color: var(--text-secondary-color); transition: transform var(--duration-fast) ease-out; }
+.history-block-chip[aria-expanded="true"] .history-block-chip__chevron { transform: rotate(90deg); }
 /* The way to publish what is under the head. The publish cloud is always
    there, in the accent, so the word reads as an action before the pointer
    finds it; under the pointer the capsule takes the shape Overview's "Publish
@@ -426,7 +388,7 @@
    ever green. */
 .history-local-head__publish {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
-  height: 20px; margin-inline-end: -7px; padding: 0 7px;
+  height: 20px; margin-inline: auto -7px; padding: 0 7px;
   border: 1px solid transparent; border-radius: var(--radius-pill);
   background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-caption); font-weight: var(--weight-medium); white-space: nowrap;
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
@@ -445,7 +407,7 @@
 .history-timeline--lanes .history-local-head::before { display: none; }
 .history-timeline--lanes .history-row { padding-left: var(--history-lanes-inset); }
 .history-timeline--lanes .history-boundary,
-.history-timeline--lanes .history-local-head { padding-left: calc(var(--history-lanes-inset) + 5px); }
+.history-timeline--lanes .history-local-head { padding-left: var(--history-lanes-inset); }
 /* The node is the same on lanes as on the rail; only where it sits moves. */
 .history-timeline--lanes .history-row__node { left: calc(var(--history-node-x, 19px) - 6px); }
 
@@ -916,7 +878,7 @@
 /* Nothing on the timeline animates any more, so this is the whole of it: the
    states themselves stay, they simply arrive at once. */
 @media (prefers-reduced-motion: reduce) {
-  .history-row, .history-row::before, .history-row__node, .history-file, .history-detour, .history-detour svg, .history-block-toggle, .history-block-toggle__chevron { transition: none; }
+  .history-row, .history-row::before, .history-row__node, .history-file, .history-detour, .history-detour svg, .history-block-chip, .history-block-chip__chevron { transition: none; }
 }
 
 @media (pointer: coarse) {

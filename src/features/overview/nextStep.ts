@@ -96,9 +96,6 @@ export type NextStep = {
   primary: NextStepAction | null;
   /** Quieter actions beside it, in display order. */
   secondary: NextStepAction[];
-  /** How far along change → save → publish the project is: how many of the
-   * three steps are done, and which one is the current one, if any. */
-  progress: { done: 0 | 1 | 2 | 3; current: 0 | 1 | 2 | null };
   /** A spinner stands in for the glyph while the fact is still being read. */
   isPending: boolean;
   then: NextStepThen | null;
@@ -133,20 +130,20 @@ export function deriveNextStep(
   // Until both sides are read, the card holds its shape rather than guessing
   // a step that changes a moment later.
   if (changes.state === "loading" || (publish.state === "reading" && changes.state !== "error")) {
-    return step("loading", "calm", null, [], { done: 0, current: null }, true);
+    return step("loading", "calm", null, [], true);
   }
   if (changes.state === "error") {
-    return step("localError", "blocked", "checkLocal", [], { done: 0, current: 0 });
+    return step("localError", "blocked", "checkLocal", []);
   }
   if (changes.state === "conflicts") {
-    return step("conflicts", "blocked", "resolve", [], { done: 0, current: 0 });
+    return step("conflicts", "blocked", "resolve", []);
   }
   if (changes.state === "dirty") {
     if (publish.state === "unborn") {
-      return step("firstSave", "unsaved", "save", [], { done: 1, current: 1 });
+      return step("firstSave", "unsaved", "save", []);
     }
     if (forecast?.outcome === "overlap") {
-      return step("overlap", "blocked", null, ["explainIncoming", "save"], { done: 1, current: 1 }, false, null,
+      return step("overlap", "blocked", null, ["explainIncoming", "save"], false, null,
         { kind: "overlap" });
     }
     if (forecast?.outcome === "clear") {
@@ -155,10 +152,10 @@ export function deriveNextStep(
       const note: NextStepNote = forecast.combinedUnsavedCount > 0
         ? { kind: "incomingCombined", count: incoming, files: forecast.combinedUnsaved, fileCount: forecast.combinedUnsavedCount }
         : { kind: "incomingClear", count: incoming };
-      return step("save", "unsaved", "save", ["getChanges"], { done: 1, current: 1 }, false, null, note);
+      return step("save", "unsaved", "save", ["getChanges"], false, null, note);
     }
     if (forecast?.outcome === "blocked" && forecast.blocker) {
-      return step("save", "unsaved", "save", ["reviewChanges"], { done: 1, current: 1 }, false, null,
+      return step("save", "unsaved", "save", ["reviewChanges"], false, null,
         { kind: "blocked", blocker: forecast.blocker });
     }
     // Versions waiting on the remote come before your own unpublished ones:
@@ -169,53 +166,53 @@ export function deriveNextStep(
       : publish.pending > 0 || publish.state === "upToDate"
         ? { kind: "publishWith", count: publish.pending }
         : null;
-    return step("save", "unsaved", "save", ["reviewChanges"], { done: 1, current: 1 }, false, then);
+    return step("save", "unsaved", "save", ["reviewChanges"], false, then);
   }
 
   // Everything on this computer is saved; the remote side decides the rest.
   switch (publish.state) {
     case "ahead":
       return canPublish
-        ? step("publish", "ready", "publish", ["openHistory"], { done: 2, current: 2 })
-        : step("unpublished", "ready", null, ["openHistory"], { done: 2, current: 2 });
+        ? step("publish", "ready", "publish", ["openHistory"])
+        : step("unpublished", "ready", null, ["openHistory"]);
     case "behind":
     case "diverged": {
       if (forecast?.outcome === "overlap") {
-        return step("overlap", "blocked", null, ["explainIncoming"], { done: 2, current: 2 }, false, null,
+        return step("overlap", "blocked", null, ["explainIncoming"], false, null,
           { kind: "overlap" });
       }
       if (forecast?.outcome === "blocked") {
-        return step("incomingBlocked", "unsaved", null, ["explainIncoming"], { done: 2, current: 2 });
+        return step("incomingBlocked", "unsaved", null, ["explainIncoming"]);
       }
       if (publish.state === "behind") {
-        return step("behind", "incoming", "getChanges", [], { done: 2, current: 2 }, false, null,
+        return step("behind", "incoming", "getChanges", [], false, null,
           forecast ? { kind: "clear" } : null);
       }
       if (forecast) {
         // Both sides moved and nothing overlaps: combine, and publishing can
         // ride along in the same confirmation.
-        return step("diverged", "incoming", "getChanges", canPublish ? ["getAndPublish"] : [], { done: 2, current: 2 },
+        return step("diverged", "incoming", "getChanges", canPublish ? ["getAndPublish"] : [],
           false, null, { kind: "canCombine" });
       }
       // Unknown: receive first, then publish what is yours.
-      return step("diverged", "incoming", "getChanges", [], { done: 2, current: 2 }, false,
+      return step("diverged", "incoming", "getChanges", [], false,
         publish.pending > 0 ? { kind: "publish", count: publish.pending } : null);
     }
     case "reading":
     case "checking":
-      return step("checking", "calm", null, [], { done: 2, current: null }, true);
+      return step("checking", "calm", null, [], true);
     case "notChecked":
-      return step("notChecked", "calm", null, ["checkRemote"], { done: 2, current: null }, publish.isChecking);
+      return step("notChecked", "calm", null, ["checkRemote"], publish.isChecking);
     case "unavailable":
       // The work itself is safe; only the remote could not be asked. The card
       // says so calmly and its glyph carries the failure.
-      return step("unavailable", "calm", null, ["checkRemote"], { done: 2, current: null }, publish.isChecking);
+      return step("unavailable", "calm", null, ["checkRemote"], publish.isChecking);
     case "noRemote":
-      return step("noRemote", "calm", null, ["openSettings"], { done: 2, current: null });
+      return step("noRemote", "calm", null, ["openSettings"]);
     case "noUpstream":
       // Publishing is how such a line gets a destination: the card offers it
       // rather than telling the reader to do something it gives no way to do.
-      return step("noUpstream", "calm", canPublish ? "publish" : null, [], { done: 2, current: null });
+      return step("noUpstream", "calm", canPublish ? "publish" : null, []);
     case "upstreamGone":
       // Nothing is lost, but publishing would recreate a branch the remote
       // closed: the card names the three ways on and presses none of them.
@@ -224,16 +221,15 @@ export function deriveNextStep(
         "unsaved",
         defaultLine ? "switchToDefault" : null,
         [...(canPublish ? (["publish"] as const) : []), "stopTracking"],
-        { done: 2, current: null },
       );
     case "detached":
-      return step("detached", "calm", null, ["openLines"], { done: 2, current: null });
+      return step("detached", "calm", null, ["openLines"]);
     case "unborn":
-      return step("unborn", "calm", null, [], { done: 0, current: null });
+      return step("unborn", "calm", null, []);
     case "upToDate":
       // Nothing to do: the status bar's cloud is where the remote is checked
       // again, and the card does not offer it twice.
-      return step("upToDate", "calm", null, [], { done: 3, current: null }, publish.isChecking);
+      return step("upToDate", "calm", null, [], publish.isChecking);
   }
 }
 
@@ -242,10 +238,9 @@ function step(
   tone: NextStepTone,
   primary: NextStepAction | null,
   secondary: NextStepAction[],
-  progress: NextStep["progress"],
   isPending = false,
   then: NextStepThen | null = null,
   note: NextStepNote | null = null,
 ): NextStep {
-  return { kind, tone, primary, secondary, progress, isPending, then, note };
+  return { kind, tone, primary, secondary, isPending, then, note };
 }

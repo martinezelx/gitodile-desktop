@@ -3,15 +3,15 @@ import {
   ArrowDownToLine,
   ChevronRight,
   CircleAlert,
-  Cloud,
   CloudUpload,
   GitCommitHorizontal,
+  History,
   LoaderCircle,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { autoHideScrollbarProps, LoadingPlaceholder, LocalOnlyMark } from "../../shared/ui";
+import { autoHideScrollbarProps, LoadingPlaceholder, TimelineChip } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -133,7 +133,6 @@ export function HistorySummarySection({
   const isLocal = (version: SavedVersionSummary): boolean => version.publication === "local-only";
   const local = versions.filter(isLocal);
   const shared = versions.filter((version) => !isLocal(version));
-  const localCount = state.versions.filter(isLocal).length;
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);
@@ -204,7 +203,7 @@ export function HistorySummarySection({
       <button className="overview-timeline__incoming" type="button" onClick={incoming.onGet}>
         <span className="overview-timeline__incoming-node" aria-hidden="true" />
         <span className="overview-timeline__incoming-text">
-          <span className="overview-timeline__incoming-where">{incoming.remote ?? t.overviewSceneRemote}</span>
+          <span className="overview-timeline__incoming-where">{incoming.remote ?? t.overviewTimelineRemote}</span>
           <span aria-hidden="true">·</span>
           <strong>{t.overviewTimelineIncoming(incoming.count)}</strong>
         </span>
@@ -226,6 +225,7 @@ export function HistorySummarySection({
     <section className="overview-history" aria-labelledby="overview-history-title" aria-busy={state.isLoading || isRefreshing}>
       <header className="overview-history__header">
         <h2 id="overview-history-title">
+          <History className="overview-history__glyph" aria-hidden="true" />
           {t.overviewHistoryTitle}
           {/* Turns only for a refresh of a list already shown; the first read
               draws the list's shape below instead. */}
@@ -297,13 +297,11 @@ export function HistorySummarySection({
               <ol className={`overview-timeline overview-timeline--ended${nowItem ? " overview-timeline--after-now" : ""}`} aria-label={t.overviewHistoryListLabel}>
                 {local.length > 0 && (
                   <li className={`overview-timeline__group${hasNoRemote ? " overview-timeline__group--alone" : ""}`}>
+                    {/* A chip on the rail: waiting to be published, the status
+                        bar's Publish glyph; with nowhere to publish, this
+                        computer. */}
                     <p className="overview-timeline__group-head">
-                      {/* Waiting to be published, the status bar's Publish glyph — not the
-                        scene's laptop, which wears the unsaved yellow beside
-                        it. With nowhere to publish, it stays this computer. */}
-                    <LocalOnlyMark className="overview-timeline__group-icon" noRemote={hasNoRemote} />
-                      <span className="overview-timeline__group-label">{t.overviewTimelineLocalGroup}</span>
-                      <span className="overview-timeline__group-count">{t.overviewTimelineLocalCount(localCount)}</span>
+                      <TimelineChip kind={hasNoRemote ? "noRemote" : "local"} label={t.overviewTimelineLocalGroup} />
                     </p>
                     <ol className="overview-timeline__rows">
                       {local.map((version, index) => renderRow(version, index))}
@@ -311,16 +309,16 @@ export function HistorySummarySection({
                   </li>
                 )}
                 {upstream && shared.length > 0 && (
-                  <li className="overview-timeline__mark" title={upstream.trackingRef}>
-                    <span className="overview-timeline__mark-icon" aria-hidden="true"><Cloud /></span>
-                    <span className="overview-timeline__mark-text">
-                      {remoteBranchGone ? t.overviewTimelineWasOn : t.overviewTimelinePublishedOn}{" "}
-                      <span className="overview-timeline__mono">
-                        {upstream.destinationBranch === currentBranch
-                          ? upstream.remote
-                          : `${upstream.remote} · ${upstream.destinationBranch}`}
-                      </span>
-                    </span>
+                  <li className="overview-timeline__mark">
+                    {/* Where the remote's copy begins: the same chip, its
+                        remote and line in the tooltip. */}
+                    <TimelineChip
+                      kind="published"
+                      label={remoteBranchGone ? t.overviewTimelineWasPublished : t.overviewTimelinePublished}
+                      title={upstream.destinationBranch === currentBranch
+                        ? upstream.remote
+                        : `${upstream.remote} · ${upstream.destinationBranch}`}
+                    />
                   </li>
                 )}
                 {shared.map((version, index) => renderRow(version, local.length + index))}

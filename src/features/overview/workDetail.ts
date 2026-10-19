@@ -3,6 +3,7 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useScreenLifecycleController } from "../../runtime/screen/module";
 import type { DiscardRecoveryRecord } from "../changes";
 import type { CommitFileChange, PendingVersionsResult } from "../publish";
+import type { RemoteHome } from "./port";
 
 /** How many unpublished versions the column reads the files of. A longer run
  * of unpublished work is still counted; its oldest versions are just not
@@ -32,6 +33,14 @@ export type RestorableDiscard = Pick<DiscardRecoveryRecord, "recoveryId" | "crea
   restorableCount: number;
 };
 
+/** Where the project lives, for the header: unknown until first read, then
+ * the remote's home or `null` for a project with no remote — or unavailable
+ * when the first read failed, which never claims there is no remote. */
+export type RemoteHomeState =
+  | { status: "unknown" }
+  | { status: "unavailable" }
+  | { status: "ready"; home: RemoteHome | null };
+
 export type WorkDetailSnapshot = {
   /** Files of each unpublished version read so far, by commit. A saved
    * version never changes, so an entry is read once per session. */
@@ -40,6 +49,7 @@ export type WorkDetailSnapshot = {
   recovery: RestorableDiscard | null;
   /** What the last remote check brought down, or `null` with nothing waiting. */
   incoming: IncomingState | null;
+  home: RemoteHomeState;
 };
 
 export type WorkDetailPorts = {
@@ -50,6 +60,8 @@ export type WorkDetailPorts = {
    * nothing to pick. */
   findRestorableDiscard(query: WorkDetailQuery): Promise<RestorableDiscard | null>;
   readIncomingVersions(query: WorkDetailQuery): Promise<PendingVersionsResult>;
+  /** Where the project lives, or `null` when it has no remote. */
+  readRemoteHome(query: WorkDetailQuery): Promise<RemoteHome | null>;
 };
 
 /** The newest record of a listing that can be restored right now, with how
@@ -62,23 +74,26 @@ export function newestRestorableDiscard(records: readonly DiscardRecoveryRecord[
     : null;
 }
 
-const EMPTY: WorkDetailSnapshot = { commitFiles: new Map(), recovery: null, incoming: null };
+const EMPTY: WorkDetailSnapshot = { commitFiles: new Map(), recovery: null, incoming: null, home: { status: "unknown" } };
 
 export type WorkDetailController = ReturnType<typeof createWorkDetailController>;
 
 /**
- * What Overview's side column shows beside the next step: the files the
- * unpublished versions carry, and the newest discard that can be restored.
+ * What Overview shows of the project beyond its status: the files the
+ * unpublished versions carry, the newest discard that can be restored, and
+ * where the project lives.
  *
  * It never reads because a screen became visible. The composition root asks
- * for the files when the unpublished list changes and for the recovery on a
- * working-tree invalidation (a discard is one), idle-deferred, and the column
- * renders whatever is already here.
+ * for the files when the unpublished list changes, for the recovery on a
+ * working-tree invalidation (a discard is one) and for the home on a shared
+ * one (remotes live in the config), idle-deferred, and Overview renders
+ * whatever is already here.
  */
 export function createWorkDetailController(ports: WorkDetailPorts) {
   const snapshots = new Map<string, WorkDetailSnapshot>();
   const listeners = new Map<string, Set<() => void>>();
   const recoveryGenerations = new Map<string, number>();
+  const homeGenerations = new Map<string, number>();
 
   const keyOf = (query: WorkDetailQuery): string => `${query.projectId}\0${query.sessionEpoch}`;
   const read = (key: string): WorkDetailSnapshot => snapshots.get(key) ?? EMPTY;
@@ -164,6 +179,34 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
       if (read(k).incoming?.key !== key) return;
       write(k, { ...read(k), incoming: next });
     },
+    /** Reads where the project lives. One that cannot be read keeps what was
+     * shown, or says it is unavailable when nothing was, so a failing read
+     * never claims the project has no remote nor waits forever. */
+    async refreshRemoteHome(query: WorkDetailQuery): Promise<void> {
+      const key = keyOf(query);
+      const generation = (homeGenerations.get(key) ?? 0) + 1;
+      homeGenerations.set(key, generation);
+      let home: RemoteHome | null;
+      try {
+        home = await ports.readRemoteHome(query);
+      } catch {
+        if (homeGenerations.get(key) === generation && read(key).home.status === "unknown") {
+          write(key, { ...read(key), home: { status: "unavailable" } });
+        }
+        return;
+      }
+      if (homeGenerations.get(key) !== generation) return;
+      const current = read(key);
+      const shown = current.home.status === "ready" ? current.home.home : undefined;
+      if (
+        shown !== undefined
+        && shown?.remote === home?.remote
+        && shown?.provider === home?.provider
+        && shown?.label === home?.label
+        && shown?.hasWebPage === home?.hasWebPage
+      ) return;
+      write(key, { ...current, home: { status: "ready", home } });
+    },
     /** Nothing is waiting on the remote any more. */
     clearIncoming(query: WorkDetailQuery): void {
       const k = keyOf(query);
@@ -175,6 +218,7 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
       const key = keyOf(query);
       snapshots.delete(key);
       recoveryGenerations.delete(key);
+      homeGenerations.delete(key);
     },
   };
 }

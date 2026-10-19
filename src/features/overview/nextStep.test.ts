@@ -83,19 +83,16 @@ describe("deriveNextStep", () => {
   it("asks to save unsaved work, in the unsaved colour, before anything remote", () => {
     const step = next({ workingTree: tree({ changed: 3, total: 3 }), pendingVersionsCount: 2, teamSync: sync({ state: "ahead", ahead: 2 }) });
     expect(step).toMatchObject({ kind: "save", tone: "unsaved", primary: "save", secondary: ["reviewChanges"] });
-    expect(step.progress).toEqual({ done: 1, current: 1 });
   });
 
   it("puts overlapping changes first, as a blocked step with no way round it", () => {
     const step = next({ workingTree: tree({ changed: 1, conflicted: 2, total: 3 }) });
     expect(step).toMatchObject({ kind: "conflicts", tone: "blocked", primary: "resolve", secondary: [] });
-    expect(step.progress.current).toBe(0);
   });
 
   it("offers to publish saved versions in the accent, and only when publishing is possible", () => {
     const ready = next({ pendingVersionsCount: 2, teamSync: sync({ state: "ahead", ahead: 2 }) });
     expect(ready).toMatchObject({ kind: "publish", tone: "ready", primary: "publish" });
-    expect(ready.progress).toEqual({ done: 2, current: 2 });
 
     const blocked = next({ pendingVersionsCount: 2, teamSync: sync({ state: "ahead", ahead: 2 }) }, false);
     expect(blocked).toMatchObject({ kind: "unpublished", tone: "ready", primary: null });
@@ -116,7 +113,6 @@ describe("deriveNextStep", () => {
   it("goes quiet when everything is saved and published, leaving the check to the facts column", () => {
     const step = next({});
     expect(step).toMatchObject({ kind: "upToDate", tone: "calm", primary: null, secondary: [] });
-    expect(step.progress).toEqual({ done: 3, current: null });
   });
 
   it("reports what it cannot act on yet without inventing an action", () => {

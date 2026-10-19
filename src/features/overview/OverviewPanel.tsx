@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from "react";
-import { FolderOpen, GitBranch, Pencil, Settings } from "lucide-react";
+import React, { Suspense, lazy, useMemo } from "react";
+import { FolderOpen, History, Pencil, Settings } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import {
@@ -9,22 +9,19 @@ import {
   type ProjectIconChoice,
   type TechnologyId,
 } from "../../shared/ui";
-import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
+import type { RepositoryInfo } from "../repository";
 import type { WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
-import {
-  VersionLineQuickSwitch,
-  type VersionLineCreateContext,
-  type VersionLinesSnapshot,
-} from "../version-lines";
+import type { VersionLinesSnapshot } from "../version-lines";
 import type { TeamSyncViewState } from "../sync";
 import { deriveJourney } from "./journey";
 import { NextStepCard, type NextStepHandlers } from "./NextStepCard";
 import { deriveNextStep } from "./nextStep";
 import { OverviewNow } from "./OverviewNow";
 import { OverviewDetail, overviewDetailMode } from "./OverviewDetail";
-import type { WorkDetailController } from "./workDetail";
+import { RemoteHomeCrumb } from "./RemoteHomeCrumb";
+import { useActiveWorkDetail, type RemoteHomeState, type WorkDetailController } from "./workDetail";
 import { HistoryPlaceholderList, OverviewPlaceholder } from "./OverviewPlaceholder";
 import { HomeLauncher, type HomeRecentEntry } from "../home";
 
@@ -40,31 +37,20 @@ export type OverviewProjectIdentity = {
 };
 
 /**
- * Who this screen is about, as one row of breadcrumbs rather than a block:
- * the project, a slash, the line it is on — read as an address, "this
- * project, on this line", the way Vercel and Linear head a page — and the
- * project's folder and settings at the far end. The path is the folder
- * button's tooltip and the technology is the project's own icon, so neither
- * is spelled out. The next-step card under it is the page's subject; this row only says
- * where it is.
- *
- * Its tile is the project's own icon — the chosen emoji, the detected
- * technology or the initials — the same chip the rail shows for it, so the
- * project is recognised here the way it is recognised there. Pressing it
- * opens the icon section of project settings.
+ * Who this screen is about, as one row rather than a block: the project's
+ * icon and name, and where it lives as a chip beside them — the service and
+ * its `owner/name`, opening its page, or "Only on this computer" — the way
+ * Vercel and Linear head a page; and the project's folder and settings at
+ * the far end. The line it is on is the status bar's, not
+ * repeated here. The path is the folder button's tooltip and the technology
+ * is the project's own icon, so neither is spelled out. The next-step card
+ * under it is the page's subject; this row only says whose page this is.
  */
 function OverviewHeader({
   project,
   identity,
-  overview,
-  versionValue,
-  versionLines,
-  isLoadingVersionLines,
-  favouriteVersionLines,
-  onToggleFavouriteVersionLine,
-  onQuickSwitchVersionLine,
-  versionLineCreate,
-  onGoToVersionLines,
+  home,
+  onOpenRemoteHome,
   onOpenProjectFolder,
   onOpenProjectSettings,
   onChangeProjectIcon,
@@ -72,15 +58,9 @@ function OverviewHeader({
 }: {
   project: RepositoryInfo;
   identity: OverviewProjectIdentity;
-  overview: ReturnType<typeof getRepositoryOverviewState>;
-  versionValue: string;
-  versionLines: VersionLinesSnapshot | null;
-  isLoadingVersionLines: boolean;
-  favouriteVersionLines: ReadonlySet<string>;
-  onToggleFavouriteVersionLine: (name: string) => void;
-  onQuickSwitchVersionLine: (target: string) => void;
-  versionLineCreate?: VersionLineCreateContext;
-  onGoToVersionLines: () => void;
+  home: RemoteHomeState;
+  /** Opens the named remote's page in the browser. */
+  onOpenRemoteHome: (remote: string) => void;
   /** Opens the project's folder in the system file manager. */
   onOpenProjectFolder: () => void;
   /** The same panel the project switcher's gear opens, for the project this
@@ -117,29 +97,7 @@ function OverviewHeader({
         </span>
       </button>
       <h1 id="project-summary-heading" className="overview-header__name" title={project.name} tabIndex={-1} data-screen-focus>{project.name}</h1>
-      <span className="overview-header__slash" aria-hidden="true">/</span>
-      <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
-        {overview.isUnborn ? (
-          <span className="overview-meta__branch-note" title={t[overview.versionDescriptionKey]}>
-            <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
-            <span className="version-line-card__value">{versionValue}</span>
-          </span>
-        ) : (
-          <VersionLineQuickSwitch
-            snapshot={versionLines}
-            isLoadingSnapshot={isLoadingVersionLines}
-            currentValue={versionValue}
-            canSwitch={!overview.isDetached}
-            favouriteLines={favouriteVersionLines}
-            onToggleFavourite={onToggleFavouriteVersionLine}
-            onSwitch={onQuickSwitchVersionLine}
-            create={versionLineCreate}
-            showCreateControl={false}
-            menuAnchor="below"
-            onSeeAll={onGoToVersionLines}
-          />
-        )}
-      </div>
+      <RemoteHomeCrumb home={home} onOpen={onOpenRemoteHome} />
       <button
         className="overview-header__tool overview-header__tool--first"
         type="button"
@@ -186,13 +144,10 @@ export function OverviewPanel({
   pendingVersions,
   pendingVersionsError,
   versionLines,
-  isLoadingVersionLines,
-  favouriteVersionLines,
-  onToggleFavouriteVersionLine,
   onQuickSwitchVersionLine,
-  versionLineCreate,
   onGoToVersionLines,
   onOpenProjectFolder,
+  onOpenRemoteHome,
   onOpenSaveVersion,
   teamSync,
   onCheckTeamChanges,
@@ -248,19 +203,16 @@ export function OverviewPanel({
    * lines screen so Overview's quick-switch menu opens instantly instead of
    * reading branches again every time (task 019). */
   versionLines: VersionLinesSnapshot | null;
-  isLoadingVersionLines: boolean;
-  favouriteVersionLines: ReadonlySet<string>;
-  onToggleFavouriteVersionLine: (name: string) => void;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
   onQuickSwitchVersionLine: (target: string) => void;
-  /** Where the header's quick switch makes a new line, inside its popup. */
-  versionLineCreate?: VersionLineCreateContext;
   onGoToVersionLines: () => void;
   /** Opens the project's folder in the system file manager, from the
    * header's folder button. */
   onOpenProjectFolder: () => void;
+  /** Opens the named remote's web page, from the header's chip. */
+  onOpenRemoteHome: (remote: string) => void;
   /** Opens this project's own settings — the remote it publishes to, the files
    * it ignores, and the identity it saves as. */
   onOpenProjectSettings: () => void;
@@ -291,8 +243,9 @@ export function OverviewPanel({
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
   historyController: HistoryController;
-  /** The side column's cache: the files of the unpublished versions and the
-   * newest restorable discard, filled by the composition root. */
+  /** Overview's cache: the files of the unpublished versions, the newest
+   * restorable discard and where the project lives, filled by the
+   * composition root. */
   workDetail: WorkDetailController;
   /** Opens Changes with its restore picker already open, from the side
    * column's discarded-changes card. */
@@ -300,12 +253,13 @@ export function OverviewPanel({
   onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  const query = useMemo(
+    () => ({ projectId: project?.path ?? "", sessionEpoch: project?.sessionEpoch ?? "" }),
+    [project?.path, project?.sessionEpoch],
+  );
+  const { home } = useActiveWorkDetail(workDetail, query);
 
   if (project) {
-    const overview = getRepositoryOverviewState(project);
-    const versionValue = overview.isDetached
-      ? t.overviewSpecificSavedVersion
-      : (overview.versionLine ?? t.overviewNoSavedVersions);
     const journey = deriveJourney({
       workingTree,
       workingTreeError,
@@ -354,15 +308,8 @@ export function OverviewPanel({
         <OverviewHeader
           project={project}
           identity={projectIdentity}
-          overview={overview}
-          versionValue={versionValue}
-          versionLines={versionLines}
-          isLoadingVersionLines={isLoadingVersionLines}
-          favouriteVersionLines={favouriteVersionLines}
-          onToggleFavouriteVersionLine={onToggleFavouriteVersionLine}
-          onQuickSwitchVersionLine={onQuickSwitchVersionLine}
-          versionLineCreate={versionLineCreate}
-          onGoToVersionLines={onGoToVersionLines}
+          home={home}
+          onOpenRemoteHome={onOpenRemoteHome}
           onOpenProjectFolder={onOpenProjectFolder}
           onOpenProjectSettings={onOpenProjectSettings}
           onChangeProjectIcon={onChangeProjectIcon}
@@ -373,7 +320,7 @@ export function OverviewPanel({
 
         {/* Where the work is, as one timeline — waiting on the remote, now,
             only on this computer, published — beside what the next step will
-            move and a scene of where the work is. */}
+            move. */}
         <div className="overview-body">
           <Suspense
             fallback={
@@ -381,7 +328,10 @@ export function OverviewPanel({
               // first read draws, so nothing changes when it lands.
               <section className="overview-history" aria-labelledby="overview-history-title">
                 <header className="overview-history__header">
-                  <h2 id="overview-history-title">{t.overviewHistoryTitle}</h2>
+                  <h2 id="overview-history-title">
+                    <History className="overview-history__glyph" aria-hidden="true" />
+                    {t.overviewHistoryTitle}
+                  </h2>
                 </header>
                 <LoadingPlaceholder label={t.overviewHistoryLoading}>
                   <HistoryPlaceholderList />
@@ -418,14 +368,12 @@ export function OverviewPanel({
             workingTree={workingTree}
             pendingVersions={pendingVersions}
             workDetail={workDetail}
-            historyController={historyController}
             projectPath={project.path}
             sessionEpoch={project.sessionEpoch}
             onReviewChanges={onReviewChanges}
             onResolve={() => onReviewChanges()}
             onGetChanges={onReviewAndGetTeamChanges}
             onOpenHistory={onOpenHistory}
-            onOpenProjectSettings={onOpenProjectSettings}
             onRestoreDiscarded={onRestoreDiscarded}
           />
         </div>

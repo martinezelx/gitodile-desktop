@@ -1,45 +1,17 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
-import { createHistoryController, type HistoryPage, type SavedVersionSummary } from "../history";
 import type { PendingVersionsResult } from "../publish";
 import type { WorkingTreeEntry, WorkingTreeStatus } from "../status";
 import { EMPTY_TEAM_SYNC_STATE, type TeamSyncViewState } from "../sync";
 import { deriveJourney } from "./journey";
 import { OverviewDetail, overviewDetailMode } from "./OverviewDetail";
-import { playSceneTransition } from "./sceneMotion";
 import { createWorkDetailController } from "./workDetail";
 
-vi.mock("./sceneMotion", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./sceneMotion")>()),
-  playSceneTransition: vi.fn(),
-}));
-
 const query = { projectId: "/repo", sessionEpoch: "epoch" };
-
-function version(index: number, publication: SavedVersionSummary["publication"]): SavedVersionSummary {
-  return {
-    commit: `${index}`.repeat(40),
-    shortCommit: `${index}`.repeat(7),
-    parents: [],
-    subject: `Saved version ${index}`,
-    description: "",
-    author: { name: "Lin", email: "lin@example.com" },
-    authoredAt: { unixSeconds: 1_700_000_000, offsetMinutes: 0 },
-    committedAt: { unixSeconds: 1_700_000_000, offsetMinutes: 0 },
-    decorations: [],
-    isRoot: false,
-    isMerge: false,
-    publication,
-    subjectTruncated: false,
-    descriptionTruncated: false,
-    decorationsTruncated: false,
-    messageUnavailable: null,
-  };
-}
 
 function tree(entries: WorkingTreeEntry[], lineTotals: WorkingTreeStatus["lineTotals"] = null): WorkingTreeStatus {
   const counts = { changed: 0, new: 0, deleted: 0, renamed: 0, conflicted: 0, total: entries.length };
@@ -92,36 +64,16 @@ async function setup({
   state: "ahead" | "upToDate" | "behind" | "upstreamGone";
   readIncoming?: boolean;
   incomingFails?: boolean;
-  /** How many stored discards the picker could restore. */
+  /** How many stored discards the picker could restore; none reads as no discard. */
   recoveryCopies?: number;
 }) {
-  const page: HistoryPage = {
-    repositoryId: query.projectId,
-    snapshotToken: "s",
-    scope: { kind: "currentLine" },
-    branch: "main",
-    headState: "branch",
-    headCommit: "2".repeat(40),
-    upstream: { remote: "origin", destinationBranch: "main", trackingRef: "refs/remotes/origin/main", commit: "1".repeat(40) },
-    versions: [version(2, state === "ahead" ? "local-only" : "published"), version(1, "published")],
-    nextCursor: null,
-    hasMore: false,
-    shallow: false,
-    warnings: [],
-  };
-  const history = createHistoryController({
-    readPage: vi.fn(async () => page),
-    readDetail: vi.fn(),
-    readFileDiff: vi.fn(),
-    readImagePreview: vi.fn(),
-  });
-  await history.refresh(query);
   const workDetail = createWorkDetailController({
     readCommitFileChanges: vi.fn(async () => [
       { path: "src/app.ts", originalPath: null, category: "changed" as const },
       { path: "src/new.ts", originalPath: null, category: "new" as const },
     ]),
-    findRestorableDiscard: vi.fn(async () => ({ recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3, restorableCount: recoveryCopies })),
+    findRestorableDiscard: vi.fn(async () => (recoveryCopies > 0 ? { recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3, restorableCount: recoveryCopies } : null)),
+    readRemoteHome: vi.fn(async () => null),
     readIncomingVersions: vi.fn(async () => {
       if (incomingFails) throw new Error("unreadable");
       return {
@@ -143,7 +95,6 @@ async function setup({
     onResolve: vi.fn(),
     onGetChanges: vi.fn(),
     onOpenHistory: vi.fn(),
-    onOpenProjectSettings: vi.fn(),
     onRestoreDiscarded: vi.fn(),
   };
   const draw = (next: { workingTree: WorkingTreeStatus | null; pending: PendingVersionsResult; state: "ahead" | "upToDate" | "behind" | "upstreamGone" }) => {
@@ -163,7 +114,6 @@ async function setup({
             workingTree={next.workingTree}
             pendingVersions={next.pending}
             workDetail={workDetail}
-            historyController={history}
             projectPath={query.projectId}
             sessionEpoch={query.sessionEpoch}
             {...handlers}
@@ -180,7 +130,7 @@ const NO_PENDING: PendingVersionsResult = { totalCount: 0, versions: [], isTrunc
 
 afterEach(() => {
   cleanup();
-  vi.mocked(playSceneTransition).mockClear();
+  delete (window as Partial<Window>).matchMedia;
 });
 
 const ONE_PENDING: PendingVersionsResult = {
@@ -190,7 +140,7 @@ const ONE_PENDING: PendingVersionsResult = {
 };
 
 describe("OverviewDetail", () => {
-  it("shows what the next version will hold, with the way back as one line", async () => {
+  it("shows what the next version will hold, with no note under it", async () => {
     const entry = (path: string): WorkingTreeEntry => ({ path, originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true });
     const { handlers } = await setup({
       workingTree: tree([entry("src/a.ts"), entry("src/b.ts")], { added: 12, removed: 3 }),
@@ -201,17 +151,9 @@ describe("OverviewDetail", () => {
     expect(screen.getByRole("heading", { name: "What you'll save" })).toBeInTheDocument();
     expect(screen.getByText("2 files")).toBeInTheDocument();
     expect(screen.getByLabelText("12 lines added, 3 removed")).toBeInTheDocument();
-    expect(screen.getByText("Stays here until you publish.")).toBeInTheDocument();
+    expect(screen.queryByText("Stays here until you publish.")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Review src/a.ts" }));
     expect(handlers.onReviewChanges).toHaveBeenCalledWith("src/a.ts");
-
-    // The scene leads the column, small, saying what is unsaved here; the
-    // detail comes under it.
-    const scene = screen.getByRole("region", { name: "Where your work is" });
-    expect(scene).toHaveClass("work-scene--small");
-    expect(scene).toHaveTextContent("2 unsaved");
-    const heading = screen.getByRole("heading", { name: "What you'll save" });
-    expect(scene.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows the files the unpublished versions carry and where they go", async () => {
@@ -231,67 +173,91 @@ describe("OverviewDetail", () => {
     expect(screen.getByText("Seen by anyone on this line.")).toBeInTheDocument();
   });
 
-  it("draws where the work is once nothing is waiting, and opens the restore picker for a discard", async () => {
+  it("gives the column to the discard once nothing is waiting, and opens the restore picker", async () => {
     const { handlers } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate" });
 
-    const scene = screen.getByRole("region", { name: "Where your work is" });
-    expect(scene).toHaveClass("work-scene--large");
-    expect(scene).toHaveTextContent("Here");
-    expect(scene).toHaveTextContent("origin");
-    expect(scene).toHaveTextContent("up to date");
-    expect(scene.querySelector(".work-scene__path--synced")).not.toBeNull();
-    expect(scene).toHaveAttribute("title", expect.stringContaining("if something happens to one"));
-    expect(screen.getByText("Discarded changes")).toBeInTheDocument();
-    expect(screen.getByText(/^3 files · /)).toBeInTheDocument();
-    expect(document.querySelector(".overview-restore__badge")).toBeNull();
+    // Alone in the column it is a card of its own, headed like its siblings.
+    const card = screen.getByRole("heading", { name: "Discarded changes" }).closest(".overview-detail");
+    expect(card?.parentElement).toHaveClass("overview-side");
+    expect(document.querySelector(".overview-restore")).toBeNull();
+    expect(screen.getByText("3 files")).toBeInTheDocument();
+    expect(screen.getByText(/^discarded 1 minute ago$/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
     expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
   });
 
-  it("draws no copy on the remote for a line whose remote branch is gone", async () => {
-    await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upstreamGone" });
+  it("draws no column when nothing is waiting and nothing can be restored", async () => {
+    const { container } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 0 });
 
-    const scene = screen.getByRole("region", { name: "Where your work is" });
-    expect(scene).toHaveTextContent("No copy");
-    expect(scene).not.toHaveTextContent("up to date");
-    expect(scene.querySelector(".work-scene__path--synced")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Connect/ })).toBeNull();
+    // The timeline takes the width.
+    expect(container.querySelector(".overview-side")).toBeNull();
   });
 
   it("counts the copies when several can be restored, rather than one copy's files", async () => {
-    await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
+    const { redraw } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
 
-    // The count rides the icon, as the scene's badges do, and is read out;
-    // the line under the title only dates the newest copy.
-    const card = screen.getByText("Discarded changes").closest(".overview-restore");
-    expect(card?.querySelector(".overview-restore__badge")).toHaveTextContent("3");
-    expect(screen.getByText("3 copies")).toHaveClass("visually-hidden");
+    // Alone, the card counts them and dates the newest.
+    expect(screen.getByText("3 copies")).toBeInTheDocument();
     expect(screen.getByText(/^latest /)).toBeInTheDocument();
+
+    // Under a detail card the count rides the row's icon and is read out.
+    redraw({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
+    const row = screen.getByText("Discarded changes").closest(".overview-restore");
+    expect(row?.querySelector(".overview-restore__badge")).toHaveTextContent("3");
+    expect(screen.getByText("3 copies")).toHaveClass("visually-hidden");
+  });
+
+  it("scrolls what you'll save while the screen fits, and points to Review at the end", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    });
+    const entry = (index: number): WorkingTreeEntry => ({ path: `src/f${index}.ts`, originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true });
+    const { container } = await setup({ workingTree: tree(Array.from({ length: 60 }, (_, index) => entry(index))), pending: NO_PENDING, state: "upToDate" });
+
+    // Every file up to the cap is listed, the rest counted at the end.
+    const list = container.querySelector<HTMLElement>(".overview-detail__files--scroll");
+    if (!list) throw new Error("no scrolling list");
+    expect(list.querySelectorAll("button.overview-detail__file")).toHaveLength(50);
+    expect(list).toHaveTextContent("and 10 more");
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 900 });
+    const review = screen.getByRole("button", { name: "Review" });
+
+    fireEvent.scroll(list);
+    await waitFor(() => expect(list).toHaveAttribute("data-more-below"));
+    expect(review).not.toHaveClass("overview-detail__link--lead");
+
+    list.scrollTop = 600;
+    fireEvent.scroll(list);
+    await waitFor(() => expect(review).toHaveClass("overview-detail__link--lead", "attention-breathe"));
+    expect(list).not.toHaveAttribute("data-more-below");
+
+    list.scrollTop = 100;
+    fireEvent.scroll(list);
+    await waitFor(() => expect(review).not.toHaveClass("overview-detail__link--lead"));
   });
 
   it("offers the discard whenever everything is saved, and never over unsaved work", async () => {
     const { redraw } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
 
     // Saved but not published: the detail card leads, and the discard still
-    // sits under it, plain like the small scene.
+    // sits under it, drawn smaller.
     expect(screen.getByRole("heading", { name: "What you'll publish" })).toBeInTheDocument();
-    expect(screen.getByText("Discarded changes").closest(".overview-restore")).toHaveClass("overview-restore--compact");
+    expect(screen.getByText("Discarded changes").closest(".overview-restore")?.previousElementSibling).toHaveClass("overview-detail");
 
     const entry: WorkingTreeEntry = { path: "src/a.ts", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true };
     redraw({ workingTree: tree([entry]), pending: ONE_PENDING, state: "ahead" });
     expect(screen.queryByText("Discarded changes")).not.toBeInTheDocument();
   });
 
-  it("names the versions waiting on the remote, and shows them arriving in the scene", async () => {
+  it("names the versions waiting on the remote", async () => {
     const { handlers } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "behind" });
 
     expect(screen.getByRole("heading", { name: "What you'll get" })).toBeInTheDocument();
     expect(screen.getByText("2 versions")).toBeInTheDocument();
     expect(screen.getByText("fix(sync): keep the check")).toBeInTheDocument();
     expect(screen.getByText("You'll see what changes first.")).toBeInTheDocument();
-    const scene = screen.getByRole("region", { name: "Where your work is" });
-    expect(scene.querySelectorAll(".work-scene__dot--in")).toHaveLength(1);
-    expect(scene).toHaveTextContent("1 new");
     await userEvent.click(screen.getByRole("button", { name: /Review/ }));
     expect(handlers.onGetChanges).toHaveBeenCalledOnce();
   });
@@ -309,37 +275,5 @@ describe("OverviewDetail", () => {
     expect(screen.getByRole("heading", { name: "What you'll get" })).toBeInTheDocument();
     expect(screen.getByText("Reading the versions…")).toBeInTheDocument();
     expect(document.querySelectorAll(".overview-detail__placeholder-row")).toHaveLength(3);
-  });
-
-  it("stands the scene's shape in until the project has been read, so it never jumps", async () => {
-    await setup({ workingTree: null, pending: NO_PENDING, state: "upToDate" });
-
-    expect(screen.getByRole("status")).toHaveTextContent("Reading where your work is…");
-    expect(screen.queryByRole("region", { name: "Where your work is" })).toBeNull();
-  });
-
-  it("moves the scene once when its state changes, never on its first drawing", async () => {
-    const { redraw } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
-    expect(playSceneTransition).not.toHaveBeenCalled();
-
-    redraw({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate" });
-
-    expect(playSceneTransition).toHaveBeenCalledOnce();
-    const [element, before, after] = vi.mocked(playSceneTransition).mock.calls[0];
-    expect(element).toBe(screen.getByRole("region", { name: "Where your work is" }));
-    expect(before).toMatchObject({ outgoing: 1, synced: false });
-    expect(after).toMatchObject({ outgoing: 0, synced: true });
-  });
-
-  it("keeps a change made while the Overview was hidden for when it comes back", async () => {
-    const { redraw, lifecycle } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
-
-    act(() => lifecycle.transition("hidden"));
-    redraw({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate" });
-    expect(playSceneTransition).not.toHaveBeenCalled();
-
-    act(() => lifecycle.transition("active"));
-    await waitFor(() => expect(playSceneTransition).toHaveBeenCalledOnce());
-    expect(vi.mocked(playSceneTransition).mock.calls[0][1]).toMatchObject({ outgoing: 1 });
   });
 });

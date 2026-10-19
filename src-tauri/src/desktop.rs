@@ -91,6 +91,16 @@ pub(crate) fn open_project_folder(path: String) -> Result<(), AppError> {
     })
 }
 
+/// Opens the web page of one of the project's remotes in the browser. The
+/// renderer names the remote; the address is derived here from the project's
+/// own configuration, so the opener never receives a URL the renderer wrote.
+pub(crate) fn open_remote_home(path: String, remote: String) -> Result<(), AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "open_remote_home", None)?;
+    let page = crate::sync::remote_web_page(&path, &remote)?;
+    open_derived_url(&page)
+}
+
 /// Shows where Git, or one of its configuration files, lives. The path is the
 /// one `tooling` found again for the named place, never one the renderer sent.
 pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {

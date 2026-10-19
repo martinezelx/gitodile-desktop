@@ -282,7 +282,6 @@ describe("production style composition", () => {
       ["features/overview/overview.css", ".next-step"],
       ["features/overview/overview.css", ".overview-history"],
       ["features/overview/overview.css", ".overview-detail"],
-      ["features/overview/overview.css", ".work-scene"],
     ];
     for (const [file, selector] of regions) {
       const body = ruleBody(file, selector);
