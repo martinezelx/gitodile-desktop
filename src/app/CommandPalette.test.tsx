@@ -192,6 +192,17 @@ describe("CommandPalette commands", () => {
     expect(filterAppCommands(commands, "zzz")).toEqual([]);
   });
 
+  it("returns the matches in the drawn, grouped order, so the selection runs the row it highlights", () => {
+    // Lines files its own "New version line" under Project right after the Go
+    // entries; drawn grouped, it comes after them — and Enter must agree.
+    const mixed = [
+      { id: "go-overview", label: "Go to Overview", group: "Go", icon: null, action: vi.fn() },
+      { id: "new-version-line", label: "New version line", group: "Project", icon: null, action: vi.fn() },
+      { id: "go-console", label: "Go to Console", group: "Go", icon: null, action: vi.fn() },
+    ];
+    expect(filterAppCommands(mixed, "").map((command) => command.id)).toEqual(["go-overview", "go-console", "new-version-line"]);
+  });
+
   it("groups consecutive commands under their section, once each", () => {
     const grouped = groupAppCommands([
       { id: "a", label: "A", group: "Go", icon: null, action: vi.fn() },

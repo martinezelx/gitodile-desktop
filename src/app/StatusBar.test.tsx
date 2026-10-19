@@ -98,7 +98,7 @@ function paletteProps(overrides: Partial<StatusBarProps["commandPalette"]> = {})
     isOpen: false,
     query: "",
     inputRef: React.createRef<HTMLInputElement>(),
-    shortcut: "Ctrl+K",
+    keyShortcuts: "Control+K",
     onOpen: vi.fn(),
     onQueryChange: vi.fn(),
     onKeyDown: vi.fn(),

@@ -93,9 +93,15 @@ export function paletteMeta(id: string, t: Translations): Pick<AppCommand, "grou
   }
 }
 
+/** The matches in the order the panel draws them: grouped by section, each
+ * section where its first command appears. The selection is an index into
+ * this list, so it must be the drawn order — a section that recurs further
+ * down (a screen's own command filed under Project among the Go entries)
+ * would otherwise leave the highlighted row and the one Enter runs apart. */
 export function filterAppCommands(commands: readonly AppCommand[], query: string): AppCommand[] {
   const needle = query.trim().toLowerCase();
-  return commands.filter((command) => needle === "" || command.label.toLowerCase().includes(needle));
+  const matches = commands.filter((command) => needle === "" || command.label.toLowerCase().includes(needle));
+  return groupAppCommands(matches).flatMap((group) => group.commands);
 }
 
 export type CommandGroup = { name: string; commands: AppCommand[] };
@@ -127,6 +133,9 @@ const PANEL_EDGE = 12;
  * paints, and a test's DOM reports a stubbed box for every element. */
 const PANEL_WIDTH = 480;
 const PANEL_VIEWPORT_MARGIN = 48;
+/** The narrowest field the results can grow out of. Below it a row's name
+ * and its shortcut no longer share a line, so the panel floats instead. */
+const FUSED_MIN_WIDTH = 320;
 
 /** Where the panel's centre can sit: on the field's centre when the window has
  * room, pulled inside its edges when the field sits near one — Console's field
@@ -153,6 +162,7 @@ export function CommandPalette({
   anchorRef,
   reducedMotion = false,
   variant = "app",
+  fitToField = false,
   onSelect,
   onHover,
 }: {
@@ -169,11 +179,16 @@ export function CommandPalette({
   /** Which material the results wear: the app's raised card, or the console's
    * own pane when the field belongs to the Console. */
   variant?: "app" | "console";
+  /** Grow out of the field as one object (DESIGN.md § Status bar): the panel
+   * takes the field's width and sits on its top edge, and the open field
+   * becomes the object's foot. A field too narrow to carry the results (see
+   * `FUSED_MIN_WIDTH`) gets a floating panel of its own instead. */
+  fitToField?: boolean;
   onSelect: (command: AppCommand) => void;
   onHover: (index: number) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
-  const [anchor, setAnchor] = useState<{ left: number; bottom: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ left: number; bottom: number; width?: number; fused?: boolean } | null>(null);
   // Closing keeps the panel mounted for the leaving animation, holding the
   // last results and the surface it opened with, so a destination that changes
   // screens cannot flash the other material while the panel fades.
@@ -235,22 +250,36 @@ export function CommandPalette({
         setAnchor({ left: window.innerWidth / 2, bottom: 96 });
         return;
       }
-      const rect = element.getBoundingClientRect();
+      // Fitted, the panel matches the whole field — its glyph included — not
+      // only the input inside it.
+      const field = fitToField ? (element.closest("[data-palette-field]") ?? element) : element;
+      const rect = field.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) {
         setAnchor(null);
         return;
       }
       const center = rect.left + rect.width / 2;
-      const panelWidth = Math.min(PANEL_WIDTH, Math.max(window.innerWidth - PANEL_VIEWPORT_MARGIN, 0));
+      const roomy = Math.max(window.innerWidth - PANEL_VIEWPORT_MARGIN, 0);
+      const fused = fitToField && rect.width >= FUSED_MIN_WIDTH;
+      const panelWidth = fused
+        ? rect.width
+        : fitToField
+          ? Math.min(Math.max(rect.width, FUSED_MIN_WIDTH), roomy)
+          : Math.min(PANEL_WIDTH, roomy);
+      // The field learns whether it is the object's foot, so its open state
+      // can join the panel or stay a field of its own.
+      if (fused) field.setAttribute("data-palette-fused", "");
+      else field.removeAttribute("data-palette-fused");
       setAnchor({
         left: clampPaletteLeft(center, panelWidth, window.innerWidth),
-        bottom: window.innerHeight - rect.top + 8,
+        bottom: window.innerHeight - rect.top + (fused ? 0 : 8),
+        ...(fitToField ? { width: panelWidth, fused } : {}),
       });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [phase, anchorRef]);
+  }, [phase, anchorRef, fitToField]);
 
   if (phase === "closed") return null;
 
@@ -263,9 +292,9 @@ export function CommandPalette({
 
   return (
     <div
-      className={`palette-panel${surface === "console" ? " palette-panel--console" : ""}${phase === "closing" ? " palette-panel--closing" : ""}`}
+      className={`palette-panel${surface === "console" ? " palette-panel--console" : ""}${anchor?.fused ? " palette-panel--fused" : ""}${anchor?.width ? " palette-panel--fit" : ""}${phase === "closing" ? " palette-panel--closing" : ""}`}
       data-palette-panel=""
-      style={anchor ? { left: `${anchor.left}px`, bottom: `${anchor.bottom}px` } : undefined}
+      style={anchor ? { left: `${anchor.left}px`, bottom: `${anchor.bottom}px`, ...(anchor.width ? { width: `${anchor.width}px` } : {}) } : undefined}
     >
       <ul
         {...autoHideScrollbarProps<HTMLUListElement>()}
@@ -307,7 +336,10 @@ export function CommandPalette({
           </React.Fragment>
         ))}
       </ul>
-      <div className="palette-footer" aria-hidden="true">
+      {/* The keys are spelled only on the Console's terminal pane; elsewhere
+          the selected row says Enter, and the arrows and Escape are what
+          every list already answers to. */}
+      {!fitToField && <div className="palette-footer" aria-hidden="true">
         <span>
           <kbd>↑</kbd>
           <kbd>↓</kbd> {t.paletteMove}
@@ -318,7 +350,7 @@ export function CommandPalette({
         <span>
           <kbd>esc</kbd> {t.paletteClose}
         </span>
-      </div>
+      </div>}
     </div>
   );
 }

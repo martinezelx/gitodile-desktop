@@ -285,9 +285,11 @@ export function App(): React.JSX.Element {
   const paletteFocusPending = useRef(false);
   const [paletteFocusTick, setPaletteFocusTick] = useState(0);
   /* Spelled the way the shortcut sheet spells it: ⌘K on a Mac, Ctrl+K elsewhere.
-     Both the strip's field and the Console's print it, so it is spelled once. */
+     The Console's field prints it; the strip's and Home's fields announce it
+     to assistive technology instead, in `aria-keyshortcuts` form. */
   const { mod: paletteModifier } = modifierKeyLabels(null);
   const paletteShortcut = IS_MAC ? `${paletteModifier}K` : `${paletteModifier}+K`;
+  const paletteKeyShortcuts = IS_MAC ? "Meta+K" : "Control+K";
   const [isCloneOpen, setIsCloneOpen] = useState(false);
   const [watcherRegistrations, setWatcherRegistrations] = useState<Record<string, WatcherRegistration>>({});
   const [repositoryListenerState, setRepositoryListenerState] = useState<"starting" | "listening" | "unavailable">(
@@ -1044,6 +1046,10 @@ export function App(): React.JSX.Element {
   // Console stays mounted while hidden, so a shared ref would be cleared by
   // the strip's unmount without Console re-registering.
   const consolePaletteAnchorRef = useRef<HTMLInputElement>(null);
+  const homePaletteAnchorRef = useRef<HTMLInputElement>(null);
+  // The field the active screen shows the palette from: the strip's, or the
+  // one Console and Home carry in their own status lines (no strip there).
+  const paletteAnchorRef = view === "console" ? consolePaletteAnchorRef : view === "home" ? homePaletteAnchorRef : commandPaletteAnchorRef;
 
   // Whichever path closed the confirmation (Cancel, Escape, or confirming
   // the close), the target it referred to stops being relevant.
@@ -1130,10 +1136,15 @@ export function App(): React.JSX.Element {
   // favourites in a tab of their own, so a starred project stays reachable
   // there after it has aged out of the newest few. The star itself is the
   // app's existing project favourite, not a second list-local mark.
+  // Open projects stay in the list and say so (task 184): Home shows what is
+  // open as well as what was, and the active one is marked like the
+  // switcher marks it.
   const recentProjectEntries = recentProjects
-    .filter((entry) => view !== "home" || !sessionsState.byId[entry.path])
     .map((entry) => ({
       ...entry,
+      openState: !sessionsState.byId[entry.path]
+        ? null
+        : entry.path === sessionsState.activeId ? ("active" as const) : ("open" as const),
       isFavourite: favouriteProjectIds.has(entry.path),
       iconChoice: projectIconChoices.get(entry.path) ?? null,
       technology: projectTechnologies.has(entry.path)
@@ -1837,13 +1848,6 @@ export function App(): React.JSX.Element {
       );
       return;
     }
-    const index = sessionsState.order.indexOf(id);
-    const remainingOrder = sessionsState.order.filter((sessionId) => sessionId !== id);
-    const nextActiveId =
-      sessionsState.activeId === id && remainingOrder.length > 0
-        ? remainingOrder[Math.min(index, remainingOrder.length - 1)]
-        : sessionsState.activeId;
-    const nextSession = nextActiveId ? sessionsState.byId[nextActiveId] : null;
     // Explicitly evict feature-owned state for this session incarnation.
     // Their generations reject late responses from the closed epoch.
     changesController.close(id, closingSession.epoch);
@@ -1855,14 +1859,13 @@ export function App(): React.JSX.Element {
     historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     workDetailController.forget({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
+    // Closing the active project goes to Home with no project active, the
+    // others still open in the switcher (task 184): the next project is one
+    // the reader picks, never one the app moves them into.
     if (sessionsState.activeId === id) {
       setHomeHistory(null);
-      setView(view === "home" ? "home" : (nextSession?.lastView ?? "home"));
-      if (nextSession) {
-        setProjectAnnouncement(
-          t.projectSwitcherActiveAnnouncement(nextSession.project.name),
-        );
-      }
+      setView("home");
+      setProjectAnnouncement(t.projectSwitcherClosedAnnouncement(closingSession.project.name));
     }
     setIsCloseConfirmOpen(false);
   };
@@ -1921,7 +1924,7 @@ export function App(): React.JSX.Element {
         openPalette();
         // The field is the search itself: the shortcut puts the cursor in the
         // one the active screen shows — the strip's, or the Console's own.
-        (view === "console" ? consolePaletteAnchorRef : commandPaletteAnchorRef).current?.focus();
+        paletteAnchorRef.current?.focus();
         return;
       }
       // The desktop convention for collapsing a sidebar. Guarded like the
@@ -2173,6 +2176,7 @@ export function App(): React.JSX.Element {
       if (!(target instanceof Node)) return false;
       if (commandPaletteAnchorRef.current?.contains(target)) return true;
       if (consolePaletteAnchorRef.current?.contains(target)) return true;
+      if (homePaletteAnchorRef.current?.contains(target)) return true;
       return target instanceof Element && target.closest("[data-palette-panel]") !== null;
     };
     const handlePointerDown = (event: MouseEvent): void => {
@@ -2645,7 +2649,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}${view === "overview" ? " app-shell--overview" : ""}`}
+        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}${view === "overview" ? " app-shell--overview" : ""}${view === "console" || view === "home" ? "" : " app-shell--sheet"}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2668,7 +2672,9 @@ export function App(): React.JSX.Element {
             <div className="sidebar-project-section" data-flyout-group-anchor="">
               <ProjectSwitcherRail
                 entries={switcherEntries}
-                activeId={view === "home" ? null : sessionsState.activeId}
+                activeId={sessionsState.activeId}
+                isHome={view === "home"}
+                onOpenHome={() => navigateToView("home")}
                 canSwitch={!hasBlockingDialog}
                 isOpening={isOpening}
                 onActivate={activateSession}
@@ -2731,7 +2737,9 @@ export function App(): React.JSX.Element {
           <div className="compact-nav-row">
             <ProjectSwitcherCompact
               entries={switcherEntries}
-              activeId={view === "home" ? null : sessionsState.activeId}
+              activeId={sessionsState.activeId}
+              isHome={view === "home"}
+              onOpenHome={() => navigateToView("home")}
               canSwitch={!hasBlockingDialog}
               isOpening={isOpening}
               onActivate={activateSession}
@@ -2834,7 +2842,9 @@ export function App(): React.JSX.Element {
                     setCloneInitialRepositories({ kind, accountId });
                     setIsCloneOpen(true);
                   }}
-                  onOpenRecentProject={(path) => void handleOpenProject(path)}
+                  // An open project is switched to, as the switcher does; only
+                  // a closed one goes through opening again.
+                  onOpenRecentProject={(path) => (sessionsState.byId[path] ? activateSession(path) : void handleOpenProject(path))}
                   onToggleFavouriteRecentProject={toggleFavouriteProject}
                   onForgetRecentProject={(path) => setRecentProjects(forgetRecentProject(path))}
                   hasOpenProjects={sessionsState.order.length > 0}
@@ -2847,6 +2857,16 @@ export function App(): React.JSX.Element {
                   onConfigureIdentity={() => openSettings("git")}
                   onConnectAccount={() => { setOpenAccountsMenu(true); openSettings("accounts"); }}
                   onOpenAccountSettings={() => openSettings("accounts")}
+                  commandPalette={{
+                    isOpen: isPaletteOpen,
+                    query: paletteQuery,
+                    selectedOptionId: paletteSelectedOptionId,
+                    inputRef: homePaletteAnchorRef,
+                    keyShortcuts: paletteKeyShortcuts,
+                    onOpen: openPalette,
+                    onQueryChange: handlePaletteQueryChange,
+                    onKeyDown: handlePaletteKeyDown,
+                  }}
                 />
               ),
               overview: (
@@ -3080,13 +3100,14 @@ export function App(): React.JSX.Element {
           />
         </section>
 
-        {/* On every screen but Console, Overview included: a strip that came
-            and went would make the window resize under the pointer on each
-            navigation, and the one place state is always visible is worth more
-            than the small duplication with Overview's own cards. Console is
-            the exception: it is a terminal across the workspace, and its own
-            status line carries the same project facts, read-only. */}
-        {view !== "console" && <StatusBar
+        {/* The foot of the sheet on every project screen, Overview included:
+            the one place the project's state is always visible is worth more
+            than the small duplication with Overview's own bands. Console and
+            Home are the exceptions, because each ends in a status line of its
+            own (ADR 0032): Console's carries the same project facts,
+            read-only, and Home's "This computer" row is about the machine,
+            which is what a launcher is about. */}
+        {view !== "console" && view !== "home" && <StatusBar
           project={project}
           workingTree={workingTree}
           workingTreeError={workingTreeError}
@@ -3114,7 +3135,7 @@ export function App(): React.JSX.Element {
             query: paletteQuery,
             selectedOptionId: paletteSelectedOptionId,
             inputRef: commandPaletteAnchorRef,
-            shortcut: paletteShortcut,
+            keyShortcuts: paletteKeyShortcuts,
             onOpen: openPalette,
             onQueryChange: handlePaletteQueryChange,
             onKeyDown: handlePaletteKeyDown,
@@ -3144,11 +3165,12 @@ export function App(): React.JSX.Element {
         isOpen={isPaletteOpen}
         matches={paletteMatches}
         selectedIndex={paletteSelectedIndex}
-        // The field the active screen shows: Console owns one in its own status
-        // line, and the strip is not mounted there.
-        anchorRef={view === "console" ? consolePaletteAnchorRef : commandPaletteAnchorRef}
+        // The field the active screen shows: Console and Home own one in their
+        // own status lines, and the strip is not mounted there.
+        anchorRef={paletteAnchorRef}
         reducedMotion={reducedMotion}
         variant={view === "console" ? "console" : "app"}
+        fitToField={view !== "console"}
         onSelect={runPaletteCommand}
         onHover={setPaletteSelectedIndex}
       />

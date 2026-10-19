@@ -6,13 +6,12 @@ import {
   Cloud,
   CloudUpload,
   GitCommitHorizontal,
-  Laptop,
   LoaderCircle,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
-import { autoHideScrollbarProps, LoadingPlaceholder } from "../../shared/ui";
+import { autoHideScrollbarProps, LoadingPlaceholder, LocalOnlyMark } from "../../shared/ui";
 import {
   decorationLabel,
   formatHistoryDate,
@@ -302,9 +301,7 @@ export function HistorySummarySection({
                       {/* Waiting to be published, the status bar's Publish glyph — not the
                         scene's laptop, which wears the unsaved yellow beside
                         it. With nowhere to publish, it stays this computer. */}
-                    <span className="overview-timeline__group-icon" aria-hidden="true">
-                      {hasNoRemote ? <Laptop /> : <CloudUpload />}
-                    </span>
+                    <LocalOnlyMark className="overview-timeline__group-icon" noRemote={hasNoRemote} />
                       <span className="overview-timeline__group-label">{t.overviewTimelineLocalGroup}</span>
                       <span className="overview-timeline__group-count">{t.overviewTimelineLocalCount(localCount)}</span>
                     </p>

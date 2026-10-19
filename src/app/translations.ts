@@ -139,6 +139,8 @@ export interface AppTranslations {
   projectSwitcherOpenProject: string;
   projectSwitcherOpenAnotherProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
+  projectSwitcherClosedAnnouncement: (name: string) => string;
+  projectSwitcherHomeHint: string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
@@ -366,6 +368,8 @@ const en: AppTranslations = {
   projectSwitcherOpenProject: "Open a project…",
   projectSwitcherOpenAnotherProject: "Open another project…",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
+  projectSwitcherClosedAnnouncement: (name) => `${name.trim() || "Project"} closed. Choose what to work on next.`,
+  projectSwitcherHomeHint: "All your projects",
   projectSwitcherMutationBlocked: (name) =>
     `Wait for the operation in ${name} to finish, since both workspaces share one project.`,
   projectSwitcherCloseBlocked: (name) =>
@@ -583,6 +587,8 @@ const es: AppTranslations = {
   projectSwitcherOpenProject: "Abrir un proyecto…",
   projectSwitcherOpenAnotherProject: "Abrir otro proyecto…",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
+  projectSwitcherClosedAnnouncement: (name) => `${name.trim() || "Proyecto"} cerrado. Elige con qué seguir.`,
+  projectSwitcherHomeHint: "Todos tus proyectos",
   projectSwitcherMutationBlocked: (name) =>
     `Espera a que termine la operación de ${name}, porque los dos espacios de trabajo comparten proyecto.`,
   projectSwitcherCloseBlocked: (name) =>

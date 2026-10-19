@@ -49,6 +49,10 @@ import { TypingPrompt } from "./TypingPrompt";
  * and favourites have a tab of their own. */
 export type HomeRecentEntry = RecentProject & {
   isFavourite: boolean;
+  /** Already open in the switcher: `active` for the one Back returns to,
+   * `open` for the others. Home lists them with the rest so it shows what is
+   * open, rather than leaving that to the switcher alone (task 184). */
+  openState?: "active" | "open" | null;
   iconChoice?: ProjectIconChoice;
   technology?: TechnologyId | null;
   avatarStyle?: ProjectAvatarStyle;
@@ -95,7 +99,52 @@ export type HomeLauncherProps = {
   onConfigureIdentity?: () => void;
   onConnectAccount?: () => void;
   onOpenAccountSettings?: (kind: HomeAccountKind) => void;
+  /** The app search. Home carries no status bar (ADR 0032), so its own
+   * status line holds the field the palette deploys from, as Console's does. */
+  commandPalette?: HomeCommandPalette;
 };
+
+export type HomeCommandPalette = {
+  isOpen: boolean;
+  query: string;
+  selectedOptionId?: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  /** The shortcut that focuses the field, in `aria-keyshortcuts` form. It is
+   * not drawn on the field; assistive technology still announces it. */
+  keyShortcuts: string;
+  onOpen: () => void;
+  onQueryChange: (query: string) => void;
+  onKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
+};
+
+function HomeSearch({ palette }: { palette: HomeCommandPalette }): React.JSX.Element {
+  const { t } = useLanguage();
+  return (
+    <div className={`home-status__search${palette.isOpen ? " home-status__search--open" : ""}`} data-palette-field="">
+      <Search aria-hidden="true" />
+      <input
+        ref={palette.inputRef}
+        className="home-status__search-input"
+        type="text"
+        role="combobox"
+        aria-expanded={palette.isOpen}
+        aria-controls={palette.isOpen ? "palette-list" : undefined}
+        aria-activedescendant={palette.isOpen ? palette.selectedOptionId : undefined}
+        aria-autocomplete="list"
+        aria-keyshortcuts={palette.keyShortcuts}
+        aria-label={t.homeSearchLabel}
+        placeholder={t.homeSearch}
+        autoComplete="off"
+        spellCheck={false}
+        value={palette.query}
+        onChange={(event) => palette.onQueryChange(event.target.value)}
+        onFocus={palette.onOpen}
+        onClick={palette.onOpen}
+        onKeyDown={palette.onKeyDown}
+      />
+    </div>
+  );
+}
 
 /** "recent", "favourites", or `account:<kind>` for a provider's accounts. */
 type Tab = string;
@@ -149,6 +198,7 @@ export function HomeLauncher({
   onConfigureIdentity = () => {},
   onConnectAccount = () => {},
   onOpenAccountSettings = () => {},
+  commandPalette,
 }: HomeLauncherProps): React.JSX.Element {
   const { t, formats } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -671,7 +721,13 @@ export function HomeLauncher({
               onOpenAccount={onOpenAccountSettings}
               onConnectAccount={onConnectAccount}
               showAccounts={accountGroups.length === 0}
+              search={commandPalette && <HomeSearch palette={commandPalette} />}
             />
+          )}
+          {!(showStatus && setup && plan) && commandPalette && (
+            <div className="home-status">
+              <HomeSearch palette={commandPalette} />
+            </div>
           )}
         </div>
       </div>
@@ -785,7 +841,7 @@ function RecentRow({
 
   return (
     <li
-      className={`home-launcher__item home-launcher__item--recent row-in${isPrimary ? " home-launcher__item--primary" : ""}${entry.isFavourite ? " home-launcher__item--favourite" : ""}`}
+      className={`home-launcher__item home-launcher__item--recent row-in${isPrimary ? " home-launcher__item--primary" : ""}${entry.isFavourite ? " home-launcher__item--favourite" : ""}${entry.openState === "active" ? " home-launcher__item--active" : ""}`}
       style={{ "--row-index": index } as React.CSSProperties}
     >
       <button
@@ -815,6 +871,10 @@ function RecentRow({
         </span>
         {isPrimary ? (
           <EnterHint label={t.homeActionOpen} />
+        ) : entry.openState ? (
+          <span className={`home-launcher__open-badge${entry.openState === "active" ? " home-launcher__open-badge--active" : ""}`}>
+            {t.homeRecentOpenBadge}
+          </span>
         ) : (
           opened && <span className="home-launcher__time">{opened}</span>
         )}

@@ -103,7 +103,7 @@ describe("projectSessionsReducer", () => {
     expect(next).toBe(state);
   });
 
-  it("closing the active session selects the next adjacent session", () => {
+  it("closing the active session leaves no project active, never a neighbour", () => {
     let state = initialProjectSessionsState;
     for (const path of ["/a", "/b", "/c"]) {
       state = projectSessionsReducer(state, { type: "open", project: makeProject(path) });
@@ -111,17 +111,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, { type: "activate", id: "/b" });
     state = projectSessionsReducer(state, { type: "close", id: "/b" });
     expect(state.order).toEqual(["/a", "/c"]);
-    expect(state.activeId).toBe("/c");
-  });
-
-  it("closing the last session in order falls back to the new last session", () => {
-    let state = initialProjectSessionsState;
-    for (const path of ["/a", "/b", "/c"]) {
-      state = projectSessionsReducer(state, { type: "open", project: makeProject(path) });
-    }
-    // activeId is already "/c" (last opened).
-    state = projectSessionsReducer(state, { type: "close", id: "/c" });
-    expect(state.activeId).toBe("/b");
+    expect(state.activeId).toBeNull();
   });
 
   it("closing the only open session returns to the no-project state", () => {

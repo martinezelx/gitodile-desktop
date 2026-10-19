@@ -3,13 +3,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowLeft, Check, ChevronDown, ChevronRight, CircleAlert, Cloud, CloudOff, CloudUpload,
   CircleDot, Copy, Ellipsis, Folder, GitBranch, GitCommitHorizontal, GitCommitVertical, GitGraph, GitMerge,
-  Laptop, Search, Tag, UserRound, X,
+  Search, Tag, UserRound, X,
 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, LocalOnlyMark, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, FileTreeFolderButton, FileViewToggle, flatFileRows, flattenFileTree, isGroupedFileRow, PictureDiffControls, treeIndentStyle, useCollapsedFolders, useFileListView, usePictureDiff, type FileTreeRow, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -128,7 +128,7 @@ function publicationCopy(publication: PublicationState, t: Translations): string
 
 function PublicationIcon({ publication }: { publication: PublicationState }): React.JSX.Element {
   if (publication === "published") return <Cloud aria-hidden="true" />;
-  if (publication === "local-only") return <Laptop aria-hidden="true" />;
+  if (publication === "local-only") return <LocalOnlyIcon />;
   return <CloudOff aria-hidden="true" />;
 }
 
@@ -213,7 +213,7 @@ function versionGlyphs(version: SavedVersionSummary, t: Translations): VersionGl
     glyphs.push({ key: "current", tone: "accent", icon: <CircleDot />, label: t.historyCurrentLabel, tooltip: t.historyGlyphCurrent });
   }
   if (version.publication === "local-only") {
-    glyphs.push({ key: "local", tone: "neutral", icon: <Laptop />, label: t.historyLocalOnly, tooltip: t.historyGlyphLocalOnly });
+    glyphs.push({ key: "local", tone: "local", icon: <LocalOnlyIcon />, label: t.historyLocalOnly, tooltip: t.historyGlyphLocalOnly });
   }
   const tag = version.decorations.find((decoration) => decoration.kind === "tag");
   if (tag) {
@@ -469,7 +469,7 @@ function LocalGroupHead({ count, formats, expanded, onToggle, onPublish, t, draw
   return (
     <div className="history-local-head">
       {drawing}
-      <span className="history-local-head__icon" aria-hidden="true"><CloudUpload /></span>
+      <LocalOnlyMark className="history-local-head__icon" />
       <button className="history-block-toggle" type="button" role="treeitem" aria-level={1} aria-expanded={expanded} aria-label={t.historyBlockLabel(t.historyLocalGroup, count)} onClick={onToggle} onKeyDown={blockKeys(expanded, onToggle)}>
         <ChevronRight className="history-block-toggle__chevron" aria-hidden="true" />
         <span className="history-local-head__label">{t.historyLocalGroup}</span>
@@ -856,7 +856,7 @@ function HistoryDetailStrip({ detail, currentBranch, selfEmail, actions, details
           {version.publication === "local-only" && (
             <>
               <HistoryMetaDot />
-              <StateGlyph tone="neutral" icon={<Laptop />} tooltip={t.historyGlyphLocalOnly} />
+              <StateGlyph tone="local" icon={<LocalOnlyIcon />} tooltip={t.historyGlyphLocalOnly} />
               <span className="visually-hidden">{t.historyLocalOnly}</span>
             </>
           )}
@@ -1512,7 +1512,7 @@ function HistoryFilterPanel({ filters, scope, lines, authorSuggestions, pathSugg
             does, so the panel is also the timeline's legend. */}
         {canFilterPublication && <FilterSwitch
           checked={filters.unpublishedOnly}
-          icon={<StateGlyph tone="neutral" icon={<Laptop />} />}
+          icon={<StateGlyph tone="local" icon={<LocalOnlyIcon />} />}
           label={t.historyFilterUnpublishedOnly}
           onChange={(unpublishedOnly) => apply({ unpublishedOnly })}
         />}

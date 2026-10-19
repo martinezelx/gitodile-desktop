@@ -1,8 +1,10 @@
+/* Three bands of one sheet (ADR 0032) — the header, the next step and the
+   body — meeting on hairlines rather than floating as cards. */
 .project-overview {
   width: 100%;
   display: grid;
   align-content: start;
-  gap: var(--space-4);
+  gap: 0;
 }
 
 /* ---- Breadcrumb header ----
@@ -17,7 +19,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
-  padding: 0 var(--space-1);
+  min-height: 56px;
+  padding: var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
 }
 /* The project's own icon — the rail's identity chip, at the breadcrumb's size.
    It is the way into the icon picker, so under the pointer or focus a small
@@ -159,39 +163,35 @@
 .overview-header__tool--first { margin-left: auto; }
 
 /* ---- The next-step card ----
-   The one thing to do now, why, and the button that does it. Colour is a
-   signal here, not a surface: the card stands out by its place, size and
-   `--shadow-md`, and the state's colour (the theme's own status tokens) is
-   spent only on the glyph and the current step. No wash and no tinted edge —
-   with a wash, a tinted border, a tinted tile and a tinted kicker the card
-   spent the same amber four times and the primary button had to compete
-   with it. `--tone` is the current segment; `--ink` is the glyph, which for
-   the accent is its readable shade rather than its fill. */
+   The one thing to do now, why, and the button that does it. The band is a
+   region of the sheet washed with 7% of its state's tone — amber with
+   unsaved work, green ready to publish, blue with newer changes, red when
+   blocked — so the state reads at a glance without lifting the band off the
+   sheet. The glyph sits in a neutral circle in the tone's ink, never a
+   filled one (DESIGN.md § Glyph tones). With nothing waiting it stays plain.
+   `--tone` is the wash and the current segment; `--ink` the glyph and the
+   kicker. */
 .next-step {
-  --tone: var(--accent-primary-fill);
-  --ink: var(--accent-primary);
+  --tone: var(--tone-local);
+  --ink: var(--tone-local);
   --attention-color: var(--tone);
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3) var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-md);
+  padding: 20px var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--tone) 7%, var(--surface-panel));
 }
 .next-step--unsaved { --tone: var(--status-warning); --ink: var(--status-warning); }
-.next-step--incoming { --tone: var(--status-renamed); --ink: var(--status-renamed); }
+.next-step--incoming { --tone: var(--tone-remote); --ink: var(--tone-remote); }
 .next-step--blocked { --tone: var(--status-danger); --ink: var(--status-danger); }
 .next-step--calm {
   --tone: var(--border-control);
   --ink: var(--text-secondary-color);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
 }
-/* A neutral circle, the page's one glyph-tile shape, with the glyph in the
-   state's ink. */
 .next-step__glyph {
   flex-shrink: 0;
   width: 44px;
@@ -199,9 +199,11 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: var(--surface-hover);
+  background: var(--surface-panel);
   color: var(--ink);
 }
+.next-step--calm .next-step__glyph { background: var(--surface-hover); }
+.next-step:not(.next-step--calm) .next-step__kicker { color: var(--ink); }
 .next-step__glyph svg { width: 21px; height: 21px; }
 .next-step__copy { flex: 1 1 280px; min-width: 0; display: grid; gap: 2px; }
 .next-step__kicker {
@@ -279,7 +281,10 @@
 }
 .next-step__then-glyph svg { width: 11px; height: 11px; }
 /* A check that failed keeps the card calm and puts the failure in its glyph. */
-.next-step .next-step__glyph--failed { background: color-mix(in srgb, var(--status-danger) 14%, transparent); color: var(--status-danger); }
+.next-step .next-step__glyph--failed { color: var(--status-danger); }
+/* All in order: the calm band's one tick is done's green (DESIGN.md § Glyph
+   tones), the same as every completion tick. */
+.next-step .next-step__glyph--done { color: var(--status-success); }
 .next-step__actions {
   flex-shrink: 0;
   display: flex;
@@ -301,17 +306,14 @@
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 290px;
-  align-items: start;
-  gap: var(--space-4);
+  align-items: stretch;
+  gap: 0;
 }
 
 .overview-history {
   min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
+  padding: var(--space-3) var(--space-4);
+  border-inline-end: 1px solid var(--border-subtle);
 }
 .overview-history__header {
   display: flex;
@@ -525,20 +527,11 @@
   padding: 6px var(--space-2) 0 6px;
 }
 .overview-timeline__group-icon {
+  /* The shared mark (local-only-mark), placed on the rail. */
   position: relative;
   z-index: 1;
-  width: 22px;
-  height: 22px;
   place-self: center;
-  display: grid;
-  place-items: center;
-  /* The same disc as the remote's mark below it, in the accent. */
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-round);
-  background: var(--surface-panel);
-  color: var(--accent-primary);
 }
-.overview-timeline__group-icon svg { width: 12px; height: 12px; }
 .overview-timeline__group-label {
   color: var(--text-secondary-color);
   font-size: var(--text-label);
@@ -824,17 +817,14 @@
    shows what that will move — the files, the lines, the incoming versions —
    and closes on the consequence in one line. With nothing waiting the scene
    takes the column. Neither repeats the status bar or the timeline. */
-/* The same 16px between cards as the page and every workbench's panes. */
-.overview-side { min-width: 0; display: grid; gap: var(--space-4); align-content: start; }
+/* The column's sections are regions of the sheet too, one hairline apart. */
+.overview-side { min-width: 0; display: grid; gap: 0; align-content: start; }
+.overview-side > * + * { border-top: 1px solid var(--border-subtle); }
 .overview-detail {
   min-width: 0;
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
 }
 .overview-detail__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .overview-detail__head > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
@@ -983,19 +973,15 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
    asked, an empty dashed cloud when there is none. Large, on a soft light of
    the two places' colours, when nothing is waiting; small and plain under the
    detail while there is work. The explanation is its tooltip. The places
-   are drawn in the secondary ink on the plain card — colour stays with the
-   path's signals (the check, the dots), not with washes behind them. */
+   are drawn in their glyph tones — this computer green, the remote blue —
+   on the plain card, never as washes behind them. */
 .work-scene {
-  --here-tone: var(--text-secondary-color);
-  --remote-tone: var(--text-secondary-color);
+  --here-tone: var(--tone-local);
+  --remote-tone: var(--tone-remote);
   min-width: 0;
   display: grid;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-4) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
 }
 /* No copy here at all is the one place that keeps its warning ink. */
 .work-scene--no-copy { --here-tone: var(--status-warning); }
@@ -1102,7 +1088,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 }
 .work-scene__dots { position: absolute; top: 7px; right: 10px; left: 10px; display: flex; justify-content: space-around; }
 .work-scene__dot { width: 8px; height: 8px; border-radius: var(--radius-round); }
-.work-scene__dot--out { background: var(--text-primary-color); }
+.work-scene__dot--out { background: var(--tone-local); }
 .work-scene__dot--in { border: 2px dashed var(--status-renamed); background: var(--surface-panel); }
 /* A dot that has left the drawing, replayed on its way out (sceneMotion.ts). */
 .work-scene__dot--ghost { position: absolute; top: 7px; left: -4px; }
@@ -1146,11 +1132,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
+  padding: var(--space-3) var(--space-4);
   animation: work-scene-in 260ms ease-out;
 }
 :root[data-reduced-motion="true"] .overview-restore { animation: none; }
@@ -1318,6 +1300,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 /* Narrower than a timeline and a column, the column drops under the timeline. */
 @media (max-width: 980px) {
   .overview-body { grid-template-columns: minmax(0, 1fr); }
+  .overview-history { border-inline-end: 0; border-bottom: 1px solid var(--border-subtle); }
 }
 
 @media (max-width: 800px) {
@@ -1339,18 +1322,9 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 }
 
 
-/* These cards state their edge with a fill, a wash and a shadow, and
-   forced-colors throws all three away. Drawn inward, so the fallback cannot
-   change layout either. */
+/* The bands meet on borders, which forced colours keep, so they need no
+   outline of their own. */
 @media (forced-colors: active) {
-  .next-step,
-  .overview-history,
-  .overview-detail,
-  .work-scene,
-  .overview-restore {
-    outline: 1px solid CanvasText;
-    outline-offset: -1px;
-  }
   /* The nodes' shapes in system colours: a gradient keeps its own colours
      under a forced palette unless it names system ones. */
   .overview-history__item--local .overview-history__node,

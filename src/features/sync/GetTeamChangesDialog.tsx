@@ -519,6 +519,7 @@ export function GetTeamChangesDialog({
       subtitle={subtitle ? <span id="get-team-dialog-description">{subtitle}</span> : undefined}
       descriptionId={subtitle ? "get-team-dialog-description" : undefined}
       icon={publishes ? <CloudUpload /> : isMerge ? <GitMerge /> : <ArrowDownToLine />}
+      tone={publishes ? "local" : "remote"}
       onClose={requestClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}

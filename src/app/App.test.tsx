@@ -1828,6 +1828,42 @@ describe("App project restoration", () => {
     // Three lazy chunks are fetched cold here — both Work tabs and Lines.
   }, 15000);
 
+  it("closing the active project goes Home without moving into another open project", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-confirm-close-project", "false");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path, secondProject.path], activeId: restoredProject.path }),
+    );
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") {
+        return Promise.resolve(invokedPath(args) === secondProject.path ? secondProject : restoredProject);
+      }
+      if (command === "close_project_session") return Promise.resolve();
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    await user.click(screen.getByRole("button", { name: `${restoredProject.name} — switch project` }));
+    await user.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
+
+    // Home, with no project active: the other one is still open in the
+    // switcher, but the reader picks it rather than being moved into it.
+    expect(await screen.findByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: secondProject.name })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open projects" })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBeNull();
+  });
+
   it("rejects an old branch response after the same project is closed and reopened", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem("gitodile-confirm-close-project", "false");
@@ -2134,7 +2170,19 @@ describe("App project restoration", () => {
     expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     expect(within(screen.getByRole("navigation", { name: "Project navigation" })).queryByRole("button", { current: "page" })).toBeNull();
     expect(screen.getByRole("button", { name: secondProject.name })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: restoredProject.name })).not.toBeInTheDocument();
+    // The open project stays in Home's list and says so (task 184).
+    const openRow = screen.getByRole("button", { name: restoredProject.name });
+    expect(within(openRow).getByText("Open now")).toBeInTheDocument();
+    expect(openRow.closest(".home-launcher__item")).toHaveClass("home-launcher__item--active");
+    // Home ends in its own status line (ADR 0032): no project strip, and the
+    // palette deploys from the field in that line instead.
+    expect(screen.queryByRole("contentinfo", { name: "Project status" })).toBeNull();
+    expect(within(screen.getByRole("group", { name: "This computer" })).getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
+
+    await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    // Back on the project, the strip is the sheet's foot again, its status kept.
     const statusBar = screen.getByRole("contentinfo", { name: "Project status" });
     expect(within(statusBar).getByText(restoredProject.name)).toBeInTheDocument();
     expect(within(statusBar).getByText("main")).toBeInTheDocument();
@@ -2146,16 +2194,15 @@ describe("App project restoration", () => {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
     });
-    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
-
-    await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
-    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Go forward" })[0]);
     expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     expect(document.querySelector(".home-launcher .gitodile-mascot")).toHaveClass("gitodile-mascot--blink");
     expect(document.querySelector(".home-launcher .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
-    await user.click(screen.getByRole("button", { name: "Open projects" }));
+    // The project is still open and active on Home, so the rail keeps naming
+    // it; inside the switcher Home is where the reader is, not the project.
+    await user.click(screen.getByRole("button", { name: `${restoredProject.name} — switch project` }));
     const switcher = screen.getByRole("dialog", { name: "Open projects" });
+    expect(within(switcher).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
     expect(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) })).not.toHaveAttribute("aria-current");
     await user.click(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) }));
     expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();

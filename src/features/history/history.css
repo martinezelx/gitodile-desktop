@@ -6,11 +6,11 @@
   /* The gap replaces the margin the notices used to carry: an empty notice
      block collapses to nothing, and a screen whose spacing lives in one
      property is a screen whose header can be added without re-deriving it. */
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .history-notices:empty { display: none; }
-.history-notices { display: grid; gap: 6px; }
+.history-notices { display: grid; gap: 6px; padding: var(--space-3) var(--space-3) 0; }
 
 .history-banner {
   display: flex;
@@ -19,7 +19,8 @@
   gap: 10px;
   padding: 9px 11px;
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
 }
 .history-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
 .history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
@@ -44,7 +45,7 @@
      to read as one product. Neither feature owns a measure whose whole job is
      to hold two screens together, so both now read it from the scale. */
   grid-template-columns: var(--panel-column) minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: 0;
 }
 
 /* A panel, not a bare column: the timeline is the sibling of the detail card
@@ -70,10 +71,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface-panel);
+  border-inline-end: 1px solid var(--border-subtle);
 }
 /* No rule under it. The search box is already a bordered capsule floating on
    the panel, and a second line right below it fenced the box off from the very
@@ -388,14 +386,9 @@
 }
 .history-local-head__icon {
   position: absolute; z-index: 1; top: calc(50% + 2px); left: 7px;
-  width: 22px; height: 22px; display: grid; place-items: center;
-  /* The boundary's disc, in the accent: both block headings sit on the same
-     kind of mark. */
-  border: 1px solid var(--border-control); border-radius: var(--radius-round);
-  background: var(--surface-panel); color: var(--accent-primary);
+  /* The shared mark (local-only-mark), on the boundary's rail. */
   transform: translateY(-50%);
 }
-.history-local-head__icon svg { width: 12px; height: 12px; }
 .history-local-head__label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The two blocks' heads read as Lines' block headings: a chevron, an
    uppercase caption in the secondary ink — the remote's name said in it, as
@@ -440,7 +433,7 @@
 }
 .history-local-head__publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
 .history-local-head__publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
-.history-local-head__publish svg { width: 12px; height: 12px; color: var(--accent-primary); }
+.history-local-head__publish svg { width: 12px; height: 12px; color: var(--tone-local); }
 /* Lanes, where the history really branches (`history-timeline--lanes`): the
    pieces draw them as SVG at their own height, so the CSS rails step aside,
    the nodes shrink to sit on 9px lanes without covering the next one, and the
@@ -689,12 +682,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface-panel);
 }
-.history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); box-shadow: var(--shadow-sm); background: var(--surface-panel); }
+.history-detail--state, .history-detail--loading { gap: 0; }
 .history-detail--state { align-items: center; justify-content: center; padding: 28px; color: var(--text-secondary-color); text-align: center; }
 .history-detail--state > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--status-danger); }
 .history-detail--state h2, .history-detail--state p { margin: 0 0 10px; }
@@ -789,10 +778,10 @@
 
 .history-publication, .history-kind-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
 .history-publication svg { width: 11px; height: 11px; }
-.history-publication--published { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised)); color: var(--status-success); }
+.history-publication--published { background: color-mix(in srgb, var(--tone-remote) 12%, var(--surface-raised)); color: var(--tone-remote); }
 /* Saved here but not published is work still to do, not a success: the
    primary ink on the neutral capsule, the published capsule keeps its green. */
-.history-publication--local-only { color: var(--text-primary-color); }
+.history-publication--local-only { background: color-mix(in srgb, var(--tone-local) 12%, var(--surface-raised)); color: var(--tone-local); }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; }
 /* Two panes, each opening with its own strip — the shape the screen around it
@@ -907,6 +896,7 @@
    between the two widths had Changes on one panel and History still on two. */
 @media (max-width: 1024px) {
   .history-layout { grid-template-columns: 1fr; }
+  .history-timeline { border-inline-end: 0; }
   .history-detail { display: none; }
   .history-screen--narrow-detail .history-timeline { display: none; }
   .history-screen--narrow-detail .history-detail { display: flex; }

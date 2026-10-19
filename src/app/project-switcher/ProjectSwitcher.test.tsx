@@ -49,6 +49,23 @@ function commonProps() {
 afterEach(cleanup);
 
 describe("ProjectSwitcherRail", () => {
+  it("heads the popover with Home and, on Home, keeps the project on the trigger without marking it current", async () => {
+    const onOpenHome = vi.fn();
+    render(
+      <LanguageProvider>
+        <ProjectSwitcherRail {...commonProps()} isHome onOpenHome={onOpenHome} />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
+    const popover = screen.getByRole("dialog", { name: "Open projects" });
+    expect(within(popover).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
+    expect(within(popover).getByRole("button", { name: "alpha" })).not.toHaveAttribute("aria-current");
+    await userEvent.click(within(popover).getByRole("button", { name: "Home" }));
+    expect(onOpenHome).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).toBeNull();
+  });
+
   it("exposes the active project and non-color status text", async () => {
     render(
       <LanguageProvider>

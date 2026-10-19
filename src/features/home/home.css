@@ -82,6 +82,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* The one object on Home, floating on the window's plane: Home takes no
+     sheet (ADR 0032), so the launcher keeps its own lift. */
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
   background: var(--surface-raised);
@@ -163,12 +165,14 @@
 .home-launcher__item--recent .home-launcher__forget { position: absolute; top: 50%; translate: 0 -50%; }
 .home-launcher__item--recent .home-launcher__forget { right: 4px; }
 .home-launcher__item--recent .home-launcher__favourite { right: 36px; }
-.home-launcher__item--favourite:not(:hover, :focus-within) .home-launcher__favourite { right: 6px; }
+.home-launcher__item--favourite:not(:hover, :has(:focus-visible)) .home-launcher__favourite { right: 6px; }
 .home-launcher__item--favourite .home-launcher__time,
+.home-launcher__item--favourite .home-launcher__open-badge,
 .home-launcher__item--favourite .home-launcher__enter { margin-right: 30px; }
-.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__time,
-.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__enter { visibility: hidden; }
-.home-launcher__item--recent:is(:hover, :focus-within) .home-launcher__open { padding-right: 72px; }
+.home-launcher__item--recent:is(:hover, :has(:focus-visible)) .home-launcher__time,
+.home-launcher__item--recent:is(:hover, :has(:focus-visible)) .home-launcher__open-badge,
+.home-launcher__item--recent:is(:hover, :has(:focus-visible)) .home-launcher__enter { visibility: hidden; }
+.home-launcher__item--recent:is(:hover, :has(:focus-visible)) .home-launcher__open { padding-right: 72px; }
 
 /* Every row's main control shares one shape: avatar or glyph, name over
    path, and a trailing fact or Enter hint. */
@@ -245,6 +249,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A project already open in the switcher says so where its age would be
+   (task 184); the active one — the one Back returns to — also wears the
+   switcher's accent ring on its avatar, so the two lists agree. */
+.home-launcher__open-badge {
+  flex-shrink: 0; padding: 2px 8px; border-radius: var(--radius-pill);
+  background: var(--surface-hover); color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong);
+}
+.home-launcher__open-badge--active { background: var(--surface-active); color: var(--accent-primary); }
+.home-launcher__item--active .home-launcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
 .home-launcher__time {
   flex-shrink: 0;
   color: var(--text-secondary-color);
@@ -334,8 +348,10 @@
 .home-launcher__forget svg { width: 14px; height: 14px; }
 .home-launcher__item--recent:hover .home-launcher__favourite,
 .home-launcher__item--recent:hover .home-launcher__forget,
-.home-launcher__item--recent:focus-within .home-launcher__favourite,
-.home-launcher__item--recent:focus-within .home-launcher__forget { opacity: 1; }
+/* Keyboard focus, not any focus: a pressed star keeps the focus, and with
+   `:focus-within` the row stayed open after the pointer had left it. */
+.home-launcher__item--recent:has(:focus-visible) .home-launcher__favourite,
+.home-launcher__item--recent:has(:focus-visible) .home-launcher__forget { opacity: 1; }
 .home-launcher__favourite:hover,
 .home-launcher__forget:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .home-launcher__favourite--on { opacity: 1; color: var(--accent-primary); }
@@ -346,9 +362,10 @@
   /* No pointer to reveal them: the two controls stay, and the time keeps
      clear of them. */
   .home-launcher__item--recent .home-launcher__favourite,
-  .home-launcher__item--favourite:not(:hover, :focus-within) .home-launcher__favourite { right: 36px; }
+  .home-launcher__item--favourite:not(:hover, :has(:focus-visible)) .home-launcher__favourite { right: 36px; }
   .home-launcher__item--recent .home-launcher__open { padding-right: 72px; }
   .home-launcher__item--favourite .home-launcher__time,
+  .home-launcher__item--favourite .home-launcher__open-badge,
   .home-launcher__item--favourite .home-launcher__enter { margin-right: 0; }
 }
 
@@ -448,7 +465,7 @@
 }
 .home-setup__glyph svg { width: 16px; height: 16px; }
 /* The three fills a glyph circle takes elsewhere: light = done, solid = do this. */
-.home-setup__glyph--done { background: var(--surface-active); color: var(--accent-primary); }
+.home-setup__glyph--done { background: var(--surface-active); color: var(--status-success); }
 .home-setup__glyph--now { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); }
 .home-setup__name { white-space: normal; }
 .home-setup__step--done .home-setup__name { color: var(--text-secondary-color); }
@@ -528,6 +545,28 @@
 .home-status__item--connect { margin-left: auto; }
 .home-status__item--icon { width: 26px; padding: 0; justify-content: center; }
 .home-status__mark svg { width: 13px; height: 13px; }
+/* The app search (ADR 0032): Home carries no status bar, so the palette
+   deploys from this field, at the line's far end, as Console's does from its
+   own status line. The strip's field in the line's own scale. */
+.home-status__search {
+  display: flex; align-items: center; gap: 6px;
+  flex: 0 1 320px; min-width: 200px; height: 28px; margin-left: auto; padding: 0 10px;
+  border-radius: var(--radius-pill); color: var(--text-secondary-color);
+  /* Closed, the field is the object it grows into (as the strip's is). */
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
+  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius var(--duration-fast);
+}
+.home-status:has(.home-status__search) .home-status__item--connect { margin-left: 0; }
+.home-status__search:hover { background: color-mix(in srgb, var(--text-primary-color) 4%, var(--surface-raised)); }
+.home-status__search:focus-within,
+.home-status__search--open { box-shadow: 0 0 0 1px var(--border-subtle), 0 0 0 3px var(--focus-ring); color: var(--text-primary-color); }
+.home-status__search svg { width: 13px; height: 13px; flex-shrink: 0; }
+.home-status__search-input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-label);
+}
+.home-status__search-input::placeholder { color: var(--text-secondary-color); }
 /* A place held for an entry still being read: no hover, no pointer. */
 .home-status__item--placeholder,
 .home-launcher__tab--placeholder { cursor: default; }

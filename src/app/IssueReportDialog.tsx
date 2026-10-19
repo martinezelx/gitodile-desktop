@@ -33,7 +33,7 @@ export function IssueReportDialog({ report }: { report: IssueReportState }): Rea
       subtitle={reviewing ? <span id="issue-report-description">{t.issueReportReviewMessage}</span> : undefined}
       descriptionId={isFailed ? "issue-report-error-message" : "issue-report-description"}
       icon={isFailed ? <CircleAlert /> : <Bug />}
-      tone={isFailed ? "warning" : "accent"}
+      tone={isFailed ? "warning" : "app"}
       onClose={report.dismiss}
       closeLabel={t.commonClose}
       dialogRef={ref}

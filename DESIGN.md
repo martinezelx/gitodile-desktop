@@ -62,14 +62,21 @@ The intended feeling is:
 
 ## Visual character
 
-Settled direction: **Friendly Card** — chosen after benchmarking against Sublime Merge/Fork (dense, flat, expert-only), Linear/Raycast (flat, minimal, colder), and GitKraken/Tower (moderate radius, opaque cards, soft shadow). It sits closest to GitKraken/Tower because that balance of "polished but not scary" best matches the brand brief, and it ages better than a glass-heavy look since shadows don't rely on translucency.
+Settled direction: **Friendly Sheet** ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). The window is a frame and each screen's content is one sheet on it; inside the sheet the content is laid out as regions, and only what floats casts a shadow. It keeps the material of **Friendly Card**, the direction it replaces — opaque stone neutrals, the subtle border, the 18px surface radius, capsules and circles by role — which was chosen after benchmarking against Sublime Merge/Fork (dense, flat, expert-only), Linear/Raycast (flat, minimal, colder), and GitKraken/Tower (moderate radius, opaque cards, soft shadow) for its "polished but not scary" balance, and because shadows age better than a glass-heavy look. What Friendly Card repeated on three to five cards per screen, Friendly Sheet wears once: the frame-and-sheet structure comes from Arc and Dia, everything inside it is GitOdile's own.
+
+Four rules hold it together, on every screen and in every overlay:
+
+1. **One frame.** The titlebar and the rail are a flat plane on `--surface-app`: no fill, no tint, no gradient, no translucency.
+2. **One sheet per screen.** The content sits on a single sheet with the same 16px of frame on all four sides. Home and Console are the documented exceptions: Home's launcher floats alone on the plane, Console is a terminal across the workspace.
+3. **Regions, not cards.** Inside the sheet, panels and bands meet on 1px hairlines and wear no border, shadow or radius of their own. A card *inside* a region — a fact, a section, an in-screen notice — is `--surface-card` with the subtle border and no shadow.
+4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`). A small object lifted inside a region (a scene place, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
 
 The visual language uses:
 
-- fully rounded controls — a capsule for anything on one line, a circle for anything square — over 18px cards and panels and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
+- fully rounded controls — a capsule for anything on one line, a circle for anything square — over the 18px sheet, dialogs and inner cards and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
-- layered surfaces distinguished by shadow and a subtle tone shift, not by transparency;
-- one resting-card recipe on every screen — `--surface-panel` with `--border-subtle` and `--shadow-sm` together, at `--radius-surface` (the status bar at the control radius). `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar); in the dark theme it is a step lighter than the panel, so a resting card on it read as a different material from screen to screen. Overview's cards, the workbench panes in Changes, History and Lines, and the status bar all wear it; a screen does not pick border-only or shadow-only for itself, because the two edges read as two different apps the moment the reader switches screens. Only the elevation steps up: `--shadow-md` for the one card meant to be focused (Overview's next step), `--shadow-lg` for what floats. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item;
+- layered surfaces distinguished by a subtle tone shift and a hairline inside the sheet, and by shadow only for what floats, never by transparency;
+- **one sheet per screen** — the detail of rules 1–3 above. The titlebar and the rail are the frame, a flat plane on `--surface-app`; the content column is a single sheet — `--surface-panel` with `--border-subtle`, at `--radius-surface` — keeping the same 16px of frame (`--space-4`) on all four sides — under the titlebar, beside the rail and to the window's edges — so it floats evenly, and lifted with `--shadow-md` since it is the one object on the plane. The frame takes no tint, gradient or translucency. What the screens lay on the sheet are *regions*, not cards: Overview's header, next step and body are three bands, and the panes of Changes, History and Lines run edge to edge; regions meet on a 1px `--border-subtle` hairline and wear no border, shadow or radius of their own. The status bar is the sheet's foot. A card *inside* a region (a History overview section, a Lines fact card) keeps `--surface-card`. `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar), and only what floats casts a shadow inside the window: `--shadow-lg`. A screen does not pick another material for itself, because a different edge reads as a different app the moment the reader switches screens. Console and Home have no sheet: Console is a terminal across the workspace, and Home's launcher is the one object on its screen, so it floats on the plane with its own lift (`--surface-raised`, `--shadow-md`) rather than sitting on a sheet round a single card. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item. The hairline divides *regions*, never rows;
 - generous spacing around primary actions;
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
@@ -97,7 +104,7 @@ Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserv
 The main desktop window should broadly support:
 
 1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
-   - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination; the titlebar and rail add no permanent Projects button.
+   - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination, and so does the project switcher, whose panel opens with a Home row above the projects (task 184): Home is the view of every project, so it sits with the projects rather than among the rail's destinations, which all belong to the active one. The titlebar and rail add no permanent Projects button.
    - the overflow menu's rules separate four groups, in the order they are reached for: the project (Home, then open, create, clone and close), setting the app up (Settings, Keyboard shortcuts), the app itself (What's new, Check for updates, About GitOdile), and the way out when something is wrong (Report an issue, Reload window). Reload once sat beside Settings, pairing a daily entry with a rare recovery one; it belongs with the problem report. Entries that open a dialog asking for more end in an ellipsis, a shortcut the app owns is shown as quiet text at the row's end (`Ctrl+,` beside Settings), and no glyph appears twice in the menu. Opening a project is `FolderOpen` and creating one `FolderPlus` wherever either appears — Home, this menu, the project switcher's add menu, the collapsed rail's jump menu and the create dialog itself — and the three menus spell the actions the same way, ellipsis included.
    - no brand: the titlebar is controls only and starts with the overflow menu, centred over the rail's icon column so the titlebar and the rail share one vertical axis (with no rail, it sits at the plain edge inset). It once carried the app mark in the corner (later the full mascot); a colour illustration in a row of line icons drew the eye to a spot that does nothing, and the operating system already shows the app icon. The mascot lives in the brand moments instead (see "Brand and mascot").
    - left: the rail collapse control and a compact overflow menu. The palette's trigger is not here: it is the field at the foot of the strip (see Status bar), and the shortcut (`Ctrl`/`Cmd`+`K`) reaches it from anywhere.
@@ -138,8 +145,9 @@ The main desktop window should broadly support:
 
 2. **Navigation rail** — a 64px column with no surface of its own: no fill, no
    border, no shadow. The window chrome (titlebar, rail) is one continuous
-   plane, and only *content* sits in cards on top of it — the status bar
-   included, since it holds controls rather than a window title. Each
+   plane, and only *content* sits on top of it, on the screen's one sheet —
+   the status bar included, as the sheet's foot, since it holds controls
+   rather than a window title. Each
    destination is an icon in a 40px circle with its name underneath; the
    active state fills that circle, never the whole cell, so a two-line label
    like "Iniciar sesión" does not make its neighbour look shorter.
@@ -198,10 +206,15 @@ The main desktop window should broadly support:
      one (open, create, clone);
    - the switcher's panel is sized by its rows (two lines each: name, then the
      version line) and scrolls inside itself past six, with the search field
-     fixed above. The open project always leads, then favourites. Settings,
+     fixed above and the Home row above that. The open project always leads, then favourites. Settings,
      favourite and close take no room at rest and open on hover or focus; only
      a marked star stays. The open project's status is not repeated on its row
      because the rail badge already shows it;
+   - closing the active project goes to Home with no project active; the
+     others stay open in the switcher (task 184). The app never moves the
+     reader into another repository on its own — the next save or publish
+     would land in a project they did not choose. Closing any other project
+     leaves the active one where it is;
    - projects can be starred. Favourites sort to the top of the switcher and
      are the only ones the collapsed rail's jump menu lists, so that menu stays
      a shortcut rather than a second copy of the switcher. Until the first star
@@ -254,11 +267,15 @@ The main desktop window should broadly support:
      order is a trap for keyboard and screen-reader users. The state persists
      across sessions like every other chrome preference.
 
-3. **Status bar** — a 44px card along the bottom of the content column, on
-   the content's own left and right edges, on every screen including
-   Overview: the resting-card recipe of the cards above it (panel surface,
-   subtle border, `--shadow-sm`) at the control radius, since the surface
-   radius on a strip this short reads as a pill. Inside it the strip is three
+3. **Status bar** — a 44px strip at the foot of the sheet on every project
+   screen, Overview included: no card of its own, only a hairline above it,
+   with the sheet's own bottom corners. Home and Console do not carry it,
+   because each ends in a status line of its own — Home's "This computer" row
+   in the launcher, which is about the machine, and Console's terminal status
+   line, which repeats the project facts read-only. Each of those lines
+   carries the app search at its own scale — the field the palette deploys
+   from, since the strip's is not there. On Home the results take that
+   field's width. Inside it the strip is three
    columns — where you are, the field, the remote — so the field sits at the
    strip's centre at any width rather than pushed around by how long the names
    happen to be. It reports what is true of the project right now: which
@@ -356,22 +373,34 @@ The main desktop window should broadly support:
      12px gap separates the left block, the field and the right block. Within a
      segment 6px binds a glyph to its words, and the workspace's own bottom
      padding leaves the band between the last card and this line of text;
-   - the field is the middle column, and it is the app's search: a real input
-     in a `--surface-control` well, 32px tall, with the search glyph beside it
-     and the shortcut (`⌘K` / `Ctrl+K`) spelled at its end, so a search starts
-     from anywhere without leaving the screen. The field owns the query and the
+   - the field is the middle column, at least 240px and at most 430px wide, and
+     it is the app's search: a real input, 32px tall, with the search glyph
+     beside it, so a search starts from anywhere without leaving the screen.
+     At rest it is already the object it opens into, closed — what floats'
+     surface, the subtle edge and `--shadow-sm` — and it spells no shortcut:
+     `⌘K` / `Ctrl+K` lives in the shortcuts list and the palette, not on the
+     strip. The two blocks never outgrow their columns: they give way with an
+     ellipsis rather than sliding under the field. In a window of 1000px or
+     less the field folds to its glyph, a 32px circle in the same closed
+     material, so the blocks keep readable names; a press or the shortcut
+     unfolds it centred over the strip, up to 340px, and the results grow out
+     of it as usual. The field owns the query and the
      keyboard — `↑`/`↓` walk the results (the list follows the chosen row into
      view), `↵` runs the chosen one, `Esc` puts
      them away — and the focus never leaves it, so there is nothing to trap and
-     nothing to give back. It truncates its own text before the shortcut does,
-     and it stays present with no project open, since search is global.
-     **The results deploy from this field**: one panel, anchored to the field,
-     centred on it and eight pixels above it — 480px wide, narrower than the
-     two-line palette it replaced, since a row here is a glyph, a name and a
-     shortcut and a wider panel would leave a river of empty space — with a
-     section label per kind of work, the glyph each action already wears in the
-     menus, the shortcut on the row that has one, and the keys it answers to at
-     its foot, centred. It arrives from the field with the curve and the 120ms
+     nothing to give back. It stays present with no project open, since search
+     is global.
+     **The results grow out of this field** as one object (Friendly Sheet):
+     the panel takes the field's width and sits on its top edge, square below,
+     and the open field becomes its foot — the same surface, an edge mixed
+     from the accent round the whole object and a soft halo outside it. The
+     rows wear the app's shapes: a sentence-case label per kind of work,
+     capsule rows, each action's glyph in a circle, the shortcut on a row that
+     has one, and the chosen row saying `↵` instead of a list of keys at the
+     foot. A field narrower than 320px cannot carry those rows, so it gets a
+     floating panel of its own instead, at least 320px wide, eight pixels
+     above it and kept 12px inside the window. Console's results stay its
+     terminal pane, with the keys at their foot. It arrives from the field with the curve and the 120ms
      the app's menus already use, and leaves in 90ms, holding its last results
      while it fades so nothing empties out on the way; reduced motion drops
      both. The panel clips its own scrollbar, whose track would otherwise cross
@@ -602,11 +631,12 @@ The main desktop window should broadly support:
      unsaved work (the colour the switcher and rail already give it), the
      accent for saved versions waiting to be published, `--status-renamed`
      for newer versions on the remote, `--status-danger` for overlaps or a
-     failed check — and it is a signal, not a surface: it colours only the
-     glyph in its neutral circle and the current step of the bar, while the
-     kicker stays in the secondary ink and the card wears the plain panel and
-     border with `--shadow-md`. The card stands out by place, size and
-     elevation. A wash, a tinted edge, a tinted tile and a tinted kicker spent
+     failed check — and it is a signal, not a surface: it fills the glyph's
+     circle (the glyph drawn in the panel's ink, or the accent's contrast on
+     the accent), colours the kicker and the current step of the bar, and the
+     band itself stays the plain sheet. With no elevation on the sheet
+     (ADR 0032) that filled circle is the band's one point of colour, where the
+     eye lands first; with nothing waiting it is the neutral circle again. A wash, a tinted edge, a tinted tile and a tinted kicker spent
      the same amber four times and made the primary button compete with the
      card around it. No edge stripe. With nothing waiting the card is plain and offers nothing to
      press. The primary button keeps the theme's accent in every state except
@@ -822,7 +852,6 @@ Colors should be defined semantically rather than by component:
 - `--text-primary-color`
 - `--text-secondary-color`
 - `--border-subtle`
-- `--accent-brand` / `--accent-brand-contrast` (the fixed lime brand mark, never themed)
 - `--accent-primary`
 - `--accent-primary-contrast` (text/icon color placed on top of `--accent-primary`)
 - `--accent-primary-fill` (theme's solid fill for primary actions and selected controls)
@@ -830,6 +859,8 @@ Colors should be defined semantically rather than by component:
 - `--status-warning`
 - `--status-danger`
 - `--status-danger-contrast` (icon/text placed on a danger fill)
+- `--tone-local` (what is saved here and not published — its own token so
+  "only on this computer" never reads as success or an added line)
 - `--accent-heart` (the About footer heart — its own token so a red heart is
   never mistaken for a danger state)
 - `--diff-added`
@@ -845,7 +876,7 @@ Do not hard-code product colors throughout components.
 
 ### Elevation
 
-Use shadows to signal stacking order, not to decorate: `--shadow-sm` for resting cards and controls, `--shadow-md` for content the user is meant to focus on (hero card, a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
+Use shadows to signal stacking order, not to decorate: `--shadow-sm` for the screen's one sheet and for controls, `--shadow-md` for a lifted object inside a region (Overview's scene places, a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). Regions of the sheet cast none ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
 
 ### Shape
 
@@ -1243,8 +1274,8 @@ wash, no card or shadow; there is no send
 button. An empty transcript shows a fetch-style welcome: the whole mascot
 as ASCII art generated from the drawing (64 columns printed at 7px and
 line-height 1, keeping the compact footprint of the v4 welcome, as fetch
-tools print their logos; in one tone, the brand
-green under the GitOdile themes and the accent fill elsewhere, deepened toward
+tools print their logos; in one tone, the ink
+under the GitOdile themes and the accent fill elsewhere, deepened toward
 the text on light schemes so thin glyphs stay visible, with the white belly and
 eyes left as holes) and, behind it, a dim rain of hex digits like
 commit hashes, falling in the body's colour and passing behind the silhouette
@@ -1679,7 +1710,7 @@ per-project choice is stored per machine, keyed by the project, never in the
 
 Brand identity is not window furniture. Neither the titlebar nor the rail carries a mark or a wordmark: a 40px lockup at the top of the rail once spent that column's most valuable real estate on something that never changes, and a mark in the titlebar corner later did the same to the toolbar. The mascot appears where the app is being introduced or described: the no-project welcome screen and About. The compact layout below 800px adds no wordmark either; the window title and the operating system name the app.
 
-Home shows the full mascot beside its greeting (116px wide): the first time in a session it draws itself, and it blinks now and then. About shows it at hero scale, winking in step with the light across the wordmark (see Motion). Inside the app the mascot's body follows the theme (ADR 0013) and its belly, toes and eyes are holes that show the surface behind it, so the silhouette alone is the identity in every palette. The GitOdile themes, and the system default, use the brand green `#86b640`. Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72, the brand green's own, so the body stays the same light shape; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light.
+Home shows the full mascot beside its greeting (116px wide): the first time in a session it draws itself, and it blinks now and then. About shows it at hero scale, winking in step with the light across the wordmark (see Motion). Inside the app the mascot's body follows the theme (ADR 0013) and its belly, toes and eyes are holes that show the surface behind it, so the silhouette alone is the identity in every palette. The GitOdile themes, and the system default, draw it in the ink — black on light, white on dark — since they spend no colour on the interface (ADR 0033). Other themes use their `--accent-primary-fill`, lifted to at least OKLCH lightness 0.72, the brand green's own, so the body stays the same light shape; this matters for the dark accents of Catppuccin Latte, Solarized Light and Gruvbox Light.
 
 About leads with the mascot at hero scale, then the name, then the promise, all
 centred. The mascot is the full body with its theme fill, never a tile; the name
@@ -1707,11 +1738,10 @@ A control that does nothing yet must not look fully interactive. Navigation entr
 Colour is two layers, and a theme is a record that fills only the second one
 (ADR 0012).
 
-**Brand identity (never themed).** `--accent-brand` and
-`--accent-brand-contrast` — the fixed brand lime and its contrast — plus
-`--mascot-brand-fill` (the mascot's green in the GitOdile themes),
-`--avatar-color-*`, `--avatar-foreground`, `--avatar-ring` and `--tooltip-*`,
-are declared once in `src/styles/tokens.css`. No theme may set them.
+**Identity colours (never themed).** `--avatar-color-*`,
+`--avatar-foreground`, `--avatar-ring`, `--tooltip-*`, `--console-root` and
+`--tone-app` are declared once in `src/styles/tokens.css`. No theme may set
+them.
 `--avatar-ring` is a neutral dark edge the project chip carries so it stays
 separated from the lighter panels of some community palettes (Nord, Catppuccin
 Frappé) without a per-theme colour override. It is drawn in dark schemes
@@ -1720,57 +1750,70 @@ panel every swatch already clears 4.5:1 and the edge only read as an outline.
 This layer is identity, not
 action: the actionable accent is `--accent-primary`, which the theme owns, so
 the primary action, the notification badge, the attention halo, navigation and
-focus all follow the theme rather than fighting it. The fixed lime is `#8bc53f`
-with dark contrast `#14170f`, kept for brand surfaces outside the themed
-workbench (the app icon and lockup), and it is never used as standalone text on
-a light surface.
+focus all follow the theme rather than fighting it. The brand lime is not a
+token: the interface draws the mark in the ink (ADR 0033), and the lime lives
+only in the app icon's sources (`scripts/icons/mascot.mjs`).
 
 **Theme colour tokens.** Surfaces, text, borders, the semantic accent
 (`--accent-primary`), status, diff, syntax, focus, overlay and shadows. Each
 theme is a `[data-theme="<id>"]` block in `src/styles/themes.css`, which also
 sets `color-scheme`, plus a record in `src/shared/theme/themes.ts`. The
-semantic accent green is per scheme, like success green and diff ink: it
-writes links, labels and the selected rail item, so it needs 4.5:1 on both a
-warm white and a near-black surface, and no single green does both (the old
-shared `#527e26` read at barely 3:1 in Dark). Light's is a deep green, Dark's
-a lighter one, and the vivid lime stays as the fill of solid actions in both.
-Every named theme keeps the same token set, so switching leaves no value
-behind.
+official palette is **ink** ([ADR 0033](docs/adr/0033-official-monochrome-themes.md)):
+warm stone greys (Tailwind's stone scale, the warmth GitOdile always had), the
+text's own ink as the accent and as the fill of solid actions, with inverted
+text on it, and hover, selection and the accent wash as ink washes. Colour
+belongs to content and meaning, not to the interface: the diff, danger,
+warning, success and the remote's blue keep a toned-down hue, and what
+identifies a thing — project avatars, file-type icons, technology marks, the
+History lanes — keeps its own colours. Every named theme keeps the same token
+set, so switching leaves no value behind.
 
-| Token | GitOdile Dark | GitOdile Light |
+| Token | GitOdile Light | GitOdile Dark |
 |---|---|---|
-| `--surface-app` | `#0c0a09` | `#faf8f5` |
-| `--surface-panel` | `#1c1917` | `#ffffff` |
-| `--surface-raised` | `#292524` | `#ffffff` |
-| `--surface-code` | `#201d1b` | `#f5f5f4` |
-| `--text-primary-color` | `#fafaf9` | `#1c1917` |
-| `--text-secondary-color` | `#a8a29e` | `#6f6a64` |
-| `--surface-control` | `#24211f` | `#f4f2ef` |
-| `--border-subtle` | `#38322f` | `#e7e5e4` |
-| `--border-divider` | `#44403c` | `#dedad6` |
-| `--border-control` | `#44403c` | `#dcd9d4` |
-| `--accent-brand` | `#8bc53f` | `#8bc53f` |
-| `--accent-brand-contrast` | `#14170f` | `#14170f` |
-| `--accent-primary` | `#86c24a` | `#4b7521` |
-| `--accent-primary-contrast` | `#0c0a09` | `#14170f` |
-| `--accent-primary-fill` | `#9bd65a` | `#9bd65a` |
-| `--status-success` | `#9bd65a` | `#44691c` |
-| `--status-warning` | `#e8b339` | `#8a5b00` |
-| `--status-danger` | `#ff6b5b` | `#b3261e` |
-| `--status-danger-contrast` | `#1c1917` | `#fff7f5` |
-| `--status-renamed` | `#6ea8fe` | `#2f6fb3` |
-| `--accent-heart` | `#ff7a6b` | `#cc2936` |
-| `--diff-added` | `#9bd65a` | `#44691c` |
-| `--diff-removed` | `#ff6b5b` | `#b3261e` |
-| `--overlay` | `rgba(0, 0, 0, 0.68)` | `rgba(28, 25, 23, 0.4)` |
-| `--surface-hover` | `rgba(250, 250, 249, 0.06)` | `rgba(28, 25, 23, 0.05)` |
-| `--surface-active` | `rgba(155, 214, 90, 0.14)` | `rgba(107, 155, 46, 0.12)` |
-| `--focus-ring` | `#9bd65a` | `#4b7521` |
-| `--shadow-sm` | `0 2px 8px rgba(0,0,0,0.22)` | `0 2px 8px rgba(28,25,23,0.06)` |
-| `--shadow-md` | `0 8px 20px rgba(0,0,0,0.3)` | `0 8px 20px rgba(28,25,23,0.08)` |
-| `--shadow-lg` | `0 24px 80px rgba(0,0,0,0.45)` | `0 24px 60px rgba(28,25,23,0.14)` |
+| `--surface-app` / `-panel` / `-raised` | `#f8f7f4` / `#ffffff` / `#ffffff` | `#0c0a09` / `#1c1917` / `#292524` |
+| `--surface-code` / `-control` | `#f5f4f2` / `#f2f1ee` | `#201d1b` / `#24201e` |
+| `--text-primary-color` / `-secondary` | `#1c1917` / `#625d58` | `#fafaf9` / `#a8a29e` |
+| `--border-subtle` / `-divider` / `-control` | `#e7e5e4` / `#dedad6` / `#d6d3d1` | `#312c29` / `#3b3532` / `#44403c` |
+| `--accent-primary` = `-fill` / `-contrast` | `#1c1917` / `#ffffff` | `#fafaf9` / `#0c0a09` |
+| `--surface-hover` / `--surface-active` | ink at 5% / 8% | ink at 6% / 10% |
+| `--focus-ring` | `#1c1917` | `#fafaf9` |
+| `--status-success` = `--diff-added` | `#3f6a3b` | `#93c48a` |
+| `--status-danger` = `--diff-removed` | `#a83a32` | `#f08a80` |
+| `--status-warning` | `#7a5714` | `#dcb064` |
+| `--status-renamed` (the remote's blue) | `#2a66a6` | `#7eb0f5` |
+| `--tone-local` (saved here) | `#44701a` | `#a8d26b` |
+| `--accent-heart` (raspberry, apart from danger) | `#b8326a` | `#f27aa8` |
+| Syntax | greys | greys |
 
-`--surface-active` is accent-tinted rather than neutral gray in both themes — this is what gives the active nav item and selected segmented-control option their "friendly card" warmth instead of a flat gray highlight.
+With an ink accent, colour no longer sets a link apart from the words around
+it, so an inline link is underlined at rest (WCAG 1.4.1).
+
+**Glyph tones.** Since the interface spends no colour, a glyph's colour says
+what kind of thing it stands for — never that it is pressable. Declared once
+in `tokens.css` and `themes.css`, so every palette and scheme keeps them in its
+own hues and contrast. Each reads apart from the others and from the status
+colours: the local lime is not success's green or an added line's, and the
+favourite's raspberry is not danger's red. There are two greens and each says
+one thing: lime is waiting here, green is done. A tick that marks the chosen
+option in a menu or picker is selection, not success, and stays in the ink.
+
+| Tone | Token | Means | Where |
+|---|---|---|---|
+| Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, the scene's remote, a published version, Clone, Get changes, Connect a remote and Update dialogs |
+| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "Only on this computer" in Overview, History and Lines, the scene's computer, Publish, the Create project and publish dialogs |
+| Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, the scene's synced mark, done steps in dialogs and Home's setup, a saved version, a created project, "up to date" in About |
+| App | `--tone-app` (violet, per scheme) | GitOdile itself | What's new, Keyboard shortcuts, Report a problem |
+
+**A glyph's circle is never coloured.** The tone goes on the glyph alone; the
+disc or tile behind it stays neutral (`--surface-control`, `--surface-panel`
+or `--surface-hover`) in every tone — status or glyph — and in every theme.
+A filled or washed circle spent the colour twice and made a quiet header
+glyph read as a badge. Menu items stay in the secondary ink; the colour is
+spent on the header glyph of the dialog an item opens (`Dialog`'s `tone`). "Only on this
+computer" is one shared piece, `LocalOnlyIcon` and `LocalOnlyMark` in
+`shared/ui/localOnly.tsx`, so its glyph and tone change everywhere at once.
+
+`--surface-active` is an ink wash in the official themes; in a community theme it is tinted with that palette's accent.
 
 Syntax colours are in `src/styles/themes.css` with the rest; they are not
 repeated here.
@@ -1801,8 +1844,10 @@ written in primary text, the strength at which that text still clears 4.5:1
 on every surface of every theme.
 
 **Official themes.** GitOdile Light and Dark are the two records that carry the
-brand palette above; they are the default and the pair "match device" resolves
-between. They are not a starting point that community themes replace.
+ink palette above; they are the default and the pair "match device" resolves
+between. They are not a starting point that community themes replace. The
+green-accent palette they carried before ADR 0033 is retired: its ids now
+carry the ink values, so a stored preference moves with them.
 
 **Community themes.** Only palettes with a canonical, attributable source are
 admitted (Catppuccin Mocha, Latte and Frappé; Nord; Tokyo Night; Dracula;
@@ -2334,7 +2379,7 @@ one reads as "press this to continue". The primary repeats the verb of the
 title ("Save version", "Create line", "Delete line", "Publish changes"), and
 carries an icon only when it is one of the vocabulary's verbs (save, publish,
 get, discard, delete). **Anything that removes work is `danger-button`** — the
-brand green is for the constructive choice, and a delete in green said the
+solid primary is for the constructive choice, and a delete in it said the
 opposite. A note that belongs to the action ("Only on this computer until you
 publish") takes the left of the same row. A choice made for this action alone
 is an `app-checkbox`; a switch is for a setting that persists. Placeholders are
@@ -2773,6 +2818,8 @@ word as a title.
     Home became visible. It takes the accent, Continue turns neutral, and
     every control that would touch a project is disabled.
   - *Status line.* Otherwise the card's foot, under the three ways to start,
+    ending in the app search (ADR 0032), the field the command palette
+    deploys from on Home, its results as wide as the field. Before it, it
     says what this computer is set up with, each part a quiet control into its
     own Settings section: Git's own mark (the one Settings uses) beside
     "2.55" — no word, no check: the mark names it and the version is the
@@ -2815,12 +2862,17 @@ word as a title.
     Clone filled in with that address; "See all in Clone" opens Clone on that
     provider's tab, with the same account chosen, when there are more.
 
-Home can be revisited with projects open. Its recent list then excludes
-projects already open in the switcher, and neither the switcher nor the rail
-marks a current destination. Back returns to the project screen that led here;
-Forward can revisit Home until another navigation. The status bar continues to
-show the active project's name, working-tree and remote state, and available
-project actions. With no project open, it shows the no-project state. The
+Home can be revisited with projects open. Its recent list keeps the
+projects already open in the switcher and says so: an "Open now" tag where
+their age would be, and on the active one the switcher's accent ring round
+the avatar. Choosing an open project switches to it, the way the switcher
+does, rather than opening it again. The rail's chip keeps the active
+project — it is still open, and Back returns to it — but no destination is
+marked current, and inside the switcher the Home row is the current one, not
+the project. Back returns to the project screen that led here;
+Forward can revisit Home until another navigation. Home carries no status
+bar, open project or not: the launcher's own status line is about this
+computer, and the active project's state is one Back away. The
 mascot's entrance plays once per application session; later visits show it
 blinking, without another entrance. Home owns the app's only
 `h1` while no project is open; the shell does not additionally title it
@@ -2855,9 +2907,11 @@ what it is and "See why"), not checked, checking, a check that failed (calm, a r
 line"), unborn, and finally "Saved and published" with no action. Its kicker
 names the kind of ask ("Next step", "Before you continue", "Needs your
 decision", "All saved", "All in order") beside the three-segment progress
-bar. The state's status token colours only the glyph and the current
-segment; the card itself is the plain panel with `--shadow-md`, and in the
-calm state `--shadow-sm`.
+bar. The band is washed with 7% of its state's tone — amber with unsaved
+work, the local green ready to publish, the remote's blue with newer changes,
+red when blocked — and the same tone colours the glyph (in a neutral circle),
+the kicker and the current segment. With nothing waiting the band is the
+plain sheet.
 
 The **timeline** is the History screen's shape: the incoming row (one blue
 line above *now* while versions wait on the remote, leading to the review and
@@ -3083,7 +3137,7 @@ that size would read as a dialog.
 
 **About separates what a maintainer needs from what the product is proud of.** Technical details answer "why is it broken on *your* machine": the platform, its build, the webview, the Git it found — all things that differ per install, and all things the copy button puts on the clipboard. Built with answers "what is this made of": Tauri, React, Rust, which are identical for every user of a given build and therefore explain nothing about a bug. Mixing the two produces a diagnostics block nobody can act on and a credits list nobody reads, so they are separate sections in separate shapes — label-and-value rows for the facts that vary, and, for the ones that do not, three rows that put the mark beside a small name-over-version block. The credits were capsules first, then bordered tiles (a mark above a name above a version), then an inline lockup, then rows that pushed each version to the right edge; the tiles gave a fact nobody reads a surface of its own, while the other two either crowded the marks or tore the number away from its name. The beside-the-mark block keeps name and version together and lets three credits sit in one band without shrinking type, which is why the fourth (the build tool's own language) stayed dropped. The heading is kept for assistive technology only, since a mark and a product name already read as a credit. Each credit is also a control that opens that project's own home page in the user's browser, because "built with Tauri" is a claim the reader should be able to check; it is a button rather than a link, since the destination is outside the app and an `href` would let a middle click navigate the webview the dialog sits in. It is a control, so it takes the pointing hand; the hand is what says the press leaves the app, and mark, name and version stay readable at rest so the credit withholds nothing without hovering. Its accessible name pairs the layer with the host it opens, so that fact reaches a screen reader before the press rather than after it, and every host is listed explicitly in the opener scope — an unlisted one simply fails to open. A value the app cannot establish is omitted, never filled with "unknown": a missing row says nothing, and a fabricated one sends a bug report the wrong way.
 
-**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries a light sweep in step with the mascot's wink — the same 6.5s cycle and 1.2s start, the eye shut while the light is halfway across its 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
+**About names the product together with its promise.** The mascot leads at hero scale, then the correctly cased `GitOdile` name, then the localized promise. The name takes `--text-hero` and the promise `--text-title`, so the hierarchy comes from the scale rather than from three unrelated sizes, and the decorative mascot is hidden from assistive technology. The "Odile" half carries a light sweep in step with the mascot's wink — in the accent fill under a community theme, and in the ink's opposite under the GitOdile themes (white crossing black in light, black crossing white in dark), whose fill is the ink itself — the same 6.5s cycle and 1.2s start, the eye shut while the light is halfway across its 14% travel — so the wordmark and the mark move as one gesture, and reduced motion clears both. The `h2` still carries the name and the promise, so the dialog's accessible name identifies the app before stating its promise; the close control sits in the dialog's own corner above the hero rather than inline with the identity. The version moves into the top-left corner, a pill at the close control's own height and insets, so the two frame the identity as one header line; it still names the build exactly as the changelog and the update dialog do. Machine-specific rows sit under `Your system` / `Tu sistema`, not `Technical details`: platform, OS build, WebView and Git describe the reader's environment rather than an internal implementation. The copy control heads that section rather than trailing it — the label and the way to put it on the clipboard are one thing, and a full-width button below the list spent a row of height restating the same idea. It is a text action with a short visible label ("Copy"), because the section heading already names what is being copied, while its accessible name stays the full "Copy system info".
 
 Licence and source links lead the facts, directly under the intro and above the diagnostics. They are durable project provenance, not part of the product pitch or machine diagnostics, so meeting the project's terms before its machine details keeps the introduction focused. The made-with credit closes the dialog instead, under the diagnostics and the credits it belongs with.
 
@@ -3097,7 +3151,7 @@ Short message dialogs use the same shell as every other dialog in the app
 (§ Dialogs, size `s`). Two rules go with them. An error carries a circular
 `--status-danger` glyph beside its heading, because a failure should be
 recognizable before the sentence is read. And **the constructive choice is the
-primary button** — "Turn into a project", not "Close": spending the brand green
+primary button** — "Turn into a project", not "Close": spending the solid primary
 on dismissing a problem tells the user the way out is the way back. When the
 message names two ways out ("You can turn it into a project or choose
 another"), the dialog offers both, and the other way out takes the dismiss

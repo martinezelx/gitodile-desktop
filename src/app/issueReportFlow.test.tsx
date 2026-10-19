@@ -77,7 +77,7 @@ it("leads the review header with the same mark as the menu's Report an issue", a
   await openReview(user);
   const dialog = screen.getByRole("dialog", { name: "Review the report before sending it" });
   const glyph = dialog.querySelector(".app-dialog__glyph");
-  expect(glyph).toHaveClass("app-dialog__glyph--accent");
+  expect(glyph).toHaveClass("app-dialog__glyph--app");
   expect(glyph?.querySelector("svg")).toBeInTheDocument();
 });
 

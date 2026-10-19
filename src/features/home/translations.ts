@@ -41,6 +41,7 @@ export interface HomeTranslations {
    * button's accessible name stays the full label it begins with. */
   homeActionCreate: string;
   homeActionOpen: string;
+  homeRecentOpenBadge: string;
   homeActionClone: string;
   /** Discovery line for the window's drag-and-drop: the gesture works, and
    * nothing on screen said so. */
@@ -69,6 +70,8 @@ export interface HomeTranslations {
   homeGitChecking: string;
   /** The card's own status line: what this computer is set up with. */
   homeStatusLabel: string;
+  homeSearch: string;
+  homeSearchLabel: string;
   homeStatusGit: (version: string) => string;
   homeStatusIdentityMissing: string;
   homeStatusAccount: (provider: string, login: string) => string;
@@ -133,6 +136,7 @@ const en: HomeTranslations = {
   homeCreateNamedHint: "You'll choose where in the next step",
   homeActionCreate: "Create",
   homeActionOpen: "Open",
+  homeRecentOpenBadge: "Open now",
   homeActionClone: "Clone",
   homeDropHint: "or drag a folder here",
   homeSetupTitle: "Set up GitOdile",
@@ -158,6 +162,8 @@ const en: HomeTranslations = {
   homeGitCheckAgain: "Check again",
   homeGitChecking: "Checking…",
   homeStatusLabel: "This computer",
+  homeSearch: "Search or do something…",
+  homeSearchLabel: "Open command palette",
   homeStatusGit: (version) => `Git ${version}`,
   homeStatusIdentityMissing: "Add your name and email",
   homeStatusAccount: (provider, login) => `${provider} account ${login}`,
@@ -222,6 +228,7 @@ const es: HomeTranslations = {
   homeCreateNamedHint: "Elegirás dónde en el siguiente paso",
   homeActionCreate: "Crear",
   homeActionOpen: "Abrir",
+  homeRecentOpenBadge: "Abierto",
   homeActionClone: "Clonar",
   homeDropHint: "o arrastra una carpeta aquí",
   homeSetupTitle: "Prepara GitOdile",
@@ -247,6 +254,8 @@ const es: HomeTranslations = {
   homeGitCheckAgain: "Volver a comprobar",
   homeGitChecking: "Comprobando…",
   homeStatusLabel: "Este ordenador",
+  homeSearch: "Buscar o hacer algo…",
+  homeSearchLabel: "Abrir la paleta de comandos",
   homeStatusGit: (version) => `Git ${version}`,
   homeStatusIdentityMissing: "Falta tu nombre y correo",
   homeStatusAccount: (provider, login) => `Cuenta de ${provider} ${login}`,

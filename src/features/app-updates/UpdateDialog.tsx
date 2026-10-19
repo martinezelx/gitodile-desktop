@@ -584,6 +584,7 @@ export function AppUpdateDialog({
       }
       descriptionId={descriptionId}
       icon={<CircleFadingArrowUp />}
+      tone="remote"
       onClose={close}
       closeLabel={appT.commonClose}
       dialogRef={dialogRef}

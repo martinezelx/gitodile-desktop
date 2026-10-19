@@ -200,7 +200,7 @@ export function NextStepCard({
         // Breathes once as a step becomes current: the one moving thing on
         // the page, marking the one thing to do.
         key={primary ? kind : "idle"}
-        className={`next-step__glyph${failed ? " next-step__glyph--failed" : ""}${primary ? " attention-breathe" : ""}`}
+        className={`next-step__glyph${failed ? " next-step__glyph--failed" : kind === "upToDate" || kind === "noRemote" ? " next-step__glyph--done" : ""}${primary ? " attention-breathe" : ""}`}
         aria-hidden="true"
       >
         {glyphIcon}

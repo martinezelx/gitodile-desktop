@@ -36,7 +36,7 @@
 /* A cell on the silhouette, holes included: an exact 1em-tall block of the
    console's background, so the rain passes behind the mascot, not through it. */
 .console-art__solid { display: inline-block; height: 1em; vertical-align: top; background: var(--surface-app); }
-:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--mascot-brand-fill); }
+:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--text-primary-color); }
 /* The art's one tone, per colour scheme (light-dark() follows the scheme each
    theme declares): the mark's green (or the theme's accent fill), deepened
    toward the text on a light console, where thin glyphs in a pale fill fade

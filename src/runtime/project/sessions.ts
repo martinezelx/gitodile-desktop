@@ -302,17 +302,15 @@ export function projectSessionsReducer(
       if (!state.byId[action.id]) {
         return state;
       }
-      const index = state.order.indexOf(action.id);
       const order = state.order.filter((id) => id !== action.id);
       const byId = { ...state.byId };
       delete byId[action.id];
-      let activeId = state.activeId;
-      if (state.activeId === action.id) {
-        // A predictable adjacent session: whichever project now sits at the
-        // closed one's index (the next one), or the previous project if the
-        // closed one was last, or no active project if none remain.
-        activeId = order.length === 0 ? null : order[Math.min(index, order.length - 1)];
-      }
+      // Closing the active project leaves none active, even with others open
+      // (task 184): moving the reader into another repository on its own is
+      // how a save or a publish lands in the wrong project. The shell shows
+      // Home, and the next project is one the reader picks. Closing any other
+      // project leaves the active one as it is.
+      const activeId = state.activeId === action.id ? null : state.activeId;
       return { order, byId, activeId };
     }
 

@@ -58,7 +58,7 @@
 .version-lines-banner {
   display: flex; align-items: center; gap: var(--space-3); min-width: 0;
   padding: var(--space-2) var(--space-4); border-radius: var(--radius-surface);
-  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle); background: var(--surface-card);
 }
 .version-lines-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
 .version-lines-banner h2 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
@@ -96,26 +96,24 @@
   gap: var(--space-4);
 }
 .version-lines-notices:empty { display: none; }
-.version-lines-notices { display: grid; gap: 6px; }
+.version-lines-notices { display: grid; gap: 6px; padding: var(--space-3) var(--space-3) 0; }
 .version-lines-layout {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-columns: var(--panel-column) minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: 0;
 }
 
-/* A panel, not a bare column: the sibling of the History timeline and of the
-   Changes file list, carrying its own surface with one strip at the top. */
+/* A region of the sheet, not a bare column: the sibling of the History
+   timeline and of the Changes file list, with one strip at the top and one
+   hairline to the detail (ADR 0032). */
 .version-lines-list-panel {
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface-panel);
+  border-inline-end: 1px solid var(--border-subtle);
 }
 /* The panel's header is the screen's name, at the height of a strip so the
    detail card's strip beside it is level with it. Set the way the Work
@@ -457,10 +455,6 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface-panel);
 }
 /* The first read's shape under the list panel's real header, and a card of
    lines beside it where the selected line's detail will be. */
@@ -471,10 +465,6 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   align-items: center;
   justify-content: center;
   padding: 28px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--shadow-sm);
-  background: var(--surface-panel);
   color: var(--text-secondary-color);
   text-align: center;
 }
@@ -981,7 +971,6 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
   border-radius: var(--radius-round);
 }
 .version-lines-recent__mark svg { width: 12px; height: 12px; }
-.version-lines-recent__mark--local { background: var(--surface-control); color: var(--accent-primary); }
 .version-lines-recent__mark--remote { border: 1px solid var(--border-control); background: var(--surface-panel); color: var(--status-renamed); }
 .version-lines-recent__caption { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .version-lines-recent__head .version-lines-recent__caption { font-size: var(--text-label); font-weight: var(--weight-heading); }
@@ -1003,7 +992,7 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 .version-lines-publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
 .version-lines-publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .version-lines-relations .version-lines-publish svg,
-.version-lines-publish svg { width: 12px; height: 12px; margin: 0; color: var(--accent-primary); }
+.version-lines-publish svg { width: 12px; height: 12px; margin: 0; color: var(--tone-local); }
 
 /* What the line can do with the other end: a glyph tile, the action in the
    quick switch's words, what it would do under it, and `Soon` until the flow
@@ -1051,6 +1040,7 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 /* One column, at the width the other two drop to one. */
 @media (max-width: 1024px) {
   .version-lines-layout { grid-template-columns: 1fr; }
+  .version-lines-list-panel { border-inline-end: 0; }
   .version-lines-detail { display: none; }
   .version-lines-screen--narrow-detail .version-lines-list-panel { display: none; }
   .version-lines-screen--narrow-detail .version-lines-detail { display: flex; }

@@ -14,7 +14,6 @@ import {
   CloudUpload,
   GitBranch,
   Info,
-  Laptop,
   PenLine,
   ShieldCheck,
   Trash2,
@@ -22,7 +21,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
+import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, LocalOnlyMark, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { VersionLine, VersionLineHistory, VersionLinesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, versionLineActions } from "./lineActions";
 import {
@@ -81,7 +80,7 @@ const STATE_KEYS = ["tracking", "local-only"] as const;
  * the unremarkable state — so it takes the remote's cloud only here. */
 const STATE_GLYPHS = {
   tracking: { icon: <Cloud />, tone: "neutral" },
-  "local-only": { icon: <Laptop />, tone: "neutral" },
+  "local-only": { icon: <LocalOnlyIcon />, tone: "local" },
 } as const satisfies Record<StateFilter, { icon: React.ReactNode; tone: StateGlyphTone }>;
 
 const STATE_LABEL_KEYS = {
@@ -215,8 +214,8 @@ function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): 
   if (sync.kind === "none") {
     glyphs.push({
       key: "local",
-      tone: "neutral",
-      icon: <Laptop />,
+      tone: "local",
+      icon: <LocalOnlyIcon />,
       label: t.versionLinesNoUpstreamLabel,
       tooltip: t.versionLinesGlyphLocalOnly,
     });
@@ -1058,9 +1057,7 @@ function VersionLineDetail({
               >
                 {boundaryIndex > 0 && (
                   <li className="version-lines-recent__head">
-                    <span className="version-lines-recent__mark version-lines-recent__mark--local" aria-hidden="true">
-                      <CloudUpload />
-                    </span>
+                    <LocalOnlyMark className="version-lines-recent__mark" />
                     <span className="version-lines-recent__caption">{t.versionLinesLocalGroup}</span>
                     {canPublish && <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />}
                   </li>

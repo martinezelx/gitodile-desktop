@@ -1,0 +1,1406 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GitOdile Style Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  Laboratorio de estilos para GitOdile (v0.3.1). Artilugio de exploración,
+  no implementación. Tokens tomados de src/styles/tokens.css y themes.css;
+  medidas de app-shell.css, workbench.css, changes.css y overview.css; textos
+  del vocabulario de los translations.ts en español. Iconos: trazos de lucide.
+  Cada estilo es un paquete de variables --L-* sobre la misma maqueta, así que
+  todas las pantallas comparten el mismo marcado y solo cambia el material.
+-->
+<style>
+/* Layout: barra de controles fija arriba; vista «una a una» (lista de estilos + ventana + ficha)
+   o «comparar todo» (cuadrícula de ventanas escaladas); recomendación al final. */
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  --avatar-color-0: #278657; --avatar-color-2: #317aaa; --avatar-color-3: #5c6ed6;
+  --avatar-color-4: #765eed; --avatar-color-6: #c639aa; --avatar-color-7: #c94573;
+
+  color-scheme: light;
+  --surface-app: #faf8f5; --surface-panel: #ffffff; --surface-raised: #ffffff; --surface-code: #f5f5f4;
+  --surface-hover: rgba(28, 25, 23, 0.05); --surface-active: rgba(107, 155, 46, 0.12);
+  --surface-control: #f4f2ef; --border-control: #dcd9d4;
+  --text-primary-color: #1c1917; --text-secondary-color: #6f6a64;
+  --border-subtle: #e7e5e4; --border-divider: #dedad6;
+  --accent-primary: #4b7521; --accent-primary-contrast: #14170f; --accent-primary-fill: #9bd65a;
+  --status-success: #44691c; --status-warning: #8a5b00; --status-danger: #b3261e; --status-renamed: #2f6fb3;
+  --diff-added: #44691c; --diff-removed: #b3261e;
+  --syntax-comment: #586250; --syntax-string: #7b5b12; --syntax-number: #604080;
+  --syntax-keyword: #275f8f; --syntax-type: #176f68; --syntax-property: #8b3e6d;
+  --focus-ring: #4b7521; --overlay: rgba(28, 25, 23, 0.4);
+  --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06); --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08); --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+  --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
+  --ink-hc: #000;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-app: #0c0a09; --surface-panel: #1c1917; --surface-raised: #292524; --surface-code: #201d1b;
+    --surface-hover: rgba(250, 250, 249, 0.06); --surface-active: rgba(155, 214, 90, 0.14);
+    --surface-control: #24211f; --border-control: #44403c;
+    --text-primary-color: #fafaf9; --text-secondary-color: #a8a29e;
+    --border-subtle: #38322f; --border-divider: #44403c;
+    --accent-primary: #86c24a; --accent-primary-contrast: #0c0a09; --accent-primary-fill: #9bd65a;
+    --status-success: #9bd65a; --status-warning: #e8b339; --status-danger: #ff6b5b; --status-renamed: #6ea8fe;
+    --diff-added: #9bd65a; --diff-removed: #ff6b5b;
+    --syntax-comment: #a7b09a; --syntax-string: #d6b56f; --syntax-number: #c8a6ff;
+    --syntax-keyword: #8fc9ff; --syntax-type: #72d6c9; --syntax-property: #e0a6c7;
+    --focus-ring: #9bd65a; --overlay: rgba(0, 0, 0, 0.68);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22); --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3); --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+    --ink-hc: #fff;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-app: #0c0a09; --surface-panel: #1c1917; --surface-raised: #292524; --surface-code: #201d1b;
+  --surface-hover: rgba(250, 250, 249, 0.06); --surface-active: rgba(155, 214, 90, 0.14);
+  --surface-control: #24211f; --border-control: #44403c;
+  --text-primary-color: #fafaf9; --text-secondary-color: #a8a29e;
+  --border-subtle: #38322f; --border-divider: #44403c;
+  --accent-primary: #86c24a; --accent-primary-contrast: #0c0a09; --accent-primary-fill: #9bd65a;
+  --status-success: #9bd65a; --status-warning: #e8b339; --status-danger: #ff6b5b; --status-renamed: #6ea8fe;
+  --diff-added: #9bd65a; --diff-removed: #ff6b5b;
+  --syntax-comment: #a7b09a; --syntax-string: #d6b56f; --syntax-number: #c8a6ff;
+  --syntax-keyword: #8fc9ff; --syntax-type: #72d6c9; --syntax-property: #e0a6c7;
+  --focus-ring: #9bd65a; --overlay: rgba(0, 0, 0, 0.68);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22); --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3); --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --ink-hc: #fff;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface-app); color: var(--text-primary-color); font: 400 14px/1.5 var(--font-sans); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ====================================================================== LAB CHROME */
+.lab-head { padding-block: 28px 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1480px; margin: 0 auto; }
+.lab-eyebrow { margin: 0 0 6px; color: var(--text-secondary-color); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.lab-head h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; letter-spacing: -.02em; text-wrap: balance; }
+.lab-head p { margin: 0; max-width: 88ch; color: var(--text-secondary-color); }
+.lab-head strong { color: var(--text-primary-color); font-weight: 600; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40; background: color-mix(in srgb, var(--surface-panel) 94%, transparent); border-block: 1px solid var(--border-subtle); backdrop-filter: blur(8px); }
+.bar-in { max-width: 1480px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 8px; }
+.bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.ctl { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.ctl-l { color: var(--text-secondary-color); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.sg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface-control); }
+.sg button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary-color); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.sg button:hover { color: var(--text-primary-color); background: var(--surface-hover); }
+.sg button[aria-pressed="true"] { background: var(--surface-panel); color: var(--text-primary-color); font-weight: 650; box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-sm); }
+.screens { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.screens button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--text-secondary-color); font-size: 13px; font-weight: 600; cursor: pointer; }
+.screens button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.screens button[aria-pressed="true"] { background: var(--surface-active); color: var(--text-primary-color); border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent); }
+.screens svg { width: 15px; height: 15px; }
+.screens .n { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .7; }
+
+.lab-main { max-width: 1480px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.state-note { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin: 0 0 14px; padding: 10px 14px; border: 1px dashed var(--border-control); border-radius: 12px; color: var(--text-secondary-color); font-size: 13px; }
+.state-note b { color: var(--text-primary-color); font-weight: 650; }
+
+/* una a una */
+.single { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+.slist { position: sticky; top: 132px; max-height: calc(100vh - 150px); overflow: auto; display: grid; gap: 12px; padding-right: 4px; scrollbar-width: thin; }
+.sfam h3 { margin: 0 0 4px; padding-left: 8px; color: var(--text-secondary-color); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.sfam ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+.sbtn { width: 100%; display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; }
+.sbtn:hover { background: var(--surface-hover); }
+.sbtn[aria-current="true"] { background: var(--surface-active); }
+.sbtn b { display: block; font-size: 13px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbtn small { display: block; color: var(--text-secondary-color); font-size: 11px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vdot { width: 9px; height: 9px; border-radius: 50%; background: var(--v); }
+
+.stage-col { min-width: 0; display: grid; gap: 14px; }
+.stage-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.stage-top h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; line-height: 1.2; }
+.stage-top .sp { flex: 1; }
+.nav-b { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--surface-panel); color: var(--text-primary-color); font-size: 12px; font-weight: 600; cursor: pointer; }
+.nav-b:hover { background: var(--surface-hover); }
+.nav-b svg { width: 14px; height: 14px; }
+
+.frame { position: relative; width: 100%; aspect-ratio: 1200 / 760; max-width: 100%; overflow: hidden; border-radius: calc(12px * var(--s, 1)); box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-md); background: var(--surface-app); }
+.frame > .win { pointer-events: none; position: absolute; top: 0; left: 0; transform: scale(var(--s, 1)); transform-origin: 0 0; }
+
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--surface-hover); color: var(--text-secondary-color); font-size: 11px; font-weight: 650; white-space: nowrap; }
+.tag svg { width: 12px; height: 12px; }
+.tag.v { background: color-mix(in srgb, var(--v) 16%, transparent); color: var(--text-primary-color); }
+.tag.v::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--v); }
+
+.ficha { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; padding: 18px 20px; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--surface-panel); }
+.ficha h3 { margin: 0 0 4px; font-size: 13px; font-weight: 700; }
+.ficha p { margin: 0; }
+.ficha .intent { font-size: 15px; line-height: 1.45; margin-bottom: 12px; text-wrap: pretty; }
+.pc { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pc ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: var(--text-secondary-color); }
+.pc li::marker { color: var(--text-primary-color); }
+.rub { display: grid; gap: 10px; align-content: start; }
+.rub-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; font-size: 13px; }
+.rub-r span:first-child { color: var(--text-secondary-color); }
+.lvl { display: inline-flex; align-items: center; gap: 6px; font-weight: 650; font-size: 12px; }
+.lvl i { display: inline-flex; gap: 2px; }
+.lvl i b { width: 12px; height: 6px; border-radius: 3px; background: var(--border-control); }
+.lvl[data-l="3"] i b, .lvl[data-l="2"] i b:nth-child(-n+2), .lvl[data-l="1"] i b:first-child { background: var(--lc); }
+.lvl[data-l="3"] { --lc: var(--status-success); } .lvl[data-l="2"] { --lc: var(--status-warning); } .lvl[data-l="1"] { --lc: var(--status-danger); }
+.rub-why { grid-column: 1 / -1; color: var(--text-secondary-color); font-size: 12px; line-height: 1.4; }
+.verdict-box { padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--v) 12%, transparent); font-size: 13px; }
+.verdict-box b { display: block; margin-bottom: 2px; }
+
+/* comparar todo */
+.cmp-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 18px 16px; }
+.tile { display: grid; gap: 8px; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; border-radius: 14px; }
+.tile:hover .frame { box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-md); }
+.tile-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tile-h b { font-size: 14px; font-weight: 650; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile-h .sp { flex: 1; }
+.tile p { margin: 0; color: var(--text-secondary-color); font-size: 12px; line-height: 1.4; }
+.tile-n { color: var(--text-secondary-color); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* recomendación */
+.reco { max-width: 1480px; margin: 0 auto; padding-block: 8px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.reco > h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.01em; }
+.reco > p { margin: 0 0 18px; max-width: 90ch; color: var(--text-secondary-color); }
+.reco-g { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.rc { display: grid; gap: 8px; align-content: start; padding: 18px; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--surface-panel); }
+.rc h3 { margin: 0; font-size: 16px; }
+.rc p, .rc li { margin: 0; color: var(--text-secondary-color); font-size: 13px; line-height: 1.5; }
+.rc ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.rc strong { color: var(--text-primary-color); }
+.rc .lnk { justify-self: start; border: 0; background: none; padding: 0; color: var(--accent-primary); font-weight: 650; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.rc.key { border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); }
+.adr-list { display: flex; flex-wrap: wrap; gap: 6px; }
+
+
+/* hoja en marco, a fondo */
+.deep { max-width: 1480px; margin: 0 auto; padding-block: 8px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; scroll-margin-top: 140px; }
+.deep-head { display: grid; gap: 8px; justify-items: start; }
+.deep-head h2 { margin: 0; font-size: 26px; letter-spacing: -.02em; line-height: 1.2; }
+.deep-lead { margin: 0; max-width: 78ch; font-size: 15px; color: var(--text-secondary-color); text-wrap: pretty; }
+.deep-lead strong { color: var(--text-primary-color); }
+.deep-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 4px; }
+.deep-cta .mut { color: var(--text-secondary-color); font-size: 13px; max-width: 70ch; }
+.btn-real { display: inline-flex; align-items: center; height: 38px; padding: 0 18px; border-radius: 999px; background: var(--accent-primary-fill); color: var(--accent-primary-contrast); font-weight: 700; font-size: 13px; text-decoration: none; }
+.btn-real:hover { filter: brightness(1.05); }
+.deep-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.anat { margin: 0; padding: 14px; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--surface-panel); }
+.anat svg { width: 100%; height: auto; display: block; }
+.anat figcaption { margin-top: 8px; color: var(--text-secondary-color); font-size: 12px; }
+.a-frame { fill: var(--surface-app); stroke: var(--border-subtle); }
+.a-sheet { fill: var(--surface-panel); stroke: var(--border-subtle); }
+.a-hair { stroke: var(--border-subtle); stroke-width: 1; }
+.a-rail circle, .a-rail rect, .a-tb circle, .a-tb rect { fill: var(--surface-hover); stroke: var(--border-control); }
+.a-rail circle:first-child { fill: var(--surface-active); stroke: var(--accent-primary); }
+.a-row { fill: var(--surface-hover); } .a-row--on { fill: var(--surface-active); }
+.a-well { fill: var(--surface-code); }
+.a-add { fill: color-mix(in srgb, var(--diff-added) 18%, transparent); } .a-del { fill: color-mix(in srgb, var(--diff-removed) 18%, transparent); }
+.a-dlg { fill: var(--surface-raised); stroke: var(--border-subtle); filter: drop-shadow(0 10px 18px rgba(0,0,0,.25)); }
+.a-lbl { fill: var(--text-primary-color); font: 600 12px var(--font-sans); }
+.a-sub { fill: var(--text-secondary-color); font: 400 10.5px var(--font-sans); }
+.a-end { text-anchor: end; }
+.deep-col { display: grid; gap: 6px; align-content: start; }
+.deep-col h3, .dc h3 { margin: 6px 0 2px; font-size: 15px; }
+.deep-col p, .deep-col li { margin: 0; color: var(--text-secondary-color); font-size: 13.5px; line-height: 1.55; }
+.deep-col ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.deep-col strong { color: var(--text-primary-color); }
+.deep-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.deep-cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dc { padding: 16px 18px; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--surface-panel); display: grid; gap: 6px; align-content: start; }
+.dc dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; font-size: 13px; }
+.dc dt { font-weight: 650; }
+.dc dd { margin: 0; color: var(--text-secondary-color); line-height: 1.5; }
+.dc ul, .dc ol { margin: 0; padding-left: 18px; display: grid; gap: 5px; color: var(--text-secondary-color); font-size: 13px; line-height: 1.5; }
+.dc li b { color: var(--text-primary-color); }
+.dc-k { margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.dc-k.ok { color: var(--status-success); } .dc-k.dang { color: var(--status-danger); }
+.deep code, .reco code { font-family: var(--font-mono); font-size: .92em; }
+@media (max-width: 980px) { .deep-grid, .deep-cards, .deep-cards.two { grid-template-columns: 1fr; } .dc dl { grid-template-columns: 1fr; } }
+@media (max-width: 980px) {
+  .single { grid-template-columns: 1fr; }
+  .slist { position: static; max-height: none; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); overflow-x: auto; }
+  .ficha, .pc { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .frame > .win { transition: none; }
+  .tile .frame { transition: box-shadow 160ms; }
+}
+</style>
+<style>
+/* ====================================================================== MAQUETA: BASE (= Friendly Card) */
+.win {
+  --L-d: 1;
+  --L-font: var(--font-sans); --L-head-font: var(--L-font); --L-mono: var(--font-mono);
+  --L-head-w: 700; --L-head-tt: none; --L-head-ls: -0.01em; --L-h1: 22px; --L-h2: 15px; --L-hero: 28px;
+  --L-kick-tt: none; --L-kick-ls: 0; --L-kick-c: var(--text-secondary-color);
+  --L-chrome-bg: var(--surface-app); --L-tb-bg: transparent; --L-tb-bd: 0 solid transparent; --L-tb-ink: var(--text-secondary-color);
+  --L-rail-bg: transparent; --L-rail-bd: 0 solid transparent; --L-rail-m: 0; --L-rail-r: 0; --L-rail-sh: none;
+  --L-rail-ink: var(--text-secondary-color); --L-rail-on-bg: var(--surface-active); --L-rail-on-ink: var(--accent-primary); --L-rail-cap-on: var(--text-primary-color);
+  --L-rail-ind-w: 40px; --L-rail-ind-h: 40px; --L-rail-ind-r: 50%; --L-rail-tray: color-mix(in srgb, var(--surface-hover) 45%, transparent); --L-rail-tray-r: 18px;
+  --L-main-bg: transparent; --L-main-m: 0; --L-main-r: 0; --L-main-bd: 0 solid transparent; --L-main-sh: none;
+  --L-ws-bg: transparent; --L-pad: 24px; --L-pad-t: 20px; --L-pad-b: 16px;
+  --L-stage-bd: 0 solid transparent; --L-stage-r: 0; --L-stage-ov: visible; --L-stage-sh: none;
+  --L-gap-base: 16px; --L-gap: calc(var(--L-gap-base) * var(--L-d)); --L-seam: transparent; --L-bare-bg: transparent; --L-align: start; --L-grow: 0;
+  --L-card-bg: var(--surface-panel); --L-card-bd: 1px solid var(--border-subtle); --L-card-bt: var(--L-card-bd);
+  --L-card-sh: var(--shadow-sm); --L-card-blur: none; --L-r: 18px;
+  --L-fx-bg: var(--L-card-bg); --L-fx-sh: var(--shadow-md); --L-fx-bd: var(--L-card-bd); --L-fx-ink: var(--text-primary-color); --L-fx-ink2: var(--text-secondary-color); --L-fx-glyph: var(--surface-hover);
+  --L-cpad-base: 16px; --L-cpad: calc(var(--L-cpad-base) * var(--L-d));
+  --L-inner-bg: var(--surface-card); --L-inner-bd: 1px solid var(--border-subtle); --L-inner-r: 14px;
+  --L-hair: var(--border-subtle); --L-strip-bg: transparent; --L-strip-h: 52px;
+  --L-r-item: 10px; --L-r-ctrl: 999px; --L-r-field: 14px; --L-r-pill: 999px; --L-r-seg: 14px;
+  --L-btn1-bg: var(--accent-primary-fill); --L-btn1-ink: var(--accent-primary-contrast); --L-btn1-bd: 1px solid transparent;
+  --L-btn2-bg: var(--surface-hover); --L-btn2-bd: 1px solid var(--border-subtle); --L-btn-sh: none;
+  --L-fld-bg: var(--surface-control); --L-fld-bd: 1px solid var(--border-control);
+  --L-sel-bg: var(--surface-active); --L-sel-ink: inherit;
+  --L-well: var(--surface-code); --L-well-sh: none;
+  --L-sb-h: 44px; --L-sb-m: 0 var(--L-pad) 10px var(--L-pad); --L-sb-bg: var(--surface-panel); --L-sb-bd: 1px solid var(--border-subtle); --L-sb-bt: var(--L-sb-bd);
+  --L-sb-r: 14px; --L-sb-sh: var(--shadow-sm); --L-sb-ink: var(--text-primary-color); --L-sb-ink2: var(--text-secondary-color); --L-sb-act: var(--surface-hover); --L-sb-fld: var(--surface-control);
+  --L-dlg-bg: var(--surface-raised); --L-dlg-r: var(--L-r); --L-dlg-bd: 1px solid var(--border-subtle); --L-dlg-sh: var(--shadow-lg); --L-scrim: var(--overlay); --L-scrim-blur: none;
+
+  position: relative; width: 1200px; height: 760px; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--L-chrome-bg); color: var(--text-primary-color);
+  font: 400 13px/1.5 var(--L-font); border-radius: 12px; text-align: left;
+}
+.win * { box-sizing: border-box; }
+.win svg { display: block; flex-shrink: 0; width: 16px; height: 16px; }
+
+.tb { flex: 0 0 44px; display: flex; align-items: center; gap: 2px; padding: 0 8px 0 14px; background: var(--L-tb-bg); border-bottom: var(--L-tb-bd); color: var(--L-tb-ink); }
+.tb-b { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; }
+.tb-b.off { opacity: .35; }
+.tb-drag { flex: 1; }
+.tb-bell { position: relative; }
+.tb-bell::after { content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-primary-fill); }
+.wcs { display: flex; gap: 2px; margin-left: 6px; }
+.wc { width: 32px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--L-tb-ink); }
+.wc svg { width: 13px; height: 13px; }
+
+.shell { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); }
+.rail { width: 64px; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 12px; background: var(--L-rail-bg); border-right: var(--L-rail-bd); margin: var(--L-rail-m); border-radius: var(--L-rail-r); box-shadow: var(--L-rail-sh); color: var(--L-rail-ink); }
+.ri { width: 100%; display: grid; justify-items: center; gap: 1px; padding-bottom: 4px; font-size: 10px; font-weight: 600; line-height: 1.2; }
+.ri-i { width: var(--L-rail-ind-w); height: var(--L-rail-ind-h); display: grid; place-items: center; border-radius: var(--L-rail-ind-r); }
+.ri-i svg { width: 20px; height: 20px; }
+.ri.on { color: var(--L-rail-cap-on); }
+.ri.on .ri-i { background: var(--L-rail-on-bg); color: var(--L-rail-on-ink); }
+.ri.dis { opacity: .45; }
+.rail-sp { flex: 1; }
+.tray { display: grid; justify-items: center; gap: 6px; padding: 6px; border-radius: var(--L-rail-tray-r); background: var(--L-rail-tray); }
+.rb { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; }
+.rb svg { width: 18px; height: 18px; }
+.rb.on { background: var(--L-rail-on-bg); color: var(--L-rail-on-ink); }
+.chip { width: 36px; height: 36px; flex-shrink: 0; border-radius: 28%; display: grid; place-items: center; background: var(--avatar-color-3); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.chip.c0 { background: var(--avatar-color-0); } .chip.c2 { background: var(--avatar-color-2); } .chip.c4 { background: var(--avatar-color-4); } .chip.c6 { background: var(--avatar-color-6); } .chip.c7 { background: var(--avatar-color-7); }
+.chip.sm { width: 28px; height: 28px; font-size: 11px; }
+.chip.lg { width: 56px; height: 56px; font-size: 18px; }
+.ava { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; background: var(--avatar-color-4); color: #fff; font-size: 10px; font-weight: 700; }
+.ava.c0 { background: var(--avatar-color-0); } .ava.c7 { background: var(--avatar-color-7); }
+
+.main { grid-column: 2; position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--L-main-bg); margin: var(--L-main-m); border-radius: var(--L-main-r); border: var(--L-main-bd); box-shadow: var(--L-main-sh); overflow: hidden; }
+.ws { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--L-pad-t) var(--L-pad) var(--L-pad-b); background: var(--L-ws-bg); overflow: hidden; }
+.root { flex: 1 1 auto; min-height: 0; border: var(--L-stage-bd); border-radius: var(--L-stage-r); overflow: var(--L-stage-ov); box-shadow: var(--L-stage-sh); }
+.root.auto { flex: 0 1 auto; }
+.ly { display: flex; flex-direction: column; gap: var(--L-gap); background: var(--L-seam); min-height: 0; min-width: 0; }
+.ly.h { flex-direction: row; }
+.ly.st { align-items: var(--L-align); }
+.ly.fill > :last-child { flex-grow: var(--L-grow); }
+.ly > .grow { flex: 1 1 auto; }
+.br { background: var(--L-bare-bg); }
+
+.cd { position: relative; min-width: 0; min-height: 0; background: var(--L-card-bg); border: var(--L-card-bd); border-top: var(--L-card-bt); box-shadow: var(--L-card-sh); border-radius: var(--L-r); -webkit-backdrop-filter: var(--L-card-blur); backdrop-filter: var(--L-card-blur); }
+.cd.fx { background: var(--L-fx-bg); border: var(--L-fx-bd); box-shadow: var(--L-fx-sh); color: var(--L-fx-ink); }
+.cd.fx .mut { color: var(--L-fx-ink2); }
+.pnl { display: flex; flex-direction: column; overflow: hidden; }
+.pad { padding: var(--L-cpad); }
+.inner { background: var(--L-inner-bg); border: var(--L-inner-bd); border-radius: var(--L-inner-r); padding: calc(12px * var(--L-d)) 14px; min-width: 0; }
+
+.strip { flex: 0 0 var(--L-strip-h); display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--L-hair); background: var(--L-strip-bg); min-width: 0; }
+.strip.in { flex-basis: 44px; }
+.strip.nob { border-bottom: 0; }
+.strip.p0 { padding: 0; }
+.h1 { margin: 0; font-family: var(--L-head-font); font-weight: var(--L-head-w); font-size: var(--L-h1); line-height: 1.2; letter-spacing: var(--L-head-ls); text-transform: var(--L-head-tt); }
+.h2 { margin: 0; font-family: var(--L-head-font); font-weight: var(--L-head-w); font-size: var(--L-h2); line-height: 1.25; letter-spacing: var(--L-head-ls); text-transform: var(--L-head-tt); }
+.h3 { margin: 0; font-family: var(--L-head-font); font-weight: 650; font-size: 13px; line-height: 1.35; }
+.kick { margin: 0; font-size: 12px; font-weight: 650; color: var(--L-kick-c); text-transform: var(--L-kick-tt); letter-spacing: var(--L-kick-ls); line-height: 1.35; }
+.mut { color: var(--text-secondary-color); }
+.cap { font-size: 11px; }
+.lbl { font-size: 12px; }
+.mono { font-family: var(--L-mono); }
+.b6 { font-weight: 600; } .b7 { font-weight: 700; }
+.ell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp { flex: 1; }
+.fl { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gr { display: grid; gap: 8px; min-width: 0; }
+.ok { color: var(--status-success); } .warn { color: var(--status-warning); } .dang { color: var(--status-danger); } .info { color: var(--status-renamed); } .acc { color: var(--accent-primary); }
+
+.btn { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border-radius: var(--L-r-ctrl); background: var(--L-btn2-bg); border: var(--L-btn2-bd); box-shadow: var(--L-btn-sh); color: var(--text-primary-color); font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0; }
+.btn.pri { background: var(--L-btn1-bg); color: var(--L-btn1-ink); border: var(--L-btn1-bd); font-weight: 700; }
+.btn.sm { height: 32px; padding: 0 12px; font-size: 12px; }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+.ib { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--text-secondary-color); flex-shrink: 0; }
+.ib.sq { border-radius: var(--L-r-item); }
+.fld { height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: var(--L-r-ctrl); background: var(--L-fld-bg); border: var(--L-fld-bd); color: var(--text-secondary-color); min-width: 0; }
+.fld.tall { height: 38px; }
+.fld .v { color: var(--text-primary-color); }
+.area { border-radius: var(--L-r-field); background: var(--L-fld-bg); border: var(--L-fld-bd); padding: 10px 12px; color: var(--text-secondary-color); min-height: 64px; }
+.bdg { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: var(--L-r-pill); background: var(--surface-hover); color: var(--text-secondary-color); font-size: 11px; font-weight: 650; white-space: nowrap; flex-shrink: 0; }
+.bdg svg { width: 11px; height: 11px; }
+.bdg.ok { background: color-mix(in srgb, var(--status-success) 15%, transparent); color: var(--status-success); }
+.bdg.warn { background: color-mix(in srgb, var(--status-warning) 15%, transparent); color: var(--status-warning); }
+.bdg.info { background: color-mix(in srgb, var(--status-renamed) 14%, transparent); color: var(--status-renamed); }
+.bdg.acc { background: var(--surface-active); color: var(--accent-primary); }
+.kbd { padding: 1px 6px; border: 1px solid var(--border-subtle); border-bottom-width: 2px; border-radius: 6px; background: var(--L-card-bg); color: var(--text-secondary-color); font-size: 11px; font-weight: 600; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: calc(28px * var(--L-d) + 4px); padding: calc(4px * var(--L-d)) 8px; border-radius: var(--L-r-item); }
+.row.sel { background: var(--L-sel-bg); color: var(--L-sel-ink); }
+.row.sel .mut { color: inherit; opacity: .78; }
+.row .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.row.tall { min-height: calc(44px * var(--L-d) + 4px); }
+.cb { width: 16px; height: 16px; flex-shrink: 0; display: grid; place-items: center; border: 1.5px solid var(--border-control); border-radius: 5px; }
+.cb.on { background: var(--accent-primary-fill); border-color: transparent; color: var(--accent-primary-contrast); }
+.cb.part { background: var(--accent-primary-fill); border-color: transparent; color: var(--accent-primary-contrast); }
+.cb svg { width: 11px; height: 11px; stroke-width: 3.2; }
+.kd { width: 16px; display: grid; place-items: center; flex-shrink: 0; }
+.kd svg { width: 14px; height: 14px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--status-warning); flex-shrink: 0; }
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--L-r-seg); background: var(--surface-control); border: 1px solid var(--border-subtle); }
+.seg span { height: 26px; padding: 0 10px; display: grid; place-items: center; border-radius: var(--L-r-item); font-size: 12px; color: var(--text-secondary-color); }
+.seg .on { background: var(--L-card-bg); color: var(--text-primary-color); font-weight: 650; box-shadow: var(--shadow-sm); }
+.tgl { position: relative; width: 34px; height: 20px; flex-shrink: 0; border-radius: var(--L-r-pill); background: var(--border-control); }
+.tgl::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.tgl.on { background: var(--accent-primary-fill); }
+.tgl.on::after { left: 16px; }
+.glyph { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; background: var(--surface-hover); color: var(--text-secondary-color); }
+.glyph.lg { width: 44px; height: 44px; } .glyph.lg svg { width: 20px; height: 20px; }
+.glyph.acc { color: var(--accent-primary); }
+.hair { height: 1px; background: var(--L-hair); flex-shrink: 0; }
+
+/* pestañas del trabajo */
+.tabs { flex: 1; align-self: stretch; display: flex; min-width: 0; }
+.tab { position: relative; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-secondary-color); font-family: var(--L-head-font); font-size: 15px; font-weight: 700; letter-spacing: -.01em; text-transform: var(--L-head-tt); }
+.tab.on { color: var(--text-primary-color); }
+.tab.on svg { color: var(--accent-primary); }
+.tab.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent-primary); }
+
+/* árbol de archivos */
+.tree { flex: 1; min-height: 0; overflow: hidden; padding: 2px 6px; display: grid; align-content: start; gap: 1px; }
+.tree .row { gap: 6px; min-height: calc(26px * var(--L-d) + 4px); }
+.ind1 { padding-left: 22px !important; } .ind2 { padding-left: 36px !important; }
+.fold { color: var(--text-secondary-color); font-weight: 600; }
+.fold svg { width: 14px; height: 14px; }
+.composer { flex: 0 0 auto; display: grid; gap: 8px; padding: 10px; border-top: 1px solid var(--L-hair); }
+.composer .area { min-height: 56px; }
+
+/* diff */
+.well { flex: 1; min-height: 0; overflow: hidden; padding: 6px 0; background: var(--L-well); box-shadow: var(--L-well-sh); font: 12px/1.6 var(--L-mono); }
+.dl { display: grid; grid-template-columns: 40px 40px 18px minmax(0, 1fr); padding-right: 16px; white-space: pre; }
+.dl .n { padding-right: 8px; text-align: right; color: var(--text-secondary-color); opacity: .6; font-size: 11px; }
+.dl .s { text-align: center; }
+.dl .c { overflow: hidden; text-overflow: ellipsis; }
+.dl.add { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
+.dl.add .s, .dl.add .c { color: var(--diff-added); }
+.dl.del { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }
+.dl.del .s, .dl.del .c { color: var(--diff-removed); }
+.dl.hunk { color: var(--text-secondary-color); background: color-mix(in srgb, var(--status-renamed) 7%, transparent); }
+.dl.hunk .c { color: var(--status-renamed); }
+.sx-k { color: var(--syntax-keyword); } .sx-s { color: var(--syntax-string); } .sx-t { color: var(--syntax-type); } .sx-p { color: var(--syntax-property); } .sx-c { color: var(--syntax-comment); } .sx-n { color: var(--syntax-number); }
+
+/* resumen */
+.ov-head { min-height: 40px; display: flex; align-items: center; gap: 8px 12px; padding: 0 4px; }
+.ov-slash { color: var(--border-control); font-size: 22px; line-height: 1; }
+.ov-line { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--L-r-item); color: var(--text-secondary-color); font-size: 15px; font-weight: 600; }
+.ov-line svg { width: 14px; height: 14px; }
+.ov-line .v { color: var(--text-primary-color); }
+.next { display: flex; align-items: center; gap: 12px 16px; padding: 16px 24px; }
+.next .glyph { background: var(--L-fx-glyph); color: var(--accent-primary); }
+.next-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.prog { display: inline-flex; gap: 3px; margin-left: 10px; vertical-align: middle; }
+.prog i { width: 16px; height: 4px; border-radius: var(--L-r-pill); background: var(--border-control); }
+.prog i.cur { background: var(--accent-primary-fill); }
+.next-title { margin: 2px 0 0; font-family: var(--L-head-font); font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.35; text-transform: var(--L-head-tt); }
+.then { width: fit-content; display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 3px 12px 3px 4px; border-radius: var(--L-r-pill); background: var(--surface-hover); font-size: 12px; font-weight: 600; color: var(--text-secondary-color); }
+.then .glyph { width: 18px; height: 18px; background: var(--L-card-bg); }
+.then .glyph svg { width: 11px; height: 11px; }
+.then b { color: var(--text-primary-color); font-weight: 650; }
+.ov-body { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: var(--L-gap); align-items: var(--L-align); background: var(--L-seam); min-height: 0; }
+.tl { padding: 12px; }
+.tl-h { display: flex; align-items: center; justify-content: space-between; padding: 0 0 4px 8px; }
+.tl-list { position: relative; display: grid; gap: 2px; }
+.tl-list::before { content: ""; position: absolute; top: 18px; bottom: 18px; left: 17.5px; width: 1px; background: var(--border-divider); }
+.tl-row { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr) 16px; align-items: center; gap: 12px; min-height: calc(44px * var(--L-d) + 4px); padding: 4px 8px 4px 6px; border-radius: var(--L-r-item); }
+.tl-node { position: relative; z-index: 1; width: 12px; height: 12px; place-self: center; border-radius: 50%; border: 2px solid var(--text-primary-color); background: var(--text-primary-color); box-shadow: 0 0 0 3px var(--L-card-bg); }
+.tl-node.local { background: linear-gradient(90deg, var(--text-primary-color) 50%, var(--L-card-bg) 50%); }
+.tl-node.now { width: 14px; height: 14px; border: 2.5px dashed var(--status-warning); background: var(--L-card-bg); }
+.tl-sub { font-weight: 650; }
+.tl-meta { display: flex; align-items: center; gap: 5px; color: var(--text-secondary-color); font-size: 11px; }
+.tl-meta i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+.tl-group { margin: 2px 0; padding: 2px 0 4px; border-radius: var(--L-inner-r); background: color-mix(in srgb, var(--surface-hover) 70%, transparent); }
+.tl-gh { display: grid; grid-template-columns: 24px auto 1fr; align-items: center; gap: 12px; padding: 6px 8px 0 6px; }
+.tl-gi { position: relative; z-index: 1; width: 22px; height: 22px; place-self: center; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--border-control); background: var(--L-card-bg); color: var(--accent-primary); }
+.tl-gi svg { width: 12px; height: 12px; }
+.tl-mark { display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 12px; padding: 8px 8px 2px 6px; }
+.tl-mark .tl-gi { color: var(--status-renamed); }
+.tl-mt { display: flex; align-items: center; gap: 8px; color: var(--text-secondary-color); font-size: 11px; white-space: nowrap; }
+.tl-mt::after { content: ""; flex: 1; border-top: 1px dashed var(--border-control); }
+.kinds { display: inline-flex; gap: 4px; margin-left: 6px; }
+.kinds .bdg { height: 22px; background: var(--surface-hover); }
+.side { display: flex; flex-direction: column; gap: var(--L-gap); background: var(--L-seam); min-height: 0; }
+.side > :last-child { flex-grow: var(--L-grow); }
+.scene { display: grid; gap: 4px; padding: 10px 14px; }
+.scene-r { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; align-items: center; justify-items: center; }
+.place { position: relative; width: 48px; height: 40px; display: grid; place-items: center; border-radius: var(--L-r-item); background: var(--L-card-bg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-subtle); color: var(--text-secondary-color); }
+.place svg { width: 20px; height: 20px; }
+.place .bdg { position: absolute; top: -8px; right: -10px; height: 18px; padding: 0 5px; background: var(--surface-control); color: var(--text-primary-color); box-shadow: 0 0 0 2px var(--L-card-bg); font-size: 10px; }
+.path { position: relative; width: 100%; height: 20px; }
+.path::before { content: ""; position: absolute; top: 9px; left: 6px; right: 6px; border-top: 2px dashed color-mix(in srgb, var(--text-secondary-color) 45%, transparent); }
+.path i { position: absolute; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--text-primary-color); }
+.scene-c { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; text-align: center; font-size: 11px; line-height: 1.35; }
+.big { font-size: 22px; font-weight: 700; letter-spacing: -.01em; line-height: 1; font-family: var(--L-head-font); }
+.bar2 { flex: 1; height: 3px; display: flex; overflow: hidden; border-radius: var(--L-r-pill); background: var(--border-subtle); }
+.bar2 i:first-child { background: var(--diff-added); } .bar2 i:last-child { background: var(--diff-removed); }
+
+/* detalle de historial / líneas */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fact .big { font-size: 17px; }
+.split2 { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+.split2 > :first-child { border-right: 1px solid var(--L-hair); display: flex; flex-direction: column; min-height: 0; }
+.split2 > :last-child { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+
+/* inicio */
+.home { width: 100%; max-width: 860px; margin: 0 auto; }
+.hero-t { margin: 0; font-family: var(--L-head-font); font-size: var(--L-hero); font-weight: var(--L-head-w); letter-spacing: -.02em; line-height: 1.2; text-transform: var(--L-head-tt); }
+.acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--L-gap); background: var(--L-seam); }
+.act { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: calc(14px * var(--L-d)) 16px; }
+
+/* ajustes */
+.set { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--L-gap); align-items: var(--L-align); background: var(--L-seam); }
+.set-nav { display: grid; gap: 1px; padding: 8px; align-content: start; }
+.set-nav .row { gap: 10px; }
+.set-nav svg { width: 16px; height: 16px; color: var(--text-secondary-color); }
+.set-nav .row.sel svg { color: var(--accent-primary); }
+.set-c { display: flex; flex-direction: column; gap: var(--L-gap); background: var(--L-seam); min-height: 0; }
+.set-c > :last-child { flex-grow: var(--L-grow); }
+.set-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 16px; padding: calc(8px * var(--L-d)) 0; }
+.themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.th-card { display: grid; gap: 6px; padding: 6px; border-radius: var(--L-r-field); border: 1px solid var(--border-subtle); background: var(--L-inner-bg); font-size: 12px; font-weight: 600; }
+.th-card.on { border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--accent-primary); }
+.th-prev { height: 54px; border-radius: 10px; display: grid; grid-template-columns: 14px 1fr; gap: 5px; padding: 6px; }
+.th-prev i { border-radius: 4px; }
+.th-l { background: #faf8f5; } .th-l i:first-child { background: #e7e5e4; } .th-l i:last-child { background: #fff; box-shadow: 0 0 0 1px #e7e5e4; }
+.th-d { background: #0c0a09; } .th-d i:first-child { background: #292524; } .th-d i:last-child { background: #1c1917; box-shadow: 0 0 0 1px #38322f; }
+.th-s { background: linear-gradient(90deg, #faf8f5 50%, #0c0a09 50%); } .th-s i:first-child { background: #e7e5e4; } .th-s i:last-child { background: linear-gradient(90deg, #fff 50%, #1c1917 50%); }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.sw { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 4px; border-radius: var(--L-r-pill); border: 1px solid var(--border-subtle); font-size: 12px; font-weight: 600; }
+.sw i { width: 20px; height: 20px; border-radius: 50%; }
+.sw.on { border-color: var(--accent-primary); background: var(--surface-active); }
+
+/* consola */
+.term { flex: 1; min-height: 0; overflow: hidden; padding: 12px 16px; background: var(--L-well); box-shadow: var(--L-well-sh); font: 12.5px/1.65 var(--L-mono); white-space: pre; }
+.term .pr { color: var(--accent-primary); font-weight: 700; }
+.term .cm { color: var(--text-primary-color); font-weight: 600; }
+.term .o { color: var(--text-secondary-color); }
+.caret { display: inline-block; width: 8px; height: 15px; vertical-align: -3px; background: var(--accent-primary); }
+.con-in { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--L-hair); }
+
+/* barra de estado */
+.sb { flex: 0 0 var(--L-sb-h); height: var(--L-sb-h); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: var(--L-sb-m); padding: 0 5px; background: var(--L-sb-bg); border: var(--L-sb-bd); border-top: var(--L-sb-bt); border-radius: var(--L-sb-r); box-shadow: var(--L-sb-sh); color: var(--L-sb-ink); }
+.sb-blk { display: inline-flex; align-items: center; min-width: 0; height: 30px; border-radius: var(--L-r-pill); }
+.sb-blk.r { justify-self: end; }
+.sb-blk.fill { background: var(--L-sb-act); }
+.sb-seg { display: inline-flex; align-items: center; gap: 6px; height: 30px; min-width: 0; padding: 0 8px; font-weight: 600; white-space: nowrap; }
+.sb-seg svg { width: 14px; height: 14px; }
+.sb-seg.m { color: var(--L-sb-ink2); font-weight: 500; font-size: 12px; }
+.sb-seg.act svg { color: var(--accent-primary); }
+.sb-hair { width: 1px; height: 16px; margin: 0 3px; background: var(--border-divider); flex-shrink: 0; }
+.sb-fld { width: 400px; max-width: 100%; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: var(--L-r-ctrl); background: var(--L-sb-fld); color: var(--L-sb-ink2); }
+.sb-fld svg { width: 15px; height: 15px; }
+
+/* diálogo */
+.scrim { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--L-scrim); -webkit-backdrop-filter: var(--L-scrim-blur); backdrop-filter: var(--L-scrim-blur); }
+.dlg { width: 540px; display: grid; gap: 16px; padding: 24px; background: var(--L-dlg-bg); border: var(--L-dlg-bd); border-radius: var(--L-dlg-r); box-shadow: var(--L-dlg-sh); color: var(--text-primary-color); }
+.dlg-h { display: flex; align-items: center; gap: 12px; }
+.dlg-f { display: flex; align-items: center; gap: 8px; }
+.note { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border-radius: var(--L-r-item); background: var(--surface-hover); color: var(--text-secondary-color); font-size: 12px; }
+.note svg { width: 14px; height: 14px; margin-top: 2px; }
+
+/* ====================================================================== ESTILOS (paquetes de variables) */
+
+/* — 2 Solo borde · Linear — */
+.win[data-style="border"] { --L-card-sh: none; --L-fx-sh: none; --L-sb-sh: none; --L-r: 12px; --L-r-ctrl: 8px; --L-r-item: 6px; --L-r-field: 8px; --L-r-seg: 9px; --L-inner-r: 10px; --L-btn2-bg: transparent; --L-card-bg: color-mix(in srgb, var(--surface-panel) 70%, var(--surface-app)); --L-sb-r: 10px; --L-dlg-r: 12px; }
+/* — 3 Solo sombra · Things — */
+.win[data-style="shadow"] { --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-sb-bd: 0 solid transparent; --L-card-sh: 0 1px 2px rgba(28,25,23,.05), 0 6px 22px -6px rgba(28,25,23,.16); --L-fx-sh: 0 2px 4px rgba(28,25,23,.06), 0 16px 36px -10px rgba(28,25,23,.22); --L-sb-sh: var(--L-card-sh); --L-r: 16px; --L-chrome-bg: #f3f1ed; --L-inner-bd: 0 solid transparent; --L-btn2-bd: 0 solid transparent; }
+:root[data-theme="dark"] .win[data-style="shadow"] { --L-chrome-bg: #0c0a09; --L-card-sh: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 26px -6px rgba(0,0,0,.7); --L-fx-sh: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -10px rgba(0,0,0,.85); }
+/* — 4 Doble borde · Vercel Geist — */
+.win[data-style="double"] { --L-card-sh: 0 0 0 3px var(--surface-app), 0 0 0 4px var(--border-subtle); --L-fx-sh: 0 0 0 3px var(--surface-app), 0 0 0 4px color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); --L-sb-sh: 0 0 0 3px var(--surface-app), 0 0 0 4px var(--border-subtle); --L-card-bd: 1px solid var(--border-divider); --L-r: 14px; --L-sb-r: 12px; --L-btn2-bg: var(--L-card-bg); }
+/* — 5 Halo de acento · Supabase — */
+.win[data-style="halo"] { --L-card-sh: none; --L-sb-sh: none; --L-fx-bd: 1px solid color-mix(in srgb, var(--accent-primary) 50%, var(--border-subtle)); --L-fx-sh: 0 0 0 4px color-mix(in srgb, var(--accent-primary-fill) 12%, transparent), 0 14px 40px -14px color-mix(in srgb, var(--accent-primary-fill) 55%, transparent); --L-fx-glyph: color-mix(in srgb, var(--accent-primary-fill) 18%, transparent); --L-btn-sh: none; }
+.win[data-style="halo"] .btn.pri { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary-fill) 22%, transparent); }
+
+/* — 6 Pieza fundida · GitHub Desktop — */
+.win[data-style="fused"] { --L-gap: 1px; --L-seam: var(--border-subtle); --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-bare-bg: var(--surface-panel); --L-align: stretch; --L-grow: 1; --L-stage-bd: 1px solid var(--border-subtle); --L-stage-r: 14px; --L-stage-ov: hidden; --L-stage-sh: var(--shadow-sm); --L-pad-b: 12px; --L-sb-m: 0 var(--L-pad) 10px; --L-r-ctrl: 8px; --L-r-item: 6px; --L-inner-r: 8px; }
+.win[data-style="fused"] .ov-head { padding: 0 16px; }
+/* — 7 A sangre · VS Code / Sublime Merge — */
+.win[data-style="bleed"] { --L-gap: 1px; --L-seam: var(--border-subtle); --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-bare-bg: var(--surface-panel); --L-align: stretch; --L-grow: 1; --L-pad: 0; --L-pad-t: 0; --L-pad-b: 0; --L-tb-bd: 1px solid var(--border-subtle); --L-rail-bd: 1px solid var(--border-subtle); --L-rail-bg: var(--surface-app); --L-rail-on-bg: transparent; --L-rail-ind-r: 0; --L-sb-h: 30px; --L-sb-m: 0; --L-sb-r: 0; --L-sb-sh: none; --L-sb-bd: 0 solid transparent; --L-sb-bt: 1px solid var(--border-subtle); --L-sb-bg: var(--surface-app); --L-r-ctrl: 4px; --L-r-item: 4px; --L-r-field: 4px; --L-r-seg: 5px; --L-inner-r: 4px; --L-dlg-r: 8px; --L-strip-h: 40px; --L-chrome-bg: var(--surface-app); --L-rail-tray: transparent; }
+.win[data-style="bleed"] .ri.on .ri-i { box-shadow: inset 2px 0 0 var(--accent-primary); }
+.win[data-style="bleed"] .ov-head, .win[data-style="bleed"] .home > .br { padding: 12px 16px; }
+.win[data-style="bleed"] .sb-blk, .win[data-style="bleed"] .sb-seg { height: 24px; }
+.win[data-style="bleed"] .sb-fld { height: 22px; }
+/* — 8 Hoja en marco · Arc / Dia — (elegido) el marco es el --surface-app de hoy, sin tinte; la hoja lleva la receta de tarjeta una sola vez */
+.win[data-style="sheet"] { --L-main-bg: var(--surface-panel); --L-main-m: 0 10px 10px 0; --L-main-r: 18px; --L-main-sh: var(--shadow-sm); --L-main-bd: 1px solid var(--border-subtle); --L-gap: 1px; --L-seam: var(--border-subtle); --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-bare-bg: var(--surface-panel); --L-align: stretch; --L-grow: 1; --L-pad: 0; --L-pad-t: 0; --L-pad-b: 0; --L-sb-m: 0; --L-sb-r: 0; --L-sb-sh: none; --L-sb-bd: 0 solid transparent; --L-sb-bt: 1px solid var(--border-subtle); --L-sb-bg: var(--surface-panel); }
+.win[data-style="sheet"] .ov-head, .win[data-style="sheet"] .home > .br { padding: 14px 24px; }
+/* — 9 Separación por tono · Raycast / Zed — */
+.win[data-style="tonal"] { --L-chrome-bg: #efebe6; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-sb-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-sb-sh: none; --L-r: 12px; --L-sb-r: 10px; --L-hair: transparent; --L-strip-bg: color-mix(in srgb, var(--surface-app) 55%, var(--surface-panel)); --L-inner-bd: 0 solid transparent; --L-inner-bg: color-mix(in srgb, var(--surface-app) 70%, var(--surface-panel)); --L-btn2-bd: 0 solid transparent; --L-fld-bd: 0 solid transparent; --L-fld-bg: color-mix(in srgb, var(--surface-app) 80%, var(--surface-panel)); --L-well: color-mix(in srgb, var(--surface-code) 60%, var(--surface-app)); --L-dlg-bd: 0 solid transparent; }
+:root[data-theme="dark"] .win[data-style="tonal"] { --L-chrome-bg: #0c0a09; --L-strip-bg: #231f1d; --L-inner-bg: #24201e; --L-fld-bg: #262220; --L-well: #161312; }
+/* — 10 Bento · Apple / Vercel — */
+.win[data-style="bento"] { --L-gap-base: 24px; --L-pad: 32px; --L-pad-t: 28px; --L-r: 26px; --L-cpad-base: 22px; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: var(--shadow-md); --L-fx-bg: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary-fill) 18%, var(--surface-panel)), var(--surface-panel) 62%); --L-fx-sh: 0 18px 40px -16px rgba(28,25,23,.25); --L-ws-bg: color-mix(in srgb, var(--accent-primary) 4%, var(--surface-app)); --L-sb-r: 18px; --L-sb-bd: 0 solid transparent; --L-sb-sh: var(--shadow-md); --L-inner-r: 18px; --L-inner-bd: 0 solid transparent; --L-dlg-r: 28px; }
+/* — 11 Denso · Fork / Sublime Merge — */
+.win[data-style="dense"] { --L-d: .8; --L-gap-base: 10px; --L-pad: 12px; --L-pad-t: 12px; --L-pad-b: 8px; --L-r: 8px; --L-r-item: 5px; --L-r-ctrl: 6px; --L-r-field: 6px; --L-r-seg: 7px; --L-inner-r: 6px; --L-card-sh: none; --L-fx-sh: none; --L-sb-sh: none; --L-sb-h: 32px; --L-sb-r: 7px; --L-sb-m: 0 var(--L-pad) 8px; --L-strip-h: 38px; --L-h1: 17px; --L-h2: 13px; --L-hero: 20px; font-size: 12px; --L-dlg-r: 8px; }
+.win[data-style="dense"] .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+.win[data-style="dense"] .tab { font-size: 13px; }
+.win[data-style="dense"] .sb-blk, .win[data-style="dense"] .sb-seg { height: 24px; }
+.win[data-style="dense"] .sb-fld { height: 24px; }
+.win[data-style="dense"] .fld { height: 26px; }
+
+/* — 12 Glass · macOS Big Sur — */
+.win[data-style="glass"] { --L-chrome-bg: radial-gradient(60% 70% at 15% 10%, #c9e9a6 0, transparent 60%), radial-gradient(50% 60% at 85% 20%, #b9d3f5 0, transparent 60%), radial-gradient(60% 60% at 60% 95%, #f3d9b5 0, transparent 60%), #eef0ea; --L-card-bg: rgba(255,255,255,.55); --L-card-bd: 1px solid rgba(255,255,255,.7); --L-card-sh: 0 8px 30px -10px rgba(40,50,30,.25); --L-card-blur: blur(22px) saturate(1.5); --L-fx-bg: rgba(255,255,255,.7); --L-fx-sh: 0 14px 40px -12px rgba(40,50,30,.35); --L-sb-bg: rgba(255,255,255,.55); --L-sb-bd: 1px solid rgba(255,255,255,.7); --L-rail-bg: rgba(255,255,255,.35); --L-rail-m: 8px 0 10px 8px; --L-rail-r: 18px; --L-rail-bd: 1px solid rgba(255,255,255,.6); --L-dlg-bg: rgba(255,255,255,.72); --L-scrim: rgba(28,25,23,.15); --L-scrim-blur: blur(6px); --L-inner-bg: rgba(255,255,255,.45); --L-fld-bg: rgba(255,255,255,.6); --L-btn2-bg: rgba(255,255,255,.5); --L-well: var(--surface-code); }
+.win[data-style="glass"] .cd, .win[data-style="glass"] .sb, .win[data-style="glass"] .rail, .win[data-style="glass"] .dlg { -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); }
+:root[data-theme="dark"] .win[data-style="glass"] { --L-chrome-bg: radial-gradient(60% 70% at 15% 10%, #2f4a1c 0, transparent 60%), radial-gradient(50% 60% at 85% 20%, #1c2e4a 0, transparent 60%), radial-gradient(60% 60% at 60% 95%, #4a2f1c 0, transparent 60%), #0e0d0c; --L-card-bg: rgba(40,36,33,.55); --L-card-bd: 1px solid rgba(255,255,255,.09); --L-card-sh: 0 8px 30px -10px rgba(0,0,0,.6); --L-fx-bg: rgba(48,44,40,.65); --L-sb-bg: rgba(40,36,33,.55); --L-sb-bd: 1px solid rgba(255,255,255,.09); --L-rail-bg: rgba(40,36,33,.35); --L-rail-bd: 1px solid rgba(255,255,255,.07); --L-dlg-bg: rgba(48,44,40,.72); --L-scrim: rgba(0,0,0,.3); --L-inner-bg: rgba(255,255,255,.05); --L-fld-bg: rgba(255,255,255,.06); --L-btn2-bg: rgba(255,255,255,.07); }
+/* — 13 Mica · Windows 11 Fluent — */
+.win[data-style="mica"] { --L-font: "Segoe UI Variable Text", "Segoe UI", var(--font-sans); --L-chrome-bg: linear-gradient(120deg, #e7eedf, #eceaf0 55%, #e3eaef); --L-card-bg: #fbfbfa; --L-card-bd: 1px solid rgba(0,0,0,.06); --L-card-sh: 0 2px 4px rgba(0,0,0,.04); --L-fx-sh: 0 4px 12px rgba(0,0,0,.08); --L-r: 8px; --L-r-ctrl: 4px; --L-r-item: 4px; --L-r-field: 4px; --L-r-seg: 6px; --L-inner-r: 6px; --L-sb-r: 8px; --L-sb-bg: #fbfbfa; --L-sb-bd: 1px solid rgba(0,0,0,.06); --L-sb-sh: none; --L-rail-on-bg: rgba(0,0,0,.05); --L-rail-ind-r: 6px; --L-dlg-r: 8px; --L-btn2-bg: #fdfdfd; --L-btn2-bd: 1px solid rgba(0,0,0,.08); }
+.win[data-style="mica"] .ri.on .ri-i { box-shadow: inset 3px 0 0 var(--accent-primary); }
+:root[data-theme="dark"] .win[data-style="mica"] { --L-chrome-bg: linear-gradient(120deg, #1b2117, #1b1a20 55%, #171c20); --L-card-bg: #2b2a28; --L-card-bd: 1px solid rgba(255,255,255,.06); --L-card-sh: 0 2px 4px rgba(0,0,0,.2); --L-sb-bg: #2b2a28; --L-sb-bd: 1px solid rgba(255,255,255,.06); --L-rail-on-bg: rgba(255,255,255,.06); --L-btn2-bg: #353330; --L-btn2-bd: 1px solid rgba(255,255,255,.07); }
+/* — 14 Adwaita · GNOME — */
+.win[data-style="adwaita"] { --L-font: Cantarell, "Inter", var(--font-sans); --L-tb-bg: var(--surface-panel); --L-tb-bd: 1px solid var(--border-subtle); --L-rail-bg: #f2f0ed; --L-rail-bd: 1px solid var(--border-subtle); --L-rail-ind-w: 48px; --L-rail-ind-h: 34px; --L-rail-ind-r: 8px; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: 0 0 0 1px rgba(0,0,6,.07), 0 1px 3px 1px rgba(0,0,6,.07); --L-fx-sh: 0 0 0 1px rgba(0,0,6,.08), 0 2px 8px 2px rgba(0,0,6,.09); --L-r: 12px; --L-r-ctrl: 6px; --L-r-item: 6px; --L-r-field: 6px; --L-r-seg: 8px; --L-inner-r: 8px; --L-sb-r: 12px; --L-sb-bd: 0 solid transparent; --L-sb-sh: var(--L-card-sh); --L-btn2-bg: rgba(0,0,6,.08); --L-btn2-bd: 0 solid transparent; --L-dlg-r: 14px; --L-rail-tray: transparent; }
+:root[data-theme="dark"] .win[data-style="adwaita"] { --L-rail-bg: #171513; --L-card-sh: 0 0 0 1px rgba(0,0,0,.4), 0 1px 3px 1px rgba(0,0,0,.3); --L-fx-sh: 0 0 0 1px rgba(0,0,0,.5), 0 2px 8px 2px rgba(0,0,0,.4); --L-btn2-bg: rgba(255,255,255,.1); }
+/* — 15 Material You — */
+.win[data-style="material"] { --L-ws-bg: color-mix(in srgb, var(--accent-primary-fill) 6%, var(--surface-app)); --L-chrome-bg: color-mix(in srgb, var(--accent-primary-fill) 6%, var(--surface-app)); --L-card-bg: color-mix(in srgb, var(--accent-primary-fill) 10%, var(--surface-panel)); --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-fx-bg: color-mix(in srgb, var(--accent-primary-fill) 30%, var(--surface-panel)); --L-fx-glyph: var(--surface-panel); --L-r: 24px; --L-cpad-base: 20px; --L-rail-ind-w: 56px; --L-rail-ind-h: 32px; --L-rail-ind-r: 16px; --L-rail-on-bg: color-mix(in srgb, var(--accent-primary-fill) 40%, transparent); --L-rail-on-ink: var(--text-primary-color); --L-sb-bd: 0 solid transparent; --L-sb-sh: none; --L-sb-r: 22px; --L-sb-bg: color-mix(in srgb, var(--accent-primary-fill) 10%, var(--surface-panel)); --L-inner-bd: 0 solid transparent; --L-inner-bg: color-mix(in srgb, var(--accent-primary-fill) 16%, var(--surface-panel)); --L-inner-r: 16px; --L-fld-bd: 0 solid transparent; --L-fld-bg: color-mix(in srgb, var(--accent-primary-fill) 18%, var(--surface-panel)); --L-btn2-bd: 1px solid var(--border-control); --L-btn2-bg: transparent; --L-sel-bg: color-mix(in srgb, var(--accent-primary-fill) 30%, transparent); --L-dlg-r: 28px; --L-dlg-bg: color-mix(in srgb, var(--accent-primary-fill) 8%, var(--surface-raised)); --L-dlg-bd: 0 solid transparent; --L-hair: color-mix(in srgb, var(--accent-primary) 14%, transparent); }
+:root[data-theme="dark"] .win[data-style="material"] { --L-card-bg: color-mix(in srgb, var(--accent-primary-fill) 7%, var(--surface-panel)); --L-fx-bg: color-mix(in srgb, var(--accent-primary-fill) 18%, var(--surface-panel)); --L-rail-on-bg: color-mix(in srgb, var(--accent-primary-fill) 25%, transparent); }
+/* — 16 Neumorfismo — */
+.win[data-style="neu"] { --surface-app: #e9e5df; --surface-panel: #e9e5df; --L-chrome-bg: #e9e5df; --L-card-bg: #e9e5df; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: 7px 7px 16px #cdc7be, -7px -7px 16px #ffffff; --L-fx-sh: 10px 10px 22px #c7c0b6, -10px -10px 22px #ffffff; --L-sb-bg: #e9e5df; --L-sb-bd: 0 solid transparent; --L-sb-sh: 5px 5px 12px #cdc7be, -5px -5px 12px #ffffff; --L-btn2-bg: #e9e5df; --L-btn2-bd: 0 solid transparent; --L-btn-sh: 4px 4px 9px #cdc7be, -4px -4px 9px #ffffff; --L-fld-bg: #e9e5df; --L-fld-bd: 0 solid transparent; --L-sb-fld: #e9e5df; --L-inner-bd: 0 solid transparent; --L-inner-bg: #e9e5df; --L-r: 22px; --L-dlg-bg: #e9e5df; --L-dlg-bd: 0 solid transparent; --L-rail-on-bg: #e9e5df; --L-rail-tray: transparent; --L-sel-bg: #e9e5df; }
+.win[data-style="neu"] .fld, .win[data-style="neu"] .area, .win[data-style="neu"] .sb-fld, .win[data-style="neu"] .well, .win[data-style="neu"] .term { box-shadow: inset 3px 3px 7px #cdc7be, inset -3px -3px 7px #ffffff; }
+.win[data-style="neu"] .inner, .win[data-style="neu"] .row.sel, .win[data-style="neu"] .ri.on .ri-i { box-shadow: 3px 3px 8px #cdc7be, -3px -3px 8px #ffffff; }
+:root[data-theme="dark"] .win[data-style="neu"] { --surface-app: #23201d; --surface-panel: #23201d; --L-chrome-bg: #23201d; --L-card-bg: #23201d; --L-card-sh: 7px 7px 16px #141210, -7px -7px 16px #322e2a; --L-fx-sh: 10px 10px 22px #110f0d, -10px -10px 22px #35302c; --L-sb-bg: #23201d; --L-sb-sh: 5px 5px 12px #141210, -5px -5px 12px #322e2a; --L-btn2-bg: #23201d; --L-btn-sh: 4px 4px 9px #141210, -4px -4px 9px #322e2a; --L-fld-bg: #23201d; --L-sb-fld: #23201d; --L-inner-bg: #23201d; --L-dlg-bg: #23201d; --L-rail-on-bg: #23201d; --L-sel-bg: #23201d; }
+:root[data-theme="dark"] .win[data-style="neu"] .fld, :root[data-theme="dark"] .win[data-style="neu"] .area, :root[data-theme="dark"] .win[data-style="neu"] .sb-fld, :root[data-theme="dark"] .win[data-style="neu"] .well, :root[data-theme="dark"] .win[data-style="neu"] .term { box-shadow: inset 3px 3px 7px #141210, inset -3px -3px 7px #322e2a; }
+:root[data-theme="dark"] .win[data-style="neu"] .inner, :root[data-theme="dark"] .win[data-style="neu"] .row.sel, :root[data-theme="dark"] .win[data-style="neu"] .ri.on .ri-i { box-shadow: 3px 3px 8px #141210, -3px -3px 8px #322e2a; }
+/* — 17 Claymorfismo — */
+.win[data-style="clay"] { --L-chrome-bg: #efe8df; --L-card-bg: #fcf8f3; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: 0 16px 30px -12px rgba(90,60,30,.22), inset 0 -6px 12px rgba(90,60,30,.07), inset 0 4px 8px rgba(255,255,255,.95); --L-fx-sh: 0 22px 40px -14px rgba(90,60,30,.3), inset 0 -8px 14px rgba(90,60,30,.08), inset 0 5px 10px rgba(255,255,255,1); --L-fx-bg: #f2fbe6; --L-r: 30px; --L-cpad-base: 20px; --L-sb-bd: 0 solid transparent; --L-sb-r: 22px; --L-sb-sh: var(--L-card-sh); --L-sb-bg: #fcf8f3; --L-btn-sh: 0 6px 12px -6px rgba(90,60,30,.35), inset 0 -3px 6px rgba(0,0,0,.08), inset 0 2px 4px rgba(255,255,255,.7); --L-btn2-bd: 0 solid transparent; --L-btn2-bg: #f3ece3; --L-inner-bd: 0 solid transparent; --L-inner-r: 20px; --L-inner-bg: #f6f0e8; --L-dlg-r: 32px; --L-dlg-bd: 0 solid transparent; --L-rail-on-bg: #fcf8f3; }
+.win[data-style="clay"] .ri.on .ri-i { box-shadow: 0 6px 12px -6px rgba(90,60,30,.35), inset 0 2px 4px rgba(255,255,255,.9); }
+:root[data-theme="dark"] .win[data-style="clay"] { --L-chrome-bg: #171412; --L-card-bg: #2a2521; --L-fx-bg: #2c3324; --L-card-sh: 0 16px 30px -12px rgba(0,0,0,.7), inset 0 -6px 12px rgba(0,0,0,.28), inset 0 3px 6px rgba(255,255,255,.07); --L-fx-sh: 0 22px 40px -14px rgba(0,0,0,.8), inset 0 -8px 14px rgba(0,0,0,.3), inset 0 4px 8px rgba(255,255,255,.08); --L-sb-bg: #2a2521; --L-btn2-bg: #332d28; --L-inner-bg: #312b26; --L-rail-on-bg: #2a2521; --L-btn-sh: 0 6px 12px -6px rgba(0,0,0,.7), inset 0 -3px 6px rgba(0,0,0,.2), inset 0 2px 4px rgba(255,255,255,.12); }
+/* — 18 Neo-brutalismo · Gumroad — */
+.win[data-style="brutal"] { --L-chrome-bg: #fff7e6; --L-card-bd: 2px solid var(--text-primary-color); --L-fx-bd: 2px solid var(--text-primary-color); --L-card-sh: 4px 4px 0 var(--text-primary-color); --L-fx-sh: 6px 6px 0 var(--text-primary-color); --L-fx-bg: #fff1a8; --L-r: 10px; --L-r-ctrl: 8px; --L-r-item: 6px; --L-r-field: 8px; --L-r-seg: 9px; --L-sb-r: 10px; --L-sb-bd: 2px solid var(--text-primary-color); --L-sb-sh: 3px 3px 0 var(--text-primary-color); --L-btn1-bd: 2px solid var(--text-primary-color); --L-btn2-bd: 2px solid var(--text-primary-color); --L-btn-sh: 3px 3px 0 var(--text-primary-color); --L-btn2-bg: var(--surface-panel); --L-fld-bd: 2px solid var(--text-primary-color); --L-inner-bd: 2px solid var(--text-primary-color); --L-inner-r: 8px; --L-hair: var(--text-primary-color); --L-head-w: 800; --L-dlg-bd: 2px solid var(--text-primary-color); --L-dlg-sh: 8px 8px 0 var(--text-primary-color); --L-dlg-r: 12px; --L-rail-bd: 2px solid var(--text-primary-color); --L-rail-bg: #fff; --L-rail-on-bg: var(--accent-primary-fill); --L-rail-on-ink: var(--accent-primary-contrast); --L-rail-tray: transparent; }
+.win[data-style="brutal"] .ri.on .ri-i { border: 2px solid var(--text-primary-color); }
+:root[data-theme="dark"] .win[data-style="brutal"] { --L-chrome-bg: #141210; --L-fx-bg: #3a3410; --L-rail-bg: #0c0a09; }
+
+/* — 19 Suizo · estilo internacional — */
+.win[data-style="swiss"] { --L-font: "Helvetica Neue", Helvetica, Arial, var(--font-sans); --L-head-w: 800; --L-head-tt: uppercase; --L-head-ls: .01em; --L-h1: 24px; --L-kick-tt: uppercase; --L-kick-ls: .08em; --L-kick-c: var(--text-primary-color); --L-card-bg: transparent; --L-fx-bg: transparent; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-bt: 3px solid var(--text-primary-color); --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-r-ctrl: 0; --L-r-item: 0; --L-r-field: 0; --L-r-seg: 0; --L-r-pill: 0; --L-inner-r: 0; --L-inner-bd: 0 solid transparent; --L-inner-bg: var(--surface-hover); --L-gap-base: 28px; --L-pad: 32px; --L-sb-bg: transparent; --L-sb-bd: 0 solid transparent; --L-sb-bt: 3px solid var(--text-primary-color); --L-sb-r: 0; --L-sb-sh: none; --L-btn1-bg: var(--text-primary-color); --L-btn1-ink: var(--surface-app); --L-btn2-bg: transparent; --L-btn2-bd: 2px solid var(--text-primary-color); --L-rail-ind-r: 0; --L-rail-on-bg: var(--text-primary-color); --L-rail-on-ink: var(--surface-app); --L-rail-bd: 3px solid var(--text-primary-color); --L-rail-tray: transparent; --L-rail-tray-r: 0; --L-dlg-r: 0; --L-dlg-bd: 3px solid var(--text-primary-color); --L-dlg-sh: none; --L-strip-bg: transparent; --L-well: var(--surface-code); }
+.win[data-style="swiss"] .tab.on::after { height: 4px; left: 0; right: 0; border-radius: 0; background: var(--text-primary-color); }
+.win[data-style="swiss"] .pnl > .strip:first-child { padding-left: 0; }
+.win[data-style="swiss"] .tab.on svg { color: var(--text-primary-color); }
+/* — 20 Editorial · Craft / Notion / Bear — */
+.win[data-style="editorial"] { --L-head-font: "Iowan Old Style", "Charter", "Palatino Linotype", Georgia, serif; --L-head-w: 600; --L-head-ls: -0.005em; --L-h1: 30px; --L-h2: 19px; --L-hero: 38px; --L-card-bg: transparent; --L-fx-bg: transparent; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-bt: 1px solid var(--border-divider); --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-gap-base: 28px; --L-pad: 44px; --L-pad-t: 30px; --L-inner-bd: 0 solid transparent; --L-inner-bg: transparent; --L-inner-r: 0; --L-btn2-bg: transparent; --L-sb-bg: transparent; --L-sb-bd: 0 solid transparent; --L-sb-bt: 1px solid var(--border-divider); --L-sb-r: 0; --L-sb-sh: none; --L-sb-m: 0 var(--L-pad); --L-r-ctrl: 999px; --L-kick-tt: uppercase; --L-kick-ls: .08em; --L-strip-bg: transparent; --L-dlg-r: 4px; }
+.win[data-style="editorial"] .fx .next-title { font-size: 24px; font-weight: 500; font-style: italic; }
+.win[data-style="editorial"] .next-title, .win[data-style="editorial"] .tl-sub { font-family: var(--L-head-font); }
+.win[data-style="editorial"] .tl-sub { font-size: 14px; font-weight: 600; }
+/* — 21 Póster · Framer — */
+.win[data-style="poster"] { --L-head-w: 800; --L-head-ls: -0.035em; --L-h1: 34px; --L-h2: 18px; --L-hero: 52px; --L-card-bd: 0 solid transparent; --L-fx-bd: 0 solid transparent; --L-card-sh: none; --L-fx-sh: none; --L-r: 24px; --L-card-bg: var(--surface-panel); --L-fx-bg: var(--accent-primary-fill); --L-fx-ink: var(--accent-primary-contrast); --L-fx-ink2: color-mix(in srgb, var(--accent-primary-contrast) 72%, transparent); --L-fx-glyph: rgba(255,255,255,.45); --L-chrome-bg: #ece8e2; --L-sb-bd: 0 solid transparent; --L-sb-sh: none; --L-sb-r: 18px; --L-inner-bd: 0 solid transparent; --L-inner-bg: var(--surface-app); --L-dlg-r: 28px; --L-dlg-bd: 0 solid transparent; }
+.win[data-style="poster"] .fx .next-title { font-size: 26px; font-weight: 800; letter-spacing: -.03em; }
+.win[data-style="poster"] .fx .btn.pri { background: var(--accent-primary-contrast); color: var(--accent-primary-fill); }
+.win[data-style="poster"] .fx .btn { background: rgba(255,255,255,.4); border-color: transparent; color: var(--accent-primary-contrast); }
+.win[data-style="poster"] .fx .prog i { background: rgba(0,0,0,.18); } .win[data-style="poster"] .fx .prog i.cur { background: var(--accent-primary-contrast); }
+.win[data-style="poster"] .fx .then { background: rgba(255,255,255,.4); color: var(--accent-primary-contrast); } .win[data-style="poster"] .fx .then b { color: inherit; }
+.win[data-style="poster"] .fx .glyph { color: var(--accent-primary-contrast); }
+.win[data-style="poster"] .hero-t, .win[data-style="poster"] .h1 { line-height: 1; }
+:root[data-theme="dark"] .win[data-style="poster"] { --L-chrome-bg: #0c0a09; --L-fx-glyph: rgba(0,0,0,.15); }
+/* — 22 Terminal / TUI · Warp / lazygit — */
+.win[data-style="terminal"] { --L-font: var(--font-mono); --L-head-tt: uppercase; --L-head-ls: .04em; --L-h1: 15px; --L-h2: 13px; --L-hero: 20px; --L-head-w: 700; --L-kick-tt: uppercase; --L-kick-c: var(--accent-primary); --L-card-bg: var(--surface-app); --L-fx-bg: var(--surface-app); --L-card-bd: 1px solid color-mix(in srgb, var(--accent-primary) 40%, var(--border-subtle)); --L-fx-bd: 1px solid var(--accent-primary); --L-card-sh: none; --L-fx-sh: none; --L-r: 0; --L-r-ctrl: 0; --L-r-item: 0; --L-r-field: 0; --L-r-pill: 0; --L-r-seg: 0; --L-inner-r: 0; --L-gap-base: 8px; --L-pad: 10px; --L-pad-t: 10px; --L-pad-b: 0; --L-strip-h: 36px; --L-hair: color-mix(in srgb, var(--accent-primary) 30%, var(--border-subtle)); --L-sel-bg: var(--accent-primary-fill); --L-sel-ink: var(--accent-primary-contrast); --L-btn2-bg: transparent; --L-btn2-bd: 1px solid var(--L-hair); --L-sb-h: 26px; --L-sb-m: 0; --L-sb-r: 0; --L-sb-sh: none; --L-sb-bd: 0 solid transparent; --L-sb-bg: var(--accent-primary-fill); --L-sb-ink: var(--accent-primary-contrast); --L-sb-ink2: color-mix(in srgb, var(--accent-primary-contrast) 75%, transparent); --L-sb-act: rgba(0,0,0,.12); --L-sb-fld: rgba(0,0,0,.1); --L-well: var(--surface-app); --L-rail-ind-r: 0; --L-rail-tray: transparent; --L-rail-bd: 1px solid var(--L-hair); --L-dlg-r: 0; --L-dlg-bg: var(--surface-app); --L-dlg-bd: 1px solid var(--accent-primary); --L-dlg-sh: none; --L-inner-bg: transparent; --L-inner-bd: 1px dashed var(--L-hair); font-size: 12px; }
+.win[data-style="terminal"] .chip, .win[data-style="terminal"] .ava, .win[data-style="terminal"] .glyph, .win[data-style="terminal"] .tgl, .win[data-style="terminal"] .tgl::after, .win[data-style="terminal"] .cb, .win[data-style="terminal"] .tb-b, .win[data-style="terminal"] .ib, .win[data-style="terminal"] .rb { border-radius: 0; }
+.win[data-style="terminal"] .sb-blk, .win[data-style="terminal"] .sb-seg, .win[data-style="terminal"] .sb-fld { height: 22px; }
+.win[data-style="terminal"] .sb-seg.act svg { color: inherit; }
+.win[data-style="terminal"] .tab { font-size: 12px; }
+.win[data-style="terminal"] .tab.on::after { left: 0; right: 0; border-radius: 0; }
+.win[data-style="terminal"] .h2::before, .win[data-style="terminal"] .h1::before { content: "▌"; color: var(--accent-primary); margin-right: 4px; }
+/* — 23 Plano técnico · blueprint — */
+.win[data-style="blueprint"] { --bp: var(--status-renamed); --L-ws-bg: linear-gradient(color-mix(in srgb, var(--bp) 11%, transparent) 1px, transparent 1px) 0 0 / 16px 16px, linear-gradient(90deg, color-mix(in srgb, var(--bp) 11%, transparent) 1px, transparent 1px) 0 0 / 16px 16px, color-mix(in srgb, var(--bp) 4%, var(--surface-app)); --L-card-bd: 1px dashed color-mix(in srgb, var(--bp) 70%, transparent); --L-fx-bd: 1.5px solid var(--bp); --L-card-sh: none; --L-fx-sh: 4px 4px 0 color-mix(in srgb, var(--bp) 20%, transparent); --L-r: 4px; --L-r-ctrl: 4px; --L-r-item: 3px; --L-r-field: 3px; --L-r-seg: 4px; --L-inner-r: 3px; --L-inner-bd: 1px dashed color-mix(in srgb, var(--bp) 50%, transparent); --L-inner-bg: transparent; --L-kick-tt: uppercase; --L-kick-ls: .1em; --L-kick-c: var(--bp); --L-head-font: var(--font-mono); --L-head-tt: uppercase; --L-head-ls: .03em; --L-h1: 17px; --L-h2: 13px; --L-hero: 22px; --L-hair: color-mix(in srgb, var(--bp) 35%, transparent); --L-btn2-bg: transparent; --L-btn2-bd: 1px dashed var(--bp); --L-sb-bd: 1px dashed color-mix(in srgb, var(--bp) 70%, transparent); --L-sb-sh: none; --L-sb-r: 4px; --L-dlg-r: 4px; --L-dlg-bd: 1.5px solid var(--bp); --L-dlg-sh: 6px 6px 0 color-mix(in srgb, var(--bp) 22%, transparent); }
+/* — 24 Monocromo · Vercel — */
+.win[data-style="mono"] { --accent-primary: var(--text-primary-color); --accent-primary-fill: #1c1917; --accent-primary-contrast: #ffffff; --surface-active: rgba(28,25,23,.08); --focus-ring: #1c1917; }
+:root[data-theme="dark"] .win[data-style="mono"] { --accent-primary-fill: #fafaf9; --accent-primary-contrast: #0c0a09; --surface-active: rgba(250,250,249,.1); --focus-ring: #fafaf9; --surface-app: #000; --surface-panel: #0a0a0a; --surface-code: #0f0f0f; --border-subtle: #262626; --border-divider: #333; --surface-control: #171717; }
+/* — 25 Alto contraste — */
+.win[data-style="hc"] { --surface-app: #ffffff; --surface-panel: #ffffff; --surface-raised: #ffffff; --surface-code: #ffffff; --surface-control: #ffffff; --surface-card: #ffffff; --surface-hover: rgba(0,0,0,.08); --surface-active: #c9d9ff; --border-subtle: #000; --border-divider: #000; --border-control: #000; --text-primary-color: #000; --text-secondary-color: #1f1f1f; --accent-primary: #00309c; --accent-primary-fill: #00309c; --accent-primary-contrast: #fff; --status-success: #005c00; --status-warning: #6b4500; --status-danger: #a00000; --status-renamed: #00309c; --diff-added: #005c00; --diff-removed: #a00000; --focus-ring: #000; --L-card-bd: 2px solid #000; --L-fx-bd: 3px solid #000; --L-card-sh: none; --L-fx-sh: none; --L-sb-bd: 2px solid #000; --L-sb-sh: none; --L-inner-bd: 1px solid #000; --L-hair: #000; --L-btn2-bd: 2px solid #000; --L-fld-bd: 2px solid #000; --L-dlg-bd: 3px solid #000; --L-dlg-sh: none; --L-rail-on-bg: #000; --L-rail-on-ink: #fff; --L-sel-bg: #000; --L-sel-ink: #fff; --L-tb-ink: #000; --L-rail-ink: #000; --L-sb-ink2: #000; }
+:root[data-theme="dark"] .win[data-style="hc"] { --surface-app: #000; --surface-panel: #000; --surface-raised: #000; --surface-code: #000; --surface-control: #000; --surface-card: #000; --surface-hover: rgba(255,255,255,.14); --surface-active: rgba(255,238,50,.25); --border-subtle: #fff; --border-divider: #fff; --border-control: #fff; --text-primary-color: #fff; --text-secondary-color: #f0f0f0; --accent-primary: #ffee32; --accent-primary-fill: #ffee32; --accent-primary-contrast: #000; --status-success: #3ff23f; --status-warning: #ffcc33; --status-danger: #ff7b7b; --status-renamed: #7fd6ff; --diff-added: #3ff23f; --diff-removed: #ff7b7b; --focus-ring: #ffee32; --L-card-bd: 2px solid #fff; --L-fx-bd: 3px solid #ffee32; --L-sb-bd: 2px solid #fff; --L-inner-bd: 1px solid #fff; --L-hair: #fff; --L-btn2-bd: 2px solid #fff; --L-fld-bd: 2px solid #fff; --L-dlg-bd: 3px solid #fff; --L-rail-on-bg: #ffee32; --L-rail-on-ink: #000; --L-sel-bg: #1aebff; --L-sel-ink: #000; --L-tb-ink: #fff; --L-rail-ink: #fff; --L-sb-ink2: #fff; }
+.win[data-style="hc"] .dl.add, .win[data-style="hc"] .dl.del { background: transparent; }
+.win[data-style="hc"] .dl.add .s, .win[data-style="hc"] .dl.del .s { font-weight: 800; }
+/* — 26 Aurora · Linear (web) / Raycast — */
+.win[data-style="aurora"] { --L-ws-bg: radial-gradient(110% 70% at 30% -15%, color-mix(in srgb, var(--accent-primary-fill) 26%, transparent), transparent 60%), var(--surface-app); --L-card-bd: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle)); --L-fx-bd: 1px solid color-mix(in srgb, var(--accent-primary) 40%, var(--border-subtle)); --L-card-sh: none; --L-fx-bg: linear-gradient(140deg, color-mix(in srgb, var(--accent-primary-fill) 14%, var(--surface-panel)), var(--surface-panel) 58%); --L-fx-sh: 0 24px 60px -28px color-mix(in srgb, var(--accent-primary-fill) 70%, transparent); --L-sb-sh: none; --L-r: 16px; --L-fx-glyph: color-mix(in srgb, var(--accent-primary-fill) 18%, transparent); }
+/* — 27 Degradado · Stripe — */
+.win[data-style="gradient"] { --L-ws-bg: linear-gradient(180deg, color-mix(in srgb, var(--accent-primary-fill) 12%, var(--surface-app)) 0, var(--surface-app) 260px); --L-card-bg: linear-gradient(180deg, var(--surface-raised), color-mix(in srgb, var(--surface-panel) 92%, var(--surface-app))); --L-card-sh: 0 1px 1px rgba(28,25,23,.04), 0 8px 20px -8px rgba(50,60,40,.18); --L-fx-bg: linear-gradient(160deg, color-mix(in srgb, var(--accent-primary-fill) 22%, var(--surface-raised)), var(--surface-panel) 70%); --L-btn1-bg: linear-gradient(180deg, color-mix(in srgb, var(--accent-primary-fill) 80%, #fff), var(--accent-primary-fill) 60%, color-mix(in srgb, var(--accent-primary-fill) 88%, #000)); --L-btn-sh: 0 1px 2px rgba(28,25,23,.12); --L-btn2-bg: linear-gradient(180deg, var(--surface-raised), var(--surface-control)); --L-r: 14px; --L-sb-bg: linear-gradient(180deg, var(--surface-raised), var(--surface-panel)); }
+:root[data-theme="dark"] .win[data-style="gradient"] { --L-card-bg: linear-gradient(180deg, #24201e, #1a1715); --L-card-sh: 0 1px 0 rgba(255,255,255,.05) inset, 0 10px 24px -10px rgba(0,0,0,.6); --L-btn2-bg: linear-gradient(180deg, #2c2724, #221e1c); --L-sb-bg: linear-gradient(180deg, #24201e, #1a1715); }
+/* — 28 Grano · Resend / Railway — */
+.win[data-style="grain"] { --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); --L-chrome-bg: var(--noise), radial-gradient(80% 60% at 50% -10%, color-mix(in srgb, var(--accent-primary-fill) 12%, transparent), transparent 70%), #f1eee9; --L-card-sh: inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(28,25,23,.06); --L-fx-sh: inset 0 1px 0 rgba(255,255,255,.9), 0 12px 30px -12px rgba(28,25,23,.25); --L-sb-sh: inset 0 1px 0 rgba(255,255,255,.8); --L-r: 14px; }
+:root[data-theme="dark"] .win[data-style="grain"] { --L-chrome-bg: var(--noise), radial-gradient(80% 60% at 50% -10%, color-mix(in srgb, var(--accent-primary-fill) 10%, transparent), transparent 70%), #0a0908; --L-card-bg: #141210; --L-card-bd: 1px solid #262220; --L-card-sh: inset 0 1px 0 rgba(255,255,255,.05); --L-fx-sh: inset 0 1px 0 rgba(255,255,255,.07), 0 16px 40px -14px rgba(0,0,0,.9); --L-sb-bg: #141210; --L-sb-bd: 1px solid #262220; --L-sb-sh: inset 0 1px 0 rgba(255,255,255,.05); }
+/* — 29 Claro cálido · Bear / iA Writer — */
+.win[data-style="warm"] { --surface-app: #f4efe6; --surface-panel: #fffcf6; --surface-raised: #fffcf6; --surface-code: #f8f3ea; --surface-control: #f1eadf; --border-subtle: #e6ddcd; --border-divider: #ddd2bf; --border-control: #d6cab6; --text-primary-color: #2b2118; --text-secondary-color: #6b5d4c; --shadow-sm: 0 2px 8px rgba(80,55,25,.07); --shadow-md: 0 8px 20px rgba(80,55,25,.1); }
+:root[data-theme="dark"] .win[data-style="warm"] { --surface-app: #15110d; --surface-panel: #1f1a15; --surface-raised: #2a231c; --surface-code: #1b1612; --surface-control: #241e18; --border-subtle: #352c23; --border-divider: #40362b; --border-control: #4a3e31; --text-primary-color: #f6efe6; --text-secondary-color: #b3a594; }
+/* — 30 Negro puro · Zed / Cursor — */
+.win[data-style="oled"] { --surface-app: #ffffff; --surface-panel: #ffffff; --surface-code: #fafafa; --surface-control: #f5f5f5; --border-subtle: #ebebeb; --border-divider: #e0e0e0; --L-card-sh: none; --L-fx-sh: 0 0 0 1px #d4d4d4; --L-sb-sh: none; --L-r: 10px; --L-r-ctrl: 7px; --L-r-item: 5px; --L-sb-r: 8px; }
+:root[data-theme="dark"] .win[data-style="oled"] { --surface-app: #000; --surface-panel: #0a0a0a; --surface-raised: #141414; --surface-code: #050505; --surface-control: #121212; --surface-card: #101010; --border-subtle: #1f1f1f; --border-divider: #2a2a2a; --border-control: #2e2e2e; --text-primary-color: #ededed; --text-secondary-color: #a1a1a1; --L-fx-sh: 0 0 0 1px #2e2e2e; }
+/* — 31 Marco de color · Slack / Discord — */
+.win[data-style="chrome"] { --L-chrome-bg: #24391a; --L-tb-ink: rgba(255,255,255,.78); --L-rail-ink: rgba(255,255,255,.72); --L-rail-cap-on: #fff; --L-rail-on-bg: rgba(255,255,255,.18); --L-rail-on-ink: #fff; --L-rail-tray: rgba(255,255,255,.08); --L-main-bg: var(--surface-app); --L-main-m: 0 8px 8px 0; --L-main-r: 12px; --L-main-bd: 1px solid rgba(0,0,0,.2); }
+:root[data-theme="dark"] .win[data-style="chrome"] { --L-chrome-bg: #1a2a12; --L-main-bd: 1px solid rgba(255,255,255,.08); }
+.win[data-style="chrome"] .tb-bell::after { background: #fff; }
+/* — 32 Esquina viva · Dia — */
+.win[data-style="corner"] { --L-r: 22px 6px 22px 6px; --L-r-ctrl: 12px 4px 12px 4px; --L-r-item: 8px 3px 8px 3px; --L-r-field: 12px 4px 12px 4px; --L-r-seg: 12px 4px 12px 4px; --L-inner-r: 14px 4px 14px 4px; --L-sb-r: 14px 4px 14px 4px; --L-dlg-r: 26px 8px 26px 8px; --L-rail-ind-r: 14px 4px 14px 4px; }
+/* — 33 Cápsula · visionOS — */
+.win[data-style="capsule"] { --L-r: 32px; --L-cpad-base: 18px; --L-r-item: 999px; --L-r-field: 22px; --L-r-seg: 999px; --L-inner-r: 22px; --L-sb-r: 999px; --L-sb-m: 0 var(--L-pad) 12px; --L-rail-m: 8px 0 12px 10px; --L-rail-r: 999px; --L-rail-bg: var(--surface-panel); --L-rail-bd: 1px solid var(--border-subtle); --L-rail-sh: var(--shadow-sm); --L-rail-tray-r: 999px; --L-dlg-r: 36px; }
+.win[data-style="capsule"] .seg span { border-radius: 999px; }
+.win[data-style="capsule"] .well { margin: 0 8px 8px; border-radius: 20px; }
+/* — 34–36 Paletas: la receta actual con otros tokens (como themes.css) — */
+.win[data-style="nord"] { color-scheme: dark; --surface-app: #2e3440; --surface-panel: #3b4252; --surface-raised: #3f4758; --surface-code: #2e3440; --surface-hover: rgba(236,239,244,.06); --surface-active: rgba(136,192,208,.12); --surface-control: #434c5e; --border-control: #4c566a; --text-primary-color: #eceff4; --text-secondary-color: #bac2d7; --border-subtle: #434c5e; --border-divider: #4c566a; --accent-primary: #88c0d0; --accent-primary-contrast: #2e3440; --accent-primary-fill: #88c0d0; --status-success: #a3be8c; --status-warning: #ebcb8b; --status-danger: #eca0a6; --status-renamed: #97b7e0; --diff-added: #a3be8c; --diff-removed: #eca0a6; --syntax-comment: #7d90b1; --syntax-string: #a3be8c; --syntax-number: #d59fcb; --syntax-keyword: #93b3dc; --syntax-type: #8fbcbb; --syntax-property: #e99d86; --focus-ring: #88c0d0; --shadow-sm: 0 2px 8px rgba(0,0,0,.22); --shadow-md: 0 8px 20px rgba(0,0,0,.3); --shadow-lg: 0 24px 80px rgba(0,0,0,.45); --overlay: rgba(0,0,0,.6); --surface-card: color-mix(in srgb, #3f4758 48%, #3b4252); }
+.win[data-style="tokyo"] { color-scheme: dark; --surface-app: #16161e; --surface-panel: #1a1b26; --surface-raised: #222534; --surface-code: #16161e; --surface-hover: rgba(192,202,245,.06); --surface-active: rgba(122,162,247,.16); --surface-control: #292e42; --border-control: #3b4261; --text-primary-color: #c0caf5; --text-secondary-color: #a9b1d6; --border-subtle: #292e42; --border-divider: #3b4261; --accent-primary: #7aa2f7; --accent-primary-contrast: #1a1b26; --accent-primary-fill: #7aa2f7; --status-success: #9ece6a; --status-warning: #e0af68; --status-danger: #f7768e; --status-renamed: #7aa2f7; --diff-added: #9ece6a; --diff-removed: #f7768e; --syntax-comment: #737aa2; --syntax-string: #9ece6a; --syntax-number: #ff9e64; --syntax-keyword: #bb9af7; --syntax-type: #e0af68; --syntax-property: #7dcfff; --focus-ring: #7aa2f7; --shadow-sm: 0 2px 8px rgba(0,0,0,.3); --shadow-md: 0 8px 20px rgba(0,0,0,.4); --shadow-lg: 0 24px 80px rgba(0,0,0,.55); --overlay: rgba(0,0,0,.6); --surface-card: color-mix(in srgb, #222534 48%, #1a1b26); }
+.win[data-style="catppuccin"] { --surface-app: #e6e9ef; --surface-panel: #eff1f5; --surface-raised: #ffffff; --surface-code: #eff1f5; --surface-hover: rgba(76,79,105,.06); --surface-active: rgba(136,57,239,.12); --surface-control: #e6e9ef; --border-control: #ccd0da; --text-primary-color: #4c4f69; --text-secondary-color: #5c5f77; --border-subtle: #ccd0da; --border-divider: #bcc0cc; --accent-primary: #8737ef; --accent-primary-contrast: #ffffff; --accent-primary-fill: #8839ef; --status-success: #33761e; --status-warning: #8e5e00; --status-danger: #d00f38; --status-renamed: #125af5; --diff-added: #30701b; --diff-removed: #c00f30; --syntax-comment: #787b8f; --syntax-string: #276e1b; --syntax-number: #a54001; --syntax-keyword: #7d23ef; --syntax-type: #7d5a1d; --syntax-property: #0a4eec; --focus-ring: #8839ef; --shadow-sm: 0 2px 8px rgba(76,79,105,.08); --shadow-md: 0 8px 20px rgba(76,79,105,.1); --shadow-lg: 0 24px 60px rgba(76,79,105,.16); --surface-card: color-mix(in srgb, #ffffff 48%, #eff1f5); }
+:root[data-theme="dark"] .win[data-style="catppuccin"] { --surface-app: #11111b; --surface-panel: #1e1e2e; --surface-raised: #28283a; --surface-code: #181825; --surface-hover: rgba(205,214,244,.07); --surface-active: rgba(203,166,247,.16); --surface-control: #313244; --border-control: #45475a; --text-primary-color: #cdd6f4; --text-secondary-color: #a6adc8; --border-subtle: #313244; --border-divider: #45475a; --accent-primary: #cba6f7; --accent-primary-contrast: #1e1e2e; --accent-primary-fill: #cba6f7; --status-success: #a6e3a1; --status-warning: #f9e2af; --status-danger: #f38ba8; --status-renamed: #89b4fa; --diff-added: #a6e3a1; --diff-removed: #f38ba8; --syntax-comment: #6c74a9; --syntax-string: #a6e3a1; --syntax-number: #fab387; --syntax-keyword: #cba6f7; --syntax-type: #f9e2af; --syntax-property: #89b4fa; --focus-ring: #cba6f7; --shadow-sm: 0 2px 8px rgba(0,0,0,.22); --shadow-md: 0 8px 20px rgba(0,0,0,.3); --shadow-lg: 0 24px 80px rgba(0,0,0,.45); --surface-card: color-mix(in srgb, #28283a 48%, #1e1e2e); }
+
+/* ====================================================================== EJES (ganan al estilo) */
+.win.win.win[data-rail="loose"] { --L-rail-bg: transparent; --L-rail-bd: 0 solid transparent; --L-rail-m: 0; --L-rail-r: 0; --L-rail-sh: none; }
+.win.win.win[data-rail="line"] { --L-rail-bg: transparent; --L-rail-bd: 1px solid var(--border-subtle); --L-rail-m: 0; --L-rail-r: 0; --L-rail-sh: none; }
+.win.win.win[data-rail="panel"] { --L-rail-bg: var(--surface-panel); --L-rail-bd: 1px solid var(--border-subtle); --L-rail-m: 0; --L-rail-r: 0; --L-rail-sh: none; }
+.win.win.win[data-rail="float"] { --L-rail-bg: var(--surface-panel); --L-rail-bd: 1px solid var(--border-subtle); --L-rail-m: 6px 0 10px 8px; --L-rail-r: 18px; --L-rail-sh: var(--shadow-sm); }
+.win.win.win[data-rail="capsule"] { --L-rail-bg: var(--surface-panel); --L-rail-bd: 1px solid var(--border-subtle); --L-rail-m: 6px 0 10px 8px; --L-rail-r: 999px; --L-rail-sh: var(--shadow-sm); --L-rail-tray-r: 999px; }
+.win.win.win[data-sbar="fused"] { --L-sb-m: 0 var(--L-pad); --L-sb-bg: transparent; --L-sb-bd: 0 solid transparent; --L-sb-bt: 1px solid var(--border-subtle); --L-sb-r: 0; --L-sb-sh: none; }
+.win.win.win[data-sbar="card"] { --L-sb-m: 0 max(var(--L-pad), 12px) 10px; --L-sb-bg: var(--surface-panel); --L-sb-bd: 1px solid var(--border-subtle); --L-sb-bt: 1px solid var(--border-subtle); --L-sb-r: 14px; --L-sb-sh: var(--shadow-sm); }
+.win.win.win[data-sbar="bleed"] { --L-sb-m: 0; --L-sb-bg: var(--surface-panel); --L-sb-bd: 0 solid transparent; --L-sb-bt: 1px solid var(--border-subtle); --L-sb-r: 0; --L-sb-sh: none; }
+.win.win.win[data-well="code"] { --L-well: var(--surface-code); --L-well-sh: none; }
+.win.win.win[data-well="panel"] { --L-well: var(--surface-panel); --L-well-sh: none; }
+.win.win.win[data-well="sunken"] { --L-well: color-mix(in srgb, var(--surface-code) 70%, var(--surface-app)); --L-well-sh: inset 0 2px 6px rgba(0,0,0,.12); }
+.win.win.win[data-well="contrast"] { --L-well: var(--surface-app); --L-well-sh: inset 0 0 0 1px var(--border-divider); }
+.win.win.win[data-dens="compact"] { --L-d: .78; }
+.win.win.win[data-dens="comfy"] { --L-d: 1; }
+.win.win.win[data-dens="spacious"] { --L-d: 1.3; }
+</style>
+<style>
+.wb { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: stretch; flex: 1; min-height: 0; }
+.wb.con { grid-template-columns: minmax(0, 1fr) 280px; }
+.lst { flex: 1; min-height: 0; overflow: hidden; padding: 2px 6px 6px; display: grid; align-content: start; gap: 1px; }
+.grp { padding: 10px 10px 4px; }
+.vrow { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.vrow .tl-node { width: 10px; height: 10px; box-shadow: none; }
+.vrow .ttl { display: grid; min-width: 0; }
+</style>
+
+<header class="lab-head">
+  <p class="lab-eyebrow">GitOdile · v0.3.1 · exploración visual</p>
+  <h1>Style Lab</h1>
+  <p>Nueve pantallas de GitOdile con <strong>36 estilos</strong> sobre el mismo marcado. Cada estilo es un juego de
+    variables que cambia el material, la costura, el radio o el color; la maqueta y los textos no cambian, así que lo
+    que ves al pasar de un estilo a otro es solo el acabado. <strong>Friendly Card</strong> es la receta actual de
+    <code>DESIGN.md</code>. <strong>Hoja en marco</strong> es la elegida: abre el laboratorio, tiene <a href="#deep">su sección a fondo</a> y <a href="real.html">una versión sobre la app real</a>. Los ejes de abajo ganan al estilo cuando no están en «Según estilo».</p>
+</header>
+
+<nav class="bar" aria-label="Controles del laboratorio">
+  <div class="bar-in">
+    <div class="screens" id="screens" role="group" aria-label="Pantalla"></div>
+    <div class="bar-row">
+      <span class="ctl"><span class="ctl-l" id="lv">Vista</span><span class="sg" role="group" aria-labelledby="lv" data-k="view">
+        <button type="button" data-v="single">Una a una</button><button type="button" data-v="compare">Comparar todo</button></span></span>
+      <span class="ctl"><span class="ctl-l" id="lt">Tema</span><span class="sg" role="group" aria-labelledby="lt" data-k="theme">
+        <button type="button" data-v="light">Claro</button><button type="button" data-v="dark">Oscuro</button></span></span>
+      <span class="ctl"><span class="ctl-l" id="lr">Riel</span><span class="sg" role="group" aria-labelledby="lr" data-k="rail">
+        <button type="button" data-v="auto">Según estilo</button><button type="button" data-v="loose">Suelto</button><button type="button" data-v="line">Con línea</button><button type="button" data-v="panel">Con panel</button><button type="button" data-v="float">Flotante</button><button type="button" data-v="capsule">Cápsula</button></span></span>
+      <span class="ctl"><span class="ctl-l" id="ls">Barra de estado</span><span class="sg" role="group" aria-labelledby="ls" data-k="sbar">
+        <button type="button" data-v="auto">Según estilo</button><button type="button" data-v="fused">Fundida</button><button type="button" data-v="card">Tarjeta</button><button type="button" data-v="bleed">A sangre</button></span></span>
+      <span class="ctl"><span class="ctl-l" id="lw">Pozo del diff</span><span class="sg" role="group" aria-labelledby="lw" data-k="well">
+        <button type="button" data-v="auto">Según estilo</button><button type="button" data-v="code">Código</button><button type="button" data-v="panel">Panel</button><button type="button" data-v="sunken">Hundido</button><button type="button" data-v="contrast">Contraste</button></span></span>
+      <span class="ctl"><span class="ctl-l" id="ld">Densidad</span><span class="sg" role="group" aria-labelledby="ld" data-k="dens">
+        <button type="button" data-v="auto">Según estilo</button><button type="button" data-v="compact">Compacta</button><button type="button" data-v="comfy">Cómoda</button><button type="button" data-v="spacious">Espaciosa</button></span></span>
+    </div>
+  </div>
+</nav>
+
+<main class="lab-main">
+  <p class="state-note" id="note"></p>
+
+  <section class="single" id="single" aria-label="Un estilo cada vez">
+    <nav class="slist" id="slist" aria-label="Estilos"></nav>
+    <div class="stage-col">
+      <div class="stage-top">
+        <h2 id="s-name"></h2>
+        <span id="s-tags" class="fl" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+        <span class="sp"></span>
+        <button type="button" class="nav-b" id="prev" aria-label="Estilo anterior"></button>
+        <span class="tile-n" id="s-pos"></span>
+        <button type="button" class="nav-b" id="next" aria-label="Estilo siguiente"></button>
+      </div>
+      <div class="frame" id="sframe" role="img"></div>
+      <article class="ficha" id="ficha" aria-live="polite"></article>
+    </div>
+  </section>
+
+  <section id="compare" hidden aria-label="Comparar todos los estilos">
+    <div class="cmp-filters">
+      <span class="ctl"><span class="ctl-l" id="lf">Mostrar</span><span class="sg" role="group" aria-labelledby="lf" data-k="filter" id="filters"></span></span>
+      <span class="tile-n" id="cmp-count"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<section class="deep" id="deep" aria-labelledby="deep-h">
+  <div class="deep-head">
+    <span class="tag v" style="--v:var(--accent-primary)">Elegido · entra por ADR</span>
+    <h2 id="deep-h">Hoja en marco, a fondo</h2>
+    <p class="deep-lead">Hoy cada pantalla reparte el contenido en varias tarjetas que flotan sobre el plano del chrome. Con la hoja en marco, ese plano se queda igual y cada pantalla pasa a ser <strong>una sola hoja</strong> con la receta de tarjeta aplicada una vez. Dentro, los paneles se tocan sobre líneas finas en lugar de separarse con huecos y sombras.</p>
+    <div class="deep-cta"><a class="btn-real" href="real.html">Verla en la app real</a><span class="mut">Ocho pantallas con los componentes, el CSS y los datos reales de <code>project-gitodile</code>, con un interruptor entre la receta actual y la hoja.</span></div>
+  </div>
+
+  <div class="deep-grid">
+    <figure class="anat" aria-labelledby="anat-cap">
+      <svg viewBox="0 0 640 400" role="img" aria-labelledby="anat-t anat-d">
+        <title id="anat-t">Anatomía de la hoja en marco</title>
+        <desc id="anat-d">El marco es la barra de título y el riel sobre el fondo de la app. La hoja ocupa la columna de contenido con 10 px de margen a la derecha y abajo; dentro, dos paneles separados por una línea fina y la barra de estado como pie. Un diálogo flota encima.</desc>
+        <rect class="a-frame" x="0" y="0" width="640" height="400" rx="12"/>
+        <rect class="a-sheet" x="64" y="36" width="566" height="354" rx="16"/>
+        <line class="a-hair" x1="250" y1="37" x2="250" y2="350"/>
+        <line class="a-hair" x1="65" y1="80" x2="629" y2="80"/>
+        <line class="a-hair" x1="65" y1="350" x2="629" y2="350"/>
+        <g class="a-rail"><circle cx="32" cy="64" r="13"/><circle cx="32" cy="104" r="13"/><circle cx="32" cy="144" r="13"/><circle cx="32" cy="184" r="13"/><rect x="20" y="322" width="24" height="24" rx="7"/></g>
+        <g class="a-tb"><circle cx="24" cy="18" r="6"/><circle cx="44" cy="18" r="6"/><rect x="560" y="13" width="60" height="10" rx="5"/></g>
+        <rect class="a-row" x="80" y="96" width="150" height="14" rx="5"/><rect class="a-row" x="80" y="118" width="150" height="14" rx="5"/><rect class="a-row a-row--on" x="80" y="140" width="150" height="14" rx="5"/><rect class="a-row" x="80" y="162" width="150" height="14" rx="5"/>
+        <rect class="a-well" x="251" y="81" width="378" height="268"/>
+        <rect class="a-add" x="251" y="120" width="378" height="12"/><rect class="a-add" x="251" y="136" width="378" height="12"/><rect class="a-del" x="251" y="104" width="378" height="12"/>
+        <rect class="a-dlg" x="372" y="190" width="220" height="120" rx="16"/>
+        <text class="a-lbl" x="380" y="214">Lo que flota no cambia</text>
+        <text class="a-sub" x="380" y="232">--surface-raised · --shadow-lg</text>
+        <text class="a-lbl" x="80" y="62">Hoja: --surface-panel</text>
+        <text class="a-sub" x="80" y="74">borde sutil · --shadow-sm · radio 18</text>
+        <text class="a-sub" x="80" y="372">pie: barra de estado sobre una línea fina</text>
+        <text class="a-sub" x="258" y="96">paneles a sangre, una línea de 1 px</text>
+        <text class="a-sub a-end" x="626" y="396">10 px al marco</text>
+      </svg>
+      <figcaption id="anat-cap">Medidas tomadas de la capa aplicada a la app real a 1440 × 900: la hoja va de x = 64 a 1430 y termina a 10 px del borde inferior.</figcaption>
+    </figure>
+
+    <div class="deep-col">
+      <h3>De dónde viene</h3>
+      <p><strong>Arc</strong> (The Browser Company) deja la barra lateral sobre el marco de la ventana y pone la página web en una tarjeta redondeada, separada del borde. <strong>Dia</strong>, del mismo equipo, mantiene esa idea con un marco más neutro. La lección para GitOdile: el marco es la herramienta y la hoja es el trabajo, y cada uno tiene un solo material.</p>
+      <h3>Por qué encaja aquí</h3>
+      <ul>
+        <li>DESIGN.md ya dice que el chrome es «un plano continuo» y que solo el contenido va encima. La hoja sigue la misma idea con un objeto en lugar de diez.</li>
+        <li>No hace falta otra receta: borde sutil, <code>--shadow-sm</code> y <code>--radius-surface</code> son los de la tarjeta actual.</li>
+        <li>Sin tinte ni degradado: el marco es el <code>--surface-app</code> de hoy, así que no rompe la regla de opacidad ni la de un solo acento.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="deep-cards">
+    <article class="dc"><h3>Anatomía</h3><dl>
+      <dt>Marco</dt><dd>Barra de título y riel sobre <code>--surface-app</code>, sin superficie propia, igual que hoy.</dd>
+      <dt>Hoja</dt><dd>Una por pantalla: <code>--surface-panel</code>, <code>--border-subtle</code>, <code>--shadow-sm</code>, <code>--radius-surface</code>. Pegada a la barra de título y al riel; 10 px de marco a la derecha y abajo.</dd>
+      <dt>Interior</dt><dd>Paneles a sangre, separados por 1 px de <code>--border-subtle</code>. Las tarjetas internas (hechos de Líneas, secciones del Historial) siguen con <code>--surface-card</code>.</dd>
+      <dt>Pie</dt><dd>La barra de estado se queda con sus tres columnas, pero sin tarjeta: es el pie de la hoja, sobre una línea fina.</dd>
+      <dt>Encima</dt><dd>Diálogos, Ajustes, menús y paleta: sin cambios, <code>--surface-raised</code> y <code>--shadow-lg</code>.</dd>
+    </dl></article>
+    <article class="dc"><h3>Pantalla a pantalla</h3><dl>
+      <dt>Resumen</dt><dd>Tres bandas de una página: cabecera, siguiente paso y cuerpo. El historial y la columna lateral se separan con una línea vertical.</dd>
+      <dt>Trabajo e Historial</dt><dd>Lista y diff a sangre. Las franjas siguen a la misma altura, porque no se toca <code>--strip-height</code>.</dd>
+      <dt>Líneas</dt><dd>Igual que Trabajo; las tarjetas de hechos del detalle siguen siendo tarjetas internas.</dd>
+      <dt>Inicio</dt><dd>La caja del lanzador se dibuja con borde y sin sombra: es un objeto en la hoja, no algo que flota.</dd>
+      <dt>Consola</dt><dd>La hoja entera es la consola; su línea de estado propia queda dentro.</dd>
+    </dl></article>
+    <article class="dc"><h3>Qué ganamos y qué perdemos</h3>
+      <p class="dc-k ok">Ganamos</p><ul><li>Un material en las 9 pantallas: cambiar de pantalla no cambia de app.</li><li>16 px más para el diff y las listas.</li><li>Más distancia entre lo que reposa y lo que flota.</li><li>Una sombra en vez de cinco por pantalla: menos ruido en claro.</li></ul>
+      <p class="dc-k dang">Perdemos</p><ul><li>La elevación del siguiente paso, que hoy es la única tarjeta con <code>--shadow-md</code>.</li><li>La barra de estado como objeto propio.</li><li>Cierta sensación de tablero en Resumen e Inicio.</li></ul>
+    </article>
+  </div>
+
+  <div class="deep-cards two">
+    <article class="dc"><h3>Decisiones abiertas para el ADR</h3><ol>
+      <li><b>El foco del siguiente paso.</b> Sin elevación hay tres caminos: nada (como en la captura), un lavado de tono suave o el <em>halo de acento</em>, que es el estilo adoptable 1 y encaja aquí sin coste.</li>
+      <li><b>El margen superior.</b> Pegada a la barra de título (como ahora) o con 8 px de marco también arriba, como Arc.</li>
+      <li><b>El riel plegado.</b> Con <code>Ctrl+B</code> la hoja llega al borde izquierdo: necesita 10 px de margen ahí para no tocar la ventana.</li>
+      <li><b>Por debajo de 1024 px.</b> Trabajo pasa a una columna: dentro de la hoja eso es una línea horizontal, no dos tarjetas apiladas.</li>
+      <li><b>Temas comunitarios.</b> Donde panel y fondo casi coinciden (Tokyo Night: #1a1b26 sobre #16161e), el borde sostiene la hoja; hay que medirlo en <code>themeContrast.test.ts</code>.</li>
+      <li><b>El fundido sobre la barra de estado.</b> Ahora funde hacia <code>--surface-panel</code>, el color de la hoja, y no hacia el fondo de la app.</li>
+    </ol></article>
+    <article class="dc"><h3>Borrador de ADR</h3><dl>
+      <dt>Contexto</dt><dd>La receta de tarjeta se repite en 3–5 objetos por pantalla. Cambiar de pantalla cambia el número y la forma de las tarjetas, y el contenido denso pierde 16 px por hueco.</dd>
+      <dt>Decisión</dt><dd>Cada pantalla es una hoja con la receta de tarjeta; el chrome sigue siendo un plano sin superficie; dentro, regiones a sangre con hairlines; la barra de estado es el pie de la hoja; los overlays no cambian.</dd>
+      <dt>Consecuencias</dt><dd>Reescribir § Visual character (receta en reposo), § Layout concept (barra de estado) y § Elevation. Actualizar los guardas de <code>styleComposition.test.ts</code>. Medir contraste hoja/marco por tema. CSS: un contenedor en <code>app-shell.css</code> y quitar borde, sombra y radio de unos diez paneles.</dd>
+      <dt>Alternativas</dt><dd>Friendly Card (actual), Pieza fundida (solo para Trabajo), Halo de acento (compatible con esta decisión).</dd>
+    </dl></article>
+  </div>
+</section>
+
+<section class="reco" id="reco" aria-labelledby="reco-h"></section>
+<script>
+"use strict";
+/* ---------------------------------------------------------------- iconos (trazos de lucide) */
+var FILE = '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>';
+var FOLDER = '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>';
+var I = {
+  layoutDashboard: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 12.18-9.17 4.16a2 2 0 0 1-1.66 0L2 12.18"/><path d="m22 17.18-9.17 4.16a2 2 0 0 1-1.66 0L2 17.18"/>',
+  gitBranch: '<path d="M15 6a9 9 0 0 0-9 9V3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>',
+  squareTerminal: '<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2"/>',
+  lifeBuoy: '<circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/>',
+  ellipsis: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  panelLeft: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  minus: '<path d="M5 12h14"/>', square: '<rect width="16" height="16" x="4" y="4" rx="1"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  chevronUp: '<path d="m18 15-6-6-6 6"/>', chevronDown: '<path d="m6 9 6 6 6-6"/>', chevronRight: '<path d="m9 18 6-6-6-6"/>', chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+  folderOpen: '<path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/>',
+  folder: FOLDER, folderPlus: FOLDER + '<path d="M12 10v6"/><path d="M9 13h6"/>',
+  folderGit2: '<path d="M18 19a5 5 0 0 1-5-5v8"/><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"/><circle cx="13" cy="12" r="2"/><circle cx="20" cy="19" r="2"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  cloudUpload: '<path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  laptop: '<path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z"/><path d="M20.054 15.987H3.946"/>',
+  rotateCw: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  file: FILE, filePlus: FILE + '<path d="M12 18v-6"/><path d="M9 15h6"/>', fileCode: FILE + '<path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/>',
+  filePen: '<path d="M12.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v9.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M13.378 15.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>',
+  fileDiff: FILE + '<path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/>',
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  listFilter: '<path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/>',
+  columns: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/>',
+  rows: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  star: '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+  palette: '<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 11.995 2z"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  keyboard: '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
+  eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  gitCompare: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M11 18H8a2 2 0 0 1-2-2V9"/>',
+  sparkles: '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>',
+  grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  messageSquare: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'
+};
+function ic(n, extra) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || "") + '>' + (I[n] || "") + '</svg>'; }
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+/* ---------------------------------------------------------------- piezas compartidas */
+function titlebar() {
+  return '<div class="tb">' +
+    '<span class="tb-b">' + ic("ellipsis") + '</span><span class="tb-b">' + ic("panelLeft") + '</span>' +
+    '<span class="tb-b off">' + ic("arrowLeft") + '</span><span class="tb-b">' + ic("arrowRight") + '</span>' +
+    '<span class="tb-drag"></span><span class="tb-b tb-bell">' + ic("bell") + '</span>' +
+    '<span class="wcs"><span class="wc">' + ic("minus") + '</span><span class="wc">' + ic("square") + '</span><span class="wc">' + ic("x") + '</span></span></div>';
+}
+function rail(on) {
+  var d = [["ov", "layoutDashboard", "Resumen"], ["work", "layers", "Trabajo"], ["lines", "gitBranch", "Líneas"], ["con", "squareTerminal", "Consola"], ["rec", "lifeBuoy", "Rescate"], ["more", "ellipsis", "Más"]];
+  var h = '<div class="rail">';
+  d.forEach(function (x) { h += '<span class="ri' + (x[0] === on ? " on" : "") + (x[0] === "rec" ? " dis" : "") + '"><span class="ri-i">' + ic(x[1]) + '</span>' + x[2] + '</span>'; });
+  h += '<span class="rail-sp"></span><span class="tray"><span class="chip">mp</span><span class="rb">' + ic("plus") + '</span>' +
+    '<span class="rb' + (on === "set" ? " on" : "") + '">' + ic("settings") + '</span><span class="rb">' + ic("user") + '</span></span></div>';
+  return h;
+}
+function statusbar() {
+  return '<div class="sb">' +
+    '<span class="sb-blk"><span class="sb-seg">' + ic("folderGit2") + '<span class="ell">mi-portfolio</span></span><span class="sb-hair"></span>' +
+    '<span class="sb-seg">' + ic("gitBranch") + '<span class="ell">nueva-portada</span><span class="dot"></span></span></span>' +
+    '<span class="sb-fld">' + ic("search") + '<span class="sp">Buscar o hacer algo</span><span class="kbd">Ctrl K</span></span>' +
+    '<span class="sb-blk r fill"><span class="sb-seg act">' + ic("cloudUpload") + '<span>Publicar 2 versiones</span></span><span class="sb-hair"></span>' +
+    '<span class="sb-seg m">' + ic("rotateCw") + '<span>hace 3 min</span></span></span></div>';
+}
+
+/* ---------------------------------------------------------------- resaltado mínimo */
+function hlTs(s) {
+  s = esc(s);
+  return s.replace(/(&quot;|"[^"]*")/g, '<span class="sx-s">$1</span>')
+    .replace(/\b(import|from|type|const|export|function|return)\b/g, '<span class="sx-k">$1</span>')
+    .replace(/\b(string|Testimonio|useState)\b/g, '<span class="sx-t">$1</span>');
+}
+function hlCss(s) {
+  s = esc(s);
+  if (/\{\s*$/.test(s)) return '<span class="sx-t">' + s + '</span>';
+  return s.replace(/^(\s*)([a-z-]+)(:)/, '$1<span class="sx-p">$2</span>$3').replace(/(\d+(?:\.\d+)?(?:px|vw|%)?)/g, '<span class="sx-n">$1</span>');
+}
+function dline(kind, a, b, text, hl) {
+  var sign = kind === "add" ? "+" : kind === "del" ? "−" : "";
+  var body = kind === "hunk" ? esc(text) : (kind === "ctx" && hl ? hl(text) : esc(text));
+  return '<div class="dl ' + kind + '"><span class="n">' + (a || "") + '</span><span class="n">' + (b || "") + '</span><span class="s">' + sign + '</span><span class="c">' + body + '</span></div>';
+}
+var TESTI = ['import { useState } from "react";', 'import "./testimonios.css";', '', 'type Testimonio = {', '  nombre: string;', '  cargo: string;', '  texto: string;', '};', '',
+  'const TESTIMONIOS: Testimonio[] = [', '  {', '    nombre: "Lucía Herrera",', '    cargo: "Directora creativa, Estudio Faro",', '    texto: "Entregó la web antes de plazo y con un acabado impecable.",', '  },',
+  '  {', '    nombre: "Marcos Vidal",', '    cargo: "Fundador, Panadería Brote",', '    texto: "Por fin una tienda online que mis clientes entienden.",', '  },', '];', '',
+  'export function Testimonios() {', '  const [actual, setActual] = useState(0);', '  const t = TESTIMONIOS[actual];', '  return (', '    <section className="testimonios">', '      <blockquote>{t.texto}</blockquote>', '      <p>{t.nombre} · {t.cargo}</p>'];
+function diffNew() { return TESTI.map(function (l, i) { return dline("add", "", i + 1, l); }).join(""); }
+function diffCss() {
+  var L = [["hunk", "", "", "@@ −12,11 +12,13 @@ .hero"], ["ctx", 12, 12, ".hero {"], ["ctx", 13, 13, "  display: grid;"], ["del", 14, "", "  gap: 24px;"], ["add", "", 14, "  gap: clamp(16px, 4vw, 40px);"],
+    ["ctx", 15, 15, "  padding: 48px 24px;"], ["del", 16, "", "  max-width: 960px;"], ["add", "", 16, "  max-width: 1120px;"], ["add", "", 17, "  margin-inline: auto;"], ["ctx", 17, 18, "}"], ["ctx", 18, 19, ""],
+    ["ctx", 19, 20, ".hero__title {"], ["del", 20, "", "  font-size: 40px;"], ["add", "", 21, "  font-size: clamp(32px, 6vw, 56px);"], ["ctx", 21, 22, "  line-height: 1.1;"], ["ctx", 22, 23, "}"], ["ctx", 23, 24, ""],
+    ["hunk", "", "", "@@ −48,6 +49,8 @@ .hero__cta"], ["ctx", 48, 49, ".hero__cta {"], ["ctx", 49, 50, "  border-radius: 999px;"], ["add", "", 51, "  padding-inline: 24px;"], ["add", "", 52, "  font-weight: 600;"], ["ctx", 50, 53, "}"]];
+  return L.map(function (x) { return dline(x[0], x[1], x[2], x[3], hlCss); }).join("");
+}
+
+/* ---------------------------------------------------------------- filas */
+function frow(cls, chk, kind, name, extra) {
+  var k = kind === "new" ? '<span class="kd ok">' + ic("filePlus") + '</span>' : '<span class="kd mut">' + ic("filePen") + '</span>';
+  return '<div class="row ' + cls + '"><span class="cb' + (chk ? " on" : "") + '">' + (chk ? ic("check") : "") + '</span>' + k + '<span class="nm">' + name + '</span><span class="sp"></span>' + (extra || "") + '</div>';
+}
+function fold(cls, name) { return '<div class="row fold ' + cls + '">' + ic("chevronDown") + ic("folder") + '<span class="ell">' + name + '</span></div>'; }
+function tabs(on) {
+  return '<div class="strip p0"><div class="tabs"><span class="tab' + (on === "c" ? " on" : "") + '">' + ic("fileDiff") + 'Cambios</span><span class="tab' + (on === "h" ? " on" : "") + '">' + ic("history") + 'Historial</span></div></div>';
+}
+
+/* ---------------------------------------------------------------- pantallas */
+function scChanges() {
+  var left = '<section class="cd pnl">' + tabs("c") +
+    '<div class="strip in nob" style="padding:0 8px 0 14px"><span class="cb part">' + ic("minus") + '</span><span class="fld" style="flex:1">' + ic("search") + 'Buscar cambios</span><span class="ib sq">' + ic("listFilter") + '</span></div>' +
+    '<div class="tree">' + fold("", "src") + fold("ind1", "components") +
+    frow("ind2", 1, "mod", "Hero.tsx", '<span class="mut cap mono">+11 −7</span>') + frow("ind2 sel", 1, "new", "Testimonios.tsx", '<span class="mut cap mono">+48</span>') +
+    fold("ind1", "data") + frow("ind2", 1, "new", "proyectos.json", '<span class="mut cap mono">+26</span>') + fold("ind1", "styles") + frow("ind2", 1, "mod", "hero.css", '<span class="mut cap mono">+6 −3</span>') +
+    fold("", "public/img") + frow("ind1", 0, "new", "portada.webp", '<span class="mut cap">imagen</span>') + frow("", 1, "mod", "README.md", '<span class="mut cap mono">+2 −2</span>') + '</div>' +
+    '<div class="composer"><div class="area">¿Qué ha cambiado?</div><div class="fl"><span class="mut lbl">5 de 6 archivos</span><span class="sp"></span><span class="btn pri sm">' + ic("cloudUpload") + 'Guardar y publicar</span></div></div></section>';
+  var right = '<section class="cd pnl"><div class="strip"><span class="kd ok">' + ic("fileCode") + '</span><b class="ell">Testimonios.tsx</b><span class="mut lbl ell">src/components</span><span class="bdg ok">Nuevo</span>' +
+    '<span class="sp"></span><span class="mut cap">2 de 6</span><span class="ib">' + ic("chevronUp") + '</span><span class="ib">' + ic("chevronDown") + '</span><span class="fld">' + ic("rows") + '<span class="v">Unificado</span>' + ic("chevronDown") + '</span></div>' +
+    '<div class="well">' + diffNew() + '</div></section>';
+  return { rail: "work", ws: '<div class="root ly wb">' + left + right + '</div>' };
+}
+function vr(sub, meta, node, sel, aside) {
+  return '<div class="row tall vrow' + (sel ? " sel" : "") + '"><span class="tl-node ' + node + '"></span><span class="ttl"><span class="nm">' + sub + '</span><span class="mut cap ell">' + meta + '</span></span>' + (aside || "") + '</div>';
+}
+function scHistory() {
+  var left = '<section class="cd pnl">' + tabs("h") +
+    '<div class="strip in nob" style="padding:0 8px"><span class="fld" style="flex:1">' + ic("search") + 'Buscar versiones</span><span class="ib sq">' + ic("listFilter") + '</span></div>' +
+    '<div class="lst"><p class="kick grp">Solo en este ordenador</p>' +
+    vr("Ajusta el espaciado de la portada", "Tú · hace 40 min", "local", 1) + vr("Cambia la foto principal", "Tú · hace 2 h", "local") +
+    '<p class="kick grp">Publicadas en origin</p>' + vr("Añade la sección de contacto", "Ana Ruiz · ayer", "") + vr("Corrige el menú en móvil", "Tú · lun 12 oct", "") +
+    vr("Traduce la portada al inglés", "Ana Ruiz · 9 oct", "") + vr("Primera versión de la portada", "Tú · 3 oct", "") + '</div></section>';
+  var files = '<div><div class="strip in"><span class="h3">4 archivos</span><span class="sp"></span><span class="mut cap mono">+19 −12</span></div><div class="lst" style="padding-top:6px">' +
+    frow("sel", 0, "mod", "hero.css", '<span class="mut cap mono">+6 −3</span>').replace('<span class="cb"></span>', '') +
+    frow("", 0, "mod", "Hero.tsx", '<span class="mut cap mono">+11 −7</span>').replace('<span class="cb"></span>', '') +
+    frow("", 0, "mod", "README.md", '<span class="mut cap mono">+2 −2</span>').replace('<span class="cb"></span>', '') +
+    frow("", 0, "new", "portada-v2.webp", '<span class="mut cap">imagen</span>').replace('<span class="cb"></span>', '') + '</div></div>';
+  var diff = '<div><div class="strip in"><span class="kd mut">' + ic("filePen") + '</span><b>hero.css</b><span class="mut lbl">src/styles</span><span class="sp"></span><span class="fld">' + ic("rows") + '<span class="v">Unificado</span>' + ic("chevronDown") + '</span></div><div class="well">' + diffCss() + '</div></div>';
+  var right = '<section class="cd pnl"><div class="strip"><span class="ava">Tú</span><b class="ell" style="font-size:15px">Ajusta el espaciado de la portada</b><span class="bdg">' + ic("laptop") + 'Solo en este ordenador</span><span class="sp"></span>' +
+    '<span class="mut cap">hoy, 17:12</span><span class="bdg mono">a41c9e2</span><span class="ib">' + ic("copy") + '</span></div><div class="split2">' + files + diff + '</div></section>';
+  return { rail: "work", ws: '<div class="root ly wb">' + left + right + '</div>' };
+}
+function tlRow(sub, meta, node) {
+  return '<div class="tl-row"><span class="tl-node ' + node + '"></span><span class="gr" style="gap:2px"><span class="tl-sub ell">' + sub + '</span><span class="tl-meta">' + meta + '</span></span><span class="mut">' + ic("chevronRight") + '</span></div>';
+}
+function scOverview() {
+  var head = '<header class="br ov-head"><span class="chip sm">mp</span><span class="h2" style="font-size:17px">mi-portfolio</span><span class="ov-slash">/</span>' +
+    '<span class="ov-line">' + ic("gitBranch") + '<span class="v">nueva-portada</span>' + ic("chevronDown") + '</span><span class="sp"></span><span class="ib">' + ic("folderOpen") + '</span><span class="ib">' + ic("settings") + '</span></header>';
+  var next = '<section class="cd fx next"><span class="glyph lg">' + ic("save") + '</span><div class="next-copy"><p class="kick">Siguiente paso <span class="prog"><i class="cur"></i><i></i><i></i></span></p>' +
+    '<p class="next-title">Guarda tus 6 cambios como una versión</p><p class="mut" style="margin:0">Así tendrás un punto al que volver. Seguirá solo en este ordenador hasta que publiques.</p>' +
+    '<span class="then"><span class="glyph">' + ic("cloudUpload") + '</span>Después: <b>Publicar 3 versiones</b></span></div>' +
+    '<span class="fl"><span class="btn">' + ic("fileDiff") + 'Revisar cambios</span><span class="btn pri">' + ic("save") + 'Guardar versión…</span></span></section>';
+  var tl = '<section class="cd tl"><div class="tl-h"><span class="h2">Historial</span><span class="btn sm ghost">Ver todo ' + ic("chevronRight") + '</span></div><div class="tl-list">' +
+    '<div class="tl-row"><span class="tl-node now"></span><span class="fl"><span class="tl-sub">Ahora</span><span class="mut">· 6 cambios sin guardar</span><span class="kinds"><span class="bdg">' + ic("filePen") + '3 editados</span><span class="bdg ok">' + ic("filePlus") + '3 nuevos</span></span></span><span class="mut">' + ic("chevronRight") + '</span></div>' +
+    '<div class="tl-group"><div class="tl-gh"><span class="tl-gi">' + ic("laptop") + '</span><span class="kick">Solo en este ordenador</span><span class="mut cap">2 versiones</span></div>' +
+    tlRow("Ajusta el espaciado de la portada", "Tú<i></i>hace 40 min", "local") + tlRow("Cambia la foto principal", "Tú<i></i>hace 2 h", "local") + '</div>' +
+    '<div class="tl-mark"><span class="tl-gi">' + ic("cloud") + '</span><span class="tl-mt">Publicado en <b class="mono" style="color:var(--text-primary-color)">origin/nueva-portada</b></span></div>' +
+    tlRow("Añade la sección de contacto", "Ana Ruiz<i></i>ayer", "") + tlRow("Corrige el menú en móvil", "Tú<i></i>lun 12 oct", "") + tlRow("Traduce la portada al inglés", "Ana Ruiz<i></i>9 oct", "") + '</div></section>';
+  var scene = '<section class="cd scene"><div class="scene-r"><span class="place">' + ic("laptop") + '<span class="bdg">2</span></span><span class="path"><i style="left:30%"></i><i style="left:60%"></i></span><span class="place">' + ic("cloud") + '</span></div>' +
+    '<div class="scene-c"><span><b>Aquí</b><br><span class="mut">2 sin publicar</span></span><span></span><span><b class="mono cap">origin</b><br><span class="mut">hace 3 min</span></span></div></section>';
+  var detail = '<section class="cd pad gr" style="gap:10px"><div class="fl"><span class="mut">' + ic("filePen") + '</span><span class="h3">Sin guardar</span><span class="sp"></span><span class="lbl b6">Ver ' + ic("chevronRight", ' style="width:13px;height:13px;display:inline"') + '</span></div>' +
+    '<div class="fl" style="align-items:baseline"><span class="big">6</span><span class="mut lbl">archivos · 3 carpetas</span></div><div class="fl mono lbl"><span class="mut">+93</span><span class="bar2"><i style="flex:93"></i><i style="flex:12"></i></span><span class="mut">−12</span></div>' +
+    '<div class="gr" style="gap:1px">' + ['Testimonios.tsx|src/components|new', 'Hero.tsx|src/components|mod'].map(function (s) { var p = s.split("|"); return '<div class="row" style="padding:3px 6px"><span class="kd ' + (p[2] === "new" ? "ok" : "mut") + '">' + ic(p[2] === "new" ? "filePlus" : "filePen") + '</span><span class="nm lbl">' + p[0] + '</span><span class="mut cap ell">' + p[1] + '</span></div>'; }).join("") + '<span class="mut cap" style="padding-left:30px">y 4 más</span></div></section>';
+  var safe = '<section class="cd pad gr" style="gap:8px"><div class="fl"><span class="mut">' + ic("lifeBuoy") + '</span><span class="h3">Cambios descartados</span></div><p class="note" style="margin:0">' + ic("info") + 'Antes de descartar, GitOdile guarda una copia.</p></section>';
+  return { rail: "ov", ws: '<div class="root auto ly">' + head + next + '<div class="ov-body">' + tl + '<div class="side">' + scene + detail + safe + '</div></div></div>' };
+}
+function lrow(name, meta, sel, icon, aside) {
+  return '<div class="row tall vrow' + (sel ? " sel" : "") + '" style="grid-template-columns:16px minmax(0,1fr) auto"><span class="mut">' + ic(icon || "gitBranch") + '</span><span class="ttl"><span class="nm mono" style="font-size:12.5px">' + name + '</span><span class="mut cap ell">' + meta + '</span></span>' + (aside || "") + '</div>';
+}
+function scLines() {
+  var left = '<section class="cd pnl"><div class="strip"><span class="h2">Líneas de versión</span><span class="sp"></span><span class="btn sm">' + ic("plus") + 'Nueva</span></div>' +
+    '<div class="strip in nob" style="padding:0 8px"><span class="fld" style="flex:1">' + ic("search") + 'Buscar líneas</span></div><div class="lst">' +
+    '<p class="kick grp">Actual</p>' + lrow("nueva-portada", "Tú · hace 40 min", 0, "gitBranch", '<span class="bdg warn">2 por publicar</span>') +
+    '<p class="kick grp">Publicadas</p>' + lrow("main", "Ana Ruiz · ayer", 0, "gitBranch", '<span class="bdg">Principal</span>') + lrow("arreglo-menu", "Ana Ruiz · hace 2 días", 1, "gitBranch", '<span class="mut" style="color:var(--status-warning)">' + ic("star") + '</span>') +
+    lrow("cambio-tipografia", "Tú · hace 3 semanas") + '<p class="kick grp">Solo en este ordenador</p>' + lrow("prueba-colores", "Tú · hace 5 días", 0, "laptop") + '</div></section>';
+  var vers = ["Ajusta el menú en tabletas|Ana Ruiz · hace 2 días", "Cierra el menú al tocar fuera|Ana Ruiz · hace 3 días", "Añade el botón de menú en móvil|Tú · hace 4 días"].map(function (s) { var p = s.split("|"); return tlRow(p[0], p[1].replace(" · ", "<i></i>"), ""); }).join("");
+  var right = '<section class="cd pnl"><div class="pad gr" style="gap:16px;padding:20px 24px"><div class="fl" style="gap:12px"><span class="glyph lg acc">' + ic("gitBranch") + '</span><div class="gr" style="gap:4px"><span class="h1 mono" style="font-family:var(--L-mono);text-transform:none">arreglo-menu</span><span class="fl"><span class="bdg info">' + ic("cloud") + 'Publicada en origin</span><span class="mut lbl">Nació de main el 10 oct</span></span></div>' +
+    '<span class="sp"></span><span class="btn">' + ic("gitCompare") + 'Comparar</span><span class="btn pri">' + ic("arrowRight") + 'Cambiar a esta línea</span></div>' +
+    '<div class="facts"><div class="inner fact gr" style="gap:2px"><span class="kick">Última versión</span><span class="big">hace 2 días</span><span class="mut lbl">Ana Ruiz</span></div>' +
+    '<div class="inner fact gr" style="gap:2px"><span class="kick">Respecto a main</span><span class="big">3 nuevas</span><span class="mut lbl">y 1 que aún no tiene</span></div>' +
+    '<div class="inner fact gr" style="gap:2px"><span class="kick">Archivos tocados</span><span class="big">7</span><span class="mut lbl">2 carpetas</span></div></div>' +
+    '<div class="gr" style="gap:4px"><span class="h2">Versiones de esta línea</span><div class="tl-list" style="margin-left:-6px">' + vers + '</div></div>' +
+    '<p class="note" style="margin:0">' + ic("info") + 'Cambiar de línea no pierde nada: tus 6 cambios sin guardar se apartan en nueva-portada y vuelven cuando regreses.</p></div></section>';
+  return { rail: "lines", ws: '<div class="root ly wb">' + left + right + '</div>' };
+}
+function scHome() {
+  var act = function (i, t, h) { return '<div class="cd act"><span class="glyph lg acc">' + ic(i) + '</span><span class="gr" style="gap:2px"><span class="h3" style="font-size:14px">' + t + '</span><span class="mut lbl">' + h + '</span></span></div>'; };
+  var rp = function (c, ini, name, path, line, aside, star) {
+    return '<div class="row tall" style="gap:12px;padding-inline:12px"><span class="chip sm ' + c + '">' + ini + '</span><span class="gr" style="gap:0;flex:1"><span class="nm">' + name + '</span><span class="mut cap ell">' + path + '</span></span>' +
+      '<span class="fl mut lbl" style="width:150px">' + ic("gitBranch", ' style="width:13px;height:13px"') + '<span class="ell mono">' + line + '</span></span>' + aside + '<span style="color:' + (star ? "var(--status-warning)" : "var(--border-control)") + '">' + ic("star") + '</span></div>';
+  };
+  var rec = '<section class="cd pnl"><div class="strip"><span class="h2">Recientes</span><span class="sp"></span><span class="fld" style="width:240px">' + ic("search") + 'Buscar proyectos</span></div><div class="lst" style="padding:6px">' +
+    rp("", "mp", "mi-portfolio", "~/Proyectos/mi-portfolio", "nueva-portada", '<span class="bdg warn" style="width:110px;justify-content:center">6 sin guardar</span>', 1) +
+    rp("c0", "tb", "tienda-brote", "~/Clientes/tienda-brote", "main", '<span class="bdg" style="width:110px;justify-content:center">Al día</span>', 1) +
+    rp("c6", "at", "apuntes-tfg", "~/Universidad/apuntes-tfg", "borrador", '<span class="mut cap" style="width:110px;text-align:center">hace 3 días</span>') +
+    rp("c2", "jp", "juego-plataformas", "~/Juegos/juego-plataformas", "nivel-2", '<span class="mut cap" style="width:110px;text-align:center">hace 2 semanas</span>') +
+    rp("c7", "dc", "docs-cliente", "~/Clientes/docs-cliente", "main", '<span class="mut cap" style="width:110px;text-align:center">hace 1 mes</span>') + '</div></section>';
+  return { rail: "", ws: '<div class="root auto ly home"><div class="br gr" style="gap:4px;padding:8px 4px 4px"><span class="hero-t">Buenas tardes</span><span class="mut" style="font-size:15px">¿Algo rápido antes de parar?</span></div>' +
+    '<div class="acts">' + act("folderOpen", "Abrir proyecto", "Una carpeta de tu ordenador") + act("folderPlus", "Crear proyecto", "Elegirás dónde en el siguiente paso") + act("download", "Clonar", "Desde una dirección web") + '</div>' + rec +
+    '<p class="br mut lbl" style="margin:0;text-align:center;padding:6px">o arrastra una carpeta aquí</p></div>' };
+}
+function nav(items, on) {
+  return '<nav class="cd set-nav">' + items.map(function (x, i) { return '<div class="row' + (i === on ? " sel" : "") + '">' + ic(x[0]) + '<span class="nm" style="font-weight:' + (i === on ? 650 : 500) + '">' + x[1] + '</span></div>'; }).join("") + '</nav>';
+}
+function setRow(t, h, ctl) { return '<div class="set-row"><span class="gr" style="gap:0"><span class="b6">' + t + '</span>' + (h ? '<span class="mut lbl">' + h + '</span>' : "") + '</span>' + ctl + '</div>'; }
+function scSettings() {
+  var n = nav([["settings", "General"], ["palette", "Apariencia"], ["layoutDashboard", "Navegación"], ["bell", "Notificaciones"], ["gitBranch", "Git"], ["user", "Cuentas"], ["keyboard", "Atajos"], ["info", "Acerca de"]], 1);
+  var c = '<div class="set-c"><div class="br gr" style="gap:2px;padding:4px 4px 0"><span class="h1">Apariencia</span><span class="mut">Cómo se ve GitOdile en este ordenador.</span></div>' +
+    '<section class="cd pad gr" style="gap:12px"><span class="h2">Tema</span><div class="themes"><div class="th-card on"><div class="th-prev th-s"><i></i><i></i></div>Según el dispositivo</div><div class="th-card"><div class="th-prev th-l"><i></i><i></i></div>Claro</div><div class="th-card"><div class="th-prev th-d"><i></i><i></i></div>Oscuro</div></div>' +
+    '<span class="kick">Paleta</span><div class="swatches"><span class="sw on"><i style="background:#9bd65a"></i>GitOdile</span><span class="sw"><i style="background:#cba6f7"></i>Catppuccin</span><span class="sw"><i style="background:#88c0d0"></i>Nord</span><span class="sw"><i style="background:#7aa2f7"></i>Tokyo Night</span><span class="sw"><i style="background:#bd93f9"></i>Dracula</span><span class="sw"><i style="background:#b58900"></i>Solarized</span><span class="sw"><i style="background:#d79921"></i>Gruvbox</span></div></section>' +
+    '<section class="cd pad gr" style="gap:2px">' + setRow("Tamaño del texto", "", '<span class="seg"><span>Pequeño</span><span class="on">Normal</span><span>Grande</span></span>') +
+    setRow("Reducir movimiento", "Sigue el ajuste del sistema si no lo cambias aquí", '<span class="tgl"></span>') + setRow("Idioma", "", '<span class="fld" style="width:160px"><span class="v sp">Español</span>' + ic("chevronDown") + '</span>') +
+    setRow("Nombres bajo los iconos del riel", "Si lo apagas, el riel solo muestra iconos", '<span class="tgl on"></span>') + '</section></div>';
+  return { rail: "set", ws: '<div class="root set">' + n + c + '</div>' };
+}
+function scProject() {
+  var n = nav([["settings", "General"], ["cloud", "Remotos"], ["user", "Identidad"], ["shield", "Hooks"], ["eyeOff", "Archivos ignorados"], ["sparkles", "Avanzado"]], 0);
+  var c = '<div class="set-c"><div class="br fl" style="gap:14px;padding:4px"><span class="chip lg">mp</span><span class="gr" style="gap:2px"><span class="h1">Ajustes del proyecto</span><span class="mut mono lbl">mi-portfolio · ~/Proyectos/mi-portfolio</span></span></div>' +
+    '<section class="cd pad gr" style="gap:10px"><span class="h2">Nombre e icono</span><div class="fl" style="gap:12px"><span class="fld tall" style="flex:1"><span class="v">mi-portfolio</span></span><span class="fl" style="gap:6px"><span class="chip sm"></span><span class="chip sm c0"></span><span class="chip sm c4"></span><span class="chip sm c7"></span></span></div><span class="mut lbl">El nombre solo cambia en GitOdile; la carpeta sigue igual.</span></section>' +
+    '<section class="cd pad gr" style="gap:10px"><span class="h2">Dónde se publica</span><div class="inner fl" style="gap:12px"><span class="glyph">' + ic("cloud") + '</span><span class="gr" style="gap:0;flex:1"><span class="b6 mono">origin</span><span class="mut cap mono ell">https://github.com/ana-ruiz/mi-portfolio.git</span></span><span class="fl"><span class="ava c7">AR</span><span class="gr" style="gap:0"><span class="lbl b6">ana-ruiz</span><span class="mut cap">github.com</span></span><span class="bdg">Navegador</span></span></div></section>' +
+    '<section class="cd pad gr" style="gap:2px"><span class="h2">Hooks</span>' + setRow("Ejecutar los hooks del proyecto", "Se ejecutan al guardar y al publicar. Si los apagas, GitOdile solo los salta en sus propias operaciones.", '<span class="tgl on"></span>') + '</section></div>';
+  return { rail: "", ws: '<div class="root set">' + n + c + '</div>' };
+}
+function scConsole() {
+  var t = [["$ ", "git status --short"], ["", " M src/components/Hero.tsx\n M src/styles/hero.css\n M README.md\n?? public/img/portada.webp\n?? src/components/Testimonios.tsx\n?? src/data/proyectos.json"],
+    ["$ ", "git log --oneline -4"], ["", "a41c9e2 (HEAD -> nueva-portada) Ajusta el espaciado de la portada\n7d03b18 Cambia la foto principal\ne9f2a64 (origin/nueva-portada) Añade la sección de contacto\n3b7c5d1 Corrige el menú en móvil"],
+    ["$ ", "git diff --stat"], ["", " README.md               |  4 ++--\n src/components/Hero.tsx | 18 +++++++++++-------\n src/styles/hero.css     |  9 ++++++---\n 3 files changed, 19 insertions(+), 12 deletions(-)"]];
+  var term = t.map(function (x) { return x[0] ? '<span class="pr">' + x[0] + '</span><span class="cm">' + esc(x[1]) + '</span>\n' : '<span class="o">' + esc(x[1]) + '</span>\n'; }).join("") + '<span class="pr">$ </span><span class="caret"></span>';
+  var left = '<section class="cd pnl"><div class="strip"><span class="h2">Consola</span><span class="bdg acc">' + ic("shield") + 'Modo seguro</span><span class="mut lbl">Pregunta antes de cambiar nada</span><span class="sp"></span><span class="btn sm ghost">' + ic("trash") + 'Limpiar</span></div>' +
+    '<div class="term">' + term + '</div><div class="con-in"><span class="mono lbl acc b7">mi-portfolio ›</span><span class="fld mono" style="flex:1"><span class="v">git </span></span><span class="btn pri sm">' + ic("play") + 'Ejecutar</span></div></section>';
+  var cmd = function (c, h) { return '<div class="row" style="display:grid;gap:0"><span class="mono lbl b6">' + c + '</span><span class="mut cap">' + h + '</span></div>'; };
+  var right = '<div class="side"><section class="cd pad gr" style="gap:6px"><span class="h3">Comandos frecuentes</span>' + cmd("git status", "Qué ha cambiado") + cmd("git log --oneline", "Versiones guardadas") + cmd("git diff --stat", "Resumen de los cambios") + cmd("git fetch", "Traer novedades sin tocar nada") + '</section>' +
+    '<section class="cd pad gr" style="gap:8px"><span class="h3">Qué se ejecuta</span><p class="mut lbl" style="margin:0">Los comandos corren en <b class="mono" style="color:var(--text-primary-color)">mi-portfolio</b> con el Git del sistema. Si un comando cambiaría el historial o el remoto, GitOdile te lo explica y espera tu sí.</p></section></div>';
+  return { rail: "con", ws: '<div class="root ly wb con">' + left + right + '</div>' };
+}
+function scDialog() {
+  var base = scChanges();
+  base.overlay = '<div class="scrim"><div class="dlg" role="presentation"><div class="dlg-h"><span class="glyph lg acc">' + ic("save") + '</span><span class="gr" style="gap:0;flex:1"><span class="h2" style="font-size:17px">Guardar versión</span><span class="mut lbl">En <span class="mono">nueva-portada</span></span></span><span class="ib sq">' + ic("x") + '</span></div>' +
+    '<div class="gr" style="gap:6px"><span class="lbl b6">Nombre de la versión</span><span class="fld tall"><span class="v">Añade la sección de testimonios</span></span><span class="mut cap">Los nombres cortos se leen mejor en el historial.</span></div>' +
+    '<div class="gr" style="gap:6px"><span class="lbl b6">Más detalles (opcional)</span><div class="area">¿Por qué?</div></div>' +
+    '<div class="inner fl"><span class="kd mut">' + ic("file") + '</span><span class="b6">5 archivos</span><span class="mut lbl">3 editados · 2 nuevos</span><span class="sp"></span><span class="lbl b6">Ver archivos</span>' + ic("chevronDown") + '</div>' +
+    '<p class="note" style="margin:0">' + ic("info") + 'Otro archivo se queda sin guardar.</p>' +
+    '<div class="fl" style="gap:10px"><span class="tgl on"></span><span class="gr" style="gap:0"><span class="b6">Publicar también</span><span class="mut lbl">Lo revisarás antes de que se publique nada.</span></span></div>' +
+    '<div class="dlg-f"><span class="kbd">Ctrl+Intro</span><span class="sp"></span><span class="btn">Cancelar</span><span class="btn pri">' + ic("cloudUpload") + 'Guardar y publicar</span></div></div></div>';
+  return base;
+}
+
+var SCREENS = [
+  { id: "changes", name: "Trabajo · Cambios", icon: "fileDiff", fn: scChanges, note: "<b>Estado:</b> 6 cambios sin guardar (3 editados, 3 nuevos), 5 marcados para guardar; el diff muestra <b>Testimonios.tsx</b>, archivo nuevo, en modo Unificado." },
+  { id: "history", name: "Trabajo · Historial", icon: "history", fn: scHistory, note: "<b>Estado:</b> 2 versiones solo en este ordenador y 4 publicadas; seleccionada «Ajusta el espaciado de la portada», con el diff de <b>hero.css</b> (editado)." },
+  { id: "overview", name: "Resumen", icon: "layoutDashboard", fn: scOverview, note: "<b>Estado:</b> 6 cambios sin guardar y 2 versiones sin publicar. El siguiente paso es guardar (1 de 3), la escena es la pequeña y el detalle son los archivos." },
+  { id: "lines", name: "Líneas de versión", icon: "gitBranch", fn: scLines, note: "<b>Estado:</b> cinco líneas; estás en <b>nueva-portada</b> con 2 versiones por publicar y miras el detalle de <b>arreglo-menu</b>, publicada y marcada con estrella." },
+  { id: "home", name: "Inicio", icon: "folderOpen", fn: scHome, note: "<b>Estado:</b> tarde, con un proyecto abierto; cinco recientes, dos favoritos, uno con cambios sin guardar." },
+  { id: "settings", name: "Ajustes", icon: "settings", fn: scSettings, note: "<b>Estado:</b> sección Apariencia: tema según el dispositivo, paleta GitOdile y cuatro ajustes en filas separadas solo por aire." },
+  { id: "project", name: "Ajustes del proyecto", icon: "folderGit2", fn: scProject, note: "<b>Estado:</b> sección General de <b>mi-portfolio</b>: nombre e icono, el remoto origin con su cuenta y los hooks encendidos." },
+  { id: "console", name: "Consola", icon: "squareTerminal", fn: scConsole, note: "<b>Estado:</b> tres comandos de lectura ya ejecutados en modo seguro y el cursor esperando el siguiente." },
+  { id: "dialog", name: "Diálogo: guardar versión", icon: "save", fn: scDialog, note: "<b>Estado:</b> el diálogo «Guardar versión» sobre Cambios, con nombre escrito, 5 archivos y «Publicar también» activado." }
+];
+
+function win(screenId, style, ax) {
+  var sc = SCREENS.filter(function (s) { return s.id === screenId; })[0].fn();
+  var a = "";
+  ["rail", "sbar", "well", "dens"].forEach(function (k) { if (ax[k] && ax[k] !== "auto") a += ' data-' + k + '="' + ax[k] + '"'; });
+  return '<div class="win" inert data-style="' + style + '"' + a + '>' + titlebar() + '<div class="shell">' + rail(sc.rail) +
+    '<div class="main"><div class="ws">' + sc.ws + '</div>' + statusbar() + '</div></div>' + (sc.overlay || "") + '</div>';
+}
+</script>
+<script>
+"use strict";
+/* veredictos: actual · adoptable · requiere ADR · solo exploración */
+var VERD = {
+  chosen: { t: "Elegido", c: "var(--accent-primary)", d: "La dirección elegida para llevar a la app. Cambia la receta de tarjeta, así que entra por ADR antes de tocar código." },
+  actual: { t: "Actual", c: "var(--accent-primary)", d: "La receta de DESIGN.md. Es la referencia para todo lo demás." },
+  adopt: { t: "Adoptable", c: "var(--status-success)", d: "Cabe en el sistema actual: cambia tokens o un escalón ya previsto, no la receta." },
+  adr: { t: "Requiere ADR", c: "var(--status-warning)", d: "Alternativa seria, pero cambia la receta de tarjeta, el radio por rol o el plano del chrome." },
+  explore: { t: "Solo exploración", c: "var(--status-danger)", d: "Útil como referencia; choca con un principio (opacidad, contraste, tono o radio por rol)." }
+};
+var FAMS = [["chosen", "Elegido"], ["base", "Receta y material"], ["seam", "Costura y agrupación"], ["school", "Sistemas de otras plataformas"], ["graphic", "Escuelas gráficas"], ["color", "Fondo y color"], ["shape", "Forma"], ["pal", "Paletas"]];
+/* r = [una receta, uniformidad entre pantallas, contraste diff/listas, cambios en DESIGN.md] · 3 bien · 2 matices · 1 mal */
+var STYLES = [
+  { id: "card", fam: "base", name: "Friendly Card", insp: "GitKraken · Tower", v: "actual", r: [3, 3, 3, 3],
+    intent: "Panel opaco con borde sutil y sombra pequeña a 18 px en todas las pantallas. Solo sube la elevación de la tarjeta a la que hay que mirar.",
+    pros: ["Es la receta de DESIGN.md: una sola para Resumen, Trabajo, Líneas y la barra de estado.", "El diff y las listas quedan siempre sobre superficies opacas.", "Las sombras están definidas por tema, así que claro y oscuro pesan igual."],
+    cons: ["En claro, borde y sombra a la vez pesan algo en pantallas con muchos paneles.", "Muchas tarjetas del mismo peso aplanan la jerarquía del Resumen."], why: "Punto de partida: nada que reescribir." },
+  { id: "border", fam: "base", name: "Solo borde", insp: "Linear", v: "adr", r: [3, 3, 3, 1],
+    intent: "Quita la sombra y deja el filo. Radios más contenidos y botones de esquina recta, como en Linear.",
+    pros: ["Muy limpio en pantallas densas como Cambios o Historial.", "Las costuras se leen igual en claro y oscuro."],
+    cons: ["DESIGN.md prohíbe que una pantalla elija «solo borde»: tendría que ser global.", "Los botones rectos rompen la regla de la cápsula de § Shape.", "En claro, sin sombra, la tarjeta casi desaparece sobre el fondo crema."], why: "Toca § Visual character y § Shape." },
+  { id: "shadow", fam: "base", name: "Solo sombra", insp: "Things 3 · Apple Recordatorios", v: "adr", r: [3, 3, 3, 2],
+    intent: "Sin borde: la tarjeta flota sobre un fondo un punto más oscuro con una sombra amplia y difusa.",
+    pros: ["Muy amable y doméstico, encaja con «cercano».", "Sin líneas, las pantallas respiran."],
+    cons: ["En oscuro la sombra apenas se ve: la separación depende solo del tono.", "Los paneles contiguos del Trabajo pierden su arista nítida."], why: "Cambia la receta en reposo (una línea), pero es una decisión de material." },
+  { id: "double", fam: "base", name: "Doble borde", insp: "Vercel Geist · Cal.com", v: "adr", r: [3, 3, 3, 2],
+    intent: "Un segundo filo concéntrico a 3 px separa la tarjeta del fondo sin usar sombra.",
+    pros: ["Muy preciso; la tarjeta enfocada se marca cambiando solo el color del filo exterior.", "No depende de que la sombra se vea en oscuro."],
+    cons: ["Dos líneas por tarjeta suman ruido en Trabajo, que ya tiene franjas con borde.", "Con 16 px de hueco, el anillo casi toca al vecino."], why: "Sustituye --shadow-sm en la receta." },
+  { id: "halo", fam: "base", name: "Halo de acento", insp: "Supabase", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La receta se queda; solo la tarjeta del siguiente paso cambia su sombra media por un halo verde, el mismo color de --attention-color.",
+    pros: ["DESIGN.md ya reserva --shadow-md para «la tarjeta en la que centrarse»: solo cambia ese escalón.", "Da al Resumen la jerarquía que le falta sin tocar el resto de pantallas.", "Reutiliza el verde de la atención, que la app ya enseña."],
+    cons: ["Si se aplica a más de una tarjeta por pantalla pierde el sentido.", "En claro el halo es sutil; hay que medirlo con themeContrast."], why: "Un token (la sombra de la tarjeta enfocada); sin ADR." },
+
+  { id: "fused", fam: "seam", name: "Pieza fundida", insp: "GitHub Desktop", v: "adr", r: [2, 1, 3, 1],
+    intent: "Todos los paneles de la pantalla forman una sola pieza con hairlines entre ellos, dentro de un único marco redondeado.",
+    pros: ["En Trabajo, Historial y Líneas se ve muy compacto y ordenado.", "Las dos franjas emparejadas quedan alineadas por construcción."],
+    cons: ["En Inicio y Resumen convierte tarjetas independientes en celdas de una tabla: parece otra app.", "La tarjeta del siguiente paso pierde su elevación.", "Cambia la idea de que cada bloque es un objeto."], why: "Sustituye la receta de tarjeta y § Layout." },
+  { id: "bleed", fam: "seam", name: "A sangre", insp: "VS Code · Sublime Merge", v: "adr", r: [3, 2, 3, 1],
+    intent: "Sin márgenes ni radios: los paneles llegan a los bordes de la ventana, divididos por líneas finas, y la barra de estado es una franja.",
+    pros: ["Máximo espacio para el diff y los árboles de archivos.", "Familiar para quien viene de un editor."],
+    cons: ["Es la estética de herramienta experta que el producto quiere evitar.", "Inicio y Ajustes quedan como formularios sin aire.", "Pierde la cápsula y el radio por rol."], why: "Reescribe § Shape, § Layout y la barra de estado." },
+  { id: "sheet", fam: "chosen", name: "Hoja en marco", insp: "Arc · Dia", v: "chosen", r: [3, 3, 3, 1],
+    intent: "El chrome sigue siendo el plano de hoy (--surface-app, sin tinte) y cada pantalla es una sola hoja opaca encima, con la receta de tarjeta aplicada una vez. Dentro, los paneles se tocan sobre hairlines.",
+    pros: ["Un solo material en las 9 pantallas: siempre una hoja, sea Trabajo, Inicio o Consola.", "La receta no se inventa: borde sutil, --shadow-sm y radio de superficie, pero en un objeto en vez de en diez.", "Los paneles de Trabajo, Historial y Líneas ganan 16 px y sus franjas siguen emparejadas.", "Lo que flota (diálogos, Ajustes, menús) se distingue mejor de lo que reposa."],
+    cons: ["El siguiente paso del Resumen pierde la elevación con la que hoy marca su foco.", "La barra de estado deja de ser una tarjeta y pasa a ser el pie de la hoja.", "Sin hueco entre tarjetas, el Inicio y el Resumen se leen como una página, no como un tablero."], why: "Sustituye la receta en reposo de § Visual character y cambia la barra de estado de § Layout. Requiere ADR." },
+  { id: "tonal", fam: "seam", name: "Separación por tono", insp: "Raycast · Zed", v: "adr", r: [3, 3, 2, 2],
+    intent: "Ni bordes ni sombras: los paneles se distinguen del fondo y las franjas de los paneles por pequeños saltos de tono.",
+    pros: ["Muy calmado; casi no hay líneas en pantalla.", "Escala bien a muchos temas si cada uno define sus tonos."],
+    cons: ["En claro los saltos de tono son de 2–4 % y se pierden en pantallas malas.", "El borde del campo de búsqueda desaparece y baja la afordancia."], why: "Cambia la receta y obliga a tokens de tono por tema." },
+  { id: "bento", fam: "seam", name: "Bento", insp: "Apple · Vercel", v: "adr", r: [3, 2, 3, 2],
+    intent: "Tarjetas grandes sin borde, con sombra media, radio 26 y huecos de 24 px, como en una página de producto.",
+    pros: ["El Resumen y el Inicio se ven muy cuidados y amables.", "La tarjeta del siguiente paso destaca con un degradado suave."],
+    cons: ["En Trabajo los huecos grandes quitan sitio al diff.", "Radio 26 no es ninguno de los niveles por rol."], why: "Nuevo radio y nuevo hueco: § Shape y § Size." },
+  { id: "dense", fam: "seam", name: "Denso", insp: "Fork · Sublime Merge", v: "adr", r: [3, 3, 3, 1],
+    intent: "Todo un 20 % más compacto: radios de 6–8 px, controles rectangulares de 28 px y barra de estado de 32 px.",
+    pros: ["Cabe mucho más en Historial y Líneas.", "Gusta al público secundario: desarrolladores con experiencia."],
+    cons: ["Controles de 28 px quedan por debajo de los 32 px del nivel pequeño.", "Pierde la cápsula; la app se vuelve más fría."], why: "Toca § Size y § Shape. La densidad sola (sin radios) sí sería adoptable." },
+
+  { id: "glass", fam: "school", name: "Cristal", insp: "macOS Big Sur · glassmorfismo", v: "explore", r: [2, 2, 1, 1],
+    intent: "Paneles translúcidos con desenfoque sobre un fondo de manchas de color; el diff conserva su pozo opaco.",
+    pros: ["Muy vistoso en Inicio y en el diálogo.", "El velo desenfocado del diálogo sí encaja con lo que DESIGN.md permite."],
+    cons: ["DESIGN.md prohíbe la translucidez en superficies que están toda la sesión.", "El texto secundario sobre cristal baja de 4,5:1 según lo que haya detrás.", "Desenfoque en 10 paneles cuesta en equipos modestos."], why: "Contradice § Transparency and native effects." },
+  { id: "mica", fam: "school", name: "Mica", insp: "Windows 11 · Fluent", v: "adr", r: [3, 3, 3, 2],
+    intent: "El chrome toma un fondo teñido, como el material Mica de Windows; las tarjetas son capas opacas de radio 8 con filo muy suave.",
+    pros: ["Se siente nativo en Windows, donde está gran parte del público.", "El tinte queda solo en el chrome: el contenido sigue opaco."],
+    cons: ["En macOS y Linux parece importado.", "El Mica real es un efecto nativo; aquí es un degradado fijo.", "Radio 8 y botones rectos salen de § Shape."], why: "Efecto nativo y radios por plataforma." },
+  { id: "adwaita", fam: "school", name: "Adwaita", insp: "GNOME", v: "adr", r: [3, 3, 3, 2],
+    intent: "Barra de título con fondo propio, barra lateral en tono aparte, tarjetas de radio 12 con anillo de sombra y botones de 6 px.",
+    pros: ["Muy legible y sobrio; se ve profesional en Linux.", "Las tarjetas sin borde pero con anillo se separan bien en ambos temas."],
+    cons: ["Introduce dos superficies de chrome (barra de título y riel) que DESIGN.md hoy no tiene.", "Los botones rectos dejan la cápsula."], why: "Cambia el chrome y § Shape." },
+  { id: "material", fam: "school", name: "Material You", insp: "Android · Material 3", v: "adr", r: [3, 3, 2, 2],
+    intent: "Superficies teñidas de verde en distintos niveles, radio 24, indicador de riel en píldora de 56 × 32 y botones secundarios en contorno.",
+    pros: ["El indicador ancho del riel es muy fácil de encontrar.", "El tinte da identidad sin añadir un color nuevo."],
+    cons: ["Tinte en todas las tarjetas: las listas pierden neutralidad y el amarillo de aviso se ensucia.", "Radio 24 y campos rellenos son otro sistema."], why: "Nuevos tokens de superficie teñida y radio." },
+  { id: "neu", fam: "school", name: "Neumorfismo", insp: "Tendencia Dribbble 2020", v: "explore", r: [2, 2, 1, 1],
+    intent: "Las tarjetas son el mismo material que el fondo y salen de él con una luz y una sombra; los campos se hunden.",
+    pros: ["Muy táctil; los campos hundidos se entienden sin borde.", "Una sola superficie en toda la app."],
+    cons: ["El filo de las tarjetas queda por debajo de 3:1: falla WCAG para componentes.", "En oscuro se vuelve barro.", "Estado activo y reposo se parecen demasiado."], why: "Falla el contraste de componentes." },
+  { id: "clay", fam: "school", name: "Claymorfismo", insp: "Ilustración 3D · claymorfismo", v: "explore", r: [3, 2, 3, 1],
+    intent: "Tarjetas hinchadas con luces interiores, radio 30 y botones como pastillas de plastilina.",
+    pros: ["Muy amable; puede dar personalidad a Inicio y a los momentos de la mascota.", "El diff sigue en un pozo plano y legible."],
+    cons: ["Roza lo infantil que el producto quiere evitar.", "En pantallas densas cada panel parece un cojín."], why: "Choca con «profesional»." },
+  { id: "brutal", fam: "school", name: "Neo-brutalismo", insp: "Gumroad · Figma Community", v: "explore", r: [3, 3, 3, 1],
+    intent: "Filos negros de 2 px, sombras duras desplazadas y amarillo de resaltado en la tarjeta enfocada.",
+    pros: ["Contraste altísimo; nada se pierde.", "La jerarquía se lee de un vistazo."],
+    cons: ["Grita: en Trabajo cada panel compite con el diff.", "El amarillo del foco se confunde con el tono de aviso."], why: "Otro tono de producto." },
+
+  { id: "swiss", fam: "graphic", name: "Suizo", insp: "Estilo internacional · PlanetScale", v: "explore", r: [3, 2, 3, 1],
+    intent: "Sin cajas: cada bloque empieza con una regla negra de 3 px, títulos en mayúsculas pesadas y esquinas rectas.",
+    pros: ["Orden tipográfico muy claro en Ajustes y Resumen.", "Cero sombras: imprime y escala bien."],
+    cons: ["Las mayúsculas en los títulos alejan el tono cercano.", "Los paneles de Trabajo pierden su contorno y el diff flota."], why: "Abandona tarjeta y radio por rol." },
+  { id: "editorial", fam: "graphic", name: "Editorial", insp: "Craft · Notion · Bear", v: "explore", r: [3, 2, 3, 1],
+    intent: "Títulos en serif, filetes finos entre secciones, márgenes amplios y el siguiente paso en cursiva, como una revista.",
+    pros: ["Inicio y Resumen ganan calidez y voz.", "Sin cajas, la lectura de textos largos es cómoda."],
+    cons: ["En Trabajo el serif se ve fuera de sitio junto al código.", "Hay que cargar o elegir una serif por plataforma."], why: "Nueva familia tipográfica y sin tarjetas." },
+  { id: "poster", fam: "graphic", name: "Póster", insp: "Framer", v: "explore", r: [3, 2, 3, 1],
+    intent: "Títulos enormes y apretados; la tarjeta del siguiente paso se rellena con el verde de la marca.",
+    pros: ["El siguiente paso es imposible de ignorar.", "Muy memorable en capturas y en Inicio."],
+    cons: ["El verde de relleno a pantalla grande cansa y compite con los botones primarios.", "Tamaños fuera de la escala de tokens."], why: "Rompe la escala tipográfica y el uso del acento." },
+  { id: "terminal", fam: "graphic", name: "Terminal", insp: "Warp · lazygit", v: "explore", r: [3, 3, 3, 1],
+    intent: "Todo en monoespaciada, esquinas rectas, filos verdes y la barra de estado como la línea de estado de tmux.",
+    pros: ["Coherente de punta a punta; la Consola se ve en casa.", "Selección invertida muy visible."],
+    cons: ["Es justo la estética que asusta al público principal.", "Las mayúsculas mono reducen la legibilidad de los nombres."], why: "Contradice el tono y la tipografía." },
+  { id: "blueprint", fam: "graphic", name: "Plano técnico", insp: "Planos · wireframes de Figma", v: "explore", r: [3, 3, 2, 1],
+    intent: "Fondo de cuadrícula azul, filos discontinuos y etiquetas mono en mayúsculas, como un plano.",
+    pros: ["Comunica «borrador» muy bien: útil para un modo de prueba o un tutorial.", "Muy distinto sin dejar de ser ordenado."],
+    cons: ["La cuadrícula detrás de las listas añade ruido.", "Filos discontinuos se leen como «no disponible»."], why: "Otra semántica para los filos." },
+
+  { id: "mono", fam: "color", name: "Monocromo", insp: "Vercel", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La misma receta con el acento cambiado por la tinta del texto: verde solo en lo que significa añadido o éxito.",
+    pros: ["Solo son tokens de tema: encaja en ADR 0012 como una paleta más.", "Deja el verde para el diff y el estado, que ganan peso."],
+    cons: ["El botón primario negro pesa mucho en claro.", "Pierde la marca: hay que dejar el lima en la mascota."], why: "Una paleta nueva en themes.css." },
+  { id: "hc", fam: "color", name: "Alto contraste", insp: "Windows · temas de contraste", v: "adopt", r: [3, 3, 3, 2],
+    intent: "Negro y blanco puros, filos de 2 px, selección invertida y enlaces en amarillo o azul fuerte.",
+    pros: ["Accesibilidad real para baja visión.", "Mantiene la receta: tarjeta, filo y sitio de la sombra."],
+    cons: ["Filos de 2 px son un token nuevo.", "El diff pierde el tinte de fondo y depende del signo y del color del texto."], why: "Una paleta y un grosor de filo por tema." },
+  { id: "aurora", fam: "color", name: "Aurora", insp: "Linear (web) · Raycast", v: "adr", r: [2, 3, 3, 2],
+    intent: "Un resplandor verde por detrás del contenido y filos tintados de acento; sin sombras salvo el brillo del siguiente paso.",
+    pros: ["Mucha atmósfera sin translucidez: el fondo cambia, los paneles no.", "La tarjeta enfocada se distingue con luz, no con peso."],
+    cons: ["Los filos verdes por todas partes diluyen el acento.", "En claro el resplandor puede leerse como suciedad."], why: "Cambia filo y sombra de la receta." },
+  { id: "gradient", fam: "color", name: "Degradado", insp: "Stripe", v: "adr", r: [3, 3, 3, 2],
+    intent: "Tarjetas con un degradado vertical muy leve, fondo que se tiñe arriba y botones con volumen.",
+    pros: ["Se ve pulido y caro, sin perder opacidad.", "Los botones con volumen se entienden como pulsables."],
+    cons: ["Degradados en listas largas crean bandas.", "Más difícil de mantener en 13 temas."], why: "Nueva receta de superficie." },
+  { id: "grain", fam: "color", name: "Grano", insp: "Resend · Railway", v: "adr", r: [3, 3, 3, 2],
+    intent: "Ruido fino en el fondo del chrome y un brillo de 1 px en el filo superior de cada tarjeta; el contenido sigue limpio.",
+    pros: ["Textura con carácter que no toca lo que se lee.", "El brillo superior da relieve sin sombra."],
+    cons: ["El ruido se ve distinto según la escala de pantalla.", "Puede leerse como «imagen con compresión» en monitores malos."], why: "Cambia la sombra de la receta y añade textura al chrome." },
+  { id: "warm", fam: "color", name: "Claro cálido", insp: "Bear · iA Writer", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La receta intacta con neutros de papel: crema más profundo de fondo y tinta marrón, también en oscuro.",
+    pros: ["Solo cambian tokens del tema; la receta y los radios no se tocan.", "Más acogedor para escritores y diseñadores."],
+    cons: ["El crema puede parecer amarillento en pantallas sin calibrar.", "Hay que medir el texto secundario sobre las nuevas superficies."], why: "Una paleta (o un ajuste del tema oficial)." },
+  { id: "oled", fam: "color", name: "Negro puro", insp: "Zed · Cursor", v: "adr", r: [2, 3, 3, 2],
+    intent: "Negro absoluto de fondo, paneles a un 4 % y filos muy finos; sin sombras. En claro, blanco puro.",
+    pros: ["Muy nítido en pantallas OLED; el diff destaca más.", "Gusta a quien viene de editores modernos."],
+    cons: ["Sin sombra, el siguiente paso pierde su foco.", "Más frío que el neutro cálido actual."], why: "Quita la sombra de la receta." },
+  { id: "chrome", fam: "color", name: "Marco de color", insp: "Slack · Discord", v: "adr", r: [3, 3, 3, 2],
+    intent: "Riel y barra de título en verde bosque oscuro; el contenido vive en un área redondeada aparte.",
+    pros: ["Identidad de marca inmediata.", "Separa con claridad navegación y trabajo."],
+    cons: ["El chrome deja de ser un plano neutro.", "Compite con el verde del destino activo."], why: "Cambia § Layout (chrome sin superficie)." },
+
+  { id: "corner", fam: "shape", name: "Esquina viva", insp: "Dia · Teenage Engineering", v: "explore", r: [3, 3, 3, 1],
+    intent: "Esquinas asimétricas: grandes arriba a la izquierda y abajo a la derecha, pequeñas en las otras dos.",
+    pros: ["Muy reconocible; da firma a una app que hoy se parece a otras.", "No cuesta contraste."],
+    cons: ["Las cápsulas y círculos dejan de ser concéntricos con sus contenedores.", "Cansa en listas con muchas filas."], why: "Reescribe § Shape entero." },
+  { id: "capsule", fam: "shape", name: "Cápsula", insp: "visionOS · Apple Música", v: "explore", r: [3, 2, 2, 1],
+    intent: "Radio 32 en tarjetas, filas y riel en cápsula, la barra de estado como una píldora flotante.",
+    pros: ["Muy suave y amable.", "El riel flotante en cápsula se ve moderno."],
+    cons: ["Las filas en cápsula pierden la alineación del texto en listas largas.", "Las esquinas de 32 roban espacio a los paneles de Trabajo."], why: "Abandona los radios por rol." },
+
+  { id: "nord", fam: "pal", name: "Nord", insp: "Nord · ya en themes.css", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La receta actual con la paleta Nord. Solo oscura, como en la app.",
+    pros: ["Ya existe y pasa themeContrast.test.ts.", "Demuestra que la receta aguanta otra paleta."],
+    cons: ["No cambia ninguna decisión de material: es un recoloreo."], why: "Ninguno." },
+  { id: "tokyo", fam: "pal", name: "Tokyo Night", insp: "Tokyo Night · ya en themes.css", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La receta actual con Tokyo Night. Solo oscura, como en la app.",
+    pros: ["Ya existe; el acento azul se lleva bien con el diff.", "Las sombras siguen leyéndose sobre el fondo casi negro."],
+    cons: ["Recoloreo: no explora material ni costura."], why: "Ninguno." },
+  { id: "catppuccin", fam: "pal", name: "Catppuccin", insp: "Latte · Mocha · ya en themes.css", v: "adopt", r: [3, 3, 3, 3],
+    intent: "La receta actual con Catppuccin: Latte en claro, Mocha en oscuro, acento malva.",
+    pros: ["Ya existe en las dos variantes.", "El malva separa bien el acento del verde del diff."],
+    cons: ["Recoloreo: no explora material ni costura."], why: "Ninguno." }
+];
+var DIMS = [["Una receta en toda la app", ["Rompe la receta", "Con matices", "Sí"]], ["Uniformidad al cambiar de pantalla", ["Parece otra app", "Varía según la pantalla", "Igual en todas"]],
+  ["Contraste del diff y las listas", ["En riesgo", "Vigilar", "Intacto"]], ["Cambios en DESIGN.md", ["Reescritura", "Una sección", "Ninguno o un token"]]];
+
+/* ---------------------------------------------------------------- estado */
+var st = { screen: "overview", style: "sheet", view: "single", theme: "dark", rail: "auto", sbar: "auto", well: "auto", dens: "auto", filter: "all" };
+try { st.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) {}
+try { var saved = JSON.parse(localStorage.getItem("gitodile-style-lab-v2") || "{}"); Object.keys(saved).forEach(function (k) { if (k in st) st[k] = saved[k]; }); } catch (e) {}
+function persist() { try { localStorage.setItem("gitodile-style-lab-v2", JSON.stringify(st)); } catch (e) {} }
+function byId(id) { return document.getElementById(id); }
+function styleOf(id) { return STYLES.filter(function (s) { return s.id === id; })[0] || STYLES[0]; }
+function screenOf(id) { return SCREENS.filter(function (s) { return s.id === id; })[0] || SCREENS[0]; }
+function famName(f) { return FAMS.filter(function (x) { return x[0] === f; })[0][1]; }
+
+/* ---------------------------------------------------------------- escalado de ventanas */
+var ro = "ResizeObserver" in window ? new ResizeObserver(function (es) { es.forEach(function (e) { e.target.style.setProperty("--s", (e.contentRect.width / 1200).toFixed(4)); }); }) : null;
+function fit(el) { if (ro) ro.observe(el); else el.style.setProperty("--s", (el.clientWidth / 1200).toFixed(4)); }
+
+/* ---------------------------------------------------------------- controles */
+byId("screens").innerHTML = SCREENS.map(function (s, i) { return '<button type="button" data-screen="' + s.id + '">' + ic(s.icon) + s.name + ' <span class="n">' + (i + 1) + '</span></button>'; }).join("");
+byId("screens").addEventListener("click", function (e) { var b = e.target.closest("[data-screen]"); if (b) { st.screen = b.dataset.screen; render(); } });
+document.querySelectorAll(".sg[data-k]").forEach(function (g) {
+  g.addEventListener("click", function (e) { var b = e.target.closest("button[data-v]"); if (!b) return; st[g.dataset.k] = b.dataset.v; render(); });
+});
+byId("filters").innerHTML = '<button type="button" data-v="all">Todos</button>' + Object.keys(VERD).map(function (k) { return '<button type="button" data-v="' + k + '">' + VERD[k].t + '</button>'; }).join("") +
+  FAMS.map(function (f) { return '<button type="button" data-v="f:' + f[0] + '">' + f[1] + '</button>'; }).join("");
+byId("prev").innerHTML = ic("chevronLeft") + "Anterior";
+byId("next").innerHTML = "Siguiente" + ic("chevronRight");
+function step(d) { var i = STYLES.indexOf(styleOf(st.style)); st.style = STYLES[(i + d + STYLES.length) % STYLES.length].id; render(); }
+byId("prev").addEventListener("click", function () { step(-1); });
+byId("next").addEventListener("click", function () { step(1); });
+document.addEventListener("keydown", function (e) {
+  if (st.view !== "single" || e.altKey || e.ctrlKey || e.metaKey) return;
+  var t = e.target; if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
+});
+
+/* lista lateral */
+byId("slist").innerHTML = FAMS.map(function (f) {
+  return '<div class="sfam"><h3>' + f[1] + '</h3><ul>' + STYLES.filter(function (s) { return s.fam === f[0]; }).map(function (s) {
+    return '<li><button type="button" class="sbtn" data-style="' + s.id + '" style="--v:' + VERD[s.v].c + '"><span class="vdot" title="' + VERD[s.v].t + '"></span><span><b>' + s.name + '</b><small>' + s.insp + '</small></span></button></li>';
+  }).join("") + '</ul></div>';
+}).join("");
+byId("slist").addEventListener("click", function (e) { var b = e.target.closest("[data-style]"); if (b) { st.style = b.dataset.style; render(); } });
+byId("grid").addEventListener("click", function (e) {
+  var b = e.target.closest("[data-open]"); if (!b) return;
+  st.style = b.dataset.open; st.view = "single"; render(); byId("single").scrollIntoView({ block: "start" });
+});
+
+function axes() { return { rail: st.rail, sbar: st.sbar, well: st.well, dens: st.dens }; }
+function lvl(n, words) { return '<span class="lvl" data-l="' + n + '"><i><b></b><b></b><b></b></i>' + words[n - 1] + '</span>'; }
+function ficha(s) {
+  var v = VERD[s.v];
+  return '<div><p class="intent">' + s.intent + '</p><div class="pc"><div><h3>A favor</h3><ul>' + s.pros.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div>' +
+    '<div><h3>En contra, frente a la tarjeta actual</h3><ul>' + s.cons.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div></div></div>' +
+    '<div class="rub">' + DIMS.map(function (d, i) { return '<div class="rub-r"><span>' + d[0] + '</span>' + lvl(s.r[i], d[1]) + '</div>'; }).join("") +
+    '<div class="rub-r"><span class="rub-why">DESIGN.md: ' + s.why + '</span></div>' +
+    '<div class="verdict-box" style="--v:' + v.c + '"><b>' + v.t + '</b>' + v.d + '</div>' + (s.id === "sheet" ? '<div class="fl" style="display:flex;gap:8px;flex-wrap:wrap"><a class="nav-b" href="real.html" style="text-decoration:none">Verla en la app real</a><a class="nav-b" href="#deep" style="text-decoration:none">Leer a fondo</a></div>' : "") + '</div>';
+}
+function tagsFor(s) {
+  return '<span class="tag">' + ic("sparkles") + s.insp + '</span><span class="tag">' + famName(s.fam) + '</span><span class="tag v" style="--v:' + VERD[s.v].c + '">' + VERD[s.v].t + '</span>';
+}
+
+var lastSingle = "", lastGrid = "";
+function render() {
+  document.documentElement.setAttribute("data-theme", st.theme);
+  document.querySelectorAll("[data-screen]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.screen === st.screen)); });
+  document.querySelectorAll(".sg[data-k]").forEach(function (g) { g.querySelectorAll("button[data-v]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === st[g.dataset.k])); }); });
+  var sc = screenOf(st.screen), s = styleOf(st.style), ax = axes();
+  byId("note").innerHTML = '<span><b>' + sc.name + '</b></span><span>' + sc.note + '</span>';
+  byId("single").hidden = st.view !== "single";
+  byId("compare").hidden = st.view !== "compare";
+  var key = [st.screen, st.rail, st.sbar, st.well, st.dens].join("|");
+  if (st.view === "single") {
+    document.querySelectorAll(".sbtn").forEach(function (b) { b.setAttribute("aria-current", String(b.dataset.style === s.id)); });
+    byId("s-name").textContent = s.name;
+    byId("s-tags").innerHTML = tagsFor(s);
+    byId("s-pos").textContent = (STYLES.indexOf(s) + 1) + " / " + STYLES.length;
+    var fr = byId("sframe");
+    if (lastSingle !== key + "|" + s.id) { fr.innerHTML = win(st.screen, s.id, ax); lastSingle = key + "|" + s.id; }
+    fr.setAttribute("aria-label", sc.name + " con el estilo " + s.name);
+    fit(fr);
+    byId("ficha").innerHTML = ficha(s);
+  } else {
+    var list = STYLES.filter(function (x) { return st.filter === "all" || x.v === st.filter || ("f:" + x.fam) === st.filter; });
+    byId("cmp-count").textContent = list.length + " de " + STYLES.length + " estilos · " + sc.name;
+    var gk = key + "|" + st.filter;
+    if (lastGrid !== gk) {
+      byId("grid").innerHTML = list.map(function (x) {
+        return '<div class="tile"><div class="tile-h"><span class="vdot" style="--v:' + VERD[x.v].c + '" title="' + VERD[x.v].t + '"></span><b>' + x.name + '</b><span class="tile-n">' + (STYLES.indexOf(x) + 1) + '</span><span class="sp"></span><span class="tag">' + x.insp + '</span></div>' +
+          '<div class="frame" role="img" aria-label="' + sc.name + ' con el estilo ' + x.name + '" data-open="' + x.id + '" style="cursor:pointer">' + win(st.screen, x.id, ax) + '</div>' +
+          '<p>' + x.intent + '</p><button type="button" class="nav-b" data-open="' + x.id + '" style="justify-self:start">Ver ficha de ' + x.name + ic("chevronRight") + '</button></div>';
+      }).join("");
+      lastGrid = gk;
+      byId("grid").querySelectorAll(".frame").forEach(fit);
+    }
+  }
+  persist();
+}
+
+/* ---------------------------------------------------------------- recomendación */
+function chip(id) { var s = styleOf(id); return '<button type="button" class="tag v" data-go="' + id + '" style="--v:' + VERD[s.v].c + ';border:0;cursor:pointer">' + s.name + '</button>'; }
+byId("reco").innerHTML = '<h2 id="reco-h">Recomendación</h2>' +
+  '<p>La pregunta no era qué estilo es más bonito, sino cuál aguanta las nueve pantallas con el mismo material. Lo que sale de recorrerlas todas, en claro y en oscuro:</p>' +
+  '<div class="reco-g">' +
+  '<article class="rc key"><span class="tag v" style="--v:var(--accent-primary)">Elegido · entra por ADR</span><h3>Hoja en marco: un material por pantalla, no por tarjeta</h3>' +
+  '<p>Es la única alternativa de costura que no cambia de carácter entre pantallas: Trabajo, Inicio, Ajustes, Consola y los diálogos quedan siempre como una hoja opaca sobre el plano del chrome. <strong>Pieza fundida</strong> funciona en Trabajo, pero en Inicio y Resumen convierte tarjetas independientes en celdas.</p>' +
+  '<p>Requiere ADR porque sustituye la receta de tarjeta en reposo y convierte la barra de estado en el pie de la hoja. La sección <a href="#deep">Hoja en marco, a fondo</a> recoge la anatomía, las decisiones abiertas y el borrador de ADR, y <a href="real.html">la app real</a> la muestra sobre las pantallas de verdad.</p><div class="adr-list">' + chip("sheet") + chip("fused") + '</div></article>' +
+  '<article class="rc"><span class="tag v" style="--v:var(--status-success)">Adoptable 1</span><h3>Halo de acento en la tarjeta enfocada</h3>' +
+  '<p>Deja la receta tal cual y cambia solo <code>--shadow-md</code> de la tarjeta del siguiente paso por un halo con el color de <code>--attention-color</code>. DESIGN.md ya reserva ese escalón para «la tarjeta en la que centrarse», así que es un token, no una decisión de material.</p><p>Arregla lo más débil del Resumen actual: muchas tarjetas del mismo peso.</p><div class="adr-list">' + chip("halo") + '</div></article>' +
+  '<article class="rc"><span class="tag v" style="--v:var(--status-success)">Adoptable 2</span><h3>Paletas: Claro cálido y Monocromo</h3>' +
+  '<p>Las dos solo tocan tokens de tema, que es lo que ADR 0012 ya permite; <code>themeContrast.test.ts</code> las mediría como a las demás. Nord, Tokyo Night y Catppuccin ya existen y confirman que la receta aguanta otras paletas. Alto contraste también cabe como paleta, con un único añadido: el grosor de filo de 2 px.</p><div class="adr-list">' + chip("warm") + chip("mono") + chip("hc") + '</div></article>' +
+  '<article class="rc"><span class="tag v" style="--v:var(--status-success)">Preferencia, sin ADR</span><h3>Densidad compacta</h3>' +
+  '<p>El eje «Densidad: compacta» reduce solo los rellenos (× 0,78) y no toca radios, cápsulas ni la receta. Encaja con «compact spacing in file lists» y puede ser un ajuste del usuario. El estilo <strong>Denso</strong> completo, con radios de 6 px y controles de 28 px, sí requiere ADR.</p></article>' +
+  '<article class="rc"><span class="tag v" style="--v:var(--status-warning)">Requiere ADR</span><h3>Alternativas serias</h3>' +
+  '<p>Cada una cambia la receta de tarjeta, el radio por rol o el plano del chrome. Ninguna rompe la legibilidad del diff, pero todas obligarían a reescribir al menos una sección de DESIGN.md.</p><div class="adr-list">' +
+  STYLES.filter(function (s) { return s.v === "adr" && s.id !== "fused"; }).map(function (s) { return chip(s.id); }).join("") + '</div></article>' +
+  '<article class="rc"><span class="tag v" style="--v:var(--status-danger)">Solo exploración</span><h3>Referencias, no candidatos</h3>' +
+  '<p>Chocan con un principio del producto: translucidez en el chrome (Cristal), filos por debajo de 3:1 (Neumorfismo), un tono infantil o estridente (Claymorfismo, Neo-brutalismo, Póster) o la estética experta que el producto evita (Terminal). Sirven para momentos concretos: Plano técnico para un modo tutorial, Editorial para Inicio.</p><div class="adr-list">' +
+  STYLES.filter(function (s) { return s.v === "explore"; }).map(function (s) { return chip(s.id); }).join("") + '</div></article></div>';
+byId("reco").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (!b) return; st.style = b.dataset.go; st.view = "single"; render(); byId("single").scrollIntoView({ block: "start" }); });
+
+render();
+</script>
+
+</html>

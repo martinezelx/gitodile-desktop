@@ -4,8 +4,11 @@ import { DialogCloseButton } from "./dialogCloseButton";
 /** DESIGN.md § Dialogs: three sizes, never a width of a dialog's own. */
 export type DialogSize = "s" | "m" | "l";
 /** The header glyph's fill. `accent` is a flow's own mark; the status tones
- * say what kind of message this is before the sentence is read. */
-export type DialogTone = "accent" | "success" | "warning" | "danger" | "neutral";
+ * say what kind of message this is before the sentence is read, and the glyph
+ * tones what kind of thing the flow handles: `remote` the remote's copy,
+ * `local` what is saved here and not published, `app` GitOdile itself.
+ * `success` is for done — a version saved, a project created. */
+export type DialogTone = "accent" | "success" | "warning" | "danger" | "neutral" | "remote" | "local" | "app";
 
 export type DialogProps = {
   size: DialogSize;

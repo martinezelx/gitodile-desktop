@@ -58,9 +58,9 @@ export type StatusBarProps = {
     query: string;
     selectedOptionId?: string;
     inputRef: React.RefObject<HTMLInputElement | null>;
-    /** The keycap the field prints, spelled by the composition root so the
-     * Console's field prints the same one. */
-    shortcut: string;
+    /** The shortcut that focuses the field, in `aria-keyshortcuts` form. It
+     * is not drawn on the field; assistive technology still announces it. */
+    keyShortcuts: string;
     onOpen: () => void;
     onQueryChange: (query: string) => void;
     onKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
@@ -363,11 +363,11 @@ export function StatusBar({
         </span>
       )}
 
-      {/* The field: the app's search. Typing filters the palette above it and
-          the shortcut is spelled on it, so a search starts from anywhere; the
-          results deploy from this control (see CommandPalette). */}
+      {/* The field: the app's search. Typing filters the palette above it,
+          and its shortcut (announced, not drawn) starts a search from
+          anywhere; the results deploy from this control (see CommandPalette). */}
       <div className="status-bar__search-slot">
-        <div className={`status-bar__search${commandPalette.isOpen ? " status-bar__search--open" : ""}`}>
+        <div className={`status-bar__search${commandPalette.isOpen ? " status-bar__search--open" : ""}`} data-palette-field="">
           <Search aria-hidden="true" />
           <input
             ref={commandPalette.inputRef}
@@ -378,6 +378,7 @@ export function StatusBar({
             aria-controls={commandPalette.isOpen ? "palette-list" : undefined}
             aria-activedescendant={commandPalette.isOpen ? commandPalette.selectedOptionId : undefined}
                   aria-autocomplete="list"
+                  aria-keyshortcuts={commandPalette.keyShortcuts}
                   aria-label={t.statusBarSearchLabel}
                   placeholder={t.statusBarSearch}
                   autoComplete="off"
@@ -388,7 +389,6 @@ export function StatusBar({
             onClick={commandPalette.onOpen}
             onKeyDown={commandPalette.onKeyDown}
           />
-          <kbd className="status-bar__search-kbd" aria-hidden="true">{commandPalette.shortcut}</kbd>
         </div>
       </div>
 

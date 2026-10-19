@@ -428,6 +428,7 @@ export function CloneDialog({
       titleId="clone-dialog-title"
       subtitle={subtitle}
       icon={<CloudDownload />}
+      tone="remote"
       onClose={step === "opening" ? undefined : close}
       closeLabel={t.commonClose}
       dialogRef={dialogRef}

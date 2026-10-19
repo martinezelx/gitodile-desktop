@@ -24,8 +24,9 @@
   padding: 0;
   list-style: none;
   border-radius: var(--radius-surface);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
+  /* Resting inside the dialog: the card fill and a border, no shadow. */
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
 }
 
 .get-team-version-list li {

@@ -209,13 +209,13 @@ describe("production style composition", () => {
     expect(primitives).toContain(".gitodile-mascot__fill { fill: var(--mascot-fill); }");
   });
 
-  // ADR 0012: two layers. The brand identity is declared once in tokens.css
-  // and every theme block fills only the swap-able layer. A theme that set
-  // --accent-brand would recolour the crocodile and the primary action, and a
-  // theme without color-scheme would leave native scrollbars on the old scheme.
+  // ADR 0012: two layers. The identity colours are declared once in
+  // tokens.css and every theme block fills only the swap-able layer. A theme
+  // that set an avatar colour would recolour every project chip, and a theme
+  // without color-scheme would leave native scrollbars on the old scheme.
   it("keeps the brand layer out of every theme block", () => {
     const themes = readSource("styles/themes.css");
-    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--avatar-", "--tooltip-"];
+    const brandTokens = ["--avatar-", "--tooltip-"];
     const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
     expect(blocks.length).toBe(THEME_IDS.length);
     for (const [, body] of blocks) {
@@ -229,20 +229,19 @@ describe("production style composition", () => {
       expect(themes).toContain(`[data-theme="${id}"]`);
     }
 
-    // ADR 0013: the brand lime is identity only. Nothing in the cascade paints
-    // with it except the brand mark itself; the actionable accent is
-    // --accent-primary. A new in-app use of --accent-brand elsewhere is the
-    // regression this guards.
-    const paintedWithBrand: string[] = [];
+    // ADR 0033: the brand lime is no longer a token. The interface draws the
+    // mark in the ink and the actionable accent is --accent-primary; the lime
+    // lives only in the app icon's sources. Bringing --accent-brand back into
+    // the cascade, declared or painted with, is the regression this guards.
+    const brandLime: string[] = [];
     for (const importPath of EXPECTED_IMPORTS) {
       const relativePath = importPath.replace("./", "");
-      if (relativePath === "styles/tokens.css") continue;
       for (const rule of readRules(relativePath)) {
-        if (!rule.body.includes("var(--accent-brand")) continue;
-        paintedWithBrand.push(`${relativePath}: ${rule.selector}`);
+        if (!rule.body.includes("--accent-brand")) continue;
+        brandLime.push(`${relativePath}: ${rule.selector}`);
       }
     }
-    expect(paintedWithBrand).toEqual([]);
+    expect(brandLime).toEqual([]);
   });
 
   // The base default and the OS-dark override duplicate the official pair: the
@@ -266,6 +265,42 @@ describe("production style composition", () => {
     }
     for (const [name, value] of Object.entries(officialDark)) {
       expect(rootDark[name], `${name} OS-dark differs from gitodile-dark`).toBe(value);
+    }
+  });
+
+  // DESIGN.md § Visual character, Friendly Sheet (ADR 0032): inside the sheet
+  // only what floats casts a shadow. The screens' panes and bands are regions
+  // of the sheet, and an in-screen notice is a card inside a region; either
+  // one wearing a shadow, or the raised surface of what floats, is the old
+  // card recipe coming back one surface at a time.
+  it("keeps the sheet's regions flat and its notices on the inner-card fill", () => {
+    const regions: [string, string][] = [
+      ["features/changes/changes.css", ".changes-file-list"],
+      ["features/changes/changes.css", ".changes-diff"],
+      ["features/history/history.css", ".history-detail__card"],
+      ["features/version-lines/version-lines.css", ".version-lines-list-panel"],
+      ["features/overview/overview.css", ".next-step"],
+      ["features/overview/overview.css", ".overview-history"],
+      ["features/overview/overview.css", ".overview-detail"],
+      ["features/overview/overview.css", ".work-scene"],
+    ];
+    for (const [file, selector] of regions) {
+      const body = ruleBody(file, selector);
+      expect(body, `${selector} casts a shadow`).not.toMatch(/box-shadow/);
+      expect(body, `${selector} wears a surface of its own`).not.toMatch(/background:\s*var\(--surface-(raised|panel)\)/);
+    }
+    const notices: [string, string][] = [
+      ["features/changes/changes.css", ".changes-status-notice"],
+      ["features/changes/changes.css", ".changes-notice"],
+      ["features/history/history.css", ".history-banner"],
+      ["features/version-lines/version-lines.css", ".version-lines-banner"],
+      ["shared/ui/primitives.css", ".automatic-updates-notice"],
+      ["shared/ui/primitives.css", ".restore-skipped-notice"],
+    ];
+    for (const [file, selector] of notices) {
+      const body = ruleBody(file, selector);
+      expect(body, `${selector} is not on the inner-card fill`).toMatch(/background:\s*var\(--surface-card\)/);
+      expect(body, `${selector} casts a shadow`).not.toMatch(/box-shadow/);
     }
   });
 

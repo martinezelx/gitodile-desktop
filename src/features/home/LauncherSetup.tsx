@@ -189,9 +189,12 @@ export function SetupStatus({
   onOpenAccount,
   onConnectAccount,
   showAccounts = true,
+  search,
 }: {
   setup: HomeSetup;
   plan: SetupPlan;
+  /** The app search, at the line's far end (see `HomeLauncher`). */
+  search?: React.ReactNode;
   /** False when the launcher already shows each provider as a tab: the same
    * accounts are not listed twice. */
   showAccounts?: boolean;
@@ -297,6 +300,7 @@ export function SetupStatus({
             {t.homeStatusConnect}
           </button>
         ))}
+      {search}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   FolderGit2,
   FolderOpen,
   FolderPlus,
+  House,
   LoaderCircle,
   Plus,
   Search,
@@ -70,7 +71,37 @@ type ProjectSwitcherProps = {
    * to the gear, so the panel opens with answers rather than a spinner.
    * Optional: a surface that does not have it simply opens a little later. */
   onPrefetchProjectSettings?: (id: string) => void;
+  /** Home is showing. The active project stays on the trigger — it is still
+   * open, and Back returns to it — but its row is not marked as where the
+   * reader is: Home is (task 184). */
+  isHome?: boolean;
+  /** Goes to Home, the view of every project. Home is above any one project,
+   * so it lives here, beside the projects, rather than among the rail's
+   * destinations, which all belong to the active project. */
+  onOpenHome?: () => void;
 };
+
+/** The way to Home, at the head of both popovers. */
+function HomeRow({ isHome, onOpen }: { isHome: boolean; onOpen: () => void }): React.JSX.Element {
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      className={`project-switcher__home${isHome ? " project-switcher__home--current" : ""}`}
+      aria-current={isHome ? "page" : undefined}
+      aria-label={t.navHome}
+      onClick={onOpen}
+    >
+      <span className="project-switcher__home-tile" aria-hidden="true">
+        <House />
+      </span>
+      <span className="project-switcher__copy" aria-hidden="true">
+        <span className="project-switcher__name">{t.navHome}</span>
+        <span className="project-switcher__context">{t.projectSwitcherHomeHint}</span>
+      </span>
+    </button>
+  );
+}
 
 /**
  * Favourites first, everything else after, each group keeping the order it
@@ -301,6 +332,7 @@ function ProjectSwitcherRows({
   // The rail popover caps its own height and scrolls only the list, so the
   // search field stays put while the projects move.
   scrollable = false,
+  isHome = false,
 }: ProjectSwitcherProps & { withAddEntry?: boolean; scrollable?: boolean }): React.JSX.Element {
   const { t } = useLanguage();
   return (
@@ -312,6 +344,8 @@ function ProjectSwitcherRows({
     >
       {withActiveFirst(orderByFavourite(entries), activeId).map((entry) => {
         const isActive = entry.id === activeId;
+        // On Home the active project is open but not where the reader is.
+        const isCurrent = isActive && !isHome;
         const detail = [entry.contextLabel, entry.branch].filter(Boolean).join(" · ");
         const accessibleName = entry.contextLabel
           ? `${entry.name} (${entry.contextLabel})`
@@ -320,8 +354,8 @@ function ProjectSwitcherRows({
           <li key={entry.id} className="project-switcher__item">
             <button
               type="button"
-              className={`project-switcher__button${isActive ? " project-switcher__button--active" : ""}`}
-              aria-current={isActive ? "true" : undefined}
+              className={`project-switcher__button${isCurrent ? " project-switcher__button--active" : ""}`}
+              aria-current={isCurrent ? "true" : undefined}
               disabled={!canSwitch && !isActive}
               data-tooltip={!canSwitch && !isActive ? t.projectSwitcherSwitchBlockedHint : undefined}
               onClick={() => onActivate(entry.id)}
@@ -537,6 +571,15 @@ export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Elem
                   <Star aria-hidden="true" />
                 </button>
               </div>
+              {props.onOpenHome && (
+                <HomeRow
+                  isHome={!!props.isHome}
+                  onOpen={() => {
+                    close(true);
+                    props.onOpenHome?.();
+                  }}
+                />
+              )}
               {matches.length > 0 ? (
                 <ProjectSwitcherRows
                   {...props}
@@ -681,6 +724,15 @@ export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.E
           role="dialog"
           aria-label={t.projectSwitcherAriaLabel}
         >
+          {props.onOpenHome && (
+            <HomeRow
+              isHome={!!props.isHome}
+              onOpen={() => {
+                closeAndRestoreFocus();
+                props.onOpenHome?.();
+              }}
+            />
+          )}
           <ProjectSwitcherRows
             {...props}
             onActivate={(id) => {

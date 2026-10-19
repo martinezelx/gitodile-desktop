@@ -504,6 +504,7 @@ export function InitializeProjectDialog({
         titleId="initialize-dialog-title"
         subtitle={step === "remote-preview" ? t.initializeRemoteReviewDescription : t.initializeRemoteHelp}
         icon={<Link2 />}
+        tone="remote"
         onClose={isBusy ? undefined : () => setStep("success")}
         closeLabel={t.commonClose}
         dismissible={!isBusy}
@@ -593,6 +594,7 @@ export function InitializeProjectDialog({
         title={t.initializeCreatingTitle(projectName)}
         titleId="initialize-dialog-title"
         icon={<FolderPlus />}
+        tone="local"
         dismissible={false}
         dialogRef={dialogRef}
       >
@@ -636,6 +638,7 @@ export function InitializeProjectDialog({
       subtitle={<span id="initialize-dialog-description">{t.initializeDialogDescription}</span>}
       descriptionId="initialize-dialog-description"
       icon={<FolderPlus />}
+      tone="local"
       onClose={close}
       closeLabel={t.commonClose}
       dismissible={!isBusy}

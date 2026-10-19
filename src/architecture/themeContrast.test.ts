@@ -42,6 +42,7 @@ const REQUIRED_TOKENS = [
   "--status-danger",
   "--status-danger-contrast",
   "--status-renamed",
+  "--tone-local",
   "--accent-heart",
   "--diff-added",
   "--diff-removed",
@@ -210,6 +211,7 @@ describe("theme contrast contract", () => {
       "--status-warning",
       "--status-danger",
       "--status-renamed",
+      "--tone-local",
       "--diff-added",
       "--diff-removed",
     ];

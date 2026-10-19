@@ -168,6 +168,41 @@
      bottom corners. */
   overflow: hidden;
 }
+/* Grown out of the field (DESIGN.md § Status bar): one object with the field
+   as its foot — the field's width, sitting on its top edge, square below,
+   with an edge mixed from the accent and a soft halo round the whole thing.
+   Its shadow is clipped at the seam so it never darkens the field. The rows
+   take the app's own shapes: sentence-case sections, capsule rows, each
+   glyph in a circle, and the chosen row saying Enter instead of a key list. */
+:root {
+  --palette-edge: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+  --palette-halo: color-mix(in srgb, var(--accent-primary-fill) 12%, transparent);
+}
+.palette-panel--fused {
+  border-color: var(--palette-edge);
+  border-bottom: 0;
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+  box-shadow: 0 0 0 3px var(--palette-halo), var(--shadow-lg);
+  clip-path: inset(-96px -96px 0 -96px);
+}
+.palette-panel--fit .palette-group {
+  padding: 10px 12px 2px;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.palette-panel--fit .palette-item { min-height: 38px; padding: 0 12px 0 8px; border-radius: var(--radius-pill); }
+.palette-panel--fit .palette-item svg {
+  width: 24px; height: 24px; padding: 5px; box-sizing: border-box;
+  border-radius: var(--radius-round); background: var(--surface-hover);
+}
+.palette-panel--fit .palette-item[aria-selected="true"] { background: var(--surface-hover); }
+.palette-panel--fit .palette-item[aria-selected="true"] svg { background: var(--surface-active); }
+.palette-panel--fit .palette-item[aria-selected="true"] .palette-item__hint { display: none; }
+.palette-panel--fit .palette-item[aria-selected="true"]::after {
+  content: "↵"; flex-shrink: 0; color: var(--accent-primary); font-weight: var(--weight-title);
+}
 /* Leaving is quicker and only a fade and a small drop: the reader has already
    decided, and a long goodbye is in the way. */
 .palette-panel--closing {
@@ -295,6 +330,11 @@
   /* Also the height of the fade above the status bar, and not by coincidence:
      the two being equal is what makes the fade free at the end of a scroll. */
   --workspace-inset-bottom: 40px;
+  /* The frame left round the sheet (ADR 0032): the same on all four sides —
+     under the titlebar, beside the rail and to the window's edges — so the
+     sheet floats evenly rather than leaning on two of them. 16px rather than
+     8: at 8 the gap read as a misalignment, at 16 as a decision. */
+  --sheet-frame: var(--space-4);
   height: calc(100vh - 44px);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -304,11 +344,11 @@
 .workspace { grid-column: 2; grid-row: 1; }
 .status-bar { grid-column: 2; grid-row: 2; }
 
-/* A card under the content, on the content's own edges, in the one recipe
-   every resting card wears: the panel surface, the subtle border and
-   `--shadow-sm`. Inside it the strip is three columns — where you are, the
-   search, the remote — so the field is centred on the window at any width
-   rather than pushed around by how long the names happen to be. */
+/* The foot of the sheet (ADR 0032): no card of its own, only the hairline
+   that closes the content above it. Inside it the strip is three columns —
+   where you are, the search, the remote — so the field is centred on the
+   window at any width rather than pushed around by how long the names happen
+   to be. Its side and bottom margins put it inside the sheet's border. */
 .status-bar {
   position: relative;
   display: grid;
@@ -317,25 +357,22 @@
      which left the strip's centre a small pill instead of the field the
      design asks for. It grows to 430 and no further; the two blocks share
      what is left. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 430px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 430px) minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
   height: 44px;
-  margin: 0 var(--workspace-inset-right) 10px var(--workspace-inset-left);
-  padding: 0 5px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
+  margin: 0 calc(var(--sheet-frame) + 1px) calc(var(--sheet-frame) + 1px);
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--border-subtle);
   color: var(--text-primary-color);
   font-size: var(--text-body);
   line-height: var(--leading-snug);
 }
-/* No hairline across the column — the card's own border is the boundary.
-   What was missing is what happens *mid-scroll*, where content
-   was clipped dead against this strip with nothing marking the cut.
+/* The hairline above the strip is the boundary. What it does not mark is
+   what happens *mid-scroll*, where content would be clipped dead against the
+   strip with nothing marking the cut.
 
-   So: a short fade to the window's own colour, sitting directly above the bar.
+   So: a short fade to the sheet's own colour, sitting directly above the bar.
    It is drawn from here rather than as a mask on the workspace because a mask
    on a scroll container recomposites every frame. Fixed workbenches whose
    panes own scrolling — Changes, History and Lines — opt out below: their panel
@@ -350,10 +387,10 @@
 .status-bar::before {
   content: "";
   position: absolute;
-  /* The fade spans the whole column, not just the card: it marks where the
-     scroll is cut, and that cut runs from the rail's edge to the window's. */
-  left: calc(-1px - var(--workspace-inset-left));
-  right: calc(-1px - var(--workspace-inset-right));
+  /* The fade spans the sheet's width, the same as the strip: the cut it
+     marks runs from one edge of the sheet to the other. */
+  left: 0;
+  right: 0;
   bottom: calc(100% + 1px);
   height: var(--workspace-inset-bottom);
   pointer-events: none;
@@ -373,15 +410,15 @@
      veil is not something an eye can find. */
   background: linear-gradient(
     to top,
-    var(--surface-app) 0%,
-    color-mix(in srgb, var(--surface-app) 95.7%, transparent) 12.5%,
-    color-mix(in srgb, var(--surface-app) 84.4%, transparent) 25%,
-    color-mix(in srgb, var(--surface-app) 68.4%, transparent) 37.5%,
-    color-mix(in srgb, var(--surface-app) 50%, transparent) 50%,
-    color-mix(in srgb, var(--surface-app) 31.6%, transparent) 62.5%,
-    color-mix(in srgb, var(--surface-app) 15.6%, transparent) 75%,
-    color-mix(in srgb, var(--surface-app) 4.3%, transparent) 87.5%,
-    color-mix(in srgb, var(--surface-app) 0%, transparent) 100%
+    var(--surface-panel) 0%,
+    color-mix(in srgb, var(--surface-panel) 95.7%, transparent) 12.5%,
+    color-mix(in srgb, var(--surface-panel) 84.4%, transparent) 25%,
+    color-mix(in srgb, var(--surface-panel) 68.4%, transparent) 37.5%,
+    color-mix(in srgb, var(--surface-panel) 50%, transparent) 50%,
+    color-mix(in srgb, var(--surface-panel) 31.6%, transparent) 62.5%,
+    color-mix(in srgb, var(--surface-panel) 15.6%, transparent) 75%,
+    color-mix(in srgb, var(--surface-panel) 4.3%, transparent) 87.5%,
+    color-mix(in srgb, var(--surface-panel) 0%, transparent) 100%
   );
 }
 .app-shell--internal-scroll .status-bar::before { display: none; }
@@ -399,6 +436,11 @@
   height: 30px;
   border-radius: var(--radius-pill);
 }
+/* A block starts or ends its column but never outgrows it: as a grid item
+   placed at one edge it would size to its content and slide under the field
+   in a narrow window, so it is capped at its track and its segments give way
+   with an ellipsis instead. */
+.status-bar__block { max-width: 100%; }
 .status-bar__block--where { justify-self: start; }
 .status-bar__block--remote { justify-self: end; }
 .status-bar__seg {
@@ -509,11 +551,15 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .status-bar__sync--warning { color: var(--status-warning); }
 .status-bar__sync--held { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
 /* The action is the block's first segment: the fact's own metrics with the
-   glyph in the accent and the verb in the reader's words, so turning from one
+   glyph in its tone and the verb in the reader's words, so turning from one
    into the other moves nothing but the words. The fill belongs to the block,
    not here. */
 .status-bar__sync-action { font-weight: var(--weight-medium); }
-.status-bar__sync-action svg { color: var(--accent-primary); }
+/* Publishing carries what is saved here, in its green; getting, alone or
+   first, brings the remote's copy, in its blue (glyph tones, tokens.css). */
+.status-bar__sync-action svg { color: var(--tone-local); }
+.status-bar__sync-action--get svg,
+.status-bar__sync-action--getAndPublish svg { color: var(--tone-remote); }
 /* The check: the gesture that renews the fact, right after it and behind the
    same hairline the project block uses. At rest it carries how fresh the
    answer is — "3 min ago" — so "up to date" is trusted without hovering;
@@ -536,6 +582,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   max-width: 460px;
 }
 .status-bar__search {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -544,17 +591,22 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   min-width: 0;
   padding: 0 10px;
   border-radius: var(--radius-pill);
-  background: var(--surface-control);
+  /* At rest the field is already the object it opens into, closed: what
+     floats' surface, the subtle edge and a small lift (DESIGN.md § Status
+     bar). Opening grows it rather than swapping its material. */
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
   color: var(--text-secondary-color);
   font: inherit;
   font-size: var(--text-body);
   text-align: left;
-  transition: background var(--duration-fast), box-shadow var(--duration-fast);
+  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius var(--duration-fast);
 }
-/* Focus is on the input inside, so the well says it as a ring — the way a
-   search field does when it is ready to be typed in. */
-.status-bar__search--open,
-.status-bar__search:focus-within { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+/* Focused but not deployed — or deployed as a panel of its own, when the
+   field is too narrow to carry the results — it rings like any field. */
+.status-bar__search:hover { background: color-mix(in srgb, var(--text-primary-color) 4%, var(--surface-raised)); }
+.status-bar__search:focus-within,
+.status-bar__search--open { box-shadow: 0 0 0 1px var(--border-subtle), 0 0 0 3px var(--focus-ring); }
 .status-bar__search svg { width: 15px; height: 15px; flex-shrink: 0; }
 .status-bar__search-input {
   flex: 1;
@@ -568,17 +620,37 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 }
 .status-bar__search-input::placeholder { color: var(--text-secondary-color); }
 .status-bar__search-input:focus-visible { outline: none; }
-.status-bar__search-kbd {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  border: 1px solid var(--border-subtle);
-  border-bottom-width: 2px;
-  border-radius: var(--radius-item);
-  background: var(--surface-panel);
-  color: var(--text-secondary-color);
-  font-family: var(--font-sans);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
+/* Deployed, the open field is the foot of one object with the results above
+   it: square on top where the panel sits, the object's edge round its sides
+   and bottom, and the same halo (see `.palette-panel--fused`). */
+.status-bar__search.status-bar__search--open[data-palette-fused],
+.home-status__search.home-status__search--open[data-palette-fused] {
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
+  background: var(--surface-raised);
+  box-shadow:
+    inset 1px 0 0 var(--palette-edge), inset -1px 0 0 var(--palette-edge), inset 0 -1px 0 var(--palette-edge),
+    0 0 0 3px var(--palette-halo);
+}
+
+/* A narrow window: the two blocks would be left a few letters each beside a
+   240px field, so the field folds to its glyph — a 32px circle in the same
+   closed material — and the blocks take the room. Pressing it, or the
+   shortcut, unfolds it centred over the strip at the width the results can
+   grow out of; the input covers the circle so a press lands in it. */
+@media (max-width: 1000px) {
+  .status-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .status-bar__search-slot { width: auto; }
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open) {
+    width: var(--control-height-sm); padding: 0; justify-content: center;
+  }
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open) .status-bar__search-input {
+    position: absolute; inset: 0; width: 100%; opacity: 0;
+  }
+  .status-bar__search:is(:focus-within, .status-bar__search--open) {
+    position: absolute; top: 50%; left: 50%; z-index: 2;
+    width: min(340px, calc(100% - var(--space-5)));
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* One width, always. The rail carries an icon in a 40px square with its name
@@ -609,7 +681,10 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .sidebar {
   width: var(--rail-width);
   flex-shrink: 0;
-  padding: 10px var(--space-2) var(--space-3);
+  /* Top and bottom take the sheet's frame (ADR 0032), so the first
+     destination starts on the sheet's top edge and the tray's plate ends on
+     its bottom edge: the rail and the sheet share two horizontal lines. */
+  padding: var(--sheet-frame) var(--space-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -877,21 +952,50 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto;
   padding: 28px var(--workspace-inset-right) var(--workspace-inset-bottom) var(--workspace-inset-left);
 }
-/* Work and Lines are fixed workbenches whose child panes own
-   scrolling. The shell's full bottom inset is useful for document-style
-   screens, where it creates the quiet end of the outer scroll, but here it
-   becomes a permanent empty strip. Keep the same 16px that separates the
-   panes from each other, so the status bar card reads as one more card in the
-   layout rather than something pressed against the last one. */
-.workspace--workbench,
-.workspace--version-lines { padding-bottom: var(--space-4); }
-/* Overview is a workbench too once it fits the window: its timeline scrolls
-   inside its card and the page itself does not, so the document inset and the
-   fade over it were a 40px empty band above the status bar. Below that size it
-   scrolls as a page and keeps both. The query must match OVERVIEW_FIT_QUERY in
+/* One sheet per screen (ADR 0032). The titlebar and the rail stay the flat
+   frame; column 2 is a single surface in the card's material — the panel,
+   the subtle border, the surface radius — and what
+   the screens lay on it are regions meeting on hairlines, not cards. It is
+   drawn behind the workspace and the status bar rather than as a wrapper so
+   neither has to change parent; as the first grid item it paints under both
+   without a z-index, so nothing inside the workspace is trapped beneath the
+   strip. Console and Home keep the plain plane: Console is a terminal across
+   the workspace, and Home's launcher is the one object on its screen, so it
+   floats on the plane by itself rather than resting on a sheet. */
+.app-shell--sheet::before {
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / -1;
+  margin: var(--sheet-frame);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+  /* The one object resting on the window's plane, with room round it: the
+     focused-object step, not the resting card's. */
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+/* The workspace sits inside the sheet's border, and its rounded top clips a
+   scrolled page to the sheet's corners. */
+.app-shell--sheet .workspace {
+  margin: calc(var(--sheet-frame) + 1px) calc(var(--sheet-frame) + 1px) 0;
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+}
+/* Work and Lines lay their panes edge to edge on the sheet, so they take no
+   inset at all: the sheet's border is their outer edge and a hairline the
+   one between them. */
+.app-shell--sheet .workspace--workbench,
+.app-shell--sheet .workspace--version-lines { padding: 0; }
+/* Overview's bands run edge to edge too and carry their own insets. Below
+   its fit size it scrolls as a page and keeps the bottom inset, which is what
+   makes the fade over the strip free at the end of the scroll. Once it fits
+   the window its timeline scrolls inside its band and the page itself does
+   not, so that inset and the fade would only be an empty strip above the
+   status bar. The query must match OVERVIEW_FIT_QUERY in
    features/overview/fit.ts. */
+.app-shell--overview .workspace { padding: 0 0 var(--workspace-inset-bottom); }
 @media (min-height: 620px) and (min-width: 981px) {
-  .app-shell--overview .workspace { padding-bottom: var(--space-4); }
+  .app-shell--overview .workspace { padding-bottom: 0; }
   .app-shell--overview .status-bar::before { display: none; }
 }
 /* Console hides the status bar and draws its own status line in the same
@@ -1016,6 +1120,29 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 .project-switcher__button:disabled { opacity: 0.45; }
+/* Home at the head of the switcher: the view of every project, so it sits
+   with the projects, one quiet row above them (task 184). */
+/* Home at the head of the switcher, in a project row's own anatomy — a tile
+   where the avatar goes, a name and a line under it — so it keeps the list's
+   rhythm instead of reading as a bar across it (task 184). The accent goes
+   on the glyph alone when Home is current. */
+.project-switcher__home {
+  width: 100%; height: 44px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: var(--space-1); padding: 0 8px;
+  border: 0; border-radius: var(--radius-item); background: transparent;
+  color: var(--text-secondary-color); font: inherit; text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.project-switcher__home-tile {
+  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
+}
+.project-switcher__home-tile svg { width: 13px; height: 13px; }
+.project-switcher__home:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.project-switcher__home:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-switcher__home--current { color: var(--text-primary-color); }
+.project-switcher__home--current .project-switcher__name { font-weight: var(--weight-strong); }
+.project-switcher__home--current .project-switcher__home-tile { color: var(--accent-primary); }
 .project-switcher__avatar {
   flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
   border-radius: var(--radius-identity); color: var(--avatar-foreground);
@@ -1042,7 +1169,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 }
 .project-switcher__close svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__close,
-.project-switcher__item:focus-within .project-switcher__close,
+.project-switcher__item:has(:focus-visible) .project-switcher__close,
 .project-switcher__close:focus-visible { opacity: 1; }
 .project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__close:disabled { opacity: 0.3; }
@@ -1060,7 +1187,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 }
 .project-switcher__favourite svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__favourite,
-.project-switcher__item:focus-within .project-switcher__favourite,
+.project-switcher__item:has(:focus-visible) .project-switcher__favourite,
 .project-switcher__favourite:focus-visible { opacity: 1; }
 .project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__favourite--on {
@@ -1073,7 +1200,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
    96px strip for controls nobody is pointing at; a marked favourite keeps its
    slot because it has to stay readable. */
 .project-switcher__item:hover :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
-.project-switcher__item:focus-within :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
+.project-switcher__item:has(:focus-visible) :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
 .project-switcher__favourite--on { width: 32px; }
 
 /* Same size and same resting weight as the star beside it: they are two marks
@@ -1087,7 +1214,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 }
 .project-switcher__settings svg { width: 14px; height: 14px; }
 .project-switcher__item:hover .project-switcher__settings,
-.project-switcher__item:focus-within .project-switcher__settings,
+.project-switcher__item:has(:focus-visible) .project-switcher__settings,
 .project-switcher__settings:focus-visible { opacity: 1; }
 .project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .project-switcher__settings:disabled { opacity: 0.3; }
@@ -1291,16 +1418,19 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 /* The "Odile" half carries the brand sweep: a band of light crosses it in step
    with the mascot's `mascot-wink` (primitives.css) — the same 6.5s cycle and
    the same 1.2s start, the eye shut while the light is halfway across its 14%
-   travel — so the wordmark and the mark move as one gesture. The band takes
-   the accent fill, not literal white: the word's ink is already near-white in
-   the dark theme, so a white band would vanish, while the accent fill is a
-   saturated brand colour in every theme. The gradient's body is the word's
-   own ink, so it reads normally at rest. */
+   travel — so the wordmark and the mark move as one gesture. In a community
+   theme the band takes the accent fill, a saturated colour there. The
+   official themes' fill is the ink itself (ADR 0033), so the band would not
+   show: there it takes the ink's opposite, `--accent-primary-contrast` —
+   white crossing black in light, black crossing white in dark — a gleam
+   rather than a hue. The gradient's body is the word's own ink, so it reads
+   normally at rest. */
 .about-dialog__odile {
+  --odile-shine: var(--accent-primary-fill);
   background-image: linear-gradient(
     100deg,
     var(--text-primary-color) 35%,
-    var(--accent-primary-fill) 50%,
+    var(--odile-shine) 50%,
     var(--text-primary-color) 65%
   );
   background-size: 250% 100%;
@@ -1310,6 +1440,8 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   -webkit-text-fill-color: transparent;
   animation: about-odile-shine 6.5s ease-in-out 1.2s infinite;
 }
+:root:not([data-theme]) .about-dialog__odile,
+[data-theme|="gitodile"] .about-dialog__odile { --odile-shine: var(--accent-primary-contrast); }
 @keyframes about-odile-shine {
   0% { background-position: 100% 0; }
   14%, 100% { background-position: 0% 0; }
@@ -1562,8 +1694,8 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .changelog-dialog__mark {
   width: 44px; height: 44px; display: grid; place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  background: var(--surface-control);
+  color: var(--tone-app);
 }
 .changelog-dialog__mark svg { width: 22px; height: 22px; }
 /* The running build's notes, open and set apart on the one tinted surface in
@@ -1739,8 +1871,8 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  background: var(--surface-control);
+  color: var(--tone-app);
 }
 .shortcuts-dialog__tile > svg { width: 21px; height: 21px; }
 .shortcuts-dialog__tile-badge {
@@ -1882,6 +2014,11 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
     --workspace-inset-right: 20px;
     --workspace-inset-bottom: 20px;
   }
+  /* The compact nav heads the workspace, so on the screens whose panes run
+     edge to edge it takes the inset they gave up. */
+  .app-shell--sheet .workspace--workbench .compact-nav-row,
+  .app-shell--sheet .workspace--version-lines .compact-nav-row,
+  .app-shell--overview .compact-nav-row { margin: var(--space-3); }
   .workspace { padding-top: 20px; }
   .compact-nav-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
   .compact-nav-row .project-switcher-compact { display: flex; }
@@ -1893,10 +2030,10 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
     gap: var(--space-2);
     margin-bottom: 0;
     padding: var(--space-1);
+    /* A card inside the sheet, not one lifted off it (Friendly Sheet). */
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-surface);
-    background: var(--surface-panel);
-    box-shadow: var(--shadow-sm);
+    background: var(--surface-card);
   }
   .compact-nav__item {
     display: inline-flex;
