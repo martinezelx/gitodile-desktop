@@ -69,7 +69,7 @@ Four rules hold it together, on every screen and in every overlay:
 1. **One frame.** The titlebar and the rail are a flat plane on `--surface-app`: no fill, no tint, no gradient, no translucency.
 2. **One sheet per screen.** The content sits on a single sheet with the same 16px of frame on all four sides. Home and Console are the documented exceptions: Home's launcher floats alone on the plane, Console is a terminal across the workspace.
 3. **Regions, not cards.** Inside the sheet, panels and bands meet on 1px hairlines and wear no border, shadow or radius of their own. A card *inside* a region — a fact, a section, an in-screen notice — is `--surface-card` with the subtle border and no shadow.
-4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`). A small object lifted inside a region (the restore row's tile, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
+4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`; the palette grown out of the status bar's field `--shadow-up`, so its shadow is not cut where it meets the field). A small object lifted inside a region (the restore row's tile, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
 
 The visual language uses:
 
@@ -412,17 +412,37 @@ The main desktop window should broadly support:
      **The results grow out of this field** as one object (Friendly Sheet):
      the panel takes the field's width and sits on its top edge, square below,
      and the open field becomes its foot — the same surface, an edge mixed
-     from the accent round the whole object and a soft halo outside it. The
+     from the accent round the whole object and a soft halo outside it. Both
+     halves share one corner radius, half the field's height: at rest the
+     field is that pill (16px on the strip, 14px on Home), and opening only
+     squares its two top corners. The halo is drawn once — the field's stops
+     at the seam where the panel's ends — the panel casts `--shadow-up` so no
+     shadow is cut flat at the seam, and an inner `--border-divider` line,
+     14px clear of the edges, marks where the query begins. Focused with the
+     results put away, the field keeps the object's edge and halo rather than
+     the ink focus ring, so closing changes only its top corners. The
      rows wear the app's shapes: a sentence-case label per kind of work,
-     capsule rows, each action's glyph in a circle, the shortcut on a row that
-     has one, and the chosen row saying `↵` instead of a list of keys at the
-     foot. A field narrower than 320px cannot carry those rows, so it gets a
+     capsule rows, each action's glyph in a circle — the one the rail gives
+     the same screen, so no two destinations share one — the shortcut on a
+     row that has one, and the chosen row showing `↵` as a small key, like
+     the footer's, instead of a list of keys at the foot. A field narrower than 320px cannot carry those rows, so it gets a
      floating panel of its own instead, at least 320px wide, eight pixels
      above it and kept 12px inside the window. Console's results stay its
-     terminal pane, with the keys at their foot. It arrives from the field with the curve and the 120ms
-     the app's menus already use, and leaves in 90ms, holding its last results
-     while it fades so nothing empties out on the way; reduced motion drops
-     both. The panel clips its own scrollbar, whose track would otherwise cross
+     terminal pane, with the keys at their foot. Grown out of the field, it
+     unfolds upward from the seam on the floating panel's clock — 120ms on
+     the menus' curve — its rows coming with it, since a stagger made it read
+     slower than the rest of the app; it folds back into the seam in 90ms,
+     holding its last results, and the
+     field keeps its open shape (`data-palette-state`) until it has gone, so
+     the two never come apart on the way out. A command that changes the
+     screen or the project takes the results and the field's open shape away
+     at once instead: folding back while the next screen draws read as a
+     stray animation of its own. Nothing moves out of place, so
+     the results never cover the query as they arrive. The floating panel and
+     Console's rise with the same 120ms and leave in the same 90ms; only the
+     movement differs, since a rise would cover the field it grew out of. The system's reduced motion turns the unfolding
+     into an 80ms fade with no movement; the app's own preference drops the
+     motion entirely. The panel clips its own scrollbar, whose track would otherwise cross
      the top and bottom corners, and its list shrinks with it in a short window
      rather than spilling past them. It is a popover,
      not a dialog: no backdrop dims the app, an outside press or a focus
@@ -898,7 +918,7 @@ Colors should be defined semantically rather than by component:
 - `--surface-control` / `--border-control` (the fill and edge of a control that sits *on* a raised card — see Shape below; never use `--surface-panel` for this, it is the same white as `--surface-raised` in light mode and leaves the control with no step of its own)
 - `--surface-card` (the fill of a card sitting *inside* a panel — a section of the History overview, a fact card on the Lines detail. A mix of `--surface-raised` into `--surface-panel`, so it resolves per theme from one definition)
 - `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
-- `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below)
+- `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below), and `--shadow-up`, `--shadow-lg`'s colour cast upward for a surface that sits on another's top edge
 
 Do not hard-code product colors throughout components.
 
@@ -918,6 +938,7 @@ values before this was written down. Choose the tier by what the thing *is*:
 | `--radius-round` (50%) | An atomic thing with no reading direction | Person avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
 | `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | The status bar's project segment and its popup, Home's recents, project-icon previews |
 | `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
+| `--radius-field` (16px, half the field's height) | The app search's field, which opens into the palette — a capsule at rest, but a real length so it can morph into the results' foot (999px cannot) | The status bar's search (16px; 22px on a coarse pointer), Home's search (14px), the top corners of the palette grown out of either |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
 | `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box (a theme-picker card), square icon button of 40px and up that is not in an action row |
 | `--radius-surface` (18px) | A container carrying its own background | Card, dialog, popover, menu, notice, banner, panel |

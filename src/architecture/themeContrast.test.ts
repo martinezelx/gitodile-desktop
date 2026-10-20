@@ -57,6 +57,7 @@ const REQUIRED_TOKENS = [
   "--shadow-sm",
   "--shadow-md",
   "--shadow-lg",
+  "--shadow-up",
 ] as const;
 
 type Rgb = [number, number, number];

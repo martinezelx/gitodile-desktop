@@ -165,7 +165,10 @@
 /* Grown out of the field (DESIGN.md § Status bar): one object with the field
    as its foot — the field's width, sitting on its top edge, square below,
    with an edge mixed from the accent and a soft halo round the whole thing.
-   Its shadow is clipped at the seam so it never darkens the field. The rows
+   Its top corners are the field's own (half its height, measured), so both
+   halves are one shape. It casts its shadow upward and the halo stops at the
+   seam, so nothing is cut flat or drawn twice where the two halves meet; an
+   inner line, clear of the edges, says where the query begins. The rows
    take the app's own shapes: sentence-case sections, capsule rows, each
    glyph in a circle, and the chosen row saying Enter instead of a key list. */
 :root {
@@ -175,10 +178,29 @@
 .palette-panel--fused {
   border-color: var(--palette-edge);
   border-bottom: 0;
-  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
-  box-shadow: 0 0 0 3px var(--palette-halo), var(--shadow-lg);
-  clip-path: inset(-96px -96px 0 -96px);
+  border-radius: var(--radius-field) var(--radius-field) 0 0;
+  box-shadow: 0 0 0 3px var(--palette-halo), var(--shadow-up);
+  clip-path: inset(-60px -60px 0 -60px);
+  /* It unfolds from the seam: nothing moves out of place, so the object reads
+     as growing out of the field rather than arriving over it. Its rows come
+     with it, on the clock and curve of the floating panel and the menus. */
+  animation: palette-unfold-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.palette-panel--fused::after {
+  content: "";
+  position: absolute;
+  inset: auto 14px 0;
+  height: 1px;
+  background: var(--border-divider);
+}
+.palette-panel--fused.palette-panel--closing {
+  animation: palette-unfold-out 90ms ease-in both;
+}
+.palette-panel--fused.palette-panel--closing .palette-list { animation: palette-fade-out 50ms linear both; }
+@keyframes palette-unfold-in { from { clip-path: inset(100% -60px 0 -60px); } }
+@keyframes palette-unfold-out { to { clip-path: inset(100% -60px 0 -60px); } }
+@keyframes palette-fade-in { from { opacity: 0; } }
+@keyframes palette-fade-out { to { opacity: 0; } }
 .palette-panel--fit .palette-group {
   padding: 10px 12px 2px;
   font-size: var(--text-caption);
@@ -194,8 +216,15 @@
 .palette-panel--fit .palette-item[aria-selected="true"] { background: var(--surface-hover); }
 .palette-panel--fit .palette-item[aria-selected="true"] svg { background: var(--surface-active); }
 .palette-panel--fit .palette-item[aria-selected="true"] .palette-item__hint { display: none; }
+/* The key it answers to, drawn as the footer's keys are: a loose glyph sat
+   below the label's line and outweighed the row. */
 .palette-panel--fit .palette-item[aria-selected="true"]::after {
-  content: "↵"; flex-shrink: 0; color: var(--accent-primary); font-weight: var(--weight-title);
+  content: "↵";
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  min-width: 22px; height: 20px; padding: 0 5px; box-sizing: border-box;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-control); color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong);
 }
 /* Leaving is quicker and only a fade and a small drop: the reader has already
    decided, and a long goodbye is in the way. */
@@ -622,7 +651,10 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   height: 32px;
   min-width: 0;
   padding: 0 10px;
-  border-radius: var(--radius-pill);
+  /* Not `--radius-pill`: the same capsule at rest, and a radius that can
+     morph — from 999px the change all landed in the last frames and read as
+     a jump. */
+  border-radius: var(--radius-field);
   /* At rest the field is already the object it opens into, closed: what
      floats' surface, the subtle edge and a small lift (DESIGN.md § Status
      bar). Opening grows it rather than swapping its material. */
@@ -632,13 +664,15 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   font: inherit;
   font-size: var(--text-body);
   text-align: left;
-  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius var(--duration-fast);
+  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius 90ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 /* Focused but not deployed — or deployed as a panel of its own, when the
-   field is too narrow to carry the results — it rings like any field. */
+   field is too narrow to carry the results — it wears the open object's edge
+   and halo, so putting the results away changes only the field's top
+   corners. The ink ring snapped on as the results left. */
 .status-bar__search:hover { background: color-mix(in srgb, var(--text-primary-color) 4%, var(--surface-raised)); }
 .status-bar__search:focus-within,
-.status-bar__search--open { box-shadow: 0 0 0 1px var(--border-subtle), 0 0 0 3px var(--focus-ring); }
+.status-bar__search--open { box-shadow: 0 0 0 1px var(--palette-edge), 0 0 0 3px var(--palette-halo), var(--shadow-sm); }
 .status-bar__search svg { width: 15px; height: 15px; flex-shrink: 0; }
 .status-bar__search-input {
   flex: 1;
@@ -654,15 +688,25 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .status-bar__search-input:focus-visible { outline: none; }
 /* Deployed, the open field is the foot of one object with the results above
    it: square on top where the panel sits, the object's edge round its sides
-   and bottom, and the same halo (see `.palette-panel--fused`). */
-.status-bar__search.status-bar__search--open[data-palette-fused],
-.home-status__search.home-status__search--open[data-palette-fused] {
-  border-radius: 0 0 var(--radius-control) var(--radius-control);
+   and bottom, and the same halo (see `.palette-panel--fused`). It keys off
+   the panel's phase (`data-palette-state`), not the caller's open flag, so
+   it stays the foot until the panel has folded back into it. Its halo is
+   clipped at its top edge, where the panel's own ends, so the two are never
+   drawn over each other. */
+.status-bar__search[data-palette-fused][data-palette-state],
+.home-status__search[data-palette-fused][data-palette-state] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
   background: var(--surface-raised);
   box-shadow:
     inset 1px 0 0 var(--palette-edge), inset -1px 0 0 var(--palette-edge), inset 0 -1px 0 var(--palette-edge),
     0 0 0 3px var(--palette-halo);
+  clip-path: inset(0 -4px -4px -4px);
 }
+/* Left at once — the chosen command changed the screen — the field drops its
+   open shape in the same frame as the results (`leaveAtOnce`). */
+.status-bar__search[data-palette-snap],
+.home-status__search[data-palette-snap] { transition: none; }
 
 /* A narrow window: the two blocks would be left a few letters each beside a
    240px field, so the field folds to its glyph — a 32px circle in the same
@@ -672,13 +716,14 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 @media (max-width: 1000px) {
   .status-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
   .status-bar__search-slot { width: auto; }
-  .status-bar__search:not(:focus-within):not(.status-bar__search--open) {
+  /* It folds only once the results have folded back into it. */
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open):not([data-palette-state]) {
     width: var(--control-height-sm); padding: 0; justify-content: center;
   }
-  .status-bar__search:not(:focus-within):not(.status-bar__search--open) .status-bar__search-input {
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open):not([data-palette-state]) .status-bar__search-input {
     position: absolute; inset: 0; width: 100%; opacity: 0;
   }
-  .status-bar__search:is(:focus-within, .status-bar__search--open) {
+  .status-bar__search:is(:focus-within, .status-bar__search--open, [data-palette-state]) {
     position: absolute; top: 50%; left: 50%; z-index: 2;
     width: min(340px, calc(100% - var(--space-5)));
     transform: translate(-50%, -50%);
@@ -1835,8 +1880,13 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   .titlebar-menu__list { animation: none; }
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }
+  /* No movement: grown from the field the results fade in, and every panel
+     fades out, so none sits frozen through the exit hold or simply blinks. */
   .palette-panel,
-  .palette-panel--closing { animation: none; }
+  .palette-panel--fused.palette-panel--closing .palette-list { animation: none; }
+  .palette-panel--fused { animation: palette-fade-in 80ms ease-out both; }
+  .palette-panel--closing,
+  .palette-panel--fused.palette-panel--closing { animation: palette-fade-out 80ms linear both; }
   .rail-item__icon,
   .sidebar-round {
     animation: none;
@@ -1939,6 +1989,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
     height: 44px;
     min-height: 44px;
   }
+  .status-bar__search { --radius-field: 22px; }
   .status-bar__search-slot { max-width: none; }
   .project-quick-switch__choose { min-height: 44px; }
 }

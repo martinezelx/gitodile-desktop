@@ -28,6 +28,11 @@
   --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
   --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
   --radius-round: 50%;    /* a circle: a person, single-glyph control */
+  /* The app search's field: a capsule, half the field's height (32px on the
+     strip; a shorter field sets its own half), and the top corners of the
+     results grown out of it. A real length, not the pill's 999px, so the
+     field can morph into the palette's foot. */
+  --radius-field: 16px;
   /* A project's identity chip: a rounded square, proportional so it keeps the
      same shape from the 20px jump list to the 56px settings preview. A fixed
      tier would close into a circle at the small sizes. Square for a project,

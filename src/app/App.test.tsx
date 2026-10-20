@@ -2312,6 +2312,8 @@ describe("App project restoration", () => {
     await user.click(field);
     expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
     await user.keyboard("{Escape}");
+    // Escape stays on the screen, so the results fold back into the field.
+    expect(screen.getByRole("listbox", { name: "Command palette" }).parentElement).toHaveClass("palette-panel--closing");
     await waitFor(() =>
       expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
     );
@@ -2331,6 +2333,9 @@ describe("App project restoration", () => {
     expect(options[0]).toHaveTextContent("Go to Home");
     await user.keyboard("{Enter}");
     expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+    // A destination changes the screen, so the results go at once rather than
+    // folding back while Home draws.
+    expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument();
   });
 
   it("hands the palette to the Console's own field, keys included", async () => {

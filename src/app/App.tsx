@@ -277,6 +277,10 @@ export function App(): React.JSX.Element {
      panel above it and the input's aria-activedescendant cannot disagree. */
   const [paletteQuery, setPaletteQuery] = useState("");
   const [paletteSelectedIndex, setPaletteSelectedIndex] = useState(0);
+  /* How the last close put the results away: at once when it changed the
+     screen or the project, folding back into the field otherwise. Every close
+     says which, so no earlier one can leak into the next. */
+  const [paletteLeavesAtOnce, setPaletteLeavesAtOnce] = useState(false);
   /* A destination chosen from the palette hands the keyboard to the screen it
      opens; the flag pairs with the tick that wakes the effect below. */
   const paletteFocusPending = useRef(false);
@@ -1190,7 +1194,10 @@ export function App(): React.JSX.Element {
     setIsPaletteOpen(true);
   };
 
-  const closePalette = (): void => {
+  /** `atOnce` when the close changes the screen or the project: folding back
+   * into the field while the next screen draws read as a stray animation. */
+  const closePalette = (atOnce = false): void => {
+    setPaletteLeavesAtOnce(atOnce);
     setIsPaletteOpen(false);
     setPaletteQuery("");
     setPaletteSelectedIndex(0);
@@ -1198,7 +1205,7 @@ export function App(): React.JSX.Element {
 
   const runPaletteCommand = (command: AppCommand | undefined): void => {
     if (!command) return;
-    closePalette();
+    closePalette(command.id.startsWith("go-") || command.id.startsWith("switch-"));
     // A destination gives the keyboard back to the screen it opens; actions
     // and dialogs keep their own focus behaviour.
     if (command.id.startsWith("go-")) {
@@ -2242,7 +2249,7 @@ export function App(): React.JSX.Element {
   // away rather than offering actions for the project the reader just left.
   const paletteProjectRef = useRef(sessionsState.activeId);
   useEffect(() => {
-    if (paletteProjectRef.current !== sessionsState.activeId) closePalette();
+    if (paletteProjectRef.current !== sessionsState.activeId) closePalette(true);
     paletteProjectRef.current = sessionsState.activeId;
   }, [sessionsState.activeId]);
 
@@ -3156,6 +3163,7 @@ export function App(): React.JSX.Element {
         // own status lines, and the strip is not mounted there.
         anchorRef={paletteAnchorRef}
         reducedMotion={reducedMotion}
+        leaveAtOnce={paletteLeavesAtOnce}
         variant={view === "console" ? "console" : "app"}
         fitToField={view !== "console"}
         onSelect={runPaletteCommand}

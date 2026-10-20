@@ -232,4 +232,76 @@ describe("CommandPalette commands", () => {
     expect(paletteMeta("changelog", t).group).toBe("App");
     expect(paletteMeta("go-home", t).icon).not.toBeNull();
   });
+
+  it("gives every destination a glyph of its own", () => {
+    const t = { paletteGroupGo: "Go" } as Parameters<typeof paletteMeta>[1];
+    const destinations = ["home", "overview", "workbench", "changes", "history", "version-lines", "console", "recovery"];
+    const glyphs = destinations.map((destination) => (paletteMeta(`go-${destination}`, t).icon as React.ReactElement).type);
+
+    expect(new Set(glyphs).size).toBe(destinations.length);
+  });
+});
+
+describe("CommandPalette grown out of its field", () => {
+  /** The strip's field: the input inside the element that carries
+   * `data-palette-field`, which is what a fitted panel measures. */
+  function fittedField(): { field: HTMLElement; anchor: React.RefObject<HTMLInputElement | null> } {
+    const field = document.createElement("div");
+    field.setAttribute("data-palette-field", "");
+    const input = laidOutAnchor({ left: 300, top: 600, width: 400, height: 32 });
+    field.getBoundingClientRect = () => (input.current as HTMLInputElement).getBoundingClientRect();
+    field.appendChild(input.current as HTMLInputElement);
+    return { field, anchor: input };
+  }
+
+  function fitted(anchor: React.RefObject<HTMLInputElement | null>, isOpen: boolean, leaveAtOnce = false): React.JSX.Element {
+    return (
+      <LanguageProvider>
+        <CommandPalette
+          isOpen={isOpen}
+          matches={commands}
+          selectedIndex={0}
+          anchorRef={anchor}
+          leaveAtOnce={leaveAtOnce}
+          fitToField
+          onSelect={vi.fn()}
+          onHover={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+  }
+
+  it("shares the field's corners and keeps the field open until it has folded back", async () => {
+    const { field, anchor } = fittedField();
+    const { rerender } = render(fitted(anchor, true));
+
+    const fused = screen.getByRole("listbox", { name: "Command palette" }).parentElement as HTMLElement;
+    expect(fused).toHaveClass("palette-panel--fused");
+    expect(fused.style.getPropertyValue("--radius-field")).toBe("16px");
+    expect(field).toHaveAttribute("data-palette-fused");
+    expect(field.dataset.paletteState).toBe("open");
+
+    rerender(fitted(anchor, false));
+
+    // The caller has closed it, but the field stays the panel's foot while
+    // the panel folds back into it.
+    expect(field.dataset.paletteState).toBe("closing");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
+    );
+    expect(field).not.toHaveAttribute("data-palette-state");
+  });
+
+  it("leaves at once, field and all, when the command changes the screen", () => {
+    const { field, anchor } = fittedField();
+    const { rerender } = render(fitted(anchor, true));
+
+    rerender(fitted(anchor, false, true));
+
+    // No fold back while the next screen draws: the panel is gone, and the
+    // field drops its open shape without easing its corners back.
+    expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument();
+    expect(field).not.toHaveAttribute("data-palette-state");
+    expect(field).toHaveAttribute("data-palette-snap");
+  });
 });

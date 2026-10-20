@@ -12,14 +12,16 @@ import {
   History,
   House,
   Info,
+  Layers,
+  LayoutDashboard,
   LifeBuoy,
   Monitor,
   Moon,
   RotateCw,
   Settings,
   Sparkles,
+  SquareTerminal,
   Sun,
-  Terminal,
 } from "lucide-react";
 import { useLanguage, type Translations } from "../i18n";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
@@ -42,13 +44,16 @@ export type AppCommand = {
  * Its section and glyph are the palette's own presentation (`paletteMeta`). */
 export type AppCommandDraft = Omit<AppCommand, "group" | "icon">;
 
+/** One glyph per destination, the one the rail gives the same screen: two
+ * screens sharing one made their rows indistinguishable at a glance. */
 const DESTINATION_ICONS: Record<string, React.ReactNode> = {
   home: <House aria-hidden="true" />,
-  workbench: <FileDiff aria-hidden="true" />,
+  overview: <LayoutDashboard aria-hidden="true" />,
+  workbench: <Layers aria-hidden="true" />,
   changes: <FileDiff aria-hidden="true" />,
   history: <History aria-hidden="true" />,
   "version-lines": <GitBranch aria-hidden="true" />,
-  console: <Terminal aria-hidden="true" />,
+  console: <SquareTerminal aria-hidden="true" />,
   recovery: <LifeBuoy aria-hidden="true" />,
 };
 
@@ -121,8 +126,9 @@ export function groupAppCommands(commands: readonly AppCommand[]): CommandGroup[
   return order.map((name) => ({ name, commands: grouped.get(name) ?? [] }));
 }
 
-/** A little past the 90ms `palette-rise-out`, so a busy frame never cuts the
- * last one. The panel keeps the last results on screen for this long. */
+/** A little past the 90ms `palette-rise-out` and `palette-unfold-out`, so a
+ * busy frame never cuts the last one. The panel keeps the last results on
+ * screen for this long, and the field keeps its open shape with it. */
 const EXIT_MS = 120;
 
 /** How far the panel's centre may sit from the window's edges. */
@@ -161,6 +167,7 @@ export function CommandPalette({
   selectedIndex,
   anchorRef,
   reducedMotion = false,
+  leaveAtOnce = false,
   variant = "app",
   fitToField = false,
   onSelect,
@@ -174,8 +181,13 @@ export function CommandPalette({
   /** The field. The results sit centred on it, eight pixels above it. */
   anchorRef: React.RefObject<HTMLElement | null>;
   /** The app preference. With motion off the panel closes at once instead of
-   * holding a frame it is not animating; the system preference is read here. */
+   * holding a frame it is not animating; the system preference only calms the
+   * motion to a fade, in CSS. */
   reducedMotion?: boolean;
+  /** The chosen command changes the screen or the project. The results and
+   * the field's open shape go at once: a fold back into the field while the
+   * next screen draws reads as a stray animation of its own. */
+  leaveAtOnce?: boolean;
   /** Which material the results wear: the app's raised card, or the console's
    * own pane when the field belongs to the Console. */
   variant?: "app" | "console";
@@ -188,7 +200,7 @@ export function CommandPalette({
   onHover: (index: number) => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
-  const [anchor, setAnchor] = useState<{ left: number; bottom: number; width?: number; fused?: boolean } | null>(null);
+  const [anchor, setAnchor] = useState<{ left: number; bottom: number; width?: number; fused?: boolean; radius?: number } | null>(null);
   // Closing keeps the panel mounted for the leaving animation, holding the
   // last results and the surface it opened with, so a destination that changes
   // screens cannot flash the other material while the panel fades.
@@ -199,18 +211,29 @@ export function CommandPalette({
     variant,
   });
   const listRef = useRef<HTMLUListElement>(null);
+  // Set when the panel leaves at once, so the field drops its open shape
+  // without easing its corners back either.
+  const snapRef = useRef(false);
+  // The field that wears the panel's phase, so the phase comes off the same
+  // element it was put on.
+  const stateFieldRef = useRef<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
     if (isOpen) {
       setPhase("open");
       return;
     }
-    const withoutMotion =
-      reducedMotion ||
-      (typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    setPhase((current) => (current === "open" ? (withoutMotion ? "closed" : "closing") : current));
-  }, [isOpen, reducedMotion]);
+    // The system preference still leaves through `closing`: there the panel
+    // fades without moving (app-shell.css), rather than vanishing.
+    setPhase((current) => {
+      if (current !== "open") return current;
+      if (reducedMotion || leaveAtOnce) {
+        snapRef.current = leaveAtOnce;
+        return "closed";
+      }
+      return "closing";
+    });
+  }, [isOpen, reducedMotion, leaveAtOnce]);
 
   useEffect(() => {
     if (isOpen) setHeld({ matches, selectedIndex, variant });
@@ -221,6 +244,39 @@ export function CommandPalette({
     const timer = window.setTimeout(() => setPhase("closed"), EXIT_MS);
     return () => window.clearTimeout(timer);
   }, [phase]);
+
+  // The field wears the panel's phase, not the caller's `isOpen`, so it stays
+  // the object's foot until the panel has folded back into it. Dropping its
+  // open shape on the first frame of the close left the panel fading square
+  // over a pill.
+  useLayoutEffect(() => {
+    if (phase !== "closed") {
+      const element = anchorRef.current;
+      const field = fitToField ? (element?.closest<HTMLElement>("[data-palette-field]") ?? element) : null;
+      if (stateFieldRef.current && stateFieldRef.current !== field) delete stateFieldRef.current.dataset.paletteState;
+      stateFieldRef.current = field;
+      if (!field) return;
+      field.dataset.paletteState = phase;
+      return;
+    }
+    // Cleared on the field it was written to: a command that changes screens
+    // may have moved the anchor to another screen's field by now.
+    const field = stateFieldRef.current;
+    stateFieldRef.current = null;
+    if (!field) return;
+    delete field.dataset.paletteState;
+    if (!snapRef.current) return;
+    snapRef.current = false;
+    // Transitions off for the frame the open shape goes, back on after it.
+    field.dataset.paletteSnap = "";
+    const frame = window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => delete field.dataset.paletteSnap),
+    );
+    return () => {
+      window.cancelAnimationFrame(frame);
+      delete field.dataset.paletteSnap;
+    };
+  }, [phase, anchorRef, fitToField]);
 
   // The list follows the chosen row: the arrows can walk past the panel's
   // 300px of results, and the row the field points at must stay in view.
@@ -270,10 +326,13 @@ export function CommandPalette({
       // can join the panel or stay a field of its own.
       if (fused) field.setAttribute("data-palette-fused", "");
       else field.removeAttribute("data-palette-fused");
+      // Fused, the panel's top corners are the field's own: half its height,
+      // so the object is one shape whatever field it grew out of.
       setAnchor({
         left: clampPaletteLeft(center, panelWidth, window.innerWidth),
         bottom: window.innerHeight - rect.top + (fused ? 0 : 8),
         ...(fitToField ? { width: panelWidth, fused } : {}),
+        ...(fused ? { radius: rect.height / 2 } : {}),
       });
     };
     measure();
@@ -294,7 +353,16 @@ export function CommandPalette({
     <div
       className={`palette-panel${surface === "console" ? " palette-panel--console" : ""}${anchor?.fused ? " palette-panel--fused" : ""}${anchor?.width ? " palette-panel--fit" : ""}${phase === "closing" ? " palette-panel--closing" : ""}`}
       data-palette-panel=""
-      style={anchor ? { left: `${anchor.left}px`, bottom: `${anchor.bottom}px`, ...(anchor.width ? { width: `${anchor.width}px` } : {}) } : undefined}
+      style={
+        anchor
+          ? ({
+              left: `${anchor.left}px`,
+              bottom: `${anchor.bottom}px`,
+              ...(anchor.width ? { width: `${anchor.width}px` } : {}),
+              ...(anchor.radius ? { "--radius-field": `${anchor.radius}px` } : {}),
+            } as React.CSSProperties)
+          : undefined
+      }
     >
       <ul
         {...autoHideScrollbarProps<HTMLUListElement>()}

@@ -67,6 +67,8 @@
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
   --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+
+  --shadow-up: 0 -16px 32px rgba(28, 25, 23, 0.14);
 }
 
 /* Official GitOdile Dark - the default for "match device" on a dark OS.
@@ -110,6 +112,8 @@
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
     --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+    --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -150,6 +154,8 @@
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
   --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+
+  --shadow-up: 0 -16px 32px rgba(28, 25, 23, 0.14);
 }
 
 [data-theme="gitodile-dark"] {
@@ -189,6 +195,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Catppuccin Mocha - catppuccin.com/palette (MIT).
@@ -234,6 +242,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Catppuccin Latte - catppuccin.com/palette (MIT).
@@ -280,6 +290,8 @@
   --shadow-sm: 0 2px 8px rgba(76, 79, 105, 0.08);
   --shadow-md: 0 8px 20px rgba(76, 79, 105, 0.1);
   --shadow-lg: 0 24px 60px rgba(76, 79, 105, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(76, 79, 105, 0.16);
 }
 
 /* Catppuccin Frappé - catppuccin.com/palette (MIT). Same role map as Mocha.
@@ -325,6 +337,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Nord - nordtheme.com (MIT).
@@ -371,6 +385,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Tokyo Night - enkia/tokyo-night-vscode-theme (MIT).
@@ -414,6 +430,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Dracula - draculatheme.com (MIT).
@@ -460,6 +478,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Solarized Dark - ethanschoonover.com/solarized (MIT). Surfaces are base03
@@ -508,6 +528,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Solarized Light - ethanschoonover.com/solarized (MIT). Flat like the dark
@@ -552,6 +574,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 43, 54, 0.08);
   --shadow-md: 0 8px 20px rgba(0, 43, 54, 0.1);
   --shadow-lg: 0 24px 60px rgba(0, 43, 54, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(0, 43, 54, 0.16);
 }
 
 /* Gruvbox Dark - morhetz/gruvbox (MIT).
@@ -597,6 +621,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Gruvbox Light - morhetz/gruvbox (MIT).
@@ -642,4 +668,6 @@
   --shadow-sm: 0 2px 8px rgba(60, 56, 54, 0.08);
   --shadow-md: 0 8px 20px rgba(60, 56, 54, 0.1);
   --shadow-lg: 0 24px 60px rgba(60, 56, 54, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(60, 56, 54, 0.16);
 }

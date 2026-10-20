@@ -551,16 +551,19 @@
 .home-status__search {
   display: flex; align-items: center; gap: 6px;
   flex: 0 1 320px; min-width: 200px; height: 28px; margin-left: auto; padding: 0 10px;
-  border-radius: var(--radius-pill); color: var(--text-secondary-color);
+  /* Half its 28px, as the strip's field: a capsule that can morph. */
+  --radius-field: 14px;
+  border-radius: var(--radius-field); color: var(--text-secondary-color);
   /* Closed, the field is the object it grows into (as the strip's is). */
   background: var(--surface-raised);
   box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
-  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius var(--duration-fast);
+  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius 90ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .home-status:has(.home-status__search) .home-status__item--connect { margin-left: 0; }
 .home-status__search:hover { background: color-mix(in srgb, var(--text-primary-color) 4%, var(--surface-raised)); }
+/* Focused, the open object's edge and halo (see `.status-bar__search`). */
 .home-status__search:focus-within,
-.home-status__search--open { box-shadow: 0 0 0 1px var(--border-subtle), 0 0 0 3px var(--focus-ring); color: var(--text-primary-color); }
+.home-status__search--open { box-shadow: 0 0 0 1px var(--palette-edge), 0 0 0 3px var(--palette-halo), var(--shadow-sm); color: var(--text-primary-color); }
 .home-status__search svg { width: 13px; height: 13px; flex-shrink: 0; }
 .home-status__search-input {
   flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
