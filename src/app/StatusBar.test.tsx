@@ -106,6 +106,31 @@ function paletteProps(overrides: Partial<StatusBarProps["commandPalette"]> = {})
   };
 }
 
+/** The project popup's wiring: two open projects, the first active. */
+function projectSwitchProps(overrides: Partial<StatusBarProps["projectSwitch"]> = {}): StatusBarProps["projectSwitch"] {
+  return {
+    entries: [
+      { id: "/repo", name: "gitodile", path: "/repo", contextLabel: null, branch: "main", hasError: false, hasOperationInProgress: false, hasUnsavedChanges: false, isFavourite: false },
+      { id: "/other", name: "landing", path: "/other", contextLabel: null, branch: "main", hasError: false, hasOperationInProgress: false, hasUnsavedChanges: false, isFavourite: false },
+    ],
+    recent: [],
+    activeId: "/repo",
+    canSwitch: true,
+    isOpening: false,
+    onActivate: vi.fn(),
+    onOpenRecent: vi.fn(),
+    onClose: vi.fn(),
+    onOpenAnother: vi.fn(),
+    onCreate: vi.fn(),
+    onClone: vi.fn(),
+    onToggleFavourite: vi.fn(),
+    onOpenProjectSettings: vi.fn(),
+    onOpenFolder: vi.fn(),
+    onOpenHome: vi.fn(),
+    ...overrides,
+  };
+}
+
 function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof render> {
   const props = {
     project: { name: "gitodile", branch: "feature/a-very-long-version-line-name", headState: "branch" },
@@ -126,7 +151,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
     },
     onSeeAllVersionLines: vi.fn(),
     onCheckTeamChanges: vi.fn(),
-    onOpenProjectSettings: vi.fn(),
+    projectSwitch: projectSwitchProps(),
     onPublish: vi.fn(),
     onGetChanges: vi.fn(),
     onGetAndPublish: vi.fn(),
@@ -148,9 +173,11 @@ describe("StatusBar", () => {
       project: null,
       workingTree: null,
       teamSync: EMPTY_TEAM_SYNC_STATE,
+      projectSwitch: projectSwitchProps({ entries: [], activeId: null }),
     });
 
-    expect(screen.getByText("No project open")).toBeInTheDocument();
+    // The project segment stays: with nothing open it is the way to open one.
+    expect(screen.getByRole("button", { name: "No project open" })).toHaveClass("status-bar__project");
     // The field is global: it works with no project at all.
     expect(screen.getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
@@ -175,16 +202,19 @@ describe("StatusBar", () => {
     expect(onQueryChange).toHaveBeenCalled();
   });
 
-  it("builds where you are as a path and the remote as one phrase", () => {
+  it("sets the project and its line side by side, and the remote as one phrase", () => {
     const { container } = renderBar();
 
     const blocks = container.querySelectorAll(".status-bar__block");
     expect(blocks).toHaveLength(2);
     expect(blocks[0]).toHaveClass("status-bar__block--where");
     expect(blocks[1]).toHaveClass("status-bar__block--remote");
-    // The project and its line are a path; the remote's segments need no mark.
-    expect(blocks[0].querySelector(".status-bar__path")).toHaveTextContent("/");
-    expect(blocks[1].querySelector(".status-bar__path")).toBeNull();
+    // Two segments of one shape and no mark between them (task 189): the
+    // project's trigger, then the line's.
+    expect(container.querySelector(".status-bar__path")).toBeNull();
+    const where = Array.from(blocks[0].children);
+    expect(where[0]).toHaveClass("status-bar__project");
+    expect(where[1]).toHaveClass("version-lines-quick-switch");
     // The strip no longer carries the app version: its release notes live in
     // the menu and the notification centre now.
     expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
@@ -205,23 +235,58 @@ describe("StatusBar", () => {
     expect(remote?.querySelector(".status-bar__seg + .status-bar__refresh")).not.toBeNull();
   });
 
-  it("opens the active project's settings from its name, before the line", async () => {
+  it("opens the project popup from its name, and acts on the active project from its head", async () => {
     const onOpenProjectSettings = vi.fn();
     const onPrefetchProjectSettings = vi.fn();
-    renderBar({ onOpenProjectSettings, onPrefetchProjectSettings });
+    renderBar({ projectSwitch: projectSwitchProps({ onOpenProjectSettings, onPrefetchProjectSettings }) });
 
-    const button = screen.getByRole("button", { name: "Settings for gitodile" });
-    expect(button).toHaveClass("status-bar__project");
-    expect(button).toHaveTextContent("gitodile");
-    expect(button).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
-    // "project / line": only the block's slash stands between the two facts.
-    expect(button.nextElementSibling).toHaveClass("status-bar__path");
-    expect(button.nextElementSibling?.nextElementSibling).toHaveClass("version-lines-quick-switch");
-    await userEvent.hover(button);
-    button.focus();
-    expect(onPrefetchProjectSettings).toHaveBeenCalled();
-    await userEvent.click(button);
-    expect(onOpenProjectSettings).toHaveBeenCalledOnce();
+    const trigger = screen.getByRole("button", { name: "gitodile — switch project" });
+    expect(trigger).toHaveTextContent("gitodile");
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    await userEvent.hover(trigger);
+    expect(onPrefetchProjectSettings).toHaveBeenCalledWith("/repo");
+    await userEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    const popup = screen.getByRole("dialog", { name: "Open projects" });
+    expect(popup).toHaveTextContent("landing");
+    await userEvent.click(screen.getByRole("button", { name: "Settings for gitodile" }));
+    expect(onOpenProjectSettings).toHaveBeenCalledWith("/repo");
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+  });
+
+  it("marks the active project's own state, never another project's", () => {
+    const base = projectSwitchProps();
+    const { rerender } = renderBar({
+      projectSwitch: { ...base, entries: [base.entries[0], { ...base.entries[1], hasUnsavedChanges: true }] },
+    });
+    // Another project's unsaved work stays on its popup row.
+    expect(document.querySelector(".status-bar__mark")).toBeNull();
+
+    rerender(
+      <LanguageProvider>
+        <StatusBar
+          project={{ name: "gitodile", branch: "main", headState: "branch" }}
+          workingTree={dirtyTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          versionLines={versionLines}
+          isLoadingVersionLines={false}
+          teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() }}
+          onSwitchVersionLine={vi.fn()}
+          onSeeAllVersionLines={vi.fn()}
+          onCheckTeamChanges={vi.fn()}
+          projectSwitch={{ ...base, activeStatus: { kind: "resolve", description: "The last operation didn't finish" } }}
+          onPublish={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
+          commandPalette={paletteProps()}
+        />
+      </LanguageProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "gitodile — switch project · The last operation didn't finish" });
+    expect(trigger.querySelector(".status-bar__mark--resolve svg")).not.toBeNull();
+    expect(trigger).toHaveAttribute("data-tooltip", "gitodile · The last operation didn't finish");
   });
 
   it("shows real line, working-tree, remote, freshness, and refresh state", async () => {
@@ -407,7 +472,7 @@ describe("StatusBar", () => {
           onSwitchVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenProjectSettings={vi.fn()}
+          projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
           onGetChanges={vi.fn()}
           onGetAndPublish={vi.fn()}
@@ -433,7 +498,7 @@ describe("StatusBar", () => {
           onSwitchVersionLine={vi.fn()}
           onSeeAllVersionLines={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenProjectSettings={vi.fn()}
+          projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
           onGetChanges={vi.fn()}
           onGetAndPublish={vi.fn()}
@@ -487,7 +552,7 @@ describe("formatRelativeCheckTime", () => {
     expect(project).not.toBeNull();
     // The custom tooltip carries the full name, the same way every other item
     // reveals what it had to truncate.
-    expect(project).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
+    expect(project).toHaveAttribute("data-tooltip", "gitodile");
     expect(
       screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
     ).toBeInTheDocument();

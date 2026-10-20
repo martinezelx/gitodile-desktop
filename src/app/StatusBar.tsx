@@ -6,8 +6,6 @@ import {
   CloudDownload,
   CloudSync,
   CloudUpload,
-  FolderClosed,
-  FolderGit2,
   LoaderCircle,
   RotateCw,
   Search,
@@ -23,6 +21,7 @@ import {
   type VersionLineCreateContext,
   type VersionLinesSnapshot,
 } from "../features/version-lines";
+import { ProjectQuickSwitch, type ProjectQuickSwitchProps } from "./project-switcher/ProjectSwitcher";
 
 const CLOCK_TICK_MS = 30_000;
 const NO_FAVOURITE_VERSION_LINES: ReadonlySet<string> = new Set();
@@ -42,8 +41,9 @@ export type StatusBarProps = {
   versionLineCreate?: VersionLineCreateContext;
   onSeeAllVersionLines: () => void;
   onCheckTeamChanges: () => void;
-  onOpenProjectSettings: () => void;
-  onPrefetchProjectSettings?: () => void;
+  /** The project half of the block: the one place to change projects
+   * (task 189). */
+  projectSwitch: ProjectQuickSwitchProps;
   /** The remote fact doubles as the one sync action the relation calls for,
    * offered only while that relation is known and current: publish when this
    * line is ahead, get when it is behind, get and publish when both moved. */
@@ -212,8 +212,7 @@ export function StatusBar({
   versionLineCreate,
   onSeeAllVersionLines,
   onCheckTeamChanges,
-  onOpenProjectSettings,
-  onPrefetchProjectSettings,
+  projectSwitch,
   onPublish,
   onGetChanges,
   onGetAndPublish,
@@ -317,51 +316,31 @@ export function StatusBar({
 
   return (
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
-      {project ? (
-        // The one persistent statement of what is being worked on — which
-        // project, and which line of it — and the one global way to change the
-        // line. The two facts are one path — the project, then its line — so a
-        // quiet slash stands between them the way a breadcrumb reads.
-        <span className="status-bar__block status-bar__block--where">
-          {/* The name doubles as the way into the project's settings, so the
-              sentence reads "project / line" with nothing between them but the
-              slash. */}
-          <button
-            className="status-bar__seg status-bar__project"
-            type="button"
-            aria-label={t.projectSettingsOpenFor(project.name)}
-            data-tooltip={`${t.statusBarProjectTooltip(project.name)} · ${t.projectSettingsOpen}`}
-            onPointerEnter={onPrefetchProjectSettings}
-            onFocus={onPrefetchProjectSettings}
-            onClick={onOpenProjectSettings}
-          >
-            <FolderGit2 aria-hidden="true" />
-            <span>{project.name}</span>
-          </button>
-          <span className="status-bar__path" aria-hidden="true">/</span>
-          <VersionLineQuickSwitch
-            snapshot={versionLines}
-            isLoadingSnapshot={isLoadingVersionLines}
-            currentValue={versionLineLabel(project, t)}
-            canSwitch={project.headState === "branch" && Boolean(project.branch)}
-            variant="status"
-            favouriteLines={favouriteVersionLines}
-            onToggleFavourite={onToggleFavouriteVersionLine}
-            onSwitch={onSwitchVersionLine}
-            create={versionLineCreate}
-            onSeeAll={onSeeAllVersionLines}
-            workingTree={{ state: workingTreeState, description: changesLabel }}
-          />
-          <span className="visually-hidden">{changesLabel}</span>
-        </span>
-      ) : (
-        <span className="status-bar__block status-bar__block--where">
-          <span className="status-bar__seg status-bar__seg--muted status-bar__seg--fact">
-            <FolderClosed aria-hidden="true" />
-            <span>{t.statusBarNoProject}</span>
-          </span>
-        </span>
-      )}
+      {/* The one persistent statement of what is being worked on — which
+          project, and which line of it — and the one place to change either.
+          Two segments of the same shape, each a glyph, a name and a chevron,
+          so they read as two controls side by side rather than one path. */}
+      <span className="status-bar__block status-bar__block--where">
+        <ProjectQuickSwitch {...projectSwitch} />
+        {project && (
+          <>
+            <VersionLineQuickSwitch
+              snapshot={versionLines}
+              isLoadingSnapshot={isLoadingVersionLines}
+              currentValue={versionLineLabel(project, t)}
+              canSwitch={project.headState === "branch" && Boolean(project.branch)}
+              variant="status"
+              favouriteLines={favouriteVersionLines}
+              onToggleFavourite={onToggleFavouriteVersionLine}
+              onSwitch={onSwitchVersionLine}
+              create={versionLineCreate}
+              onSeeAll={onSeeAllVersionLines}
+              workingTree={{ state: workingTreeState, description: changesLabel }}
+            />
+            <span className="visually-hidden">{changesLabel}</span>
+          </>
+        )}
+      </span>
 
       {/* The field: the app's search. Typing filters the palette above it,
           and its shortcut (announced, not drawn) starts a search from

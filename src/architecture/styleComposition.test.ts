@@ -498,12 +498,10 @@ describe("production style composition", () => {
   // 14.5, 16, 18, 20 and 21 among them, each reasonable where it was written
   // and none of them agreeing with the next sheet over.
   it("keeps font size on the scale", () => {
-    // DESIGN.md § Typography names all three: a numeral inside a 14px status
-    // dot, the label inside a miniature drawing of the navigation rail, and the
-    // console's ASCII mascot, whose characters are shading. None is text anyone
-    // reads, and none fits the floor.
+    // DESIGN.md § Typography names both: the label inside a miniature drawing
+    // of the navigation rail, and the console's ASCII mascot, whose characters
+    // are shading. Neither is text anyone reads, and neither fits the floor.
     const documentedExceptions = new Set([
-      ".sidebar-project__badge-count",
       ".navigation-display__preview small",
       ".console-art",
     ]);
@@ -692,14 +690,11 @@ describe("production style composition", () => {
     const expectedDeclarations = [
       ["app/app-shell.css", ".titlebar-menu__list", "padding: var(--space-2)"],
       ["app/app-shell.css", ".palette-list", "padding: var(--space-2)"],
-      ["app/app-shell.css", ".project-switcher-compact__popover", "padding: var(--space-2)"],
-      ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
+      ["app/app-shell.css", ".app-menu.project-quick-switch", "padding: var(--space-2)"],
       // A project's chip is the same rounded square wherever it is drawn —
       // one left round is the drift that made "the same project" look like two.
-      ["app/app-shell.css", ".sidebar-jump__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".sidebar-project__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".project-switcher__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".project-switcher-compact__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".status-bar__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-quick-switch__avatar", "border-radius: var(--radius-identity)"],
       ["features/home/home.css", ".home-launcher__avatar", "border-radius: var(--radius-identity)"],
       ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
       ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
@@ -715,10 +710,8 @@ describe("production style composition", () => {
       // Frappé) with white text still at 4.5:1, so the ring is what keeps the
       // chip edged against any surface — dropping it from one avatar is the
       // regression this keeps from returning. See tokens.css and ADR 0012.
-      ["app/app-shell.css", ".sidebar-jump__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".sidebar-project__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".project-switcher__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".project-switcher-compact__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".status-bar__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-quick-switch__avatar", "box-shadow: var(--avatar-ring)"],
       ["features/home/home.css", ".home-launcher__avatar", "box-shadow: var(--avatar-ring)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box

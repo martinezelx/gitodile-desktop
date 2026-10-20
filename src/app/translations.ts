@@ -120,8 +120,7 @@ export interface AppTranslations {
   projectSwitcherUnsavedIndicator: string;
   projectSwitcherOperationIndicator: string;
   projectSwitcherErrorIndicator: string;
-  projectSwitcherCollapsedTrigger: string;
-  projectSwitcherRailTrigger: (name: string) => string;
+  projectSwitcherTrigger: (name: string) => string;
   projectSwitcherSearchPlaceholder: string;
   projectSwitcherSearchEmpty: string;
   projectSwitcherSwitchBlockedHint: string;
@@ -130,9 +129,6 @@ export interface AppTranslations {
   projectSwitcherFavourite: (name: string) => string;
   projectSwitcherUnfavourite: (name: string) => string;
   projectSwitcherFavouriteHint: string;
-  projectSwitcherFavouritesOnly: string;
-  projectSwitcherFavouritesOnlyOff: string;
-  projectSwitcherFavouritesEmpty: string;
   projectSwitcherUnfavouriteHint: string;
   projectSwitcherCloneProject: string;
   projectSwitcherCreateProject: string;
@@ -140,12 +136,23 @@ export interface AppTranslations {
   projectSwitcherOpenAnotherProject: string;
   projectSwitcherActiveAnnouncement: (name: string) => string;
   projectSwitcherClosedAnnouncement: (name: string) => string;
-  projectSwitcherHomeHint: string;
+  projectSwitcherOpenSection: string;
+  projectSwitcherRecentSection: string;
+  projectSwitcherActions: (name: string) => string;
+  projectSwitcherBack: string;
+  projectSwitcherGoTo: string;
+  projectSwitcherShowInFolder: string;
+  projectSwitcherCopyPath: string;
+  projectSwitcherPathCopied: string;
+  projectSwitcherAllInHome: string;
+  projectSwitcherReopen: (name: string) => string;
+  projectSwitcherOnlyOne: string;
+  projectStatusOperationFailed: string;
+  projectStatusHistoryUnreadable: string;
   projectSwitcherMutationBlocked: (name: string) => string;
   projectSwitcherCloseBlocked: (name: string) => string;
   statusBarAriaLabel: string;
   statusBarNoProject: string;
-  statusBarProjectTooltip: (name: string) => string;
   statusBarDetached: string;
   statusBarUnbornLine: string;
   statusBarVersionLineUnavailable: string;
@@ -349,8 +356,7 @@ const en: AppTranslations = {
   projectSwitcherUnsavedIndicator: "Has unsaved changes",
   projectSwitcherOperationIndicator: "Operation in progress",
   projectSwitcherErrorIndicator: "Needs attention",
-  projectSwitcherCollapsedTrigger: "Switch project",
-  projectSwitcherRailTrigger: (name) => `${name.trim() || "Unnamed project"} — switch project`,
+  projectSwitcherTrigger: (name) => `${name.trim() || "Unnamed project"} — switch project`,
   projectSwitcherSearchPlaceholder: "Search projects…",
   projectSwitcherSearchEmpty: "No project by that name",
   projectSwitcherSwitchBlockedHint: "Close the open dialog before switching projects",
@@ -359,9 +365,6 @@ const en: AppTranslations = {
   projectSwitcherFavourite: (name) => `Add ${name} to favorites`,
   projectSwitcherUnfavourite: (name) => `Remove ${name} from favorites`,
   projectSwitcherFavouriteHint: "Add to favorites",
-  projectSwitcherFavouritesOnly: "Show favorites only",
-  projectSwitcherFavouritesOnlyOff: "Show all open projects",
-  projectSwitcherFavouritesEmpty: "No favorites yet. Star a project to keep it here.",
   projectSwitcherUnfavouriteHint: "Remove from favorites",
   projectSwitcherCloneProject: "Clone remote project…",
   projectSwitcherCreateProject: "Create local project…",
@@ -369,14 +372,25 @@ const en: AppTranslations = {
   projectSwitcherOpenAnotherProject: "Open another project…",
   projectSwitcherActiveAnnouncement: (name) => `${name} is now the active project.`,
   projectSwitcherClosedAnnouncement: (name) => `${name.trim() || "Project"} closed. Choose what to work on next.`,
-  projectSwitcherHomeHint: "All your projects",
+  projectSwitcherOpenSection: "Open",
+  projectSwitcherRecentSection: "Recent",
+  projectSwitcherActions: (name) => `Actions for ${name}`,
+  projectSwitcherBack: "Back to projects",
+  projectSwitcherGoTo: "Go to this project",
+  projectSwitcherShowInFolder: "Show in folder",
+  projectSwitcherCopyPath: "Copy path",
+  projectSwitcherPathCopied: "Path copied",
+  projectSwitcherAllInHome: "All in Home",
+  projectSwitcherReopen: (name) => `Open ${name} again`,
+  projectSwitcherOnlyOne: "This is the only open project.",
+  projectStatusOperationFailed: "The last operation didn't finish",
+  projectStatusHistoryUnreadable: "History couldn't be read",
   projectSwitcherMutationBlocked: (name) =>
     `Wait for the operation in ${name} to finish, since both workspaces share one project.`,
   projectSwitcherCloseBlocked: (name) =>
     `Wait for the operation in ${name} to finish. You can work in another project meanwhile.`,
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
-  statusBarProjectTooltip: (name) => `Project: ${name}`,
   statusBarDetached: "Specific saved version",
   statusBarUnbornLine: "New version line",
   statusBarVersionLineUnavailable: "Version line unavailable",
@@ -568,8 +582,7 @@ const es: AppTranslations = {
   projectSwitcherUnsavedIndicator: "Tiene cambios sin guardar",
   projectSwitcherOperationIndicator: "Operación en curso",
   projectSwitcherErrorIndicator: "Necesita atención",
-  projectSwitcherCollapsedTrigger: "Cambiar de proyecto",
-  projectSwitcherRailTrigger: (name) => `${name.trim() || "Proyecto sin nombre"} — cambiar de proyecto`,
+  projectSwitcherTrigger: (name) => `${name.trim() || "Proyecto sin nombre"} — cambiar de proyecto`,
   projectSwitcherSearchPlaceholder: "Buscar proyectos…",
   projectSwitcherSearchEmpty: "Ningún proyecto con ese nombre",
   projectSwitcherSwitchBlockedHint: "Cierra el diálogo abierto antes de cambiar de proyecto",
@@ -578,9 +591,6 @@ const es: AppTranslations = {
   projectSwitcherFavourite: (name) => `Añadir ${name} a favoritos`,
   projectSwitcherUnfavourite: (name) => `Quitar ${name} de favoritos`,
   projectSwitcherFavouriteHint: "Añadir a favoritos",
-  projectSwitcherFavouritesOnly: "Ver solo favoritos",
-  projectSwitcherFavouritesOnlyOff: "Ver todos los proyectos abiertos",
-  projectSwitcherFavouritesEmpty: "Aún no hay favoritos. Marca un proyecto con la estrella para tenerlo aquí.",
   projectSwitcherUnfavouriteHint: "Quitar de favoritos",
   projectSwitcherCloneProject: "Clonar proyecto remoto…",
   projectSwitcherCreateProject: "Crear proyecto local…",
@@ -588,14 +598,25 @@ const es: AppTranslations = {
   projectSwitcherOpenAnotherProject: "Abrir otro proyecto…",
   projectSwitcherActiveAnnouncement: (name) => `${name} es ahora el proyecto activo.`,
   projectSwitcherClosedAnnouncement: (name) => `${name.trim() || "Proyecto"} cerrado. Elige con qué seguir.`,
-  projectSwitcherHomeHint: "Todos tus proyectos",
+  projectSwitcherOpenSection: "Abiertos",
+  projectSwitcherRecentSection: "Recientes",
+  projectSwitcherActions: (name) => `Acciones de ${name}`,
+  projectSwitcherBack: "Volver a los proyectos",
+  projectSwitcherGoTo: "Ir a este proyecto",
+  projectSwitcherShowInFolder: "Mostrar en la carpeta",
+  projectSwitcherCopyPath: "Copiar la ruta",
+  projectSwitcherPathCopied: "Ruta copiada",
+  projectSwitcherAllInHome: "Todos en Inicio",
+  projectSwitcherReopen: (name) => `Volver a abrir ${name}`,
+  projectSwitcherOnlyOne: "Es el único proyecto abierto.",
+  projectStatusOperationFailed: "La última operación no terminó",
+  projectStatusHistoryUnreadable: "No se pudo leer el historial",
   projectSwitcherMutationBlocked: (name) =>
     `Espera a que termine la operación de ${name}, porque los dos espacios de trabajo comparten proyecto.`,
   projectSwitcherCloseBlocked: (name) =>
     `Espera a que termine la operación de ${name}. Mientras, puedes trabajar en otro proyecto.`,
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
-  statusBarProjectTooltip: (name) => `Proyecto: ${name}`,
   statusBarDetached: "Versión guardada concreta",
   statusBarUnbornLine: "Línea de versión nueva",
   statusBarVersionLineUnavailable: "Línea de versión no disponible",

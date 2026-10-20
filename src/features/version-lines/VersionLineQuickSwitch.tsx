@@ -1,24 +1,27 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  CircleAlert,
   GitBranch,
   GitBranchPlus,
   GitCommitHorizontal,
   GitCompare,
   GitMerge,
   LoaderCircle,
+  Copy,
   Search,
   Star,
   X,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { autoHideScrollbarProps, usePortalFlyout } from "../../shared/ui";
+import { autoHideScrollbarProps, copyTextToClipboard, usePortalFlyout } from "../../shared/ui";
 import type { VersionLine, VersionLinesSnapshot } from "./domain";
 import { LineCreateFields, useLineCreateFlow, type VersionLineCreateContext } from "./VersionLineQuickCreateBox";
 
@@ -156,13 +159,48 @@ export function VersionLineQuickSwitch({
     triggerRef,
     close,
     menuAnchor ?? (variant === "status" ? "below" : "below-end"),
-    "first-control",
+    "none",
   );
+  // The search takes focus on opening, although the head's copy button comes
+  // first in the popup: choosing a line is what the popup is opened for. Once
+  // the popup is visible — a hidden element cannot take focus — and once per
+  // opening. A popup opened straight into the composer leaves it to the field.
+  const hasFocused = useRef(false);
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      hasFocused.current = false;
+      return;
+    }
+    if (hasFocused.current || style.visibility === "hidden") return;
+    hasFocused.current = true;
+    if (!creating) searchRef.current?.focus();
+  }, [isOpen, style.visibility, creating]);
+  /** The line the trigger names, from the snapshot, for the popup's head. By
+   * name, not by `isActive`: a cached snapshot can still mark the line the
+   * project has just left, and the head would put that line's latest version
+   * under this one's name. */
+  const currentLine = snapshot?.lines.find((line) => line.name === currentValue) ?? null;
+  const [nameCopied, setNameCopied] = useState(false);
+  useEffect(() => {
+    if (!nameCopied) return;
+    const timer = window.setTimeout(() => setNameCopied(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [nameCopied]);
   const Chevron = variant === "status" ? ChevronUp : ChevronDown;
   const triggerTitle = workingTree ? `${currentValue} · ${workingTree.description}` : currentValue;
-  const marker = workingTree?.state === "unsaved" || workingTree?.state === "error"
-    ? <span className={`version-line-selector__marker version-line-selector__marker--${workingTree.state}`} aria-hidden="true" />
-    : null;
+  // Unsaved work is a dot, the way an editor marks an unsaved tab; a tree that
+  // could not be read takes the alert glyph the project mark and the popup
+  // rows use for something to resolve, so the shape says it as well as the
+  // tone. Keyed by state so a marker that arrives breathes once.
+  const marker = workingTree?.state === "unsaved"
+    ? <span key="unsaved" className="version-line-selector__marker version-line-selector__marker--unsaved attention-breathe" aria-hidden="true" />
+    : workingTree?.state === "error"
+      ? (
+        <span key="error" className="version-line-selector__marker version-line-selector__marker--error attention-breathe" aria-hidden="true">
+          <CircleAlert />
+        </span>
+      )
+      : null;
   const face = label ? (
     <>
       <span className="version-line-selector__tile" aria-hidden="true">
@@ -286,6 +324,37 @@ export function VersionLineQuickSwitch({
               <p className="version-lines-quick-switch__actions-note">{t.versionLinesActionsSoon}</p>
             </div>
           ) : (<>
+          {/* The line the project is on, and what is done to it, at the head —
+              the project popup's shape (task 189), so both halves of the
+              status bar's block open the same way. Making a new line and
+              managing them all stay at the foot, as adding a project and
+              going Home do there. */}
+          <div className="version-lines-quick-switch__head">
+            <span className="version-lines-quick-switch__glyph version-lines-quick-switch__glyph--current" aria-hidden="true">
+              <GitBranch />
+            </span>
+            <span className="version-lines-quick-switch__copy">
+              <span className="version-lines-quick-switch__name" title={currentValue}>{currentValue}</span>
+              {currentLine && (
+                <span className="version-lines-quick-switch__context" title={currentLine.tip.subject}>
+                  {currentLine.tip.subject}
+                </span>
+              )}
+            </span>
+            {currentLine && (
+              <button
+                type="button"
+                className="version-lines-quick-switch__head-action"
+                aria-label={nameCopied ? t.versionLinesNameCopied : t.versionLinesCopyName}
+                data-tooltip={nameCopied ? t.versionLinesNameCopied : t.versionLinesCopyName}
+                onClick={() => {
+                  void copyTextToClipboard(currentLine.name).then(() => setNameCopied(true), () => undefined);
+                }}
+              >
+                {nameCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+              </button>
+            )}
+          </div>
           <div className="version-lines-quick-switch__search">
             <Search aria-hidden="true" />
             <input

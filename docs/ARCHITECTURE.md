@@ -38,7 +38,7 @@ src/
   app/                      # application shell and composition
     App.tsx                 # composition root and cross-feature orchestration
     screens.tsx             # single screen registry, keep-alive host, prefetch
-    project-switcher/       # open-project switcher UI and avatar derivation
+    project-switcher/       # the status bar's project popup and its rows
     ...                     # overlays, rail nav, titlebar, preferences, branding
 
   runtime/                  # neutral, product-free runtime contracts

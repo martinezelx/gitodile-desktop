@@ -31,15 +31,6 @@
 .sidebar-jump__menu .app-menu__item:disabled { opacity: 0.45; }
 .sidebar-jump__menu .app-menu__item--selected svg { color: var(--accent-primary); }
 .sidebar-jump__menu .app-menu__item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The rail's 36px project avatar, reduced to menu-row scale. */
-.sidebar-jump__avatar {
-  width: 20px; height: 20px; flex-shrink: 0;
-  display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-}
-
 .window-titlebar {
   /* The first control (the ··· menu) sits centred over the rail's icon
      column, so the titlebar and the rail share one vertical axis. The inset
@@ -72,6 +63,9 @@
 }
 .titlebar-icon-button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .titlebar-icon-button:disabled { opacity: 0.35; }
+/* The theme toggle lives in the rail's foot (task 189); the title bar's copy
+   shows only while the rail is not there to hold it. */
+.titlebar-theme-toggle--in-rail { display: none; }
 .titlebar-icon-button:disabled:hover { background: transparent; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
 /* Opting the sun/moon glyph out of the root snapshot so it turns over on its own
@@ -472,24 +466,48 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
    press it cannot honour. */
 .status-bar__seg--fact { cursor: default; }
 .status-bar__seg--muted { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
-/* "project / line" reads as a path, so the left block joins its facts with a
-   slash in a faint ink, lighter than either name so a line that carries its
-   own slash (release/0.3.1) keeps the stronger mark. The remote block needs
-   no mark: its glyphs already tell the fact from the check. */
-.status-bar__path {
-  flex-shrink: 0;
-  padding: 0 1px;
-  color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
-  font-size: var(--text-subtitle);
-  font-weight: var(--weight-normal);
-  line-height: var(--leading-none);
-}
 .status-bar__block--remote { gap: 4px; }
-/* "project / line", one statement joined by the block's slash. The name is
-   also the way into its settings and the line is the one global way to change
-   it; each may take about a third of the window and gives the rest back with
-   an ellipsis, the name first. */
+/* Project and line: two controls of one shape — a glyph, a name, the
+   chevron of a popup that opens upwards — side by side with the remote
+   block's own 4px between them, so the strip reads the same on both ends.
+   Each may take about a third of the window and gives the rest back with an
+   ellipsis, the name first. */
+.status-bar__block--where { gap: 4px; }
 .status-bar .status-bar__project { max-width: min(20vw, 240px); }
+.status-bar__project[aria-expanded="true"] { background: var(--surface-active); }
+.status-bar__project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+/* Visible overflow, against `.status-bar__seg > span`, which clips names for
+   their ellipsis: clipped, the avatar's ring survived only in the four corners
+   its rounded shape leaves inside the square, and the attention dot lost the
+   part that overhangs. */
+.status-bar .status-bar__project-avatar { position: relative; flex-shrink: 0; display: inline-grid; overflow: visible; }
+.status-bar__avatar {
+  width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: var(--radius-identity); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+}
+/* The active project's own state, at the avatar's corner (another project's
+   state stays on its popup row). One mark, the most urgent, told apart by
+   shape as well as tone: the popup rows' alert glyph for something to
+   resolve, a ring turning while work runs. A disc of the strip's own surface
+   behind each lifts it off the avatar. */
+.status-bar__mark {
+  position: absolute; top: -4px; right: -4px;
+  width: 10px; height: 10px; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-panel);
+}
+.status-bar__mark svg { width: 10px; height: 10px; }
+.status-bar__mark--resolve { color: var(--status-danger); --attention-color: var(--status-danger); }
+.status-bar__mark--busy { color: var(--text-secondary-color); }
+.status-bar__mark--busy::after {
+  content: ""; width: 6px; height: 6px; border-radius: var(--radius-round);
+  border: 1.5px solid currentColor; border-right-color: transparent; box-sizing: border-box;
+  animation: spin 0.9s linear infinite;
+}
+.status-bar__project-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The line selector's chevron, so the two segments end alike. */
+.status-bar .status-bar__chevron { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-secondary-color); }
 .status-bar .version-lines-quick-switch {
   display: flex;
   align-items: center;
@@ -548,7 +566,15 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   border-radius: var(--radius-round);
   background: var(--status-warning);
 }
-.status-bar .version-line-selector__marker--error { background: var(--status-danger); }
+.status-bar .version-line-selector__marker--unsaved { --attention-color: var(--status-warning); }
+/* A tree that could not be read: the alert glyph, not a red dot, so it is told
+   from unsaved work by shape as well as tone. */
+.status-bar .version-line-selector__marker--error {
+  width: 12px; height: 12px; display: grid; place-items: center;
+  background: transparent; color: var(--status-danger);
+  --attention-color: var(--status-danger);
+}
+.status-bar .version-line-selector__marker--error svg { width: 12px; height: 12px; }
 /* The remote fact wears the strip's own ink, the same as the line's name: the
    two blocks read as the same object. It takes the warning tone when the
    reader should doubt it, and the quiet ink while a check holds the last
@@ -682,13 +708,13 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 
    The width is a variable because it is a function of the widest thing the
    rail has to hold: the longest caption. Icons-only removes the captions but
-   keeps the column, so the tray's plate and the content edge stay put when the
+   keeps the column, so the foot and the content edge stay put when the
    setting changes. */
 .sidebar {
   width: var(--rail-width);
   flex-shrink: 0;
   /* Top and bottom take the sheet's frame (ADR 0032), so the first
-     destination starts on the sheet's top edge and the tray's plate ends on
+     destination starts on the sheet's top edge and the last utility ends on
      its bottom edge: the rail and the sheet share two horizontal lines. */
   padding: var(--sheet-frame) var(--space-2);
   display: flex;
@@ -794,37 +820,34 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   to { transform: scale(1); }
 }
 
-/* Everything in the tray is one group: project context first, then the
-   app-level utilities that desktop users expect at the foot. `.rail-nav`
-   grows into the free height above, so this block always sits against the
-   bottom without an auto margin fighting it. */
-.sidebar-project-section {
-  flex-shrink: 0;
-}
+/* The foot is the app-level utilities desktop users expect there — the
+   theme, Settings, Account. Which project is open is the status bar's
+   (task 189). `.rail-nav` grows into the free height above, so this block
+   always sits against the bottom without an auto margin fighting it.
+
+   No tray behind it any more. The faint pill was there to group the square
+   project chip with the round utilities; three identical filled circles with
+   no caption already read as one group apart from the captioned, unfilled
+   destinations, also when a short window closes the free height above — and
+   the pill under them was a second fill behind fills of their own. */
 .sidebar-foot {
   flex-shrink: 0;
-  padding-top: var(--space-3);
+  margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
 }
 
-/* Only destinations are captioned. The controls in the tray — project,
-   add, settings, account — are stable shapes, and the two that are less
-   self-evident (the avatar, the "+") sit directly under what they act on.
-   Naming them cost a line of text each and turned the column into a wall of
-   words for four controls that never change. Accessible names and delegated
-   tooltips keep those compact controls discoverable without restoring the
-   captions.
+/* Only destinations are captioned. The controls at the foot — theme,
+   settings, account — are stable shapes; naming them cost a line of text
+   each and turned the column into a wall of words for controls that never
+   change. Accessible names and delegated tooltips keep them discoverable
+   without the captions.
 
-   With the captions gone the column keeps its 64px. Narrowing to the 40px
-   icon square would leave the tray's plate 40px wide, too tight for the 36px
-   controls and the chevron, and it would move the content edge on every
-   switch. The 12px of air either side of the square matches the captioned
-   mode. */
+   With the captions gone the column keeps its 64px, so the content edge does
+   not move on every switch. */
 .app-window--icons-only .sidebar-foot { gap: var(--space-2); }
-.app-window--icons-only .sidebar-project-group { gap: var(--space-2); }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
@@ -837,122 +860,31 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   width: 18px;
   height: 18px;
 }
-.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-hover); color: var(--text-primary-color); }
+/* The circle already wears the hover fill at rest, so hover steps up to the
+   active fill rather than repainting the same one. */
+.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-active); color: var(--text-primary-color); }
 .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
+/* Each utility says what it does when pointed at, once, and rests there:
+   the gear turns 60°, the sun 45°, the moon tips back, the person lifts.
+   A transform on the glyph alone, over the rail's 180ms; it returns when the
+   pointer leaves. Disabled controls stay still — the
+   account's motion waits for sign-in to exist — and the system's reduced
+   motion, or the app's own setting, leaves every glyph where it is. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Ease-in-out rather than the rail icons' sharp ease-out: the same 180ms,
+     but the turn no longer spends itself in the first 40ms, so a 60° gear
+     and a 45° sun read as a turn instead of a jump. */
+  :root:not([data-reduced-motion="true"]) .sidebar-round svg {
+    transition: transform var(--duration-normal) cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--settings:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: rotate(60deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="sun"]:hover svg { transform: rotate(45deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="moon"]:hover svg { transform: rotate(-18deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--account:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: translateY(-2px); }
+}
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
 .sidebar-round:disabled,
 .sidebar-round[aria-disabled="true"] { opacity: 0.55; }
-
-.sidebar-project-group { display: grid; justify-items: center; gap: var(--space-3); }
-.sidebar-project {
-  position: relative; padding: 0; border: 0; border-radius: var(--radius-identity); background: transparent;
-}
-.sidebar-project__avatar {
-  width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-  transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sidebar-project__avatar--empty { background: var(--surface-hover); color: var(--text-secondary-color); }
-.sidebar-project__avatar--empty svg { width: 18px; height: 18px; }
-.sidebar-project:hover:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { filter: brightness(1.08); }
-.sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { transform: scale(0.97); }
-.sidebar-project:disabled,
-.sidebar-project[aria-disabled="true"] { opacity: 0.55; }
-.sidebar-project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.sidebar-project__chevron {
-  position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
-  display: grid; place-items: center; border-radius: var(--radius-round);
-  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary-color);
-}
-.sidebar-project__chevron svg {
-  width: 10px;
-  height: 10px;
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
-.sidebar-project__badge {
-  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 1px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
-  border-radius: var(--radius-pill); background: var(--surface-raised); border: 1px solid var(--border-subtle);
-}
-.sidebar-project__badge svg { width: 10px; height: 10px; }
-/* Below the scale's floor on purpose, and named in DESIGN.md § Typography: a
-   numeral inside a 14px dot has a 10px box once the ring and padding are out,
-   and `--text-micro` would fill it edge to edge with nothing left to breathe.
-   It is a count on a status dot, not text anyone reads a sentence of. */
-.sidebar-project__badge-count { font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-title); font-variant-numeric: tabular-nums; }
-.sidebar-project__badge--error { color: var(--status-danger); }
-.sidebar-project__badge--operation { color: var(--accent-primary); }
-.sidebar-project__badge--unsaved { color: var(--status-warning); }
-
-/* Sized by its content, capped rather than fixed. It used to declare a flat
-   `height: 180px`, which did two bad things at once: it left dead space under
-   a short list, and — because the add-project menu borrowed this same class —
-   it stretched that menu's three items across 180px, making three options look
-   like a screen. The list below keeps a floor so filtering cannot collapse the
-   panel under the pointer, which is the one thing the fixed height did well. */
-.sidebar-project-flyout {
-  width: 280px;
-  min-width: 280px;
-  max-height: min(324px, calc(100vh - 16px));
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-.sidebar-project__popover { overflow: hidden; }
-/* Sized by its rows; past about six of them (44px each) it scrolls inside the
-   panel, under the search field. */
-.sidebar-project__popover .project-switcher__list--scroll {
-  min-height: 0; overflow-x: hidden; overflow-y: auto;
-  /* Room for the focus ring, which the scroll container would otherwise clip
-     on the rows' left and right edges. */
-  margin: -2px; padding: 2px;
-}
-.sidebar-project__popover { width: 340px; min-width: 340px; max-width: calc(100vw - 16px); padding: 8px; gap: 6px; }
-.sidebar-project__search {
-  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary-color);
-}
-.sidebar-project__search:focus-within { border-color: var(--focus-ring); }
-.sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
-.sidebar-project__search input {
-  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
-  font: inherit; font-size: var(--text-body); color: var(--text-primary-color);
-}
-.sidebar-project__search input::placeholder { color: var(--text-secondary-color); }
-/* Rides in the search row, sized to the row's own height so it reads as part
-   of the field rather than a button parked next to it. Same star, same on-state
-   accent as the per-row control, so "marked" and "showing only marked" are
-   visibly the same idea.
-
-   24 around 14 on purpose: both even, so the icon's inset lands on a whole 5px
-   on every side. At 22 around 13 it was 4.5px, and a half pixel rounds to a
-   different whole one top and bottom once the display is scaled — the hover
-   fill then reads as offset from the star it is meant to sit behind. No
-   negative margin either: the row's 9px padding puts this the same distance
-   from its edge as the magnifier is from the other.
-
-   `padding: 0` is load-bearing, not tidiness. A button keeps the UA's default
-   `1px 6px` unless told otherwise, and with `border-box` that left a 12px
-   content box for a 14px icon: too narrow to centre in, so the grid pushed the
-   icon to the start and the hover fill sat 6px to its left and 4px to its
-   right. The vertical axis hid it, having 22px of content box for the same
-   14px. */
-.sidebar-project__filter {
-  width: 24px; height: 24px; flex-shrink: 0;
-  display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.sidebar-project__filter svg { width: 14px; height: 14px; }
-.sidebar-project__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.sidebar-project__filter--on { color: var(--accent-primary); }
-.sidebar-project__filter--on svg { fill: currentColor; }
-.sidebar-project__empty {
-  margin: 0; padding: 14px 8px; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center;
-}
 
 .workspace {
   flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto;
@@ -1068,212 +1000,140 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   .app-tooltip--above { animation: none; transform: translate(-50%, -100%); }
   .app-tooltip--below { animation: none; transform: translate(-50%, 0); }
 }
-/* The boundary between the destinations and the project/app foot is the
-   foot's own shape: a faint tray behind the project chip and the utilities.
-   A 3px capsule did this before, and a full-width rule before that; both were
-   strokes in a column made of rounded fills, and the capsule, glyph-sized and
-   right above "+", read as a minus button rather than a boundary. The tray
-   says "these belong together" in the rail's own language and still divides
-   when a short window folds destinations into More and closes the free
-   height above.
-
-   At rest it is about a third of the hover fill; resting on it, focusing into
-   it or opening one of its menus brings the whole group up to that fill, so
-   the pointer learns the group's extent. A pill, so it nests concentrically
-   around the 36px circles. The fill lives on a pseudo-element so only its
-   opacity animates. */
-.sidebar-tray {
-  position: relative;
-  flex-shrink: 0;
-  margin-top: var(--space-3);
-  padding: 6px 0;
-  isolation: isolate;
+/* The status bar's project popup (task 189): the line popup's twin, so the
+   two halves of the `project · line` block open the same shape. A fixed box,
+   like the line popup, because the actions and the add rows replace the list
+   in place: a popup measured once and then shrunk would hang in the air above
+   the strip with a gap under it. Doubled class because primitives.css loads
+   after this sheet and `.app-menu` would otherwise win the width. */
+.app-menu.project-quick-switch {
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 2 * var(--space-4)));
+  height: min(400px, calc(100vh - 56px));
+  min-width: 0;
+  max-width: none;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.sidebar-tray::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  opacity: 0.38;
-  pointer-events: none;
-  transition: opacity var(--duration-normal) ease;
+/* The project the reader is in, and the three things done to it. */
+.project-quick-switch__head {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 2px 2px var(--space-2); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
-/* Led by the project chip, the tray follows the chip's shape instead: a
-   pill's 24px cap nests circles, but it pinched the chip's square corners to
-   ~3px from the edge and left its status badge well past the curve. The
-   surface radius keeps the chip's corners about the same 6px in as its sides
-   (its ~10px corner plus the inset), the badge overhangs the tray by no more
-   than it overhangs the chip, and the round utilities below sit
-   comfortably inside it. Not mixed with the pill at the foot: a 999px corner
-   beside an 18px one makes the browser scale every corner down together. */
-.sidebar-tray:has(.sidebar-project)::before { border-radius: var(--radius-surface); }
-.sidebar-tray:hover::before,
-.sidebar-tray:focus-within::before,
-.sidebar-tray:has([aria-expanded="true"])::before { opacity: 1; }
-.project-switcher__list { display: grid; align-content: start; gap: 0; list-style: none; margin: 0; padding: 0; }
-.project-switcher__item { display: flex; align-items: center; gap: 0; }
-.project-switcher__button {
-  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 44px;
-  padding: 0 8px; border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary-color); text-align: left;
+.project-quick-switch__head-actions { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.project-quick-switch__icon {
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.project-switcher__button:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
-.project-switcher__button--active {
-  color: var(--text-primary-color); background: var(--surface-active); font-weight: var(--weight-strong);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
-}
-.project-switcher__button:disabled { opacity: 0.45; }
-/* Home at the head of the switcher: the view of every project, so it sits
-   with the projects, one quiet row above them (task 184). */
-/* Home at the head of the switcher, in a project row's own anatomy — a tile
-   where the avatar goes, a name and a line under it — so it keeps the list's
-   rhythm instead of reading as a bar across it (task 184). The accent goes
-   on the glyph alone when Home is current. */
-.project-switcher__home {
-  width: 100%; height: 44px; display: flex; align-items: center; gap: 10px;
-  margin-bottom: var(--space-1); padding: 0 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary-color); font: inherit; text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher__home-tile {
-  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
-  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
-}
-.project-switcher__home-tile svg { width: 13px; height: 13px; }
-.project-switcher__home:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__home:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.project-switcher__home--current { color: var(--text-primary-color); }
-.project-switcher__home--current .project-switcher__name { font-weight: var(--weight-strong); }
-.project-switcher__home--current .project-switcher__home-tile { color: var(--accent-primary); }
-.project-switcher__avatar {
-  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
+.project-quick-switch__icon svg { width: 15px; height: 15px; }
+.project-quick-switch__icon:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.project-quick-switch__icon:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__icon:disabled { opacity: 0.4; }
+.project-quick-switch__avatar {
+  flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
   border-radius: var(--radius-identity); color: var(--avatar-foreground);
   box-shadow: var(--avatar-ring);
-  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
-.project-switcher__button--active .project-switcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
-.project-switcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.project-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
-.project-switcher__context {
+.project-quick-switch__avatar--small { width: 22px; height: 22px; font-size: var(--text-micro); }
+.project-quick-switch__copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.project-quick-switch__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.project-quick-switch__context {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
+}
+.project-quick-switch__search {
+  display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
+  padding: 0 var(--space-3); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill); color: var(--text-secondary-color);
+}
+.project-quick-switch__search:focus-within { border-color: var(--focus-ring); }
+.project-quick-switch__search > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.project-quick-switch__search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body);
+}
+.project-quick-switch__search input::placeholder { color: var(--text-secondary-color); }
+.project-quick-switch__results {
+  flex: 1; min-height: 0; margin: 6px -2px 0; padding: 0 2px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.project-quick-switch__caption {
+  margin: 0; padding: var(--space-2) var(--space-2) var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.project-quick-switch__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.project-quick-switch__item { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.project-quick-switch__choose {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 46px;
+  padding: 5px 8px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary-color); font: inherit; text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.project-quick-switch__choose:hover:not(:disabled) { background: var(--surface-hover); }
+.project-quick-switch__choose:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__choose:disabled { opacity: 0.45; }
+.project-quick-switch__favourite,
+.project-quick-switch__more {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.project-quick-switch__favourite svg { width: 14px; height: 14px; }
+.project-quick-switch__more svg { width: 15px; height: 15px; }
+/* The star waits for the pointer unless it is marked; the chevron is a fact
+   of the row and always shows, as on the line popup. */
+.project-quick-switch__favourite { opacity: 0.55; }
+.project-quick-switch__item:hover .project-quick-switch__favourite,
+.project-quick-switch__favourite:focus-visible { opacity: 1; }
+.project-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
+.project-quick-switch__favourite--on svg { fill: currentColor; }
+.project-quick-switch__favourite:hover,
+.project-quick-switch__more:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.project-quick-switch__favourite:focus-visible,
+.project-quick-switch__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__empty {
+  margin: 0; padding: var(--space-4); text-align: center;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
+}
+/* A project's actions, in place of the list. */
+.project-quick-switch__actions {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.project-quick-switch__actions .project-quick-switch__head { gap: 6px; }
+.project-quick-switch__actions .app-menu__item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-quick-switch__actions .app-menu__item:disabled,
+.project-quick-switch__add .app-menu__item:disabled { opacity: 0.5; cursor: default; }
+/* The foot: adding a project, and the view of every project. Ghost buttons,
+   because they leave the list rather than choose in it; adding docks its
+   three ways here in place of the foot. */
+.project-quick-switch__footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
+}
+.project-quick-switch__foot-action { min-width: 0; padding-inline: var(--space-2); }
+.project-quick-switch__foot-action span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-quick-switch__add {
+  flex-shrink: 0; display: grid; gap: 2px;
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
 }
 .project-switcher__indicators { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; }
 .project-switcher__indicator { flex-shrink: 0; width: 14px; height: 14px; }
 .project-switcher__indicator--error { color: var(--status-danger); }
 .project-switcher__indicator--operation { color: var(--accent-primary); }
 .project-switcher__indicator--unsaved { color: var(--status-warning); }
-.project-switcher__close {
-  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__close svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__close,
-.project-switcher__item:has(:focus-visible) .project-switcher__close,
-.project-switcher__close:focus-visible { opacity: 1; }
-.project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__close:disabled { opacity: 0.3; }
-/* Mirrors Close in footprint so the two trailing controls line up, but not in
-   behaviour: Close fades until the row is hovered because it is destructive
-   and rarely wanted, while a star has to be readable at rest — the whole point
-   is telling favourites apart at a glance. Unmarked it sits at the same low
-   opacity as Close; marked it goes solid and takes the brand accent, which is
-   the one state that must survive not pointing at the row. */
-.project-switcher__favourite {
-  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__favourite svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__favourite,
-.project-switcher__item:has(:focus-visible) .project-switcher__favourite,
-.project-switcher__favourite:focus-visible { opacity: 1; }
-.project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__favourite--on {
-  opacity: 1;
-  color: var(--accent-primary);
-}
-.project-switcher__favourite--on svg { fill: currentColor; }
-
-/* Collapsed at rest so the name gets the whole row instead of leaving a dead
-   96px strip for controls nobody is pointing at; a marked favourite keeps its
-   slot because it has to stay readable. */
-.project-switcher__item:hover :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
-.project-switcher__item:has(:focus-visible) :is(.project-switcher__close, .project-switcher__favourite, .project-switcher__settings),
-.project-switcher__favourite--on { width: 32px; }
-
-/* Same size and same resting weight as the star beside it: they are two marks
-   on the same row, and one of them looking heavier would read as the more
-   important one. */
-.project-switcher__settings {
-  flex-shrink: 0; width: 0; height: 32px; overflow: hidden; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__settings svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__settings,
-.project-switcher__item:has(:focus-visible) .project-switcher__settings,
-.project-switcher__settings:focus-visible { opacity: 1; }
-.project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__settings:disabled { opacity: 0.3; }
-
-.project-switcher__item--add { margin-top: 2px; }
-.project-switcher__add {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  font-size: var(--text-body); transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
-.project-switcher__add:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
-.project-switcher__add:disabled { opacity: 0.45; }
-
-/* One trigger for create/open/clone. The popup wears the shared `.app-menu`
-   surface unchanged — width and z-index included — and is placed by
-   project-switcher/ProjectSwitcher.tsx, which portals it and positions it `fixed`. Only the
-   trigger's open state belongs here. (A rule for the popup would be dead
-   weight anyway: primitives.css loads after this file, so `.app-menu` wins
-   every tie at equal specificity.) */
-.project-switcher-add-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher-add-menu__trigger > svg {
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
-.project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
-  transform: rotate(45deg) scale(1.08);
-}
-
-.project-switcher-compact { position: relative; display: none; }
-.project-switcher-compact__trigger {
-  width: 32px; height: 32px; padding: 2px; display: grid; place-items: center; flex-shrink: 0;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-round); background: var(--surface-panel);
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher-compact__trigger:hover,
-.project-switcher-compact__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher-compact__trigger svg { width: 16px; height: 16px; }
-.project-switcher-compact__avatar {
-  width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-}
-.project-switcher-compact__popover {
-  position: absolute; z-index: 5; top: calc(100% + var(--space-2)); left: 0; min-width: 220px;
-  max-height: min(420px, calc(100vh - 140px)); overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-raised); box-shadow: var(--shadow-lg);
-}
-.project-switcher-compact__popover .project-switcher__button { height: 36px; }
 
 /* A wide, stable preference workspace: the dialog does not resize under the
    pointer when the active category changes, and the 208px category rail still
@@ -1978,23 +1838,14 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   .palette-panel,
   .palette-panel--closing { animation: none; }
   .rail-item__icon,
-  .sidebar-tray::before,
-  .sidebar-round,
-  .sidebar-project__avatar,
-  .sidebar-project__chevron svg,
-  .project-switcher-add-menu__trigger > svg {
+  .sidebar-round {
     animation: none;
     transition: none;
   }
+  .status-bar__mark--busy::after { animation: none; }
   .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon,
-  .sidebar-round:active:not(:disabled):not([aria-disabled="true"]),
-  .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar {
+  .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) {
     transform: none;
-  }
-  .sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
-  .project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
-  .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
-    transform: rotate(45deg);
   }
   /* The row and its keys still answer the pointer, but without the tap motion:
      a static colour change stands in for the press. */
@@ -2012,6 +1863,8 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   .settings-dialog__header { min-height: 68px; padding: 14px 16px; flex-wrap: wrap; }
   .settings-dialog__header p { max-width: 46ch; }
   .titlebar-history-controls { display: none; }
+  /* No rail at this width, so the title bar keeps the theme toggle. */
+  .titlebar-theme-toggle--in-rail { display: grid; }
   /* The rail is already hidden at this width and the compact nav has replaced
      it, so the toggle has nothing to toggle. */
   .titlebar-sidebar-toggle { display: none; }
@@ -2030,7 +1883,6 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   .app-shell--overview .compact-nav-row { margin: var(--space-3); }
   .workspace { padding-top: 20px; }
   .compact-nav-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
-  .compact-nav-row .project-switcher-compact { display: flex; }
   .compact-history-controls { display: flex; align-items: center; gap: var(--space-1); }
   .compact-nav {
     display: grid;
@@ -2065,15 +1917,13 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 @media (pointer: coarse) {
   .window-titlebar { --titlebar-lead-button: 44px; }
   .titlebar-icon-button,
-  .sidebar-project__filter,
-  .project-switcher__close,
-  .project-switcher__favourite,
-  .project-switcher__settings {
+  .project-quick-switch__icon,
+  .project-quick-switch__favourite,
+  .project-quick-switch__more {
     width: 44px;
     height: 44px;
   }
   .rail-item__icon,
-  .sidebar-project,
   .sidebar-round {
     width: 44px;
     height: 44px;
@@ -2090,20 +1940,11 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
     min-height: 44px;
   }
   .status-bar__search-slot { max-width: none; }
-  .project-switcher__button,
-  .project-switcher-compact__popover .project-switcher__button,
-  .project-switcher__add {
-    height: 44px;
-  }
+  .project-quick-switch__choose { min-height: 44px; }
 }
 
 @media (hover: none) {
-  .project-switcher__close:not(:disabled),
-  .project-switcher__favourite,
-  .project-switcher__settings:not(:disabled) { opacity: 1; }
-  .project-switcher__close,
-  .project-switcher__favourite,
-  .project-switcher__settings { width: 44px; }
+  .project-quick-switch__favourite { opacity: 1; }
 }
 
 /* The window's last-resort notice: the app shell itself failed, so it stands

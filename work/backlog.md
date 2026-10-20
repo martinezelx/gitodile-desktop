@@ -86,6 +86,11 @@ not implied by the `1.0.0` merge and restore workflows.
 - Promote `.changes-danger-button` to a shared danger variant of the button
   primitive. It reads the size tokens correctly today, but as a bespoke class the
   guard cannot hold it there — a markup change task 106 did not need.
+- Give the status bar's project mark a "set up" state (an empty ring in the
+  warning tone) when the active project cannot save because it has no
+  effective Git name or email. Task 189 designed it and left it out: the strip
+  only reads the global identity, and a project can set its own, so it needs
+  the project's effective identity, read on activation like the rest.
 
 ## Product and quality research
 

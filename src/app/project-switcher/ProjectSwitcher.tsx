@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ChevronDown,
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
   CircleAlert,
   CloudDownload,
+  Copy,
   FileDiff,
-  FolderGit2,
+  FolderClosed,
   FolderOpen,
   FolderPlus,
-  House,
   LoaderCircle,
   Plus,
   Search,
@@ -18,7 +22,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import {
-  handlePopupMenuKeyDown,
+  copyTextToClipboard,
   usePortalFlyout,
   ProjectAvatar,
   type ProjectAvatarStyle,
@@ -33,6 +37,9 @@ export type ProjectSwitcherEntry = {
   contextLabel: string | null;
   /** The version line the project is on, or null when it is not on a branch. */
   branch?: string | null;
+  /** Where the project lives on disk: shown under its name at the popup's head
+   * and in its actions, and what "Copy path" copies. */
+  path?: string;
   hasError: boolean;
   hasOperationInProgress: boolean;
   hasUnsavedChanges: boolean;
@@ -46,62 +53,54 @@ export type ProjectSwitcherEntry = {
   avatarStyle?: ProjectAvatarStyle;
 };
 
-type ProjectSwitcherProps = {
+/** A project that was open once and is not now: Home's recent list, minus
+ * whatever is open. */
+export type ProjectSwitcherRecent = {
+  path: string;
+  name: string;
+  iconChoice?: ProjectIconChoice;
+  technology?: TechnologyId | null;
+  avatarStyle?: ProjectAvatarStyle;
+};
+
+/** What the active project itself needs, worn on the trigger's avatar: never
+ * another project's state (those stay on the popup's rows). One at a time,
+ * the most urgent: something to resolve, then work in progress. */
+export type ProjectStatusMark = {
+  kind: "resolve" | "busy";
+  description: string;
+};
+
+export type ProjectQuickSwitchProps = {
   entries: ProjectSwitcherEntry[];
+  /** Closed projects the popup offers to reopen, newest first. */
+  recent: readonly ProjectSwitcherRecent[];
   activeId: string | null;
   /** False while a save/publish dialog is open for the active project — see
-   * the "block switching" decision recorded in task 012. Switching and
-   * closing are both disabled in that state (except closing is only ever
-   * possible for the active project anyway, since only it can have an open
-   * dialog). */
+   * the "block switching" decision recorded in task 012. Switching, reopening
+   * and closing are all disabled in that state; the head's settings and
+   * folder still act on the project the dialog belongs to. */
   canSwitch: boolean;
   isOpening: boolean;
   onActivate: (id: string) => void;
+  onOpenRecent: (path: string) => void;
   onClose: (id: string) => void;
   onOpenAnother: () => void;
   onCreate: () => void;
   onClone: () => void;
   onToggleFavourite: (id: string) => void;
-  /** Opens the settings that belong to one project — its remote, its ignored
-   * files and its identity. Activating first is the caller's job: those
-   * settings are read from an open project, so the panel is scoped to the
-   * project the app is actually looking at. */
+  /** Opens the settings that belong to one project. Activating first is the
+   * caller's job: those settings are read from an open project. */
   onOpenProjectSettings: (id: string) => void;
-  /** Starts that project's settings read while the pointer is still on its way
-   * to the gear, so the panel opens with answers rather than a spinner.
-   * Optional: a surface that does not have it simply opens a little later. */
   onPrefetchProjectSettings?: (id: string) => void;
-  /** Home is showing. The active project stays on the trigger — it is still
-   * open, and Back returns to it — but its row is not marked as where the
-   * reader is: Home is (task 184). */
-  isHome?: boolean;
-  /** Goes to Home, the view of every project. Home is above any one project,
-   * so it lives here, beside the projects, rather than among the rail's
-   * destinations, which all belong to the active project. */
-  onOpenHome?: () => void;
+  /** Opens a project's folder in the system's file manager. */
+  onOpenFolder: (id: string) => void;
+  /** Goes to Home, the view of every project. Home stays out of the rail's
+   * destinations (task 184), so the popup's foot is its way in. */
+  onOpenHome: () => void;
+  /** The active project's own state, if it needs the reader. */
+  activeStatus?: ProjectStatusMark | null;
 };
-
-/** The way to Home, at the head of both popovers. */
-function HomeRow({ isHome, onOpen }: { isHome: boolean; onOpen: () => void }): React.JSX.Element {
-  const { t } = useLanguage();
-  return (
-    <button
-      type="button"
-      className={`project-switcher__home${isHome ? " project-switcher__home--current" : ""}`}
-      aria-current={isHome ? "page" : undefined}
-      aria-label={t.navHome}
-      onClick={onOpen}
-    >
-      <span className="project-switcher__home-tile" aria-hidden="true">
-        <House />
-      </span>
-      <span className="project-switcher__copy" aria-hidden="true">
-        <span className="project-switcher__name">{t.navHome}</span>
-        <span className="project-switcher__context">{t.projectSwitcherHomeHint}</span>
-      </span>
-    </button>
-  );
-}
 
 /**
  * Favourites first, everything else after, each group keeping the order it
@@ -124,24 +123,15 @@ export function orderByFavourite<Entry extends { isFavourite: boolean }>(
   ];
 }
 
-/** The open project always leads the list; the rest keep their order. */
-function withActiveFirst<Entry extends { id: string }>(
-  entries: readonly Entry[],
-  activeId: string | null,
-): Entry[] {
-  const active = entries.find((entry) => entry.id === activeId);
-  return active ? [active, ...entries.filter((entry) => entry !== active)] : [...entries];
-}
-
 type IndicatorMeta = {
   Icon: typeof CircleAlert;
   label: string;
   tone: "error" | "operation" | "unsaved";
 };
 
-/** Returns every relevant state in action priority order. Clean active
- * projects deliberately get no indicator, keeping the list quiet without
- * hiding a second condition behind the first one. */
+/** Returns every relevant state in action priority order. Clean projects
+ * deliberately get no indicator, keeping the list quiet without hiding a
+ * second condition behind the first one. */
 function indicatorMetas(
   entry: ProjectSwitcherEntry,
   t: ReturnType<typeof useLanguage>["t"],
@@ -180,144 +170,34 @@ function RowIndicators({ entry }: { entry: ProjectSwitcherEntry }): React.JSX.El
   );
 }
 
-/** Trigger class per surface. The menu itself is identical everywhere; only
- * the button wearing it changes shape, so each surface keeps its own look
- * (full-width row, round rail button, bordered compact square). */
-const ADD_MENU_TRIGGER_CLASS = {
-  row: "project-switcher__add",
-  rail: "sidebar-round",
-  compact: "project-switcher-compact__trigger",
-} as const;
-
-type AddProjectMenuVariant = keyof typeof ADD_MENU_TRIGGER_CLASS;
-
-/**
- * The three ways to get a project — create, open, clone — behind one "+".
- * They used to sit side by side in every switcher surface, which cost three
- * rows of sidebar height (or three squares of the icon rail) to say one thing.
- *
- * The popup is fixed-positioned and portaled because `.sidebar` clips its
- * overflow: an absolutely positioned menu would be cut off at the panel edge,
- * and on the 88px rail it would have nowhere to open at all. `usePortalFlyout`
- * owns that escape — and the rule that comes with it: the anchor rect is
- * measured once, so scroll and resize dismiss the menu rather than letting it
- * drift off its trigger.
- */
-function AddProjectMenu({
-  variant,
-  hasEntries,
-  canSwitch,
-  isOpening,
-  onOpenAnother,
-  onCreate,
-  onClone,
-}: {
-  variant: AddProjectMenuVariant;
-  hasEntries: boolean;
-  canSwitch: boolean;
-  isOpening: boolean;
-  onOpenAnother: () => void;
-  onCreate: () => void;
-  onClone: () => void;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const close = (restoreFocus: boolean): void => {
-    setIsOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
-  };
-
-  // The rail button is only 32px wide, so its menu flies out sideways; the
-  // wider surfaces align it with the trigger's own left edge.
-  const { popupRef, style } = usePortalFlyout(
-    isOpen,
-    triggerRef,
-    close,
-    variant === "rail" ? "side" : "below",
-  );
-  const attachMenu = (node: HTMLDivElement | null): void => {
-    menuRef.current = node;
-    popupRef.current = node;
-  };
-
-  const choose = (action: () => void): void => {
-    // Restore the trigger before running the action: every action opens a
-    // dialog (or the OS folder picker), and the dialog's focus trap remembers
-    // whatever is focused when it opens so it can hand focus back on close.
-    // Without this, the chosen menu item unmounts and focus falls to <body>.
-    close(true);
-    action();
-  };
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`${ADD_MENU_TRIGGER_CLASS[variant]} project-switcher-add-menu__trigger`}
-        aria-label={variant === "row" ? undefined : t.projectSwitcherAddProject}
-        data-tooltip={variant === "row" ? undefined : t.projectSwitcherAddProject}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        aria-disabled={variant === "rail" && !canSwitch ? true : undefined}
-        disabled={variant === "rail" ? undefined : !canSwitch}
-        onClick={() => {
-          if (!canSwitch) return;
-          isOpen ? close(true) : setIsOpen(true);
-        }}
-      >
-        <Plus aria-hidden="true" />
-        {variant === "row" && <span>{t.projectSwitcherAddProject}</span>}
-      </button>
-      {isOpen && createPortal(
-        <div
-          ref={attachMenu}
-          // Read by the compact switcher's own outside-click guard: this menu
-          // lives in a portal, so without the marker its clicks would look
-          // like a click outside the popover that renders its trigger.
-          data-add-project-menu=""
-          {...autoHideScrollbarProps<HTMLDivElement>()}
-          className="app-menu project-switcher-add-menu__popup"
-          role="menu"
-          aria-label={t.projectSwitcherAddProject}
-          tabIndex={-1}
-          style={style}
-          onKeyDown={(event) => handlePopupMenuKeyDown(event, menuRef.current, () => close(true))}
-        >
-          <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onCreate)}>
-            <FolderPlus aria-hidden="true" />
-            {t.projectSwitcherCreateProject}
-          </button>
-          <button
-            className="app-menu__item"
-            role="menuitem"
-            type="button"
-            disabled={isOpening}
-            onClick={() => choose(onOpenAnother)}
-          >
-            <FolderOpen aria-hidden="true" />
-            {hasEntries ? t.projectSwitcherOpenAnotherProject : t.projectSwitcherOpenProject}
-          </button>
-          <button className="app-menu__item" role="menuitem" type="button" onClick={() => choose(onClone)}>
-            <CloudDownload aria-hidden="true" />
-            {t.projectSwitcherCloneProject}
-          </button>
-        </div>,
-        document.body,
-      )}
-    </>
-  );
+/** The folder a project sits in, for a row that has no line to show. */
+function parentFolder(path: string): string {
+  const parts = path.replaceAll("\\", "/").replace(/\/+$/, "").split("/");
+  return parts.length > 1 ? parts.slice(0, -1).join("/") : path;
 }
 
-function ProjectSwitcherRows({
+/**
+ * The project half of the status bar's `project · line` block, and the one
+ * place to change projects: the twin of the line popup beside it, so both
+ * halves are learnt once (task 189). The popup leads with the active project
+ * and the three things done to it — settings, its folder, closing it — then
+ * the other open projects and the recently closed ones, and its foot adds a
+ * project or goes Home.
+ *
+ * A project's actions open in place of the list, the way a line's do: the
+ * popup clips its overflow and dismisses on a press outside itself, so a
+ * second floating surface anchored to a row would be cut off or would close
+ * the control that opened it. Adding a project docks its three ways at the
+ * foot for the same reason.
+ */
+export function ProjectQuickSwitch({
   entries,
+  recent,
   activeId,
   canSwitch,
   isOpening,
   onActivate,
+  onOpenRecent,
   onClose,
   onOpenAnother,
   onCreate,
@@ -325,443 +205,432 @@ function ProjectSwitcherRows({
   onToggleFavourite,
   onOpenProjectSettings,
   onPrefetchProjectSettings,
-  // The rail's own popover leaves it out: its "+" sits right under the
-  // trigger that opened the popover, so repeating it inside would be the same
-  // control twice within 40px.
-  withAddEntry = true,
-  // The rail popover caps its own height and scrolls only the list, so the
-  // search field stays put while the projects move.
-  scrollable = false,
-  isHome = false,
-}: ProjectSwitcherProps & { withAddEntry?: boolean; scrollable?: boolean }): React.JSX.Element {
-  const { t } = useLanguage();
-  return (
-    <ul
-      {...(scrollable ? autoHideScrollbarProps<HTMLUListElement>() : {})}
-      className={`project-switcher__list${scrollable ? " project-switcher__list--scroll auto-hide-scrollbar" : ""}`}
-      role="list"
-      aria-label={t.projectSwitcherAriaLabel}
-    >
-      {withActiveFirst(orderByFavourite(entries), activeId).map((entry) => {
-        const isActive = entry.id === activeId;
-        // On Home the active project is open but not where the reader is.
-        const isCurrent = isActive && !isHome;
-        const detail = [entry.contextLabel, entry.branch].filter(Boolean).join(" · ");
-        const accessibleName = entry.contextLabel
-          ? `${entry.name} (${entry.contextLabel})`
-          : entry.name;
-        return (
-          <li key={entry.id} className="project-switcher__item">
-            <button
-              type="button"
-              className={`project-switcher__button${isCurrent ? " project-switcher__button--active" : ""}`}
-              aria-current={isCurrent ? "true" : undefined}
-              disabled={!canSwitch && !isActive}
-              data-tooltip={!canSwitch && !isActive ? t.projectSwitcherSwitchBlockedHint : undefined}
-              onClick={() => onActivate(entry.id)}
-            >
-              <ProjectAvatar
-                id={entry.id}
-                name={entry.name}
-                className="project-switcher__avatar"
-                iconChoice={entry.iconChoice}
-                technology={entry.technology}
-                style={entry.avatarStyle}
-              />
-              <span className="project-switcher__copy">
-                <span className="project-switcher__name">{entry.name}</span>
-                {detail && <span className="project-switcher__context">{detail}</span>}
-              </span>
-              {/* Inside the rail popover the open project's status already rides
-                  on the trigger's badge, so its own row would repeat it. The
-                  compact switcher has no badge, so there the row keeps it. */}
-              {!(isActive && scrollable) && <RowIndicators entry={entry} />}
-            </button>
-            {/* Settings, then favourite, then close: open it, configure it,
-                mark it, close it — with the destructive control last in
-                reading and tab order. The gear is disabled for exactly the
-                same reason the row is: reading a project's own settings means
-                switching to it first, which a blocking dialog forbids. */}
-            <button
-              type="button"
-              className="project-switcher__settings"
-              aria-label={t.projectSettingsOpenFor(accessibleName)}
-              data-tooltip={
-                !canSwitch && !isActive
-                  ? t.projectSwitcherSwitchBlockedHint
-                  : t.projectSettingsOpen
-              }
-              disabled={!canSwitch && !isActive}
-              onPointerEnter={() => onPrefetchProjectSettings?.(entry.id)}
-              onFocus={() => onPrefetchProjectSettings?.(entry.id)}
-              onClick={() => onOpenProjectSettings(entry.id)}
-            >
-              <Settings aria-hidden="true" />
-            </button>
-            {/* Always rendered, but only drawn at rest when marked: a favourite
-                has to be readable without pointing at it. The rest fade in on
-                row hover or focus, and stay reachable by keyboard because
-                focus inside the row reveals them. */}
-            <button
-              type="button"
-              className={`project-switcher__favourite${entry.isFavourite ? " project-switcher__favourite--on" : ""}`}
-              aria-pressed={entry.isFavourite}
-              aria-label={
-                entry.isFavourite
-                  ? t.projectSwitcherUnfavourite(accessibleName)
-                  : t.projectSwitcherFavourite(accessibleName)
-              }
-              data-tooltip={
-                entry.isFavourite ? t.projectSwitcherUnfavouriteHint : t.projectSwitcherFavouriteHint
-              }
-              onClick={() => onToggleFavourite(entry.id)}
-            >
-              <Star aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="project-switcher__close"
-              aria-label={t.projectSwitcherCloseLabel(accessibleName)}
-              data-tooltip={canSwitch || !isActive ? t.projectSwitcherCloseLabel(accessibleName) : t.projectSwitcherSwitchBlockedHint}
-              disabled={!canSwitch && isActive}
-              onClick={() => onClose(entry.id)}
-            >
-              <X aria-hidden="true" />
-            </button>
-          </li>
-        );
-      })}
-      {withAddEntry && (
-        <li className="project-switcher__item project-switcher__item--add">
-          <AddProjectMenu
-            variant="row"
-            hasEntries={entries.length > 0}
-            canSwitch={canSwitch}
-            isOpening={isOpening}
-            onOpenAnother={onOpenAnother}
-            onCreate={onCreate}
-            onClone={onClone}
-          />
-        </li>
-      )}
-    </ul>
-  );
-}
-
-/**
- * Sidebar rendering: the active project as one square at the foot of the
- * rail, with every other open project behind it in a searchable popover.
- *
- * The rail used to list every project at once, which cost it a row of height
- * per project and left long names truncated to a 68px column. One square
- * costs the same whether two projects are open or twenty, and the popover has
- * room to spell the names out — the active one is also written in full in the
- * screen's own heading.
- *
- * The popover is portaled for the same reason the add-project menu is:
- * `.sidebar` clips its overflow, so an absolutely positioned panel would be
- * cut off at the panel edge.
- */
-export function ProjectSwitcherRail(props: ProjectSwitcherProps): React.JSX.Element {
+  onOpenFolder,
+  onOpenHome,
+  activeStatus = null,
+}: ProjectQuickSwitchProps): React.JSX.Element {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  // Not persisted: a filter is a way of looking at the list right now, not a
-  // preference. Reopening the switcher always shows everything that is open,
-  // or the projects hidden by a forgotten filter would look closed.
-  const [favouritesOnly, setFavouritesOnly] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const { entries, activeId, canSwitch } = props;
+  const backRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const active = entries.find((entry) => entry.id === activeId) ?? null;
+  const actionEntry = actionId ? entries.find((entry) => entry.id === actionId) ?? null : null;
+  const needle = query.trim().toLocaleLowerCase();
+  const others = orderByFavourite(entries.filter((entry) => entry.id !== activeId)).filter(
+    (entry) => !needle || entry.name.toLocaleLowerCase().includes(needle),
+  );
+  const closed = recent.filter((entry) => !needle || entry.name.toLocaleLowerCase().includes(needle));
+  // The trigger speaks for the active project only, the way the line's marker
+  // speaks for its line: other projects' states stay on their rows.
+  const status = active ? activeStatus : null;
 
   const close = (restoreFocus: boolean): void => {
     setIsOpen(false);
+    setActionId(null);
+    setIsAdding(false);
     if (restoreFocus) triggerRef.current?.focus();
   };
-  const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "side", "first-control");
+  const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "below", "none");
+  // The search takes focus on opening, as on the line popup, although the
+  // head's buttons come first in the popup: typing a name is what the popup
+  // is opened for. Once the popup is visible — a hidden element cannot take
+  // focus — and once per opening.
+  const hasFocused = useRef(false);
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      hasFocused.current = false;
+      return;
+    }
+    if (hasFocused.current || style.visibility === "hidden") return;
+    hasFocused.current = true;
+    searchRef.current?.focus();
+  }, [isOpen, style.visibility]);
+  useEffect(() => {
+    if (actionId) backRef.current?.focus();
+  }, [actionId]);
+  useEffect(() => {
+    if (!copiedId) return;
+    const timer = window.setTimeout(() => setCopiedId(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [copiedId]);
 
-  const activeEntry = entries.find((entry) => entry.id === activeId) ?? null;
-  const needle = query.trim().toLocaleLowerCase();
-  const scope = favouritesOnly ? entries.filter((entry) => entry.isFavourite) : entries;
-  const matches = needle
-    ? scope.filter((entry) => entry.name.toLocaleLowerCase().includes(needle))
-    : scope;
-  const metas = activeEntry ? indicatorMetas(activeEntry, t) : [];
-  const primaryMeta = metas[0] ?? null;
-  const statusSummary = metas.map((meta) => meta.label).join(" · ");
+  /** Closes first, so a dialog the action opens remembers the trigger as the
+   * place to hand focus back to rather than a row that is about to unmount. */
+  const run = (action: () => void): void => {
+    close(true);
+    action();
+  };
+  const rowButtons = (): HTMLButtonElement[] =>
+    Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>(".project-quick-switch__choose:not(:disabled)") ?? []);
 
-  return (
-    <div className="sidebar-project-group">
-      {entries.length > 0 && (
-        <>
-          <button
-            ref={triggerRef}
-            type="button"
-            className="sidebar-project"
-            // The name stays out of the status summary: the badge below
-            // announces that separately, and a trigger whose accessible name
-            // changed with every background operation would be a moving
-            // target for anyone navigating by voice.
-            aria-label={activeEntry ? t.projectSwitcherRailTrigger(activeEntry.name) : t.projectSwitcherAriaLabel}
-            data-tooltip={activeEntry ? t.projectSwitcherRailTrigger(activeEntry.name) : t.projectSwitcherAriaLabel}
-            aria-haspopup="dialog"
-            aria-expanded={isOpen}
-            aria-disabled={!canSwitch || undefined}
-            onClick={() => {
-              if (!canSwitch) return;
-              isOpen ? close(true) : (setQuery(""), setFavouritesOnly(false), setIsOpen(true));
-            }}
-          >
-            {activeEntry ? <ProjectAvatar
-              id={activeEntry.id}
-              name={activeEntry.name}
-              className="sidebar-project__avatar"
-              iconChoice={activeEntry.iconChoice}
-              technology={activeEntry.technology}
-              style={activeEntry.avatarStyle}
-            /> : <span className="sidebar-project__avatar sidebar-project__avatar--empty"><FolderGit2 aria-hidden="true" /></span>}
-            <span className="sidebar-project__chevron" aria-hidden="true">
-              <ChevronDown />
-            </span>
-            {primaryMeta && (
-              <span
-                aria-label={statusSummary}
-                className={`sidebar-project__badge sidebar-project__badge--${primaryMeta.tone}`}
-              >
-                <primaryMeta.Icon
-                  aria-hidden="true"
-                  className={primaryMeta.tone === "operation" ? "icon--spinning" : undefined}
-                />
-                {metas.length > 1 && (
-                  <span className="sidebar-project__badge-count">+{metas.length - 1}</span>
-                )}
-              </span>
-            )}
-          </button>
-          {isOpen && createPortal(
-            <div
-              ref={popupRef}
-              className="app-menu sidebar-project__popover sidebar-project-flyout"
-              role="dialog"
-              aria-label={t.projectSwitcherAriaLabel}
-              style={style}
-            >
-              <div className="sidebar-project__search">
-                <Search aria-hidden="true" />
-                <input
-                  type="text"
-                  value={query}
-                  placeholder={t.projectSwitcherSearchPlaceholder}
-                  aria-label={t.projectSwitcherSearchPlaceholder}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-                {/* Inside the search row rather than on a row of its own: this
-                    panel is short, and a filter that costs a line of height to
-                    show three more projects is a bad trade. */}
-                <button
-                  type="button"
-                  className={`sidebar-project__filter${favouritesOnly ? " sidebar-project__filter--on" : ""}`}
-                  aria-pressed={favouritesOnly}
-                  aria-label={
-                    favouritesOnly
-                      ? t.projectSwitcherFavouritesOnlyOff
-                      : t.projectSwitcherFavouritesOnly
-                  }
-                  onClick={() => setFavouritesOnly((only) => !only)}
-                >
-                  <Star aria-hidden="true" />
-                </button>
-              </div>
-              {props.onOpenHome && (
-                <HomeRow
-                  isHome={!!props.isHome}
-                  onOpen={() => {
-                    close(true);
-                    props.onOpenHome?.();
-                  }}
-                />
-              )}
-              {matches.length > 0 ? (
-                <ProjectSwitcherRows
-                  {...props}
-                  entries={matches}
-                  withAddEntry={false}
-                  scrollable
-                  onActivate={(id) => {
-                    close(true);
-                    props.onActivate(id);
-                  }}
-                  onClose={(id) => {
-                    close(true);
-                    props.onClose(id);
-                  }}
-                  onOpenProjectSettings={(id) => {
-                    close(true);
-                    props.onOpenProjectSettings(id);
-                  }}
-                />
-              ) : (
-                <p className="sidebar-project__empty">
-                  {favouritesOnly && !needle
-                    ? t.projectSwitcherFavouritesEmpty
-                    : t.projectSwitcherSearchEmpty}
-                </p>
-              )}
-            </div>,
-            document.body,
-          )}
-        </>
-      )}
-      <AddProjectMenu
-        variant="rail"
-        hasEntries={entries.length > 0}
-        canSwitch={props.canSwitch}
-        isOpening={props.isOpening}
-        onOpenAnother={props.onOpenAnother}
-        onCreate={props.onCreate}
-        onClone={props.onClone}
-      />
-    </div>
-  );
-}
-
-/**
- * Narrow-layout rendering (sidebar hidden below ~800px): a single trigger
- * (showing the active project's initial) that opens the same row list in a
- * popover. Mirrors the button+ref+outside-click+Escape pattern already used
- * by `TitlebarMenu` in `app/App.tsx`. With no project open, there
- * is nothing to switch between yet, so it's a plain button that opens one
- * directly instead of a popover trigger.
- */
-export function ProjectSwitcherCompact(props: ProjectSwitcherProps): React.JSX.Element {
-  const { t } = useLanguage();
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const popoverId = "project-switcher-compact-popover";
-
-  const closeAndRestoreFocus = (): void => {
-    setIsOpen(false);
-    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  const toggleOpen = (): void => {
+    if (isOpen) {
+      close(true);
+      return;
+    }
+    setQuery("");
+    setActionId(null);
+    setIsAdding(false);
+    setIsOpen(true);
   };
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const triggerLabel = active ? t.projectSwitcherTrigger(active.name) : t.statusBarNoProject;
+  const blockedHint = canSwitch ? undefined : t.projectSwitcherSwitchBlockedHint;
 
-    const handlePointerDown = (event: MouseEvent): void => {
-      const target = event.target as HTMLElement;
-      if (containerRef.current?.contains(target)) return;
-      // The add-project menu opens from inside this popover but renders in a
-      // portal, so its own clicks land outside the container. Without this
-      // guard the popover would unmount on mousedown and the chosen action
-      // would never fire.
-      if (target.closest?.("[data-add-project-menu]")) return;
-      setIsOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      // The add-project menu opens on top of this popover and listens on
-      // `document` too, but it mounts later, so its handler runs second: one
-      // Escape would close both layers. Let the innermost one answer first.
-      if (document.querySelector("[data-add-project-menu]")) return;
-      closeAndRestoreFocus();
-    };
+  const avatarOf = (entry: ProjectSwitcherEntry | ProjectSwitcherRecent, id: string, className: string): React.JSX.Element => (
+    <ProjectAvatar
+      id={id}
+      name={entry.name}
+      className={className}
+      iconChoice={entry.iconChoice}
+      technology={entry.technology}
+      style={entry.avatarStyle}
+    />
+  );
 
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  const addRows = (
+    <div className="project-quick-switch__add" role="group" aria-label={t.projectSwitcherAddProject}>
+      <button className="app-menu__item" type="button" onClick={() => run(onCreate)}>
+        <FolderPlus aria-hidden="true" />
+        <span>{t.projectSwitcherCreateProject}</span>
+      </button>
+      <button className="app-menu__item" type="button" disabled={isOpening} onClick={() => run(onOpenAnother)}>
+        <FolderOpen aria-hidden="true" />
+        <span>{entries.length > 0 ? t.projectSwitcherOpenAnotherProject : t.projectSwitcherOpenProject}</span>
+      </button>
+      <button className="app-menu__item" type="button" onClick={() => run(onClone)}>
+        <CloudDownload aria-hidden="true" />
+        <span>{t.projectSwitcherCloneProject}</span>
+      </button>
+    </div>
+  );
 
-  if (props.entries.length === 0) {
-    return (
-      <div className="project-switcher-compact">
-        <AddProjectMenu
-          variant="compact"
-          hasEntries={false}
-          canSwitch={props.canSwitch}
-          isOpening={props.isOpening}
-          onOpenAnother={props.onOpenAnother}
-          onCreate={props.onCreate}
-          onClone={props.onClone}
+  const actionsView = actionEntry && (
+    <div className="project-quick-switch__actions">
+      <div className="project-quick-switch__head">
+        <button
+          ref={backRef}
+          type="button"
+          className="project-quick-switch__icon"
+          aria-label={t.projectSwitcherBack}
+          onClick={() => {
+            setActionId(null);
+            window.requestAnimationFrame(() => searchRef.current?.focus());
+          }}
+        >
+          <ChevronLeft aria-hidden="true" />
+        </button>
+        {avatarOf(actionEntry, actionEntry.id, "project-quick-switch__avatar project-quick-switch__avatar--small")}
+        <span className="project-quick-switch__copy">
+          <span className="project-quick-switch__name">{actionEntry.name}</span>
+          {actionEntry.path && <span className="project-quick-switch__context" title={actionEntry.path}>{actionEntry.path}</span>}
+        </span>
+      </div>
+      {actionEntry.id !== activeId && (
+        <button className="app-menu__item" type="button" disabled={!canSwitch} title={blockedHint} onClick={() => run(() => onActivate(actionEntry.id))}>
+          <ArrowRight aria-hidden="true" />
+          <span>{t.projectSwitcherGoTo}</span>
+        </button>
+      )}
+      <button
+        className="app-menu__item"
+        type="button"
+        disabled={!canSwitch && actionEntry.id !== activeId}
+        title={actionEntry.id !== activeId ? blockedHint : undefined}
+        onPointerEnter={() => onPrefetchProjectSettings?.(actionEntry.id)}
+        onFocus={() => onPrefetchProjectSettings?.(actionEntry.id)}
+        onClick={() => run(() => onOpenProjectSettings(actionEntry.id))}
+      >
+        <Settings aria-hidden="true" />
+        <span>{t.projectSettingsOpen}</span>
+      </button>
+      <button className="app-menu__item" type="button" onClick={() => run(() => onOpenFolder(actionEntry.id))}>
+        <FolderOpen aria-hidden="true" />
+        <span>{t.projectSwitcherShowInFolder}</span>
+      </button>
+      {actionEntry.path && (
+        <button
+          className="app-menu__item"
+          type="button"
+          onClick={() => {
+            const path = actionEntry.path ?? "";
+            void copyTextToClipboard(path).then(() => setCopiedId(actionEntry.id), () => undefined);
+          }}
+        >
+          {copiedId === actionEntry.id ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          <span aria-live="polite">{copiedId === actionEntry.id ? t.projectSwitcherPathCopied : t.projectSwitcherCopyPath}</span>
+        </button>
+      )}
+      <div className="app-menu__divider" role="separator" />
+      <button
+        className="app-menu__item"
+        type="button"
+        disabled={!canSwitch && actionEntry.id === activeId}
+        title={actionEntry.id === activeId ? blockedHint : undefined}
+        onClick={() => run(() => onClose(actionEntry.id))}
+      >
+        <X aria-hidden="true" />
+        <span>{t.projectSwitcherCloseLabel(actionEntry.name)}</span>
+      </button>
+    </div>
+  );
+
+  const listView = (
+    <>
+      {active && (
+        <div className="project-quick-switch__head">
+          {avatarOf(active, active.id, "project-quick-switch__avatar")}
+          <span className="project-quick-switch__copy">
+            <span className="project-quick-switch__name">{active.name}</span>
+            {active.path && <span className="project-quick-switch__context" title={active.path}>{active.path}</span>}
+          </span>
+          {/* Settings, folder, close: configure it, find it, put it away —
+              the destructive control last in reading and tab order. */}
+          <span className="project-quick-switch__head-actions">
+            <button
+              type="button"
+              className="project-quick-switch__icon"
+              aria-label={t.projectSettingsOpenFor(active.name)}
+              data-tooltip={t.projectSettingsOpen}
+              onPointerEnter={() => onPrefetchProjectSettings?.(active.id)}
+              onFocus={() => onPrefetchProjectSettings?.(active.id)}
+              onClick={() => run(() => onOpenProjectSettings(active.id))}
+            >
+              <Settings aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="project-quick-switch__icon"
+              aria-label={t.projectSwitcherShowInFolder}
+              data-tooltip={t.projectSwitcherShowInFolder}
+              onClick={() => run(() => onOpenFolder(active.id))}
+            >
+              <FolderOpen aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="project-quick-switch__icon"
+              aria-label={t.projectSwitcherCloseLabel(active.name)}
+              data-tooltip={blockedHint ?? t.projectSwitcherCloseLabel(active.name)}
+              disabled={!canSwitch}
+              onClick={() => run(() => onClose(active.id))}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </span>
+        </div>
+      )}
+      <div className="project-quick-switch__search">
+        <Search aria-hidden="true" />
+        <input
+          ref={searchRef}
+          type="search"
+          value={query}
+          placeholder={t.projectSwitcherSearchPlaceholder}
+          aria-label={t.projectSwitcherSearchPlaceholder}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              rowButtons()[0]?.focus();
+              return;
+            }
+            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            // Enter takes the first row the search left, open or recent.
+            const first = rowButtons()[0];
+            if (first) {
+              event.preventDefault();
+              first.click();
+            }
+          }}
         />
       </div>
-    );
-  }
-
-  const activeEntry = props.entries.find((entry) => entry.id === props.activeId) ?? null;
+      <div
+        {...autoHideScrollbarProps<HTMLDivElement>()}
+        className="project-quick-switch__results auto-hide-scrollbar"
+        onKeyDown={(event) => {
+          // Up and down walk the rows; up from the first returns to the
+          // search, so the list and its filter read as one control.
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          const rows = rowButtons();
+          const index = rows.indexOf(event.target as HTMLButtonElement);
+          if (index === -1) return;
+          event.preventDefault();
+          if (event.key === "ArrowUp" && index === 0) searchRef.current?.focus();
+          else rows[event.key === "ArrowDown" ? Math.min(index + 1, rows.length - 1) : index - 1]?.focus();
+        }}
+      >
+        {others.length > 0 && (
+          <section aria-label={t.projectSwitcherOpenSection}>
+            <h3 className="project-quick-switch__caption">{t.projectSwitcherOpenSection}</h3>
+            <ul className="project-quick-switch__list" role="list">
+              {others.map((entry) => {
+                const detail = [entry.contextLabel, entry.branch].filter(Boolean).join(" · ");
+                const accessibleName = entry.contextLabel ? `${entry.name} (${entry.contextLabel})` : entry.name;
+                return (
+                  <li key={entry.id} className="project-quick-switch__item">
+                    <button
+                      type="button"
+                      className="project-quick-switch__choose"
+                      disabled={!canSwitch}
+                      title={blockedHint}
+                      aria-label={t.projectSwitchToLabel(accessibleName)}
+                      onClick={() => run(() => onActivate(entry.id))}
+                    >
+                      {avatarOf(entry, entry.id, "project-quick-switch__avatar")}
+                      <span className="project-quick-switch__copy">
+                        <span className="project-quick-switch__name">{entry.name}</span>
+                        {detail && <span className="project-quick-switch__context">{detail}</span>}
+                      </span>
+                      <RowIndicators entry={entry} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`project-quick-switch__favourite${entry.isFavourite ? " project-quick-switch__favourite--on" : ""}`}
+                      aria-pressed={entry.isFavourite}
+                      aria-label={
+                        entry.isFavourite
+                          ? t.projectSwitcherUnfavourite(accessibleName)
+                          : t.projectSwitcherFavourite(accessibleName)
+                      }
+                      data-tooltip={entry.isFavourite ? t.projectSwitcherUnfavouriteHint : t.projectSwitcherFavouriteHint}
+                      onClick={() => onToggleFavourite(entry.id)}
+                    >
+                      <Star aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="project-quick-switch__more"
+                      aria-label={t.projectSwitcherActions(accessibleName)}
+                      aria-haspopup="menu"
+                      aria-expanded={false}
+                      onClick={() => {
+                        setQuery("");
+                        setActionId(entry.id);
+                      }}
+                    >
+                      <ChevronRight aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+        {closed.length > 0 && (
+          <section aria-label={t.projectSwitcherRecentSection}>
+            <h3 className="project-quick-switch__caption">{t.projectSwitcherRecentSection}</h3>
+            <ul className="project-quick-switch__list" role="list">
+              {closed.map((entry) => (
+                <li key={entry.path} className="project-quick-switch__item">
+                  <button
+                    type="button"
+                    className="project-quick-switch__choose"
+                    disabled={!canSwitch || isOpening}
+                    title={blockedHint ?? entry.path}
+                    aria-label={t.projectSwitcherReopen(entry.name)}
+                    onClick={() => run(() => onOpenRecent(entry.path))}
+                  >
+                    {avatarOf(entry, entry.path, "project-quick-switch__avatar")}
+                    <span className="project-quick-switch__copy">
+                      <span className="project-quick-switch__name">{entry.name}</span>
+                      <span className="project-quick-switch__context">{parentFolder(entry.path)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {others.length === 0 && closed.length === 0 && (
+          <p className="project-quick-switch__empty">
+            {needle ? t.projectSwitcherSearchEmpty : active ? t.projectSwitcherOnlyOne : t.projectSwitcherEmptyHint}
+          </p>
+        )}
+      </div>
+      {isAdding ? addRows : (
+        <div className="project-quick-switch__footer">
+          <button
+            type="button"
+            className="ghost-button project-quick-switch__foot-action"
+            aria-expanded={false}
+            disabled={!canSwitch}
+            title={blockedHint}
+            onClick={() => setIsAdding(true)}
+          >
+            <Plus aria-hidden="true" />
+            <span>{t.projectSwitcherAddProject}</span>
+          </button>
+          <button
+            type="button"
+            className="ghost-button project-quick-switch__foot-action"
+            onClick={() => run(onOpenHome)}
+          >
+            <span>{t.projectSwitcherAllInHome}</span>
+            <ArrowRight aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </>
+  );
 
   return (
-    <div className="project-switcher-compact" ref={containerRef}>
+    <>
       <button
         ref={triggerRef}
         type="button"
-        className="project-switcher-compact__trigger"
-        aria-label={t.projectSwitcherCollapsedTrigger}
-        data-tooltip={t.projectSwitcherCollapsedTrigger}
+        className={`status-bar__seg status-bar__project${active ? "" : " status-bar__seg--muted"}`}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        aria-controls={isOpen ? popoverId : undefined}
-        onClick={() => setIsOpen((open) => !open)}
+        aria-label={status ? `${triggerLabel} · ${status.description}` : triggerLabel}
+        // The full name, the way every strip item reveals what it had to
+        // truncate, and what the mark says when there is one.
+        data-tooltip={active ? [active.name, status?.description].filter(Boolean).join(" · ") : undefined}
+        onPointerEnter={() => active && onPrefetchProjectSettings?.(active.id)}
+        onClick={toggleOpen}
       >
-        {activeEntry ? (
-          <ProjectAvatar
-            id={activeEntry.id}
-            name={activeEntry.name}
-            className="project-switcher-compact__avatar"
-            iconChoice={activeEntry.iconChoice}
-            technology={activeEntry.technology}
-            style={activeEntry.avatarStyle}
-          />
-        ) : <FolderGit2 aria-hidden="true" />}
+        {active ? (
+          <span className="status-bar__project-avatar">
+            {avatarOf(active, active.id, "status-bar__avatar")}
+            {/* Shape carries the state as well as tone: a ring turning while
+                work runs, the popup rows' alert glyph for something to
+                resolve. Keyed by kind so a mark that arrives breathes once
+                (`.attention-breathe`). */}
+            {status && (
+              <span
+                key={status.kind}
+                className={`status-bar__mark status-bar__mark--${status.kind}${status.kind === "busy" ? "" : " attention-breathe"}`}
+                aria-hidden="true"
+              >
+                {status.kind === "resolve" && <CircleAlert />}
+              </span>
+            )}
+          </span>
+        ) : (
+          <FolderClosed aria-hidden="true" />
+        )}
+        <span className="status-bar__project-name">{active ? active.name : t.statusBarNoProject}</span>
+        {/* The line's chevron: both popups open upwards from the strip. */}
+        <ChevronUp aria-hidden="true" className="status-bar__chevron" />
       </button>
-      {isOpen && (
+      {isOpen && createPortal(
         <div
-          {...autoHideScrollbarProps<HTMLDivElement>()}
-          id={popoverId}
-          className="project-switcher-compact__popover auto-hide-scrollbar"
+          ref={popupRef}
+          className="app-menu project-quick-switch"
           role="dialog"
           aria-label={t.projectSwitcherAriaLabel}
+          style={style}
         >
-          {props.onOpenHome && (
-            <HomeRow
-              isHome={!!props.isHome}
-              onOpen={() => {
-                closeAndRestoreFocus();
-                props.onOpenHome?.();
-              }}
-            />
-          )}
-          <ProjectSwitcherRows
-            {...props}
-            onActivate={(id) => {
-              closeAndRestoreFocus();
-              props.onActivate(id);
-            }}
-            onClose={(id) => {
-              closeAndRestoreFocus();
-              props.onClose(id);
-            }}
-            onOpenProjectSettings={(id) => {
-              closeAndRestoreFocus();
-              props.onOpenProjectSettings(id);
-            }}
-            onOpenAnother={() => {
-              setIsOpen(false);
-              props.onOpenAnother();
-            }}
-            onClone={() => {
-              setIsOpen(false);
-              props.onClone();
-            }}
-            onCreate={() => {
-              setIsOpen(false);
-              props.onCreate();
-            }}
-          />
-        </div>
+          {actionEntry ? actionsView : listView}
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }

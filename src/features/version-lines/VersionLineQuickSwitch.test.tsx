@@ -97,6 +97,35 @@ describe("VersionLineQuickSwitch", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("heads the popup with the current line and copies its name", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(
+      <LanguageProvider>
+        <VersionLineQuickSwitch
+          snapshot={snapshot}
+          isLoadingSnapshot={false}
+          currentValue="main"
+          canSwitch
+          variant="status"
+          onSwitch={vi.fn()}
+          onSeeAll={vi.fn()}
+        />
+      </LanguageProvider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Change version line (main)" }));
+    const head = screen.getByRole("dialog", { name: "Switch version line" }).querySelector(".version-lines-quick-switch__head");
+    expect(head).toHaveTextContent("main");
+    expect(head).toHaveTextContent("Latest saved work for main");
+    // The search still takes focus, although the head's button comes first.
+    expect(screen.getByRole("searchbox", { name: "Search version lines…" })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy name" }));
+    expect(writeText).toHaveBeenCalledWith("main");
+    expect(await screen.findByRole("button", { name: "Name copied" })).toBeInTheDocument();
+  });
+
   it("finds an eligible line beyond the initial rows", async () => {
     const onSwitch = vi.fn();
     render(

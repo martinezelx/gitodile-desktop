@@ -104,11 +104,12 @@ Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserv
 The main desktop window should broadly support:
 
 1. **Top bar** — implemented as a custom titlebar rather than a traditional File/Edit/View menu bar, which reads as legacy Win32/desktop-app chrome:
-   - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination, and so does the project switcher, whose panel opens with a Home row above the projects (task 184): Home is the view of every project, so it sits with the projects rather than among the rail's destinations, which all belong to the active one. The titlebar and rail add no permanent Projects button.
-   - the overflow menu's rules separate four groups, in the order they are reached for: the project (Home, then open, create, clone and close), setting the app up (Settings, Keyboard shortcuts), the app itself (What's new, Check for updates, About GitOdile), and the way out when something is wrong (Report an issue, Reload window). Reload once sat beside Settings, pairing a daily entry with a rare recovery one; it belongs with the problem report. Entries that open a dialog asking for more end in an ellipsis, a shortcut the app owns is shown as quiet text at the row's end (`Ctrl+,` beside Settings), and no glyph appears twice in the menu. Opening a project is `FolderOpen` and creating one `FolderPlus` wherever either appears — Home, this menu, the project switcher's add menu, the collapsed rail's jump menu and the create dialog itself — and the three menus spell the actions the same way, ellipsis included.
+   - the overflow menu starts with Home (Inicio), a quiet way to the project-opening screen while projects remain open. The command palette offers the same destination, and so does the status bar's project popup, whose foot ends in "All in Home" (task 189): Home is the view of every project, so it sits with the projects rather than among the rail's destinations, which all belong to the active one. The titlebar and rail add no permanent Projects button.
+   - the overflow menu's rules separate four groups, in the order they are reached for: the project (Home, then open, create, clone and close), setting the app up (Settings, Keyboard shortcuts), the app itself (What's new, Check for updates, About GitOdile), and the way out when something is wrong (Report an issue, Reload window). Reload once sat beside Settings, pairing a daily entry with a rare recovery one; it belongs with the problem report. Entries that open a dialog asking for more end in an ellipsis, a shortcut the app owns is shown as quiet text at the row's end (`Ctrl+,` beside Settings), and no glyph appears twice in the menu. Opening a project is `FolderOpen` and creating one `FolderPlus` wherever either appears — Home, this menu, the project popup's add rows and the create dialog itself — and the menus spell the actions the same way, ellipsis included.
    - no brand: the titlebar is controls only and starts with the overflow menu, centred over the rail's icon column so the titlebar and the rail share one vertical axis (with no rail, it sits at the plain edge inset). It once carried the app mark in the corner (later the full mascot); a colour illustration in a row of line icons drew the eye to a spot that does nothing, and the operating system already shows the app icon. The mascot lives in the brand moments instead (see "Brand and mascot").
    - left: the rail collapse control and a compact overflow menu. The palette's trigger is not here: it is the field at the foot of the strip (see Status bar), and the shortcut (`Ctrl`/`Cmd`+`K`) reaches it from anywhere.
-   - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's three groups — destinations, projects (favourites only), and the app-level utilities — with the project group's two nested menus flattened, since a list this short can just say what those menus would have said. It is a menu, not a miniature rail — same furniture as every other flyout in the app.
+   - the collapse control doubles as a jump menu: while the rail is collapsed, resting on it opens the rail's destinations as a short menu hanging off the button, so a destination can be reached without expanding and re-collapsing the rail around a single click. It carries the rail's two groups — destinations and the app-level utilities. Projects are not in it: they are the status bar's, which stays on screen while the rail is collapsed (task 189). It is a menu, not a miniature rail — same furniture as every other flyout in the app.
+   - the theme toggle lives in the rail's foot (task 189). The titlebar shows its copy beside Back/Forward only while the rail is not there to hold it — collapsed, or gone in the compact layout under 800px — so the toggle is reachable in every layout and never drawn twice.
    - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
    - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
@@ -177,11 +178,8 @@ The main desktop window should broadly support:
    Navigation Settings may switch to icons only: every caption disappears —
    destinations and utilities alike, since a rail that labels one and not the
    other reads as an accident — and the column keeps its 64px. Narrowing it to
-   the 40px icon circle plus padding would leave the tray's plate 40px wide,
-   with 2px between the 36px controls and its edge and the project chip's
-   chevron hanging out of it; at 64px the plate and its 6px inset are the same
-   as with captions, and the workspace's edge does not move when the setting
-   changes. The 40px pointer target and accessible name remain.
+   the 40px icon circle plus padding would move the workspace's edge every
+   time the setting changes. The 40px pointer target and accessible name remain.
    - Overview, Work, Lines, and Recovery keep their order. Work is what has
      changed and what has been saved — one loop, one screen, with Changes and
      History as its two tabs (they were neighbouring screens until task 126,
@@ -204,41 +202,24 @@ The main desktop window should broadly support:
      or focus, and the grip), then its switch. A destination switched off keeps
      its row in the secondary ink with an "In More" tag, so the list never
      changes height and its place in the order stays visible;
-   - below the destinations: the active project as a single circle that opens
-     a searchable switcher, plus a same-size "+" holding the three ways to add
-     one (open, create, clone);
-   - the switcher's panel is sized by its rows (two lines each: name, then the
-     version line) and scrolls inside itself past six, with the search field
-     fixed above and the Home row above that. The open project always leads, then favourites. Settings,
-     favourite and close take no room at rest and open on hover or focus; only
-     a marked star stays. The open project's status is not repeated on its row
-     because the rail badge already shows it;
-   - closing the active project goes to Home with no project active; the
-     others stay open in the switcher (task 184). The app never moves the
-     reader into another repository on its own — the next save or publish
-     would land in a project they did not choose. Closing any other project
-     leaves the active one where it is;
-   - projects can be starred. Favourites sort to the top of the switcher and
-     are the only ones the collapsed rail's jump menu lists, so that menu stays
-     a shortcut rather than a second copy of the switcher. Until the first star
-     is set it lists them all, because an empty group explains neither why it
-     is empty nor how to fill it. The sort is display-only — the session order
-     stays canonical, so starring a project never changes what Ctrl/Cmd+Tab
-     cycles through. A favourite survives closing its project and is stored
-     against the canonical worktree root, the same identity the session
-     reducer uses, so it also survives restarts, path aliases and symlinks;
-   - at the foot: Settings above the account button. These app-level utilities
-     remain anchored and use the same footprint as the project controls;
-   - only destinations are captioned. The controls below the rule — project,
-     add, Settings, account — carry no visible label in either display mode:
-     they are stable shapes, and the two that are less self-evident sit
-     directly under what they act on (the avatar identifies the active
-     project; the "+" is under it). Captioning four controls that never
-     change cost a line of text each and turned the column into a wall of
-     words. Their accessible names stay on the buttons and concise localized
-     tooltips give pointer and keyboard users the same names. The project
-     tooltip includes its display name; the reserved account control states
-     that sign-in is coming soon without implying an account is required;
+   - the rail holds no project (task 189). Which project is open, and the
+     way to change it, is the status bar's project segment, which sits at the
+     foot of every project screen; Home lists every project itself. The rail
+     used to carry the active project as a square chip with a searchable
+     switcher and a "+" beside it; with the status bar naming the project and
+     its line in one place, the chip only said the same thing twice;
+   - at the foot: the theme toggle, then Settings, then the account button.
+     These are the app's own controls, so the theme sits with them rather than
+     in the titlebar's navigation: one round button that says the change it
+     will make — the moon to go dark, the sun to go light, the monitor to hand
+     a community theme back to the device;
+   - only destinations are captioned. The controls below the rule — theme,
+     Settings, account — carry no visible label in either display mode: they
+     are stable shapes, and captioning controls that never change cost a line
+     of text each and turned the column into a wall of words. Their accessible
+     names stay on the buttons and concise localized tooltips give pointer and
+     keyboard users the same names. The reserved account control states that
+     sign-in is coming soon without implying an account is required;
    - unavailable destinations remain focusable but guarded from activation so
      their localized reason is reachable by pointer, keyboard and screen
      reader. In a text menu, show that reason directly rather than requiring a
@@ -247,23 +228,22 @@ The main desktop window should broadly support:
      change. It never lifts or enlarges rail furniture, and never borrows the
      accent-tinted selected surface. Accent fill and green iconography remain
      reserved for the active destination or selected control;
-   - a faint tray separates the destinations from everything below: one pill
-     of `--surface-hover` behind the project chip and the utilities — rounded
-     at `--radius-surface` instead while the square project chip leads it, so
-     the chip's corners sit as far in as its sides — at about a
-     third of its strength at rest and full strength while the pointer rests
-     on it, focus is inside it or one of its menus is open. It is the only
-     fill the rail carries that is not a control's own, and it marks a
-     *group*, not a surface: no border, no shadow, never raised. A full-width
-     faded rule did this first, then an 18×3px capsule; both were strokes in a
-     column of rounded fills, and the capsule, glyph-sized and right above
-     "+", read as a minus button rather than a boundary. Outlined or
-     edge-lit versions of the tray were tried and dropped: a lit edge gives
-     the foot a 3D lip the flat chrome has nowhere else. The free height above
-     the foot carries the split in a tall window; when a short one folds
-     destinations into More and closes that gap, the tray's own shape keeps
-     it. This is the documented exception to "separate rows with spacing
-     alone": it divides two *groups*, not consecutive rows within one.
+   - nothing is drawn behind the foot (task 189). A faint pill of
+     `--surface-hover` once grouped the square project chip with the round
+     utilities; with the project in the status bar the foot is three filled
+     circles with no caption, and that shape already reads as one group apart
+     from the captioned, unfilled destinations — also when a short window
+     folds destinations into More and closes the free height above. The pill
+     was a second fill behind fills of their own. A full-width rule and an
+     18×3px capsule were tried before it and dropped: strokes in a column of
+     rounded fills, and the capsule read as a minus button. The circles wear
+     `--surface-hover` at rest, so hovering one steps up to `--surface-active`,
+     and its glyph says what it does once and rests there: the gear turns 60°,
+     the sun 45°, the moon tips back 18°, the person lifts 2px, over 180ms
+     on an ease-in-out (`cubic-bezier(0.45, 0, 0.25, 1)`): the rail icons'
+     sharp ease-out spent the turn in the first 40ms and read as a jump. A disabled control stays still (the account's motion
+     waits for sign-in), and reduced motion — the system's or the app's —
+     leaves every glyph where it is. Nothing loops;
    - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
      control), giving the window over to content. Collapsed means `display:
      none`, never a zero width or a transparent column: a rail still in the tab
@@ -291,23 +271,57 @@ The main desktop window should broadly support:
 
    The strip is two blocks of the *same object* and a field between them: the
    left block says where you are and the right one says what is happening to
-   it. A block is segments of one size, weight and hover. Each block uses the
-   mark that says what it holds: the left one is a path, so a faint slash joins
-   its two facts; the right one is a fact and the check that renews it, told
-   apart by their glyphs, so only air stands between them. Neither uses a
-   vertical rule, which read as a terminal's `|` rather than as a sentence.
+   it. A block is segments of one size, weight and hover, with 4px of air
+   between them and no mark: the left block's project and line each wear a
+   glyph, a name and a chevron, so they read as two controls; the right one is
+   a fact and the check that renews it, told apart by their glyphs. Neither
+   uses a vertical rule, which read as a terminal's `|` rather than as a
+   sentence, and the left one no longer uses the slash that once joined
+   `project / line`: beside line names that carry their own slashes
+   (`release/0.3.1`) it was one more mark to read (task 189).
 
-   The project's name and the line's name are the left block, `project / line`,
-   with no words in front of them: the name is a segment and the line is the
-   next one, joined by the block's slash. Both sit in the same sans at
+   The project's name and the line's name are the left block, with no words in
+   front of them: the project's avatar and name, then the line's glyph and
+   name, each ending in the chevron of a popup that opens upwards. Both sit in the same sans at
    the name weight — the line drops the mono it wears elsewhere, since a
    typeface change inside one block split it in two. The name is what keeps the
    strip saying something once the reader has left Overview, and both truncate
-   rather than wrap. The name is also the way into that project's settings (it
-   names the project for keyboard and screen-reader users). Unsaved work rides
+   rather than wrap. The project segment is the one place to change projects
+   (task 189): its popup is the line popup's twin — a fixed box with a search,
+   rows of an avatar, the name and its line, a star that waits for the pointer
+   and a chevron that is always there. It leads with the active project, its
+   path, and three icon buttons for what is done to it — its settings, its
+   folder, closing it — then lists the other open projects (favourites first,
+   each with its unsaved, operation or error mark) and the recently closed
+   ones, which reopen from there. A row's chevron shows that project's actions
+   in place of the list (go to it, settings, show in folder, copy its path,
+   close it), with a way back, the way a line's do; "Add project" docks the
+   three ways to add one at the foot in place of the foot, and "All in Home"
+   leaves for Home. While a blocking dialog is open, switching, reopening and
+   closing are disabled and say why; the active project's settings and folder
+   stay available. Each segment's mark speaks for that segment alone: the
+   project's for the active project, the line's for the line — another
+   project's state stays on its popup row. The project's mark sits at the
+   avatar's corner, one at a time and the most urgent first, told apart by
+   shape as well as tone so it reads without colour: the popup rows' alert
+   glyph in the danger tone for something to resolve (an operation that
+   failed or ended uncertain, overlapping changes, a history that could not be
+   read), then a ring turning in the quiet ink while an operation runs. A
+   missing Git identity is not one of them yet: the strip only knows the
+   global one, and a project can set its own. Its sentence joins the
+   trigger's tooltip and name. A mark that
+   arrives breathes once (`.attention-breathe`); the turning ring does not,
+   since it already moves. Closing the active project goes to
+   Home with no project active (task 184): the app never moves the reader
+   into another repository on its own. Favourites are stored against the
+   canonical worktree root and sort display only, so Ctrl/Cmd+Tab still cycles
+   the session order. Unsaved work rides
    the line it belongs to: a dot after the line's name, the way an editor marks
-   an unsaved tab, in the warning tone the rail and the project switcher already
-   give unsaved work and in the danger tone when the tree could not be read;
+   an unsaved tab, in the warning tone the project popup already gives unsaved
+   work; a tree that could not be read takes the alert glyph in the danger
+   tone instead, the project mark's shape for something to resolve, so the
+   two states differ in shape and not only in colour. Either breathes once
+   when it arrives;
    while the tree is being read the line glyph turns into the spinner. How many
    files and how many lines is not the strip's to say: the sentence ("28 unsaved
    changes") is the trigger's tooltip and the screen reader's, and Overview's
@@ -647,9 +661,9 @@ The main desktop window should broadly support:
      steps of the model were drawn as a three-segment bar until 0.3.1; on a
      calmer, more professional page they read as a tutorial's chrome). The
      glyph keeps its circle: square shapes belong to a project's identity
-     (its icon, the switcher), not to a state. The state's colour
+     (its icon, the project popup), not to a state. The state's colour
      is one of the status tokens every theme defines — `--status-warning` for
-     unsaved work (the colour the switcher and rail already give it), the
+     unsaved work (the colour the project popup already gives it), the
      accent for saved versions waiting to be published, `--status-renamed`
      for newer versions on the remote, `--status-danger` for overlaps or a
      failed check — and it is a signal, not a surface: it inks the glyph on
@@ -902,7 +916,7 @@ values before this was written down. Choose the tier by what the thing *is*:
 | Token | What it is | Examples |
 | --- | --- | --- |
 | `--radius-round` (50%) | An atomic thing with no reading direction | Person avatar, **any single glyph on a fill** (section, status and dialog-header icons), rail destination, refresh, create, overflow trigger, checkbox, timeline node |
-| `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | Rail project chip, project switcher, jump list, Home's recents, project-icon previews |
+| `--radius-identity` (28%) | A project's identity chip — proportional, so it is the same rounded square from 20px to 56px | The status bar's project segment and its popup, Home's recents, project-icon previews |
 | `--radius-pill` (999px) | **Any single-line control**, a capsule of short text, or a pure geometric form | Labelled button, single-line input, search box, selector or trigger; badge, count, status chip, progress bar, scrollbar thumb, toggle track |
 | `--radius-item` (10px) | A row or option that lives inside a container | Menu row, list option, file row, segmented-control option, inline code, keycap, square icon button of 24–36px that is not in an action row |
 | `--radius-control` (14px) | A control that *cannot* be a capsule | Multi-line field (textarea), a frame wrapping its own options (segmented control), a preview box (a theme-picker card), square icon button of 40px and up that is not in an action row |
@@ -1538,9 +1552,13 @@ control it hangs from names the new line, which is the confirmation. A
 failure stays under the field to retry.
 
 **The quick switch is one popup, in the status bar.** It opens at 400 ×
-338px with nine rows and their controls; Overview's header once hosted a
+400px with nine rows and their controls; Overview's header once hosted a
 second one and no longer does (it names where the project lives). A smaller
-popup left the docked composer no room for the list it docks under. The keyboard walks it as one control: Down from the search moves
+popup left the docked composer no room for the list it docks under. It has the
+project popup's shape (task 189): a head with the line the project is on — its
+glyph on the active fill, its name, its latest saved version — and "Copy name"
+beside it over a hairline, then the search, the rows and the foot. The search
+still takes focus on opening. The keyboard walks it as one control: Down from the search moves
 into the rows, Up and Down walk them, Up from the first returns to the search,
 and Enter in the search chooses the first row it left — only a choice, since
 the switch it starts is previewed like any other.
@@ -1704,8 +1722,8 @@ completing into a whole one is the same glyph saying "there is one".
 
 That rule governs **controls** — the glyph vocabulary a user learns to operate the app. It does not govern **artwork naming somebody else's product**, which Lucide has no glyphs for at all: file-type icons in the Changes list, and the stack and operating-system marks in About. Those come from the vscode-icons set already installed for file types, or — for the three OS marks, which that set does not carry — are drawn in `src/app/vendorMarks.tsx` and used nowhere else. They keep their vendor colours, because a logo reduced to one ink stops being recognizable at 14px, which is the only job it has. That is the trade: About accepts a handful of fixed colours it does not own so that nothing else in the app has to. The exception is a mark whose brand colour is an ink rather than a hue — Apple's, monochrome by its own definition, and Tux's black body, which is a hole in the layout on the dark dialog surface. Those take `currentColor` and the dialog's own surface, so they are legible in both themes; what identifies Tux at 14px is the silhouette and the yellow beak, not which side of the ink it is on.
 
-**A project's identity icon says what the project is.** The rail, the project
-switcher and the welcome recents draw one chip per project. A per-project choice
+**A project's identity icon says what the project is.** The status bar, its
+project popup and the welcome recents draw one chip per project. A per-project choice
 — an emoji chosen by the user, or the two letters — wins; otherwise the chip
 follows the app-wide **Interface → Project icons** setting, which offers three
 styles and defaults to **Technology**: the language or framework detected from
@@ -2050,10 +2068,8 @@ without looking either one up. Every step here is named for what the text *is*
 `--text-micro` is a floor, not a step to reach for. Below it the app was running
 8.5px and 9px secondary text, which the Accessibility section already forbids.
 
-Three things sit below the floor, and all are named in the guard rather than
-left to judgement. `.sidebar-project__badge-count` is a numeral inside a 14px
-status dot, which leaves a 10px box once the ring and padding are out;
-`.navigation-display__preview small` is a label inside a miniature *drawing* of
+Two things sit below the floor, and both are named in the guard rather than
+left to judgement. `.navigation-display__preview small` is a label inside a miniature *drawing* of
 the navigation rail, where the text is part of the picture rather than something
 anyone reads; and `.console-art` is the console welcome's ASCII mascot, whose
 characters are the picture's shading at 7px, not words. None is prose. Adding
@@ -2841,9 +2857,9 @@ word as a title.
   already open, Home answers "what else?", so there is no Continue.
 - **Recent and Favorites.** Under the field, two small tabs appear once there
   is a favourite; Favorites lists only those, and is a view, not a setting.
-  The star on each row is the **same favourite the rail and the switcher
-  show**, from the same store and with the same strings; it is rendered at
-  rest when marked, and the row's Remove follows the switcher's Close (shown
+  The star on each row is the **same favourite the project popup shows**,
+  from the same store and with the same strings; it is rendered at rest when
+  marked, and the row's Remove is shown
   on pointing or focus, always where there is no pointer). Both float over
   the row's right end instead of reserving a column, so at rest each row's
   "opened 8 minutes ago" lines up with the card's edge and with Continue's
@@ -2851,7 +2867,7 @@ word as a title.
   its star and its time steps left. Recent lists
   newest first, five rows including Continue; searching reaches every stored
   entry. Each row carries the project's own avatar, the same colour and
-  initials the rail and the switcher give it; the name is the row's
+  initials the status bar and its project popup give it; the name is the row's
   accessible name and the path its description.
 - **The three ways to start** — create, open, clone — sit at the card's foot
   as three identical secondary capsules with short labels ("Create", "Open",
@@ -2930,13 +2946,11 @@ word as a title.
     provider's tab, with the same account chosen, when there are more.
 
 Home can be revisited with projects open. Its recent list keeps the
-projects already open in the switcher and says so: an "Open now" tag where
-their age would be, and on the active one the switcher's accent ring round
-the avatar. Choosing an open project switches to it, the way the switcher
-does, rather than opening it again. The rail's chip keeps the active
-project — it is still open, and Back returns to it — but no destination is
-marked current, and inside the switcher the Home row is the current one, not
-the project. Back returns to the project screen that led here;
+projects already open and says so: an "Open now" tag where their age would
+be, and on the active one an accent ring round the avatar. Choosing an open
+project switches to it, the way the project popup does, rather than opening
+it again. The active project stays active — it is still open, and Back
+returns to it — but no destination is marked current. Back returns to the project screen that led here;
 Forward can revisit Home until another navigation. Home carries no status
 bar, open project or not: the launcher's own status line is about this
 computer, and the active project's state is one Back away. The

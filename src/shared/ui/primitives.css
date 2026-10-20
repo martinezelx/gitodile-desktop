@@ -144,7 +144,7 @@
 :root[data-reduced-motion="true"] .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
 
 /* A project avatar drawn from a detected technology or a chosen emoji. The box
-   itself stays the caller's class (`.sidebar-project__avatar`, …), which owns
+   itself stays the caller's class (`.status-bar__avatar`, …), which owns
    its size, radius and brand ring; these fill it. The technology mark sits on a
    neutral tray because vendor artwork keeps its own colours and would fight the
    identity colour behind it. */

@@ -1090,7 +1090,7 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
   /* Down 42px with the footer's two rows: the box is fixed, so the row the
      actions gave back has to come off the box or it becomes empty space under
      the results. */
-  height: min(338px, calc(100vh - 2 * var(--space-4)));
+  height: min(400px, calc(100vh - 2 * var(--space-4)));
   min-width: 0;
   max-width: none;
   overflow: hidden;
@@ -1098,7 +1098,26 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 /* One size in every host. The status strip's popup was smaller, and the
    composer docked at its foot then left the list no room at all; it keeps only
    its own ceiling, since it opens upwards from a strip at the window's foot. */
-.version-lines-quick-switch__menu--status { height: min(338px, calc(100vh - 56px)); }
+.version-lines-quick-switch__menu--status { height: min(400px, calc(100vh - 56px)); }
+/* The line the project is on, at the head — the project popup's head
+   (task 189): its glyph, its name and its latest saved version, and what is
+   done to it, over a hairline. 62px taller than before, the room the head
+   takes, so the list keeps the rows it had. */
+.version-lines-quick-switch__head {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 2px 2px var(--space-2); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.version-lines-quick-switch__glyph--current { background: var(--surface-active); color: var(--text-primary-color); }
+.version-lines-quick-switch__head-action {
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.version-lines-quick-switch__head-action svg { width: 15px; height: 15px; }
+.version-lines-quick-switch__head-action:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.version-lines-quick-switch__head-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .version-lines-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .version-lines-quick-switch__search {
   display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
@@ -1292,7 +1311,8 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 
 @media (pointer: coarse) {
   .version-lines-quick-switch__filter,
-  .version-lines-quick-switch__favourite { width: 44px; height: 44px; }
+  .version-lines-quick-switch__favourite,
+  .version-lines-quick-switch__head-action { width: 44px; height: 44px; }
   /* The two footer actions are `.ghost-button`s, which primitives.css already
      raises to `--control-height-lg` here; restating it would be a second copy
      of the same accommodation. */

@@ -61,7 +61,7 @@ input:focus-visible,
 h1[data-screen-focus]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
 
 @media (prefers-reduced-motion: reduce) {
-  body, .window-control, .titlebar-icon-button, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-switcher__button, .project-switcher__close, .project-switcher__add, .project-switcher-compact__trigger {
+  body, .window-control, .titlebar-icon-button, .sidebar, .primary-button, .secondary-button, .segmented-control__option, .project-quick-switch__choose {
     transition: none;
   }
 }

@@ -13,10 +13,8 @@ import {
   Monitor,
   ChevronLeft,
   ChevronRight,
-  CloudDownload,
   Copy,
   FolderOpen,
-  FolderPlus,
   PanelLeftClose,
   PanelLeftOpen,
   Square,
@@ -181,12 +179,10 @@ import {
 import { createProjectRuntime, scheduleIdleTask, useProjectSelector } from "../runtime/project/runtime";
 import { useProjectCacheWarming } from "../features/repository";
 import {
-  ProjectSwitcherCompact,
-  ProjectSwitcherRail,
+  type ProjectStatusMark,
   type ProjectSwitcherEntry,
-  orderByFavourite,
+  type ProjectSwitcherRecent,
 } from "./project-switcher/ProjectSwitcher";
-import { ProjectAvatar } from "../shared/ui/projectAvatarView";
 import { isTechnologyId } from "../shared/ui/projectIdentity";
 import { useProjectTechnologies } from "./projectTechnologies";
 import { consoleProjectStatus } from "./consoleProjectStatus";
@@ -359,10 +355,10 @@ export function App(): React.JSX.Element {
   // scheme. The glyph and the accessible name always describe the change the
   // press will make.
   const themeToggle = themeIsCommunity
-    ? { label: t.commandUseSystemTheme, icon: <Monitor className="titlebar-theme-icon" aria-hidden="true" /> }
+    ? { label: t.commandUseSystemTheme, glyph: "monitor", icon: <Monitor className="titlebar-theme-icon" aria-hidden="true" /> }
     : effectiveThemeScheme === "dark"
-      ? { label: t.titlebarSwitchToLightTheme, icon: <Sun className="titlebar-theme-icon" aria-hidden="true" /> }
-      : { label: t.titlebarSwitchToDarkTheme, icon: <Moon className="titlebar-theme-icon" aria-hidden="true" /> };
+      ? { label: t.titlebarSwitchToLightTheme, glyph: "sun", icon: <Sun className="titlebar-theme-icon" aria-hidden="true" /> }
+      : { label: t.titlebarSwitchToDarkTheme, glyph: "moon", icon: <Moon className="titlebar-theme-icon" aria-hidden="true" /> };
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
   const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
   const [historyController] = useState(() => createHistoryController(historyPort));
@@ -911,6 +907,19 @@ export function App(): React.JSX.Element {
     }
     setProjectSettingsSection(section);
     setIsProjectSettingsOpen(true);
+  };
+  /** Opens an open project's folder in the system's file manager. */
+  const openProjectFolder = (id: string): void => {
+    const session = sessionsState.byId[id];
+    if (!session) return;
+    void repositoryController
+      .openFolder({ path: session.project.path, sessionEpoch: session.epoch })
+      .catch((error: unknown) =>
+        showErrorDialog(
+          t.overviewOpenFolderFailedTitle,
+          localizeAppError(error, t, t.overviewOpenFolderFailedMessage),
+        ),
+      );
   };
   /** Starts the read the panel opens with while the pointer is still on its way
    * to the gear. A user who never opens it pays nothing. */
@@ -2280,6 +2289,7 @@ export function App(): React.JSX.Element {
           ? pathParts.at(-2) ?? normalizedPath
           : null,
       branch: session.project.headState === "branch" ? session.project.branch ?? null : null,
+      path: session.project.path,
       hasError: Boolean(session.workingTreeError || session.pendingVersionsError),
       hasOperationInProgress: Boolean(
         session.operation &&
@@ -2293,20 +2303,40 @@ export function App(): React.JSX.Element {
       avatarStyle: projectAvatarStyle,
     };
   });
-  /**
-   * What the collapsed rail's jump menu offers. Favourites only — the menu is
-   * a shortcut, and a shortcut that lists everything is just the switcher
-   * again in a worse place.
-   *
-   * Until the first project is favourited it lists them all, so the menu is
-   * useful before anyone has been taught the feature exists. The alternative
-   * was an empty group with nothing on screen explaining why it was empty or
-   * how to fill it.
-   */
-  const favouriteEntries = switcherEntries.filter((entry) => entry.isFavourite);
-  const jumpMenuEntries = orderByFavourite(
-    favouriteEntries.length > 0 ? favouriteEntries : switcherEntries,
-  );
+  /** What the active project itself needs, for the status bar's project
+   * mark: something to resolve first (a failed or uncertain operation,
+   * overlapping changes, a history that could not be read), then work in
+   * progress. The line's own state — unsaved, unreadable, checking — is the
+   * line marker's. A missing Git identity is not raised here: only the global
+   * one is read, and a project can set its own. */
+  const activeProjectStatus = ((): ProjectStatusMark | null => {
+    if (!activeSession) return null;
+    const phase = activeSession.operation?.phase;
+    if (phase === "error" || phase === "uncertain") {
+      return { kind: "resolve", description: t.projectStatusOperationFailed };
+    }
+    const conflicted = activeSession.workingTree?.counts.conflicted ?? 0;
+    if (conflicted > 0) return { kind: "resolve", description: t.statusConflictsMessage(conflicted) };
+    if (activeSession.pendingVersionsError) {
+      return { kind: "resolve", description: t.projectStatusHistoryUnreadable };
+    }
+    if (phase === "executing" || phase === "verifying") {
+      return { kind: "busy", description: t.projectSwitcherOperationIndicator };
+    }
+    return null;
+  })();
+  /** The recent projects the status bar's popup offers to reopen: Home's
+   * list without the ones already open, newest first, a handful at most. */
+  const closedRecentProjects: ProjectSwitcherRecent[] = recentProjectEntries
+    .filter((entry) => entry.openState === null)
+    .slice(0, 5)
+    .map((entry) => ({
+      path: entry.path,
+      name: entry.name,
+      iconChoice: entry.iconChoice,
+      technology: entry.technology,
+      avatarStyle: entry.avatarStyle,
+    }));
   const closeTargetSession = closeTargetId ? sessionsState.byId[closeTargetId] : null;
 
   const toRailItem = (destination: (typeof NAV_DESTINATIONS)[number]): RailNavItem => {
@@ -2478,77 +2508,9 @@ export function App(): React.JSX.Element {
 
               <div className="app-menu__divider" role="separator" />
 
-              {/* The project group, flattened. The rail spends an avatar and a
-                  "+" on two menus of their own; a list this short can just say
-                  what those menus would have said. */}
-              {jumpMenuEntries.map((entry) => (
-                <button
-                  key={entry.id}
-                  className={`app-menu__item${view !== "home" && entry.id === sessionsState.activeId ? " app-menu__item--selected" : ""}`}
-                  type="button"
-                  role="menuitem"
-                  disabled={hasBlockingDialog}
-                  aria-current={view !== "home" && entry.id === sessionsState.activeId ? "true" : undefined}
-                  aria-label={t.projectSwitcherRailTrigger(entry.name)}
-                  onClick={() => {
-                    closeJumpMenu();
-                    activateSession(entry.id);
-                  }}
-                >
-                  <ProjectAvatar
-                    id={entry.id}
-                    name={entry.name}
-                    className="sidebar-jump__avatar"
-                    iconChoice={entry.iconChoice}
-                    technology={entry.technology}
-                    style={entry.avatarStyle}
-                  />
-                  <span>{entry.name}</span>
-                </button>
-              ))}
-              <button
-                className="app-menu__item"
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  closeJumpMenu();
-                  setInitializeDialogRequest({ mode: "new-folder" });
-                }}
-              >
-                <FolderPlus aria-hidden="true" />
-                <span>{t.projectSwitcherCreateProject}</span>
-              </button>
-              <button
-                className="app-menu__item"
-                type="button"
-                role="menuitem"
-                disabled={isOpening}
-                onClick={() => {
-                  closeJumpMenu();
-                  void handleOpenProject();
-                }}
-              >
-                <FolderOpen aria-hidden="true" />
-                <span>
-                  {switcherEntries.length > 0 ? t.projectSwitcherOpenAnotherProject : t.projectSwitcherOpenProject}
-                </span>
-              </button>
-              <button
-                className="app-menu__item"
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  closeJumpMenu();
-                  setIsCloneOpen(true);
-                }}
-              >
-                <CloudDownload aria-hidden="true" />
-                <span>{t.projectSwitcherCloneProject}</span>
-              </button>
-
-              <div className="app-menu__divider" role="separator" />
-
-              {/* The foot, in the same order the rail stacks it. */}
+              {/* Projects are the status bar's (task 189): the menu keeps the
+                  destinations and, in the same order the rail stacks it, the
+                  foot. */}
               {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map(
                 (destination) => {
                   const { screen, overlay } = destination;
@@ -2609,8 +2571,11 @@ export function App(): React.JSX.Element {
               <ChevronRight aria-hidden="true" />
             </button>
           </div>
+          {/* The rail's foot holds the theme toggle (task 189); the title bar
+              keeps a copy only while the rail is not showing — hidden by its
+              toggle, or gone in the compact layout. */}
           <button
-            className="titlebar-icon-button"
+            className={`titlebar-icon-button titlebar-theme-toggle${isSidebarHidden ? "" : " titlebar-theme-toggle--in-rail"}`}
             type="button"
             aria-label={themeToggle.label}
             data-tooltip={themeToggle.label}
@@ -2691,32 +2656,27 @@ export function App(): React.JSX.Element {
             onCustomize={() => openSettings("navigation")}
           />
 
-          {/* Slack-like hierarchy: the destinations answer "where in this
-              project am I", everything in the tray answers "which project,
-              and which app-level control". The free height above carries the
-              split in a tall window; the tray's own shape keeps it when a
-              short one closes that gap. */}
-          <div className="sidebar-tray">
-            <div className="sidebar-project-section" data-flyout-group-anchor="">
-              <ProjectSwitcherRail
-                entries={switcherEntries}
-                activeId={sessionsState.activeId}
-                isHome={view === "home"}
-                onOpenHome={() => navigateToView("home")}
-                canSwitch={!hasBlockingDialog}
-                isOpening={isOpening}
-                onActivate={activateSession}
-                onClose={requestCloseSession}
-                onOpenAnother={() => void handleOpenProject()}
-                onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-                onClone={() => setIsCloneOpen(true)}
-                onToggleFavourite={toggleFavouriteProject}
-                onOpenProjectSettings={openProjectSettings}
-                onPrefetchProjectSettings={prefetchProjectSettings}
-              />
-            </div>
-
+          {/* The destinations answer "where in this project am I"; the foot
+              answers "which app-level control". Which project is the status
+              bar's to say and change (task 189). The free height above carries
+              the split in a tall window; the foot's own shape — three filled
+              circles with no caption — keeps it when a short one closes that
+              gap. */}
             <nav aria-label={t.navApplicationAriaLabel} className="sidebar-foot">
+              {/* The theme is the app's, not the project's, so it sits with
+                  Settings and Account. One control, three meanings: back to the
+                  device, or to the other official scheme; the glyph and the
+                  name always describe the change the press will make. */}
+              <button
+                className="sidebar-round sidebar-round--theme"
+                type="button"
+                data-glyph={themeToggle.glyph}
+                aria-label={themeToggle.label}
+                data-tooltip={themeToggle.label}
+                onClick={toggleTheme}
+              >
+                {themeToggle.icon}
+              </button>
               {NAV_DESTINATIONS.filter((destination) => destination.section === "application" && destination.inRail).map((destination) => {
                 const { screen, overlay } = destination;
                 const isActive = overlay === "settings" ? isSettingsOpen : screen !== null && view === screen;
@@ -2724,7 +2684,7 @@ export function App(): React.JSX.Element {
                 return (
                   <button
                     key={destination.id}
-                    className={`sidebar-round${isActive ? " sidebar-round--active" : ""}`}
+                    className={`sidebar-round${overlay === "settings" ? " sidebar-round--settings" : ""}${isActive ? " sidebar-round--active" : ""}`}
                     type="button"
                     disabled={screen === null && overlay === undefined}
                     aria-current={screen !== null && isActive ? "page" : undefined}
@@ -2746,7 +2706,7 @@ export function App(): React.JSX.Element {
                   and saying so, rather than appearing later and pushing the
                   rail's furniture around. */}
               <button
-                className="sidebar-round"
+                className="sidebar-round sidebar-round--account"
                 type="button"
                 aria-disabled="true"
                 aria-label={t.navAccountTitle}
@@ -2755,7 +2715,6 @@ export function App(): React.JSX.Element {
                 <UserRound aria-hidden="true" />
               </button>
             </nav>
-          </div>
         </aside>
 
         <section
@@ -2763,22 +2722,6 @@ export function App(): React.JSX.Element {
           className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}${view === "console" ? " workspace--console" : ""}`}
         >
           <div className="compact-nav-row">
-            <ProjectSwitcherCompact
-              entries={switcherEntries}
-              activeId={sessionsState.activeId}
-              isHome={view === "home"}
-              onOpenHome={() => navigateToView("home")}
-              canSwitch={!hasBlockingDialog}
-              isOpening={isOpening}
-              onActivate={activateSession}
-              onClose={requestCloseSession}
-              onOpenAnother={() => void handleOpenProject()}
-              onCreate={() => setInitializeDialogRequest({ mode: "new-folder" })}
-              onClone={() => setIsCloneOpen(true)}
-              onToggleFavourite={toggleFavouriteProject}
-              onOpenProjectSettings={openProjectSettings}
-              onPrefetchProjectSettings={prefetchProjectSettings}
-            />
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
               <button
                 className="titlebar-icon-button"
@@ -2961,15 +2904,7 @@ export function App(): React.JSX.Element {
                   selfEmail={gitIdentity.identity.email || null}
                   onGoToVersionLines={() => navigateToView("version-lines")}
                   onOpenProjectFolder={() => {
-                    if (!project || !activeSession) return;
-                    void repositoryController
-                      .openFolder({ path: project.path, sessionEpoch: activeSession.epoch })
-                      .catch((error: unknown) =>
-                        showErrorDialog(
-                          t.overviewOpenFolderFailedTitle,
-                          localizeAppError(error, t, t.overviewOpenFolderFailedMessage),
-                        ),
-                      );
+                    if (activeSession) openProjectFolder(activeSession.id);
                   }}
                   onOpenSaveVersion={() => startSessionOperation("save")}
                   teamSync={teamSync}
@@ -3160,8 +3095,25 @@ export function App(): React.JSX.Element {
           versionLineCreate={versionLineCreate}
           onSeeAllVersionLines={() => navigateToView("version-lines")}
           onCheckTeamChanges={() => checkTeamChanges()}
-          onOpenProjectSettings={() => openProjectSettings()}
-          onPrefetchProjectSettings={() => prefetchProjectSettings()}
+          projectSwitch={{
+            entries: switcherEntries,
+            recent: closedRecentProjects,
+            activeId: sessionsState.activeId,
+            canSwitch: !hasBlockingDialog,
+            isOpening,
+            onActivate: activateSession,
+            onOpenRecent: (path) => void handleOpenProject(path),
+            onClose: requestCloseSession,
+            onOpenAnother: () => void handleOpenProject(),
+            onCreate: () => setInitializeDialogRequest({ mode: "new-folder" }),
+            onClone: () => setIsCloneOpen(true),
+            onToggleFavourite: toggleFavouriteProject,
+            onOpenProjectSettings: openProjectSettings,
+            onPrefetchProjectSettings: prefetchProjectSettings,
+            onOpenFolder: openProjectFolder,
+            onOpenHome: () => navigateToView("home"),
+            activeStatus: activeProjectStatus,
+          }}
           onPublish={() => openPublishDialog()}
           onGetChanges={() => startSessionOperation("sync")}
           onGetAndPublish={() => startSessionOperation("sync", undefined, undefined, "getAndPublish")}

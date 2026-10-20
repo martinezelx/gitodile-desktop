@@ -55,10 +55,10 @@ describe("translation composition", () => {
     expect(translations.es.workbenchTabChanges).toBe("Cambios");
     expect(translations.en.versionLinesTitle).toBe("Lines");
     expect(translations.es.versionLinesTitle).toBe("Líneas");
-    expect(translations.en.projectSwitcherRailTrigger("  ")).toBe(
+    expect(translations.en.projectSwitcherTrigger("  ")).toBe(
       "Unnamed project — switch project",
     );
-    expect(translations.es.projectSwitcherRailTrigger("  ")).toBe(
+    expect(translations.es.projectSwitcherTrigger("  ")).toBe(
       "Proyecto sin nombre — cambiar de proyecto",
     );
     expect(translations.en.statusChangesMessage(3)).toBe("3 files changed since your last saved version.");

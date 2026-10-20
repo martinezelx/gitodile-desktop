@@ -253,6 +253,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/** The theme toggle lives in the rail's foot (task 189); the title bar's copy
+ * is hidden by CSS while the rail shows, which jsdom does not apply. */
+function railButton(name: string): HTMLElement {
+  const foot = document.querySelector<HTMLElement>(".sidebar-foot");
+  if (!foot) throw new Error("The rail's foot is not rendered");
+  return within(foot).getByRole("button", { name });
+}
+
 describe("TitlebarMenu", () => {
   function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
@@ -1262,9 +1270,9 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
 
-    // Titlebar toggle and Settings reach the same animation: the toggle's own
+    // The rail's toggle and Settings reach the same animation: the toggle's own
     // origin-anchored sweep was withdrawn, and "system" never had an origin.
-    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await user.click(railButton("Switch to dark theme"));
     await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
     const dialog = screen.getByRole("dialog", { name: "Settings" });
     await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
@@ -1305,15 +1313,15 @@ describe("App project restoration", () => {
     await waitFor(() =>
       expect(document.documentElement.dataset.theme).toBe("catppuccin-mocha"),
     );
-    await user.click(screen.getByRole("button", { name: "Use system theme" }));
+    await user.click(railButton("Use system theme"));
     // "Match device" keeps no attribute, so the media query follows the device.
     await waitFor(() => expect(document.documentElement.dataset.theme).toBeUndefined());
 
     // With the device selected, the toggle flips the official pair. jsdom's
     // prefers-color-scheme is light, so the first flip is to the official dark.
-    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await user.click(railButton("Switch to dark theme"));
     expect(document.documentElement.dataset.theme).toBe("gitodile-dark");
-    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
+    await user.click(railButton("Switch to light theme"));
     expect(document.documentElement.dataset.theme).toBe("gitodile-light");
   });
 
@@ -1456,9 +1464,9 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+      screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }),
     );
-    await userEvent.click(screen.getByRole("button", { name: new RegExp(`^${secondProject.name}`) }));
+    await userEvent.click(screen.getByRole("button", { name: `Switch to ${secondProject.name}` }));
 
     await waitFor(() =>
       expect(
@@ -1565,11 +1573,8 @@ describe("App project restoration", () => {
       { name: "Get" },
       { timeout: 3000 },
     );
-    // The rail keeps switching and closing behind one trigger, so blocking
-    // the switcher blocks both.
-    expect(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
-    ).toHaveAttribute("aria-disabled", "true");
+    // The status bar's project popup disables switching and closing while
+    // the plan is open (ProjectSwitcher.test.tsx covers the rows).
 
     const readsBefore = mockedInvoke.mock.calls.filter(
       ([command]) => command === "read_working_tree_status",
@@ -1853,14 +1858,13 @@ describe("App project restoration", () => {
     render(<LanguageProvider><App /></LanguageProvider>);
     await screen.findByRole("heading", { name: restoredProject.name });
 
-    await user.click(screen.getByRole("button", { name: `${restoredProject.name} — switch project` }));
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }));
     await user.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
 
-    // Home, with no project active: the other one is still open in the
-    // switcher, but the reader picks it rather than being moved into it.
+    // Home, with no project active: the other one is still open, but the
+    // reader picks it rather than being moved into it.
     expect(await screen.findByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: secondProject.name })).toBeNull();
-    expect(screen.getByRole("button", { name: "Open projects" })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBeNull();
   });
 
@@ -1975,7 +1979,7 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+      screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }),
     );
     await userEvent.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
     await waitFor(() =>
@@ -2247,13 +2251,8 @@ describe("App project restoration", () => {
     expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     expect(document.querySelector(".home-launcher .gitodile-mascot")).toHaveClass("gitodile-mascot--blink");
     expect(document.querySelector(".home-launcher .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
-    // The project is still open and active on Home, so the rail keeps naming
-    // it; inside the switcher Home is where the reader is, not the project.
-    await user.click(screen.getByRole("button", { name: `${restoredProject.name} — switch project` }));
-    const switcher = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(switcher).getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
-    expect(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) })).not.toHaveAttribute("aria-current");
-    await user.click(within(switcher).getByRole("button", { name: new RegExp(`^${restoredProject.name}`) }));
+    // The project is still open and active on Home: Back returns to it.
+    await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
     expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More actions" }));
     await user.click(screen.getByRole("menuitem", { name: "Home" }));
