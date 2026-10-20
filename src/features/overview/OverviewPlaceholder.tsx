@@ -14,21 +14,28 @@ const HISTORY_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /** Recent history's list before its first read answers. Shared with the whole
- * screen's placeholder, so the card looks the same either way it loads. */
+ * screen's placeholder, so the card looks the same either way it loads. The
+ * rows sit under a chip's place, the way the read list opens with its group
+ * or its published mark, so they land where the versions will. */
 export function HistoryPlaceholderList(): React.JSX.Element {
   return (
-    <ol className="overview-timeline">
-      {HISTORY_PLACEHOLDER_WIDTHS.map(([subject, meta]) => (
-        <li key={subject} className="overview-timeline__item">
-          <span className="overview-history__row">
-            <span className="overview-history__node" />
-            <span className="overview-history__body">
-              <span className="overview-history__subject"><TextPlaceholder width={subject} /></span>
-              <span className="overview-history__meta"><TextPlaceholder width={meta} /></span>
-            </span>
-          </span>
-        </li>
-      ))}
+    <ol className="overview-timeline overview-timeline--after-now">
+      <li className="overview-timeline__group">
+        <p className="overview-timeline__group-head"><TextPlaceholder className="overview-placeholder__chip" /></p>
+        <ol className="overview-timeline__rows">
+          {HISTORY_PLACEHOLDER_WIDTHS.map(([subject, meta]) => (
+            <li key={subject} className="overview-timeline__item">
+              <span className="overview-history__row">
+                <span className="overview-history__node" />
+                <span className="overview-history__body">
+                  <span className="overview-history__subject"><TextPlaceholder width={subject} /></span>
+                  <span className="overview-history__meta"><TextPlaceholder width={meta} /></span>
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </li>
     </ol>
   );
 }
@@ -88,9 +95,9 @@ export function OverviewPlaceholder(): React.JSX.Element {
           <TextPlaceholder className="overview-placeholder__avatar" />
         </span>
         <span className="overview-header__name overview-placeholder__name"><TextPlaceholder width="8em" /></span>
-        <TextPlaceholder className="overview-home__placeholder" />
-        <TextPlaceholder className="overview-header__tool overview-header__tool--first overview-placeholder__tool" />
         <TextPlaceholder className="overview-header__tool overview-placeholder__tool" />
+        <TextPlaceholder className="overview-header__tool overview-placeholder__tool" />
+        <TextPlaceholder className="overview-home__placeholder" />
       </div>
 
       <NextStepPlaceholder />
@@ -103,7 +110,23 @@ export function OverviewPlaceholder(): React.JSX.Element {
               {t.overviewHistoryTitle}
             </h2>
           </div>
-          <HistoryPlaceholderList />
+          <div className="overview-history__fit">
+            {/* "Now" heads the timeline before anything is read, as it does
+                once the project lands. */}
+            <ol className="overview-timeline overview-timeline--pinned">
+              <li className="overview-timeline__now">
+                <div className="overview-now overview-now--quiet">
+                  <span className="overview-now__node" />
+                  <p className="overview-now__title">
+                    <span className="overview-now__label">{t.overviewNowLabel}</span>
+                    <span>·</span>
+                    <TextPlaceholder width="7em" />
+                  </p>
+                </div>
+              </li>
+            </ol>
+            <HistoryPlaceholderList />
+          </div>
         </div>
       </div>
     </LoadingPlaceholder>

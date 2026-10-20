@@ -38,11 +38,12 @@ export type OverviewProjectIdentity = {
 
 /**
  * Who this screen is about, as one row rather than a block: the project's
- * icon and name, and where it lives as a chip beside them — the service and
- * its `owner/name`, opening its page, or "Only on this computer" — the way
- * Vercel and Linear head a page; and the project's folder and settings at
- * the far end. The line it is on is the status bar's, not
- * repeated here. The path is the folder button's tooltip and the technology
+ * icon and name with its own tools right after it — its folder and its
+ * settings, actions on the project the name names — and where it lives as a
+ * chip at the far end: the service and its `owner/name`, opening its page,
+ * or "Only on this computer". The edge of the row is what leads out of the
+ * app, aligned with the next-step card's actions below it. The line it is on
+ * is the status bar's, not repeated here. The path is the folder button's tooltip and the technology
  * is the project's own icon, so neither is spelled out. The next-step card
  * under it is the page's subject; this row only says whose page this is.
  */
@@ -97,9 +98,8 @@ function OverviewHeader({
         </span>
       </button>
       <h1 id="project-summary-heading" className="overview-header__name" title={project.name} tabIndex={-1} data-screen-focus>{project.name}</h1>
-      <RemoteHomeCrumb home={home} onOpen={onOpenRemoteHome} />
       <button
-        className="overview-header__tool overview-header__tool--first"
+        className="overview-header__tool"
         type="button"
         aria-label={t.overviewOpenFolder}
         data-tooltip={`${t.overviewOpenFolder} · ${project.path}`}
@@ -118,6 +118,7 @@ function OverviewHeader({
       >
         <Settings aria-hidden="true" />
       </button>
+      <RemoteHomeCrumb home={home} onOpen={onOpenRemoteHome} />
     </header>
   );
 }

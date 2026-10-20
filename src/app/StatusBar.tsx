@@ -320,12 +320,12 @@ export function StatusBar({
       {project ? (
         // The one persistent statement of what is being worked on — which
         // project, and which line of it — and the one global way to change the
-        // line. The two facts are the sentence, split by the same hairline the
-        // remote block uses, so the strip reads as two equal blocks.
+        // line. The two facts are one path — the project, then its line — so a
+        // quiet slash stands between them the way a breadcrumb reads.
         <span className="status-bar__block status-bar__block--where">
           {/* The name doubles as the way into the project's settings, so the
               sentence reads "project / line" with nothing between them but the
-              hairline. */}
+              slash. */}
           <button
             className="status-bar__seg status-bar__project"
             type="button"
@@ -338,7 +338,7 @@ export function StatusBar({
             <FolderGit2 aria-hidden="true" />
             <span>{project.name}</span>
           </button>
-          <span className="status-bar__hair" aria-hidden="true" />
+          <span className="status-bar__path" aria-hidden="true">/</span>
           <VersionLineQuickSwitch
             snapshot={versionLines}
             isLoadingSnapshot={isLoadingVersionLines}
@@ -393,12 +393,13 @@ export function StatusBar({
       </div>
 
       {project && (
-        // The remote block, built exactly like the project one: two segments of
-        // one size, weight and hover, split by the same hairline. The first is
-        // the state and its press; the second is the check. Neither block holds
-        // a fill at rest — the fill is what hovering or pressing a segment
-        // looks like — and a state that calls for a sync keeps its accent glyph
-        // and says its verb in words instead of filling the block.
+        // The remote block: two segments of the project block's size, weight
+        // and hover, with no mark between them — the fact and the check are
+        // told apart by their glyphs, so the block reads as one phrase. The
+        // first is the state and its press; the second is the check. Neither
+        // block holds a fill at rest — the fill is what hovering or pressing a
+        // segment looks like — and a state that calls for a sync keeps its
+        // accent glyph and says its verb in words instead of filling the block.
         <span className="status-bar__block status-bar__block--remote" aria-live="polite">
           {syncAction ? (
             <button
@@ -443,7 +444,6 @@ export function StatusBar({
               {teamTooltip && <span className="visually-hidden"> · {teamTooltip}</span>}
             </button>
           )}
-          <span className="status-bar__hair" aria-hidden="true" />
           {checkButton}
         </span>
       )}

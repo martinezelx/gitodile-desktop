@@ -423,10 +423,11 @@
 }
 .app-shell--internal-scroll .status-bar::before { display: none; }
 /* Two blocks and a field. A block is one object: segments of the same size,
-   weight and hover, split by one hairline. The left block says where you are
+   weight and hover. The left block says where you are
    — the project, then the line — and the right block says what is happening
    to it and carries the one gesture that renews it. Within a block, 6px binds
-   a glyph to its words; the hairline divides the two segments; the strip's own
+   a glyph to its words; a slash joins the project to its line as one path,
+   and the remote's two segments sit apart by air alone; the strip's own
    12px gap separates the blocks from the field. */
 .status-bar__block {
   display: inline-flex;
@@ -471,15 +472,20 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
    press it cannot honour. */
 .status-bar__seg--fact { cursor: default; }
 .status-bar__seg--muted { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
-/* The one divider a block owns, at the same size on both sides. */
-.status-bar__hair {
-  width: 1px;
-  height: 16px;
+/* "project / line" reads as a path, so the left block joins its facts with a
+   slash in a faint ink, lighter than either name so a line that carries its
+   own slash (release/0.3.1) keeps the stronger mark. The remote block needs
+   no mark: its glyphs already tell the fact from the check. */
+.status-bar__path {
   flex-shrink: 0;
-  margin: 0 3px;
-  background: var(--border-divider);
+  padding: 0 1px;
+  color: color-mix(in srgb, var(--text-secondary-color) 70%, transparent);
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-normal);
+  line-height: var(--leading-none);
 }
-/* "project │ line", one statement, split by the block's hairline. The name is
+.status-bar__block--remote { gap: 4px; }
+/* "project / line", one statement joined by the block's slash. The name is
    also the way into its settings and the line is the one global way to change
    it; each may take about a third of the window and gives the rest back with
    an ellipsis, the name first. */
@@ -518,9 +524,9 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* The same type as the project's name: `project │ line` is one sentence, so
+  /* The same type as the project's name: `project / line` is one sentence, so
      the line drops the selector's mono rather than switching typeface after
-     the hairline. */
+     the slash. */
   font-family: inherit;
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
@@ -561,7 +567,7 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .status-bar__sync-action--get svg,
 .status-bar__sync-action--getAndPublish svg { color: var(--tone-remote); }
 /* The check: the gesture that renews the fact, right after it and behind the
-   same hairline the project block uses. At rest it carries how fresh the
+   fact with only air between them. At rest it carries how fresh the
    answer is — "3 min ago" — so "up to date" is trusted without hovering;
    while a check runs the remote's one spinner lives on the fact, and this
    segment only goes quiet. */

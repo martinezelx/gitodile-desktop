@@ -9,9 +9,9 @@
 
 /* ---- Header ----
    Not a card and not a block: one row — the project's icon and name, where it
-   lives as a chip beside them, the way Vercel and Linear head a page — with
-   the folder and settings at the far end. The row wraps rather than
-   truncating when the window is narrow. */
+   lives as a chip at the far end — with the folder and settings right after
+   the name, the project's own actions beside the thing they act on. The row
+   wraps rather than truncating when the window is narrow. */
 .overview-header {
   min-width: 0;
   min-height: 40px;
@@ -85,7 +85,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Where the project lives, beside the project's name: a chip of its own
+/* Where the project lives, at the row's end: a chip of its own
    rather than a breadcrumb's next part — a slash before an `owner/name` read
    as one long path. Hairline-edged and unfilled at rest, in the secondary
    ink: the service's mark and the remote's own path in mono. When it opens
@@ -119,11 +119,18 @@
 .overview-home--link:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .overview-home--link:hover .overview-home__out { opacity: 1; }
 .overview-home--link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* The chip takes the row's end, where what leads out of the app lines up
+   with the actions of the card below it. */
+.overview-header > .overview-home,
+.overview-header > .overview-home__placeholder { margin-left: auto; }
 /* Its shape while it is read: the chip's own size, no edge. */
-.overview-home__placeholder { width: 180px; height: 28px; margin-block: 0; border-radius: var(--radius-pill); }
-/* The project's tools at the row's end — its folder, its settings: bare round
-   glyphs with no border and no fill until they are pointed at, so the header
-   holds no form-control chrome at rest. */
+.overview-home__placeholder { width: 220px; height: 28px; margin-block: 0; border-radius: var(--radius-pill); }
+/* The project's tools right after its name — its folder, its settings: bare
+   round glyphs in the secondary ink with no border and no fill until they are
+   pointed at, so they never compete with the name. The name truncates before
+   they move. They keep the row's full gap from the name, so even beside a
+   short name they read as actions rather than as part of the title, and sit
+   closer to each other than to it. */
 .overview-header__tool {
   flex-shrink: 0;
   width: var(--control-height-sm);
@@ -141,7 +148,7 @@
 .overview-header__tool:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .overview-header__tool:active { background: var(--surface-active); }
 .overview-header__tool:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.overview-header__tool--first { margin-left: auto; }
+.overview-header__tool + .overview-header__tool { margin-left: calc(var(--space-1) - var(--space-3)); }
 
 /* ---- The next-step card ----
    The one thing to do now, why, and the button that does it. The band is a
@@ -285,6 +292,9 @@
 .overview-history__header {
   display: flex;
   align-items: center;
+  /* "View all" arrives with the first read; the head holds its height from
+     the start so the timeline under it does not step down when it does. */
+  min-height: var(--control-height-sm);
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-1);
@@ -966,9 +976,18 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   border-radius: var(--radius-identity);
 }
 .overview-placeholder__name { min-width: 8em; }
-/* The folder and settings buttons' round places. */
-.overview-placeholder__tool { width: 22px; height: 22px; margin: 0 5px; background: color-mix(in srgb, var(--text-secondary-color) 18%, transparent); }
-.overview-placeholder__tool.overview-header__tool--first { margin-left: auto; }
+/* The folder and settings buttons' round places, beside the name: the
+   buttons' own box and spacing, with the faint disc inset to the glyph's size. */
+.overview-placeholder__tool { margin-block: 0; padding: 5px; background-clip: content-box; }
+/* The timeline chip's place at the head of the rows. */
+.overview-placeholder__chip { width: 140px; height: 24px; margin-block: 0; }
+/* Text runs stand in a line box of their own height, so a row is as tall
+   before it is read as after. */
+.next-step__title > .text-placeholder,
+.next-step__hint > .text-placeholder,
+.overview-history__subject > .text-placeholder,
+.overview-now__title > .text-placeholder,
+.overview-placeholder__name > .text-placeholder { margin-block: 0; }
 @media (prefers-reduced-motion: reduce) {
   .overview-restore { animation: none; }
   .empty-state__icon--loading svg,

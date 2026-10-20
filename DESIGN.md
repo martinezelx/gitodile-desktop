@@ -288,13 +288,15 @@ The main desktop window should broadly support:
 
    The strip is two blocks of the *same object* and a field between them: the
    left block says where you are and the right one says what is happening to
-   it. A block is segments of one size, weight and hover, split by a single 1px
-   hairline — the same divider on both sides — so the two halves read as one
-   component rather than as two systems.
+   it. A block is segments of one size, weight and hover. Each block uses the
+   mark that says what it holds: the left one is a path, so a faint slash joins
+   its two facts; the right one is a fact and the check that renews it, told
+   apart by their glyphs, so only air stands between them. Neither uses a
+   vertical rule, which read as a terminal's `|` rather than as a sentence.
 
-   The project's name and the line's name are the left block, `project │ line`,
+   The project's name and the line's name are the left block, `project / line`,
    with no words in front of them: the name is a segment and the line is the
-   next one, separated by the block's hairline. Both sit in the same sans at
+   next one, joined by the block's slash. Both sit in the same sans at
    the name weight — the line drops the mono it wears elsewhere, since a
    typeface change inside one block split it in two. The name is what keeps the
    strip saying something once the reader has left Overview, and both truncate
@@ -612,9 +614,13 @@ The main desktop window should broadly support:
    "publish" four times on one screen. Its parts, top to bottom:
 
    - **One row, not a header block** (Vercel's and Linear's page tops): the
-     project's own icon, its name, and where it lives as a chip beside it —
-     no slash: before an `owner/name` it read as one long path — and, at the
-     row's end, the project's folder and its settings as bare round glyphs.
+     project's own icon, its name, the project's folder and its settings as
+     bare round glyphs right after the name — actions on the project beside
+     the name they act on, in the secondary ink and a full gap from it so
+     they never read as part of the title — and, at the row's end, where it
+     lives as a chip, lined up with the next-step card's buttons below: the
+     edge of the row is what leads out of the app. No slash before the chip:
+     before an `owner/name` it read as one long path.
      The icon is the identity chip the rail shows for the project and opens
      its icon picker. The chip is hairline-edged and unfilled at rest. Where
      it lives is the remote the line publishes

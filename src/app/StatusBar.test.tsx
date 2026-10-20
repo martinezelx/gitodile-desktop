@@ -175,15 +175,16 @@ describe("StatusBar", () => {
     expect(onQueryChange).toHaveBeenCalled();
   });
 
-  it("builds where you are and the remote as the same block, split by a hairline", () => {
+  it("builds where you are as a path and the remote as one phrase", () => {
     const { container } = renderBar();
 
     const blocks = container.querySelectorAll(".status-bar__block");
     expect(blocks).toHaveLength(2);
     expect(blocks[0]).toHaveClass("status-bar__block--where");
     expect(blocks[1]).toHaveClass("status-bar__block--remote");
-    // Both blocks carry their own hairline, at the same size.
-    for (const block of blocks) expect(block.querySelector(".status-bar__hair")).not.toBeNull();
+    // The project and its line are a path; the remote's segments need no mark.
+    expect(blocks[0].querySelector(".status-bar__path")).toHaveTextContent("/");
+    expect(blocks[1].querySelector(".status-bar__path")).toBeNull();
     // The strip no longer carries the app version: its release notes live in
     // the menu and the notification centre now.
     expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
@@ -198,10 +199,10 @@ describe("StatusBar", () => {
     expect(children[1]).toHaveClass("status-bar__search-slot");
     expect(children[2]).toHaveClass("status-bar__block--remote");
     expect(footer.querySelector(".status-bar__sync")).not.toBeNull();
-    // The remote's two segments — the fact and the check — split by a hairline.
+    // The remote's two segments — the fact and the check — side by side.
     const remote = footer.querySelector(".status-bar__block--remote");
     expect(remote?.querySelectorAll(".status-bar__seg")).toHaveLength(2);
-    expect(remote?.querySelector(".status-bar__hair")).not.toBeNull();
+    expect(remote?.querySelector(".status-bar__seg + .status-bar__refresh")).not.toBeNull();
   });
 
   it("opens the active project's settings from its name, before the line", async () => {
@@ -213,8 +214,8 @@ describe("StatusBar", () => {
     expect(button).toHaveClass("status-bar__project");
     expect(button).toHaveTextContent("gitodile");
     expect(button).toHaveAttribute("data-tooltip", "Project: gitodile · Project settings");
-    // "project │ line": only the block's hairline stands between the two facts.
-    expect(button.nextElementSibling).toHaveClass("status-bar__hair");
+    // "project / line": only the block's slash stands between the two facts.
+    expect(button.nextElementSibling).toHaveClass("status-bar__path");
     expect(button.nextElementSibling?.nextElementSibling).toHaveClass("version-lines-quick-switch");
     await userEvent.hover(button);
     button.focus();
@@ -296,8 +297,8 @@ describe("StatusBar", () => {
     for (const [other, fn] of Object.entries(handlers)) {
       if (other !== handler) expect(fn).not.toHaveBeenCalled();
     }
-    // The refresh beside it stays the explicit check, behind the block's own
-    // hairline rather than a loose glyph.
+    // The refresh beside it stays the explicit check, inside the remote's own
+    // block rather than a loose glyph.
     const check = screen.getByRole("button", { name: "Check remote project changes" });
     expect(check).toBeEnabled();
     expect(check.closest(".status-bar__block--remote")).toBe(cloud.closest(".status-bar__block--remote"));
