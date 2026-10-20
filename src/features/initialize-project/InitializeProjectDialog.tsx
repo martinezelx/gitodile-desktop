@@ -432,7 +432,7 @@ export function InitializeProjectDialog({
   if (step === "success" || step === "error" || step === "open-error" || step === "cleanup" || step === "remote-error") {
     const isFailure = step === "error" || step === "open-error" || step === "remote-error";
     const title = step === "success"
-      ? firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeReadyTitle(openedProject?.name ?? projectName)
+      ? firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeReadyTitle
       : step === "cleanup"
         ? cleanupAfterFailure ? t.initializeFailureCleanupTitle : t.initializeCleanupTitle
         : step === "open-error" ? t.initializeOpenFailedTitle
@@ -452,7 +452,7 @@ export function InitializeProjectDialog({
       >
         <p className="app-dialog__text" role={isFailure ? undefined : "status"}>
           {step === "success"
-            ? firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription
+            ? firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription(openedProject?.name ?? projectName)
             : step === "cleanup"
               ? cleanupAfterFailure ? t.initializeFailureCleanupDescription : t.initializeCleanupDescription
               : step === "open-error" ? t.initializeOpenFailedDescription : localizedError}
@@ -591,7 +591,7 @@ export function InitializeProjectDialog({
     return (
       <Dialog
         size="l"
-        title={t.initializeCreatingTitle(projectName)}
+        title={t.initializeCreatingTitle}
         titleId="initialize-dialog-title"
         icon={<FolderPlus />}
         tone="local"
@@ -627,7 +627,6 @@ export function InitializeProjectDialog({
         : t.initializeExistingFact,
     },
     ...(saveInitialVersion ? [{ icon: <GitBranch />, text: t.initializeFirstVersionEffect }] : []),
-    ...(connectRemote ? [{ icon: <Link2 />, text: t.initializeRemoteLaterEffect }] : []),
     { icon: <ShieldCheck />, text: t.initializeSafetyBody, safe: true },
   ];
   return (

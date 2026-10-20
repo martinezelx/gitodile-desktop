@@ -1,8 +1,9 @@
 import { useRef } from "react";
-import { Bug, CircleAlert, Copy, ExternalLink, LoaderCircle, Save } from "lucide-react";
+import { Bug, CircleAlert } from "lucide-react";
 import { useLanguage } from "../i18n";
 import { autoHideScrollbarProps } from "../shared/ui/autoHideScrollbar";
 import { Dialog } from "../shared/ui/dialog";
+import { TextPlaceholder } from "../shared/ui/loadingPlaceholder";
 import { useModalFocus } from "../shared/ui/modalFocus";
 import type { IssueReportState } from "./useIssueReport";
 
@@ -40,11 +41,24 @@ export function IssueReportDialog({ report }: { report: IssueReportState }): Rea
       className="issue-report-dialog"
       bodyProps={{ "aria-busy": report.phase === "preparing" || report.phase === "opening" }}
     >
+      {/* The review's own shape while the report is gathered: the frame it
+          will fill and the actions held back (DESIGN.md § Dialogs). */}
       {report.phase === "preparing" && (
-        <p className="app-dialog__note" id="issue-report-description" role="status">
-          <LoaderCircle className="icon--spinning" aria-hidden="true" />
-          {t.issueReportPreparingMessage}
-        </p>
+        <>
+          <p className="visually-hidden" id="issue-report-description" role="status">{t.issueReportPreparingMessage}</p>
+          <div className="issue-report-dialog__report" aria-hidden="true">
+            <div className="issue-report-dialog__report-body issue-report-dialog__report-body--placeholder">
+              <TextPlaceholder width="54%" />
+              <TextPlaceholder width="38%" />
+              <TextPlaceholder width="66%" />
+            </div>
+          </div>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" disabled>{t.issueReportCopyReport}</button>
+            <button className="secondary-button" type="button" disabled>{t.issueReportSaveReport}</button>
+            <button className="primary-button" type="button" disabled>{t.issueReportContinue}</button>
+          </div>
+        </>
       )}
 
       {reviewing && report.reportText !== null && (
@@ -69,13 +83,13 @@ export function IssueReportDialog({ report }: { report: IssueReportState }): Rea
           <p className="issue-report-dialog__status" role="status">{reportStatus}</p>
           <div className="dialog-actions">
             <button className="secondary-button" type="button" disabled={report.phase === "opening" || report.copyReportState === "working"} onClick={() => void report.copyReport()}>
-              <Copy aria-hidden="true" /> {t.issueReportCopyReport}
+              {t.issueReportCopyReport}
             </button>
             <button className="secondary-button" type="button" disabled={report.phase === "opening" || report.saveState === "working"} onClick={() => void report.saveReport()}>
-              <Save aria-hidden="true" /> {report.saveState === "working" ? t.issueReportSaving : t.issueReportSaveReport}
+              {report.saveState === "working" ? t.issueReportSaving : t.issueReportSaveReport}
             </button>
             <button className="primary-button" type="button" data-autofocus disabled={report.phase === "opening"} onClick={() => void report.continueToGitHub()}>
-              <ExternalLink aria-hidden="true" /> {report.phase === "opening" ? t.issueReportOpening : t.issueReportContinue}
+              {report.phase === "opening" ? t.issueReportOpening : t.issueReportContinue}
             </button>
           </div>
         </>

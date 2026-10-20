@@ -73,32 +73,22 @@
    cards are what let the dot and the per-row dismiss share the row without a
    rule cutting through either.
 
-   The card takes the panel's own `--surface-raised` and is drawn by its border.
-   `--surface-panel` sank it: themes where panel and raised differ (GitOdile
-   Dark, Catppuccin Latte) showed read rows as wells darker than the panel, and
-   in Latte a read row and an unread one came out at the same lightness. */
+   The card is the one inner-card recipe (`--surface-card`, DESIGN.md
+   § Dialogs), drawn by its border. `--surface-panel` sank it: themes where
+   panel and raised differ (GitOdile Dark, Catppuccin Latte) showed read rows
+   as wells darker than the panel; the card surface sits between the two. */
 .notification {
   position: relative;
   display: flex; gap: var(--space-3);
   padding: 10px var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
-  background: var(--surface-raised);
+  background: var(--surface-card);
 }
-/* Deliberately the accent wash, not `--surface-active`. That token is a 12–14%
-   accent wash, and on dark panels it takes `--text-secondary-color` under AA —
-   and these rows are mostly 11px and 12px secondary text. The wash's strength
-   is a token so a theme with a thin text margin can lower it, and
-   `themeContrast.test.ts` holds the secondary text at 4.5:1 on it in every
-   theme.
-
-   Colour alone is not the only signal: an unread row also carries the dot and
-   a heavier title, a read one drops to `--weight-medium`, and a screen reader
-   gets the word. */
-.notification--unread {
-  background: color-mix(in srgb, var(--accent-primary-fill) var(--accent-wash-strength), var(--surface-raised));
-  border-color: color-mix(in srgb, var(--accent-primary-fill) 28%, var(--border-subtle));
-}
+/* Unread is the dot, a heavier title and, for a screen reader, the word — not
+   a wash and a tinted edge, the recipe Overview's next-step card dropped:
+   under the ink accent it only darkened the card. A read row drops to
+   `--weight-medium`. */
 .notification--unread .notification__title { font-weight: var(--weight-strong); padding-right: 14px; }
 
 .notification__icon {
@@ -108,9 +98,9 @@
   background: var(--surface-control);
 }
 .notification__icon svg { width: 14px; height: 14px; }
-.notification__icon--info svg { color: var(--accent-primary); }
-.notification__icon--success svg { color: var(--status-success); }
+.notification__icon--remote svg { color: var(--tone-remote); }
 .notification__icon--warning svg { color: var(--status-warning); }
+.notification__icon--app svg { color: var(--tone-app); }
 
 /* The dot sits in the corner the badge left, and the dismiss button lives in
    the opposite one so the two never compete. */
@@ -140,15 +130,8 @@
 /* A middot between project and time, drawn only when both are there. */
 .notification__project::after { content: "·"; margin-left: 6px; font-weight: var(--weight-normal); }
 
-.notification__action {
-  align-self: flex-start; margin-top: var(--space-1);
-  padding: 5px 12px;
-  border: 1px solid var(--border-control); border-radius: var(--radius-pill);
-  background: var(--surface-panel); color: var(--text-primary-color);
-  font-size: var(--text-label); font-weight: var(--weight-medium);
-  transition: background var(--duration-fast);
-}
-.notification__action:hover { background: var(--surface-hover); }
+/* The shared small secondary button; only its place in the row is local. */
+.notification__action { align-self: flex-start; margin-top: var(--space-1); }
 
 /* Revealed while the row is pointed at or focused; solid where there is no
    pointer, because a hover-only control is unreachable. Destructive in effect
@@ -192,7 +175,7 @@
   padding: var(--space-6) var(--space-4) var(--space-5);
 }
 .notification-center__empty-icon {
-  width: 44px; height: 44px; margin-bottom: 14px;
+  width: 40px; height: 40px; margin-bottom: 14px;
   display: grid; place-items: center;
   border-radius: var(--radius-round);
   background: var(--surface-raised); border: 1px solid var(--border-subtle);
@@ -253,13 +236,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .notification-center__footer-action,
-  .notification__action,
   .notification__dismiss { transition: none; }
 }
 
 @media (forced-colors: active) {
   .notification-center__dot { background: Highlight; box-shadow: 0 0 0 2px Canvas; }
-  .notification--unread { border: 1px solid CanvasText; }
+  /* The row's dot is what says "unread" now that the card has no wash. */
+  .notification__dot { background: Highlight; }
   .notification-center__empty-icon { border-color: CanvasText; }
 }
 

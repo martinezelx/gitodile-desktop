@@ -1,9 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { CircleAlert, GitBranch, LoaderCircle, ShieldCheck, Trash2, TriangleAlert, Undo2 } from "lucide-react";
+import { CircleAlert, CloudUpload, GitBranch, GitMerge, LoaderCircle, ShieldCheck, Trash2, TriangleAlert, Undo2 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError, isAppError } from "../../shared/i18n";
-import { Dialog, DialogBanner, moveFocusWithinRadioGroup, useModalFocus, useToast } from "../../shared/ui";
+import {
+  Dialog,
+  DialogBanner,
+  DialogFacts,
+  LoadingPlaceholder,
+  moveFocusWithinRadioGroup,
+  TextPlaceholder,
+  useModalFocus,
+  useToast,
+} from "../../shared/ui";
 import { autoHideScrollbarProps } from "../../shared/ui";
 import type {
   CreateVersionLinePlan,
@@ -200,6 +209,8 @@ export function CreateVersionLineDialog({
       size="s"
       title={t.createVersionLineTitle}
       titleId="create-version-line-title"
+      icon={<GitBranch />}
+      tone="neutral"
       onClose={requestClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
@@ -208,17 +219,18 @@ export function CreateVersionLineDialog({
       {state.status === "confirm" || state.status === "creating" ? (
         <>
           <p className="app-dialog__text">{state.plan.summary}</p>
-          {state.plan.risks.map((risk) => (
-            <p key={risk} className="app-dialog__text">{risk}</p>
-          ))}
+          {state.plan.risks.length > 0 && (
+            <DialogFacts facts={state.plan.risks.map((risk) => ({ icon: <TriangleAlert />, text: risk }))} />
+          )}
           <div className="dialog-actions">
+            {/* Back, not Cancel: this returns to the form and closes nothing. */}
             <button
               className="secondary-button"
               type="button"
               onClick={() => setState({ status: "form" })}
               disabled={isBusy}
             >
-              {t.commonCancel}
+              {t.createVersionLineBack}
             </button>
             <button
               className="primary-button"
@@ -233,7 +245,6 @@ export function CreateVersionLineDialog({
                 </>
               ) : (
                 <>
-                  <GitBranch aria-hidden="true" />
                   {t.createVersionLineConfirm}
                 </>
               )}
@@ -290,7 +301,6 @@ export function CreateVersionLineDialog({
                 </>
               ) : (
                 <>
-                  <GitBranch aria-hidden="true" />
                   {t.createVersionLineConfirm}
                 </>
               )}
@@ -426,18 +436,29 @@ export function SwitchVersionLineDialog({
   return (
     <Dialog
       size="s"
-      title={t.switchVersionLineTitle(target)}
+      title={t.switchVersionLineTitle}
       titleId="switch-version-line-title"
+      subtitle={t.switchVersionLineTarget(target)}
+      icon={<GitBranch />}
+      tone="neutral"
       onClose={requestClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
       dialogRef={dialogRef}
     >
+      {/* The plan's shape while it is read, with Cancel and the action
+          held back (DESIGN.md § Dialogs). */}
       {state.status === "loading" && (
-        <p className="app-dialog__note" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          {t.switchVersionLineLoading}
-        </p>
+        <>
+          <LoadingPlaceholder label={t.switchVersionLineLoading} className="version-line-dialog__placeholder">
+            <p className="app-dialog__text"><TextPlaceholder width="46%" /></p>
+            <p className="app-dialog__text"><TextPlaceholder width="78%" /></p>
+          </LoadingPlaceholder>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>{t.commonCancel}</button>
+            <button className="primary-button" type="button" disabled>{t.switchVersionLineConfirm}</button>
+          </div>
+        </>
       )}
 
       {state.status === "blocked" && isDirty && (
@@ -513,10 +534,7 @@ export function SwitchVersionLineDialog({
           )}
           {/* Written here from the plan's facts rather than taken from the
               plan's own English sentence: the reader's language decides it. */}
-          <p className="app-dialog__note">
-            <Undo2 aria-hidden="true" />
-            {t.switchVersionLineRecoveryNote(plan.from)}
-          </p>
+          <DialogFacts facts={[{ icon: <Undo2 />, text: t.switchVersionLineRecoveryNote(plan.from), safe: true }]} />
 
           {state.status === "switch-error" && <ErrorBanner error={state.error} t={t} />}
 
@@ -531,10 +549,7 @@ export function SwitchVersionLineDialog({
                   {t.switchVersionLineSwitching}
                 </>
               ) : (
-                <>
-                  <GitBranch aria-hidden="true" />
-                  {t.switchVersionLineConfirm}
-                </>
+                t.switchVersionLineConfirm
               )}
             </button>
           </div>
@@ -703,20 +718,28 @@ export function DeleteVersionLineDialog({
       role={isExplainedBlock ? "alertdialog" : "dialog"}
       title={isExplainedBlock
         ? isConflictBlock ? t.deleteVersionLineConflictTitle : t.deleteVersionLineBlockedTitle
-        : t.deleteVersionLineTitle(target)}
+        : t.deleteVersionLineTitle}
       titleId="delete-version-line-title"
-      icon={isExplainedBlock ? isConflictBlock ? <CircleAlert /> : <TriangleAlert /> : undefined}
-      tone="warning"
+      subtitle={isExplainedBlock ? undefined : t.deleteVersionLineTarget(target)}
+      icon={isExplainedBlock ? isConflictBlock ? <CircleAlert /> : <TriangleAlert /> : <Trash2 />}
+      tone={isExplainedBlock ? "warning" : "danger"}
       onClose={requestClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
       dialogRef={dialogRef}
     >
       {state.status === "loading" && (
-        <p className="app-dialog__note" role="status">
-          <LoaderCircle aria-hidden="true" className="icon--spinning" />
-          {t.versionLinesLoading}
-        </p>
+        <>
+          <LoadingPlaceholder label={t.versionLinesLoading} className="version-line-dialog__placeholder">
+            <p className="app-dialog__text"><TextPlaceholder width="82%" /></p>
+          </LoadingPlaceholder>
+          <div className="dialog-actions">
+            <button className="secondary-button" type="button" onClick={requestClose}>{t.commonCancel}</button>
+            <button className="danger-button" type="button" disabled>
+              <Trash2 aria-hidden="true" />{t.deleteVersionLineConfirm}
+            </button>
+          </div>
+        </>
       )}
 
       {state.status === "blocked" && isExplainedBlock && (
@@ -733,11 +756,13 @@ export function DeleteVersionLineDialog({
                     : t.deleteVersionLineBlockedActiveLead}
           </p>
           {blockedReason === "version_line_unique_work" && (
-            <ul className="delete-version-line-options">
-              <li>{t.deleteVersionLineBlockedUniqueOptionPublish}</li>
-              <li>{t.deleteVersionLineBlockedUniqueOptionMerge}</li>
-              <li>{t.deleteVersionLineBlockedUniqueOptionKeep}</li>
-            </ul>
+            <DialogFacts
+              facts={[
+                { icon: <CloudUpload />, text: t.deleteVersionLineBlockedUniqueOptionPublish },
+                { icon: <GitMerge />, text: t.deleteVersionLineBlockedUniqueOptionMerge },
+                { icon: <ShieldCheck />, text: t.deleteVersionLineBlockedUniqueOptionKeep, safe: true },
+              ]}
+            />
           )}
           <div className="dialog-actions">
             <button className="secondary-button" type="button" onClick={requestClose}>
@@ -750,7 +775,6 @@ export function DeleteVersionLineDialog({
             )}
             {blockedReason === "version_line_unique_work" && onSwitchInstead && (
               <button className="primary-button" type="button" onClick={() => onSwitchInstead()}>
-                <GitBranch aria-hidden="true" />
                 {t.deleteVersionLineSwitchAction}
               </button>
             )}
@@ -783,10 +807,7 @@ export function DeleteVersionLineDialog({
               <p className="app-dialog__text">
                 {t.deleteVersionLineCopiedLead(plan.copiedInto.base, plan.copiedInto.kind === "squash")}
               </p>
-              <p className="app-dialog__note">
-                <ShieldCheck aria-hidden="true" />
-                {t.deleteVersionLineCopiedRecovery}
-              </p>
+              <DialogFacts facts={[{ icon: <ShieldCheck />, text: t.deleteVersionLineCopiedRecovery, safe: true }]} />
             </>
           ) : (
             <p className="app-dialog__text">

@@ -6,11 +6,9 @@ import {
   CircleAlert,
   CircleArrowUp,
   CircleFadingArrowUp,
-  Download,
   ExternalLink,
   Info,
   LoaderCircle,
-  RotateCw,
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react";
@@ -512,7 +510,7 @@ function mascotForState(state: UpdateState): { motion?: "hop"; progress?: number
 }
 
 /**
- * The update dialog, on the About shell like the changelog: mark, title, the
+ * The update dialog, on the shared dialog shell: GitOdile's own glyph, title, the
  * installed build, then one status line whose tone carries the state, and
  * only under it whatever that state has to show — a cause, the offered
  * release, progress, or what installing will do.
@@ -584,7 +582,7 @@ export function AppUpdateDialog({
       }
       descriptionId={descriptionId}
       icon={<CircleFadingArrowUp />}
-      tone="remote"
+      tone="app"
       onClose={close}
       closeLabel={appT.commonClose}
       dialogRef={dialogRef}
@@ -601,14 +599,14 @@ export function AppUpdateDialog({
       {candidate && <CandidateDetails candidate={candidate} language={language} />}
       <Progress state={state} language={language} />
       <div className="dialog-actions app-update-actions">
-        {offersManual && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}><ExternalLink aria-hidden="true" />{t.manual}</button>}
+        {offersManual && <button className="secondary-button" type="button" onClick={() => void controller.openManualDownload()}>{t.manual}</button>}
         {cancelOperation && <button className="secondary-button" type="button" onClick={() => void controller.cancel()}>{t.cancel}</button>}
         {(state.kind === "available" || state.kind === "ready") && <button className="secondary-button" type="button" onClick={close}>{t.notNow}</button>}
-        {state.kind === "current" && <button className="secondary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.checkAgain}</button>}
+        {state.kind === "current" && <button className="secondary-button" type="button" onClick={() => void controller.check()}>{t.checkAgain}</button>}
         {state.kind === "current" && <button className="primary-button" type="button" onClick={close}>{t.close}</button>}
-        {state.kind === "idle" && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.check}</button>}
-        {unconfirmed && <button className="primary-button" type="button" onClick={() => void controller.check()}><RotateCw aria-hidden="true" />{t.checkAgain}</button>}
-        {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}><Download aria-hidden="true" />{downloadLabel}</button>}
+        {state.kind === "idle" && <button className="primary-button" type="button" onClick={() => void controller.check()}>{t.check}</button>}
+        {unconfirmed && <button className="primary-button" type="button" onClick={() => void controller.check()}>{t.checkAgain}</button>}
+        {state.kind === "available" && <button className="primary-button" type="button" onClick={() => void controller.download()}>{downloadLabel}</button>}
         {state.kind === "ready" && <button className="primary-button" type="button" onClick={() => void controller.install()}>{t.install}</button>}
         {canRetry && <button className="primary-button" type="button" onClick={() => void (state.kind === "blocked" ? controller.install() : controller.check())}>{t.retry}</button>}
       </div>

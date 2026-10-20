@@ -657,7 +657,7 @@ describe("VersionLinesPanel", () => {
     await user.click(screen.getByRole("button", { name: "Switch to “feature/new-thing”" }));
 
     expect(onOperationStart).toHaveBeenCalledOnce();
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Switch to “feature/new-thing”");
+    expect(await screen.findByRole("dialog")).toHaveTextContent("You'll move to “feature/new-thing”.");
   });
 
   it("keeps Switch, Rename and Delete together on the selected line, and out of every row", async () => {
@@ -692,7 +692,7 @@ describe("VersionLinesPanel", () => {
     await user.click(within(detail).getByRole("button", { name: /Delete “feature\/new-thing”/ }));
 
     expect(onOperationStart).toHaveBeenCalledOnce();
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Delete “feature/new-thing”?");
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Delete this line?“feature/new-thing”");
   });
 
   it("renames a line in the detail strip, without a dialog", async () => {

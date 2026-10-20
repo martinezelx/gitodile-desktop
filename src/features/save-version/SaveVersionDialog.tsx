@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, CircleAlert, CloudUpload, GitBranch, LoaderCircle, Plus, Save } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, CloudUpload, GitBranch, LoaderCircle, Plus, Save, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
@@ -374,20 +374,28 @@ export function SaveVersionDialog({
   }
 
   const isNothingToSave = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_save";
+  const isBlocked = state.status === "blocked";
+  /* A dead end is a short message, not the plan with a sentence in it: its own
+     title and glyph in the small shell (DESIGN.md § Dialogs). */
   const titleText = state.status === "success"
     ? t.saveVersionSuccessTitle
-    : isFirstVersion
-      ? t.saveVersionDialogTitleFirst
-      : t.saveVersionDialogTitle;
+    : isNothingToSave
+      ? t.saveVersionNothingTitle
+      : isBlocked
+        ? t.saveVersionBlockedTitle
+        : isFirstVersion
+          ? t.saveVersionDialogTitleFirst
+          : t.saveVersionDialogTitle;
 
   return (
     <Dialog
-      size="m"
+      size={isBlocked ? "s" : "m"}
+      role={isBlocked && !isNothingToSave ? "alertdialog" : "dialog"}
       title={titleText}
       titleId="save-version-title"
       titleRef={headingRef}
-      icon={state.status === "success" ? <Check /> : undefined}
-      tone="success"
+      icon={state.status === "success" || isNothingToSave ? <Check /> : isBlocked ? <TriangleAlert /> : <Save />}
+      tone={state.status === "success" || isNothingToSave ? "success" : isBlocked ? "warning" : "local"}
       onClose={onClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}

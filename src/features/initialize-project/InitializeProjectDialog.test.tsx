@@ -174,7 +174,7 @@ describe("InitializeProjectDialog", () => {
     expect(screen.getByText("Gets the folder ready to save versions without touching your files.")).toBeInTheDocument();
     expect(screen.getByText("No existing file is deleted or replaced.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create project" }));
-    expect(await screen.findByRole("heading", { name: "“demo” is ready" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Project created" })).toBeInTheDocument();
     expect(port.plan).toHaveBeenCalledOnce();
     expect(port.execute).toHaveBeenCalledOnce();
     expect(onInitialized).toHaveBeenCalledOnce();
@@ -196,7 +196,7 @@ describe("InitializeProjectDialog", () => {
     await userEvent.click(screen.getByLabelText("Save every file as the first version"));
     expect(screen.getByText("Then saves every file as the first version.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Create project" }));
-    expect(await screen.findByRole("heading", { name: "“demo” is ready" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Project created" })).toBeInTheDocument();
     expect(port.plan).toHaveBeenCalledWith(expect.objectContaining({ createReadme: true, saveInitialVersion: true }));
     expect(savePort.plan).toHaveBeenCalledWith(expect.objectContaining({ sessionEpoch: "epoch-new" }));
     expect(savePort.save).toHaveBeenCalledWith(expect.objectContaining({ title: "First version", stateToken: "save-token" }));

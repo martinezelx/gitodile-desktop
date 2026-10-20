@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, CircleAlert, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleAlert, FileX, Layers, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
@@ -7,7 +7,10 @@ import {
   autoHideScrollbarProps,
   Dialog,
   DialogBanner,
+  DialogFacts,
+  LoadingPlaceholder,
   moveFocusWithinRadioGroup,
+  TextPlaceholder,
   useModalFocus,
 } from "../../shared/ui";
 import type { ChangesController } from "./controller";
@@ -413,19 +416,22 @@ export function DiscardChangesDialog({
       titleId="changes-discard-title"
       titleRef={headingRef}
       subtitle={canRestore ? t.changesRestoreChooseIntro : undefined}
+      icon={isRestore ? <RotateCcw /> : <Trash2 />}
+      tone={isRestore ? "local" : "danger"}
       onClose={onClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
       dialogRef={dialogRef}
       className="changes-discard-dialog"
     >
-      {/* Both flows report the same way in both of their waiting states: a
-          spinner and a line saying what is being waited on. */}
+      {/* While the plan is read the dialog already has its final shape: the
+          plan's sentence and its facts as placeholders, and Cancel beside the
+          action held back (DESIGN.md § Dialogs). */}
       {state.status === "loading" && (
-        <p className="app-dialog__note" role="status">
-          <LoaderCircle className="icon--spinning" aria-hidden="true" />
-          {isRestore ? t.changesRestoreLoading : t.changesDiscardLoading}
-        </p>
+        <LoadingPlaceholder label={isRestore ? t.changesRestoreLoading : t.changesDiscardLoading} className="changes-discard-placeholder">
+          <p className="app-dialog__text"><TextPlaceholder width="72%" /></p>
+          <p className="app-dialog__text"><TextPlaceholder width="54%" /></p>
+        </LoadingPlaceholder>
       )}
       {isBusy && (
         <p className="app-dialog__note" role="status">
@@ -438,14 +444,16 @@ export function DiscardChangesDialog({
           <p className="app-dialog__text">
             {discardPlan.selectedPath ? t.changesDiscardFileSummary(discardPlan.selectedPath) : t.changesDiscardAllSummary(discardPlan.fileCount)}
           </p>
-          {(discardPlan.affectsPreparedChanges || discardPlan.removesUntrackedFiles || discardPlan.includesConflicts) && (
-            <ul className="changes-discard-warnings">
-              {discardPlan.affectsPreparedChanges && <li>{t.changesDiscardPreparedWarning}</li>}
-              {discardPlan.removesUntrackedFiles && <li>{t.changesDiscardUntrackedWarning}</li>}
-              {discardPlan.includesConflicts && <li>{t.changesDiscardConflictWarning}</li>}
-            </ul>
-          )}
-          <p className="app-dialog__note"><RotateCcw aria-hidden="true" />{t.changesDiscardRecoveryNote}</p>
+          {/* What else the discard does, then what stays safe, last and in the
+              success tone (DESIGN.md § Dialogs, DialogFacts). */}
+          <DialogFacts
+            facts={[
+              ...(discardPlan.affectsPreparedChanges ? [{ icon: <Layers />, text: t.changesDiscardPreparedWarning }] : []),
+              ...(discardPlan.removesUntrackedFiles ? [{ icon: <FileX />, text: t.changesDiscardUntrackedWarning }] : []),
+              ...(discardPlan.includesConflicts ? [{ icon: <CircleAlert />, text: t.changesDiscardConflictWarning }] : []),
+              { icon: <RotateCcw />, text: t.changesDiscardRecoveryNote, safe: true },
+            ]}
+          />
         </>
       )}
       {state.status === "ready-restore" && (
@@ -485,6 +493,20 @@ export function DiscardChangesDialog({
       {/* Cancel beside the action, like every other dialog: a destructive
           confirmation whose only visible button is the destructive one reads
           as "press this to continue". Nothing to restore offers only Close. */}
+      {state.status === "loading" && (
+        <div className="dialog-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>{t.commonCancel}</button>
+          {isRestore ? (
+            <button className="primary-button" type="button" disabled>
+              <RotateCcw aria-hidden="true" />{t.changesRestoreConfirm}
+            </button>
+          ) : (
+            <button className="danger-button" type="button" disabled>
+              <Trash2 aria-hidden="true" />{request.mode === "selected" ? t.changesDiscardConfirmFile : t.changesDiscardConfirmAll}
+            </button>
+          )}
+        </div>
+      )}
       {state.status !== "loading" && (
         <div className="dialog-actions">
           <button className="secondary-button" type="button" onClick={onClose} disabled={isBusy}>

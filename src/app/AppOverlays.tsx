@@ -2,7 +2,7 @@ import { gitlabToolingPort, useGitLabToolingCopy, type GitLabAuthController } fr
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { Check, CircleAlert, Copy, Keyboard } from "lucide-react";
+import { Check, CircleAlert, Copy, FolderX, Keyboard, Settings } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
@@ -386,7 +386,7 @@ export function AppOverlays({
     <>
       <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
-        <div className="settings-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
           <div
             ref={settingsRef}
             className="settings-dialog"
@@ -397,6 +397,7 @@ export function AppOverlays({
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
+              <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
               <div className="settings-dialog__heading">
                 <h2 id="settings-dialog-title">{t.navSettings}</h2>
               </div>
@@ -484,7 +485,7 @@ export function AppOverlays({
 
       {projectSettings.isOpen && projectSettings.project && (
         <div
-          className="settings-backdrop"
+          className="app-dialog-backdrop"
           role="presentation"
           onMouseDown={() => requestProjectSettingsClose(false)}
         >
@@ -498,6 +499,7 @@ export function AppOverlays({
             onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
+              <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
               <div className="settings-dialog__heading">
                 <h2 id="project-settings-dialog-title">{t.projectSettingsTitle}</h2>
                 {/* The project is named in the header rather than only in the
@@ -532,7 +534,7 @@ export function AppOverlays({
       )}
 
       {about.isOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
           <div
             {...autoHideScrollbarProps<HTMLDivElement>()}
             ref={aboutRef}
@@ -708,7 +710,7 @@ export function AppOverlays({
       )}
 
       {shortcuts.isOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
+        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
           <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
             <header className="shortcuts-dialog__header">
               <span className="shortcuts-dialog__tile">
@@ -758,6 +760,8 @@ export function AppOverlays({
           title={t.closeConfirmTitle}
           titleId="close-confirm-title"
           descriptionId="close-confirm-body"
+          icon={<FolderX />}
+          tone="neutral"
           onClose={() => closeConfirmation.setOpen(false)}
           closeLabel={t.commonClose}
           dialogRef={closeRef}

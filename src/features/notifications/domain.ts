@@ -29,7 +29,10 @@ export type NotificationDetails =
 
 export type NotificationKind = NotificationDetails["kind"];
 
-export type NotificationTone = "info" | "success" | "warning";
+/** The glyph's ink, the tone of the dialog the entry opens (DESIGN.md
+ * § Glyph tones): `remote` for the remote and what was published to it,
+ * `warning` for something to decide or fix, `app` for GitOdile itself. */
+export type NotificationTone = "remote" | "warning" | "app";
 
 export type AppNotification = {
   id: string;
@@ -70,11 +73,11 @@ type NotificationKindSpec = {
 };
 
 export const NOTIFICATION_KINDS: Record<NotificationKind, NotificationKindSpec> = {
-  teamChangesAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
+  teamChangesAvailable: { tone: "remote", collapses: true, unreadOnArrival: true },
   remoteCheckFailed: { tone: "warning", collapses: true, unreadOnArrival: true },
   upstreamGone: { tone: "warning", collapses: true, unreadOnArrival: true },
-  changesPublished: { tone: "success", collapses: false, unreadOnArrival: false },
-  appUpdateAvailable: { tone: "info", collapses: true, unreadOnArrival: true },
+  changesPublished: { tone: "remote", collapses: false, unreadOnArrival: false },
+  appUpdateAvailable: { tone: "app", collapses: true, unreadOnArrival: true },
 };
 
 /** Enough to cover a long session, small enough that the panel never becomes a

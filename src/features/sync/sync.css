@@ -17,11 +17,15 @@
 .get-team-disclosure[open] summary svg { transform: rotate(180deg); }
 .get-team-disclosure summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
 
+/* Its rows are separated by space, not a rule: the hairline divides
+   regions, never rows. Each row keeps the item radius. */
 .get-team-version-list {
+  display: grid;
+  gap: 2px;
   max-height: 220px;
   overflow: auto;
   margin: var(--space-3) 0 0;
-  padding: 0;
+  padding: 4px;
   list-style: none;
   border-radius: var(--radius-surface);
   /* Resting inside the dialog: the card fill and a border, no shadow. */
@@ -35,8 +39,8 @@
   gap: 2px;
   align-content: center;
   padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-item);
 }
-.get-team-version-list li + li { border-top: 1px solid var(--border-subtle); }
 .get-team-version-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
 .get-team-version-list small { color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
 .get-team-plan__bounded-note { margin: var(--space-2) 0 0; color: var(--text-secondary-color); font-size: var(--text-label); }

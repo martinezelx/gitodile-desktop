@@ -43,7 +43,8 @@ export interface SyncTranslations {
   syncNotAvailable: string;
   getTeamDialogTitle: string;
   getTeamTitleFastForward: (count: number, remote: string) => string;
-  getTeamTitleMerge: (count: number, localCount: number) => string;
+  /** One line: what combining does to the reader's versions is a fact below. */
+  getTeamTitleMerge: (count: number) => string;
   getTeamTitlePublish: (localCount: number, remote: string) => string;
   getTeamFrom: (authors: string[], authorCount: number) => string;
   getTeamFileCount: (count: number) => string;
@@ -159,8 +160,8 @@ const en: SyncTranslations = {
   getTeamDialogTitle: "Get project changes",
   getTeamTitleFastForward: (count, remote) =>
     `Get ${count === 1 ? "1 version" : `${count} versions`} from ${remote}`,
-  getTeamTitleMerge: (count, localCount) =>
-    `Get ${count === 1 ? "1 version" : `${count} versions`} and combine ${count === 1 ? "it" : "them"} with ${localCount === 1 ? "yours" : "your versions"}`,
+  getTeamTitleMerge: (count) =>
+    `Get and combine ${count === 1 ? "1 version" : `${count} versions`}`,
   getTeamTitlePublish: (localCount, remote) =>
     `Publish ${localCount === 1 ? "1 version" : `${localCount} versions`} to ${remote}`,
   getTeamFrom: (authors, authorCount) => {
@@ -292,8 +293,8 @@ const es: SyncTranslations = {
   getTeamDialogTitle: "Traer cambios del proyecto",
   getTeamTitleFastForward: (count, remote) =>
     `Traer ${count === 1 ? "1 versión" : `${count} versiones`} de ${remote}`,
-  getTeamTitleMerge: (count, localCount) =>
-    `Traer ${count === 1 ? "1 versión" : `${count} versiones`} y combinar${count === 1 ? "la" : "las"} con ${localCount === 1 ? "la tuya" : "las tuyas"}`,
+  getTeamTitleMerge: (count) =>
+    `Traer y combinar ${count === 1 ? "1 versión" : `${count} versiones`}`,
   getTeamTitlePublish: (localCount, remote) =>
     `Publicar ${localCount === 1 ? "1 versión" : `${localCount} versiones`} en ${remote}`,
   getTeamFrom: (authors, authorCount) => {

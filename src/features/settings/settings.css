@@ -10,8 +10,8 @@
 /* A provider CLI's row on its own, inside the connect panel that needs it. */
 .settings-tool-inline {
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  background: var(--surface-card);
 }
 /* The same dense list as Notifications: one bordered surface with rows split
    by hairlines, not rows floating in the section. Each row reads icon, name,
@@ -126,7 +126,7 @@
 .font-picker__option {
   display: grid; gap: 5px; padding: 11px 13px; justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-panel); color: var(--text-secondary-color); text-align: left;
+  background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
     border-color var(--duration-fast),
     background var(--duration-fast),
@@ -139,7 +139,7 @@
    selection without laying a checkmark over the thing being judged. */
 .font-picker__option--active {
   border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-panel));
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
   color: var(--text-primary-color);
 }
 .font-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
@@ -192,7 +192,7 @@
 .format-picker__option {
   display: grid; gap: 3px; padding: 9px 12px; justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-panel); color: var(--text-secondary-color); text-align: left;
+  background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
     border-color var(--duration-fast),
     background var(--duration-fast),
@@ -203,7 +203,7 @@
 }
 .format-picker__option--active {
   border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-panel));
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
   color: var(--text-primary-color);
 }
 .format-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
@@ -274,9 +274,9 @@
 .settings-notifications__event p {
   margin: 2px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.settings-notifications__event--info > svg { color: var(--accent-primary); }
-.settings-notifications__event--success > svg { color: var(--status-success); }
+.settings-notifications__event--remote > svg { color: var(--tone-remote); }
 .settings-notifications__event--warning > svg { color: var(--status-warning); }
+.settings-notifications__event--app > svg { color: var(--tone-app); }
 .settings-notifications__silent {
   padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
@@ -294,7 +294,7 @@
    palette to the miniature. See ADR 0012.
 
    The card speaks the same language as the project-icon picker below it — a
-   bordered `--surface-raised` card, `--radius-control`, the name under the
+   bordered `--surface-card` card, `--radius-control`, the name under the
    preview on the card's own surface, selection as an accent border — rather
    than a picker of its own. It used to be a full-bleed square tile with the
    name on a black scrim: at the default window the group stood 791px tall in a
@@ -314,7 +314,7 @@
   display: grid; gap: var(--space-2); min-width: 0;
   padding: var(--space-1) var(--space-1) var(--space-2);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  background: var(--surface-raised); color: var(--text-primary-color);
+  background: var(--surface-card); color: var(--text-primary-color);
   font: inherit; text-align: center;
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
@@ -384,7 +384,7 @@
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  background: var(--surface-raised);
+  background: var(--surface-card);
   color: var(--text-primary-color);
   text-align: center;
   transition: background var(--duration-fast), border-color var(--duration-fast);
@@ -446,7 +446,7 @@
    path would break over three lines there. */
 .git-details {
   margin-top: var(--space-2); padding: 10px var(--space-4);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-card);
 }
 .git-details > summary {

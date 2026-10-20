@@ -3,12 +3,13 @@ import { DialogCloseButton } from "./dialogCloseButton";
 
 /** DESIGN.md § Dialogs: three sizes, never a width of a dialog's own. */
 export type DialogSize = "s" | "m" | "l";
-/** The header glyph's fill. `accent` is a flow's own mark; the status tones
- * say what kind of message this is before the sentence is read, and the glyph
- * tones what kind of thing the flow handles: `remote` the remote's copy,
- * `local` what is saved here and not published, `app` GitOdile itself.
- * `success` is for done — a version saved, a project created. */
-export type DialogTone = "accent" | "success" | "warning" | "danger" | "neutral" | "remote" | "local" | "app";
+/** The header glyph's ink (DESIGN.md § Glyph tones). The status tones say
+ * what kind of message this is before the sentence is read — `danger` for a
+ * failure or a confirmation that removes work, `warning` for a block,
+ * `success` for done, `neutral` for a plain question or a cancellation — and
+ * the glyph tones what kind of thing the flow handles: `remote` the remote's
+ * copy, `local` what is saved here and not published, `app` GitOdile itself. */
+export type DialogTone = "success" | "warning" | "danger" | "neutral" | "remote" | "local" | "app";
 
 export type DialogProps = {
   size: DialogSize;
@@ -16,9 +17,11 @@ export type DialogProps = {
   titleId: string;
   subtitle?: React.ReactNode;
   descriptionId?: string;
-  /** A lucide icon element. Given, the header leads with it in a circle. */
-  icon?: React.ReactNode;
-  tone?: DialogTone;
+  /** A lucide icon element. Every dialog leads with its glyph, in a neutral
+   * circle beside the title (DESIGN.md § Dialogs): it says what kind of
+   * thing this is before the title is read. */
+  icon: React.ReactNode;
+  tone: DialogTone;
   role?: "dialog" | "alertdialog";
   /** Given, the header carries the close button and the backdrop dismisses. */
   onClose?: () => void;
@@ -43,7 +46,7 @@ export function Dialog({
   subtitle,
   descriptionId,
   icon,
-  tone = "accent",
+  tone,
   role = "dialog",
   onClose,
   closeLabel = "Close",
@@ -74,7 +77,7 @@ export function Dialog({
         tabIndex={-1}
       >
         <header className="app-dialog__head">
-          {icon && <span className={`app-dialog__glyph app-dialog__glyph--${tone}`} aria-hidden="true">{icon}</span>}
+          <span className={`app-dialog__glyph app-dialog__glyph--${tone}`} aria-hidden="true">{icon}</span>
           <div className="app-dialog__titles">
             <h2 id={titleId} ref={titleRef} tabIndex={titleRef ? -1 : undefined}>{title}</h2>
             {subtitle && <p className="app-dialog__subtitle">{subtitle}</p>}

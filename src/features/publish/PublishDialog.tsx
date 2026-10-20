@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ChevronDown, CircleAlert, CloudOff, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
+import { ArrowDownToLine, Check, ChevronDown, CircleAlert, CloudOff, CloudUpload, Info, Laptop, LoaderCircle, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, DialogFacts, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
@@ -144,6 +144,7 @@ function PublishSummary({
             : []),
           ...(plan.hasUnsavedFiles ? [{ icon: <Laptop />, text: t.publishUnsavedFilesNote }] : []),
           { icon: <Users />, text: t.publishTeammatesNote },
+          { icon: <ShieldCheck />, text: t.publishSafeNote, safe: true },
         ]}
       />
     </>
@@ -174,7 +175,12 @@ function PublishSummaryPlaceholder({ t }: { t: Translations }): React.JSX.Elemen
           ))}
         </ul>
       </LoadingPlaceholder>
-      <DialogFacts facts={[{ icon: <Users />, text: t.publishTeammatesNote }]} />
+      <DialogFacts
+        facts={[
+          { icon: <Users />, text: t.publishTeammatesNote },
+          { icon: <ShieldCheck />, text: t.publishSafeNote, safe: true },
+        ]}
+      />
     </>
   );
 }
@@ -397,20 +403,30 @@ export function PublishDialog({
     (state.status === "blocked" && remoteMovedOn(state.error)) ||
     (state.status === "publish-error" && remoteMovedOn(state.error))
   );
+  /* A dead end is a short message with its own title and glyph, not the plan
+     with a sentence in it (DESIGN.md § Dialogs). */
+  const isBlocked = state.status === "blocked";
   const title = state.status === "remote-selection"
     ? t.publishChooseRemoteHeading
-    : isFirstPublish && plan
-      ? t.publishDialogTitleFirst(plan.target.destinationBranch)
-      : recreatesBranch && plan
-        ? t.publishDialogTitleAgain(plan.target.destinationBranch)
-        : t.publishDialogTitle;
+    : isNothingToPublish
+      ? t.publishNothingTitle
+      : isBlocked
+        ? t.publishBlockedTitle
+        : isFirstPublish && plan
+          ? t.publishDialogTitleFirst
+          : recreatesBranch && plan
+            ? t.publishDialogTitleAgain
+            : t.publishDialogTitle;
 
   return (
     <Dialog
-      size="m"
+      size={isBlocked ? "s" : "m"}
+      role={isBlocked && !isNothingToPublish ? "alertdialog" : "dialog"}
       title={title}
       titleId="publish-dialog-title"
       subtitle={state.status === "remote-selection" ? t.publishChooseRemoteDescription : undefined}
+      icon={isNothingToPublish ? <Check /> : isBlocked ? <TriangleAlert /> : <CloudUpload />}
+      tone={isNothingToPublish ? "success" : isBlocked ? "warning" : "local"}
       onClose={onClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy && !isUncertain}

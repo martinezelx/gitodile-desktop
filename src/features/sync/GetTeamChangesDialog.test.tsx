@@ -175,8 +175,8 @@ describe("Get project changes dialog", () => {
     renderDialog(sync);
     expect(await screen.findByRole("heading", { name: "Get 2 versions from origin" })).toBeInTheDocument();
     expect(screen.getByText("From Ada and Grace · 3 files")).toBeInTheDocument();
-    expect(screen.getByText("Nothing of yours overlaps. Your 2 unsaved files stay as they are.")).toBeInTheDocument();
-    expect(screen.getByText("A recovery point is saved first.")).toBeInTheDocument();
+    // What stays safe is one line, the plan's last fact.
+    expect(screen.getByText("Nothing of yours overlaps. Your 2 unsaved files stay as they are. A recovery point is saved first.")).toBeInTheDocument();
     // The list of versions is there but folded; technical evidence too.
     expect(screen.getByText("What comes in")).toBeInTheDocument();
     expect(screen.getByText("Team work")).not.toBeVisible();
@@ -201,7 +201,7 @@ describe("Get project changes dialog", () => {
     const sync = controller(mergePlan);
     const onPublishAfter = vi.fn(async () => ({ publishedCount: 2, remote: "origin" }));
     const { onClose } = renderDialog(sync, { canPublish: true, onPublishAfter });
-    expect(await screen.findByRole("heading", { name: "Get 2 versions and combine them with yours" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Get and combine 2 versions" })).toBeInTheDocument();
     expect(screen.getByText(/A merge version joins both lines/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Get and combine" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Get, combine and publish" }));

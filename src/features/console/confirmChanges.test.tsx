@@ -43,7 +43,7 @@ describe("console change confirmations setting", () => {
     await waitFor(() => expect(port.getSettings).toHaveBeenCalledTimes(1));
 
     await user.click(toggle());
-    const dialog = screen.getByRole("dialog", { name: "Turn off change confirmations?" });
+    const dialog = screen.getByRole("dialog", { name: "Run without asking?" });
     expect(dialog).toHaveTextContent("including git push");
     expect(dialog).toHaveTextContent("Commands that rewrite saved history or can discard work stay unavailable.");
     await user.click(screen.getByRole("button", { name: "Cancel" }));

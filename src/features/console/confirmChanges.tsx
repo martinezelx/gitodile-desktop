@@ -88,7 +88,7 @@ export function ConsoleConfirmChangesSetting({ state }: { state: ConsoleConfirmC
       </div>
       {confirming && (
         <Dialog
-          size="m"
+          size="s"
           title={t.consoleConfirmOffDialogTitle}
           titleId="console-confirm-title"
           descriptionId="console-confirm-body"

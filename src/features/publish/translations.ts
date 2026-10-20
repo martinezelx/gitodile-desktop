@@ -1,8 +1,14 @@
 export interface PublishTranslations {
   publishDialogTitle: string;
-  publishDialogTitleFirst: (branch: string) => string;
+  /** Titles fit one line, so the line's name is in the plan's sentence. */
+  publishDialogTitleFirst: string;
   /** The line tracks a branch the remote deleted: publishing creates it again. */
-  publishDialogTitleAgain: (branch: string) => string;
+  publishDialogTitleAgain: string;
+  /** The dead ends, each a short message of its own. */
+  publishNothingTitle: string;
+  publishBlockedTitle: string;
+  /** What stays safe, the plan's last fact. */
+  publishSafeNote: string;
   publishRecreateWarningTitle: (remote: string) => string;
   publishRecreateWarningBody: string;
   /** Recreating a branch whose versions the remote already has elsewhere. */
@@ -40,8 +46,11 @@ export interface PublishTranslations {
 
 const en: PublishTranslations = {
   publishDialogTitle: "Publish changes",
-  publishDialogTitleFirst: (branch) => `Publish “${branch}” for the first time`,
-  publishDialogTitleAgain: (branch) => `Publish “${branch}” again`,
+  publishDialogTitleFirst: "Publish a new line",
+  publishDialogTitleAgain: "Publish the line again",
+  publishNothingTitle: "Everything is published",
+  publishBlockedTitle: "Can't publish yet",
+  publishSafeNote: "Nothing already on the remote is overwritten.",
   publishRecreateWarningTitle: (remote) => `This line was deleted on “${remote}”.`,
   publishRecreateWarningBody:
     "Publishing creates it there again. If its pull request was already merged, switching to the main line is usually better.",
@@ -86,8 +95,11 @@ const en: PublishTranslations = {
 
 const es: PublishTranslations = {
   publishDialogTitle: "Publicar cambios",
-  publishDialogTitleFirst: (branch) => `Publicar «${branch}» por primera vez`,
-  publishDialogTitleAgain: (branch) => `Volver a publicar «${branch}»`,
+  publishDialogTitleFirst: "Publicar una línea nueva",
+  publishDialogTitleAgain: "Volver a publicar la línea",
+  publishNothingTitle: "Todo está publicado",
+  publishBlockedTitle: "Aún no se puede publicar",
+  publishSafeNote: "No se sobrescribe nada de lo que ya está en el remoto.",
   publishRecreateWarningTitle: (remote) => `Esta línea se borró en «${remote}».`,
   publishRecreateWarningBody:
     "Publicar la volverá a crear allí. Si su PR ya se fusionó, normalmente es mejor cambiar a la línea principal.",

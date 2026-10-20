@@ -53,6 +53,8 @@ export interface VersionLinesTranslations {
   createVersionLineDetachedNote: string;
   createVersionLineStartsAt: (shortCommit: string, subject: string) => string;
   createVersionLineConfirm: string;
+  /** The confirmation step's way back to the form: it does not close. */
+  createVersionLineBack: string;
   createVersionLineToast: (name: string, switched: boolean) => string;
   createVersionLineCreating: string;
   /** The quick create box docked under the Lines list — the way this screen
@@ -93,7 +95,9 @@ export interface VersionLinesTranslations {
   /** Why a typed name would be refused, said under the field before the
    * press — see `checkLineName`. */
   versionLinesNameIssue: (issue: LineNameIssue) => string;
-  switchVersionLineTitle: (to: string) => string;
+  /** One line, with no name in it: the target is the subtitle. */
+  switchVersionLineTitle: string;
+  switchVersionLineTarget: (to: string) => string;
   switchVersionLineLoading: string;
   switchVersionLineChangedFiles: (count: number) => string;
   switchVersionLineChangedFilesTruncated: (visible: number, total: number) => string;
@@ -221,7 +225,9 @@ export interface VersionLinesTranslations {
   versionLinesHistoryDescription: string;
   versionLinesHistoryScopedDescription: (name: string) => string;
   versionLinesHistoryAction: string;
-  deleteVersionLineTitle: (name: string) => string;
+  /** One line, with no name in it: the line is the subtitle. */
+  deleteVersionLineTitle: string;
+  deleteVersionLineTarget: (name: string) => string;
   deleteVersionLineBlockedTitle: string;
   deleteVersionLineBlockedUniqueLead: (name: string) => string;
   deleteVersionLineBlockedUniqueOptionPublish: string;
@@ -324,6 +330,7 @@ const en: VersionLinesTranslations = {
   createVersionLineDetachedNote: "You're not on a version line, so you'll switch to the new one to keep this work easy to find.",
   createVersionLineStartsAt: (shortCommit, subject) => `Starts at ${shortCommit} — “${subject}”.`,
   createVersionLineConfirm: "Create line",
+  createVersionLineBack: "Back",
   createVersionLineToast: (name, switched) => switched ? `“${name}” created, and you're on it now.` : `“${name}” created.`,
   createVersionLineCreating: "Creating…",
   versionLinesQuickCreateNameLabel: "New line name",
@@ -365,7 +372,8 @@ const en: VersionLinesTranslations = {
         return `“${issue.existing}” already exists, and names that differ only in capitals clash on some systems.`;
     }
   },
-  switchVersionLineTitle: (to) => `Switch to “${to}”`,
+  switchVersionLineTitle: "Switch line",
+  switchVersionLineTarget: (to) => `You'll move to “${to}”.`,
   switchVersionLineLoading: "Comparing version lines…",
   switchVersionLineChangedFiles: (count) =>
     count === 1 ? "1 file will change." : `${count} files will change.`,
@@ -484,7 +492,8 @@ const en: VersionLinesTranslations = {
   versionLinesHistoryDescription: "See every version, compare changes and go back to earlier states.",
   versionLinesHistoryScopedDescription: (name) => `Shows “${name}” in History without switching to it.`,
   versionLinesHistoryAction: "Open in History",
-  deleteVersionLineTitle: (name) => `Delete “${name}”?`,
+  deleteVersionLineTitle: "Delete this line?",
+  deleteVersionLineTarget: (name) => `“${name}”`,
   deleteVersionLineBlockedTitle: "Can't delete it yet",
   deleteVersionLineBlockedUniqueLead:
     (name) => `“${name}” has versions that aren't anywhere else. You can:`,
@@ -593,6 +602,7 @@ const es: VersionLinesTranslations = {
   createVersionLineDetachedNote: "No estás en una línea de versión, así que cambiarás a la nueva para que este trabajo sea fácil de encontrar.",
   createVersionLineStartsAt: (shortCommit, subject) => `Empieza en ${shortCommit}: «${subject}».`,
   createVersionLineConfirm: "Crear línea",
+  createVersionLineBack: "Atrás",
   createVersionLineToast: (name, switched) => switched ? `«${name}» creada, y ya estás en ella.` : `«${name}» creada.`,
   createVersionLineCreating: "Creando…",
   versionLinesQuickCreateNameLabel: "Nombre de la nueva línea",
@@ -634,7 +644,8 @@ const es: VersionLinesTranslations = {
         return `Ya existe «${issue.existing}», y los nombres que solo cambian en mayúsculas chocan en algunos sistemas.`;
     }
   },
-  switchVersionLineTitle: (to) => `Cambiar a «${to}»`,
+  switchVersionLineTitle: "Cambiar de línea",
+  switchVersionLineTarget: (to) => `Pasarás a «${to}».`,
   switchVersionLineLoading: "Comparando líneas de versión…",
   switchVersionLineChangedFiles: (count) =>
     count === 1 ? "Cambiará 1 archivo." : `Cambiarán ${count} archivos.`,
@@ -754,7 +765,8 @@ const es: VersionLinesTranslations = {
   versionLinesHistoryDescription: "Mira todas las versiones, compara cambios y vuelve a estados anteriores.",
   versionLinesHistoryScopedDescription: (name) => `Muestra «${name}» en Historial sin cambiar a ella.`,
   versionLinesHistoryAction: "Abrir en Historial",
-  deleteVersionLineTitle: (name) => `¿Eliminar «${name}»?`,
+  deleteVersionLineTitle: "¿Eliminar esta línea?",
+  deleteVersionLineTarget: (name) => `«${name}»`,
   deleteVersionLineBlockedTitle: "Aún no se puede eliminar",
   deleteVersionLineBlockedUniqueLead:
     (name) => `«${name}» tiene versiones que no están en otra parte. Puedes:`,

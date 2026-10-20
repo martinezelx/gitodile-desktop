@@ -11,7 +11,7 @@ import { THEME_IDS } from "../shared/theme";
  *
  * The contract measures every pairing the stylesheets actually paint, not only
  * text on the four base surfaces: text on a control, on a hovered or selected
- * row and on the accent wash; accent and status colours used as words; the
+ * row and on an inner card; accent and status colours used as words; the
  * label of a solid button; diff ink on its own tinted line; and syntax on the
  * code well. Each floor is WCAG AA for what the pairing is: 4.5:1 for text
  * (GitOdile's type tops out at 13px bold, which is never "large text"), 3:1
@@ -130,13 +130,6 @@ function contrast(foreground: Rgb, background: Rgb): number {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-function percentage(value: string | undefined): number | null {
-  const match = value?.match(/^(\d+(?:\.\d+)?)%$/);
-  return match ? Number(match[1]) / 100 : null;
-}
-
-const DEFAULT_WASH_STRENGTH = percentage(TOKENS_CSS.match(/--accent-wash-strength:\s*([^;]+);/)?.[1].trim());
-
 /** A theme's colours, resolved to opaque values, plus the surfaces the
  * stylesheets derive from them. */
 function paletteOf(block: Block) {
@@ -144,7 +137,6 @@ function paletteOf(block: Block) {
   const panel = hex("--surface-panel");
   const raised = hex("--surface-raised");
   const code = hex("--surface-code");
-  const washStrength = percentage(block.tokens["--accent-wash-strength"]) ?? DEFAULT_WASH_STRENGTH ?? 0;
   const surfaces: Record<string, Rgb> = {
     app: hex("--surface-app"),
     panel,
@@ -155,8 +147,6 @@ function paletteOf(block: Block) {
     card: blend(raised, 0.48, panel),
     hover: resolveColour(block.tokens["--surface-hover"], panel),
     active: resolveColour(block.tokens["--surface-active"], panel),
-    // The unread-notification wash in notifications.css.
-    "accent wash": blend(hex("--accent-primary-fill"), washStrength, raised),
   };
   return { hex, panel, raised, code, surfaces };
 }

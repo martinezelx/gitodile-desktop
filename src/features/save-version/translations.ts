@@ -43,6 +43,8 @@ export interface SaveVersionTranslations {
   saveVersionHideDetail: string;
   saveVersionDetailHeading: string;
   saveVersionSuccessTitle: string;
+  saveVersionNothingTitle: string;
+  saveVersionBlockedTitle: string;
   saveVersionSuccessDescription: (title: string, shortCommit: string) => string;
   saveVersionSavedOn: (title: string, branch: string | null) => string;
   saveVersionPublishNow: string;
@@ -86,6 +88,8 @@ const en: SaveVersionTranslations = {
   saveVersionHideDetail: "Hide technical details",
   saveVersionDetailHeading: "Technical details",
   saveVersionSuccessTitle: "Version saved",
+  saveVersionNothingTitle: "Everything is saved",
+  saveVersionBlockedTitle: "Can't save yet",
   saveVersionSuccessDescription: (title, shortCommit) => `Saved “${title}” as ${shortCommit}.`,
   saveVersionSavedOn: (title, branch) =>
     branch ? `“${title}” is on “${branch}”, only on this computer.` : `“${title}” is saved, only on this computer.`,
@@ -132,6 +136,8 @@ const es: SaveVersionTranslations = {
   saveVersionHideDetail: "Ocultar detalles técnicos",
   saveVersionDetailHeading: "Detalles técnicos",
   saveVersionSuccessTitle: "Versión guardada",
+  saveVersionNothingTitle: "Todo está guardado",
+  saveVersionBlockedTitle: "Aún no se puede guardar",
   saveVersionSuccessDescription: (title, shortCommit) => `«${title}» guardada como ${shortCommit}.`,
   saveVersionSavedOn: (title, branch) =>
     branch ? `«${title}» está en «${branch}», solo en este ordenador.` : `«${title}» está guardada, solo en este ordenador.`,

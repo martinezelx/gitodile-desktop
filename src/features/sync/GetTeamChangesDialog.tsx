@@ -7,6 +7,7 @@ import {
   CloudUpload,
   FileText,
   FolderOpen,
+  Info,
   GitMerge,
   Layers,
   LoaderCircle,
@@ -22,6 +23,8 @@ import {
   DialogBanner,
   DialogFacts,
   LoadingBar,
+  LoadingPlaceholder,
+  TextPlaceholder,
   autoHideScrollbarProps,
   useModalFocus,
   useToast,
@@ -502,7 +505,7 @@ export function GetTeamChangesDialog({
     : publishes
       ? t.getTeamTitlePublish(current.localCount, remote)
       : isMerge
-        ? t.getTeamTitleMerge(current.incomingCount, current.localCount)
+        ? t.getTeamTitleMerge(current.incomingCount)
         : t.getTeamTitleFastForward(current.incomingCount, remote);
   const subtitle = !current
     ? null
@@ -528,13 +531,21 @@ export function GetTeamChangesDialog({
       bodyProps={autoHideScrollbarProps<HTMLDivElement>()}
     >
       {!current ? (
-        <LoadingBar label={t.getTeamProgressLabel} />
+        /* The plan's shape while it is read — its facts and the disclosure —
+           so the answer fills the space instead of growing the dialog. */
+        <LoadingPlaceholder label={t.getTeamProgressLabel} className="get-team-plan">
+          <ul className="app-dialog__facts">
+            {PLACEHOLDER_FACT_WIDTHS.map((width) => (
+              <li key={width} className="app-dialog__fact"><TextPlaceholder width={width} /></li>
+            ))}
+          </ul>
+        </LoadingPlaceholder>
       ) : (
         <PlanContent plan={current} publishes={publishes} formatsNow={Date.now()} formats={formats} />
       )}
 
       {state.status === "ready" && state.remoteMoved && (
-        <DialogBanner tone="info" icon={<CircleAlert />} role="status">
+        <DialogBanner tone="info" icon={<Info />} role="status">
           <p>{t.getTeamRemoteMoved}</p>
         </DialogBanner>
       )}
@@ -572,7 +583,7 @@ export function GetTeamChangesDialog({
           )}
           {state.status === "ready" && (
             <button className="primary-button" type="button" onClick={() => execute(state.plan, publishes)}>
-              {publishes ? <CloudUpload aria-hidden="true" /> : isMerge ? <GitMerge aria-hidden="true" /> : <ArrowDownToLine aria-hidden="true" />}
+              {publishes ? <CloudUpload aria-hidden="true" /> : <ArrowDownToLine aria-hidden="true" />}
               {publishes ? t.getTeamConfirmPublish : isMerge ? t.getTeamConfirmMerge : t.getTeamConfirmFastForward}
             </button>
           )}
@@ -637,6 +648,8 @@ function AlertDialog({
   );
 }
 
+const PLACEHOLDER_FACT_WIDTHS = ["62%", "48%"];
+
 function PlanContent({
   plan,
   publishes,
@@ -650,29 +663,30 @@ function PlanContent({
 }): React.JSX.Element {
   const { t } = useLanguage();
   const { forecast } = plan;
-  const facts: DialogFact[] = [
-    {
-      icon: <ShieldCheck />,
-      text: forecast.carriedUnsavedCount > 0
-        ? `${t.getTeamNothingOverlaps} ${t.getTeamCarried(forecast.carriedUnsavedCount)}`
-        : t.getTeamNothingOverlaps,
-      safe: true,
-    },
-  ];
-  if (forecast.combinedUnsavedCount > 0) {
-    facts.push({
-      icon: <Layers />,
-      text: t.getTeamCombined(forecast.combinedUnsaved, forecast.combinedUnsavedCount),
-      safe: true,
-    });
-  }
+  /* What happens first, then what stays safe in one line, last and in the
+     success tone (DESIGN.md § Dialogs): two or three facts, not five. */
+  const facts: DialogFact[] = [];
   if (plan.integration === "merge") {
     facts.push({ icon: <GitMerge />, text: t.getTeamMergeFact(plan.localCount) });
   }
   if (publishes) {
     facts.push({ icon: <CloudUpload />, text: t.getTeamPublishFact(plan.localCount, plan.target.remote) });
   }
-  facts.push({ icon: <ShieldCheck />, text: t.getTeamRecoveryFirst, safe: true });
+  if (forecast.combinedUnsavedCount > 0) {
+    facts.push({
+      icon: <Layers />,
+      text: t.getTeamCombined(forecast.combinedUnsaved, forecast.combinedUnsavedCount),
+    });
+  }
+  facts.push({
+    icon: <ShieldCheck />,
+    text: [
+      t.getTeamNothingOverlaps,
+      forecast.carriedUnsavedCount > 0 ? t.getTeamCarried(forecast.carriedUnsavedCount) : null,
+      t.getTeamRecoveryFirst,
+    ].filter(Boolean).join(" "),
+    safe: true,
+  });
 
   return (
     <div className="get-team-plan">

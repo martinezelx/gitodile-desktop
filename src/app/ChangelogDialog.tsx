@@ -197,7 +197,7 @@ export function ChangelogDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
+    <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
       <div
         ref={dialogRef}
         className="about-dialog changelog-dialog"

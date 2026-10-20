@@ -76,7 +76,7 @@ The visual language uses:
 - fully rounded controls — a capsule for anything on one line, a circle for anything square — over the 18px sheet, dialogs and inner cards and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
 - layered surfaces distinguished by a subtle tone shift and a hairline inside the sheet, and by shadow only for what floats, never by transparency;
-- **one sheet per screen** — the detail of rules 1–3 above. The titlebar and the rail are the frame, a flat plane on `--surface-app`; the content column is a single sheet — `--surface-panel` with `--border-subtle`, at `--radius-surface` — keeping the same 16px of frame (`--space-4`) on all four sides — under the titlebar, beside the rail and to the window's edges — so it floats evenly, and lifted with `--shadow-md` since it is the one object on the plane. The frame takes no tint, gradient or translucency. What the screens lay on the sheet are *regions*, not cards: Overview's header, next step and body are three bands, and the panes of Changes, History and Lines run edge to edge; regions meet on a 1px `--border-subtle` hairline and wear no border, shadow or radius of their own. The status bar is the sheet's foot. A card *inside* a region (a History overview section, a Lines fact card) keeps `--surface-card`. `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar), and only what floats casts a shadow inside the window: `--shadow-lg`. A screen does not pick another material for itself, because a different edge reads as a different app the moment the reader switches screens. Console and Home have no sheet: Console is a terminal across the workspace, and Home's launcher is the one object on its screen, so it floats on the plane with its own lift (`--surface-raised`, `--shadow-md`) rather than sitting on a sheet round a single card. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item. The hairline divides *regions*, never rows;
+- **one sheet per screen** — the detail of rules 1–3 above. The titlebar and the rail are the frame, a flat plane on `--surface-app`; the content column is a single sheet — `--surface-panel` with `--border-subtle`, at `--radius-surface` — keeping the same 16px of frame (`--space-4`) on all four sides — under the titlebar, beside the rail and to the window's edges — so it floats evenly, and lifted with `--shadow-md` since it is the one object on the plane. The frame takes no tint, gradient or translucency. What the screens lay on the sheet are *regions*, not cards: Overview's header, next step and body are three bands, and the panes of Changes, History and Lines run edge to edge; regions meet on a 1px `--border-subtle` hairline and wear no border, shadow or radius of their own. The status bar is the sheet's foot. A card *inside* a region (a History overview section, a Lines fact card) keeps `--surface-card`. `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar), and only what floats casts a shadow inside the window: `--shadow-lg`. A screen does not pick another material for itself, because a different edge reads as a different app the moment the reader switches screens. Console and Home have no sheet: Console is a terminal across the workspace, and Home's launcher is the one object on its screen, so it floats on the plane with its own lift (`--surface-raised`, `--shadow-md`) rather than sitting on a sheet round a single card. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item. The hairline divides *regions*, never rows. The one exception is a **bordered list whose rows are reordered or scanned densely** — Settings' Navigation and Notifications lists — which may divide its own rows; every other list, in a dialog too (the versions a publish sends, what a get brings, What's new's earlier releases), separates its rows with space;
 - generous spacing around primary actions;
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
@@ -120,8 +120,11 @@ The main desktop window should broadly support:
      something new". An 8px accent dot marks unread and breathes three times on
      an arrival, then settles; the exact count is the button's accessible name
      and the panel's rows. The panel has no visible title — the bell already
-     names it — and it is not a menu: each entry is its own card, an unread one
-     carries the dot and a heavier title, and a per-row trash sits in the
+     names it — and it is not a menu: each entry is its own card
+     (`--surface-card`), an unread one carries the dot and a heavier title —
+     no wash and no tinted edge, which under the ink accent only darkened the
+     card — its glyph takes the tone of the dialog it opens (§ Glyph tones),
+     its action is the shared small secondary button, and a per-row trash sits in the
      bottom-right corner, uncovered only while its row is pointed at or
      focused, so the destructive control is deliberate and the dot never
      competes for the corner. A footer of two icons — settings on the left,
@@ -1813,10 +1816,16 @@ option in a menu or picker is selection, not success, and stays in the ink.
 
 | Tone | Token | Means | Where |
 |---|---|---|---|
-| Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, a published version, Clone, Get changes, Connect a remote and Update dialogs |
-| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "On this computer" in the timelines of Overview, History and Lines, Publish, the Create project and publish dialogs |
-| Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, done steps in dialogs and Home's setup, a saved version, a created project, "up to date" in About |
-| App | `--tone-app` (violet, per scheme) | GitOdile itself | What's new, Keyboard shortcuts, Report a problem |
+| Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, a published version, Clone, Get changes and Connect a remote dialogs, the "new versions" and "published" notifications |
+| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "On this computer" in the timelines of Overview, History and Lines, the Save version, Publish, Restore and Create project dialogs, Get-and-publish |
+| Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, done steps in dialogs and Home's setup, a saved version, a created project, "Everything is saved / published", "up to date" in About |
+| App | `--tone-app` (violet, per scheme) | GitOdile itself | What's new, Keyboard shortcuts, Report a problem, the Update dialog and the "new version of GitOdile" notification |
+
+Notifications take the tone of the dialog each one opens, and the status
+tones only for what asks for a decision: a line gone from the remote and a
+check that failed are `--status-warning`. The status tones `info` and
+`success` are not notification tones: under the ink accent `info` drew the
+glyph black.
 
 **A glyph's circle is never coloured.** The tone goes on the glyph alone; the
 disc or tile behind it stays neutral (`--surface-control`, `--surface-panel`
@@ -1837,8 +1846,7 @@ every pairing the stylesheets actually paint, in every theme, and refuses a
 theme that fails one:
 
 - Primary and secondary text at 4.5:1 on every surface text sits on: app,
-  panel, raised, code, control, the card, a hovered row, a selected row and
-  the accent wash.
+  panel, raised, code, control, the card, a hovered row and a selected row.
 - Accent, status and diff colours at 4.5:1 on app, panel, raised and card,
   because each of them is written as words somewhere (a link, a "saved
   locally" label, a status chip, the console's diff stat).
@@ -2337,6 +2345,18 @@ exists because the dialogs had drifted to seven widths, four paddings, borders
 on some and not others, and three different headers; a new dialog takes the
 shell and a size, never a width of its own.
 
+The documents still read as the same family: What's new and the shortcut
+sheet share the `s` width, the 28px inset and the header below (a 40px glyph
+circle and a `--text-title` heading); only About keeps its identity hero.
+**Settings is the one dialog outside the three sizes** — a preferences
+workspace up to 1000 × 680px, not a question — and it opens the same way:
+the glyph and the title in its header. Its header and its category rail are
+regions of one surface and meet the content on the `--border-subtle`
+hairline, the rail's icons on the header's 24px inset. Every modal sits on one
+backdrop (`.app-dialog-backdrop`); a dialog opened over another one, such as
+Console's confirmation inside Settings, keeps its own backdrop clear so the
+window is not veiled twice.
+
 **Three sizes, by what the dialog holds.**
 
 | Size | Width | For |
@@ -2350,28 +2370,42 @@ message in `s` — but a dialog never picks a width outside the three. All three
 take 28px of padding, a 1px `--border-subtle` border, `--radius-surface`,
 `--shadow-lg` and one `--space-4` gap between parts.
 
-**One header.** The title (`--text-display`, one line), the close button
-always, and nothing else unless the dialog needs it:
+**One header.** The glyph, the title (`--text-title`, one line), the close
+button always, and nothing else unless the dialog needs it:
 
-- The circular glyph leads the title in `l` flows and in every message whose
-  tone matters before the sentence is read — an error (`danger`), a warning or
-  a block (`warning`), a result (`success`), a cancellation (`neutral`). It
-  sits **beside** the title, centred on the same axis as the title and the
-  close button, never above it: a glyph on its own row pushed a two-line title
-  into the space the close button left.
+- **Every dialog leads with its glyph**, in a neutral circle, in the tone of
+  what it handles (§ Glyph tones): Save version, Publish, Restore and Create
+  project in `local`; Get project changes, Clone and Connect a remote in
+  `remote`; the Update dialog and the issue report in `app`; a confirmation
+  that removes work (discard, delete a line) and an error in `danger`; a
+  block in `warning`; a result in `success`; a plain question (close a
+  project, a new line, switch lines) or a cancellation in `neutral`. A rule
+  with exceptions had left Get with a glyph and Publish without one, and the
+  two confirmations that delete work as the only ones that did not warn.
+  `Dialog` requires `icon` and `tone`, so a new dialog cannot leave it out.
+  The glyph sits **beside** the title, centred on the same axis as the title
+  and the close button, never above it: a glyph on its own row pushed a
+  two-line title into the space the close button left.
+- The title is `--text-title`, the size of every card and section heading in
+  the app. At `--text-display` the dialog's title was the loudest line on
+  screen once Overview's headings had calmed down.
 - The subtitle belongs to the step it describes. A flow's first step says what
   the flow is ("Download a copy to this computer and open it"); later steps
-  replace the title and drop the subtitle ("Review before cloning", "Cloning
-  “project”…"). A title and subtitle that never change stacked four levels of
-  text above every review.
+  replace the title and drop the subtitle ("Save the copy", "Creating the
+  project…"). A title and subtitle that never change stacked four levels of
+  text above every review. A subtitle may also carry the one name the title
+  leaves out ("You'll move to “feature/x”.").
 - The close button goes away only while work that cannot be interrupted runs,
   and the backdrop and Escape follow it. Initial focus never lands on it.
 
-**Titles fit one line.** In `s`, with the glyph beside it, that is about 24
+**Titles fit one line.** In `s`, with the glyph beside it, that is about 30
 characters; the fix for a long title is a shorter title, not a smaller type
 size or a stacked header. The detail moves to the body: "Can't delete it yet"
 over "“feature/x” has versions that aren't anywhere else", not the name inside
-the title.
+the title. No title carries a line's or a project's name — "Delete this
+line?", "Switch line", "Publish a new line", "Project created" — since a long
+name is exactly what breaks the line; the name goes to the subtitle or the
+body.
 
 **The body is secondary ink at the body size** (`.app-dialog__text`), and the
 title is the one strong line. What the dialog will do is said as a short list
@@ -2380,19 +2414,38 @@ says what stays safe last, in the success tone. It is never a grid of titled
 cards: four cards of equal weight made "nothing is deleted" read like "sign-in"
 and the dialog like a feature page. Mechanism — temporary folders, refs,
 tokens, `.git/config`, a HEAD — goes behind a `Technical details` disclosure,
-if anywhere.
+if anywhere. Consequences are facts too, never a bulleted list of their own,
+and so is a note that says what stays safe ("A copy is kept, so you can undo
+it"): it is the safe fact, last.
 
-**Conditions and failures are banners** (`DialogBanner`): `danger` for a
-failure, `warning` for something to fix first, each with its way out inside it
-as a text action ("Add in Settings", "Save without hooks just this once").
+**One recipe for a card inside a dialog**, the regions-and-cards rule of
+Friendly Sheet applied to what floats: `--surface-card`, the subtle border,
+`--radius-surface` and no shadow — the picked repository, the update on
+offer, the files a save carries, the versions a publish sends, a choice with
+its own explanation. Options and rows inside it keep `--radius-item`;
+monospace text (the issue report, technical details) sits on
+`--surface-code`; `--surface-control` is only for controls. The review found
+six recipes for the same role, two of them on the dialog's own surface and so
+invisible in the light theme. What's new's current release keeps its one
+tinted panel on purpose. A selected option wears one recipe everywhere: the
+secondary ink's edge and 7% of the ink (`choice-list__option--active`).
+
+**Conditions and failures are banners** (`DialogBanner`, `--radius-surface`
+like an in-screen notice): `danger` for a failure, `warning` for something to
+fix first, `info` for a fact, each with its way out inside it as a text action
+("Add in Settings", "Save without hooks just this once"). A text action is an
+`.app-dialog__link`, underlined at rest: under the ink accent its colour no
+longer sets it apart from the words around it.
 
 **Actions sit on the right, dismiss first and the title's verb last.** Every
 form, confirmation and plan has `Cancel` beside its primary action, including
 destructive ones — a confirmation whose only visible button is the destructive
 one reads as "press this to continue". The primary repeats the verb of the
 title ("Save version", "Create line", "Delete line", "Publish changes"), and
-carries an icon only when it is one of the vocabulary's verbs (save, publish,
-get, discard, delete). **Anything that removes work is `danger-button`** — the
+carries an icon only when it is one of the vocabulary's verbs: save, publish,
+get (cloning is a get), discard, delete, and restore, the undo of a discard.
+Create, switch, review, check, download and copy carry none. A dismiss that
+returns to the step before says "Back", not "Cancel". **Anything that removes work is `danger-button`** — the
 solid primary is for the constructive choice, and a delete in it said the
 opposite. A note that belongs to the action ("Only on this computer until you
 publish") takes the left of the same row. A choice made for this action alone

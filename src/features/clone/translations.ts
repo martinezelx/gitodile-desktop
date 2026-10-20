@@ -63,7 +63,8 @@ export interface CloneTranslations {
   cloneRetryOpen: string;
   cloneAccountNotSavedTitle: string;
   cloneAccountNotSavedDescription: string;
-  cloneProgressTitleNamed: (name: string) => string;
+  /** No name in it: titles fit one line (DESIGN.md § Dialogs). */
+  cloneProgressTitleNamed: string;
   cloneStep: (step: "downloading" | "checking" | "opening") => string;
   cloneCancelledDescription: string;
   cloneDependencyNotice: (submodules: DependencyDiscovery, lfs: DependencyDiscovery) => string;
@@ -129,7 +130,7 @@ const en: CloneTranslations = {
   cloneCancelling: "Cancelling…",
   cloneCancelled: "Clone cancelled",
   cloneCancelledDescription: "Nothing was added.",
-  cloneProgressTitleNamed: (name) => `Cloning “${name}”…`,
+  cloneProgressTitleNamed: "Cloning the project…",
   cloneStep: (step) => ({ downloading: "Downloading", checking: "Checking", opening: "Opening" })[step],
   cloneErrorTitle: "Couldn't clone the project",
   cloneRetryAction: "Retry",
@@ -211,7 +212,7 @@ const es: CloneTranslations = {
   cloneCancelling: "Cancelando…",
   cloneCancelled: "Clonación cancelada",
   cloneCancelledDescription: "No se ha añadido nada.",
-  cloneProgressTitleNamed: (name) => `Clonando «${name}»…`,
+  cloneProgressTitleNamed: "Clonando el proyecto…",
   cloneStep: (step) => ({ downloading: "Descargando", checking: "Comprobando", opening: "Abriendo" })[step],
   cloneErrorTitle: "No se pudo clonar el proyecto",
   cloneRetryAction: "Reintentar",

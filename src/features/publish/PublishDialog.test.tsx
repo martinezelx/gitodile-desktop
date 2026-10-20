@@ -282,11 +282,12 @@ describe("PublishDialog", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("names the line in the title when it is published for the first time", async () => {
+  it("says a first publish creates the line, and names it in the plan rather than the title", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({ willCreateUpstream: true }));
     renderDialog();
 
-    expect(await screen.findByRole("heading", { name: "Publish “main” for the first time" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Publish a new line" })).toBeInTheDocument();
+    expect(screen.getByText(/to “main” on “origin”/)).toBeInTheDocument();
   });
 
   it("warns before recreating a line the remote deleted and says so on the button", async () => {
@@ -297,7 +298,7 @@ describe("PublishDialog", () => {
     }));
     renderDialog();
 
-    expect(await screen.findByRole("heading", { name: "Publish “feature/login” again" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Publish the line again" })).toBeInTheDocument();
     expect(screen.getByText("This line was deleted on “origin”.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Recreate and publish" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Publish changes" })).toBeNull();

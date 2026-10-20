@@ -116,7 +116,7 @@ function NotificationRow({
         </p>
         {action && (
           <button
-            className="notification__action"
+            className="secondary-button secondary-button--sm notification__action"
             type="button"
             onClick={() => onAction(notification)}
           >

@@ -9,7 +9,6 @@ import {
   LoaderCircle,
   ShieldCheck,
   Link,
-  ArrowRight,
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
@@ -402,7 +401,7 @@ export function CloneDialog({
 
   const isForm = step === "input";
   const title = step === "destination" ? t.cloneReviewTitle
-    : step === "executing" && attempt ? t.cloneProgressTitleNamed(attempt.plan.destinationName)
+    : step === "executing" && attempt ? t.cloneProgressTitleNamed
       : step === "opening" ? t.cloneOpeningTitle
         : t.cloneDialogTitle;
   // The subtitle belongs to the step it describes: the form says what cloning
@@ -464,7 +463,7 @@ export function CloneDialog({
             {accessStatus !== "idle" && <div className={"clone-dialog__access clone-dialog__access--" + accessStatus} role="status" aria-live="polite">
               {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ? providerKind(catalog.providers, provider) : "github"} />}
               <div><strong>{accessTitle}</strong><small>{accessStatus === "unavailable" ? t.cloneAccessUnavailableHelp : accessStatus === "unconfirmed" ? t.cloneAccessUnconfirmedHelp : t.cloneAccessConnection(connectionLabel)}</small></div>
-              <button type="button" className="clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId, catalog.providers)}>
+              <button type="button" className="app-dialog__link clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId, catalog.providers)}>
                 {accessStatus === "checking" ? t.commonCancel : t.cloneAccessRetry}
               </button>
             </div>}
@@ -474,7 +473,7 @@ export function CloneDialog({
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
               <button className="primary-button" type="submit" disabled={sourceMode !== "url" ? !browserChoiceValid : accessStatus === "unavailable"}>
-                {accessStatus === "checking" || accessStatus === "unconfirmed" ? t.cloneContinueUnchecked : t.cloneReviewAction}<ArrowRight aria-hidden="true" />
+                {accessStatus === "checking" || accessStatus === "unconfirmed" ? t.cloneContinueUnchecked : t.cloneReviewAction}
               </button>
             </div>
           </footer>
@@ -488,7 +487,7 @@ export function CloneDialog({
             <div><strong>{sourceMode !== "url" ? selectedRepository?.repository.fullName : t.cloneGitAddress}</strong>
               <small>{attempt?.plan.sourceDisplay ?? cloneSourceSummary(source)}</small>
               <small>{connectionLabel}</small></div>
-            <button className="clone-dialog__text-action" type="button" onClick={() => { controller.supersede(); setStep("input"); }}>{t.cloneChangeSource}</button>
+            <button className="app-dialog__link clone-dialog__text-action" type="button" onClick={() => { controller.supersede(); setStep("input"); }}>{t.cloneChangeSource}</button>
           </div>
           <label className="text-field clone-dialog__field">
             <span id="clone-parent-label">{t.cloneParentLabel}</span>

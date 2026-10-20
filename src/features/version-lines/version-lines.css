@@ -1066,10 +1066,8 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
   .version-lines-recent__row--published .version-lines-recent__node { background: CanvasText; }
 }
 
-.delete-version-line-options {
-  display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 18px;
-  color: var(--text-secondary-color); font-size: var(--text-body); overflow-wrap: anywhere;
-}
+/* A switch or delete plan's shape while it is read. */
+.version-line-dialog__placeholder { display: grid; gap: var(--space-2); }
 
 .version-lines-quick-switch { position: relative; display: inline-flex; gap: 8px; }
 /* A circle at row scale. `min-height` as well as `height`, because the shared
