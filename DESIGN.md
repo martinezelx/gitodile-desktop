@@ -1395,8 +1395,8 @@ start, under the icons. The mascot has no frame either. Its eyes blink with
 Home's uneven rhythm, including the occasional double blink, by swapping only
 the ASCII eye cells; the drawing and prompt stay still. Submitting the first
 entry replaces the welcome with a small watermark in the bottom-right corner:
-approximately 170px wide at 20% opacity on light schemes and 16% on dark ones,
-with slower local rain, revealed by
+approximately 170px wide at 32% opacity on light schemes and 16% on dark ones,
+with slower local rain kept at an effective 20% opacity in light schemes, revealed by
 rows over about half a second. The watermark sits behind the full-width text,
 outside the scrolling log, with no pointer, selection or accessibility target.
 It is inset 24px above the terminal body's edge (so the shortcut pane and footer

@@ -40,10 +40,12 @@
 .console-watermark {
   position: absolute; z-index: 0; inset: var(--space-5); display: flex;
   align-items: flex-end; justify-content: flex-end; container-type: size;
-  opacity: .2; pointer-events: none; user-select: none;
+  opacity: .32; --console-watermark-rain-opacity: .625; pointer-events: none; user-select: none;
 }
-.console-watermark[data-scheme="dark"] { opacity: .16; }
-@media (prefers-color-scheme: dark) { .console-watermark:not([data-scheme]) { opacity: .16; } }
+.console-watermark[data-scheme="dark"] { opacity: .16; --console-watermark-rain-opacity: 1; }
+@media (prefers-color-scheme: dark) { .console-watermark:not([data-scheme]) { opacity: .16; --console-watermark-rain-opacity: 1; } }
+/* More legible light-theme glyphs, with the rain's effective opacity unchanged. */
+.console-watermark .console-art__rain { opacity: var(--console-watermark-rain-opacity); }
 .console-watermark .console-art { font-size: 5px; }
 /* Fit the complete 35-row box in a short pane too (e.g. the shortcut editor).
    The overlay alone is a size container; it never changes transcript layout. */
