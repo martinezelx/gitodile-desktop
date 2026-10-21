@@ -7,8 +7,9 @@
   position: relative; display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0;
   color: var(--text-primary-color);
 }
+.console-panel__body { position: relative; display: flex; flex: 1; min-height: 0; min-width: 0; isolation: isolate; }
 .console-panel__transcript {
-  flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) 0 var(--space-5);
+  position: relative; z-index: 1; flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-4) 0 var(--space-5);
   font: var(--text-body)/var(--leading-code) var(--font-mono); overscroll-behavior: contain;
 }
 /* The prompt always has focus, so the shared "visible while focused inside"
@@ -28,11 +29,59 @@
      small and at line-height 1, as fetch tools print their logos, so the
      64-column mascot keeps the compact footprint of the v4 welcome. */
   forced-color-adjust: none; --console-art-body: var(--accent-primary-fill);
-  position: relative; flex: 0 1 auto; max-width: 100%; margin: 0; overflow: hidden;
+  position: relative; flex: 0 1 auto; width: max-content; max-width: 100%; margin: 0; padding-bottom: 2em; overflow: visible;
   font-family: var(--font-mono); font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-bold);
   color: var(--text-primary-color); white-space: pre;
 }
 .console-art__mascot { position: relative; margin: 0; font: inherit; }
+.console-art__row { display: block; height: 1em; line-height: var(--leading-none); }
+/* Only the rain is clipped. Two spare rows under the drawing keep the last
+   glyph's descender inside its box across platform monospace fonts. */
+.console-watermark {
+  position: absolute; z-index: 0; inset: var(--space-5); display: flex;
+  align-items: flex-end; justify-content: flex-end; container-type: size;
+  opacity: .2; pointer-events: none; user-select: none;
+}
+.console-watermark[data-scheme="dark"] { opacity: .16; }
+@media (prefers-color-scheme: dark) { .console-watermark:not([data-scheme]) { opacity: .16; } }
+.console-watermark .console-art { font-size: 5px; }
+/* Fit the complete 35-row box in a short pane too (e.g. the shortcut editor).
+   The overlay alone is a size container; it never changes transcript layout. */
+@supports (font-size: 1cqh) {
+  .console-watermark .console-art { font-size: min(5px, calc(100cqh / 35), calc(100cqw / 40)); }
+}
+.console-art--reveal { animation: console-art-settle 520ms ease-out both; }
+.console-art--reveal .console-art__row {
+  animation: console-art-reveal 150ms ease-out calc(var(--row) * 9ms) both;
+}
+@keyframes console-art-settle { from { transform: translateY(-16px) scale(.96); } to { transform: none; } }
+@keyframes console-art-reveal { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: none; } }
+/* Eye patches occupy only the original 3-by-5 eye cells. The base drawing
+   stays still; CSS swaps open/half/closed at Home's 17-second uneven rhythm. */
+.console-art__eyes, .console-art__eye-frame { position: absolute; top: 0; left: 0; }
+.console-art__eye-frame { opacity: 0; }
+.console-art__eye {
+  position: absolute; top: 3em; width: 3ch; height: 5em; background: var(--surface-app);
+  color: var(--console-art-skin); white-space: pre; line-height: var(--leading-none);
+}
+.console-art__eye-frame--half { animation: console-art-eye-half 17s steps(1) 1.2s infinite; }
+.console-art__eye-frame--closed { animation: console-art-eye-closed 17s steps(1) 1.2s infinite; }
+.console-art--reveal .console-art__eyes { animation: console-art-reveal 150ms ease-out 27ms both; }
+@keyframes console-art-eye-half {
+  0%, 27% { opacity: 0; }
+  27.15% { opacity: 1; } 27.4% { opacity: 0; } 27.75% { opacity: 1; } 28.1% { opacity: 0; }
+  58.95% { opacity: 1; } 59.2% { opacity: 0; } 59.55% { opacity: 1; } 59.9% { opacity: 0; }
+  61.05% { opacity: 1; } 61.3% { opacity: 0; } 61.65% { opacity: 1; } 62% { opacity: 0; }
+  91.95% { opacity: 1; } 92.2% { opacity: 0; } 92.55% { opacity: 1; } 92.9%, 100% { opacity: 0; }
+}
+@keyframes console-art-eye-closed {
+  0%, 27% { opacity: 0; }
+  27.4% { opacity: 1; } 27.75% { opacity: 0; }
+  59.2% { opacity: 1; } 59.55% { opacity: 0; }
+  61.3% { opacity: 1; } 61.65% { opacity: 0; }
+  92.2% { opacity: 1; } 92.55%, 100% { opacity: 0; }
+}
+.console-art[data-active="false"], .console-art[data-active="false"] * { animation-play-state: paused !important; }
 /* A cell on the silhouette, holes included: an exact 1em-tall block of the
    console's background, so the rain passes behind the mascot, not through it. */
 .console-art__solid { display: inline-block; height: 1em; vertical-align: top; background: var(--surface-app); }
@@ -59,10 +108,10 @@
    the body's colour, so it reads as depth behind the character rather than
    as text. Each column wraps to one glyph per line at 1ch wide. */
 .console-art__rain {
-  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
-  /* Faded at all four edges, so the rain dissolves into the console instead
-     of stopping at the art's box, which has no frame to justify an edge. */
-  --console-art-rain-edge: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  position: absolute; inset: 0 0 auto; height: calc(var(--console-art-rows) * 1em); overflow: hidden; pointer-events: none;
+  /* The last drawing row is the ground. Rain stops there, above the spare
+     padding under the feet; only its top and sides dissolve into the scene. */
+  --console-art-rain-edge: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 12%);
   -webkit-mask-image: var(--console-art-rain-edge); -webkit-mask-composite: source-in;
   mask-image: var(--console-art-rain-edge); mask-composite: intersect;
 }
@@ -77,8 +126,12 @@
   from { transform: translateY(-100%); }
   to { transform: translateY(calc(var(--console-art-rows) * 1em)); }
 }
-@media (prefers-reduced-motion: reduce) { .console-art__rain { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .console-art__rain, .console-art__eyes { display: none; }
+  .console-art--reveal, .console-art--reveal .console-art__row { animation: none; }
+}
 :root[data-reduced-motion="true"] .console-art__rain { display: none; }
+@media (max-width: 520px) { .console-welcome .console-art { font-size: 5px; } }
 /* Fetch-style summary, as Omarchy's fastfetch draws it: framed groups with
    a title in the frame, each in its own theme colour, an icon per row, and the
    theme's palette underneath. Frames are borders, not box-drawing glyphs, so

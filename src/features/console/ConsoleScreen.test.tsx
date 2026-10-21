@@ -204,6 +204,50 @@ describe("ConsoleScreen", () => {
     expect(welcome).toHaveTextContent(/git2\.47\.1/);
   });
 
+  it("reveals one decorative watermark on submission, keeps it through results and clear restores the welcome", async () => {
+    let finish!: (value: Awaited<ReturnType<typeof consolePort.run>>) => void;
+    vi.spyOn(consolePort, "run").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const user = userEvent.setup();
+    const { lifecycle } = renderConsole();
+    const input = screen.getByRole("combobox", { name: "Console command" });
+    await user.type(input, "look");
+    expect(document.querySelector(".console-welcome .console-art")).toBeInTheDocument();
+    expect(document.querySelector(".console-watermark")).toBeNull();
+    await user.keyboard("{Enter}");
+    const art = document.querySelector(".console-watermark .console-art");
+    expect(art).toHaveAttribute("aria-hidden", "true");
+    expect(art).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("log")).not.toContainElement(art as HTMLElement);
+    await act(async () => finish({ operationId: "status", command: "git status", stdout: "On branch main\n", stderr: "", exitCode: 0, success: true, truncated: false }));
+    expect(document.querySelector(".console-watermark .console-art")).toBe(art);
+    await user.type(input, "help{Enter}");
+    expect(document.querySelector(".console-watermark .console-art")).toBe(art);
+    act(() => lifecycle.transition("hidden"));
+    expect(art).toHaveAttribute("data-active", "false");
+    act(() => lifecycle.transition("active"));
+    expect(document.querySelector(".console-watermark .console-art")).toBe(art);
+    await user.type(input, "clear{Enter}");
+    expect(document.querySelector(".console-watermark")).toBeNull();
+    expect(document.querySelector(".console-welcome .console-art")).toHaveClass("console-art--reveal");
+    await user.type(input, "help{Enter}");
+    expect(document.querySelector(".console-watermark .console-art")).not.toBe(art);
+  });
+
+  it("classifies an explicitly selected light theme for the watermark even on a dark device", async () => {
+    const user = userEvent.setup();
+    const lifecycle = createScreenLifecycleController("active");
+    const view = (theme: "catppuccin-latte" | "nord") => <LanguageProvider><ScreenLifecycleProvider controller={lifecycle}>
+      <ConsoleScreen projectPath="/repo" projectName="Demo" branch="main" sessionEpoch="theme-test" theme={theme} />
+    </ScreenLifecycleProvider></LanguageProvider>;
+    const rendered = render(view("catppuccin-latte"));
+    await user.type(screen.getByRole("combobox", { name: "Console command" }), "help{Enter}");
+    expect(document.querySelector(".console-watermark")).toHaveAttribute("data-scheme", "light");
+    const art = document.querySelector(".console-watermark .console-art");
+    rendered.rerender(view("nord"));
+    expect(document.querySelector(".console-watermark")).toHaveAttribute("data-scheme", "dark");
+    expect(document.querySelector(".console-watermark .console-art")).toBe(art);
+  });
+
   it("opens the shortcut pane from the prompt and gives focus back to it on Escape", async () => {
     const user = userEvent.setup();
     renderConsole();
@@ -244,6 +288,9 @@ describe("ConsoleScreen", () => {
     await user.type(input, "lo");
     expect(input).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await user.clear(input);
+    await user.type(input, "help{Enter}");
+    expect(document.querySelector(".console-art")).toBeNull();
   });
 
   it("chooses a shortcut's query with a terminal-style picker", async () => {

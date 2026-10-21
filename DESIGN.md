@@ -1391,7 +1391,26 @@ are always drawn, with a dim dash while their reading is unknown or failed,
 and a re-check keeps the last value, so an edit the watcher picks up never
 makes a row come and go or the mascot move. The dots stay loose rather than framed, since they are
 decoration next to two groups of facts, but start where the frames' rows
-start, under the icons. The mascot has no frame either. The frames are borders rather than box-drawing glyphs, so no font
+start, under the icons. The mascot has no frame either. Its eyes blink with
+Home's uneven rhythm, including the occasional double blink, by swapping only
+the ASCII eye cells; the drawing and prompt stay still. Submitting the first
+entry replaces the welcome with a small watermark in the bottom-right corner:
+approximately 170px wide at 20% opacity on light schemes and 16% on dark ones,
+with slower local rain, revealed by
+rows over about half a second. The watermark sits behind the full-width text,
+outside the scrolling log, with no pointer, selection or accessibility target.
+It is inset 24px above the terminal body's edge (so the shortcut pane and footer
+stay clear), with two extra character rows under the feet and a size that fits
+short panes. Rain ends on the last ASCII row of the feet, above the protective
+padding, so the falling characters and the mascot share one imaginary ground.
+Only the rain is masked; the feet are never clipped. Results and
+later commands retain the drawing without replaying the entrance. Clearing the
+transcript restores the welcome with the same row reveal, including Ctrl+L.
+The welcome setting controls both appearances.
+Hidden screens pause the repeating motion and finish any pending entrance;
+returning to the console never replays it. Reduced motion shows the finished
+static drawing immediately without blinking or rain.
+The frames are borders rather than box-drawing glyphs, so no font
 leaves gaps in them. The transcript scrolls with the app's shared auto-hiding scrollbar (thin, no
 arrows), never the platform's default one, and as terminals do it shows only
 while the output is scrolled or the pointer moves over it, fading 1.2s after
@@ -2142,7 +2161,8 @@ Two things sit below the floor, and both are named in the guard rather than
 left to judgement. `.navigation-display__preview small` is a label inside a miniature *drawing* of
 the navigation rail, where the text is part of the picture rather than something
 anyone reads; and `.console-art` is the console welcome's ASCII mascot, whose
-characters are the picture's shading at 7px, not words. None is prose. Adding
+characters are the picture's shading at 7px in the welcome and up to 5px in
+the watermark (or a narrow welcome), not words. None is prose. Adding
 another is a deliberate edit to the guard, not a quiet override.
 
 ### Weight
@@ -2331,10 +2351,11 @@ Rules:
   behind its ASCII mascot, short columns of hex digits, like commit hashes,
   fall through the art's box at 3–7s each (a terminal's digital rain), dim,
   in the body's colour, fading toward their top and passing behind the
-  silhouette, belly included. The rain dissolves at all four edges of the
-  art's box rather than stopping at them: the mascot has no frame, as a
-  fetch tool's logo has none, so nothing would justify a hard edge. It runs while the welcome shows, so it stays
-  sparse and faint, is CSS only, and stops with the console when the screen
+  silhouette, belly included. The rain dissolves at the top and sides and
+  stops on the mascot's foot row, sharing its imaginary ground. The welcome's
+  blink and the compact watermark's row reveal are described in Console above;
+  both retain the same sparse, faint rain, slower in the watermark. Motion
+  is CSS only and stops with the console when the screen
   is hidden. These are the only decorative animations GitOdile allows, and
   only in these three places; the rest of the workbench never decorates. The
   system and app reduced-motion settings remove them; the mascot then shows

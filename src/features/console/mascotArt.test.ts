@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES, mascotLines, mascotRain } from "./mascotArt";
+import { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES, mascotEyes, mascotLines, mascotRain } from "./mascotArt";
 
 describe("mascotLines", () => {
   it("fits the compact welcome footprint instead of growing with the source drawing", () => {
@@ -53,5 +53,25 @@ describe("mascotRain", () => {
       expect(-drop.delay).toBeLessThanOrEqual(drop.duration);
     }
     expect(new Set(drops.map((drop) => drop.column)).size).toBe(drops.length);
+  });
+});
+
+describe("mascotEyes", () => {
+  it("keeps both blink patches inside covered eye cells of the generated drawing", () => {
+    for (const column of [30, 35]) {
+      expect(MASCOT_ASCII.slice(4, 7).every((row) => row.slice(column, column + 2) === "  ")).toBe(true);
+      expect(MASCOT_ASCII_COVER.slice(3, 8).every((row) => row.slice(column, column + 3) === "111")).toBe(true);
+    }
+    for (const frame of ["half", "closed"] as const) {
+      const eyes = mascotEyes(frame);
+      expect(eyes).toHaveLength(2);
+      eyes.forEach((eye) => {
+        const rows = eye.split("\n");
+        expect(rows).toHaveLength(5);
+        expect(rows.every((row) => row.length === 3)).toBe(true);
+      });
+    }
+    expect(mascotEyes("half")[0]).toContain("  -");
+    expect(mascotEyes("closed")[0].split("\n")[2]).toBe("---");
   });
 });

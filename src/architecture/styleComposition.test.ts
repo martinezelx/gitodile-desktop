@@ -504,6 +504,8 @@ describe("production style composition", () => {
     const documentedExceptions = new Set([
       ".navigation-display__preview small",
       ".console-art",
+      ".console-watermark .console-art",
+      ".console-welcome .console-art",
     ]);
     const offenders: string[] = [];
 

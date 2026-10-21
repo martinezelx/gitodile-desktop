@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Search, Server, Settings, ShieldCheck, ShieldOff, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
@@ -30,7 +30,7 @@ import {
   type ConsoleQueryId,
   type ConsoleShortcut,
 } from "./domain";
-import { mascotLines, mascotRain, type MascotRun } from "./mascotArt";
+import { ConsoleMascot } from "./ConsoleMascot";
 import { highlightOutput, queryShape, type OutputSegment } from "./output";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "./preferences";
 import type { ConsoleHost, ConsolePlan, ConsoleRunResult, ConsoleTier, HostKind, OutputShape } from "./port";
@@ -308,42 +308,6 @@ function Output({ text, segments }: { text: string; segments: OutputSegment[] | 
     </pre>
   );
 }
-
-const MASCOT_LINES = mascotLines();
-const MASCOT_RAIN = mascotRain();
-
-function mascotRunClass(run: MascotRun): string | undefined {
-  const names = [run.tone ? `console-art__tone${run.tone}` : "", run.solid ? "console-art__solid" : ""].filter(Boolean);
-  return names.length ? names.join(" ") : undefined;
-}
-
-/**
- * The ASCII mascot, with hex digits raining behind it (CSS only; none under
- * reduced motion). Memoised: it takes no props, and the welcome re-renders on
- * every keystroke in the prompt, which would rebuild a few hundred spans.
- */
-const MascotArt = memo(function MascotArt(): React.JSX.Element {
-  return (
-    <div className="console-art" aria-hidden="true" style={{ "--console-art-rows": MASCOT_LINES.length } as React.CSSProperties}>
-      <div className="console-art__rain">
-        {MASCOT_RAIN.map((drop) => (
-          <span key={drop.column} className="console-art__drop" style={{ "--column": drop.column, "--duration": `${drop.duration}s`, "--delay": `${drop.delay}s` } as React.CSSProperties}>
-            {drop.glyphs.slice(0, -1)}<b className="console-art__drop-head">{drop.glyphs.slice(-1)}</b>
-          </span>
-        ))}
-      </div>
-      <pre className="console-art__mascot">
-        {MASCOT_LINES.map((runs, y) => <Fragment key={y}>
-          {runs.map((run, x) => {
-            const className = mascotRunClass(run);
-            return className ? <span key={x} className={className}>{run.text}</span> : run.text;
-          })}
-          {"\n"}
-        </Fragment>)}
-      </pre>
-    </div>
-  );
-});
 
 /** A welcome value not known yet, or not readable: kept as a row so nothing shifts. */
 const WELCOME_UNKNOWN = <span className="console-welcome__unknown">—</span>;
@@ -796,6 +760,10 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
         if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === "l") { event.preventDefault(); clearTranscript(); }
       }}>
         <h1 className="visually-hidden">{t.consoleTitle}</h1>
+        <div className="console-panel__body">
+        {preferences.welcome && entries.length > 0 && <div className="console-watermark" data-scheme={theme === "system" ? undefined : themeById(theme).scheme}>
+          <ConsoleMascot active={lifecycle === "active"} watermark />
+        </div>}
         <div ref={transcriptRef} className="console-panel__transcript auto-hide-scrollbar" {...scrollbarActivity} onMouseUp={(event) => {
           // A terminal takes typing wherever it is clicked, unless text is being selected.
           const target = event.target as HTMLElement;
@@ -805,7 +773,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             {entries.length === 0 && (
               <div className="console-welcome">
                 {preferences.welcome && <div className="console-welcome__fetch">
-                  <MascotArt />
+                  <ConsoleMascot active={lifecycle === "active"} />
                   <div className="console-welcome__info">
                     <WelcomeSection title={t.consoleWelcomeProjectSection} tone="project" rows={[
                       [<Folder key="i" />, t.consoleWelcomeProject, projectName],
@@ -960,6 +928,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
               </div>
             )}
           </form>
+        </div>
         </div>
         <p className="visually-hidden" role="status" aria-live={lifecycle === "active" ? "polite" : "off"}>
           {latest?.running ? t.consoleRunning

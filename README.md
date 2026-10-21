@@ -123,7 +123,9 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   `repo`) ask the hosting service through `gh` or `glab` with the CLI's own
   login, and the console's welcome names the project's provider.
   Settings › Console turns suggestions and the welcome on or off and sets the
-  cursor and text size. The transcript stays in memory for the open project
+  cursor and text size. The welcome's ASCII mascot blinks; after a command it
+  appears as a small, faint watermark behind the output, revealed by rows.
+  Reduced motion keeps the drawing static. The transcript stays in memory for the open project
   session.
 - Browse the active version line as a bounded, read-only saved-version
   timeline, or every line at once from a toggle beside the filters. Local and

@@ -2,6 +2,15 @@ import { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES } from "./mascotAs
 
 export { MASCOT_ASCII, MASCOT_ASCII_COVER, MASCOT_ASCII_TONES };
 
+/** Two 3-by-5 eye patches, aligned to columns 30/35 and rows 3–7 of the mark.
+ * Keep generated art intact: only these covered cells change while blinking. */
+export function mascotEyes(frame: "half" | "closed"): string[] {
+  return [30, 35].map((column) => MASCOT_ASCII.slice(3, 8).map((line, row) => {
+    if (frame === "closed") return row === 2 ? "---" : "@@@";
+    return row === 1 || row === 2 ? line.slice(column, column + 3) : "@@@";
+  }).join("\n"));
+}
+
 /** 0 plain (spaces), 1 the body — see `mascotAscii.ts`. */
 export type MascotTone = 0 | 1;
 /** `solid` runs sit on the silhouette, so they hide the rain falling behind the art. */
