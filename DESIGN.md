@@ -1096,14 +1096,20 @@ the row; then glyphs on the name's own line, which left a long name
 (`feature/windows-installe…`) half the row. The name is what the list is
 scanned for, so it has the first line to itself, and every row keeps the
 second line — for the date if nothing else — so every row is the same height.
-As glyphs the states cost 14px each: the active line is a ringed dot in the
-accent, first;
-local only is a laptop; unpublished and not-yet-pulled versions are arrows with
-their counts (↑2 ↓3, the convention every Git client shares); a remote branch
-that was deleted is a cloud struck through, in the warning tone; the main line
-is a shield in the accent; safe to delete is a tick in the success tone, and
-not yet deletable a warning triangle. Up to date with its remote draws nothing,
-as it always did. A glyph has to be learned, so each one explains itself: its
+As glyphs the states cost 14px each, and a row flags only what asks something
+of the reader, each glyph with one meaning: the active line is a ring with its
+centre filled, in the accent, first — filled so it stands apart in a theme
+whose accent is the text's own ink; the main line is a house, quiet (it was a
+checked shield, which read as "secure"); local only is a laptop in the local
+green; versions to publish are a cloud going up with their count in the same
+green, and versions to get a cloud coming down with theirs in the remote's
+blue — the app's own verbs, where the ↑2 ↓3 arrows asked a beginner which way
+"up" was; a remote branch that was deleted is a cloud struck through, quiet,
+because after a merged pull request it is what is expected. Whether a line can
+be deleted is not on the row: its block says it, and a success tick on every
+line ready to clean up read as "done", while a warning triangle on every line
+in progress called the normal state of work a problem. Up to date with its
+remote draws nothing, as it always did. A glyph has to be learned, so each one explains itself: its
 tooltip is a sentence (`Local only — never published, so it's only on this
 computer`), the row's accessible description reads the states out in words,
 and the filter panel lists the sync glyphs beside their names, which makes it
@@ -1116,13 +1122,41 @@ list of forty `feature/…`, `fix/…` and `codex/…` names read as one wall, a
 the prefix filter only helped a reader who already knew which prefix to ask
 for. So the active line and the main line head the list without a heading —
 the two rows looked for first — and the rest falls into two blocks: **In
-progress**, open, and **Ready to clean up**, folded, decided by the same proof
-the delete plan asks for (the tip is kept by another ref). Folded, that block
-is its count in the heading's capsule and, as the heading's own second line
-rather than a box (a box weighed as much as the block), `Safe to delete` with
-"Review" in the accent — the count is not repeated in the phrase, and the
-phrase stays one line; "Review" only opens it, since clearing several lines
-at once would need its own plan and recovery point. Inside each block lines
+progress**, open, and **Ready to clean up**, folded. A line is ready to clean
+up when it is **finished**: its work is on the main line — the local one or
+the remote's copy — and was its own, which Git shows as a version saved on
+it, a merge that brought it in, or its remote branch deleted after merging.
+Not merely when deleting it would lose nothing: that proof — another ref
+keeps its tip — is also true of a published line in progress (its own remote
+copy keeps it), of a line just created on the main line, and of a line
+another one grew from, and the block once offered all three for cleaning.
+How long a line has gone untouched decides nothing; a week's pause is not a
+finished line. Without a known main line nothing is offered. That block is its
+count in the heading's capsule and, under the heading in either state, the
+action it is there for: a real button — surface, border, 44px — reading
+"Clean up 9 lines…" with "Finished: their work is on the main line" under it, the
+trash in the text's ink (red is the dialog's last button, where lines are
+actually deleted). It replaced `Safe to delete` with "Review" in the accent on
+the heading's second line, which in a monochrome theme read as a label, named
+no action and sat away from the count. The heading still only folds; from the
+keyboard, Delete on it opens the dialog too. The dialog, "Delete these
+lines?" in the danger tone with its primary `Delete 9 lines`, lists the block's
+lines as drawn, in the inner-card recipe, each with the include node (all in), its sync glyphs and where its work is
+kept, an "All lines (n of m)" node above them — its half moon when only some are in — the lines Rust left out
+folded under a count with each one's reason, and "Also delete the published
+copies" — an `app-checkbox`, since it is an option of the action and not an
+item in it; off by default, unlike the single delete, because it is many
+shared branches at once. It is there whenever the plan has a published line
+and held back, saying "None of the chosen lines is published", while no
+chosen line has one, so ticking lines never makes it come and go and the
+dialog keeps one size; the facts below it are fixed by the plan for the same
+reason. The recovery
+fact closes the preview: each line's name and last version are kept in a
+recovery point first. When none of them can go, it is a block, "Can't delete
+them yet" in the warning tone, with the reasons and `Close`. A clean-up that deleted everything closes with a toast; one
+that kept a line or left a published copy stays on screen as "Clean-up
+finished", listing what was not deleted and what is still published, each
+with its reason, until it is closed. Inside each block lines
 cluster under their first name segment, a step quieter than the block's
 uppercase label; a prefix only one line has stays loose, first, because a
 heading over one row says the same thing twice, and a cluster of more than
@@ -1658,13 +1692,18 @@ Which versions the remote lacks is asked of Git with the history read
 (`<line>@{upstream}..<line>`), not read off the ahead count by position: a
 line that merged another interleaves the two by date.
 Where the line is ahead of its remote copy, the versions only here sit under
-an "On this computer" chip on the rail and a "Published" chip marks where the
-remote's copy begins — Overview's `TimelineChip` at its compact size, no
-count and no rule, the remote in the "Published" chip's tooltip. While the
-list scrolls, the chips stay at its top as their versions pass, as
-Overview's do. On the active line the head carries
-Publish, History's quiet capsule with only the cloud in the accent, as the
-state "3 not published" above does; another line is published from that line.
+an "On this computer" chip on the rail — also when every listed version is
+one of them, on a line further ahead than the list shows — and a
+"Published" chip marks where the remote's copy begins when it is in view —
+Overview's `TimelineChip` at its compact size, no count and no rule, the
+remote in the "Published" chip's tooltip. While the list scrolls, the chips
+stay at its top as their versions pass, as Overview's do. **One Publish per
+line**, History's quiet capsule with only the cloud in the accent: on the
+active line it rides the "On this computer" head, beside the versions it
+sends, as History's does; only a line with no head — never published, or
+whose remote branch was deleted — carries it on the remote state above
+instead. Two at once had the same button twice on one screen. Another line
+is published from that line.
 No chip repeats it, and a row's code shows under the pointer. The list takes
 the height the actions leave and scrolls inside itself, with no count of the
 versions it leaves out: "Open in History" over it is the way to them, and
@@ -3215,8 +3254,9 @@ The "everything is saved" state's circle is the band's done tile, light fill
 and no shadow, since nothing there rests on anything. The shared
 `.app-checkbox` remains the checkbox for option rows — the History filter
 panel, a save's "Also publish" — that same light fill with the tick in the
-accent. The Changes file list does not use it: its include control is History's
-timeline node at 10px. Filled in the node fill means the file is in, an empty
+accent. A list whose items go into one action does not use it — the Changes
+file list, and the lines a clean-up deletes: its include control is History's
+timeline node at 10px (`InclusionNode` in `shared/ui`). Filled in the node fill means the file is in, an empty
 ring means it is out, and a half moon means only part of a folder is in. The
 accent belongs to the file that is open, as it does on History's selected row;
 the include state itself is carried by the fill, not by a second green

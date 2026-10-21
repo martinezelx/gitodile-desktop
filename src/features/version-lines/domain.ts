@@ -20,6 +20,11 @@ export type VersionLine = {
    * or remote-tracking ref — the same proof required before deletion. Based
    * only on locally known refs; never a fresh remote check. */
   isRetainedElsewhere: boolean;
+  /** Its work is on the project's main line and was its own: merged, with
+   * a version saved on it, a merge that brought it in, or its remote branch
+   * deleted. What "Ready to clean up" offers. Not the same as
+   * `isRetainedElsewhere`, which a published line in progress also is. */
+  isFinished: boolean;
   /** Commits unique to this line relative to the active one, when
    * meaningful (never set for the active line itself). */
   /** Versions on this line and not on the project's main line (the remote's
@@ -252,6 +257,57 @@ export type DeleteVersionLinePlan = {
    * main line as copies. The delete then keeps `recoveryPoint` first. */
   copiedInto: CopiedInto | null;
   recoveryPoint: RecoveryPointPreview | null;
+};
+
+/** Mirrors the Rust `CleanUpLine` contract: one line a clean-up will delete. */
+export type CleanUpLine = {
+  name: string;
+  tipCommit: string;
+  /** Exact ref names that hold this line's tip. */
+  retainedBy: string[];
+  published: PublishedLine | null;
+  /** This line's own token, echoed back to delete it. */
+  stateToken: string;
+};
+
+/** Mirrors the Rust `ExcludedLine` contract: asked for, left out, and why. */
+export type ExcludedLine = {
+  name: string;
+  reason: unknown;
+};
+
+/** Mirrors the Rust `CleanUpVersionLinesPlan` contract. */
+export type CleanUpVersionLinesPlan = {
+  operationKind: "destructive";
+  summary: string;
+  steps: string[];
+  risks: string[];
+  recovery: string;
+  requiresConfirmation: boolean;
+  lines: CleanUpLine[];
+  excluded: ExcludedLine[];
+  /** How the recovery points are kept; each deleted line gets its own. */
+  recoveryPoint: RecoveryPointPreview;
+};
+
+/** Mirrors the Rust `CleanUpLineResult` contract. A skipped line is untouched,
+ * locally and on the remote; a deleted one may still carry a remote error. */
+export type CleanUpLineResult = {
+  name: string;
+  outcome: "deleted" | "skipped";
+  reason: unknown | null;
+  /** `null` when the published copy was not asked for, or there was none. */
+  remoteDeleted: boolean | null;
+  remoteError: unknown | null;
+  recoveryReference: string | null;
+};
+
+/** Mirrors the Rust `CleanUpVersionLinesResult` contract. */
+export type CleanUpVersionLinesResult = {
+  /** `null` only when reading the list failed after lines were deleted; the
+   * clean-up still happened, and the screen refreshes on its own. */
+  snapshot: VersionLinesSnapshot | null;
+  lines: CleanUpLineResult[];
 };
 
 /** Mirrors the Rust `CopiedInto` contract. */

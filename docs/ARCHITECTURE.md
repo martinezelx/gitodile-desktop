@@ -632,7 +632,17 @@ Deleting a version line whose work reached the main line only as copies
 under its own operation — `refs/gitodile/recovery/v1/delete-version-line/`,
 its own manifest folder and its own limit of 20 — before the line is removed
 ([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md)).
-`recovery::HistoryRecoveryOperation` names the operations; the protocol is one.
+Cleaning up several lines at once (`plan_clean_up_version_lines` /
+`clean_up_version_lines`) keeps one record per deleted line under
+`refs/gitodile/recovery/v1/clean-up-version-lines/`, with its own limit of 50,
+which is also the most lines one clean-up deletes; each line is rechecked
+against the single delete's rules, and against being finished
+(`finished_lines`: its work is on the main line and was its own), right before
+it goes, and one that no longer qualifies is skipped and reported while the
+rest continue
+([ADR 0034](adr/0034-one-recovery-point-per-line-in-a-clean-up.md)).
+`recovery::HistoryRecoveryOperation` names the operations and their limits;
+the protocol is one.
 
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.

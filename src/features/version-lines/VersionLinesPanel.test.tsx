@@ -22,6 +22,7 @@ function snapshot(overrides: Partial<VersionLinesSnapshot> = {}): VersionLinesSn
         isActive: true,
         upstream: null,
         isRetainedElsewhere: false,
+        isFinished: false,
         uniqueCommitCount: null,
         worktreePath: null,
         upstreamAhead: null,
@@ -35,6 +36,7 @@ function snapshot(overrides: Partial<VersionLinesSnapshot> = {}): VersionLinesSn
         isActive: false,
         upstream: null,
         isRetainedElsewhere: true,
+        isFinished: true,
         uniqueCommitCount: 2,
         worktreePath: null,
         upstreamAhead: null,
@@ -63,6 +65,7 @@ function withBugfixLine(): VersionLinesSnapshot {
         isActive: false,
         upstream: null,
         isRetainedElsewhere: true,
+        isFinished: true,
         uniqueCommitCount: 0,
         worktreePath: null,
         upstreamAhead: null,
@@ -233,7 +236,8 @@ describe("VersionLinesPanel", () => {
     renderPanel();
 
     const row = screen.getByRole("treeitem", { name: "feature/new-thing" });
-    expect(row).toHaveAccessibleDescription("Local only, Safe to delete");
+    // Whether it can be deleted is its block's to say, not a glyph's.
+    expect(row).toHaveAccessibleDescription("Local only");
     expect(row.querySelector(".state-glyph")).toHaveAttribute(
       "data-tooltip",
       "Local only — never published, so it's only on this computer",
@@ -311,6 +315,7 @@ describe("VersionLinesPanel", () => {
       name,
       tip: { ...base.tip, commit: `${name}-tip`, committedAt },
       isRetainedElsewhere: false,
+      isFinished: false,
       ...overrides,
     });
     const grouped = (): VersionLinesSnapshot =>
@@ -320,8 +325,8 @@ describe("VersionLinesPanel", () => {
           entry("feature/a", "2026-07-05T00:00:00Z"),
           entry("fix/x", "2026-07-04T00:00:00Z"),
           entry("feature/b", "2026-07-03T00:00:00Z"),
-          entry("chore/old", "2026-07-02T00:00:00Z", { isRetainedElsewhere: true }),
-          entry("chore/older", "2026-07-01T00:00:00Z", { isRetainedElsewhere: true }),
+          entry("chore/old", "2026-07-02T00:00:00Z", { isRetainedElsewhere: true, isFinished: true }),
+          entry("chore/older", "2026-07-01T00:00:00Z", { isRetainedElsewhere: true, isFinished: true }),
         ],
         totalCount: 6,
       });
@@ -355,6 +360,64 @@ describe("VersionLinesPanel", () => {
 
       expect(listedNames()).toEqual(["main", "fix/x", "feature/a", "feature/b", "chore/old", "chore/older"]);
       expect(cleanUp).not.toHaveAccessibleDescription();
+    });
+
+    it("cleans up the block from its own button, while the heading still only folds", async () => {
+      const user = userEvent.setup();
+      mockedInvoke.mockImplementation(async (command: string) => {
+        if (command === "plan_clean_up_version_lines") {
+          return {
+            operationKind: "destructive",
+            summary: "Delete",
+            steps: [],
+            risks: [],
+            recovery: "",
+            requiresConfirmation: true,
+            lines: [
+              {
+                name: "chore/old",
+                tipCommit: "c1",
+                retainedBy: ["refs/heads/main"],
+                published: null,
+                            stateToken: "t1",
+              },
+            ],
+            excluded: [],
+            recoveryPoint: { reference: "r", explanation: "", retention: "", retentionLimit: 50 },
+          };
+        }
+        return undefined;
+      });
+      const onOperationStart = vi.fn(() => true);
+      renderPanel({ snapshot: grouped(), onOperationStart }, { openCleanUp: false });
+
+      const cleanUp = screen.getByRole("treeitem", { name: "Ready to clean up, 2 lines" });
+      await user.click(cleanUp);
+      expect(cleanUp).toHaveAttribute("aria-expanded", "true");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^Clean up 2 lines…/ }));
+      expect(await screen.findByRole("dialog", { name: "Delete these lines?" })).toBeInTheDocument();
+      expect(onOperationStart).toHaveBeenCalledTimes(1);
+      expect(cleanUp).toHaveAttribute("aria-expanded", "true");
+      expect(mockedInvoke).toHaveBeenCalledWith("plan_clean_up_version_lines", {
+        path: "/repo",
+        sessionEpoch: "epoch-1",
+        names: ["chore/old", "chore/older"],
+      });
+    });
+
+    it("opens the clean-up review with Delete on its heading, when the slot is free", async () => {
+      const onOperationStart = vi.fn(() => false);
+      renderPanel({ snapshot: grouped(), onOperationStart }, { openCleanUp: false });
+
+      const cleanUp = screen.getByRole("treeitem", { name: "Ready to clean up, 2 lines" });
+      expect(cleanUp).toHaveAttribute("aria-keyshortcuts", "Delete");
+      fireEvent.keyDown(cleanUp, { key: "Delete" });
+      expect(onOperationStart).toHaveBeenCalledTimes(1);
+      // Another session holds the project's mutation slot: nothing opens.
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(screen.getByRole("treeitem", { name: "In progress, 3 lines" })).not.toHaveAttribute("aria-keyshortcuts");
     });
 
     it("opens everything while searching, and puts the folds back after", async () => {
@@ -453,6 +516,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/release/1.0",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 0,
@@ -483,6 +547,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/zeta/newest",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 2,
@@ -496,6 +561,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: null,
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: null,
@@ -791,7 +857,7 @@ describe("VersionLinesPanel", () => {
 
     // The list says why, instead of promising a cleanup it would refuse.
     const row = screen.getByRole("treeitem", { name: "trunk" });
-    expect(row).toHaveAccessibleDescription("Local only, Main line");
+    expect(row).toHaveAccessibleDescription("Main line, Local only");
 
     await user.click(row);
     const detail = detailPanel("trunk");
@@ -816,7 +882,7 @@ describe("VersionLinesPanel", () => {
     expect(listedNames()).toContain("feature/new-thing");
   });
 
-  it("says up front which lines can be deleted and which can't", async () => {
+  it("says which lines can be deleted by the block they are in, not by a glyph", async () => {
     renderPanel({
       snapshot: snapshot({
         lines: [
@@ -828,6 +894,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: null,
             isRetainedElsewhere: false,
+            isFinished: false,
             uniqueCommitCount: 3,
             worktreePath: null,
             upstreamAhead: null,
@@ -840,12 +907,16 @@ describe("VersionLinesPanel", () => {
       }),
     });
 
-    expect(screen.getByRole("treeitem", { name: "feature/new-thing" })).toHaveAccessibleDescription(
-      "Local only, Safe to delete",
-    );
-    expect(screen.getByRole("treeitem", { name: "feature/unmerged" })).toHaveAccessibleDescription(
-      "Local only, Can't be deleted yet",
-    );
+    const deletable = screen.getByRole("treeitem", { name: "feature/new-thing" });
+    const unmerged = screen.getByRole("treeitem", { name: "feature/unmerged" });
+    expect(deletable).toHaveAccessibleDescription("Local only");
+    expect(unmerged).toHaveAccessibleDescription("Local only");
+    // In progress comes first, then Ready to clean up.
+    const inProgress = screen.getByRole("treeitem", { name: "In progress, 1 line" });
+    const cleanUp = screen.getByRole("treeitem", { name: "Ready to clean up, 1 line" });
+    expect(inProgress.compareDocumentPosition(unmerged) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(unmerged.compareDocumentPosition(cleanUp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cleanUp.compareDocumentPosition(deletable) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("flags drift from the upstream in the row, and explains it in the detail", async () => {
@@ -860,6 +931,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/feature/ahead",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 2,
@@ -873,6 +945,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/feature/diverged",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 1,
@@ -886,6 +959,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/feature/gone",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 0,
@@ -899,6 +973,7 @@ describe("VersionLinesPanel", () => {
             isActive: false,
             upstream: "origin/feature/synced",
             isRetainedElsewhere: true,
+            isFinished: true,
             uniqueCommitCount: 0,
             worktreePath: null,
             upstreamAhead: 0,
@@ -1159,10 +1234,11 @@ describe("VersionLinesPanel", () => {
     });
 
     const detail = detailPanel("feature/new-thing");
-    // Beside the fact, and over the versions only here once the list is read.
+    // Once, over the versions it sends: the remote fact leaves it to the head.
     await within(detail).findByText("On this computer");
     const publish = within(detail).getAllByRole("button", { name: "Publish" });
-    expect(publish).toHaveLength(2);
+    expect(publish).toHaveLength(1);
+    expect(publish[0].closest(".version-lines-recent__head")).not.toBeNull();
     await user.click(publish[0]);
     expect(onPublish).toHaveBeenCalledTimes(1);
     // When, as the list says it; the exact date is on the tooltip.
@@ -1171,6 +1247,48 @@ describe("VersionLinesPanel", () => {
     // Another line is published from that line, not from here.
     await user.click(screen.getByRole("treeitem", { name: "main" }));
     expect(within(detailPanel("main")).queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
+  });
+
+  it("offers Publish in the remote fact when there is no head to carry it", async () => {
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      onPublish: vi.fn(),
+      onOpenHistory: vi.fn(),
+      snapshot: snapshot({
+        branch: "feature/new-thing",
+        // Never published: which versions the remote has is not known, so no
+        // "On this computer" head is drawn.
+        lines: [{ ...main, isActive: false, isDefault: true }, { ...feature, isActive: true, upstream: null }],
+      }),
+      readHistory: async (name: string) => history(name),
+    });
+
+    const detail = detailPanel("feature/new-thing");
+    const publish = await within(detail).findAllByRole("button", { name: "Publish" });
+    expect(publish).toHaveLength(1);
+    expect(publish[0].closest(".version-lines-relations")).not.toBeNull();
+    expect(within(detail).queryByText("On this computer")).not.toBeInTheDocument();
+  });
+
+  it("heads the versions only here even when every listed one is, many versions ahead", async () => {
+    const [main, feature] = snapshot().lines;
+    renderPanel({
+      onOpenHistory: vi.fn(),
+      snapshot: snapshot({
+        lines: [main, { ...feature, upstream: "origin/feature/new-thing", upstreamAhead: 16, upstreamBehind: 0 }],
+      }),
+      readHistory: async (name: string) =>
+        history(name, { unpublished: [feature.tip.commit, "ccc333"] }),
+    });
+
+    await userEvent.setup().click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
+    const detail = detailPanel("feature/new-thing");
+    // The remote's copy starts below what the list shows: the head, and no
+    // "Published" mark.
+    await within(detail).findByText("On this computer");
+    expect(within(detail).queryByText("Published")).not.toBeInTheDocument();
+    const rows = detail.querySelectorAll(".version-lines-recent__row");
+    expect([...rows].every((row) => row.classList.contains("version-lines-recent__row--local-only"))).toBe(true);
   });
 
   it("takes where each version stands from Git's answer, not from its position", async () => {

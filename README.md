@@ -91,8 +91,14 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   reference already holds its saved work; a published line can have its remote
   copy removed with it, and the two halves are reported separately. The remote's
   own default line is never renamed or deleted. The list keeps the current and
-  main lines on top, then lines still in progress and lines ready to clean up,
+  main lines on top, then lines still in progress and finished lines ready to
+  clean up (their work is on the main line and was their own; a line that is
+  merely published, or idle, is never offered),
   each grouped by name prefix and foldable, with folds remembered per project.
+  "Clean up N lines…" on the finished lines deletes the ones you choose in one
+  confirmed step, optionally with their published copies, rechecking each line
+  first, keeping a recovery point with each one's name and last version, and
+  reporting what was deleted, kept, or is still published.
 - See one version line's recent saved versions, its saved-version count and
   where it stands against its remote, read on demand for the line you select
   rather than for every branch on every refresh.

@@ -693,10 +693,10 @@ describe("ChangesPanel review controls", () => {
     const openBox = screen.getByRole("checkbox", { name: "Include edited.txt in this version" });
     const openRow = openBox.closest("li");
     expect(openRow).toHaveClass("changes-file-row--active");
-    expect(openBox).toHaveClass("changes-file-row__pick-input");
+    expect(openBox).toHaveClass("inclusion-node__input");
     expect(openBox.closest(".changes-file-row__pick")).not.toBeNull();
     const node = openBox.nextElementSibling;
-    expect(node).toHaveClass("changes-file-row__node");
+    expect(node).toHaveClass("inclusion-node__mark");
 
     // The visible node is inside the label: pressing it must work without
     // aiming at the 1px native input.

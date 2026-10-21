@@ -93,6 +93,7 @@ export interface SharedTranslations {
   errorVersionLineIsActive: string;
   errorVersionLineIsDefault: string;
   errorVersionLineUniqueWork: string;
+  errorVersionLineNotFinished: string;
   errorVersionLineSwitchObstructed: string;
   errorStaleVersionLinePlan: string;
   errorDirtyWorkingTree: string;
@@ -218,6 +219,7 @@ const en: SharedTranslations = {
   errorVersionLineIsActive: "You can't delete the line you're on. Switch to another one first.",
   errorVersionLineIsDefault: "This is the project's main line, so GitOdile keeps it.",
   errorVersionLineUniqueWork: "This line has saved work that exists nowhere else yet.",
+  errorVersionLineNotFinished: "This line isn't finished: its work isn't on the main line yet.",
   errorVersionLineSwitchObstructed: "Unsaved changes are in the way of this switch. Save or discard them, then retry.",
   errorStaleVersionLinePlan: "The project changed since the preview. Refresh and retry.",
   errorDirtyWorkingTree: "You have unsaved changes. Save a version, or start a new line with them.",
@@ -343,6 +345,7 @@ const es: SharedTranslations = {
   errorVersionLineIsActive: "No puedes eliminar la línea en la que estás. Cambia antes a otra.",
   errorVersionLineIsDefault: "Es la línea principal del proyecto, así que GitOdile la conserva.",
   errorVersionLineUniqueWork: "Esta línea tiene trabajo guardado que todavía no está en ningún otro sitio.",
+  errorVersionLineNotFinished: "Esta línea no está terminada: su trabajo aún no está en la línea principal.",
   errorVersionLineSwitchObstructed: "Hay cambios sin guardar que impiden el cambio de línea. Guárdalos o descártalos y reintenta.",
   errorStaleVersionLinePlan: "El proyecto ha cambiado desde la vista previa. Actualiza y reintenta.",
   errorDirtyWorkingTree: "Tienes cambios sin guardar. Guarda una versión o empieza una línea nueva con ellos.",

@@ -9,6 +9,7 @@ function line(name: string, overrides: Partial<VersionLine> = {}): VersionLine {
     isActive: false,
     upstream: `origin/${name}`,
     isRetainedElsewhere: true,
+    isFinished: true,
     uniqueCommitCount: null,
     worktreePath: null,
     upstreamAhead: 0,

@@ -35,6 +35,7 @@ function line(name: string, options: Partial<VersionLine> = {}): VersionLine {
     isActive: false,
     upstream: null,
     isRetainedElsewhere: false,
+    isFinished: false,
     uniqueCommitCount: 1,
     worktreePath: null,
     upstreamAhead: null,

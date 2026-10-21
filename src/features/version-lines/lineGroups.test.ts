@@ -18,6 +18,7 @@ function line(name: string, overrides: Partial<VersionLine> = {}): VersionLine {
     isActive: false,
     upstream: `origin/${name}`,
     isRetainedElsewhere: false,
+    isFinished: false,
     uniqueCommitCount: null,
     worktreePath: null,
     upstreamAhead: 0,
@@ -34,19 +35,26 @@ describe("groupVersionLines", () => {
   const active = line("release/0.3.1", { isActive: true });
   const others = [
     line("feature/history-boundary"),
-    line("main", { isDefault: true, isRetainedElsewhere: true }),
+    line("main", { isDefault: true, isRetainedElsewhere: true, isFinished: true }),
     line("fix/crlf"),
     line("feature/quick-switch"),
-    line("codex/feature/about-polish", { isRetainedElsewhere: true }),
-    line("fix/draft-lookup", { isRetainedElsewhere: true, upstreamGone: true }),
-    line("fix/draft-asset", { isRetainedElsewhere: true, upstreamGone: true }),
-    line("codex/dependabot", { isRetainedElsewhere: true }),
-    line("spike", { isRetainedElsewhere: true }),
-    line("feature/in-other-worktree", { isRetainedElsewhere: true, worktreePath: "/elsewhere" }),
+    line("codex/feature/about-polish", { isRetainedElsewhere: true, isFinished: true }),
+    line("fix/draft-lookup", { isRetainedElsewhere: true, isFinished: true, upstreamGone: true }),
+    line("fix/draft-asset", { isRetainedElsewhere: true, isFinished: true, upstreamGone: true }),
+    line("codex/dependabot", { isRetainedElsewhere: true, isFinished: true }),
+    line("spike", { isRetainedElsewhere: true, isFinished: true }),
+    line("feature/in-other-worktree", { isRetainedElsewhere: true, isFinished: true, worktreePath: "/elsewhere" }),
   ];
 
   it("pins where the project is and the main line, in that order", () => {
     expect(names(groupVersionLines(active, others).pinned)).toEqual(["release/0.3.1", "main"]);
+  });
+
+  it("keeps a line in progress when deleting it would lose nothing but it isn't finished", () => {
+    // Published and in sync: its own remote copy keeps it, and it is still work.
+    const published = line("feature/in-review", { isRetainedElsewhere: true, isFinished: false, upstream: "origin/feature/in-review" });
+    const { buckets } = groupVersionLines(active, [published]);
+    expect(buckets.map((bucket) => bucket.key)).toEqual(["in-progress"]);
   });
 
   it("splits the rest by what can be done with them", () => {
@@ -95,7 +103,7 @@ describe("visibleLineTree", () => {
   const grouped = groupVersionLines(line("main", { isActive: true, isDefault: true }), [
     line("feature/a"),
     line("feature/b"),
-    line("fix/old", { isRetainedElsewhere: true }),
+    line("fix/old", { isRetainedElsewhere: true, isFinished: true }),
   ]);
   const id = (name: string): string => `row-${name}`;
 

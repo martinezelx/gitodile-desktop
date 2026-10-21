@@ -119,7 +119,10 @@ export interface VersionLinesTranslations {
   versionLinesGroupCleanUp: string;
   versionLinesGroupLabel: (name: string, count: number) => string;
   versionLinesCleanUpHint: string;
-  versionLinesCleanUpReview: string;
+  /** The clean-up block's action: verb, count, and an ellipsis for the
+   * preview it opens. */
+  versionLinesCleanUpAction: (count: number) => string;
+  versionLinesCleanUpActionNote: string;
   versionLinesSortRecent: string;
   versionLinesSortName: string;
   versionLinesSortUnpublished: string;
@@ -131,16 +134,12 @@ export interface VersionLinesTranslations {
   versionLinesSyncAhead: (count: number) => string;
   versionLinesSyncBehind: (count: number) => string;
   versionLinesSyncAheadBehind: (ahead: number, behind: number) => string;
-  versionLinesDeletablePill: string;
-  versionLinesNotDeletablePill: string;
   /** What each state glyph on a Lines row means, as its tooltip — a sentence,
    * where the short labels above are what a screen reader hears. */
   versionLinesGlyphActive: string;
   versionLinesGlyphLocalOnly: string;
   versionLinesGlyphGone: string;
   versionLinesGlyphProtected: string;
-  versionLinesGlyphDeletable: string;
-  versionLinesGlyphNotDeletable: string;
   versionLinesDeleteReadyTooltip: (name: string) => string;
   /** Delete on a line whose work reached the main line as copies. */
   versionLinesDeleteCopiedTooltip: (name: string, base: string) => string;
@@ -251,6 +250,35 @@ export interface VersionLinesTranslations {
   deleteVersionLineRemoteLabel: string;
   deleteVersionLineRemoteOnNote: string;
   deleteVersionLineRemoteOffNote: string;
+  cleanUpLinesTitle: string;
+  cleanUpLinesBlockedTitle: string;
+  cleanUpLinesLoading: string;
+  cleanUpLinesLead: string;
+  cleanUpLinesNothing: string;
+  cleanUpLinesListLabel: string;
+  cleanUpLinesSelectAll: (chosen: number, total: number) => string;
+  cleanUpLinesKeptOn: (line: string, more: number) => string;
+  cleanUpLinesCapped: (shown: number, total: number) => string;
+  cleanUpLinesExcludedHeading: (count: number) => string;
+  cleanUpLinesRemoteLabel: (count: number) => string;
+  cleanUpLinesRemoteOnNote: string;
+  cleanUpLinesRemoteOffNote: string;
+  /** Why the published-copies option is held back: no chosen line has one. */
+  cleanUpLinesRemoteNoneNote: string;
+  cleanUpLinesRecoveryFact: string;
+  cleanUpLinesNoneChosen: string;
+  cleanUpLinesConfirm: (count: number) => string;
+  /** The primary held back while the plan is read: no count yet, since the
+   * plan may leave some of the asked-for lines out. */
+  cleanUpLinesConfirmPending: string;
+  cleanUpLinesDeleting: string;
+  cleanUpLinesDoneTitle: string;
+  cleanUpLinesSummary: (deleted: number, skipped: number, remoteFailed: number) => string;
+  cleanUpLinesSkippedHeading: string;
+  cleanUpLinesRemoteFailedHeading: string;
+  cleanUpLinesRemoteRefused: string;
+  cleanUpLinesRecoveryKept: string;
+  cleanUpLinesToast: (deleted: number, remote: boolean) => string;
   renameVersionLineTitle: (name: string) => string;
   /** How a blocked app update names an unfinished rename; the update quotes
    * it, so it carries no quotes of its own. */
@@ -396,7 +424,8 @@ const en: VersionLinesTranslations = {
   versionLinesGroupCleanUp: "Ready to clean up",
   versionLinesGroupLabel: (name, count) => `${name}, ${count === 1 ? "1 line" : `${count} lines`}`,
   versionLinesCleanUpHint: "Safe to delete",
-  versionLinesCleanUpReview: "Review",
+  versionLinesCleanUpAction: (count) => (count === 1 ? "Clean up 1 line…" : `Clean up ${count} lines…`),
+  versionLinesCleanUpActionNote: "Finished: their work is on the main line",
   versionLinesSortRecent: "Recent",
   versionLinesSortName: "Name",
   versionLinesSortUnpublished: "Local first",
@@ -408,14 +437,10 @@ const en: VersionLinesTranslations = {
   versionLinesSyncAhead: (count) => (count === 1 ? "1 not published" : `${count} not published`),
   versionLinesSyncBehind: (count) => (count === 1 ? "1 to get" : `${count} to get`),
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} not published, ${behind} to get`,
-  versionLinesDeletablePill: "Safe to delete",
-  versionLinesNotDeletablePill: "Can't be deleted yet",
   versionLinesGlyphActive: "Active — the line you're working on",
   versionLinesGlyphLocalOnly: "Local only — never published, so it's only on this computer",
   versionLinesGlyphGone: "Its remote branch was deleted",
   versionLinesGlyphProtected: "Main line — it can't be renamed or deleted",
-  versionLinesGlyphDeletable: "Safe to delete — its saved versions are kept elsewhere",
-  versionLinesGlyphNotDeletable: "Can't be deleted yet — it has versions no other line has",
   versionLinesDeleteCopiedTooltip: (name, base) =>
     `Delete “${name}”. Its work is already on ${base}; GitOdile keeps a recovery point first.`,
   versionLinesDeleteReadyTooltip: (name) => `Delete “${name}”. Its work is already kept elsewhere.`,
@@ -527,6 +552,49 @@ const en: VersionLinesTranslations = {
   deleteVersionLineRemoteLabel: "Also delete the published copy",
   deleteVersionLineRemoteOnNote: "Your team won't see it anymore.",
   deleteVersionLineRemoteOffNote: "It stays, and your team still sees it.",
+  cleanUpLinesTitle: "Delete these lines?",
+  cleanUpLinesBlockedTitle: "Can't delete them yet",
+  cleanUpLinesLoading: "Checking each line…",
+  cleanUpLinesLead: "They're finished: their work is already on the main line, so deleting them loses nothing.",
+  cleanUpLinesNothing: "None of these lines can be deleted right now.",
+  cleanUpLinesListLabel: "Lines to delete",
+  cleanUpLinesSelectAll: (chosen, total) => `All lines (${chosen} of ${total})`,
+  cleanUpLinesKeptOn: (line, more) => (more > 0 ? `Kept on “${line}” and ${more} more` : `Kept on “${line}”`),
+  cleanUpLinesCapped: (shown, total) => `The first ${shown} of ${total} lines. Clean up the rest afterwards.`,
+  cleanUpLinesExcludedHeading: (count) => (count === 1 ? "1 line left out" : `${count} lines left out`),
+  cleanUpLinesRemoteLabel: (count) =>
+    count === 0
+      ? "Also delete the published copies"
+      : count === 1
+        ? "Also delete the published copy"
+        : `Also delete the ${count} published copies`,
+  cleanUpLinesRemoteOnNote: "Your team won't see them anymore.",
+  cleanUpLinesRemoteOffNote: "They stay, and your team still sees them.",
+  cleanUpLinesRemoteNoneNote: "None of the chosen lines is published.",
+  cleanUpLinesRecoveryFact: "Each line's name and last version are kept in a recovery point on this computer first.",
+  cleanUpLinesNoneChosen: "Choose at least one line to delete.",
+  cleanUpLinesConfirm: (count) => (count === 1 ? "Delete 1 line" : `Delete ${count} lines`),
+  cleanUpLinesConfirmPending: "Delete lines",
+  cleanUpLinesDeleting: "Deleting…",
+  cleanUpLinesDoneTitle: "Clean-up finished",
+  cleanUpLinesSummary: (deleted, skipped, remoteFailed) =>
+    [
+      deleted === 1 ? "1 line deleted" : `${deleted} lines deleted`,
+      skipped > 0 ? (skipped === 1 ? "1 kept" : `${skipped} kept`) : null,
+      remoteFailed > 0
+        ? remoteFailed === 1
+          ? "1 published copy is still there"
+          : `${remoteFailed} published copies are still there`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ") + ".",
+  cleanUpLinesSkippedHeading: "Not deleted",
+  cleanUpLinesRemoteFailedHeading: "Deleted here, still published",
+  cleanUpLinesRemoteRefused: "The remote refused to delete it; it may be protected there.",
+  cleanUpLinesRecoveryKept: "Each deleted line's name and last version are kept in a recovery point on this computer.",
+  cleanUpLinesToast: (deleted, remote) =>
+    `${deleted === 1 ? "1 line deleted" : `${deleted} lines deleted`}${remote ? ", and the published copies too" : ""}. Each one is kept in a recovery point.`,
   renameVersionLineTitle: (name) => `Rename “${name}”`,
   renameVersionLineInstallBlockerLabel: (name) => `Rename ${name}`,
   renameVersionLineNote: "Only the name changes, and every saved version stays where it is.",
@@ -668,7 +736,8 @@ const es: VersionLinesTranslations = {
   versionLinesGroupCleanUp: "Listas para limpiar",
   versionLinesGroupLabel: (name, count) => `${name}, ${count === 1 ? "1 línea" : `${count} líneas`}`,
   versionLinesCleanUpHint: "Se pueden eliminar",
-  versionLinesCleanUpReview: "Revisar",
+  versionLinesCleanUpAction: (count) => (count === 1 ? "Limpiar 1 línea…" : `Limpiar ${count} líneas…`),
+  versionLinesCleanUpActionNote: "Terminadas: su trabajo está en la línea principal",
   versionLinesSortRecent: "Recientes",
   versionLinesSortName: "Nombre",
   versionLinesSortUnpublished: "Locales primero",
@@ -680,14 +749,10 @@ const es: VersionLinesTranslations = {
   versionLinesSyncAhead: (count) => (count === 1 ? "1 sin publicar" : `${count} sin publicar`),
   versionLinesSyncBehind: (count) => (count === 1 ? "1 por traer" : `${count} por traer`),
   versionLinesSyncAheadBehind: (ahead, behind) => `${ahead} sin publicar, ${behind} por traer`,
-  versionLinesDeletablePill: "Se puede eliminar",
-  versionLinesNotDeletablePill: "Aún no se puede eliminar",
   versionLinesGlyphActive: "Activa: la línea en la que estás trabajando",
   versionLinesGlyphLocalOnly: "Solo local: nunca se ha publicado, así que solo está en este ordenador",
   versionLinesGlyphGone: "Su rama remota se eliminó",
   versionLinesGlyphProtected: "Línea principal: no se puede renombrar ni eliminar",
-  versionLinesGlyphDeletable: "Se puede eliminar: sus versiones guardadas están en otro sitio",
-  versionLinesGlyphNotDeletable: "Aún no se puede eliminar: tiene versiones que ninguna otra línea tiene",
   versionLinesDeleteCopiedTooltip: (name, base) =>
     `Eliminar «${name}». Su trabajo ya está en ${base}; GitOdile guarda antes un punto de recuperación.`,
   versionLinesDeleteReadyTooltip: (name) => `Eliminar «${name}». Su trabajo ya está en otro sitio.`,
@@ -800,6 +865,49 @@ const es: VersionLinesTranslations = {
   deleteVersionLineRemoteLabel: "Eliminar también la copia publicada",
   deleteVersionLineRemoteOnNote: "Tu equipo dejará de verla.",
   deleteVersionLineRemoteOffNote: "Se queda, y tu equipo la sigue viendo.",
+  cleanUpLinesTitle: "¿Eliminar estas líneas?",
+  cleanUpLinesBlockedTitle: "Aún no se pueden eliminar",
+  cleanUpLinesLoading: "Comprobando cada línea…",
+  cleanUpLinesLead: "Están terminadas: su trabajo ya está en la línea principal, así que eliminarlas no hace perder nada.",
+  cleanUpLinesNothing: "Ahora mismo no se puede eliminar ninguna de estas líneas.",
+  cleanUpLinesListLabel: "Líneas que se eliminarán",
+  cleanUpLinesSelectAll: (chosen, total) => `Todas las líneas (${chosen} de ${total})`,
+  cleanUpLinesKeptOn: (line, more) => (more > 0 ? `Está en «${line}» y ${more} más` : `Está en «${line}»`),
+  cleanUpLinesCapped: (shown, total) => `Las primeras ${shown} de ${total} líneas. Limpia el resto después.`,
+  cleanUpLinesExcludedHeading: (count) => (count === 1 ? "1 línea se queda fuera" : `${count} líneas se quedan fuera`),
+  cleanUpLinesRemoteLabel: (count) =>
+    count === 0
+      ? "Eliminar también las copias publicadas"
+      : count === 1
+        ? "Eliminar también la copia publicada"
+        : `Eliminar también las ${count} copias publicadas`,
+  cleanUpLinesRemoteOnNote: "Tu equipo dejará de verlas.",
+  cleanUpLinesRemoteOffNote: "Se quedan, y tu equipo las sigue viendo.",
+  cleanUpLinesRemoteNoneNote: "Ninguna de las líneas elegidas está publicada.",
+  cleanUpLinesRecoveryFact: "Antes se guarda el nombre y la última versión de cada línea en un punto de recuperación en este ordenador.",
+  cleanUpLinesNoneChosen: "Elige al menos una línea para eliminar.",
+  cleanUpLinesConfirm: (count) => (count === 1 ? "Eliminar 1 línea" : `Eliminar ${count} líneas`),
+  cleanUpLinesConfirmPending: "Eliminar líneas",
+  cleanUpLinesDeleting: "Eliminando…",
+  cleanUpLinesDoneTitle: "Limpieza terminada",
+  cleanUpLinesSummary: (deleted, skipped, remoteFailed) =>
+    [
+      deleted === 1 ? "1 línea eliminada" : `${deleted} líneas eliminadas`,
+      skipped > 0 ? (skipped === 1 ? "1 conservada" : `${skipped} conservadas`) : null,
+      remoteFailed > 0
+        ? remoteFailed === 1
+          ? "1 copia publicada sigue ahí"
+          : `${remoteFailed} copias publicadas siguen ahí`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ") + ".",
+  cleanUpLinesSkippedHeading: "Sin eliminar",
+  cleanUpLinesRemoteFailedHeading: "Eliminadas aquí, aún publicadas",
+  cleanUpLinesRemoteRefused: "El remoto se negó a eliminarla; puede que esté protegida allí.",
+  cleanUpLinesRecoveryKept: "El nombre y la última versión de cada línea eliminada quedan en un punto de recuperación en este ordenador.",
+  cleanUpLinesToast: (deleted, remote) =>
+    `${deleted === 1 ? "1 línea eliminada" : `${deleted} líneas eliminadas`}${remote ? ", y también sus copias publicadas" : ""}. Cada una queda en un punto de recuperación.`,
   renameVersionLineTitle: (name) => `Renombrar «${name}»`,
   renameVersionLineInstallBlockerLabel: (name) => `Renombrar ${name}`,
   renameVersionLineNote: "Solo cambia el nombre y todas las versiones guardadas se quedan donde están.",

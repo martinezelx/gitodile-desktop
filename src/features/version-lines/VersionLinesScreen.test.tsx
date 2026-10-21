@@ -20,6 +20,7 @@ function snapshot(name: string): VersionLinesSnapshot {
       isActive: true,
       upstream: null,
       isRetainedElsewhere: false,
+      isFinished: false,
       uniqueCommitCount: null,
       worktreePath: null,
       upstreamAhead: null,
@@ -46,7 +47,7 @@ describe("VersionLinesScreen lifecycle", () => {
     const read = vi.fn(() => new Promise<VersionLinesSnapshot>((resolve) => { resolveRead = resolve; }));
     const port = {
       read,
-      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
+      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planCleanUp: vi.fn(), cleanUp: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
     } satisfies VersionLinesPort;
     const controller = createVersionLinesController(port);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
@@ -84,7 +85,7 @@ describe("VersionLinesScreen lifecycle", () => {
     const read = vi.fn(async () => snapshot("unexpected"));
     const port = {
       read,
-      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
+      readHistory: vi.fn(async () => emptyHistory), planCreate: vi.fn(), create: vi.fn(), planSwitch: vi.fn(), switch: vi.fn(), planDelete: vi.fn(), delete: vi.fn(), planCleanUp: vi.fn(), cleanUp: vi.fn(), planRename: vi.fn(), rename: vi.fn(),
     } satisfies VersionLinesPort;
     const controller = createVersionLinesController(port);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };

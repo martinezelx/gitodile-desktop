@@ -5,7 +5,7 @@ import { APP_ERROR_CODES } from "../shared/i18n";
 describe("IPC contract snapshot", () => {
   it("keeps command names, arguments, response names, errors and watcher payload stable", () => {
     expect(contract.version).toBe(1);
-    expect(contract.commands).toHaveLength(136);
+    expect(contract.commands).toHaveLength(138);
     expect(contract.commands.map((command) => command.name)).toEqual([
       "app_status", "show_main_window", "get_app_update_state", "get_startup_update_confirmation",
       "check_app_update", "download_app_update", "cancel_app_update", "install_app_update",
@@ -50,7 +50,8 @@ describe("IPC contract snapshot", () => {
       "read_saved_version_detail", "read_saved_version_file_diff", "plan_publish", "publish",
       "get_version_lines", "get_version_line_history", "plan_create_version_line", "create_version_line",
       "plan_switch_version_line", "switch_version_line", "plan_delete_version_line",
-      "delete_version_line", "plan_rename_version_line", "rename_version_line",
+      "delete_version_line", "plan_clean_up_version_lines", "clean_up_version_lines",
+      "plan_rename_version_line", "rename_version_line",
       "watch_repository", "unwatch_repository", "close_project_session",
     ]);
     expect(contract.commands.find((command) => command.name === "save_version")).toEqual({
@@ -76,6 +77,7 @@ describe("IPC contract snapshot", () => {
       "plan_publish", "publish",
       "plan_create_version_line", "create_version_line", "plan_switch_version_line",
       "switch_version_line", "plan_delete_version_line", "delete_version_line",
+      "plan_clean_up_version_lines", "clean_up_version_lines",
       "plan_rename_version_line", "rename_version_line",
       "plan_discard_changes", "discard_changes", "get_discard_recovery", "list_discard_recoveries",
       "restore_discarded_changes", "delete_discard_recovery",

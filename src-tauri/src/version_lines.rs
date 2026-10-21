@@ -9,11 +9,13 @@ use crate::operation::{truncate_detail, OperationKind};
 use crate::recovery::{
     create_history_recovery_for, plan_history_recovery_for, verify_history_recovery,
     HistoryRecoveryMetadata, HistoryRecoveryOperation, HistoryRecoveryPreview,
+    MAX_CLEAN_UP_RECOVERY_RECORDS,
 };
 use crate::repository::{
     display_path, git_operation_in_progress, resolve_head_state, validate_branch_ref_name,
     HeadState,
 };
+use crate::repository_access::RepositoryContext;
 use crate::status::{read_working_tree_status, ChangeCategory, WorkingTreeStatus};
 use crate::tooling::parse_git_version;
 use std::{path::PathBuf, process::Output};
@@ -182,20 +184,43 @@ pub(crate) fn retaining_refs(path: &str, name: &str, tip: &str) -> Result<Vec<St
 /// HEAD was never fetched — simply has no default line, and nothing is protected
 /// on the strength of a guess.
 pub(crate) fn default_branch_names(path: &str) -> Result<Vec<String>, AppError> {
+    Ok(default_branch_refs(path)?
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect())
+}
+
+/// Each remote default line with the remote-tracking ref that holds it and
+/// that ref's commit (`main`, `refs/remotes/origin/main`, `abc…`). The
+/// remote's copy is where a merged pull request lands first, before the local
+/// line has been brought up to it.
+pub(crate) fn default_branch_refs(path: &str) -> Result<Vec<(String, String)>, AppError> {
+    Ok(default_branch_refs_with_commits(path)?
+        .into_iter()
+        .map(|(name, remote, _)| (name, remote))
+        .collect())
+}
+
+pub(crate) fn default_branch_refs_with_commits(
+    path: &str,
+) -> Result<Vec<(String, String, String)>, AppError> {
     let output = run_git(
         path,
         &[
             "for-each-ref",
-            "--format=%(refname)%00%(symref)",
+            "--format=%(refname)%00%(symref)%00%(objectname)",
             "refs/remotes/*/HEAD",
         ],
     )?;
     if !output.status.success() {
         return Ok(Vec::new());
     }
-    let mut names = Vec::new();
+    let mut defaults: Vec<(String, String, String)> = Vec::new();
     for line in git_stdout(&output).lines() {
-        let Some((refname, symref)) = line.split_once('\0') else {
+        let mut fields = line.split('\0');
+        let (Some(refname), Some(symref), Some(commit)) =
+            (fields.next(), fields.next(), fields.next())
+        else {
             continue;
         };
         // `refs/remotes/origin/HEAD` minus `HEAD` is the prefix every branch of
@@ -205,12 +230,12 @@ pub(crate) fn default_branch_names(path: &str) -> Result<Vec<String>, AppError> 
             continue;
         };
         if let Some(name) = symref.strip_prefix(prefix) {
-            if !name.is_empty() && !names.iter().any(|known| known == name) {
-                names.push(name.to_string());
+            if !name.is_empty() && !defaults.iter().any(|(known, _, _)| known == name) {
+                defaults.push((name.to_string(), symref.to_string(), commit.to_string()));
             }
         }
     }
-    Ok(names)
+    Ok(defaults)
 }
 
 /// Refuses a change that would take a remote's default line out from under the
@@ -220,13 +245,7 @@ pub(crate) fn ensure_not_default_branch(path: &str, name: &str) -> Result<(), Ap
         .iter()
         .any(|known| known == name)
     {
-        return Err(AppError::new(
-            AppErrorCode::VersionLineIsDefault,
-            format!("\"{name}\" is this project's main version line."),
-        )
-        .with_remediation(
-            "It's where the project's shared work lives, so GitOdile keeps it as it is.",
-        ));
+        return Err(default_branch_error(name));
     }
     Ok(())
 }
@@ -246,6 +265,12 @@ pub(crate) fn add_reaching_ref(references: &mut Vec<String>, reference: &str) {
 /// Computes the refs that can reach every commit in one graph walk. This
 /// replaces one `for-each-ref --contains` process per listed branch during
 /// discovery; delete planning still asks Git for the exact retained-by list.
+///
+/// `merge-base --independent` over the ref tips answers the same question
+/// and was measured as a replacement: on 30,600 versions and 400 refs it took
+/// 0.2 s with a commit-graph but 1.5 s without one, against 0.3 s for this
+/// walk either way. The walk stays; discovery runs it beside the inventory
+/// instead, since neither needs the other.
 pub(crate) fn reaching_refs_by_commit(
     path: &str,
 ) -> Result<std::collections::HashMap<String, Vec<String>>, AppError> {
@@ -333,6 +358,247 @@ pub(crate) fn reaching_refs_by_commit(
         }
     }
     Ok(reaching)
+}
+
+/// A line whose saved work is on the main line, and the main-line ref that
+/// holds it, waiting for the proof that the work was its own.
+pub(crate) struct FinishCandidate {
+    pub(crate) name: String,
+    pub(crate) tip: String,
+    pub(crate) upstream_gone: bool,
+    pub(crate) merged_into: String,
+}
+
+/// The reflog subjects Git writes when a version is saved on the line itself.
+fn is_own_work_entry(subject: &str) -> bool {
+    subject.starts_with("commit")
+        || subject.starts_with("cherry-pick")
+        || subject.starts_with("revert")
+}
+
+/// Which merged lines are *finished*: their work reached the main line, and it
+/// was work of their own. A line merely sitting on the main line — just
+/// created, never saved on — is where a reader is about to start, not
+/// something to clear away. The proof, cheapest first:
+///
+/// 1. its remote branch was deleted — a merged pull request, usually;
+/// 2. its reflog records a version saved on it, which also covers a line
+///    fast-forwarded into the main line;
+/// 3. its tip is not on the main line's first-parent history, so it came in
+///    through a merge rather than being the main line itself at some point.
+///
+/// One process for every line's reflog, and one first-parent walk per main
+/// ref, whatever the number of lines.
+pub(crate) fn finished_lines(
+    path: &str,
+    candidates: &[FinishCandidate],
+) -> Result<std::collections::HashSet<String>, AppError> {
+    use std::collections::{HashMap, HashSet};
+
+    let mut finished = HashSet::new();
+    let mut open: Vec<&FinishCandidate> = Vec::new();
+    for candidate in candidates {
+        if candidate.upstream_gone {
+            finished.insert(candidate.name.clone());
+        } else {
+            open.push(candidate);
+        }
+    }
+
+    // Reflogs, in chunks so a long list never outgrows the command line.
+    for chunk in open.chunks(100) {
+        let refs: Vec<String> = chunk
+            .iter()
+            .map(|candidate| format!("refs/heads/{}", candidate.name))
+            .collect();
+        let mut args = vec!["log", "-g", "--format=%gd%x00%gs"];
+        args.extend(refs.iter().map(String::as_str));
+        args.push("--");
+        let output = run_git(path, &args)?;
+        // No reflog to read is no evidence, never a failure: the next proof
+        // still applies.
+        if !output.status.success() {
+            continue;
+        }
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            let Some((selector, subject)) = line.split_once('\0') else {
+                continue;
+            };
+            let Some((name, _)) = selector.rsplit_once("@{") else {
+                continue;
+            };
+            if is_own_work_entry(subject) {
+                finished.insert(name.to_string());
+            }
+        }
+    }
+
+    let mut by_base: HashMap<&str, Vec<&FinishCandidate>> = HashMap::new();
+    for candidate in open {
+        if !finished.contains(&candidate.name) {
+            by_base
+                .entry(candidate.merged_into.as_str())
+                .or_default()
+                .push(candidate);
+        }
+    }
+    for (base, waiting) in by_base {
+        let output = run_git(path, &["rev-list", "--first-parent", base])?;
+        if !output.status.success() {
+            continue;
+        }
+        let first_parent: HashSet<&str> = std::str::from_utf8(&output.stdout)
+            .unwrap_or_default()
+            .lines()
+            .collect();
+        for candidate in waiting {
+            if !first_parent.contains(candidate.tip.as_str()) {
+                finished.insert(candidate.name.clone());
+            }
+        }
+    }
+    Ok(finished)
+}
+
+/// The main line's two homes: the local branch, when there is one, and the
+/// remote's copy of it.
+pub(crate) struct MainLineRefs {
+    pub(crate) name: Option<String>,
+    pub(crate) local: Option<String>,
+    pub(crate) remote: Option<String>,
+    /// The remote's copy holds versions the local line does not. Only then is
+    /// it worth a second count in the inventory's walk: anything merged into
+    /// a remote copy the local line already contains is merged locally too.
+    pub(crate) remote_ahead_of_local: bool,
+}
+
+pub(crate) fn main_line_refs(path: &str) -> Result<(Vec<String>, MainLineRefs), AppError> {
+    let defaults = default_branch_refs_with_commits(path)?;
+    let names: Vec<String> = defaults.iter().map(|(name, _, _)| name.clone()).collect();
+    for (name, remote, remote_commit) in &defaults {
+        let local = format!("refs/heads/{name}");
+        let Some(local_commit) = rev_parse_commit(path, &["rev-parse", "--verify", &local])? else {
+            continue;
+        };
+        let remote_ahead_of_local = remote_commit != &local_commit
+            && !run_git(
+                path,
+                &["merge-base", "--is-ancestor", remote_commit, &local_commit],
+            )?
+            .status
+            .success();
+        return Ok((
+            names,
+            MainLineRefs {
+                name: Some(name.clone()),
+                local: Some(local),
+                remote: Some(remote.clone()),
+                remote_ahead_of_local,
+            },
+        ));
+    }
+    let remote = defaults.first().map(|(_, remote, _)| remote.clone());
+    Ok((
+        names,
+        MainLineRefs {
+            name: None,
+            local: None,
+            remote_ahead_of_local: remote.is_some(),
+            remote,
+        },
+    ))
+}
+
+/// The finished lines among `names`, asked fresh: what a clean-up offers and
+/// what it rechecks before it deletes. Lines that no longer exist are simply
+/// not finished. One `for-each-ref` over just these lines answers their tips,
+/// whether their remote branch is gone and how far each is from the main
+/// line's two homes; Git before 2.41, without `ahead-behind`, asks the last
+/// question line by line.
+pub(crate) fn finished_among(
+    path: &str,
+    names: &[String],
+) -> Result<std::collections::HashSet<String>, AppError> {
+    let (_, main) = main_line_refs(path)?;
+    let bases: Vec<&str> = [main.local.as_deref(), main.remote.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect();
+    if bases.is_empty() || names.is_empty() {
+        return Ok(Default::default());
+    }
+    let wanted: std::collections::HashSet<String> = names
+        .iter()
+        .filter(|name| main.name.as_deref() != Some(name.as_str()))
+        .map(|name| format!("refs/heads/{name}"))
+        .collect();
+    if wanted.is_empty() {
+        return Ok(Default::default());
+    }
+
+    let base_format = "%(refname)%00%(objectname)%00%(upstream)%00%(upstream:track)";
+    let atoms: String = bases
+        .iter()
+        .map(|base| format!("%00%(ahead-behind:{base})"))
+        .collect();
+    let read = |format: String| -> Result<Output, AppError> {
+        let format = format!("--format={format}");
+        let mut args = vec!["for-each-ref", format.as_str()];
+        args.extend(wanted.iter().map(String::as_str));
+        run_git(path, &args)
+    };
+    let mut batched = true;
+    let mut output = read(format!("{base_format}{atoms}"))?;
+    if !output.status.success() {
+        batched = false;
+        output = read(base_format.to_string())?;
+        if !output.status.success() {
+            return Err(AppError::new(
+                AppErrorCode::GitCommandFailed,
+                "Git couldn't inspect these version lines.",
+            ));
+        }
+    }
+
+    let mut candidates = Vec::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let fields: Vec<&str> = line.split('\0').collect();
+        let (Some(refname), Some(tip), Some(upstream), Some(track)) =
+            (fields.first(), fields.get(1), fields.get(2), fields.get(3))
+        else {
+            continue;
+        };
+        // A pattern also matches the refs under it (`a` matches `a/b`): only
+        // the lines asked for count.
+        if !wanted.contains(*refname) {
+            continue;
+        }
+        let Some(name) = refname.strip_prefix("refs/heads/") else {
+            continue;
+        };
+        let merged_into = bases.iter().enumerate().find_map(|(index, base)| {
+            let merged = if batched {
+                fields
+                    .get(4 + index)
+                    .and_then(|counts| counts.split_ascii_whitespace().next())
+                    == Some("0")
+            } else {
+                run_git(path, &["merge-base", "--is-ancestor", tip, base])
+                    .is_ok_and(|output| output.status.success())
+            };
+            merged.then_some(*base)
+        });
+        let Some(merged_into) = merged_into else {
+            continue;
+        };
+        candidates.push(FinishCandidate {
+            name: name.to_string(),
+            tip: tip.to_string(),
+            upstream_gone: !upstream.is_empty() && parse_upstream_track(track).gone,
+            merged_into: merged_into.to_string(),
+        });
+    }
+    finished_lines(path, &candidates)
 }
 
 /// Versions reachable from `tip` and not from `base` — the main line's ref.
@@ -430,6 +696,11 @@ pub(crate) struct VersionLine {
     pub(crate) is_active: bool,
     pub(crate) upstream: Option<String>,
     pub(crate) is_retained_elsewhere: bool,
+    /// Its work is on the main line and was its own (`finished_lines`): what
+    /// the list offers to clean up. Kept apart from `is_retained_elsewhere`,
+    /// which only says deleting it loses nothing — true of a line in progress
+    /// that is merely published, too.
+    pub(crate) is_finished: bool,
     pub(crate) unique_commit_count: Option<u32>,
     pub(crate) worktree_path: Option<String>,
     /// Commits on this line not yet on `upstream`. `None` when there is no
@@ -477,6 +748,9 @@ pub(crate) struct VersionLineRaw {
     pub(crate) upstream_track: String,
     pub(crate) unique_commit_count: Option<u32>,
     pub(crate) worktree_path: Option<String>,
+    /// Versions on this line not on the remote's copy of the main line, from
+    /// the same walk. `None` without a remote main line or on the legacy path.
+    pub(crate) remote_main_ahead: Option<u32>,
 }
 
 /// Parsed form of `%(upstream:track)`.
@@ -596,6 +870,10 @@ pub(crate) fn parse_version_line_refs(bytes: &[u8]) -> ParsedVersionLines {
                 .get(8)
                 .and_then(|field| decode(field))
                 .filter(|value| !value.trim().is_empty()),
+            remote_main_ahead: fields
+                .get(9)
+                .and_then(|field| decode(field))
+                .and_then(|counts| counts.split_ascii_whitespace().next()?.parse().ok()),
         });
     }
     ParsedVersionLines {
@@ -621,14 +899,19 @@ pub(crate) const VERSION_LINE_BASE_FORMAT: &str =
 /// `count_base` is what the ahead count is measured against: the main line's
 /// ref when the project has one, otherwise the current commit — whose counts
 /// the caller then discards, keeping the one inventory walk for the worktree
-/// paths it also answers.
+/// paths it also answers. `remote_base`, the remote's copy of the main line,
+/// is counted in the same walk: a merged pull request reaches it first.
 pub(crate) fn read_version_line_refs(
     path: &str,
     count_base: Option<&str>,
+    remote_base: Option<&str>,
 ) -> Result<(ParsedVersionLines, bool), AppError> {
     if let Some(base) = count_base {
+        let remote_atom = remote_base
+            .map(|remote| format!("%00%(ahead-behind:{remote})"))
+            .unwrap_or_default();
         let format = format!(
-            "--format={VERSION_LINE_BASE_FORMAT}%00%(ahead-behind:{base})%00%(worktreepath)"
+            "--format={VERSION_LINE_BASE_FORMAT}%00%(ahead-behind:{base})%00%(worktreepath){remote_atom}"
         );
         let batched = run_git(
             path,
@@ -670,15 +953,24 @@ pub(crate) fn read_version_line_refs(
 pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, AppError> {
     let (_repository, _access) =
         application::authorize_repository(&path, "get_version_lines", None)?;
-    let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+    // Where the project stands and which line is its main one are
+    // independent reads, so they run side by side.
+    let ((symbolic_head, verified_head), main_line) = in_parallel(
+        || {
+            (
+                run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"]),
+                // One verification answers both questions: whether HEAD exists
+                // and which commit it names.
+                run_git(&path, &["rev-parse", "--verify", "HEAD"]),
+            )
+        },
+        || main_line_refs(&path),
+    );
+    let (symbolic_head, verified_head) = (symbolic_head?, verified_head?);
     let branch = symbolic_head
         .status
         .success()
         .then(|| git_stdout(&symbolic_head));
-    // One verification answers both questions: whether HEAD exists and which
-    // commit it names. The previous implementation launched this same command
-    // twice on every refresh.
-    let verified_head = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
     let current_commit = verified_head
         .status
         .success()
@@ -693,22 +985,29 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
     // remote's default, held locally — the same line the detail's route is
     // drawn against, so the two never disagree. Without one there is no
     // count: "not on the active line" would be a different question with the
-    // same words.
-    let default_names = default_branch_names(&path)?;
-    let mut main_line = None;
-    for name in &default_names {
-        let main_ref = format!("refs/heads/{name}");
-        if run_git(&path, &["show-ref", "--verify", "--quiet", &main_ref])?
-            .status
-            .success()
-        {
-            main_line = Some((name.clone(), main_ref));
-            break;
-        }
-    }
-    let main_ref = main_line.as_ref().map(|(_, reference)| reference.as_str());
-    let (parsed, has_batched_metadata) =
-        read_version_line_refs(&path, main_ref.or(current_commit.as_deref()))?;
+    // same words. The remote's copy of it is counted in the same walk, for
+    // telling which lines are finished — only when it is ahead of the local
+    // line, since otherwise the local count already answers.
+    let (default_names, main) = main_line?;
+    let main_ref = main.local.as_deref();
+    let remote_main_ref = main
+        .remote_ahead_of_local
+        .then_some(main.remote.as_deref())
+        .flatten();
+    // The inventory and the reachability walk need nothing from each other:
+    // the two slowest reads of a refresh run at once.
+    let (inventory, reaching_refs) = in_parallel(
+        || {
+            read_version_line_refs(
+                &path,
+                main_ref.or(current_commit.as_deref()),
+                remote_main_ref,
+            )
+        },
+        || reaching_refs_by_commit(&path),
+    );
+    let (parsed, has_batched_metadata) = inventory?;
+    let reaching_refs = reaching_refs?;
     let worktrees = if has_batched_metadata {
         Vec::new()
     } else {
@@ -723,9 +1022,9 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
     let is_truncated = total_count > VERSION_LINE_LIST_CAP;
     raw_lines.truncate(VERSION_LINE_LIST_CAP);
 
-    let reaching_refs = reaching_refs_by_commit(&path)?;
     let mut unique_counts_by_tip = std::collections::HashMap::new();
     let mut lines = Vec::with_capacity(raw_lines.len());
+    let mut candidates = Vec::new();
     for raw in raw_lines {
         let is_active = branch.as_deref() == Some(raw.name.as_str());
         let is_default = default_names.contains(&raw.name);
@@ -741,14 +1040,7 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
                 .find(|worktree| worktree.branch.as_deref() == Some(raw.name.as_str()))
                 .map(|worktree| display_path(PathBuf::from(&worktree.path)))
         };
-        let own_ref = format!("refs/heads/{}", raw.name);
-        let is_retained_elsewhere = reaching_refs
-            .get(&raw.commit)
-            .map(|references| references.iter().any(|reference| reference != &own_ref))
-            .unwrap_or(false);
-        let is_main_line = main_line
-            .as_ref()
-            .is_some_and(|(name, _)| name == &raw.name);
+        let is_main_line = main.name.as_deref() == Some(raw.name.as_str());
         let unique_commit_count = if main_ref.is_none() || is_main_line {
             None
         } else if has_batched_metadata {
@@ -765,6 +1057,33 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
             .upstream
             .is_some()
             .then(|| parse_upstream_track(&raw.upstream_track));
+        let upstream_gone = track.as_ref().is_some_and(|track| track.gone);
+        // Only a line that could be cleared away is a candidate: not where
+        // the project is, not the main line, not open in another worktree.
+        if !is_active && !is_default && worktree_path.is_none() {
+            let remote_main_ahead = if has_batched_metadata {
+                raw.remote_main_ahead
+            } else if unique_commit_count != Some(0) {
+                branch_unique_commit_count(&path, remote_main_ref, &raw.commit)
+            } else {
+                None
+            };
+            let merged_into = if unique_commit_count == Some(0) {
+                main_ref
+            } else if remote_main_ahead == Some(0) {
+                remote_main_ref
+            } else {
+                None
+            };
+            if let Some(merged_into) = merged_into {
+                candidates.push(FinishCandidate {
+                    name: raw.name.clone(),
+                    tip: raw.commit.clone(),
+                    upstream_gone,
+                    merged_into: merged_into.to_string(),
+                });
+            }
+        }
         lines.push(VersionLine {
             name: raw.name,
             tip: VersionLineTip {
@@ -775,14 +1094,24 @@ pub(crate) fn get_version_lines(path: String) -> Result<VersionLinesSnapshot, Ap
             },
             is_active,
             upstream: raw.upstream,
-            is_retained_elsewhere,
+            is_retained_elsewhere: false,
+            is_finished: false,
             unique_commit_count,
             worktree_path,
             upstream_ahead: track.as_ref().map(|track| track.ahead),
             upstream_behind: track.as_ref().map(|track| track.behind),
-            upstream_gone: track.as_ref().is_some_and(|track| track.gone),
+            upstream_gone,
             is_default,
         });
+    }
+
+    let finished = finished_lines(&path, &candidates)?;
+    for line in &mut lines {
+        let own_ref = format!("refs/heads/{}", line.name);
+        line.is_retained_elsewhere = reaching_refs
+            .get(&line.tip.commit)
+            .is_some_and(|references| references.iter().any(|reference| reference != &own_ref));
+        line.is_finished = finished.contains(&line.name);
     }
 
     Ok(VersionLinesSnapshot {
@@ -3485,6 +3814,552 @@ mod tests {
 
         let _ = fs::remove_dir_all(&path);
     }
+
+    // ---- Clean up several version lines at once ----
+
+    fn run_ok(path: &str, args: &[&str]) {
+        let status = git_command(path).args(args).status().expect("run git");
+        assert!(status.success(), "git {args:?} should succeed");
+    }
+
+    fn requests(plan: &CleanUpVersionLinesPlan) -> Vec<CleanUpLineRequest> {
+        plan.lines
+            .iter()
+            .map(|line| CleanUpLineRequest {
+                name: line.name.clone(),
+                state_token: line.state_token.clone(),
+            })
+            .collect()
+    }
+
+    fn outcome_of<'a>(result: &'a CleanUpVersionLinesResult, name: &str) -> &'a CleanUpLineResult {
+        result
+            .lines
+            .iter()
+            .find(|line| line.name == name)
+            .unwrap_or_else(|| panic!("{name} should be reported"))
+    }
+
+    #[test]
+    fn clean_up_names_refuse_empty_duplicate_unusable_and_oversized_selections() {
+        let code = |names: &[&str]| {
+            guard_clean_up_names(names.iter().copied())
+                .expect_err("selection should be refused")
+                .code
+        };
+        assert_eq!(code(&[]), AppErrorCode::InvalidSelection);
+        assert_eq!(code(&["a", "b", "a"]), AppErrorCode::InvalidSelection);
+        assert_eq!(code(&["--force"]), AppErrorCode::InvalidSelection);
+        assert_eq!(code(&[""]), AppErrorCode::InvalidSelection);
+        let many: Vec<String> = (0..=MAX_CLEAN_UP_LINES).map(|n| format!("l{n}")).collect();
+        assert!(guard_clean_up_names(many.iter().map(String::as_str)).is_err());
+        assert!(
+            guard_clean_up_names(many[..MAX_CLEAN_UP_LINES].iter().map(String::as_str)).is_ok()
+        );
+    }
+
+    #[test]
+    fn clean_up_line_token_moves_with_tip_and_published_copy_only() {
+        let published = PublishedLine {
+            remote: "origin".to_string(),
+            branch: "a".to_string(),
+            short_name: "origin/a".to_string(),
+        };
+        let base = clean_up_line_token("a", "abc", None);
+        assert_eq!(base, clean_up_line_token("a", "abc", None));
+        assert_ne!(base, clean_up_line_token("a", "abd", None));
+        assert_ne!(base, clean_up_line_token("b", "abc", None));
+        assert_ne!(base, clean_up_line_token("a", "abc", Some(&published)));
+    }
+
+    #[test]
+    fn parse_porcelain_push_line_reads_deleted_and_rejected_refs() {
+        assert_eq!(
+            parse_porcelain_push_line("-\t:refs/heads/done\t[deleted]"),
+            Some(("refs/heads/done", Ok(())))
+        );
+        assert_eq!(
+            parse_porcelain_push_line(
+                "!\t:refs/heads/kept\t[remote rejected] (deletion prohibited)"
+            ),
+            Some((
+                "refs/heads/kept",
+                Err("[remote rejected] (deletion prohibited)")
+            ))
+        );
+        assert_eq!(parse_porcelain_push_line("To /tmp/remote"), None);
+        assert_eq!(parse_porcelain_push_line("Done"), None);
+    }
+
+    /// A project with a remote whose default is its main line, which is how
+    /// GitOdile knows the main line at all.
+    fn repo_with_main_line(label: &str) -> (String, String, String) {
+        let (repo, remote, main) = published_repo_and_remote(label);
+        run_ok(&repo, &["remote", "set-head", "origin", &main]);
+        (repo, remote, main)
+    }
+
+    /// A line with work of its own, merged back into the main line with a
+    /// merge version: finished. Returns its tip.
+    fn finish_line(path: &str, main: &str, name: &str) -> String {
+        run_ok(path, &["switch", "-q", "-c", name, main]);
+        let file = format!("{}.txt", name.replace('/', "-"));
+        write_and_commit(
+            path,
+            &file,
+            "done
+",
+            &format!("work on {name}"),
+        );
+        let tip = commit_at(path, "HEAD");
+        run_ok(path, &["switch", "-q", main]);
+        run_ok(
+            path,
+            &[
+                "-c",
+                "user.name=GitOdile Test",
+                "-c",
+                "user.email=test@gitodile.local",
+                "merge",
+                "-q",
+                "--no-ff",
+                "-m",
+                &format!("merge {name}"),
+                name,
+            ],
+        );
+        tip
+    }
+
+    #[test]
+    fn clean_up_deletes_every_retained_line_and_keeps_a_recovery_point_for_each() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-all");
+        let mut tips = std::collections::HashMap::new();
+        for name in ["fix/one", "fix/two", "feature/three"] {
+            tips.insert(name, finish_line(&path, &main, name));
+        }
+        run_ok(&path, &["switch", "-q", "-c", "unique"]);
+        write_and_commit(&path, "u.txt", "only\n", "only here");
+        run_ok(&path, &["switch", "-q", &main]);
+
+        let plan = plan_clean_up_version_lines(
+            path.clone(),
+            vec![
+                "fix/one".to_string(),
+                "fix/two".to_string(),
+                "feature/three".to_string(),
+                "unique".to_string(),
+                main.clone(),
+            ],
+        )
+        .expect("the plan should succeed");
+        assert_eq!(plan.operation_kind, OperationKind::Destructive);
+        assert!(plan.requires_confirmation);
+        let planned: Vec<&str> = plan.lines.iter().map(|line| line.name.as_str()).collect();
+        assert_eq!(planned, ["fix/one", "fix/two", "feature/three"]);
+        assert!(plan
+            .recovery_point
+            .reference
+            .starts_with("refs/gitodile/recovery/v1/clean-up-version-lines/"));
+        let excluded: Vec<(&str, &AppErrorCode)> = plan
+            .excluded
+            .iter()
+            .map(|line| (line.name.as_str(), &line.reason.code))
+            .collect();
+        assert_eq!(
+            excluded,
+            [
+                ("unique", &AppErrorCode::VersionLineUniqueWork),
+                (main.as_str(), &AppErrorCode::VersionLineIsActive),
+            ]
+        );
+
+        let result = clean_up_version_lines(path.clone(), requests(&plan), true)
+            .expect("the clean-up should succeed");
+        for name in ["fix/one", "fix/two", "feature/three"] {
+            let line = outcome_of(&result, name);
+            assert_eq!(line.outcome, CleanUpOutcome::Deleted);
+            // Never published: nothing was asked of a remote.
+            assert_eq!(line.remote_deleted, None);
+            let reference = line
+                .recovery_reference
+                .as_deref()
+                .expect("each deleted line keeps a recovery point");
+            assert!(reference.starts_with("refs/gitodile/recovery/v1/clean-up-version-lines/"));
+            assert_eq!(&commit_at(&path, reference), &tips[name]);
+            assert!(!result
+                .snapshot
+                .as_ref()
+                .expect("the list is read after the clean-up")
+                .lines
+                .iter()
+                .any(|entry| entry.name == name));
+        }
+        assert!(result
+            .snapshot
+            .as_ref()
+            .expect("the list is read after the clean-up")
+            .lines
+            .iter()
+            .any(|entry| entry.name == "unique"));
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_offers_only_finished_lines_never_ones_merely_kept_elsewhere() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-finished");
+        finish_line(&path, &main, "done");
+        // Just created on the main line: nothing of its own yet.
+        run_ok(&path, &["branch", "fresh"]);
+        // Work in progress, published: its own remote copy keeps it.
+        run_ok(&path, &["switch", "-q", "-c", "in-review"]);
+        write_and_commit(&path, "r.txt", "wip\n", "wip");
+        run_ok(&path, &["push", "-q", "-u", "origin", "in-review"]);
+        // A line another line grew from: kept by that line, not merged.
+        run_ok(&path, &["switch", "-q", "-c", "stacked-base", &main]);
+        write_and_commit(&path, "s.txt", "base\n", "base");
+        run_ok(&path, &["switch", "-q", "-c", "stacked-top"]);
+        write_and_commit(&path, "t.txt", "top\n", "top");
+        run_ok(&path, &["switch", "-q", &main]);
+
+        let snapshot = get_version_lines(path.clone()).expect("discovery should succeed");
+        let line = |name: &str| {
+            snapshot
+                .lines
+                .iter()
+                .find(|line| line.name == name)
+                .unwrap_or_else(|| panic!("{name} should be listed"))
+        };
+        assert!(line("done").is_finished);
+        for name in ["fresh", "in-review", "stacked-base"] {
+            assert!(line(name).is_retained_elsewhere, "{name} is kept elsewhere");
+            assert!(!line(name).is_finished, "{name} is not finished");
+        }
+        assert!(!line(&main).is_finished);
+
+        let names = ["done", "fresh", "in-review", "stacked-base"]
+            .map(str::to_string)
+            .to_vec();
+        let plan =
+            plan_clean_up_version_lines(path.clone(), names).expect("the plan should succeed");
+        let planned: Vec<&str> = plan.lines.iter().map(|line| line.name.as_str()).collect();
+        assert_eq!(planned, ["done"]);
+        assert!(plan
+            .excluded
+            .iter()
+            .all(|line| line.reason.code == AppErrorCode::VersionLineNotFinished));
+
+        // A request for one anyway is refused line by line, not obeyed.
+        let mut forged = requests(&plan);
+        forged.push(CleanUpLineRequest {
+            name: "in-review".to_string(),
+            state_token: "forged".to_string(),
+        });
+        let result = clean_up_version_lines(path.clone(), forged, false)
+            .expect("the clean-up should succeed");
+        assert_eq!(outcome_of(&result, "done").outcome, CleanUpOutcome::Deleted);
+        assert_eq!(
+            outcome_of(&result, "in-review")
+                .reason
+                .as_ref()
+                .map(|reason| &reason.code),
+            Some(&AppErrorCode::VersionLineNotFinished)
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn a_line_whose_remote_branch_was_deleted_after_merging_is_finished() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-gone");
+        // Fast-forwarded into the main line, published, then deleted on the
+        // remote — what merging a pull request usually leaves behind.
+        run_ok(&path, &["switch", "-q", "-c", "merged-pr"]);
+        write_and_commit(&path, "p.txt", "pr\n", "pr");
+        run_ok(&path, &["push", "-q", "-u", "origin", "merged-pr"]);
+        run_ok(&path, &["switch", "-q", &main]);
+        run_ok(&path, &["merge", "-q", "--ff-only", "merged-pr"]);
+        run_ok(&path, &["push", "-q", "origin", "--delete", "merged-pr"]);
+
+        let snapshot = get_version_lines(path.clone()).expect("discovery should succeed");
+        let line = snapshot
+            .lines
+            .iter()
+            .find(|line| line.name == "merged-pr")
+            .expect("merged-pr should be listed");
+        assert!(line.upstream_gone);
+        assert!(line.is_finished);
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_skips_a_line_that_became_active_and_deletes_the_rest() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-active");
+        finish_line(&path, &main, "goes");
+        finish_line(&path, &main, "stays");
+        let plan = plan_clean_up_version_lines(
+            path.clone(),
+            vec!["goes".to_string(), "stays".to_string()],
+        )
+        .expect("the plan should succeed");
+        assert_eq!(plan.lines.len(), 2);
+
+        run_ok(&path, &["switch", "-q", "stays"]);
+        let result = clean_up_version_lines(path.clone(), requests(&plan), false)
+            .expect("one line turning active skips only that line");
+        assert_eq!(outcome_of(&result, "goes").outcome, CleanUpOutcome::Deleted);
+        let stays = outcome_of(&result, "stays");
+        assert_eq!(stays.outcome, CleanUpOutcome::Skipped);
+        assert_eq!(
+            stays.reason.as_ref().map(|reason| &reason.code),
+            Some(&AppErrorCode::VersionLineIsActive)
+        );
+        assert_eq!(stays.recovery_reference, None);
+        assert!(in_test_frame(|| list_branch_names(&path))
+            .unwrap()
+            .contains(&"stays".to_string()));
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_excludes_a_line_open_in_another_worktree() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-worktree");
+        finish_line(&path, &main, "free");
+        finish_line(&path, &main, "elsewhere");
+        let worktree = Path::new(&path).join("linked");
+        run_ok(
+            &path,
+            &[
+                "worktree",
+                "add",
+                "-q",
+                &worktree.to_string_lossy(),
+                "elsewhere",
+            ],
+        );
+
+        let plan = plan_clean_up_version_lines(
+            path.clone(),
+            vec!["free".to_string(), "elsewhere".to_string()],
+        )
+        .expect("the plan should succeed");
+        assert_eq!(plan.lines.len(), 1);
+        assert_eq!(plan.lines[0].name, "free");
+        assert_eq!(plan.excluded.len(), 1);
+        assert_eq!(plan.excluded[0].name, "elsewhere");
+        assert_eq!(
+            plan.excluded[0].reason.code,
+            AppErrorCode::VersionLineCheckedOutElsewhere
+        );
+
+        // A request for it anyway is skipped, not obeyed.
+        let mut forged = requests(&plan);
+        forged.push(CleanUpLineRequest {
+            name: "elsewhere".to_string(),
+            state_token: plan.lines[0].state_token.clone(),
+        });
+        let result = clean_up_version_lines(path.clone(), forged, false)
+            .expect("the clean-up should succeed");
+        assert_eq!(outcome_of(&result, "free").outcome, CleanUpOutcome::Deleted);
+        assert_eq!(
+            outcome_of(&result, "elsewhere")
+                .reason
+                .as_ref()
+                .map(|reason| &reason.code),
+            Some(&AppErrorCode::VersionLineCheckedOutElsewhere)
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_skips_a_line_that_moved_since_the_preview() {
+        let (path, remote, main) = repo_with_main_line("vl-clean-up-stale");
+        finish_line(&path, &main, "moved");
+        finish_line(&path, &main, "still");
+        let plan = plan_clean_up_version_lines(
+            path.clone(),
+            vec!["moved".to_string(), "still".to_string()],
+        )
+        .expect("the plan should succeed");
+
+        // `moved` follows the main line forward: still finished, but no
+        // longer the line the preview showed.
+        write_and_commit(&path, "b.txt", "two\n", "second");
+        run_ok(&path, &["branch", "-f", "moved", "HEAD"]);
+        let result = clean_up_version_lines(path.clone(), requests(&plan), false)
+            .expect("a moved line skips only that line");
+        assert_eq!(
+            outcome_of(&result, "moved")
+                .reason
+                .as_ref()
+                .map(|reason| &reason.code),
+            Some(&AppErrorCode::StaleVersionLinePlan)
+        );
+        assert_eq!(
+            outcome_of(&result, "still").outcome,
+            CleanUpOutcome::Deleted
+        );
+
+        let _ = fs::remove_dir_all(&path);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_deletes_published_copies_only_when_asked() {
+        let (repo, remote, main) = repo_with_main_line("vl-clean-up-remote");
+        for name in ["kept-remote", "gone-remote"] {
+            finish_line(&repo, &main, name);
+            run_ok(&repo, &["push", "-q", "-u", "origin", name]);
+        }
+        let remote_has = |name: &str| {
+            git_command(&remote)
+                .args([
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    &format!("refs/heads/{name}"),
+                ])
+                .status()
+                .expect("run git show-ref")
+                .success()
+        };
+
+        let plan = plan_clean_up_version_lines(repo.clone(), vec!["kept-remote".to_string()])
+            .expect("the plan should succeed");
+        assert_eq!(
+            plan.lines[0]
+                .published
+                .as_ref()
+                .map(|entry| entry.short_name.as_str()),
+            Some("origin/kept-remote")
+        );
+        let result = clean_up_version_lines(repo.clone(), requests(&plan), false)
+            .expect("the clean-up should succeed");
+        assert_eq!(outcome_of(&result, "kept-remote").remote_deleted, None);
+        assert!(remote_has("kept-remote"));
+
+        let plan = plan_clean_up_version_lines(repo.clone(), vec!["gone-remote".to_string()])
+            .expect("the plan should succeed");
+        let result = clean_up_version_lines(repo.clone(), requests(&plan), true)
+            .expect("the clean-up should succeed");
+        let line = outcome_of(&result, "gone-remote");
+        assert_eq!(line.outcome, CleanUpOutcome::Deleted);
+        assert_eq!(line.remote_deleted, Some(true));
+        assert!(!remote_has("gone-remote"));
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn a_line_tracking_the_remote_main_line_never_offers_to_delete_it() {
+        let (repo, remote, main) = repo_with_main_line("vl-clean-up-tracks-main");
+        // Started from the remote's main line, so it tracks it.
+        run_ok(
+            &repo,
+            &[
+                "switch",
+                "-q",
+                "-c",
+                "hotfix",
+                "--track",
+                &format!("origin/{main}"),
+            ],
+        );
+        write_and_commit(
+            &repo, "h.txt", "fix
+", "hotfix",
+        );
+        run_ok(&repo, &["switch", "-q", &main]);
+        run_ok(
+            &repo,
+            &[
+                "-c",
+                "user.name=GitOdile Test",
+                "-c",
+                "user.email=test@gitodile.local",
+                "merge",
+                "-q",
+                "--no-ff",
+                "-m",
+                "merge hotfix",
+                "hotfix",
+            ],
+        );
+        let remote_main = || {
+            git_command(&remote)
+                .args([
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    &format!("refs/heads/{main}"),
+                ])
+                .status()
+                .expect("run git show-ref")
+                .success()
+        };
+
+        let single = plan_delete_version_line(repo.clone(), "hotfix".to_string())
+            .expect("the single plan should succeed");
+        assert_eq!(single.published, None);
+
+        let plan = plan_clean_up_version_lines(repo.clone(), vec!["hotfix".to_string()])
+            .expect("the plan should succeed");
+        assert_eq!(plan.lines.len(), 1);
+        assert_eq!(plan.lines[0].published, None);
+        let result = clean_up_version_lines(repo.clone(), requests(&plan), true)
+            .expect("the clean-up should succeed");
+        let line = outcome_of(&result, "hotfix");
+        assert_eq!(line.outcome, CleanUpOutcome::Deleted);
+        assert_eq!(line.remote_deleted, None);
+        assert!(remote_main(), "the remote's main line must survive");
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
+
+    #[test]
+    fn clean_up_reports_a_refused_remote_delete_and_keeps_the_local_deletion() {
+        let (repo, remote, main) = repo_with_main_line("vl-clean-up-refused");
+        for name in ["one", "two"] {
+            finish_line(&repo, &main, name);
+            run_ok(&repo, &["push", "-q", "-u", "origin", name]);
+        }
+        run_ok(&remote, &["config", "receive.denyDeletes", "true"]);
+
+        let plan =
+            plan_clean_up_version_lines(repo.clone(), vec!["one".to_string(), "two".to_string()])
+                .expect("the plan should succeed");
+        let result = clean_up_version_lines(repo.clone(), requests(&plan), true)
+            .expect("a refused remote delete is reported, not raised");
+        for name in ["one", "two"] {
+            let line = outcome_of(&result, name);
+            assert_eq!(line.outcome, CleanUpOutcome::Deleted);
+            assert_eq!(line.remote_deleted, Some(false));
+            assert!(line.remote_error.is_some());
+            assert!(!result
+                .snapshot
+                .as_ref()
+                .expect("the list is read after the clean-up")
+                .lines
+                .iter()
+                .any(|entry| entry.name == name));
+            // The work the remote kept is also in the recovery point.
+            assert!(line.recovery_reference.is_some());
+        }
+
+        let _ = fs::remove_dir_all(&repo);
+        let _ = fs::remove_dir_all(&remote);
+    }
 }
 
 // ---- Switch to an existing version line ----
@@ -3722,6 +4597,14 @@ pub(crate) fn switch_version_line(
 
 // ---- Safely delete a local version line ----
 
+fn default_branch_error(name: &str) -> AppError {
+    AppError::new(
+        AppErrorCode::VersionLineIsDefault,
+        format!("\"{name}\" is this project's main version line."),
+    )
+    .with_remediation("It's where the project's shared work lives, so GitOdile keeps it as it is.")
+}
+
 /// Where a line is published, when it is. Both halves come from the line's own
 /// Git configuration rather than from splitting `origin/name` on a slash: a
 /// remote may be named with a slash in it, and a branch certainly may.
@@ -3852,10 +4735,20 @@ fn find_copy_into_main(path: &str, name: &str) -> Result<Option<CopiedInto>, App
     Ok(None)
 }
 
-pub(crate) fn validate_and_prepare_delete(
-    path: &str,
-    name: &str,
-) -> Result<ValidatedDelete, AppError> {
+/// What every delete checks once, whichever lines it is for. A clean-up reads
+/// it once for all its lines rather than once per line.
+pub(crate) struct DeleteContext {
+    active: Option<String>,
+    defaults: Vec<String>,
+    /// The remote-tracking refs of the remotes' default lines
+    /// (`refs/remotes/origin/main`): published copies no delete may remove.
+    default_remote_refs: Vec<String>,
+    worktrees: Vec<WorktreeEntry>,
+}
+
+/// Refuses outright what blocks every delete: a Git too old to switch lines
+/// safely, and a Git operation left half done.
+pub(crate) fn read_delete_context(path: &str) -> Result<DeleteContext, AppError> {
     require_git_switch_support(path)?;
 
     if let Some(operation) = git_operation_in_progress(path)? {
@@ -3871,14 +4764,34 @@ pub(crate) fn validate_and_prepare_delete(
         .status
         .success()
         .then(|| git_stdout(&symbolic_head));
-    if active.as_deref() == Some(name) {
+    let default_refs = default_branch_refs(path)?;
+    Ok(DeleteContext {
+        active,
+        defaults: default_refs.iter().map(|(name, _)| name.clone()).collect(),
+        default_remote_refs: default_refs.into_iter().map(|(_, remote)| remote).collect(),
+        worktrees: list_worktrees(path)?,
+    })
+}
+
+/// One line against the checks every delete makes of it, in this order: not
+/// the active line, not the main line, still there, not open in another
+/// worktree. Returns its tip and the refs that still hold that tip, which
+/// may be none; what to do then is the caller's rule.
+pub(crate) fn check_line_can_go(
+    path: &str,
+    context: &DeleteContext,
+    name: &str,
+) -> Result<(String, Vec<String>), AppError> {
+    if context.active.as_deref() == Some(name) {
         return Err(AppError::new(
             AppErrorCode::VersionLineIsActive,
             "The active version line can't be deleted.",
         )
         .with_remediation("Switch to a different version line first."));
     }
-    ensure_not_default_branch(path, name)?;
+    if context.defaults.iter().any(|known| known == name) {
+        return Err(default_branch_error(name));
+    }
 
     let target_ref = format!("refs/heads/{name}");
     let target_exists = run_git(path, &["show-ref", "--verify", "--quiet", &target_ref])?;
@@ -3891,8 +4804,8 @@ pub(crate) fn validate_and_prepare_delete(
     }
     let tip = checked_git_stdout(run_git(path, &["rev-parse", &target_ref])?)?;
 
-    let worktrees = list_worktrees(path)?;
-    if let Some(occupied) = worktrees
+    if let Some(occupied) = context
+        .worktrees
         .iter()
         .find(|worktree| worktree.branch.as_deref() == Some(name))
     {
@@ -3909,6 +4822,51 @@ pub(crate) fn validate_and_prepare_delete(
     }
 
     let retained_by = retaining_refs(path, name, &tip)?;
+    Ok((tip, retained_by))
+}
+
+fn unique_work_error(name: &str) -> AppError {
+    AppError::new(
+        AppErrorCode::VersionLineUniqueWork,
+        format!(
+            "\"{name}\" has saved work that isn't reachable from any other version line or remote yet."
+        ),
+    )
+    .with_remediation("Merge or publish this work, or keep the version line, before deleting it.")
+}
+
+/// The line's published copy, only when the remote branch is actually still
+/// there: a line whose upstream is `[gone]` has nothing left to delete, and
+/// offering it would fail for a reason the user cannot act on.
+///
+/// Never a remote's default line, either. A line created from `origin/main`
+/// tracks it, so "its published copy" would be the project's main line on
+/// the remote — and deleting that is not what deleting a finished line means.
+/// GitHub refuses it; a bare remote or another server may not.
+fn live_published_line(
+    path: &str,
+    context: &DeleteContext,
+    name: &str,
+) -> Result<Option<PublishedLine>, AppError> {
+    match published_line(path, name)? {
+        Some(entry) => {
+            let tracking = format!("refs/remotes/{}", entry.short_name);
+            if context.default_remote_refs.contains(&tracking) {
+                return Ok(None);
+            }
+            let exists = run_git(path, &["show-ref", "--verify", "--quiet", &tracking])?;
+            Ok(exists.status.success().then_some(entry))
+        }
+        None => Ok(None),
+    }
+}
+
+pub(crate) fn validate_and_prepare_delete(
+    path: &str,
+    name: &str,
+) -> Result<ValidatedDelete, AppError> {
+    let context = read_delete_context(path)?;
+    let (tip, retained_by) = check_line_can_go(path, &context, name)?;
     // No other line holds these versions — but if their work reached the main
     // line as copies, the line can go, with a recovery point for the
     // originals. Otherwise it is work that exists nowhere else.
@@ -3918,29 +4876,10 @@ pub(crate) fn validate_and_prepare_delete(
         None
     };
     if retained_by.is_empty() && copied_into.is_none() {
-        return Err(AppError::new(
-            AppErrorCode::VersionLineUniqueWork,
-            format!(
-                "\"{name}\" has saved work that isn't reachable from any other version line or remote yet."
-            ),
-        )
-        .with_remediation(
-            "Merge or publish this work, or keep the version line, before deleting it.",
-        ));
+        return Err(unique_work_error(name));
     }
 
-    let published = published_line(path, name)?;
-    // Only offered when the remote branch is actually still there: a line whose
-    // upstream is `[gone]` has nothing left to delete, and offering it would
-    // fail for a reason the user cannot act on.
-    let published = match published {
-        Some(entry) => {
-            let tracking = format!("refs/remotes/{}", entry.short_name);
-            let exists = run_git(path, &["show-ref", "--verify", "--quiet", &tracking])?;
-            exists.status.success().then_some(entry)
-        }
-        None => None,
-    };
+    let published = live_published_line(path, &context, name)?;
     let upstream = published.as_ref().map(|entry| entry.short_name.clone());
 
     let status = read_working_tree_status(path.to_string())?;
@@ -4071,7 +5010,12 @@ pub(crate) fn classify_delete_failure(output: &Output) -> AppError {
 }
 
 pub(crate) fn classify_remote_delete_failure(output: &Output) -> AppError {
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    classify_remote_delete_message(&String::from_utf8_lossy(&output.stderr))
+}
+
+/// Git's words for a refused remote deletion, from a push's stderr or from
+/// the reason a `--porcelain` push gives for one ref.
+fn classify_remote_delete_message(stderr: &str) -> AppError {
     let stderr_lower = stderr.to_lowercase();
     if stderr_lower.contains("remote ref does not exist") {
         AppError::new(
@@ -4098,15 +5042,48 @@ pub(crate) fn classify_remote_delete_failure(output: &Output) -> AppError {
             "The remote refused to delete this version line.",
         )
         .with_remediation("It may be protected there; ask whoever administers the remote.")
-        .with_detail(truncate_detail(&stderr))
+        .with_detail(truncate_detail(stderr))
     } else {
         AppError::new(
             AppErrorCode::GitCommandFailed,
             "Git couldn't delete this version line on the remote.",
         )
         .with_remediation("Check your connection and your access to the remote, then try again.")
-        .with_detail(truncate_detail(&stderr))
+        .with_detail(truncate_detail(stderr))
     }
+}
+
+/// Removes a line already proved safe to delete.
+fn remove_local_line(path: &str, name: &str) -> Result<(), AppError> {
+    // `-d` first, always: Git's own refusal is the outer safety net and it
+    // costs nothing to ask for it.
+    //
+    // Its rule is narrower than this app's, though, and that gap used to be a
+    // lie on screen. Git accepts `-d` only for a branch merged into HEAD or
+    // into its own upstream; GitOdile calls a line safe when its tip is
+    // reachable from *any* other local or remote-tracking ref, which is the
+    // question that actually decides whether work can be lost. A feature line
+    // already merged and published, sitting beside a local `main` that has not
+    // been pulled yet, satisfies the second and not the first — so the screen
+    // said "Safe to delete", the dialog agreed, and Git then refused.
+    //
+    // So a `not fully merged` refusal is answered with `-D`, and only ever
+    // after the caller has just proved again (`check_line_can_go`) that the
+    // work survives — retained by another ref, or copied into the main line
+    // with a recovery point verified first — and its state token has
+    // confirmed nothing moved since the preview. Every other refusal stands.
+    let output = run_git(path, &["branch", "-d", "--", name])?;
+    if !output.status.success() {
+        let failure = classify_delete_failure(&output);
+        if failure.code != AppErrorCode::VersionLineUniqueWork {
+            return Err(failure);
+        }
+        let forced = run_git(path, &["branch", "-D", "--", name])?;
+        if !forced.status.success() {
+            return Err(classify_delete_failure(&forced));
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn delete_version_line(
@@ -4158,34 +5135,7 @@ pub(crate) fn delete_version_line(
         None => None,
     };
 
-    // `-d` first, always: Git's own refusal is the outer safety net and it
-    // costs nothing to ask for it.
-    //
-    // Its rule is narrower than this app's, though, and that gap used to be a
-    // lie on screen. Git accepts `-d` only for a branch merged into HEAD or
-    // into its own upstream; GitOdile calls a line safe when its tip is
-    // reachable from *any* other local or remote-tracking ref, which is the
-    // question that actually decides whether work can be lost. A feature line
-    // already merged and published, sitting beside a local `main` that has not
-    // been pulled yet, satisfies the second and not the first — so the screen
-    // said "Safe to delete", the dialog agreed, and Git then refused.
-    //
-    // So a `not fully merged` refusal is answered with `-D`, and only ever
-    // after `validate_and_prepare_delete` has just proved again that the work
-    // survives — retained by another ref, or copied into the main line with a
-    // recovery point verified just above — and the state token has confirmed
-    // nothing moved since the preview. Every other refusal stands.
-    let output = run_git(&path, &["branch", "-d", "--", &validated.name])?;
-    if !output.status.success() {
-        let failure = classify_delete_failure(&output);
-        if failure.code != AppErrorCode::VersionLineUniqueWork {
-            return Err(failure);
-        }
-        let forced = run_git(&path, &["branch", "-D", "--", &validated.name])?;
-        if !forced.status.success() {
-            return Err(classify_delete_failure(&forced));
-        }
-    }
+    remove_local_line(&path, &validated.name)?;
 
     let mut remote_deleted = None;
     let mut remote_error = None;
@@ -4221,6 +5171,423 @@ pub(crate) fn delete_version_line(
         remote_deleted,
         remote_error,
         recovery_reference,
+    })
+}
+
+// ---- Clean up several version lines at once (task 173) ----
+
+/// The most lines one clean-up deletes. Each keeps a recovery point, and the
+/// clean-up namespace keeps this many, so one clean-up never evicts its own.
+pub(crate) const MAX_CLEAN_UP_LINES: usize = MAX_CLEAN_UP_RECOVERY_RECORDS;
+
+/// One line a clean-up will delete, with what keeps its work.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CleanUpLine {
+    pub(crate) name: String,
+    pub(crate) tip_commit: String,
+    /// Exact ref names that hold this line's tip.
+    pub(crate) retained_by: Vec<String>,
+    /// The published copy the clean-up can delete too, when it still exists.
+    pub(crate) published: Option<PublishedLine>,
+    /// This line's own token: execution skips it, and only it, when its tip
+    /// or its published copy moved since the preview.
+    pub(crate) state_token: String,
+}
+
+/// A line asked for and left out, with the reason the single delete would
+/// give for it.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExcludedLine {
+    pub(crate) name: String,
+    pub(crate) reason: AppError,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CleanUpVersionLinesPlan {
+    pub(crate) operation_kind: OperationKind,
+    pub(crate) summary: String,
+    pub(crate) steps: Vec<String>,
+    pub(crate) risks: Vec<String>,
+    pub(crate) recovery: String,
+    pub(crate) requires_confirmation: bool,
+    pub(crate) lines: Vec<CleanUpLine>,
+    pub(crate) excluded: Vec<ExcludedLine>,
+    /// How the recovery points are kept. Each deleted line gets its own.
+    pub(crate) recovery_point: HistoryRecoveryPreview,
+}
+
+/// One line the user confirmed, echoed from the plan.
+#[derive(serde::Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CleanUpLineRequest {
+    pub(crate) name: String,
+    pub(crate) state_token: String,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum CleanUpOutcome {
+    Deleted,
+    Skipped,
+}
+
+/// What happened to one line. A skipped line is untouched, locally and on the
+/// remote; a deleted one may still have a remote error.
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CleanUpLineResult {
+    pub(crate) name: String,
+    pub(crate) outcome: CleanUpOutcome,
+    pub(crate) reason: Option<AppError>,
+    /// `None` when the remote copy was not asked for or the line had none.
+    pub(crate) remote_deleted: Option<bool>,
+    pub(crate) remote_error: Option<AppError>,
+    pub(crate) recovery_reference: Option<String>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CleanUpVersionLinesResult {
+    /// The list after the clean-up. `None` only when reading it failed after
+    /// lines were already deleted: that is no reason to report the clean-up
+    /// itself as failed, and the screen refreshes on its own.
+    pub(crate) snapshot: Option<VersionLinesSnapshot>,
+    pub(crate) lines: Vec<CleanUpLineResult>,
+}
+
+fn guard_clean_up_names<'a>(names: impl Iterator<Item = &'a str>) -> Result<(), AppError> {
+    let mut seen = std::collections::HashSet::new();
+    for name in names {
+        if name.is_empty() || name.starts_with('-') || name.contains('\0') {
+            return Err(AppError::new(
+                AppErrorCode::InvalidSelection,
+                "One of the chosen version lines has a name GitOdile can't use.",
+            )
+            .with_remediation("Refresh and try again."));
+        }
+        if !seen.insert(name) {
+            return Err(AppError::new(
+                AppErrorCode::InvalidSelection,
+                format!("\"{name}\" was chosen twice."),
+            )
+            .with_remediation("Refresh and try again."));
+        }
+    }
+    if seen.is_empty() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            "Choose at least one version line to clean up.",
+        ));
+    }
+    if seen.len() > MAX_CLEAN_UP_LINES {
+        return Err(AppError::new(
+            AppErrorCode::InvalidSelection,
+            format!("A clean-up deletes at most {MAX_CLEAN_UP_LINES} version lines at once."),
+        )
+        .with_remediation("Choose fewer lines, then clean up the rest afterwards."));
+    }
+    Ok(())
+}
+
+/// Covers what makes this line's preview untrue: its tip and where it is
+/// published. Not the refs that keep it, which the other lines in the same
+/// clean-up change as they go; those are checked live instead.
+fn clean_up_line_token(name: &str, tip: &str, published: Option<&PublishedLine>) -> String {
+    compute_version_line_state_token(
+        Some(tip),
+        Some(name),
+        "",
+        &format!(
+            "clean-up:{}",
+            published
+                .map(|entry| entry.short_name.as_str())
+                .unwrap_or("")
+        ),
+    )
+}
+
+fn not_finished_error(name: &str) -> AppError {
+    AppError::new(
+        AppErrorCode::VersionLineNotFinished,
+        format!("\"{name}\" isn't finished: its work isn't on the main line yet."),
+    )
+    .with_remediation("Keep it, or delete it on its own from its details if you're sure.")
+}
+
+/// The line's last check before deletion: whatever the single delete
+/// refuses, and a line that is not finished (`finished_lines`) — a clean-up
+/// clears away finished work, never a line in progress that merely could be
+/// deleted without loss.
+fn check_clean_up_line(
+    path: &str,
+    context: &DeleteContext,
+    finished: &std::collections::HashSet<String>,
+    name: &str,
+) -> Result<(String, Vec<String>, Option<PublishedLine>), AppError> {
+    let (tip, retained_by) = check_line_can_go(path, context, name)?;
+    if retained_by.is_empty() {
+        return Err(unique_work_error(name));
+    }
+    if !finished.contains(name) {
+        return Err(not_finished_error(name));
+    }
+    let published = live_published_line(path, context, name)?;
+    Ok((tip, retained_by, published))
+}
+
+pub(crate) fn plan_clean_up_version_lines(
+    path: String,
+    names: Vec<String>,
+) -> Result<CleanUpVersionLinesPlan, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "plan_clean_up_version_lines", None)?;
+    guard_clean_up_names(names.iter().map(String::as_str))?;
+    let context = read_delete_context(&path)?;
+    let finished = finished_among(&path, &names)?;
+
+    let mut lines = Vec::new();
+    let mut excluded = Vec::new();
+    for name in names {
+        match check_clean_up_line(&path, &context, &finished, &name) {
+            Ok((tip, retained_by, published)) => lines.push(CleanUpLine {
+                state_token: clean_up_line_token(&name, &tip, published.as_ref()),
+                name,
+                tip_commit: tip,
+                retained_by,
+                published,
+            }),
+            Err(reason) => excluded.push(ExcludedLine { name, reason }),
+        }
+    }
+
+    let recovery_point =
+        plan_history_recovery_for(&repository, HistoryRecoveryOperation::CleanUpVersionLines);
+    let count = lines.len();
+    let published = lines.iter().filter(|line| line.published.is_some()).count();
+    let mut steps = vec![
+        "Keep a local recovery point with each line's name and last saved version.".to_string(),
+        format!(
+            "Remove {count} finished local version line(s); their work is already on the main line."
+        ),
+    ];
+    let mut risks = Vec::new();
+    if published > 0 {
+        steps.push(format!(
+            "Optionally delete the published copies of {published} of them on the remote as well."
+        ));
+        risks.push(
+            "Deleting published copies removes them for everyone who works on this project."
+                .to_string(),
+        );
+    }
+    Ok(CleanUpVersionLinesPlan {
+        operation_kind: OperationKind::Destructive,
+        summary: format!("Delete {count} finished version line(s)."),
+        steps,
+        risks,
+        recovery: recovery_point.retention.clone(),
+        requires_confirmation: true,
+        lines,
+        excluded,
+        recovery_point,
+    })
+}
+
+/// Deletes one confirmed line: rechecked, matched against its preview, a
+/// verified recovery point kept, then removed.
+fn clean_up_one_line(
+    path: &str,
+    repository: &RepositoryContext,
+    context: &DeleteContext,
+    finished: &std::collections::HashSet<String>,
+    request: &CleanUpLineRequest,
+) -> Result<(String, Option<PublishedLine>), AppError> {
+    let (tip, retained_by, published) =
+        check_clean_up_line(path, context, finished, &request.name)?;
+    if clean_up_line_token(&request.name, &tip, published.as_ref()) != request.state_token {
+        return Err(AppError::new(
+            AppErrorCode::StaleVersionLinePlan,
+            format!("\"{}\" changed since the preview was shown.", request.name),
+        )
+        .with_remediation("Review the clean-up again to include it."));
+    }
+
+    let point =
+        plan_history_recovery_for(repository, HistoryRecoveryOperation::CleanUpVersionLines);
+    let record = create_history_recovery_for(
+        repository,
+        HistoryRecoveryOperation::CleanUpVersionLines,
+        &point.reference,
+        HistoryRecoveryMetadata {
+            branch: request.name.clone(),
+            previous_commit: tip.clone(),
+            // Nothing moves anywhere: the line's tip is all there is to keep.
+            target_commit: tip,
+            remote: published
+                .as_ref()
+                .map(|entry| entry.remote.clone())
+                .unwrap_or_default(),
+            destination_branch: retained_by
+                .first()
+                .map(|reference| short_ref_name(reference).to_string())
+                .unwrap_or_default(),
+            tracking_ref: published
+                .as_ref()
+                .map(|entry| entry.short_name.clone())
+                .unwrap_or_default(),
+            state_token: request.state_token.clone(),
+            unsaved_snapshot: None,
+        },
+    )?;
+    verify_history_recovery(path, &record)?;
+
+    remove_local_line(path, &request.name)?;
+    Ok((record.reference, published))
+}
+
+fn short_ref_name(reference: &str) -> &str {
+    reference
+        .strip_prefix("refs/heads/")
+        .or_else(|| reference.strip_prefix("refs/remotes/"))
+        .unwrap_or(reference)
+}
+
+/// Reads one `git push --porcelain` ref line, `<flag>\t<from>:<to>\t<summary>`,
+/// as the destination ref and whether it was deleted, or the reason it was not.
+fn parse_porcelain_push_line(line: &str) -> Option<(&str, Result<(), &str>)> {
+    let mut fields = line.splitn(3, '\t');
+    let flag = fields.next()?;
+    let refspec = fields.next()?;
+    let summary = fields.next().unwrap_or("");
+    let (_, to) = refspec.split_once(':')?;
+    match flag {
+        "-" => Some((to, Ok(()))),
+        "!" => Some((to, Err(summary))),
+        _ => None,
+    }
+}
+
+/// Deletes published copies, one push per remote, and answers for each copy in
+/// the order given. A refusal never touches the local half, already done.
+fn delete_published_copies(path: &str, copies: &[&PublishedLine]) -> Vec<Result<(), AppError>> {
+    let mut answers: Vec<Option<Result<(), AppError>>> = copies.iter().map(|_| None).collect();
+    let mut remotes: Vec<&str> = Vec::new();
+    for copy in copies {
+        if !remotes.contains(&copy.remote.as_str()) {
+            remotes.push(&copy.remote);
+        }
+    }
+    for remote in remotes {
+        let indices: Vec<usize> = (0..copies.len())
+            .filter(|&index| copies[index].remote == remote)
+            .collect();
+        let refs: Vec<String> = indices
+            .iter()
+            .map(|&index| format!("refs/heads/{}", copies[index].branch))
+            .collect();
+        let mut args = vec!["push", "--porcelain", remote, "--delete"];
+        args.extend(refs.iter().map(String::as_str));
+        // A push that could not even start answers for every ref it carried;
+        // the local deletions it follows stand either way.
+        let push = match run_git(path, &args) {
+            Ok(push) => push,
+            Err(error) => {
+                for &index in &indices {
+                    answers[index] = Some(Err(error.clone()));
+                }
+                continue;
+            }
+        };
+        let stdout = String::from_utf8_lossy(&push.stdout).to_string();
+        let reported: Vec<(&str, Result<(), &str>)> = stdout
+            .lines()
+            .filter_map(parse_porcelain_push_line)
+            .collect();
+        for (&index, reference) in indices.iter().zip(&refs) {
+            let answer = match reported.iter().find(|(to, _)| to == reference) {
+                Some((_, Ok(()))) => Ok(()),
+                Some((_, Err(reason))) => Err(classify_remote_delete_message(reason)),
+                None if push.status.success() => Ok(()),
+                // No word on this ref: the push failed before it got that far,
+                // and its stderr is the reason for every ref it carried.
+                None => Err(classify_remote_delete_failure(&push)),
+            };
+            answers[index] = Some(answer);
+        }
+    }
+    answers
+        .into_iter()
+        .map(|answer| answer.unwrap_or(Ok(())))
+        .collect()
+}
+
+pub(crate) fn clean_up_version_lines(
+    path: String,
+    lines: Vec<CleanUpLineRequest>,
+    delete_remote: bool,
+) -> Result<CleanUpVersionLinesResult, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "clean_up_version_lines", None)?;
+    guard_clean_up_names(lines.iter().map(|line| line.name.as_str()))?;
+    // What blocks every line refuses the whole clean-up; what blocks one
+    // line skips that line.
+    let context = read_delete_context(&path)?;
+    // Asked fresh, once: deleting one finished line never changes whether
+    // another one is.
+    let names: Vec<String> = lines.iter().map(|line| line.name.clone()).collect();
+    let finished = finished_among(&path, &names)?;
+
+    let mut results = Vec::new();
+    let mut published = Vec::new();
+    for request in &lines {
+        match clean_up_one_line(&path, &repository, &context, &finished, request) {
+            Ok((recovery_reference, copy)) => {
+                if delete_remote {
+                    if let Some(copy) = copy {
+                        published.push((results.len(), copy));
+                    }
+                }
+                results.push(CleanUpLineResult {
+                    name: request.name.clone(),
+                    outcome: CleanUpOutcome::Deleted,
+                    reason: None,
+                    remote_deleted: None,
+                    remote_error: None,
+                    recovery_reference: Some(recovery_reference),
+                });
+            }
+            Err(reason) => results.push(CleanUpLineResult {
+                name: request.name.clone(),
+                outcome: CleanUpOutcome::Skipped,
+                reason: Some(reason),
+                remote_deleted: None,
+                remote_error: None,
+                recovery_reference: None,
+            }),
+        }
+    }
+
+    if !published.is_empty() {
+        let copies: Vec<&PublishedLine> = published.iter().map(|(_, copy)| copy).collect();
+        let answers = delete_published_copies(&path, &copies);
+        for ((index, _), answer) in published.iter().zip(answers) {
+            let result = &mut results[*index];
+            match answer {
+                Ok(()) => result.remote_deleted = Some(true),
+                Err(error) => {
+                    result.remote_deleted = Some(false);
+                    result.remote_error = Some(error);
+                }
+            }
+        }
+    }
+
+    Ok(CleanUpVersionLinesResult {
+        snapshot: get_version_lines(path).ok(),
+        lines: results,
     })
 }
 

@@ -24,7 +24,7 @@ import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
   FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder,
-  useAnchoredPopup, useRowArrival, type FilterChip,
+  InclusionNode, useAnchoredPopup, useRowArrival, type FilterChip,
 } from "../../shared/ui";
 import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
 import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
@@ -874,45 +874,6 @@ function DiffWorkspace({
   );
 }
 
-/** The Changes list's include control, in History's node language: a filled
- * disc when the file is in, a ring when it is out and a half moon when only
- * part of a folder is in. The native checkbox is still the control — it keeps
- * the label, the indeterminate state and the keyboard — but it is visually
- * hidden inside a label wide enough to hit; the node is the drawing.
- *
- * The 18px column is 4px narrower than the old tick's 22px. The label's
- * `::after` reaches 6px into the file item's padding, so the target is 24px
- * wide without spending layout width. */
-function InclusionNode({ checked, indeterminate = false, disabled = false, label, onChange, tooltip }: {
-  checked: boolean;
-  indeterminate?: boolean;
-  disabled?: boolean;
-  label: string;
-  onChange: () => void;
-  tooltip?: string;
-}): React.JSX.Element {
-  const inputRef = useRef<HTMLInputElement>(null);
-  // Layout effect, not effect: a folder that opens partly included must draw
-  // its half moon in the same frame as the rest of the row.
-  useLayoutEffect(() => {
-    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-  return (
-    <label className="changes-file-row__pick" data-tooltip={tooltip}>
-      <input
-        ref={inputRef}
-        className="changes-file-row__pick-input"
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        aria-label={label}
-        onChange={onChange}
-      />
-      <span className="changes-file-row__node" aria-hidden="true" />
-    </label>
-  );
-}
-
 function FileListItem({
   entry,
   isSelected,
@@ -980,6 +941,7 @@ function FileListItem({
       style={{ ...(virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }), ...(depth === undefined ? undefined : treeIndentStyle(depth)) }}
     >
       <InclusionNode
+        className="changes-file-row__pick"
         checked={isIncluded}
         disabled={!canChoose}
         label={t.changesIncludeFile(entry.path)}
@@ -1079,6 +1041,7 @@ function FolderListItem({ row, props, virtual }: {
       style={{ ...(virtual ? { transform: `translateY(${virtual.start}px)` } : undefined), ...treeIndentStyle(row.depth) }}
     >
       <InclusionNode
+        className="changes-file-row__pick"
         checked={included === row.files.length}
         indeterminate={partial}
         disabled={!props.canChoose}
@@ -1731,6 +1694,7 @@ export function ChangesPanel({
                 <span className="changes-file-list__select-all">
                   {canChooseFiles ? (
                     <InclusionNode
+                      className="changes-file-row__pick"
                       checked={allSelected}
                       indeterminate={includedCount > 0 && includedCount < totalCount}
                       label={allSelected ? t.changesSelectNone : t.changesSelectAll}
@@ -1742,6 +1706,7 @@ export function ChangesPanel({
                     />
                   ) : (
                     <InclusionNode
+                      className="changes-file-row__pick"
                       checked
                       disabled
                       label={t.changesPartialUnavailableTruncated}

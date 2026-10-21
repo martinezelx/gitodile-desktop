@@ -261,6 +261,8 @@ pub fn run() {
             ipc::switch_version_line,
             ipc::plan_delete_version_line,
             ipc::delete_version_line,
+            ipc::plan_clean_up_version_lines,
+            ipc::clean_up_version_lines,
             ipc::plan_rename_version_line,
             ipc::rename_version_line,
             ipc::watch_repository,

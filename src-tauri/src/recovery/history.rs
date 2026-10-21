@@ -7,8 +7,10 @@
 //! snapshot commit under a sibling `-unsaved` namespace, owned by the same
 //! record (ADR 0030). Deleting a line whose work reached the main line only as
 //! copies removes the one ref holding its original versions, so their tip is
-//! preserved the same way first (ADR 0016). Each operation has its own namespace, manifest
-//! folder and retention limit; the protocol is one. Records are owned per
+//! preserved the same way first (ADR 0016). Cleaning up several lines at once
+//! keeps one record per deleted line, so each can be recreated by name (ADR
+//! 0034). Each operation has its own namespace, manifest folder and retention
+//! limit; the protocol is one. Records are owned per
 //! worktree and reconciled before a new one is reserved.
 //! This is a separate owner from [`super::discard`]: the two share only the
 //! clock.
@@ -24,8 +26,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const HISTORY_RECOVERY_SCHEMA_VERSION: u32 = 1;
-/// Per operation: each keeps its own newest twenty.
+/// Per operation: each keeps its own newest twenty, except a clean-up.
 pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
+/// A clean-up writes one record per line it deletes, so it keeps more, and a
+/// single clean-up may never ask for more lines than this: it would evict its
+/// own records while it wrote them.
+pub(crate) const MAX_CLEAN_UP_RECOVERY_RECORDS: usize = 50;
 
 /// The workflows that keep a recovery point before they change a version
 /// line. The slug names the ref namespace, the manifest folder and the
@@ -35,6 +41,7 @@ pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
 pub(crate) enum HistoryRecoveryOperation {
     GetTeamChanges,
     DeleteVersionLine,
+    CleanUpVersionLines,
 }
 
 impl HistoryRecoveryOperation {
@@ -42,6 +49,14 @@ impl HistoryRecoveryOperation {
         match self {
             Self::GetTeamChanges => "get-team-changes",
             Self::DeleteVersionLine => "delete-version-line",
+            Self::CleanUpVersionLines => "clean-up-version-lines",
+        }
+    }
+
+    fn retention_limit(self) -> usize {
+        match self {
+            Self::CleanUpVersionLines => MAX_CLEAN_UP_RECOVERY_RECORDS,
+            Self::GetTeamChanges | Self::DeleteVersionLine => MAX_HISTORY_RECOVERY_RECORDS,
         }
     }
 
@@ -182,14 +197,19 @@ pub(crate) fn plan_history_recovery_for(
             "GitOdile will keep this line's original saved versions with a verified local reference before deleting it.",
             "deleted-line",
         ),
+        HistoryRecoveryOperation::CleanUpVersionLines => (
+            "GitOdile will keep each line's name and last saved version with a verified local reference before deleting it.",
+            "cleaned-up-line",
+        ),
     };
+    let limit = operation.retention_limit();
     HistoryRecoveryPreview {
         reference: format!("{}/{owner_id}/{recovery_id}", operation.namespace()),
         explanation: explanation.to_string(),
         retention: format!(
-            "The recovery point stays local and is kept among the newest {MAX_HISTORY_RECOVERY_RECORDS} {kind} recovery points for this project repository."
+            "The recovery point stays local and is kept among the newest {limit} {kind} recovery points for this project repository."
         ),
-        retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
+        retention_limit: limit,
     }
 }
 
@@ -420,7 +440,7 @@ fn reserve_history_recovery_slot(
         }
     });
     records.sort_by_key(|(_, record)| record.created_at_ms);
-    while refs.len() >= MAX_HISTORY_RECOVERY_RECORDS {
+    while refs.len() >= operation.retention_limit() {
         let Some((manifest_path, record)) = records.first().cloned() else {
             return Err(history_error(
                 "History recovery contains incomplete records, so GitOdile couldn't guarantee its retention limit.",
@@ -512,7 +532,7 @@ pub(crate) fn create_history_recovery_for(
         destination_branch: metadata.destination_branch,
         tracking_ref: metadata.tracking_ref,
         state_token: metadata.state_token,
-        retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
+        retention_limit: operation.retention_limit(),
         unsaved_reference,
         unsaved_snapshot: metadata.unsaved_snapshot,
     };
@@ -662,6 +682,14 @@ mod tests {
             root.join("delete-version-line")
                 .join("worktree-main")
                 .join("record-id.json")
+        );
+        assert_eq!(
+            HistoryRecoveryOperation::CleanUpVersionLines.namespace(),
+            "refs/gitodile/recovery/v1/clean-up-version-lines"
+        );
+        assert_eq!(
+            HistoryRecoveryOperation::CleanUpVersionLines.retention_limit(),
+            MAX_CLEAN_UP_RECOVERY_RECORDS
         );
         assert_eq!(
             history_record_path(

@@ -36,6 +36,7 @@ function line(overrides: Partial<VersionLine> = {}): VersionLine {
     isActive: false,
     upstream: null,
     isRetainedElsewhere: false,
+    isFinished: false,
     uniqueCommitCount: null,
     worktreePath: null,
     upstreamAhead: null,

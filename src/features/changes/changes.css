@@ -444,58 +444,27 @@
   position: absolute;
   inset: 0 -6px;
 }
-.changes-file-row__pick-input {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-.changes-file-row__node {
-  width: 10px; height: 10px;
-  box-sizing: border-box;
-  border: 1.5px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
-  border-radius: var(--radius-round);
-  background: transparent;
-  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast), opacity var(--duration-fast);
-}
-.changes-file-row__pick-input:checked + .changes-file-row__node {
-  border-color: var(--node-fill);
-  background: var(--node-fill);
-}
-.changes-file-row__pick-input:indeterminate + .changes-file-row__node {
-  border-color: var(--node-fill);
-  background: linear-gradient(90deg, var(--node-fill) 50%, transparent 50%);
-}
 /* The pointer reveals the control: the whole row rings its node, because a
    ring alone does not say "press me" the way a tick used to. The open row is
    left to its own accent halo instead. */
-.changes-file-row:not(.changes-file-row--active):hover .changes-file-row__pick:has(.changes-file-row__pick-input:not(:disabled)) .changes-file-row__node,
-.changes-file-list__select-all .changes-file-row__pick:has(.changes-file-row__pick-input:not(:disabled)):hover .changes-file-row__node {
+.changes-file-row:not(.changes-file-row--active):hover .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)) .inclusion-node__mark,
+.changes-file-list__select-all .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)):hover .inclusion-node__mark {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 26%, transparent);
 }
 /* The open file is the one node in the accent, and selecting it changes the
    colour, never the shape: a filled node stays a disc, a half-filled one stays
    a half moon, an empty one stays a ring. */
-.changes-file-row--active .changes-file-row__node {
+.changes-file-row--active .inclusion-node__mark {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
-.changes-file-row--active .changes-file-row__pick-input:checked + .changes-file-row__node {
+.changes-file-row--active .inclusion-node__input:checked + .inclusion-node__mark {
   background: var(--accent-primary);
 }
-.changes-file-row--active .changes-file-row__pick-input:indeterminate + .changes-file-row__node {
+.changes-file-row--active .inclusion-node__input:indeterminate + .inclusion-node__mark {
   background: linear-gradient(90deg, var(--accent-primary) 50%, transparent 50%);
 }
-.changes-file-row__pick:has(.changes-file-row__pick-input:focus-visible) .changes-file-row__node {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
-}
-.changes-file-row__pick-input:disabled + .changes-file-row__node { opacity: 0.55; }
 /* The file list's first-load rows keep the same leading column. */
 .changes-file-row__pick-placeholder {
   flex: 0 0 18px;
@@ -555,17 +524,12 @@
 .file-tree-folder__count { color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
   .file-tree-folder__caret { transition: none; }
-  .changes-file-row__node { transition: none; }
 }
 @media (forced-colors: active) {
   .file-tree-folder__kind { background: CanvasText; }
-  .changes-file-row__node { border-color: ButtonText; }
-  .changes-file-row__pick-input:checked + .changes-file-row__node { background: Highlight; border-color: Highlight; }
-  .changes-file-row__pick-input:indeterminate + .changes-file-row__node { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
-  .changes-file-row--active .changes-file-row__node { border-color: Highlight; }
-  .changes-file-row--active .changes-file-row__pick-input:checked + .changes-file-row__node { background: Highlight; border-color: Highlight; }
-  .changes-file-row--active .changes-file-row__pick-input:indeterminate + .changes-file-row__node { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
-  .changes-file-row__pick:has(.changes-file-row__pick-input:focus-visible) .changes-file-row__node { outline: 2px solid Highlight; }
+  .changes-file-row--active .inclusion-node__mark { border-color: Highlight; }
+  .changes-file-row--active .inclusion-node__input:checked + .inclusion-node__mark { background: Highlight; border-color: Highlight; }
+  .changes-file-row--active .inclusion-node__input:indeterminate + .inclusion-node__mark { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
 }
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);

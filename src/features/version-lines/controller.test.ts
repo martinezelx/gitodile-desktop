@@ -16,6 +16,7 @@ function snapshot(name = "main", commit = "abc123"): VersionLinesSnapshot {
       isActive: true,
       upstream: null,
       isRetainedElsewhere: false,
+      isFinished: false,
       uniqueCommitCount: null,
       worktreePath: null,
       upstreamAhead: null,
@@ -51,6 +52,8 @@ function port(read: VersionLinesPort["read"]): VersionLinesPort {
     planRename: vi.fn(),
     rename: vi.fn(),
     delete: vi.fn(),
+    planCleanUp: vi.fn(),
+    cleanUp: vi.fn(),
   };
 }
 

@@ -50,7 +50,8 @@ use crate::{
         GitInstallationResult, GitLineEndings, GitUpdateLaunchResult, GitUpdateStatus,
     },
     version_lines::{
-        self, CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
+        self, CleanUpLineRequest, CleanUpVersionLinesPlan, CleanUpVersionLinesResult,
+        CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
         RenameVersionLinePlan, SwitchVersionLinePlan, VersionLineHistory, VersionLinesSnapshot,
     },
     watch,
@@ -1470,6 +1471,37 @@ pub(crate) fn delete_version_line(
 }
 
 #[tauri::command(async)]
+pub(crate) fn plan_clean_up_version_lines(
+    path: String,
+    names: Vec<String>,
+    session_epoch: String,
+) -> Result<CleanUpVersionLinesPlan, AppError> {
+    report_result(
+        "plan_clean_up_version_lines",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::plan_clean_up_version_lines(path, names)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn clean_up_version_lines(
+    path: String,
+    lines: Vec<CleanUpLineRequest>,
+    delete_remote: bool,
+    session_epoch: String,
+) -> Result<CleanUpVersionLinesResult, AppError> {
+    report_result(
+        "clean_up_version_lines",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            version_lines::clean_up_version_lines(path, lines, delete_remote)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
 pub(crate) fn plan_rename_version_line(
     path: String,
     name: String,
@@ -1876,6 +1908,7 @@ mod contract_tests {
             AppErrorCode::VersionLineIsDefault,
             AppErrorCode::VersionLineMissing,
             AppErrorCode::VersionLineUniqueWork,
+            AppErrorCode::VersionLineNotFinished,
             AppErrorCode::VersionLineSwitchObstructed,
             AppErrorCode::StaleVersionLinePlan,
             AppErrorCode::DirtyWorkingTree,

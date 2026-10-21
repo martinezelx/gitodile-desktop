@@ -29,11 +29,13 @@ export type GroupedVersionLines = {
 const BUCKET_ORDER: readonly LineBucketKey[] = ["in-progress", "clean-up"];
 
 /** Which block a line belongs in, or `null` for the pinned rows. A line is
- * ready to clean up by the same proof the delete plan asks for — its tip is
- * kept by another ref — so the block never promises a delete Rust refuses. */
+ * ready to clean up when it is finished — its work is on the main line and
+ * was its own (Rust's `finished_lines`) — and could be deleted from here. Not
+ * merely when deleting it would lose nothing: a published line in progress
+ * is kept by its own remote copy, and is still in progress. */
 export function bucketOf(line: VersionLine): LineBucketKey | null {
   if (line.isActive || line.isDefault) return null;
-  return deletabilityOf(line) === "ready" ? "clean-up" : "in-progress";
+  return line.isFinished && deletabilityOf(line) === "ready" ? "clean-up" : "in-progress";
 }
 
 /** The first segment of a line's name, or `null` when it has none. */

@@ -8,14 +8,12 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
-  CircleDot,
   Cloud,
-  CloudOff,
   CloudUpload,
   GitBranch,
+  House,
   Info,
   PenLine,
-  ShieldCheck,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
@@ -36,6 +34,7 @@ import {
   type LineTreeItem,
 } from "./lineGroups";
 import { useStoredLineFolds } from "./lineFolds";
+import { rowGlyphs, syncStatusOf, syncText } from "./lineGlyphs";
 import { VersionLineContextMenu, type VersionLineContextMenuState } from "./VersionLineContextMenu";
 import { VersionLineQuickCreateBox } from "./VersionLineQuickCreateBox";
 import { VersionLineRenameStrip } from "./VersionLineRenameStrip";
@@ -46,11 +45,13 @@ import {
   DeleteVersionLineDialog,
   SwitchVersionLineDialog,
 } from "./VersionLinesDialog";
+import { CleanUpVersionLinesDialog } from "./CleanUpVersionLinesDialog";
 
 type DialogRequest =
   | { kind: "create"; forceSwitch: boolean }
   | { kind: "switch"; target: string }
   | { kind: "delete"; target: string }
+  | { kind: "clean-up" }
   | null;
 
 /** How the list is ordered. `unpublished` leans on `upstream === null` — a fact
@@ -87,55 +88,6 @@ const STATE_LABEL_KEYS = {
   tracking: "versionLinesStateTracking",
   "local-only": "versionLinesNoUpstreamLabel",
 } as const satisfies Record<StateFilter, keyof Translations>;
-
-/** How this line compares to its upstream, derived from the last local
- * fetch — never a live remote check. `"none"` and `"synced"` are the two
- * unremarkable states; everything else is worth a row chip. */
-type SyncStatus =
-  | { kind: "none" }
-  | { kind: "synced" }
-  | { kind: "gone" }
-  | { kind: "ahead"; count: number }
-  | { kind: "behind"; count: number }
-  | { kind: "diverged"; ahead: number; behind: number };
-
-function syncStatusOf(line: VersionLine): SyncStatus {
-  if (line.upstream === null) {
-    return { kind: "none" };
-  }
-  if (line.upstreamGone) {
-    return { kind: "gone" };
-  }
-  const ahead = line.upstreamAhead ?? 0;
-  const behind = line.upstreamBehind ?? 0;
-  if (ahead > 0 && behind > 0) {
-    return { kind: "diverged", ahead, behind };
-  }
-  if (ahead > 0) {
-    return { kind: "ahead", count: ahead };
-  }
-  if (behind > 0) {
-    return { kind: "behind", count: behind };
-  }
-  return { kind: "synced" };
-}
-
-function syncText(sync: SyncStatus, t: Translations): string {
-  switch (sync.kind) {
-    case "none":
-      return t.versionLinesSyncNoUpstream;
-    case "synced":
-      return t.versionLinesSyncUpToDate;
-    case "gone":
-      return t.versionLinesSyncGone;
-    case "ahead":
-      return t.versionLinesSyncAhead(sync.count);
-    case "behind":
-      return t.versionLinesSyncBehind(sync.count);
-    case "diverged":
-      return t.versionLinesSyncAheadBehind(sync.ahead, sync.behind);
-  }
-}
 
 function tipDate(line: VersionLine): Date | null {
   if (!line.tip.committedAt) {
@@ -179,107 +131,6 @@ function publishedOnLabel(line: VersionLine): string | null {
 
 /* ---------------------------------------------------------------- list ---- */
 
-/** One state a row flags, as a glyph. `label` is the short name the chip used
- * to spell out — what a screen reader hears, as the row's description —
- * and `tooltip` the sentence that says what the glyph means to someone who has
- * not learned it yet. */
-type RowGlyph = {
-  key: string;
-  tone: StateGlyphTone;
-  icon: React.ReactNode;
-  /** Drawn beside the icon: how many versions an arrow stands for. */
-  count?: string;
-  label: string;
-  tooltip: string;
-};
-
-/** The same two questions the chips answered — where the line stands against
- * its remote, and whether it can be cleared away — each as a glyph. In sync
- * with its remote says nothing, as it always did: the unremarkable state is
- * the one without a mark. */
-function rowGlyphs(line: VersionLine, t: Translations, formats: LocaleFormats): RowGlyph[] {
-  const glyphs: RowGlyph[] = [];
-  // First, in the accent: where the project is. It carries no `label` — the
-  // row's own accessible name already ends in "Active".
-  if (line.isActive) {
-    glyphs.push({
-      key: "active",
-      tone: "accent",
-      icon: <CircleDot />,
-      label: "",
-      tooltip: t.versionLinesGlyphActive,
-    });
-  }
-  const sync = syncStatusOf(line);
-  if (sync.kind === "none") {
-    glyphs.push({
-      key: "local",
-      tone: "local",
-      icon: <LocalOnlyIcon />,
-      label: t.versionLinesNoUpstreamLabel,
-      tooltip: t.versionLinesGlyphLocalOnly,
-    });
-  } else if (sync.kind === "gone") {
-    glyphs.push({
-      key: "gone",
-      tone: "warning",
-      icon: <CloudOff />,
-      label: syncText(sync, t),
-      tooltip: t.versionLinesGlyphGone,
-    });
-  } else if (sync.kind === "ahead" || sync.kind === "diverged") {
-    const ahead = sync.kind === "ahead" ? sync.count : sync.ahead;
-    glyphs.push({
-      key: "ahead",
-      tone: "neutral",
-      icon: <ArrowUp />,
-      count: formatNumber(ahead, formats),
-      label: sync.kind === "ahead" ? syncText(sync, t) : "",
-      tooltip: t.versionLinesSyncAhead(ahead),
-    });
-  }
-  if (sync.kind === "behind" || sync.kind === "diverged") {
-    const behind = sync.kind === "behind" ? sync.count : sync.behind;
-    glyphs.push({
-      key: "behind",
-      tone: "neutral",
-      icon: <ArrowDown />,
-      count: formatNumber(behind, formats),
-      // A diverged line is read out as one state, the way its chip said it,
-      // rather than as two halves of one sentence.
-      label: syncText(sync, t),
-      tooltip: t.versionLinesSyncBehind(behind),
-    });
-  }
-
-  const deletability = deletabilityOf(line);
-  if (deletability === "protected") {
-    glyphs.push({
-      key: "protected",
-      tone: "accent",
-      icon: <ShieldCheck />,
-      label: t.versionLinesDefaultLineChip,
-      tooltip: t.versionLinesGlyphProtected,
-    });
-  } else if (!line.isActive && deletability === "ready") {
-    glyphs.push({
-      key: "ready",
-      tone: "positive",
-      icon: <CircleCheck />,
-      label: t.versionLinesDeletablePill,
-      tooltip: t.versionLinesGlyphDeletable,
-    });
-  } else if (!line.isActive && deletability === "unique-work") {
-    glyphs.push({
-      key: "unique",
-      tone: "warning",
-      icon: <TriangleAlert />,
-      label: t.versionLinesNotDeletablePill,
-      tooltip: t.versionLinesGlyphNotDeletable,
-    });
-  }
-  return glyphs;
-}
 
 /** Name and state lengths for the first read's rows. */
 const LINE_PLACEHOLDER_WIDTHS: ReadonlyArray<readonly [string, string]> = [
@@ -423,20 +274,24 @@ const treeItemDomId = (item: LineTreeItem): string =>
   item.kind === "line" ? `version-line-${item.line.name}` : headingDomId(item.id);
 
 /** A heading in the list: one of the two blocks, or a prefix cluster inside
- * one. Each folds what is under it. The clean-up block, folded, says its lines
- * are safe to delete — the count is already in the heading's capsule, so the
- * hint does not say it twice — and "Review" only opens it: clearing several
- * lines at once would need its own plan and recovery point. */
+ * one. Each folds what is under it. Under the clean-up block's heading, in
+ * either state, sits the action it is there for: "Clean up 9 lines…", a
+ * button of its own with the reason it is safe under the verb, which opens
+ * the clean-up dialog. The heading still only folds; from the keyboard,
+ * Delete on it opens the dialog too. */
 function VersionLinesGroupHeading({
   item,
   focusable,
   onToggle,
   onTreeKey,
+  onCleanUp,
 }: {
   item: Extract<LineTreeItem, { kind: "bucket" | "cluster" }>;
   focusable: boolean;
   onToggle: (id: string) => void;
   onTreeKey: (event: React.KeyboardEvent<HTMLElement>, id: string) => void;
+  /** Opens the clean-up dialog. Only the clean-up block takes it. */
+  onCleanUp?: () => void;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const label =
@@ -445,8 +300,8 @@ function VersionLinesGroupHeading({
       : item.key === "in-progress"
         ? t.versionLinesGroupInProgress
         : t.versionLinesGroupCleanUp;
-  const hint = item.kind === "bucket" && item.key === "clean-up" && !item.expanded ? t.versionLinesCleanUpHint : null;
-  return (
+  const cleanUp = item.kind === "bucket" && item.key === "clean-up" ? onCleanUp : undefined;
+  const heading = (
     <button
       id={headingDomId(item.id)}
       className={`version-lines-group version-lines-group--${item.kind}`}
@@ -455,24 +310,40 @@ function VersionLinesGroupHeading({
       aria-level={item.level}
       aria-expanded={item.expanded}
       aria-label={t.versionLinesGroupLabel(label, item.count)}
-      aria-description={hint ?? undefined}
+      // Folded, why the block is worth opening; open, its rows say it.
+      aria-description={cleanUp && !item.expanded ? t.versionLinesCleanUpHint : undefined}
+      aria-keyshortcuts={cleanUp ? "Delete" : undefined}
       tabIndex={focusable ? 0 : -1}
       onClick={() => onToggle(item.id)}
-      onKeyDown={(event) => onTreeKey(event, item.id)}
+      onKeyDown={(event) => {
+        if (cleanUp && event.key === "Delete") {
+          event.preventDefault();
+          cleanUp();
+          return;
+        }
+        onTreeKey(event, item.id);
+      }}
     >
       <span className="version-lines-group__title">
         <ChevronRight className="version-lines-group__chevron" aria-hidden="true" />
         <span className="version-lines-group__label">{label}</span>
         <span className="version-lines-group__count">{formatNumber(item.count, formats)}</span>
       </span>
-      {hint && (
-        <span className="version-lines-group__hint">
-          <CircleCheck aria-hidden="true" />
-          <span>{hint}</span>
-          <span className="version-lines-group__review">{t.versionLinesCleanUpReview}</span>
-        </span>
-      )}
     </button>
+  );
+  if (!cleanUp) return heading;
+  return (
+    <div className="version-lines-group-clean-up" role="none">
+      {heading}
+      <button type="button" className="version-lines-clean-up" onClick={cleanUp}>
+        <Trash2 className="version-lines-clean-up__icon" aria-hidden="true" />
+        <span className="version-lines-clean-up__text">
+          <span className="version-lines-clean-up__title">{t.versionLinesCleanUpAction(item.count)}</span>
+          <span className="version-lines-clean-up__note">{t.versionLinesCleanUpActionNote}</span>
+        </span>
+        <ChevronRight className="version-lines-clean-up__chevron" aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -676,7 +547,8 @@ type RelationTone = "positive" | "neutral" | "warning" | "protected";
 function RelationIcon({ tone }: { tone: RelationTone }): React.JSX.Element {
   if (tone === "positive") return <CircleCheck aria-hidden="true" />;
   if (tone === "warning") return <TriangleAlert aria-hidden="true" />;
-  if (tone === "protected") return <ShieldCheck aria-hidden="true" />;
+  // The main line is home, as on its row.
+  if (tone === "protected") return <House aria-hidden="true" />;
   return <Info aria-hidden="true" />;
 }
 
@@ -877,8 +749,11 @@ function VersionLineDetail({
   ];
   /* Where what is only on this computer ends and what the remote has begins,
      drawn as History and Overview draw it: a head over the versions only here
-     and the remote's cloud where its copy starts. Nothing when every listed
-     version is on one side. */
+     and the remote's cloud where its copy starts. The head goes over the local
+     block whenever the newest version is in it — also when every listed
+     version is, as on a line many versions ahead, where the remote's copy
+     starts below what the list shows. It used to wait for a published version
+     to follow, and that line's versions read as nothing in particular. */
   const unpublished = history?.unpublished ?? null;
   const publications = versions.map((version, index) => publicationAt(line, unpublished, version.commit, index));
   /* The head goes over the newest run of versions only here, and the remote's
@@ -886,6 +761,7 @@ function VersionLineDetail({
   const boundaryIndex = publications.findIndex(
     (publication, index) => index > 0 && publication === "published" && publications[index - 1] === "local-only",
   );
+  const localHead = publications[0] === "local-only";
   const publishedOn = publishedOnLabel(line);
   /* Publishing is the active line's: the flow publishes the line the project
      is on. Offered while it has something to send — versions ahead, or no
@@ -975,7 +851,11 @@ function VersionLineDetail({
                       <strong>{entry.title}</strong>
                       {entry.detail}
                     </span>
-                    {entry.key === "remote" && canPublish && (
+                    {/* One Publish per line: on the "On this computer" head
+                        when it is drawn, beside the versions it sends, as
+                        History has it; here only when there is no head — a
+                        line never published, or whose remote branch is gone. */}
+                    {entry.key === "remote" && canPublish && !localHead && (
                       <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />
                     )}
                   </li>
@@ -1055,7 +935,7 @@ function VersionLineDetail({
                 {...autoHideScrollbarProps<HTMLOListElement>()}
                 className="version-lines-recent auto-hide-scrollbar"
               >
-                {boundaryIndex > 0 && (
+                {localHead && (
                   <li className="version-lines-recent__head">
                     <TimelineChip kind="local" label={t.versionLinesLocalGroup} compact className="version-lines-recent__chip" />
                     {canPublish && <PublishCapsule onPublish={onPublish} label={t.versionLinesPublish} />}
@@ -1103,7 +983,7 @@ function VersionLineDetail({
                       )}
                       <li
                         className={`version-lines-recent__row version-lines-recent__row--${publication}`}
-                        data-first={(index === 0 && boundaryIndex <= 0) || undefined}
+                        data-first={(index === 0 && !localHead) || undefined}
                         data-last={index === versions.length - 1 || undefined}
                         // The row the reader is on lights the same version's dot
                         // in the route above — by keyboard as well as pointer, so
@@ -1432,6 +1312,12 @@ export function VersionLinesPanel({
      list back the way the reader left it. The reader's own folds are kept per
      project across launches. */
   const grouped = useMemo(() => groupVersionLines(active, others), [active, others]);
+  /* What "Review" offers: the clean-up block as the list draws it, loose
+     lines first and then each cluster, under whatever search or filter is on. */
+  const cleanUpLines = useMemo(() => {
+    const bucket = grouped.buckets.find((entry) => entry.key === "clean-up");
+    return bucket ? [...bucket.loose, ...bucket.clusters.flatMap((cluster) => cluster.lines)] : [];
+  }, [grouped]);
   const [folded, setFold] = useStoredLineFolds(projectPath);
   const [foldedWhileFiltered, setFoldedWhileFiltered] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -1722,6 +1608,23 @@ export function VersionLinesPanel({
         }
         onPhaseChange={onOperationPhaseChange}
       />
+      <CleanUpVersionLinesDialog
+        isOpen={dialog?.kind === "clean-up"}
+        projectPath={projectPath}
+        sessionEpoch={sessionEpoch}
+        lines={cleanUpLines}
+        onClose={closeDialog}
+        // Like the single delete: the list catches up at once, and the
+        // dialog closes itself, or stays to say what was kept. Closing it
+        // gives the mutation slot back.
+        onCleanedUp={(next) => {
+          if (next) onSnapshot(next);
+          // Refreshes the rest of the app — and the list itself, when the
+          // clean-up could not read it back.
+          onChanged();
+        }}
+        onPhaseChange={onOperationPhaseChange}
+      />
     </>
   );
 
@@ -1947,6 +1850,11 @@ export function VersionLinesPanel({
                   focusable={tabStop === item.id}
                   onToggle={toggleHeading}
                   onTreeKey={handleTreeKey}
+                  onCleanUp={
+                    item.kind === "bucket" && item.key === "clean-up"
+                      ? () => openDialog({ kind: "clean-up" })
+                      : undefined
+                  }
                 />
               ),
             )}

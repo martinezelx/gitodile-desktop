@@ -341,25 +341,107 @@ input.version-lines-quick-create__name { font-family: var(--font-mono); }
   font-weight: var(--weight-medium);
   line-height: var(--leading-none);
 }
-/* The folded clean-up block says why it is worth opening, as the heading's
-   own second line under its label rather than a box of its own — a box
-   weighed as much as the block it stood for. "Review" is only the heading's
-   action said in words: clearing several lines at once would need its own
-   plan and recovery point. */
-.version-lines-group__hint {
+/* Under the clean-up block's heading, folded or open, the action it is there
+   for: a real button — surface, border, 44px — with the verb and the count,
+   and why it is safe under them. The trash is in the text's ink; red is kept
+   for the dialog's last button, where lines are actually deleted. */
+.version-lines-group-clean-up { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-1); }
+.version-lines-group-clean-up:not(:first-child) { margin-top: var(--space-2); }
+.version-lines-clean-up {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-inline-start: 20px;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0 var(--space-1) var(--space-1) 18px;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  background: var(--surface-raised);
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out;
+}
+.version-lines-clean-up:hover { background: var(--surface-hover); }
+.version-lines-clean-up:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.version-lines-clean-up__icon { width: 16px; height: 16px; flex: 0 0 auto; }
+.version-lines-clean-up__text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.version-lines-clean-up__title,
+.version-lines-clean-up__note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.version-lines-clean-up__title { font-size: var(--text-label); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
+.version-lines-clean-up__note { color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug); }
+.version-lines-clean-up__chevron { width: 14px; height: 14px; flex: 0 0 auto; margin-inline-start: auto; color: var(--text-secondary-color); }
+
+/* The clean-up dialog's list: one row per line, its checkbox, its name, its
+   sync glyphs, then where its work is kept, quieter. Solid and scrolling
+   inside the dialog, so fifty lines never push the confirmation off it. */
+.clean-up-lines { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--space-1); }
+.clean-up-lines__all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 15px;
   color: var(--text-secondary-color);
   font-size: var(--text-label);
-  line-height: var(--leading-snug);
 }
-/* One line, always: the hint is a short phrase, and a narrow column clips it
-   rather than growing the heading. */
-.version-lines-group__hint > span:not(.version-lines-group__review) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.version-lines-group__hint svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--status-success); }
-.version-lines-group__review { margin-inline-start: auto; flex: 0 0 auto; color: var(--accent-primary); font-weight: var(--weight-heading); }
+.clean-up-lines__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+.clean-up-lines__line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius-item);
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  transition: background var(--duration-fast);
+}
+.clean-up-lines__line:hover { background: var(--surface-hover); }
+/* The include node's column: as wide as the old checkbox, so the names stay
+   where they were. The whole row is the label, so its hover rings the node,
+   as a Changes row does. */
+.clean-up-lines__node { width: 16px; height: 16px; }
+.clean-up-lines__line:hover .inclusion-node__mark,
+.clean-up-lines__all:hover .inclusion-node__mark {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 26%, transparent);
+}
+.clean-up-lines__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clean-up-lines__kept {
+  grid-column: 2 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+.clean-up-lines__excluded { color: var(--text-secondary-color); font-size: var(--text-label); }
+.clean-up-lines__excluded ul,
+.clean-up-lines__outcome ul {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.clean-up-lines__excluded li,
+.clean-up-lines__outcome li { display: grid; gap: 2px; min-width: 0; }
+.clean-up-lines__excluded strong,
+.clean-up-lines__outcome strong { color: var(--text-primary-color); font-weight: var(--weight-strong); overflow-wrap: anywhere; }
+.clean-up-lines__outcome { display: grid; gap: var(--space-1); font-size: var(--text-label); color: var(--text-secondary-color); }
+.clean-up-lines__outcome h3 { margin: 0; color: var(--text-primary-color); font-size: var(--text-label); font-weight: var(--weight-heading); }
 
 /* The glyphs from the row's start, the date at its end: the date is the
    column's constant, and a row with no states keeps it in the same place as a
@@ -1047,7 +1129,7 @@ input.version-lines-rename__field[aria-busy="true"] { cursor: progress; }
 
 @media (prefers-reduced-motion: reduce) {
   .version-line-row, .version-lines-recent__node, .version-lines-recent code, .version-lines-publish,
-  .version-lines-group, .version-lines-group__chevron { transition: none; }
+  .version-lines-group, .version-lines-group__chevron, .version-lines-clean-up { transition: none; }
   input.version-lines-rename__field,
   .version-lines-rename__note-slot,
   .version-lines-rename__actions,

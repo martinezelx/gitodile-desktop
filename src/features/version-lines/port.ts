@@ -1,4 +1,6 @@
 import type {
+  CleanUpVersionLinesPlan,
+  CleanUpVersionLinesResult,
   CreateVersionLinePlan,
   DeleteVersionLinePlan,
   DeleteVersionLineResult,
@@ -38,6 +40,14 @@ export type ExecuteDeleteVersionLineRequest = DeleteVersionLineRequest & {
   deleteRemote: boolean;
   stateToken: string;
 };
+export type CleanUpVersionLinesRequest = VersionLinesQuery & { names: string[] };
+export type ExecuteCleanUpVersionLinesRequest = VersionLinesQuery & {
+  /** The chosen lines, each with its own token from the plan. */
+  lines: { name: string; stateToken: string }[];
+  /** Clear the published copies away as well, for the chosen lines that
+   * have one. Only true when the user asked for it in the dialog. */
+  deleteRemote: boolean;
+};
 export type RenameVersionLineRequest = VersionLinesQuery & { name: string; newName: string };
 export type ExecuteRenameVersionLineRequest = RenameVersionLineRequest & { stateToken: string };
 
@@ -52,6 +62,8 @@ export interface VersionLinesPort {
   switch(request: ExecuteSwitchVersionLineRequest): Promise<VersionLinesSnapshot>;
   planDelete(request: DeleteVersionLineRequest): Promise<DeleteVersionLinePlan>;
   delete(request: ExecuteDeleteVersionLineRequest): Promise<DeleteVersionLineResult>;
+  planCleanUp(request: CleanUpVersionLinesRequest): Promise<CleanUpVersionLinesPlan>;
+  cleanUp(request: ExecuteCleanUpVersionLinesRequest): Promise<CleanUpVersionLinesResult>;
   planRename(request: RenameVersionLineRequest): Promise<RenameVersionLinePlan>;
   rename(request: ExecuteRenameVersionLineRequest): Promise<VersionLinesSnapshot>;
 }

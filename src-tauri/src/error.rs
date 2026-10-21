@@ -1,6 +1,6 @@
 //! Stable application error envelope shared by domains and IPC.
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(Clone, serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppError {
     pub(crate) code: AppErrorCode,
@@ -106,6 +106,7 @@ pub(crate) enum AppErrorCode {
     VersionLineIsDefault,
     VersionLineMissing,
     VersionLineUniqueWork,
+    VersionLineNotFinished,
     VersionLineSwitchObstructed,
     StaleVersionLinePlan,
     DirtyWorkingTree,

@@ -20,6 +20,10 @@ export const versionLinesPort: VersionLinesPort = {
     invoke("plan_delete_version_line", { path, sessionEpoch, name }),
   delete: ({ projectId: path, sessionEpoch, name, deleteRemote, stateToken }) =>
     invoke("delete_version_line", { path, sessionEpoch, name, deleteRemote, stateToken }),
+  planCleanUp: ({ projectId: path, sessionEpoch, names }) =>
+    invoke("plan_clean_up_version_lines", { path, sessionEpoch, names }),
+  cleanUp: ({ projectId: path, sessionEpoch, lines, deleteRemote }) =>
+    invoke("clean_up_version_lines", { path, sessionEpoch, lines, deleteRemote }),
   planRename: ({ projectId: path, sessionEpoch, name, newName }) =>
     invoke("plan_rename_version_line", { path, sessionEpoch, name, newName }),
   rename: ({ projectId: path, sessionEpoch, name, newName, stateToken }) =>

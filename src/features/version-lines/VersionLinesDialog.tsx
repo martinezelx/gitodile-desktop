@@ -50,7 +50,7 @@ function FailureDetail({ error, t }: { error: unknown; t: Translations }): React
   );
 }
 
-function ErrorBanner({ error, t }: { error: unknown; t: Translations }): React.JSX.Element {
+export function ErrorBanner({ error, t }: { error: unknown; t: Translations }): React.JSX.Element {
   return (
     <DialogBanner tone="danger" icon={<CircleAlert />}>
       <p role="alert">{localizeAppError(error, t, t.errorGitCommandFailed)}</p>
@@ -60,7 +60,7 @@ function ErrorBanner({ error, t }: { error: unknown; t: Translations }): React.J
 }
 
 /** A ref as the reader knows it: the line's own name, not its path in Git. */
-function lineName(ref: string): string {
+export function lineName(ref: string): string {
   return ref.replace(/^refs\/(heads|remotes|tags)\//, "");
 }
 
