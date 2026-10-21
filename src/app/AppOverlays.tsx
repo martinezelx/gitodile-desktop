@@ -32,6 +32,7 @@ import {
   DialogCloseButton,
   Mascot,
   autoHideScrollbarProps,
+  dialogBackdropProps,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
   type TechnologyId,
@@ -386,7 +387,7 @@ export function AppOverlays({
     <>
       <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
-        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => requestSettingsClose(false))}>
           <div
             ref={settingsRef}
             className="settings-dialog"
@@ -394,7 +395,6 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="settings-dialog-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
               <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
@@ -487,7 +487,7 @@ export function AppOverlays({
         <div
           className="app-dialog-backdrop"
           role="presentation"
-          onMouseDown={() => requestProjectSettingsClose(false)}
+          {...dialogBackdropProps(() => requestProjectSettingsClose(false))}
         >
           <div
             ref={projectSettingsRef}
@@ -496,7 +496,6 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="project-settings-dialog-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
               <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
@@ -534,7 +533,7 @@ export function AppOverlays({
       )}
 
       {about.isOpen && (
-        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => about.setOpen(false))}>
           <div
             {...autoHideScrollbarProps<HTMLDivElement>()}
             ref={aboutRef}
@@ -543,7 +542,6 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="about-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
             {/* The build's version, parked in the corner the close control
                 occupies, so the identity block below is only the mark, the name
@@ -710,8 +708,8 @@ export function AppOverlays({
       )}
 
       {shortcuts.isOpen && (
-        <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
-          <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => shortcuts.setOpen(false))}>
+          <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1}>
             <header className="shortcuts-dialog__header">
               <span className="shortcuts-dialog__tile">
                 <Keyboard aria-hidden="true" />

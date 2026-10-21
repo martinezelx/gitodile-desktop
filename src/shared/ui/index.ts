@@ -34,8 +34,10 @@ export { DialogCloseButton } from "./dialogCloseButton";
 /* DESIGN.md § Dialogs: every action dialog (create, clone, save, publish, get
    changes, discard, the version-line dialogs, updates, the app's messages and
    the issue report) wears this one shell, so sizes, header and actions can't
-   drift apart again the way seven widths and four paddings once did. */
-export { Dialog, DialogBanner, DialogFacts, type DialogFact, type DialogProps, type DialogSize, type DialogTone } from "./dialog";
+   drift apart again the way seven widths and four paddings once did.
+   `dialogBackdropProps` is the backdrop half of that shell, shared by the
+   dialogs that predate it too. */
+export { Dialog, DialogBanner, DialogFacts, dialogBackdropProps, type DialogFact, type DialogProps, type DialogSize, type DialogTone } from "./dialog";
 /* The same dialogs' results with no next step: a toast, not a dialog to
    dismiss. The app shell mounts the provider once. */
 export { ToastProvider, useToast, type ToastRequest } from "./toast";

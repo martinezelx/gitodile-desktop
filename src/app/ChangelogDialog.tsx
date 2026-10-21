@@ -4,7 +4,7 @@ import { Check, ChevronDown, Sparkles } from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
+import { DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, dialogBackdropProps, useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
@@ -197,7 +197,7 @@ export function ChangelogDialog({
   }
 
   return (
-    <div className="app-dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
+    <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => setOpen(false))}>
       <div
         ref={dialogRef}
         className="about-dialog changelog-dialog"
@@ -205,7 +205,6 @@ export function ChangelogDialog({
         aria-modal="true"
         aria-labelledby="changelog-title"
         tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
       >
         {/* Mark and title, with About's update line under the title turned
             around: About states the update and links here; this states it

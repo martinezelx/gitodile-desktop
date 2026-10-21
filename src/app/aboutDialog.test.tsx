@@ -1,7 +1,8 @@
 import React from "react";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { LanguageProvider } from "../i18n";
@@ -323,6 +324,66 @@ describe("Keyboard shortcuts dialog", () => {
     expect(within(dialog).queryByText("⌘")).not.toBeInTheDocument();
     // The editing shortcuts are listed too, platform-neutral.
     expect(within(dialog).getByText("F2")).toBeInTheDocument();
+  });
+});
+
+describe("dialog backdrops", () => {
+  /** Settings on a section the test can navigate to, with About out of the
+   * way: the dialog that hosts the Accounts provider menu. */
+  function renderSettings({ section = "general" }: { section?: AppOverlaysProps["settings"]["section"] } = {}): AppOverlaysProps {
+    const props = buildProps(null);
+    props.about = { isOpen: false, setOpen: vi.fn() };
+    props.settings = { ...props.settings, isOpen: true, section };
+    render(
+      <LanguageProvider>
+        <AppOverlays {...props} />
+      </LanguageProvider>,
+    );
+    return props;
+  }
+
+  it("closes the provider menu when the reader presses elsewhere in the dialog", async () => {
+    // Accounts reads its catalog through the transport; the menu stays enabled
+    // only after a successful read, so the read is answered here.
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "get_account_catalog" ? { providers: [], accounts: [], busy: false } : undefined);
+    try {
+      const props = renderSettings({ section: "accounts" });
+      const dialog = screen.getByRole("dialog", { name: "Settings" });
+      const connect = await within(dialog).findByRole("button", { name: "Connect account" });
+      await waitFor(() => expect(connect).toBeEnabled());
+
+      await userEvent.click(connect);
+      expect(within(dialog).getByRole("menu", { name: "Choose a provider" })).toBeVisible();
+
+      // The reader's "click anywhere else". The menu closes on a press observed
+      // at `document`; the dialog body used to stop that press on its way there,
+      // so this click left the menu on screen and only its trigger closed it.
+      await userEvent.click(within(dialog).getByRole("heading", { name: "Connected accounts" }));
+
+      expect(within(dialog).queryByRole("menu")).toBeNull();
+      // Reaching document must not also dismiss the dialog the menu sat in.
+      expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+      expect(props.settings.setOpen).not.toHaveBeenCalled();
+
+      // Escape dismisses just the provider menu and returns to its trigger.
+      await userEvent.click(connect);
+      await userEvent.keyboard("{Escape}");
+      expect(within(dialog).queryByRole("menu")).toBeNull();
+      expect(connect).toHaveFocus();
+      expect(props.settings.setOpen).not.toHaveBeenCalled();
+    } finally {
+      invokeMock.mockImplementation(async () => undefined);
+    }
+  });
+
+  it("still dismisses on a press that starts on the backdrop", () => {
+    const props = renderSettings();
+
+    fireEvent.mouseDown(document.querySelector(".app-dialog-backdrop") as HTMLElement);
+
+    expect(props.settings.setOpen).toHaveBeenCalledWith(false);
   });
 });
 

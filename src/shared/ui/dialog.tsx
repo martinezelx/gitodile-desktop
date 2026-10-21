@@ -36,6 +36,23 @@ export type DialogProps = {
   children: React.ReactNode;
 };
 
+/** How a dialog backdrop dismisses: only on a press that starts on the backdrop
+ * itself. The surface must not swallow `mousedown` instead — a press inside a
+ * dialog still has to reach `document`, because the menus and pickers a dialog
+ * contains close themselves on an outside press observed there. Settings →
+ * Accounts' provider menu is the case that exposed the difference: with the
+ * dialog body stopping the press, the menu survived every click inside the
+ * dialog and only its trigger could close it. */
+export function dialogBackdropProps(
+  onDismiss: (() => void) | undefined,
+): Pick<React.HTMLAttributes<HTMLDivElement>, "onMouseDown"> {
+  return {
+    onMouseDown: (event) => {
+      if (event.target === event.currentTarget) onDismiss?.();
+    },
+  };
+}
+
 /** The one shell every action dialog wears: backdrop, surface, header and
  * the body the caller supplies. Focus management stays with the caller —
  * dialogs differ in where focus lands — but the shape does not. */
@@ -62,9 +79,7 @@ export function Dialog({
     <div
       className="app-dialog-backdrop"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && canClose) onClose?.();
-      }}
+      {...dialogBackdropProps(canClose ? onClose : undefined)}
     >
       <div
         {...bodyProps}

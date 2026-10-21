@@ -201,8 +201,8 @@ describe("Changelog dialog", () => {
     expect(setOpen).toHaveBeenCalledWith(false);
 
     setOpen.mockClear();
-    // The backdrop closes on mousedown; the dialog surface stops it there, so
-    // a drag that starts inside and ends outside never dismisses the notes.
+    // The backdrop closes only on a press that starts on it, so a drag that
+    // begins on the dialog surface and ends outside never dismisses the notes.
     await userEvent.click(screen.getByRole("dialog").parentElement as HTMLElement);
     expect(setOpen).toHaveBeenCalledWith(false);
 
