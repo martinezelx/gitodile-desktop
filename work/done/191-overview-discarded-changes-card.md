@@ -129,6 +129,23 @@ None.
   and 40 copies the card takes the 520px column and scrolls; pressing a row
   passes its copy's id. The bar was checked at 70%, 50%, 10%, 0% and 100%.
 - Not yet watched in `tauri dev`: port 1420 was held by Luis's own server.
+- Follow-up, same day: the card's entrance replayed each time Overview was
+  shown again (a screen back from `display: none` restarts its animations),
+  and its 3px rise pushed the card past the workspace's foot, flashing the
+  workspace's scrollbar and narrowing the screen for 260ms. It now fades in
+  once, opacity only, on an `--arriving` class that goes when the fade ends.
+- Follow-up, same day: under a detail card the two now share the column
+  instead of the copies keeping a fixed 110px. The detail card takes its
+  rows' height and what is left; the copies take theirs up to 232px; past
+  four copies they give way first (shrink weight 999) down to 4.5 rows,
+  and only then does the detail card's list scroll. Measured in the harness
+  in a 560px column: 2 files/8 copies 53px + 183px (all shown); 30/8 252px
+  scrolling + 110px; 5/20 134px + 228px (capped); 30/3 keeps 3 rows; 0/8
+  takes the column.
+- `pnpm run check` again for the follow-ups: docs, architecture, TypeScript,
+  the frontend tests (145 files, 1558 tests) and build, `cargo fmt` and
+  `cargo clippy` passed; `cargo test` again could not relink past the
+  running `tauri dev`. No Rust changed.
 - `pnpm run check` on 2026-10-21: docs, architecture, TypeScript, the
   frontend tests (145 files, 1558 tests) and build, `cargo fmt` and
   `cargo clippy` passed. `cargo test` could not relink: the running

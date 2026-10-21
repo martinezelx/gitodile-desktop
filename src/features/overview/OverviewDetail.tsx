@@ -148,8 +148,15 @@ function DetailCard({
   children: React.ReactNode;
 }): React.JSX.Element {
   const titleId = useId();
+  // The compact card fades in once, as it arrives; see `.overview-detail--arriving`.
+  const [arriving, setArriving] = useState(Boolean(compact));
   return (
-    <section className={`overview-detail${compact ? " overview-detail--compact" : ""}`} aria-labelledby={titleId} aria-busy={busy}>
+    <section
+      className={`overview-detail${compact ? " overview-detail--compact" : ""}${arriving ? " overview-detail--arriving" : ""}`}
+      aria-labelledby={titleId}
+      aria-busy={busy}
+      onAnimationEnd={arriving ? (event) => { if (event.target === event.currentTarget) setArriving(false); } : undefined}
+    >
       <header className="overview-detail__head">
         {icon}
         <h2 id={titleId}>{title}</h2>

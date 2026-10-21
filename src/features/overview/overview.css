@@ -917,12 +917,17 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .overview-detail--compact {
   gap: var(--space-2);
   padding-block: var(--space-3);
-  animation: overview-restore-in 260ms ease-out;
 }
-:root[data-reduced-motion="true"] .overview-detail--compact { animation: none; }
+/* It fades in when it arrives, not each time Overview is shown again: a
+   screen coming back from `display: none` restarts its animations, so the
+   class goes once the fade has run. Opacity only — the card reaches the foot
+   of the workspace, and a rise would push it past that edge and flash the
+   workspace's scrollbar, narrowing the screen while it played. */
+.overview-detail--arriving { animation: overview-restore-in 260ms ease-out; }
+:root[data-reduced-motion="true"] .overview-detail--arriving { animation: none; }
 @keyframes overview-restore-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .overview-detail--compact .overview-detail__head > svg { width: 14px; height: 14px; }
 .overview-detail--compact .overview-detail__head h2 { font-size: var(--text-body); }
@@ -951,7 +956,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .overview-now__title > .text-placeholder,
 .overview-placeholder__name > .text-placeholder { margin-block: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .overview-detail--compact { animation: none; }
+  .overview-detail--arriving { animation: none; }
   .empty-state__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__node { transition: none; }
@@ -1033,14 +1038,29 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-side { min-height: 0; display: flex; flex-direction: column; }
   .overview-side > * { flex-shrink: 0; }
   /* The step's card takes the height. The discarded-changes card takes it
-     too when it is alone; under the step's card it keeps a few rows. */
+     too when it is alone; under the step's card the two share it, below. */
   .overview-side > .overview-detail { min-height: 0; display: flex; flex-direction: column; }
   .overview-side > .overview-detail:not(.overview-detail--compact),
   .overview-side > .overview-detail--compact:only-child { flex: 1 1 0; }
   .overview-side .overview-detail > * { flex-shrink: 0; }
   .overview-side .overview-detail > .overview-detail__files { flex: 1 1 0; min-height: 0; overflow: hidden; align-content: start; }
-  /* Four and a half rows, so the half under the fade says there is more. */
-  .overview-side > .overview-detail--compact:not(:only-child) > .overview-detail__files { flex: 0 1 auto; max-height: 110px; }
+  /* Under the step's card the two share the column, and the step leads: it
+     takes the height its rows need, the discarded copies take theirs up to
+     a cap, and whatever is left stays with the step. When the step's list
+     outgrows the column the copies give way first — the shrink weight —
+     down to four and a half rows, the half under the fade saying there is
+     more, and only then does the step's list scroll. The minimum is the
+     compact card's padding, head and gap around those rows; four copies or
+     fewer are shorter than that, so they keep their height and never give
+     way. */
+  .overview-side > .overview-detail:not(.overview-detail--compact):not(:only-child) { flex: 1 1 auto; }
+  .overview-side > .overview-detail:not(.overview-detail--compact):not(:only-child) > .overview-detail__files { flex: 0 1 auto; }
+  .overview-side > .overview-detail--compact:not(:only-child) { flex: 0 0 auto; }
+  .overview-side > .overview-detail--compact:not(:only-child):has(> .overview-detail__files > li:nth-child(5)) {
+    flex-shrink: 999;
+    min-height: calc(2 * var(--space-3) + 28px + var(--space-2) + 110px);
+  }
+  .overview-side > .overview-detail--compact:not(:only-child) > .overview-detail__files { flex: 0 1 auto; max-height: 232px; }
   /* The lists scroll instead, fading out at the bottom while there is more
      below, like the timeline. Their gutter sits in the card's padding so the
      rows keep their width. Same weight as the rule above and after it, so

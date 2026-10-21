@@ -780,10 +780,13 @@ The main desktop window should broadly support:
      and one step smaller (a 13px title, a 14px glyph, tighter rows), with no
      figure: each copy is a row with a clock, when it was discarded and what
      it holds ("3 files · App.tsx, README.md"). Alone in the column it takes
-     the column's height; under a detail card it keeps about four rows, the
-     detail card taking the rest. With neither a detail nor a discard there
-     is no column, and the timeline takes the screen's width. "When" is said
-     as the timeline says it ("yesterday", "3 days ago"). It is a safety net
+     the column's height. Under a detail card the two share it and the
+     detail card leads: it takes the height its rows need and what is left
+     over, while the copies take room up to about nine rows. When the
+     detail card's list is long, the copies give way first, down to about
+     four rows, and only then does the detail card's list scroll. With
+     neither a detail nor a discard there is no column, and the timeline
+     takes the screen's width. "When" is said as the timeline says it ("yesterday", "3 days ago"). It is a safety net
      rather than a step, so it wears no state's colour: no wash, the icon in
      the secondary ink. Files are never added up across copies, which can
      share them. "Restore" opens the restore picker over the Overview on
