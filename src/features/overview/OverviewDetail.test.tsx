@@ -72,7 +72,17 @@ async function setup({
       { path: "src/app.ts", originalPath: null, category: "changed" as const },
       { path: "src/new.ts", originalPath: null, category: "new" as const },
     ]),
-    findRestorableDiscard: vi.fn(async () => (recoveryCopies > 0 ? { recoveryId: "r", createdAtMs: Date.now() - 60_000, fileCount: 3, restorableCount: recoveryCopies } : null)),
+    findRestorableDiscard: vi.fn(async () => (recoveryCopies > 0
+      ? {
+        copies: Array.from({ length: Math.min(recoveryCopies, 3) }, (_, index) => ({
+          recoveryId: `r${index}`,
+          createdAtMs: Date.now() - (index + 1) * 60_000,
+          fileCount: 3,
+          previewPaths: [`src/f${index}.ts`, "README.md"],
+        })),
+        restorableCount: recoveryCopies,
+      }
+      : null)),
     readRemoteHome: vi.fn(async () => null),
     readIncomingVersions: vi.fn(async () => {
       if (incomingFails) throw new Error("unreadable");
@@ -194,14 +204,18 @@ describe("OverviewDetail", () => {
   it("gives the column to the discard once nothing is waiting, and opens the restore picker", async () => {
     const { handlers } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate" });
 
-    // Alone in the column it is a card of its own, headed like its siblings.
+    // Alone in the column it is a card of its own, headed like its siblings
+    // and a step smaller.
     const card = screen.getByRole("heading", { name: "Discarded changes" }).closest(".overview-detail");
     expect(card?.parentElement).toHaveClass("overview-side");
-    expect(document.querySelector(".overview-restore")).toBeNull();
-    expect(screen.getByText("3 files")).toBeInTheDocument();
-    expect(screen.getByText(/^discarded 1 minute ago$/)).toBeInTheDocument();
+    expect(card).toHaveClass("overview-detail--compact");
+    // No figure: its copy is listed by when, with the names of what it holds.
+    expect(card?.querySelector(".overview-detail__sum")).toBeNull();
+    expect(screen.getByText("3 files · f0.ts, README.md")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Restore" }));
-    expect(handlers.onRestoreDiscarded).toHaveBeenCalledOnce();
+    expect(handlers.onRestoreDiscarded).toHaveBeenCalledWith();
+    await userEvent.click(screen.getByRole("button", { name: "Restore the copy from 1 minute ago, 3 files" }));
+    expect(handlers.onRestoreDiscarded).toHaveBeenLastCalledWith("r0");
   });
 
   it("draws no column when nothing is waiting and nothing can be restored", async () => {
@@ -211,18 +225,48 @@ describe("OverviewDetail", () => {
     expect(container.querySelector(".overview-side")).toBeNull();
   });
 
-  it("counts the copies when several can be restored, rather than one copy's files", async () => {
-    const { redraw } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
+  it("lists the copies that can be restored, counting the ones it does not show", async () => {
+    const { redraw } = await setup({ workingTree: tree([]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 4 });
 
-    // Alone, the card counts them and dates the newest.
-    expect(screen.getByText("3 copies")).toBeInTheDocument();
-    expect(screen.getByText(/^latest /)).toBeInTheDocument();
+    // Alone, the card lists the ones it was given and counts the rest.
+    const card = () => screen.getByRole("heading", { name: "Discarded changes" }).closest(".overview-detail");
+    expect(card()?.querySelectorAll("button.overview-detail__file")).toHaveLength(3);
+    expect(card()).toHaveTextContent("and 1 more");
 
-    // Under a detail card the count rides the row's icon and is read out.
+    // Under a detail card it is the same card, listing fewer copies.
     redraw({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
-    const row = screen.getByText("Discarded changes").closest(".overview-restore");
-    expect(row?.querySelector(".overview-restore__badge")).toHaveTextContent("3");
-    expect(screen.getByText("3 copies")).toHaveClass("visually-hidden");
+    expect(card()).toHaveClass("overview-detail--compact");
+    expect(card()?.querySelectorAll("button.overview-detail__file")).toHaveLength(2);
+    expect(card()).toHaveTextContent("and 2 more");
+  });
+
+  it("scrolls both what you'll save and the discarded copies while the screen fits", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    });
+    const entry = (index: number): WorkingTreeEntry => ({ path: `src/f${index}.ts`, originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true });
+    const { container } = await setup({ workingTree: tree([entry(1), entry(2)]), pending: NO_PENDING, state: "upToDate", recoveryCopies: 3 });
+
+    const cards = container.querySelectorAll(".overview-side > .overview-detail");
+    expect(cards).toHaveLength(2);
+    expect(cards[0]?.querySelector(".overview-detail__files")).toHaveClass("overview-detail__files--scroll");
+    // Every copy it was given is a row, under the step's card too.
+    const copies = cards[1]?.querySelector<HTMLElement>(".overview-detail__files");
+    if (!copies) throw new Error("no copies");
+    expect(copies).toHaveClass("overview-detail__files--scroll");
+    expect(copies.querySelectorAll("button.overview-detail__file")).toHaveLength(3);
+
+    // Scrolled to their end, Restore is pointed out, as Review is.
+    Object.defineProperty(copies, "clientHeight", { configurable: true, value: 40 });
+    Object.defineProperty(copies, "scrollHeight", { configurable: true, value: 80 });
+    const restore = screen.getByRole("button", { name: "Restore" });
+    fireEvent.scroll(copies);
+    await waitFor(() => expect(copies).toHaveAttribute("data-more-below"));
+    expect(restore).not.toHaveClass("overview-detail__link--lead");
+    copies.scrollTop = 40;
+    fireEvent.scroll(copies);
+    await waitFor(() => expect(restore).toHaveClass("overview-detail__link--lead", "attention-breathe"));
   });
 
   it("scrolls what you'll save while the screen fits, and points to Review at the end", async () => {
@@ -256,17 +300,21 @@ describe("OverviewDetail", () => {
     await waitFor(() => expect(review).not.toHaveClass("overview-detail__link--lead"));
   });
 
-  it("offers the discard whenever everything is saved, and never over unsaved work", async () => {
+  it("offers the discard whatever the step, under the step's own card", async () => {
     const { redraw } = await setup({ workingTree: tree([]), pending: ONE_PENDING, state: "ahead" });
 
-    // Saved but not published: the detail card leads, and the discard still
-    // sits under it, drawn smaller.
+    // Saved but not published: the detail card leads, and the discard sits
+    // under it.
     expect(screen.getByRole("heading", { name: "What you'll publish" })).toBeInTheDocument();
-    expect(screen.getByText("Discarded changes").closest(".overview-restore")?.previousElementSibling).toHaveClass("overview-detail");
+    const discarded = () => screen.getByRole("heading", { name: "Discarded changes" }).closest(".overview-detail");
+    expect(discarded()?.previousElementSibling).toHaveClass("overview-detail");
 
+    // With unsaved work too: a copy is only offered while its paths are
+    // untouched, so it never lands on that work.
     const entry: WorkingTreeEntry = { path: "src/a.ts", originalPath: null, category: "changed", isPrepared: false, hasUnpreparedChanges: true };
     redraw({ workingTree: tree([entry]), pending: ONE_PENDING, state: "ahead" });
-    expect(screen.queryByText("Discarded changes")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What you'll save" })).toBeInTheDocument();
+    expect(discarded()?.previousElementSibling).toHaveClass("overview-detail");
   });
 
   it("names the versions waiting on the remote", async () => {

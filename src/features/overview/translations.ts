@@ -94,12 +94,10 @@ export interface OverviewTranslations {
   overviewDetailFilesError: string;
   overviewDetailVersionsError: string;
   overviewSafetyDiscarded: string;
-  overviewSafetyDiscardedHint: (count: number, when: string) => string;
+  /** A listed copy's line: its file count, then a few of its file names. */
+  overviewSafetyDiscardedHint: (count: number, names: string) => string;
   /** Several restorable copies: how many (the badge on the icon, read out
    * for assistive technology), and when the newest was made. */
-  overviewSafetyDiscardedCopies: (copies: number) => string;
-  overviewSafetyDiscardedLatest: (when: string) => string;
-  overviewSafetyDiscardedWhen: (when: string) => string;
   /** The card's other cases: the first save, versions waiting on the remote,
    * both sides moved, a check that failed, no remote, an older version. */
   overviewNextFirstSaveTitle: string;
@@ -154,6 +152,7 @@ export interface OverviewTranslations {
   overviewDetailFrom: (remote: string) => string;
   overviewDetailVersionsLoading: string;
   overviewDiscardRestore: string;
+  overviewDiscardRestoreCopy: (when: string, count: number) => string;
   /** The remote's name in the timeline when it has none. */
   overviewTimelineRemote: string;
   overviewFactsCheck: string;
@@ -274,10 +273,7 @@ const en: OverviewTranslations = {
   overviewDetailFilesError: "Couldn't read the files in these versions.",
   overviewDetailVersionsError: "Couldn't read the versions waiting. Review them to see what changes.",
   overviewSafetyDiscarded: "Discarded changes",
-  overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 file" : `${count} files`} · ${when}`,
-  overviewSafetyDiscardedCopies: (copies) => `${copies} copies`,
-  overviewSafetyDiscardedLatest: (when) => `latest ${when}`,
-  overviewSafetyDiscardedWhen: (when) => `discarded ${when}`,
+  overviewSafetyDiscardedHint: (count, names) => `${count === 1 ? "1 file" : `${count} files`} · ${names}`,
   overviewNextFirstSaveTitle: "Save your first version",
   overviewNextFirstSaveHint: (count) =>
     count === 1
@@ -339,6 +335,7 @@ const en: OverviewTranslations = {
   overviewDetailFrom: (remote) => `from ${remote}`,
   overviewDetailVersionsLoading: "Reading the versions…",
   overviewDiscardRestore: "Restore",
+  overviewDiscardRestoreCopy: (when, count) => `Restore the copy from ${when}, ${count === 1 ? "1 file" : `${count} files`}`,
   overviewTimelineRemote: "Remote",
   overviewFactsCheck: "Check",
   overviewHistoryTitle: "Recent history",
@@ -453,10 +450,7 @@ const es: OverviewTranslations = {
   overviewDetailFilesError: "No se pudieron leer los archivos de estas versiones.",
   overviewDetailVersionsError: "No se pudieron leer las versiones que esperan. Revísalas para ver qué cambia.",
   overviewSafetyDiscarded: "Cambios descartados",
-  overviewSafetyDiscardedHint: (count, when) => `${count === 1 ? "1 archivo" : `${count} archivos`} · ${when}`,
-  overviewSafetyDiscardedCopies: (copies) => `${copies} copias`,
-  overviewSafetyDiscardedLatest: (when) => `la última ${when}`,
-  overviewSafetyDiscardedWhen: (when) => `descartados ${when}`,
+  overviewSafetyDiscardedHint: (count, names) => `${count === 1 ? "1 archivo" : `${count} archivos`} · ${names}`,
   overviewNextFirstSaveTitle: "Guarda tu primera versión",
   overviewNextFirstSaveHint: (count) =>
     count === 1
@@ -519,6 +513,7 @@ const es: OverviewTranslations = {
   overviewDetailFrom: (remote) => `de ${remote}`,
   overviewDetailVersionsLoading: "Leyendo las versiones…",
   overviewDiscardRestore: "Recuperar",
+  overviewDiscardRestoreCopy: (when, count) => `Recuperar la copia de ${when}, ${count === 1 ? "1 archivo" : `${count} archivos`}`,
   overviewTimelineRemote: "Remoto",
   overviewFactsCheck: "Comprobar",
   overviewHistoryTitle: "Historial reciente",

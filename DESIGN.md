@@ -69,7 +69,7 @@ Four rules hold it together, on every screen and in every overlay:
 1. **One frame.** The titlebar and the rail are a flat plane on `--surface-app`: no fill, no tint, no gradient, no translucency.
 2. **One sheet per screen.** The content sits on a single sheet with the same 16px of frame on all four sides. Home and Console are the documented exceptions: Home's launcher floats alone on the plane, Console is a terminal across the workspace.
 3. **Regions, not cards.** Inside the sheet, panels and bands meet on 1px hairlines and wear no border, shadow or radius of their own. A card *inside* a region — a fact, a section, an in-screen notice — is `--surface-card` with the subtle border and no shadow.
-4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`; the palette grown out of the status bar's field `--shadow-up`, so its shadow is not cut where it meets the field). A small object lifted inside a region (the restore row's tile, an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
+4. **Only what floats casts a shadow.** Menus, popovers, the palette, toasts and dialogs are `--surface-raised` with `--shadow-lg` (a toast `--shadow-md`; the palette grown out of the status bar's field `--shadow-up`, so its shadow is not cut where it meets the field). A small object lifted inside a region (an empty state's glyph tile) may carry `--shadow-sm`; a resting surface never does.
 
 The visual language uses:
 
@@ -747,7 +747,8 @@ The main desktop window should broadly support:
      are in the primary ink with their chevron, not the accent.
      Beside it, a **side column that follows the card**: one detail of what
      the next step will move — "What you'll save" (files and the line totals
-     as a green and red bar), "What you'll decide" (the files with
+     as a bar whose green eases into red around the added share, never a hard
+     edge; with only one side it is one colour), "What you'll decide" (the files with
      overlapping parts), "What you'll get" (the incoming versions by title and
      author), or "What you'll publish" (the files the unpublished versions
      carry, "9+ files" while not all are read). No card says anything more
@@ -772,20 +773,24 @@ The main desktop window should broadly support:
      opening), the "Now" row, the timeline, and a detail card's
      list until its files or versions are read. The whole screen's placeholder
      during launch restore is built from the same pieces. A discard
-     that can still be restored is offered whenever everything is saved:
-     alone in the column it is a card headed like its siblings ("Discarded
-     changes", "Restore ›") over its count — "3 files, discarded yesterday",
-     or "2 copies, latest yesterday" — and under a detail card it is a
-     compact row, its icon a small lifted tile and several copies a neutral
-     badge on it. With neither a detail nor a discard there is no column,
-     and the timeline takes the screen's width. "When" is said as the
-     timeline says it ("yesterday", "3 days ago"). It is a safety net rather
-     than a step, so it wears no state's colour: no wash, the icon in the
-     secondary ink. Files are never added up across
-     copies, which can share them.
-     "Restore" opens the restore picker over the Overview: closing it
-     stays there, and only a restore moves on to Changes, which shows what
-     came back. The column
+     that can still be restored is offered whatever the step, unsaved work
+     included: a copy only counts as restorable while nothing has been
+     written at its paths, so it never lands on that work. It is always the
+     same card, headed like its siblings ("Discarded changes", "Restore ›")
+     and one step smaller (a 13px title, a 14px glyph, tighter rows), with no
+     figure: each copy is a row with a clock, when it was discarded and what
+     it holds ("3 files · App.tsx, README.md"). Alone in the column it takes
+     the column's height; under a detail card it keeps about four rows, the
+     detail card taking the rest. With neither a detail nor a discard there
+     is no column, and the timeline takes the screen's width. "When" is said
+     as the timeline says it ("yesterday", "3 days ago"). It is a safety net
+     rather than a step, so it wears no state's colour: no wash, the icon in
+     the secondary ink. Files are never added up across copies, which can
+     share them. "Restore" opens the restore picker over the Overview on
+     the newest copy, a row on that copy: closing it stays there, and only a
+     restore moves on to Changes, which shows what came back. The column's
+     rows carry no tooltip, as the timeline's do not: each already shows its
+     name and folder, and pressing it leads to the rest. The column
      repeats nothing the status bar or the timeline already says: the remote
      check, the project's path and its technology are not here (the path is
      the folder button's tooltip; the technology is the project's own icon).
@@ -793,9 +798,10 @@ The main desktop window should broadly support:
      **Fitted to the window.** Tall and wide enough (620px by 981px), Overview
      has no scroll of its own: the header and the card keep their height and
      the body takes the rest. Every detail card scrolls its list (up to 50
-     rows, the rest counted at the end), fading at the bottom while there is
-     more below; scrolled to the end, its link ("Review", "Resolve",
-     "History") takes the lead and breathes once, as "View all" does at the
+     rows, the rest counted at the end), the discarded copies too, fading at
+     the bottom while there is more below; scrolled to the end, its link
+     ("Review", "Resolve", "History", "Restore") takes the lead and breathes
+     once, as "View all" does at the
      end of the timeline. The
      timeline scrolls inside the page too: "Now" stays pinned at its
      top, and the versions of the history's first page scroll under it, its
@@ -810,7 +816,8 @@ The main desktop window should broadly support:
      "View all" takes the hover surface and breathes once (it quiets when
      scrolled back up). The scroll uses the app's auto-hiding scrollbar.
      Scrolling and resizing read nothing from Git. Smaller than
-     that, the screen scrolls as a page with lists of a fixed length.
+     that, the screen scrolls as a page with lists of a fixed length (five
+     rows; two discarded copies under a detail card).
 
    Three rules hold it together: one primary button per page (the card's, or
    none when nothing is waiting), one vocabulary of glyph tiles (filled

@@ -22,7 +22,13 @@ import type {
   DiscardResult,
 } from "./domain";
 
-export type DiscardDialogRequest = { mode: "selected" | "all" | "restore"; selectedPath: string | null };
+export type DiscardDialogRequest = {
+  mode: "selected" | "all" | "restore";
+  selectedPath: string | null;
+  /** The copy a restore opens on, when it can still be applied; otherwise
+   * the first one that can. */
+  recoveryId?: string | null;
+};
 type State =
   | { status: "loading" }
   | { status: "plan-error"; error: unknown }
@@ -44,10 +50,12 @@ type ForgetControls = {
   run: (record: DiscardRecoveryRecord) => void;
 };
 
-/** The first one that can actually be applied — normally the newest, since a
- * restore is only offered while the tree is still as that discard left it. */
-function firstRestorable(recoveries: DiscardRecoveryRecord[]): string | null {
-  return recoveries.find((record) => record.availability === "restorable")?.recoveryId ?? null;
+/** The asked-for copy when it can be applied, else the first one that can —
+ * normally the newest, since a restore is only offered while the tree is
+ * still as that discard left it. */
+function firstRestorable(recoveries: DiscardRecoveryRecord[], preferred?: string | null): string | null {
+  const restorable = recoveries.filter((record) => record.availability === "restorable");
+  return (restorable.find((record) => record.recoveryId === preferred) ?? restorable[0])?.recoveryId ?? null;
 }
 
 /** What one stored recovery says about itself, wherever it is listed. */
@@ -316,7 +324,7 @@ export function DiscardChangesDialog({
     onPhaseChangeRef.current?.("planning");
     const load = request.mode === "restore"
       ? controller.listDiscardRecoveries(projectPath, sessionEpoch)
-        .then((recoveries) => ({ status: "ready-restore", recoveries, selectedId: firstRestorable(recoveries) }) as const)
+        .then((recoveries) => ({ status: "ready-restore", recoveries, selectedId: firstRestorable(recoveries, request.recoveryId) }) as const)
       : controller.planDiscard(projectPath, sessionEpoch, request.mode === "selected" ? request.selectedPath : null)
         .then((plan) => ({ status: "ready-discard", plan }) as const);
     load.then((next) => { if (!cancelled) setState(next); })

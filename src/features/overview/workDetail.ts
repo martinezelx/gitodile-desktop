@@ -25,11 +25,21 @@ export type IncomingState =
   | { key: string; status: "ready"; result: PendingVersionsResult }
   | { key: string; status: "error" };
 
-/** What Overview offers of the stored discards: the newest one that can be
+/** How many of the newest restorable copies Overview keeps to list: as many
+ * as its card scrolls through; the rest are counted. */
+export const RECOVERY_LIST_LIMIT = 50;
+
+/** One stored discard as Overview lists it: when, how many files, and a few
+ * of their paths to tell it apart. */
+export type RestorableCopy = Pick<DiscardRecoveryRecord, "recoveryId" | "createdAtMs" | "fileCount" | "previewPaths">;
+
+/** What Overview offers of the stored discards: the newest ones that can be
  * restored right now, and how many can be. */
-export type RestorableDiscard = Pick<DiscardRecoveryRecord, "recoveryId" | "createdAtMs" | "fileCount"> & {
-  /** Every copy the picker could restore, the newest included. Their files
-   * are not added up: several copies can hold the same file. */
+export type RestorableDiscard = {
+  /** Newest first, at most `RECOVERY_LIST_LIMIT`; never empty. */
+  copies: RestorableCopy[];
+  /** Every copy the picker could restore, the listed ones included. Their
+   * files are not added up: several copies can hold the same file. */
   restorableCount: number;
 };
 
@@ -45,7 +55,7 @@ export type WorkDetailSnapshot = {
   /** Files of each unpublished version read so far, by commit. A saved
    * version never changes, so an entry is read once per session. */
   commitFiles: ReadonlyMap<string, CommitFilesState>;
-  /** The newest stored discard that can be restored right now, or `null`. */
+  /** The newest stored discards that can be restored right now, or `null`. */
   recovery: RestorableDiscard | null;
   /** What the last remote check brought down, or `null` with nothing waiting. */
   incoming: IncomingState | null;
@@ -54,8 +64,8 @@ export type WorkDetailSnapshot = {
 
 export type WorkDetailPorts = {
   readCommitFileChanges(query: WorkDetailQuery & { commit: string }): Promise<CommitFileChange[]>;
-  /** The newest stored discard that can be restored right now, or `null`.
-   * Not merely the newest one: that copy stays stored after it is restored or
+  /** The newest stored discards that can be restored right now, or `null`.
+   * Not merely the newest ones: that copy stays stored after it is restored or
    * once the project moves past it, and offering it would open a picker with
    * nothing to pick. */
   findRestorableDiscard(query: WorkDetailQuery): Promise<RestorableDiscard | null>;
@@ -64,15 +74,24 @@ export type WorkDetailPorts = {
   readRemoteHome(query: WorkDetailQuery): Promise<RemoteHome | null>;
 };
 
-/** The newest record of a listing that can be restored right now, with how
+/** The newest records of a listing that can be restored right now, with how
  * many can be. The listing is newest first. */
 export function newestRestorableDiscard(records: readonly DiscardRecoveryRecord[]): RestorableDiscard | null {
   const restorable = records.filter((item) => item.availability === "restorable");
-  const [record] = restorable;
-  return record
-    ? { recoveryId: record.recoveryId, createdAtMs: record.createdAtMs, fileCount: record.fileCount, restorableCount: restorable.length }
-    : null;
+  if (restorable.length === 0) return null;
+  return {
+    copies: restorable.slice(0, RECOVERY_LIST_LIMIT).map(({ recoveryId, createdAtMs, fileCount, previewPaths }) => ({
+      recoveryId,
+      createdAtMs,
+      fileCount,
+      previewPaths,
+    })),
+    restorableCount: restorable.length,
+  };
 }
+
+const copiesKey = (recovery: RestorableDiscard | null): string =>
+  recovery ? `${recovery.restorableCount}|${recovery.copies.map((copy) => copy.recoveryId).join(",")}` : "";
 
 const EMPTY: WorkDetailSnapshot = { commitFiles: new Map(), recovery: null, incoming: null, home: { status: "unknown" } };
 
@@ -80,7 +99,7 @@ export type WorkDetailController = ReturnType<typeof createWorkDetailController>
 
 /**
  * What Overview shows of the project beyond its status: the files the
- * unpublished versions carry, the newest discard that can be restored, and
+ * unpublished versions carry, the newest discards that can be restored, and
  * where the project lives.
  *
  * It never reads because a screen became visible. The composition root asks
@@ -142,7 +161,7 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
         }),
       );
     },
-    /** Reads the newest restorable discard. One that cannot be read or does
+    /** Reads the newest restorable discards. One that cannot be read or does
      * not exist is simply not offered: the Changes screen owns the full list. */
     async refreshRecovery(query: WorkDetailQuery): Promise<void> {
       const key = keyOf(query);
@@ -156,10 +175,7 @@ export function createWorkDetailController(ports: WorkDetailPorts) {
       }
       if (recoveryGenerations.get(key) !== generation) return;
       const current = read(key);
-      if (
-        current.recovery?.recoveryId === recovery?.recoveryId
-        && current.recovery?.restorableCount === recovery?.restorableCount
-      ) return;
+      if (copiesKey(current.recovery) === copiesKey(recovery)) return;
       write(key, { ...current, recovery });
     },
     /** Reads the incoming versions for this pair of commits, unless they are

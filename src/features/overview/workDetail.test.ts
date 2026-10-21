@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DiscardRecoveryRecord } from "../changes";
-import { createWorkDetailController, newestRestorableDiscard, WORK_DETAIL_COMMIT_LIMIT } from "./workDetail";
+import { createWorkDetailController, newestRestorableDiscard, RECOVERY_LIST_LIMIT, WORK_DETAIL_COMMIT_LIMIT } from "./workDetail";
 
 const query = { projectId: "/repo", sessionEpoch: "epoch" };
 
@@ -38,8 +38,8 @@ describe("work detail controller", () => {
     expect(controller.getSnapshot(query).commitFiles.get("c0")).toEqual({ status: "ready", files: [] });
   });
 
-  it("keeps the newest restorable discard, and offers none when there is none to read", async () => {
-    const recovery = { recoveryId: "r1", createdAtMs: 1, fileCount: 3, restorableCount: 1 };
+  it("keeps the newest restorable discards, and offers none when there is none to read", async () => {
+    const recovery = { copies: [{ recoveryId: "r1", createdAtMs: 1, fileCount: 3, previewPaths: ["a.ts"] }], restorableCount: 1 };
     const findRestorableDiscard = vi.fn().mockResolvedValueOnce(recovery).mockRejectedValueOnce(new Error("none"));
     const controller = createWorkDetailController({ readCommitFileChanges: vi.fn(), findRestorableDiscard, readIncomingVersions: vi.fn(), readRemoteHome: vi.fn() });
     const listener = vi.fn();
@@ -52,16 +52,21 @@ describe("work detail controller", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
-  it("offers the newest discard that can be restored, not merely the newest one", () => {
+  it("offers the newest discards that can be restored, not merely the newest ones", () => {
     const record = (recoveryId: string, availability: DiscardRecoveryRecord["availability"]): DiscardRecoveryRecord => ({
-      recoveryId, createdAtMs: 1, fileCount: 2, selectedPath: null, previewPaths: [], stateToken: null, availability, restoresPreparedState: false,
+      recoveryId, createdAtMs: 1, fileCount: 2, selectedPath: null, previewPaths: [`${recoveryId}.ts`], stateToken: null, availability, restoresPreparedState: false,
     });
+    const copy = (recoveryId: string) => ({ recoveryId, createdAtMs: 1, fileCount: 2, previewPaths: [`${recoveryId}.ts`] });
 
-    // Restored or moved past, the newest copy is still stored; an older one
-    // the project still matches is the one to offer, counted with the rest
+    // Restored or moved past, the newest copy is still stored; the older ones
+    // the project still matches are the ones to offer, counted with the rest
     // the picker could restore.
     expect(newestRestorableDiscard([record("new", "superseded"), record("old", "restorable"), record("older", "restorable")]))
-      .toEqual({ recoveryId: "old", createdAtMs: 1, fileCount: 2, restorableCount: 2 });
+      .toEqual({ copies: [copy("old"), copy("older")], restorableCount: 2 });
+    // At most RECOVERY_LIST_LIMIT are listed; all of them are counted.
+    const ids = Array.from({ length: RECOVERY_LIST_LIMIT + 2 }, (_, index) => `r${index}`);
+    expect(newestRestorableDiscard(ids.map((id) => record(id, "restorable"))))
+      .toEqual({ copies: ids.slice(0, RECOVERY_LIST_LIMIT).map(copy), restorableCount: RECOVERY_LIST_LIMIT + 2 });
     expect(newestRestorableDiscard([record("new", "superseded"), record("broken", "incomplete")])).toBeNull();
     expect(newestRestorableDiscard([])).toBeNull();
   });

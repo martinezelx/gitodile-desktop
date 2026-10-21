@@ -748,7 +748,7 @@
    The column follows the next-step card: while it asks to save, resolve, get
    or publish, one card shows what that will move — the files, the lines, the
    incoming versions — with nothing under its list. A discard
-   that can be restored sits under it whenever everything is saved. With
+   that can be restored sits under it whatever the step. With
    neither, there is no column and the timeline takes the width. Nothing here
    repeats the status bar or the timeline. */
 /* The column's sections are regions of the sheet too, one hairline apart. */
@@ -824,10 +824,21 @@
    so the card does not open with a red number. */
 .overview-detail__added,
 .overview-detail__removed { color: var(--text-secondary-color); }
-.overview-detail__bar { flex: 1; height: 2px; display: flex; overflow: hidden; border-radius: var(--radius-pill); background: var(--border-subtle); opacity: .65; }
-.overview-detail__bar > i { display: block; flex-basis: 0; }
-.overview-detail__bar-added { background: var(--diff-added); }
-.overview-detail__bar-removed { background: var(--diff-removed); }
+/* The two colours meet in a short blend around the added share, rather than
+   at a hard edge. A share of 0 or 100% leaves one colour across the bar. */
+.overview-detail__bar {
+  --added-share: 100%;
+  --bar-blend: 14px;
+  flex: 1;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--diff-added) calc(var(--added-share) - var(--bar-blend)),
+    var(--diff-removed) calc(var(--added-share) + var(--bar-blend))
+  );
+  opacity: .65;
+}
 .overview-detail__files { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .overview-detail__file {
   width: 100%;
@@ -898,74 +909,25 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 }
 .overview-detail__version .overview-detail__name { min-width: 0; }
 
-/* A discard that can still be restored, under a detail card: a quiet row
-   on the resting-card surface. (Alone in the column it is a detail card of
-   its own, headed like its siblings.) It is a safety net, not a step, so it
-   wears no colour: its glyph in the secondary ink like the cards' heads, its
-   count a neutral badge, no wash. It is there when looked for and never
-   pulls the eye from the next-step card. Its button opens the restore picker
-   over the Overview. */
-.overview-restore {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-5);
-  background: var(--surface-panel);
+/* A discard that can still be restored: the detail card's shape one step
+   smaller — title, glyph and rows, with no figure — whatever the step and
+   wherever it sits. It is a safety net, not a step, so it wears no colour and never pulls
+   the eye from the card above it. Each row opens the restore picker on that
+   copy; the link opens it on the newest. */
+.overview-detail--compact {
+  gap: var(--space-2);
+  padding-block: var(--space-3);
   animation: overview-restore-in 260ms ease-out;
 }
-:root[data-reduced-motion="true"] .overview-restore { animation: none; }
+:root[data-reduced-motion="true"] .overview-detail--compact { animation: none; }
 @keyframes overview-restore-in {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: none; }
 }
-.overview-restore__place {
-  position: relative;
-  width: 32px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-item);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-sm);
-  color: var(--text-secondary-color);
-}
-.overview-restore__place svg { width: 16px; height: 16px; stroke-width: 1.6; }
-/* Several restorable copies, counted on the icon. */
-.overview-restore__badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--surface-control);
-  color: var(--text-primary-color);
-  box-shadow: 0 0 0 2px var(--surface-panel), inset 0 0 0 1px var(--border-divider);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  font-variant-numeric: tabular-nums;
-}
-.overview-restore__copy { min-width: 0; display: grid; gap: 1px; line-height: var(--leading-snug); }
-.overview-restore__label { font-size: var(--text-label); font-weight: var(--weight-heading); }
-.overview-restore__hint { color: var(--text-secondary-color); font-size: var(--text-caption); }
-.overview-restore__action {
-  min-height: 28px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--surface-control);
-  color: var(--text-primary-color);
-  font: inherit;
-  font-size: var(--text-label);
-  font-weight: var(--weight-heading);
-}
-.overview-restore__action:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
-.overview-restore__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.overview-detail--compact .overview-detail__head > svg { width: 14px; height: 14px; }
+.overview-detail--compact .overview-detail__head h2 { font-size: var(--text-body); }
+.overview-detail--compact .overview-detail__link { min-height: 28px; }
+.overview-detail--compact .overview-detail__file { padding-block: 3px; }
 
 /* Launch restore's stand-in (`OverviewPlaceholder`): the project's tile, its
    name, where it lives and the header's two buttons, at their own sizes. */
@@ -989,7 +951,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .overview-now__title > .text-placeholder,
 .overview-placeholder__name > .text-placeholder { margin-block: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .overview-restore { animation: none; }
+  .overview-detail--compact { animation: none; }
   .empty-state__icon--loading svg,
   .icon--spinning { animation: none; }
   .overview-history__node { transition: none; }
@@ -1068,16 +1030,22 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
     width: 1px;
     background: var(--border-divider);
   }
-  .overview-side { min-height: 0; }
-  .overview-side--working { display: flex; flex-direction: column; }
-  .overview-side--working > * { flex-shrink: 0; }
-  .overview-side--working > .overview-detail { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
-  .overview-side--working .overview-detail > * { flex-shrink: 0; }
-  .overview-side--working .overview-detail > .overview-detail__files { flex: 1 1 0; min-height: 0; overflow: hidden; align-content: start; }
-  /* What you'll save scrolls its files instead, fading out at the bottom
-     while there is more below, like the timeline. Its gutter sits in the
-     card's padding so the rows keep their width. */
-  .overview-side--working .overview-detail > .overview-detail__files--scroll {
+  .overview-side { min-height: 0; display: flex; flex-direction: column; }
+  .overview-side > * { flex-shrink: 0; }
+  /* The step's card takes the height. The discarded-changes card takes it
+     too when it is alone; under the step's card it keeps a few rows. */
+  .overview-side > .overview-detail { min-height: 0; display: flex; flex-direction: column; }
+  .overview-side > .overview-detail:not(.overview-detail--compact),
+  .overview-side > .overview-detail--compact:only-child { flex: 1 1 0; }
+  .overview-side .overview-detail > * { flex-shrink: 0; }
+  .overview-side .overview-detail > .overview-detail__files { flex: 1 1 0; min-height: 0; overflow: hidden; align-content: start; }
+  /* Four and a half rows, so the half under the fade says there is more. */
+  .overview-side > .overview-detail--compact:not(:only-child) > .overview-detail__files { flex: 0 1 auto; max-height: 110px; }
+  /* The lists scroll instead, fading out at the bottom while there is more
+     below, like the timeline. Their gutter sits in the card's padding so the
+     rows keep their width. Same weight as the rule above and after it, so
+     it wins. */
+  .overview-side .overview-detail > .overview-detail__files--scroll {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;

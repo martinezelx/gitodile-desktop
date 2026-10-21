@@ -248,9 +248,9 @@ export function OverviewPanel({
    * restorable discard and where the project lives, filled by the
    * composition root. */
   workDetail: WorkDetailController;
-  /** Opens Changes with its restore picker already open, from the side
-   * column's discarded-changes card. */
-  onRestoreDiscarded: () => void;
+  /** Opens the restore picker over the Overview, from the side column's
+   * discarded-changes card, on the given copy when one is. */
+  onRestoreDiscarded: (recoveryId?: string) => void;
   onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();

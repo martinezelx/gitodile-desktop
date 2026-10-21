@@ -224,8 +224,6 @@ const PublishDialog = lazy(() => loadPublishDialog().then((m) => ({ default: m.P
 // from, warmed with Publish for the same reason.
 const loadDiscardChangesDialog = () => import("../features/changes/DiscardChangesDialog");
 const DiscardChangesDialog = lazy(() => loadDiscardChangesDialog().then((m) => ({ default: m.DiscardChangesDialog })));
-/** One request for every open: the dialog reloads its list when this changes. */
-const RESTORE_REQUEST: DiscardDialogRequest = { mode: "restore", selectedPath: null };
 const CreateVersionLineDialog = lazy(() =>
   import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
 );
@@ -384,11 +382,10 @@ export function App(): React.JSX.Element {
     createWorkDetailController({
       readCommitFileChanges: (query) => publishPort.readCommitFileChanges(query),
       findRestorableDiscard: async (query) => {
-        // Overview offers a discard only while everything is saved, and
-        // telling which copies still apply reads the status and hashes every
-        // changed file: with unsaved work there is nothing to offer, so
-        // nothing is read. The tree turning clean reads it again (below).
-        if (!projectRuntime.getSnapshot().byId[query.projectId]?.workingTree?.isClean) return null;
+        // Offered whatever the step: a copy only counts as restorable while
+        // nothing has been written at its paths. Telling that reads the
+        // status and hashes the changed files, but only when copies are
+        // stored, and always at an idle moment.
         const records = await changesController.listDiscardRecoveries(query.projectId, query.sessionEpoch);
         return newestRestorableDiscard(records);
       },
@@ -654,14 +651,15 @@ export function App(): React.JSX.Element {
   // Overview's "Restore" on a discarded change opens the restore picker over
   // the Overview. Closing it leaves the Overview where it was; a restore moves
   // on to Changes, which reports it as it arrives and then clears this.
-  const [restoreDialogSessionId, setRestoreDialogSessionId] = useState<string | null>(null);
+  // The request is made once per open, so the picker reads its list once.
+  const [restoreDialog, setRestoreDialog] = useState<{ sessionId: string; request: DiscardDialogRequest } | null>(null);
   const [changesRestoredElsewhere, setChangesRestoredElsewhere] = useState<DirectDiscardOutcome | null>(null);
   // Counts the picker's closes: one may have deleted stored copies, which
   // Changes' empty state offers a way back to.
   const [recoveriesRevision, setRecoveriesRevision] = useState(0);
   const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
-  const restoreDialogSession = restoreDialogSessionId
-    ? sessionsState.byId[restoreDialogSessionId] ?? null
+  const restoreDialogSession = restoreDialog
+    ? sessionsState.byId[restoreDialog.sessionId] ?? null
     : null;
   const publishDialogSession = publishDialogSessionId
     ? sessionsState.byId[publishDialogSessionId] ?? null
@@ -1476,15 +1474,14 @@ export function App(): React.JSX.Element {
       );
     });
   }, [activeSessionId, activeSessionEpoch, pendingVersions, workDetailController]);
-  // The tree turning clean is when Overview's discard card can appear; the
-  // watcher's own read may have run before the status landed and skipped it.
-  const activeIsClean = activeSession?.workingTree?.isClean ?? false;
+  // A project becoming active reads its restorable discards once; after
+  // that, working-tree invalidations do.
   useEffect(() => {
-    if (!activeSessionId || !activeSessionEpoch || !activeIsClean) return undefined;
+    if (!activeSessionId || !activeSessionEpoch) return undefined;
     return scheduleIdleTask(() => {
       void workDetailController.refreshRecovery({ projectId: activeSessionId, sessionEpoch: activeSessionEpoch });
     });
-  }, [activeSessionId, activeSessionEpoch, activeIsClean, workDetailController]);
+  }, [activeSessionId, activeSessionEpoch, workDetailController]);
   // Where the active project lives, for Overview's header: read the first
   // time the project becomes active, at an idle moment; switching back to it
   // reads nothing, and a config change reads it again through the shared
@@ -2921,9 +2918,12 @@ export function App(): React.JSX.Element {
                   onStopTrackingRemote={stopTrackingRemote}
                   historyController={historyController}
                   workDetail={workDetailController}
-                  onRestoreDiscarded={() => {
+                  onRestoreDiscarded={(recoveryId) => {
                     if (activeSession && startSessionOperation("discard")) {
-                      setRestoreDialogSessionId(activeSession.id);
+                      setRestoreDialog({
+                        sessionId: activeSession.id,
+                        request: { mode: "restore", selectedPath: null, recoveryId: recoveryId ?? null },
+                      });
                     }
                   }}
                   onOpenHistory={() => openWorkbench("history")}
@@ -3371,16 +3371,16 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
-      {restoreDialogSession && (
+      {restoreDialog && restoreDialogSession && (
         <Suspense fallback={null}>
           <DiscardChangesDialog
-            request={RESTORE_REQUEST}
+            request={restoreDialog.request}
             projectPath={restoreDialogSession.project.path}
             sessionEpoch={restoreDialogSession.epoch}
             controller={changesController}
             onClose={() => {
               finishSessionOperation(restoreDialogSession.id);
-              setRestoreDialogSessionId(null);
+              setRestoreDialog(null);
               setRecoveriesRevision((value) => value + 1);
               // Forgetting a copy changes no file, so no watcher reports it:
               // the Overview's card is read again here instead.
