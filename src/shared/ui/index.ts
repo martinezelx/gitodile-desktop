@@ -92,6 +92,9 @@ export { ToggleSwitch } from "./toggleSwitch";
    the welcome screen's recent-projects list needed the same identity — same
    colour, same initials, for the same project. */
 export { avatarColorVar, avatarInitials } from "./projectAvatar";
+/* ADR 0003's two-consumer bar: History's rows drew who saved a version, and
+   both detail strips — History's and Branches' — now draw the same person. */
+export { AuthorAvatar } from "./authorAvatar";
 /* Task 130: the same identity, now topping out at a chosen emoji or a detected
    technology before it reaches the initials. One component keeps the five
    avatar call sites from re-deriving the precedence and the artwork. */

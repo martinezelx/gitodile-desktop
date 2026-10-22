@@ -9,7 +9,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, autoHideScrollbarProps, avatarColorVar, avatarInitials, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, AuthorAvatar, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, FileTreeFolderButton, FileViewToggle, flatFileRows, flattenFileTree, isGroupedFileRow, PictureDiffControls, treeIndentStyle, useCollapsedFolders, useFileListView, usePictureDiff, type FileTreeRow, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -228,30 +228,11 @@ function versionGlyphs(version: SavedVersionSummary, t: Translations): VersionGl
   return glyphs;
 }
 
-/** Who saved a version, at a row's size: their initials on a colour that is
- * theirs across the whole timeline — keyed on the email when there is one,
- * so two people who share initials still read apart. The name is on the
- * tooltip and in the row's description; the detail strip spells it out.
- *
- * The user's own versions wear a person glyph instead of their initials, in
- * a neutral tint rather than their colour: "you" is the one author the
- * reader never needs to tell apart by colour, and the glyph says it without
- * a word the row has no room for. Overview says the same thing in text. */
-function AuthorAvatar({ version, isSelf, t }: { version: SavedVersionSummary; isSelf: boolean; t: Translations }): React.JSX.Element {
+/** Who saved a version, as the shared avatar draws it. The name is on the
+ * tooltip and in the row's description; the user's own say "You (name)". */
+function VersionAuthorAvatar({ version, isSelf, t, size }: { version: SavedVersionSummary; isSelf: boolean; t: Translations; size?: "row" | "strip" }): React.JSX.Element {
   const name = version.author?.name.trim() || t.historyAuthorUnknown;
-  if (isSelf) {
-    return (
-      <span className="history-row__avatar history-row__avatar--self" data-tooltip={t.historyAuthorYouNamed(name)} aria-hidden="true">
-        <UserRound />
-      </span>
-    );
-  }
-  const identity = version.author?.email?.trim().toLocaleLowerCase() || name;
-  return (
-    <span className="history-row__avatar" style={{ "--author-color": avatarColorVar(identity) } as React.CSSProperties} data-tooltip={name} aria-hidden="true">
-      {version.author ? avatarInitials(name) : "?"}
-    </span>
-  );
+  return <AuthorAvatar name={version.author ? name : null} email={version.author?.email} isSelf={isSelf} tooltip={isSelf ? t.historyAuthorYouNamed(name) : name} size={size} />;
 }
 
 /** How much of this row's rail belongs to the stretch between the top of the
@@ -438,7 +419,7 @@ const TimelineRow = React.memo(function TimelineRow({ version, index, level, fir
     <button id={`history-version-${version.commit}`} data-lane-tint={laneRow?.tint} className={`history-row${selected ? " history-row--selected" : ""}${version.publication === "local-only" ? " history-row--local" : version.publication === "published" ? " history-row--published" : ""}${version.isMerge ? " history-row--merge" : ""}${arrivalStyle ? " row-in" : ""}`} type="button" role="treeitem" aria-level={level} aria-expanded={detour ? detour.open : undefined} aria-selected={selected} aria-label={label} aria-description={description} tabIndex={focusable ? 0 : -1} data-first={first || undefined} data-last={last || undefined} data-rail={rail ?? undefined} style={laneRow ? { ...arrivalStyle, "--history-node-x": `${laneX(laneRow.lane)}px` } as React.CSSProperties : arrivalStyle} onClick={() => { onSelect(version.commit); onOpenDetail(); }} onKeyDown={handleKeyDown} onContextMenu={onContextMenu ? (event) => { onSelect(version.commit); onContextMenu(event, version); } : undefined}>
       {laneRow && laneWidth !== undefined && <LaneDrawing width={laneWidth} height={ROW_HEIGHT} commit={version.commit} row={laneRow} connectTop={connectTop} />}
       <span className="history-row__node" aria-hidden="true" />
-      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><AuthorAvatar version={version} isSelf={isSelf} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{detour && onToggleDetour && <span className={`history-detour${detour.open ? " history-detour--open" : ""}`} data-tooltip={detour.open ? t.historyDetourHide(detour.count) : t.historyDetourShow(detour.count)} aria-hidden="true" onClick={(event) => { event.stopPropagation(); onToggleDetour(version.commit, !detour.open); }}><ChevronRight />{formatNumber(detour.count, formats)}</span>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
+      <span className="history-row__body"><span className="history-row__title" title={title}><VersionTitleText version={version} title={title} search={search} /></span><span className="history-row__meta"><VersionAuthorAvatar version={version} isSelf={isSelf} t={t} />{(glyphs.length > 0 || match) && <StateGlyphs>{glyphs.map((glyph) => <StateGlyph key={glyph.key} tone={glyph.tone} icon={glyph.icon} text={glyph.text} tooltip={glyph.tooltip} />)}{match && <StateGlyph tone="accent" icon={<Search />} text={match} tooltip={t.historyMatchLabel(match)} />}</StateGlyphs>}{detour && onToggleDetour && <span className={`history-detour${detour.open ? " history-detour--open" : ""}`} data-tooltip={detour.open ? t.historyDetourHide(detour.count) : t.historyDetourShow(detour.count)} aria-hidden="true" onClick={(event) => { event.stopPropagation(); onToggleDetour(version.commit, !detour.open); }}><ChevronRight />{formatNumber(detour.count, formats)}</span>}{date && <span className="history-row__date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}</span></span>
     </button>
   );
 });

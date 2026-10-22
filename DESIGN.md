@@ -1178,7 +1178,7 @@ and when the selected branch is folded away, Tab lands on the heading above it.
 **History's timeline rows share that shape and that vocabulary.** The subject
 has the first line; under it, from the start, who saved it as initials on
 their own colour, tinted rather than filled so a solo project's column stays
-quiet (`.history-row__avatar`, keyed on the email so two people
+quiet (`.author-avatar` in `shared/ui`, keyed on the email so two people
 with the same initials still read apart, the full name on its tooltip). The
 user's own versions wear a person glyph on the neutral tint instead of their
 initials — "you" is the one author never told apart by colour — with "You

@@ -398,7 +398,7 @@ describe("HistoryPanel", () => {
     // stated in full.
     expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
     expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
-    expect(detailRegion.querySelector(".history-detail__strip .history-row__avatar")).toBeNull();
+    expect(detailRegion.querySelector(".history-detail__strip .author-avatar")).toBeNull();
     expect(detailRegion.querySelector(".history-detail__strip .state-glyph")).toBeNull();
     expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
     fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
@@ -477,9 +477,9 @@ describe("HistoryPanel", () => {
     const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
     expect(rows[0].querySelector(".history-ref-badge")).toBeNull();
     // Published, on a branch but not a tag: nothing to flag.
-    expect(metaOrder(rows[0], ".history-row__meta")).toEqual(["history-row__avatar", "history-row__date"]);
-    expect(metaOrder(rows[1], ".history-row__meta")).toEqual(["history-row__avatar", "state-glyphs", "history-row__date"]);
-    const avatar = rows[1].querySelector(".history-row__avatar");
+    expect(metaOrder(rows[0], ".history-row__meta")).toEqual(["author-avatar", "history-row__date"]);
+    expect(metaOrder(rows[1], ".history-row__meta")).toEqual(["author-avatar", "state-glyphs", "history-row__date"]);
+    const avatar = rows[1].querySelector(".author-avatar");
     expect(avatar).toHaveTextContent("AL");
     expect(avatar).toHaveAttribute("data-tooltip", "Ada Lovelace");
     expect(within(rows[1]).queryByText("Ada Lovelace")).not.toBeInTheDocument();
@@ -513,8 +513,8 @@ describe("HistoryPanel", () => {
       " ADA@example.test ",
     );
 
-    const avatar = container.querySelector(".history-row .history-row__avatar");
-    expect(avatar).toHaveClass("history-row__avatar--self");
+    const avatar = container.querySelector(".history-row .author-avatar");
+    expect(avatar).toHaveClass("author-avatar--self");
     expect(avatar).not.toHaveTextContent("AL");
     expect(avatar?.querySelector("svg")).not.toBeNull();
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");

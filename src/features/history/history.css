@@ -565,25 +565,6 @@
    out here, the longest and most repetitive fact down the column; as initials
    it leaves the glyphs room, and the date keeps one place in every row. */
 .history-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-row__avatar {
-  width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center;
-  /* Tinted, not filled: a column of solid circles down a solo project's
-     timeline was the loudest thing on the screen. The initials take the
-     author's colour pulled toward the text colour, so they hold contrast on
-     their own tint in either theme. At the micro floor and a medium weight:
-     bold capitals filled an 18px circle edge to edge. */
-  border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--author-color) 20%, var(--surface-panel));
-  color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
-  font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
-}
-/* The user's own versions: a person glyph on the neutral tint, not the
-   initials on a colour of their own. */
-.history-row__avatar--self {
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.history-row__avatar--self svg { width: 11px; height: 11px; }
 /* The Conventional Commits prefix, one tone quieter than the words after it,
    and a merge's whole title the same: both are there, neither leads. */
 .history-title-prefix,
@@ -905,7 +886,6 @@
   .history-banner { outline: 1px solid CanvasText; outline-offset: -1px; }
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
-  .history-row__avatar { border: 1px solid CanvasText; }
   .history-row--selected .history-row__node { background: Canvas; border-color: Highlight; }
   .history-row--local .history-row__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }
   .history-row--published .history-row__node { background: CanvasText; }

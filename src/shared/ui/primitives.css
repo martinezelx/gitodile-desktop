@@ -222,6 +222,33 @@
 .state-glyph--local { color: var(--tone-local); }
 .state-glyph--remote { color: var(--tone-remote); }
 
+/* Who saved a version (authorAvatar.tsx), shared by History's rows and both
+   detail strips. Tinted, not filled: a column of solid circles down a solo
+   project's timeline was the loudest thing on the screen. The initials take
+   the author's colour pulled toward the text colour, so they hold contrast on
+   their own tint in either theme. At the micro floor and a medium weight:
+   bold capitals filled an 18px circle edge to edge. */
+.author-avatar {
+  width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--author-color) 20%, var(--surface-panel));
+  color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
+  font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
+}
+/* The user's own versions: a person glyph on the neutral tint, not the
+   initials on a colour of their own. */
+.author-avatar--self {
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.author-avatar--self svg { width: 11px; height: 11px; }
+/* Beside a strip's title, where it is the author's only trace. */
+.author-avatar--strip { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-caption); }
+.author-avatar--strip.author-avatar--self svg { width: 14px; height: 14px; }
+@media (forced-colors: active) {
+  .author-avatar { border: 1px solid CanvasText; }
+}
+
 /* The include control of a list whose items go into one action (inclusionNode.tsx):
    History's node at 10px. In is the node fill, out an empty ring, part of it
    the half moon History uses for a version that exists only here. The native
