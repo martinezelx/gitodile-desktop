@@ -31,7 +31,7 @@ its role as the loudest mark in the list.
 # Context
 
 The design review at
-[node-fill-options.html](../assets/node-fill/node-fill-options.html) compared
+`node-fill-options.html` (a retired review prototype) compared
 100%, 85%, 75%, 65% and 55% of the primary ink over the panel across the four
 version lists. At 100%, the full node measures 17.5:1 on the official light
 panel while the selected accent measures 5.4:1; the neutral dots win the eye

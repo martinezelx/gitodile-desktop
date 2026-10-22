@@ -34,7 +34,7 @@ a strip of project facts it is not about.
 # Context
 
 The design review is the style lab in
-[style-lab.html](../assets/style-lab/style-lab.html) (36 styles over nine
+`style-lab.html` (a retired review prototype; 36 styles over nine
 screens). "Hoja en marco" (frame and sheet, after Arc and Dia) was chosen
 there, then checked on the real app with this repository's own data before
 this task was written. The frame keeps today's `--surface-app`: the lab's

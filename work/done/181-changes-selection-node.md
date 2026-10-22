@@ -31,7 +31,7 @@ looking at.
 
 The current control is the shared `.app-checkbox` at 14 px with a green ring and
 a tick, scoped by `.changes-file-list` in `changes.css`. The design review in
-[changes-selection-options.html](../assets/changes-selection/changes-selection-options.html)
+`changes-selection-options.html` (a retired review prototype)
 compared eight options; **B, the History node**, was the recommendation:
 
 - filled = included, ring = left out, half moon = partial;
