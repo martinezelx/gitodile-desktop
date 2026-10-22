@@ -297,7 +297,8 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
 /* The part of a name the eye can skip — a prefix shared with other branches, or
    the middle of a name whose cluster heading already says the first part —
    is quiet, so the reader scans the part that tells branches apart. */
-.branch-row__name-quiet { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+.branch-row__name-quiet,
+.branches-detail__name-quiet { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
 
 /* The list's headings. A block ("In progress", "Ready to clean up") is an
    uppercase label with its count in a capsule, the way Home's launcher heads
@@ -528,7 +529,9 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  font-size: var(--text-lead);
+  /* A step above the rows' name: the strip is one line and the name is what
+     it is for. History's version strip wears the same size. */
+  font-size: var(--text-subtitle);
   font-weight: var(--weight-strong);
   line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);

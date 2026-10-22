@@ -742,6 +742,7 @@ function BranchDetail({
   const tipRecord = history?.versions.find((version) => version.commit === branch.tip.commit) ?? null;
   const author = tipRecord?.authorName ?? "";
   const self = selfEmail?.trim().toLocaleLowerCase();
+  const nameParts = branchNameParts(branch.name, null);
   const isSelf = Boolean(self && tipRecord && tipRecord.authorEmail.trim().toLocaleLowerCase() === self);
   /* The tip first, then the versions behind it. The tip comes from the
    * inventory rather than from the history read, so the list stands at one row
@@ -803,8 +804,11 @@ function BranchDetail({
           <div className="branches-detail__identity">
             <h2>
               {branch.isActive && <StateGlyph tone="accent" icon={<ActiveIcon />} tooltip={t.branchesGlyphActive} />}
+              {/* The prefix quiet, as on the row: `release/` before `0.4.0`, the
+                  way History's strip quiets `chore(release):`. */}
               <span className="branches-detail__name" title={branch.name}>
-                {branch.name}
+                {nameParts.quiet && <span className="branches-detail__name-quiet">{nameParts.quiet}</span>}
+                {nameParts.own}
               </span>
               {branch.isActive && <span className="visually-hidden">{t.branchesActiveLabel}</span>}
             </h2>

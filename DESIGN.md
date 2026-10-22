@@ -1439,7 +1439,9 @@ rail already states, and the panels now start where the screen does.
 Its detail panel is one surface divided by rules, not a tray of cards. It
 opens with the branch's strip, a fixed `--strip-height` level with the list's
 header, the way History's version strip is level with its tabs. It is one
-line, and the name has it: the row's active glyph before the name when the
+line, and the name has it, at `--text-subtitle` (a step above the rows', the
+size History's strip gives its subject) with its prefix quiet as on the row
+(`release/` before `0.4.0`): the row's active glyph before the name when the
 project is on this branch (the word stays for a screen reader), then, at the
 trailing end, who last saved to it as the shared author avatar ("You" for the
 user's own, the name on its tooltip) and when, said relatively ("2 minutes
