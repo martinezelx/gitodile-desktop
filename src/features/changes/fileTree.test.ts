@@ -1,6 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { flattenFileTree, isGroupedFileRow } from "./fileTree";
+import { FILE_LIST_VIEW_STORAGE_KEY, flattenFileTree, isGroupedFileRow, readFileListView } from "./fileTree";
+
+describe("file-list default", () => {
+  afterEach(() => { vi.restoreAllMocks(); localStorage.removeItem(FILE_LIST_VIEW_STORAGE_KEY); });
+
+  it.each([null, "invalid", "tree", "list"])("respects the saved choice %s or defaults to folders", (saved) => {
+    if (saved === null) localStorage.removeItem(FILE_LIST_VIEW_STORAGE_KEY);
+    else localStorage.setItem(FILE_LIST_VIEW_STORAGE_KEY, saved);
+    expect(readFileListView()).toBe(saved === "list" ? "list" : "tree");
+  });
+
+  it("defaults to folders when storage cannot be read", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("unavailable"); });
+    expect(readFileListView()).toBe("tree");
+  });
+});
 
 const paths = [
   "src/features/history/HistoryPanel.tsx",

@@ -814,7 +814,6 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .rail-item__icon svg {
   width: 22px;
   height: 22px;
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* `--leading-snug`, not `--leading-tight`: this is a name that may wrap to a
    second line, which is exactly the role that leading is for — tight is a
@@ -843,7 +842,6 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon { transform: scale(0.97); }
 .rail-item--active { color: var(--text-primary-color); }
 .rail-item--active .rail-item__icon { background: var(--surface-active); color: var(--accent-primary); }
-.rail-item--active .rail-item__icon svg { animation: rail-icon-settle var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1); }
 .rail-item--active .rail-item__label { font-weight: var(--weight-strong); }
 .rail-item:disabled,
 .rail-item[aria-disabled="true"] { opacity: 0.55; }
@@ -859,11 +857,6 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .rail-more__menu .app-menu__item--selected svg { color: var(--accent-primary); }
 .rail-more__customize { color: var(--text-secondary-color); }
 .rail-more__customize:hover { color: var(--text-primary-color); }
-
-@keyframes rail-icon-settle {
-  from { transform: scale(0.9); }
-  to { transform: scale(1); }
-}
 
 /* The foot is the app-level utilities desktop users expect there — the
    theme, Settings, Account. Which project is open is the status bar's

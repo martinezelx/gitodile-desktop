@@ -419,6 +419,9 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const [input, setInput] = useState("");
   const [caret, setCaret] = useState<number | null>(0);
   const [entries, setEntries] = useState<Entry[]>([]);
+  // Clearing a nonempty transcript brings the drawing back up. The initial
+  // welcome is already in place and must not animate merely on navigation.
+  const [welcomeEntrance, setWelcomeEntrance] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState<number | null>(null);
   const [menuIndex, setMenuIndex] = useState(0);
@@ -705,7 +708,11 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   };
 
   /** Clearing forgets an unanswered plan too; it can never run later. */
-  const clearTranscript = (): void => { setEntries([]); setPending(null); };
+  const clearTranscript = (): void => {
+    if (entries.length > 0) setWelcomeEntrance(true);
+    setEntries([]);
+    setPending(null);
+  };
 
   const onPromptKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
     const field = event.currentTarget;
@@ -773,7 +780,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             {entries.length === 0 && (
               <div className="console-welcome">
                 {preferences.welcome && <div className="console-welcome__fetch">
-                  <ConsoleMascot active={lifecycle === "active"} />
+                  <ConsoleMascot active={lifecycle === "active"} entrance={welcomeEntrance} />
                   <div className="console-welcome__info">
                     <WelcomeSection title={t.consoleWelcomeProjectSection} tone="project" rows={[
                       [<Folder key="i" />, t.consoleWelcomeProject, projectName],

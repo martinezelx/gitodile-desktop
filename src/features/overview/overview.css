@@ -923,7 +923,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
    class goes once the fade has run. Opacity only — the card reaches the foot
    of the workspace, and a rise would push it past that edge and flash the
    workspace's scrollbar, narrowing the screen while it played. */
-.overview-detail--arriving { animation: overview-restore-in 260ms ease-out; }
+.overview-detail--arriving { animation: overview-restore-in var(--duration-normal) ease-out; }
 :root[data-reduced-motion="true"] .overview-detail--arriving { animation: none; }
 @keyframes overview-restore-in {
   from { opacity: 0; }

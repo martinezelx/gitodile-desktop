@@ -44,8 +44,11 @@ and 038 predate that convention, so their already-permanent child IDs remain
 023–031 and 039–051 while their `parent` metadata records the hierarchy.
 
 Reserved IDs without their own task file are still burned: `062` was folded
-into task 057 by explicit request. The next unused top-level ID after the
-current plan is `195`.
+into task 057 and `196` into task 195 by explicit request. The next unused
+top-level ID after the current plan is `197`.
+
+The combined screen-entry motion, folder-view defaults and initial-selection
+refinement is [195](done/195-calm-screen-entry-motion.md).
 
 The completed branch vocabulary refactor and expanded pre-commit review are recorded in
 [194](done/194-use-branches-throughout-project.md), including the bilingual

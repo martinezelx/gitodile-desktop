@@ -150,8 +150,14 @@ describe("ChangesPanel folder view", () => {
 
   it("groups the files in compacted folders, folds them, and includes or leaves out a folder at once", async () => {
     renderNested();
+    expect(screen.getByRole("button", { name: /^src\/features\/history\/panel\.css/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("File 1 of 3")).toBeInTheDocument();
     const toggle = screen.getByRole("button", { name: "Show files in folders" });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(localStorage.getItem("gitodile-file-list-view")).toBe("list");
+    expect(screen.queryByRole("button", { name: "src/features/history folder, 2 files" })).not.toBeInTheDocument();
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
 
@@ -1800,7 +1806,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.keyboard("{Escape}");
 
     // One click puts the pictures away; the four other files stay.
-    expect(listedFiles(container)).toEqual(["conflict.txt", "edited.txt", "also-edited.txt", "gone.txt"]);
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "conflict.txt", "edited.txt", "gone.txt"]);
     // The chip says what it is doing, not just what it names, and its remove
     // button says putting them back.
     expect(screen.getByText("Hiding .png")).toBeInTheDocument();
@@ -1821,7 +1827,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
     await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
 
-    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "edited.txt"]);
     // The badge counts the answers, never the modes.
     expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
   });
@@ -1938,10 +1944,10 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /Edited/ }));
     await userEvent.keyboard("{Escape}");
 
-    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
-    // The arrows walk what is shown, not what is loaded — the same rule the
-    // search box already established.
-    expect(screen.getByText("File 1 of 2")).toBeInTheDocument();
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "edited.txt"]);
+    // The tree's alphabetical order puts the selected file second. The
+    // arrows walk what is shown, not the source payload's order.
+    expect(screen.getByText("File 2 of 2")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove the Edited filter" }));
     expect(listedFiles(container)).toHaveLength(5);

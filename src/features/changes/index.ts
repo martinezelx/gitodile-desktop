@@ -33,5 +33,5 @@ export { getChangesEmptyState, type ChangesEmptyHeadState, type ChangesEmptyStat
 /* The file lists' folder view: Changes draws it first, and a saved version's
    files in History draw the same tree with the same switch and one shared
    preference. */
-export { flattenFileTree, flatFileRows, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileListView, type FileTreeRow } from "./fileTree";
+export { readFileListView, resolveSelectedPath, flattenFileTree, flatFileRows, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileListView, type FileTreeRow } from "./fileTree";
 export { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";

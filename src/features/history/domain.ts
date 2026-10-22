@@ -123,6 +123,9 @@ export type HistoryState = {
   detail: HistoryDetailView;
   fileDiff: HistoryDiffView;
   scrollOffset: number;
+  /** Explicit generic entries reset retained presentation even if the saved
+   * scroll offset was already zero when the reader navigated. */
+  entryRevision: number;
   generation: number;
 };
 

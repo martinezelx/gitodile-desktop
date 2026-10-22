@@ -9,6 +9,7 @@ import { App } from "./App";
 import { TitlebarMenu } from "./TitlebarMenu";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
+import type { HistoryPage, SavedVersionSummary } from "../features/history";
 import type {
   GetTeamChangesPlan,
   GetTeamChangesResult,
@@ -1723,6 +1724,85 @@ describe("App project restoration", () => {
       stateToken: "token-1",
     });
   });
+
+  it("starts generic palette, rail and tab entries at the first file/version while preserving targeted links", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }));
+    const files = ["README.md", "src/z.ts", "src/a.ts"].map((path) => ({ path, originalPath: null, category: "changed" as const }));
+    const versions: SavedVersionSummary[] = [2, 1].map((index) => ({
+      commit: String(index).repeat(40), shortCommit: String(index).repeat(7), parents: [],
+      subject: index === 2 ? "Newest version" : "Older version", description: "",
+      author: { name: "Ada", email: "ada@example.test" },
+      authoredAt: { unixSeconds: 1_700_000_000 + index, offsetMinutes: 0 },
+      committedAt: { unixSeconds: 1_700_000_000 + index, offsetMinutes: 0 },
+      decorations: [], isRoot: true, isMerge: false, publication: "local-only",
+      subjectTruncated: false, descriptionTruncated: false, decorationsTruncated: false, messageUnavailable: null,
+    }));
+    const history: HistoryPage = {
+      repositoryId: restoredProject.path, snapshotToken: "first-selection", scope: { kind: "currentBranch" },
+      branch: "main", headState: "branch", headCommit: versions[0].commit, upstream: null, versions,
+      nextCursor: null, hasMore: false, shallow: false, warnings: [],
+    };
+    mockedInvoke.mockImplementation((command, args) => {
+      const request = args as { commit?: string; filePath?: string } | undefined;
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve({
+        ...cleanStatus, isClean: false, counts: { ...cleanStatus.counts, changed: 3, total: 3 },
+        entries: files.map((file) => ({ ...file, isPrepared: false, hasUnpreparedChanges: true })),
+      });
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_history_page") return Promise.resolve(history);
+      if (command === "read_saved_version_detail") return Promise.resolve({
+        version: versions.find((version) => version.commit === request?.commit) ?? versions[0],
+        comparisonBase: "empty-tree", comparisonIsEmptyTree: true, comparisonIsFirstParent: false,
+        files, fileCounts: { changed: 3, new: 0, deleted: 0, renamed: 0, total: 3 }, filesTruncated: false, countsAreMinimum: false,
+      });
+      if (command === "read_file_diff" || command === "read_saved_version_file_diff") return Promise.resolve({
+        kind: "binary", path: request?.filePath, originalPath: null, change: "changed",
+      });
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_branches") return Promise.resolve(branches);
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+    const go = async (name: string): Promise<void> => {
+      await user.click(screen.getByRole("combobox", { name: "Open command palette" }));
+      await user.click(within(screen.getByRole("listbox", { name: "Command palette" })).getByText(name));
+    };
+    const firstFile = async (): Promise<void> => {
+      await waitFor(() => expect(screen.getByRole("button", { name: /^src\/a\.ts/ })).toHaveAttribute("aria-current", "true"), { timeout: 5000 });
+    };
+    await go("Go to Changes");
+    await firstFile();
+    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    await go("Go to Changes");
+    await firstFile();
+    await go("Go to History");
+    await firstFile();
+    await user.click(screen.getByRole("treeitem", { name: /Older version/ }));
+    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    await go("Go to History");
+    await waitFor(() => expect(screen.getByRole("treeitem", { name: /Newest version/ })).toHaveAttribute("aria-selected", "true"));
+    await firstFile();
+    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    const nav = screen.getByRole("navigation", { name: "Project navigation" });
+    await user.click(within(nav).getByRole("button", { name: "Overview" }));
+    await user.click(within(nav).getByRole("button", { name: "Work" }));
+    await firstFile();
+    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    await user.click(screen.getByRole("tab", { name: "Changes" }));
+    await user.click(screen.getByRole("tab", { name: "History" }));
+    await firstFile();
+    await user.click(within(nav).getByRole("button", { name: "Overview" }));
+    await user.click(await screen.findByRole("button", { name: /Open “Older version” in History/ }));
+    expect(await screen.findByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "read_history_page")).toHaveLength(1);
+    // This exercises two lazy panels and several full app navigations under
+    // the parallel suite; the normal 5s budget is for a single interaction.
+  }, 20_000);
 
   it("keeps a screen mounted when you navigate away from it and back", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");

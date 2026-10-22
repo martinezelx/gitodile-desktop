@@ -92,6 +92,7 @@ function state(count: number, overrides: Partial<HistoryState> = {}): HistorySta
     detail: { detail: null, isLoading: false, error: null },
     fileDiff: { diff: null, isLoading: false, error: null },
     scrollOffset: 0,
+    entryRevision: 0,
     generation: 1,
     ...overrides,
   };
@@ -148,6 +149,38 @@ function versionOnBranch(index: number, name: string): SavedVersionSummary {
 afterEach(cleanup);
 
 describe("HistoryPanel", () => {
+  it("resets a scroll that has not yet been saved on explicit entry, including a filtered timeline", () => {
+    const historyController = controller();
+    const panel = (entryRevision: number) => (
+      <LanguageProvider>
+        <HistoryPanel tabs={TABS} controller={historyController} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={state(3, { scrollOffset: 0, entryRevision, filters: { ...NO_HISTORY_FILTERS, noMerges: true } })}
+          watcherState="watching" onOpenSettings={() => {}} error={null} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(panel(0));
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    timeline.scrollTop = 800;
+    fireEvent.scroll(timeline);
+    rerender(panel(1));
+    expect(timeline.scrollTop).toBe(0);
+  });
+
+  it("returns the retained timeline to the top when navigation resets its offset", () => {
+    const historyController = controller();
+    const panel = (scrollOffset: number) => (
+      <LanguageProvider>
+        <HistoryPanel tabs={TABS} controller={historyController} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={state(3, { scrollOffset })} watcherState="watching" onOpenSettings={() => {}} error={null} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(panel(800));
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    expect(timeline.scrollTop).toBe(800);
+    rerender(panel(0));
+    expect(timeline.scrollTop).toBe(0);
+  });
+
   it("shows the native branch inventory limit warning without hiding history", () => {
     const history = state(3);
     renderPanel({
@@ -354,7 +387,7 @@ describe("HistoryPanel", () => {
     const { rerender } = render(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
     expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
     rerender(panel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/feature.tsx" })));
-    expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Files changed in this saved version" })).toBeInTheDocument();
     rerender(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
     expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
   });
@@ -426,14 +459,20 @@ describe("HistoryPanel", () => {
         filesTruncated: false,
         countsAreMinimum: false,
       };
-      renderPanel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "README.md" }));
-      expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Show files in folders" }));
+      const { rerender, historyController } = renderPanel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "README.md" }));
+      expect(screen.getByRole("group", { name: "Files changed in this saved version" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show files in folders" })).toHaveAttribute("aria-pressed", "true");
       const folder = screen.getByRole("button", { name: "src/app folder, 2 files" });
       expect(folder).toHaveAttribute("aria-expanded", "true");
       fireEvent.click(folder);
       expect(folder).toHaveAttribute("aria-expanded", "false");
       expect(screen.queryByRole("button", { name: /src\/app\/App\.tsx/ })).not.toBeInTheDocument();
+      rerender(<LanguageProvider><HistoryPanel tabs={TABS} controller={historyController}
+        query={{ projectId: "/repo", sessionEpoch: "epoch-1" }} watcherState="watching" error={null} onOpenSettings={() => {}}
+        state={state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/app/App.tsx", entryRevision: 1 })}
+      /></LanguageProvider>);
+      expect(folder).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /src\/app\/App\.tsx/ })).toHaveAttribute("aria-current", "true");
     } finally {
       localStorage.removeItem("gitodile-file-list-view");
     }

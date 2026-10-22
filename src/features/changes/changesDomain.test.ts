@@ -100,6 +100,14 @@ describe("resolveSelectedPath", () => {
   it("returns null when the list is empty", () => {
     expect(resolveSelectedPath([], "a.txt")).toBeNull();
   });
+
+  it("starts at the first displayed file in a folder tree, rather than a root file Git returned first", () => {
+    const files = [entry("README.md", "changed"), entry("src/z.ts", "changed"), entry("src/a.ts", "new")];
+    expect(resolveSelectedPath(files, null, "tree")).toBe("src/a.ts");
+    expect(resolveSelectedPath(files, "removed.txt", "tree")).toBe("src/a.ts");
+    expect(resolveSelectedPath(files, null, "list")).toBe("README.md");
+    expect(resolveSelectedPath(files, "README.md", "tree")).toBe("README.md");
+  });
 });
 
 function line(kind: DiffLine["kind"], content: string): DiffLine {

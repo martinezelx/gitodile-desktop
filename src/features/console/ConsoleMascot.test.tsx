@@ -11,6 +11,18 @@ function animation(element: Element, type: string, name: string) {
 }
 
 describe("ConsoleMascot entrance", () => {
+  it("shows the initial welcome complete and never reveals it on a revisit or a later prop change", () => {
+    const { container, rerender } = render(<ConsoleMascot active entrance={false} />);
+    const mascot = container.firstElementChild!;
+    expect(mascot).not.toHaveClass("console-art--reveal");
+    rerender(<ConsoleMascot active={false} entrance={false} />);
+    rerender(<ConsoleMascot active entrance={false} />);
+    expect(container.firstElementChild).toBe(mascot);
+    expect(mascot).not.toHaveClass("console-art--reveal");
+    rerender(<ConsoleMascot active entrance />);
+    expect(mascot).not.toHaveClass("console-art--reveal");
+  });
+
   it("finishes only its own entrance and starts again for a new drawing", () => {
     const { container, rerender } = render(<ConsoleMascot active />);
     const mascot = container.firstElementChild!;

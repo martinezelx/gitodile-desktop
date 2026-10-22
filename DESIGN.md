@@ -1285,6 +1285,16 @@ the diff out of reach.
 **File lists can be read in folders.** Changes' list and a saved version's
 files in History share one layout switch and one preference: a flat list by
 name, or the files grouped in the folders they live in, as an IDE shows them.
+Folders are the default when no valid preference is saved, including when
+storage is unavailable. An explicitly saved flat-list choice stays respected.
+Initial file selection, and the fallback when a selected file disappears,
+follow the selected layout's display order: the first file under the first
+folder in tree view, or the first listed file in flat view. An explicit generic
+entry from the command palette, rail or tab starts at the first file and, in
+History, the first version in the current timeline, with its scroll at the
+start. Links to a particular file or saved version still open that target;
+refresh and Back/Forward preserve a valid explicit selection. History chooses
+the right file before reading its diff, including cached version detail.
 The switch is a single icon after the rule in the list's search pill — the
 part of the pill that acts on the list rather than on what is typed — beside
 Filters in Changes; one control rather than a segmented pair, because the
@@ -1405,7 +1415,10 @@ padding, so the falling characters and the mascot share one imaginary ground.
 Only the rain is masked; the feet are never clipped. Results and
 later commands retain the drawing without replaying the entrance. Clearing the
 transcript restores the welcome with the same row reveal, including Ctrl+L.
-The welcome setting controls both appearances.
+The welcome setting controls both appearances. The initial welcome drawing
+is already complete when Console opens; only a command that moves it down to
+the watermark, or clearing a nonempty transcript that brings it back up,
+reveals it. Clearing an already empty transcript does not start an entrance.
 Hidden screens pause the repeating motion and finish any pending entrance;
 returning to the console never replays it. Reduced motion shows the finished
 static drawing immediately without blinking or rain.
@@ -1532,19 +1545,16 @@ loaded left its route waiting for an answer that never came. While the read is o
 section's whole place with the main lane already drawn and named, and a
 text placeholder where the sentence will be — the answer grows into a
 space that was waiting for it rather than pushing the versions down when it
-lands. It arrives with the one motion the drawing has: the line draws itself
-out of the parting, its versions appear along it left to right, the sentence
-settles — about a third of a second, all of it after the answer is in, and
-none of it with reduced motion. **From one branch to the next it cross-fades
-instead.** Two routes share most of their pixels — the main lane, its name,
+lands. The first result appears complete as soon as it is available, without
+tracing lines or revealing its dots in sequence. **From one branch to the next
+it cross-fades.** Two routes share most of their pixels — the main lane, its name,
 the parting at a fixed place, the general shape — so blinking the section out
 and drawing the next one from nothing made two similar pictures look like two
 unrelated events, and it was most jarring exactly when the read was fast. The
 previous branch's drawing is held, quieter, while the next one is read (in
 place of the empty lane), then laid over the new one and faded out as the new
 one fades in, in 200ms: what the two share stays still and only what differs
-dissolves — the same idea as the window's theme cross-fade. The draw-out is
-kept for a route that appears where there was none. Morphing the dots and
+dissolves — the same idea as the window's theme cross-fade. Morphing the dots and
 curves from one position to the next was weighed and left: animating a
 path's shape is not supported in the WebKit that GitOdile runs in on macOS,
 and a transition that only works on one platform is not one to design on. It
@@ -2300,6 +2310,11 @@ Good uses:
 Rules:
 
 - keep most transitions between 120–220ms;
+- screen navigation shows already-available content immediately. Home's recent
+  projects and Overview's saved versions have no row entrance cascade; rail
+  selection changes colour and background without scaling the selected icon.
+  Keep motion for actual arrivals, action feedback and changes within a view;
+- Overview's compact restoration card fades in at `--duration-normal` (180ms);
 - a theme change cross-fades the whole window at `--duration-normal`, from
   every control that offers one — the titlebar toggle, Settings and the command
   palette. The point is that the whole surface changes together, rather than the
@@ -3307,7 +3322,7 @@ prepended at the head of History's timeline, so loading an older page is not
 mistaken for new work. Up to three arrivals cascade, 40ms apart, so a late
 arrival never waits on a position that has nothing to do with it, and a
 virtualized row is still never animated by a scroll that mounted it. Overview
-keeps the entrance stagger on its sampled lists.
+and Home show their existing lists without an entrance stagger.
 
 **Dropping a folder on the window** opens it. While a drag is over the window
 — and only then — a window-sized overlay names what a drop will do. It is

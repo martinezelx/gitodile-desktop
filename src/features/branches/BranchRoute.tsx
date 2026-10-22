@@ -214,8 +214,6 @@ function RouteDrawing({
         className={`branches-route__version${
           highlightedCommit && dot.version?.commit === highlightedCommit ? " branches-route__version--lit" : ""
         }`}
-        // Its place in the order the dots appear in on arrival, left to right.
-        style={{ "--route-order": Math.round(dot.x / 40) } as React.CSSProperties}
         data-tooltip={version ? versionTooltip(version, formats) : undefined}
         onClick={opens ? () => onOpenVersion(branchName, version.commit) : undefined}
       >
@@ -347,8 +345,8 @@ function RouteDrawing({
  * the previous branch's route is held, quieter, while the next one is read, and
  * the two then cross-fade. The main lane, its name and the parting sit on the
  * same pixels in both, so they stay still, and only what differs dissolves —
- * the way the whole window cross-fades a theme change. The route draws itself
- * out only when there was nothing before it. */
+ * the way the whole window cross-fades a theme change. A first route appears
+ * complete as soon as it is available. */
 export function BranchRoute({
   branch,
   route,
@@ -379,10 +377,6 @@ export function BranchRoute({
   const [from, setFrom] = useState<DrawnRoute | null>(() =>
     previous && previous.branch.name !== branch.name ? previous : null,
   );
-  /* Drawn out only when the section had nothing to show before this route. */
-  const waitedRef = useRef(route === null && from === null);
-  const reveal = waitedRef.current && route !== null;
-
   // Drawn in the panel's own pixels rather than scaled from a viewBox, so the
   // labels keep the caption's size at any panel width.
   useLayoutEffect(() => {
@@ -412,7 +406,7 @@ export function BranchRoute({
 
   return (
     <div
-      className={`branches-route${reveal ? " branches-route--reveal" : ""}${current ? "" : " branches-route--pending"}`}
+      className={`branches-route${current ? "" : " branches-route--pending"}`}
     >
       <div ref={frameRef} className="branches-route__frame" style={{ height }}>
         {width > 0 &&

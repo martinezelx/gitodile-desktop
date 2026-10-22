@@ -1,6 +1,6 @@
 import type { ProjectCacheWarmReason, ProjectRuntime } from "../../runtime/project/runtime";
 import { isAppError } from "../../shared/i18n";
-import type { FileDiff } from "../changes";
+import { readFileListView, resolveSelectedPath, type FileDiff } from "../changes";
 import type {
   CachedDetail,
   CachedDiff,
@@ -71,6 +71,7 @@ function emptyState(query: HistoryQuery): HistoryState {
     detail: EMPTY_DETAIL,
     fileDiff: EMPTY_DIFF,
     scrollOffset: 0,
+    entryRevision: 0,
     generation: 0,
   };
 }
@@ -247,15 +248,9 @@ export function createHistoryController(port: HistoryPort) {
     const cached = entry.details.get(commit);
     if (cached) {
       cached.usedAt = ++clock;
-      // The same choice the read below makes, and for the same reason: a file
-      // that is not in this version's list cannot be the one it opens on. No
-      // caller reaches this branch with a stale path today — every route into
-      // it nulls the selection first — so this is the two branches agreeing
-      // rather than a fault being fixed, and there is deliberately no test
-      // pinning it: one would pass either way.
-      const selectedFilePath = cached.detail.files.some((file) => file.path === entry.state.selectedFilePath)
-        ? entry.state.selectedFilePath
-        : cached.detail.files[0]?.path ?? null;
+      // Cached and fresh detail use the same display-order policy, before
+      // choosing a diff. A root file Git returned first may be last in a tree.
+      const selectedFilePath = resolveSelectedPath(cached.detail.files, entry.state.selectedFilePath, readFileListView());
       if (entry.state.selectedCommit === commit) {
         // A diff belongs to one commit and one file under one snapshot token.
         // When all three still hold, the one on screen is the answer already —
@@ -284,9 +279,7 @@ export function createHistoryController(port: HistoryPort) {
         if (entry.state.generation !== generation || entry.state.snapshot?.snapshotToken !== snapshotToken) return;
         cacheDetail(entry, commit, detail);
         if (entry.state.selectedCommit !== commit) return;
-        const selectedFilePath = detail.files.some((file) => file.path === entry.state.selectedFilePath)
-          ? entry.state.selectedFilePath
-          : detail.files[0]?.path ?? null;
+        const selectedFilePath = resolveSelectedPath(detail.files, entry.state.selectedFilePath, readFileListView());
         // `selectionRemoved` is not cleared here. It says the version that was
         // open is gone and this one was chosen instead — and the read landing
         // is the *completion* of that move, not the user acknowledging it.
@@ -340,7 +333,6 @@ export function createHistoryController(port: HistoryPort) {
       staleNotice: staleNotice || entry.state.staleNotice,
     });
     const previousSnapshotToken = entry.state.snapshot?.snapshotToken;
-    const previousSelection = entry.state.selectedCommit;
     const promise = port
       .readPage({
         ...query,
@@ -351,6 +343,9 @@ export function createHistoryController(port: HistoryPort) {
       .then((page) => {
         if (entry.state.generation !== generation) return;
         if (previousSnapshotToken !== page.snapshotToken) clearContentCaches(entry);
+        // A navigation or row click may have changed the selection while this
+        // page was being read. The current choice owns the answer when it lands.
+        const previousSelection = entry.state.selectedCommit;
         const selectedCommit = previousSelection ?? page.versions[0]?.commit ?? null;
         // The card on the right describes one saved version, and a page that
         // arrives under the same snapshot with the same version selected has
@@ -482,6 +477,20 @@ export function createHistoryController(port: HistoryPort) {
     return refreshInternal(query, false);
   };
 
+  const selectVersion = (query: HistoryQuery, commit: string): void => {
+    const entry = entryFor(query);
+    if (entry.state.selectedCommit === commit) return;
+    publish(entry, {
+      ...entry.state,
+      selectedCommit: commit,
+      selectedFilePath: null,
+      selectionRemoved: false,
+      detail: EMPTY_DETAIL,
+      fileDiff: EMPTY_DIFF,
+    });
+    void loadDetail(query, entry, entry.state.generation, commit);
+  };
+
   return {
     port,
     getSnapshot(query: HistoryQuery): HistoryState {
@@ -531,18 +540,27 @@ export function createHistoryController(port: HistoryPort) {
       return restartTimeline(query, entry, { scope });
     },
     loadMore,
-    selectVersion(query: HistoryQuery, commit: string): void {
+    selectVersion,
+    /** An explicit generic navigation starts at the newest displayed version
+     * and its first file; refresh and targeted links keep their selection. */
+    selectFirstVersion(query: HistoryQuery): void {
       const entry = entryFor(query);
-      if (entry.state.selectedCommit === commit) return;
+      publish(entry, { ...entry.state, scrollOffset: 0, selectionRemoved: false, entryRevision: entry.state.entryRevision + 1 });
+      const first = entry.state.versions[0]?.commit;
+      if (!first) return;
+      if (entry.state.selectedCommit !== first) {
+        selectVersion(query, first);
+        return;
+      }
+      const selectedFilePath = resolveSelectedPath(entry.state.detail.detail?.files ?? [], null, readFileListView());
+      const keepsDiff = selectedFilePath === entry.state.selectedFilePath;
+      if (keepsDiff) return;
       publish(entry, {
         ...entry.state,
-        selectedCommit: commit,
-        selectedFilePath: null,
-        selectionRemoved: false,
-        detail: EMPTY_DETAIL,
-        fileDiff: EMPTY_DIFF,
+        selectedFilePath,
+        fileDiff: keepsDiff ? entry.state.fileDiff : EMPTY_DIFF,
       });
-      void loadDetail(query, entry, entry.state.generation, commit);
+      if (!keepsDiff && selectedFilePath) void loadFileDiff(query, entry, entry.state.generation, first, selectedFilePath);
     },
     selectFile(query: HistoryQuery, filePath: string): void {
       const entry = entryFor(query);

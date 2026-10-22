@@ -40,6 +40,31 @@ function renderConsole(
 }
 
 describe("ConsoleScreen", () => {
+  it.each(["clear{Enter}", "{Control>}l{/Control}"])("starts still, and only reveals the restored welcome after clearing work with %s", async (clearKeys) => {
+    const user = userEvent.setup();
+    const { lifecycle } = renderConsole();
+    const input = screen.getByRole("combobox", { name: "Console command" });
+    const initial = document.querySelector(".console-welcome .console-art");
+    expect(initial).not.toHaveClass("console-art--reveal");
+    await user.type(input, clearKeys);
+    expect(document.querySelector(".console-welcome .console-art")).toBe(initial);
+    expect(initial).not.toHaveClass("console-art--reveal");
+    act(() => lifecycle.transition("hidden"));
+    act(() => lifecycle.transition("active"));
+    expect(initial).not.toHaveClass("console-art--reveal");
+
+    await user.type(input, "help{Enter}");
+    expect(document.querySelector(".console-watermark .console-art")).toHaveClass("console-art--reveal");
+    await user.type(input, clearKeys);
+    const restored = document.querySelector(".console-welcome .console-art");
+    expect(restored).not.toBe(initial);
+    expect(restored).toHaveClass("console-art--reveal");
+    act(() => lifecycle.transition("hidden"));
+    act(() => lifecycle.transition("active"));
+    expect(document.querySelector(".console-welcome .console-art")).toBe(restored);
+    expect(restored).not.toHaveClass("console-art--reveal");
+  });
+
   it("does not run on arrival, rejects shell-like text, and shows a bounded result", async () => {
     const run = vi.spyOn(consolePort, "run").mockResolvedValue({ operationId: "status", command: "git status", stdout: "On branch main\n", stderr: "", exitCode: 0, success: true, truncated: false });
     const user = userEvent.setup();

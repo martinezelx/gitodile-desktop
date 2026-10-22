@@ -839,7 +839,6 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
 }
 @media (prefers-reduced-motion: reduce) {
   .branches-route__version > circle:last-child { transition: none; }
-  .branches-route--reveal *,
   .branches-route__layer--in,
   .branches-route__layer--out { animation: none !important; }
 }
@@ -864,40 +863,6 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
   align-items: center;
 }
 
-/* The arrival, when the section was waiting for it: this branch leaves the main
-   one — the curve draws itself out from the parting — its versions appear
-   along it from left to right, and the sentence settles under them. Short,
-   and all of it after the answer is in: nothing waits for it. */
-.branches-route--reveal .branches-route__line--leave,
-.branches-route--reveal .branches-route__line--return {
-  stroke-dasharray: 1;
-  animation: branches-route-draw 240ms ease-out both;
-}
-.branches-route--reveal .branches-route__line--return { animation-delay: 160ms; }
-.branches-route--reveal .branches-route__line--unpublished {
-  animation: branches-route-fade 180ms ease-out 140ms both;
-}
-.branches-route--reveal .branches-route__version {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: branches-route-dot 180ms ease-out both;
-  animation-delay: calc(60ms + var(--route-order, 0) * 14ms);
-}
-.branches-route--reveal .branches-route__fork,
-.branches-route--reveal .branches-route__mark,
-.branches-route--reveal .branches-route__here,
-.branches-route--reveal .branches-route__label,
-.branches-route--reveal .branches-route__sentence {
-  animation: branches-route-fade 180ms ease-out both;
-}
-@keyframes branches-route-draw {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
-}
-@keyframes branches-route-dot {
-  from { opacity: 0; transform: scale(0.4); }
-  to { opacity: 1; transform: scale(1); }
-}
 @keyframes branches-route-fade {
   from { opacity: 0; }
   to { opacity: 1; }

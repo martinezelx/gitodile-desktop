@@ -21,6 +21,24 @@ function emptyPage(token: string): HistoryPage {
 afterEach(cleanup);
 
 describe("HistoryScreen lifecycle", () => {
+  it("does not apply a delayed version link after a newer generic entry", async () => {
+    let finishScope!: () => void;
+    const pendingScope = new Promise<void>((resolve) => { finishScope = resolve; });
+    const controller = createHistoryController({
+      readPage: vi.fn(async () => emptyPage("token-1")), readDetail: vi.fn(), readFileDiff: vi.fn(), readImagePreview: vi.fn(),
+    });
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    vi.spyOn(controller, "setScope").mockReturnValue(pendingScope);
+    const selectVersion = vi.spyOn(controller, "selectVersion");
+    render(<LanguageProvider><ScreenLifecycleProvider controller={createScreenLifecycleController("active")}>
+      <HistoryScreen tabs={TABS} controller={controller} projectPath="/repo" sessionEpoch="epoch-1"
+        watcherState="watching" scopeBranchIntent="feature/foo" selectCommitIntent="old-target" onOpenSettings={() => {}} />
+    </ScreenLifecycleProvider></LanguageProvider>);
+    act(() => controller.selectFirstVersion(query));
+    await act(async () => { finishScope(); await pendingScope; });
+    expect(selectVersion).not.toHaveBeenCalled();
+  });
+
   it("does not fetch on navigation and freezes announcements while hidden", async () => {
     const port: HistoryPort = {
       readPage: vi.fn(async () => emptyPage("unexpected")),

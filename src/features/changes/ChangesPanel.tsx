@@ -40,7 +40,7 @@ import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
 import { getChangesEmptyState, type ChangesEmptyHeadState } from "./emptyState";
-import { flatFileRows, flattenFileTree, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
+import { flatFileRows, flattenFileTree, isGroupedFileRow, resolveSelectedPath, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
 import { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";
 
 const DiscardChangesDialog = React.lazy(async () => {
@@ -140,14 +140,7 @@ function ChangesActionsMenu({
 // bundle. Re-exported here so this screen's own consumers keep their import.
 export { getOrderedChangeEntries };
 
-/** Preserves the current selection if it is still present in `entries`,
- * otherwise falls back to the first entry (or `null` if the list is empty). */
-export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: string | null): string | null {
-  if (previousPath !== null && entries.some((entry) => entry.path === previousPath)) {
-    return previousPath;
-  }
-  return entries[0]?.path ?? null;
-}
+export { resolveSelectedPath };
 
 /** Case-insensitive substring match over the whole repository-relative path,
  * so typing either a file name or a folder narrows the list — the same
@@ -1463,7 +1456,8 @@ export function ChangesPanel({
   // present; otherwise moves to the next available file and announces the
   // material change without stealing focus.
   useEffect(() => {
-    const resolved = resolveSelectedPath(entries, selectedPath);
+    const preservesSelection = selectedPath !== null && entries.some((entry) => entry.path === selectedPath);
+    const resolved = preservesSelection ? selectedPath : resolveSelectedPath(visibleEntries, null, fileView);
     if (resolved === selectedPath) {
       return;
     }
@@ -1471,7 +1465,11 @@ export function ChangesPanel({
     if (resolved) {
       setAnnouncement(t.changesSelectionAnnouncement(resolved));
     }
-  }, [entries, selectedPath, t, onSelectedPathChange]);
+  }, [entries, fileView, selectedPath, visibleEntries, t, onSelectedPathChange]);
+
+  useEffect(() => {
+    if (selectedPath) revealFile(selectedPath);
+  }, [revealFile, selectedPath]);
 
   // Local to this project's session: a switch away and back (or the working
   // tree simply refreshing) must not leave a previous project's checkbox
