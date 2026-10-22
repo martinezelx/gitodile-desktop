@@ -323,12 +323,16 @@ pub(crate) enum ProgramFailure {
 /// input closed. The caller builds the command, its arguments and its
 /// environment; this never goes through a shell.
 pub(crate) fn run_program(
-    mut process: Command,
+    process: Command,
     policy: ExecutionPolicy,
     cancellation: Option<&CancellationToken>,
 ) -> Result<BoundedOutput, ProgramFailure> {
     #[cfg(target_os = "windows")]
-    process.creation_flags(CREATE_NO_WINDOW);
+    let process = {
+        let mut process = process;
+        process.creation_flags(CREATE_NO_WINDOW);
+        process
+    };
     run_bounded(
         process,
         None,
