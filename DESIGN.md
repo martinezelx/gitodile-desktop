@@ -1439,10 +1439,15 @@ rail already states, and the panels now start where the screen does.
 
 Its detail panel is one surface divided by rules, not a tray of cards. It
 opens with the branch's strip, a fixed `--strip-height` level with the list's
-header, the way History's version strip is level with its tabs: the name (and
-`Active`) on the first line, who last saved to it and when on the second, one
-tone quieter — when said relatively ("2 minutes ago"), as the list beside it
-says it, with the exact date on its tooltip — and the branch's actions at the trailing end — Switch as the one
+header, the way History's version strip is level with its tabs. It is one
+line, and the name has it: the row's active glyph before the name when the
+project is on this branch (the word stays for a screen reader), then, at the
+trailing end, who last saved to it as the shared author avatar ("You" for the
+user's own, the name on its tooltip) and when, said relatively ("2 minutes
+ago") as the list beside it says it, with the exact date on its tooltip. A
+second line with `Latest saved` and the author spelled out, and an `Active`
+capsule beside the name, made the name compete with its own facts. Then the
+branch's actions at the trailing end — Switch as the one
 labelled action, a capsule with a hairline and no fill, and Rename and Delete
 as the icon-only circles History's version strip gives Details and More,
 named on their tooltips (Rename's names its F2), Delete's glyph in the danger

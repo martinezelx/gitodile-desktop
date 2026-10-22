@@ -3028,6 +3028,7 @@ export function App(): React.JSX.Element {
                             openWorkbench("changes");
                           }}
                           onOpenChanges={() => openWorkbench("changes")}
+                          selfEmail={gitIdentity.identity.email || null}
                           onOpenHistory={(name, commit) => {
                             setHistoryScopeBranchIntent(name);
                             setHistorySelectCommitIntent(commit ?? null);

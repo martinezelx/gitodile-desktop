@@ -3,7 +3,9 @@ import { Check, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
+import { StateGlyph } from "../../shared/ui";
 import type { BranchesSnapshot } from "./domain";
+import { ActiveIcon } from "./branchGlyphs";
 import { checkBranchName } from "./branchNames";
 import type { BranchesPort } from "./port";
 import { branchesPort } from "./tauriAdapter";
@@ -165,9 +167,11 @@ export function BranchRenameStrip({
     >
       <div className="branches-detail__identity">
         <h2>
-          {/* The field sizes itself to the name, so the chip after it stays
-              beside the name rather than at the strip's far end: a hidden copy
-              of the text sets the width, the field lies over it. */}
+          {/* The active glyph keeps its place before the name, as at rest, so
+              the name does not move when the field takes it. */}
+          {isActive && <StateGlyph tone="accent" icon={<ActiveIcon />} tooltip={t.branchesGlyphActive} />}
+          {/* The field sizes itself to the name: a hidden copy of the text
+              sets the width, the field lies over it. */}
           <span className="branches-rename__name">
             <span className="branches-rename__sizer" aria-hidden="true">
               {name || " "}
@@ -197,9 +201,6 @@ export function BranchRenameStrip({
               }}
             />
           </span>
-          {isActive && (
-            <span className="branch-chip branch-chip--active">{t.branchesActiveLabel}</span>
-          )}
         </h2>
         {/* One branch, whichever of three things is true: why Git would refuse
             the name, why it did, or what renaming does and does not touch.

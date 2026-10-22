@@ -154,6 +154,7 @@ export interface BranchesTranslations {
   branchesFilterSortGroup: string;
   branchesStateTracking: string;
   branchesLatestSavedLabel: string;
+  branchesAuthorYouNamed: (name: string) => string;
   branchesVersionsTitle: string;
   /** The Branches detail's drawing of where the branch left the main branch, and
    * the sentence under it that carries its numbers. */
@@ -458,6 +459,7 @@ const en: BranchesTranslations = {
   branchesFilterSortGroup: "Sort by",
   branchesStateTracking: "Tracking a remote",
   branchesLatestSavedLabel: "Latest saved",
+  branchesAuthorYouNamed: (name) => `You (${name})`,
   branchesVersionsTitle: "Saved versions",
   branchesRouteTitle: "Route",
   branchesActionsTitle: "What you can do",
@@ -771,6 +773,7 @@ const es: BranchesTranslations = {
   branchesFilterSortGroup: "Ordenar por",
   branchesStateTracking: "Sigue un remoto",
   branchesLatestSavedLabel: "Última guardada",
+  branchesAuthorYouNamed: (name) => `Tú (${name})`,
   branchesVersionsTitle: "Versiones guardadas",
   branchesRouteTitle: "Recorrido",
   branchesActionsTitle: "Qué puedes hacer",

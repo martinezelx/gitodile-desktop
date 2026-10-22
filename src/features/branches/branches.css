@@ -456,44 +456,6 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
   white-space: nowrap;
 }
 
-/* The row-scale chip: the same box as a History reference chip, so a state on
-   this screen weighs exactly what a state on that one weighs. */
-.branch-chip {
-  min-width: 0;
-  max-width: 100%;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  color: var(--text-secondary-color);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-strong);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.branch-chip--positive {
-  border-color: color-mix(in srgb, var(--status-success) 45%, transparent);
-  background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised));
-  color: var(--status-success);
-}
-/* The branch the project is standing on. It used to be a filled accent capsule
-   in uppercase with its own weight and tracking — three louder settings than
-   any other chip, on the row that is already first in the list and already
-   marked by the detail beside it. It is a chip like the rest now, tinted the
-   way `--positive` and `--warning` are, and it stops shouting over the name it
-   sits next to. */
-.branch-chip--active {
-  flex: 0 0 auto;
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-raised));
-  color: var(--accent-primary);
-}
-
 /* What is left of this screen's filters after the surface moved to `shared/ui`
    (task 121): the trigger, the panel, the groups, the capsules, the switches
    and the footer are `.filter-control` and `.filter-panel` there, the same
@@ -572,8 +534,21 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
   letter-spacing: var(--tracking-tight);
 }
 .branches-detail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Who last saved to the branch and when — one line whose author's name gives
-   way from its end rather than wrapping under the strip. */
+/* Who last saved to the branch and when, at the strip's trailing end: the
+   avatar and the relative time, never truncated — the name gives way first. */
+.branches-detail__byline {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+.branches-detail__identity h2 .state-glyph { flex: 0 0 auto; }
+/* The rename strip's note: what renaming does, or why it cannot. */
 .branches-detail__meta {
   min-width: 0;
   display: flex;
@@ -586,16 +561,6 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
   line-height: var(--leading-snug);
   white-space: nowrap;
 }
-.branches-detail__byline-label { flex: 0 0 auto; }
-.branches-detail__meta strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary-color);
-  font-weight: var(--weight-medium);
-  text-overflow: ellipsis;
-}
-.branches-detail__meta > span:last-child { flex: 0 0 auto; }
-.branches-detail__meta > strong + span::before { content: "·"; margin-inline-end: 6px; }
 /* The strip while its branch is renamed. The name itself takes the typing: the
    field wears the name's own type, size and place, and says it is editable with
    one straight accent line under the text that fades in. No fill and no
@@ -645,7 +610,7 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
 .branches-rename__note.field-error svg { width: 13px; height: 13px; }
 .branches-detail__strip--editing .branches-rename__note-slot,
 .branches-detail__strip--editing .branches-rename__actions,
-.branches-detail__strip--settling .branches-detail__meta,
+.branches-detail__strip--settling .branches-detail__byline,
 .branches-detail__strip--settling .branches-detail__actions {
   animation: branches-rename-swap-in var(--duration-normal) ease-out;
 }
@@ -1133,7 +1098,7 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
   input.branches-rename__field,
   .branches-rename__note-slot,
   .branches-rename__actions,
-  .branches-detail__strip--settling .branches-detail__meta,
+  .branches-detail__strip--settling .branches-detail__byline,
   .branches-detail__strip--settling .branches-detail__actions,
   .branches-detail__name,
   .branch-row__name { animation: none; }
@@ -1141,7 +1106,6 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
 
 @media (forced-colors: active) {
   .branch-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
-  .branch-chip { border: 1px solid CanvasText; }
   /* The nodes keep their shapes in the forced palette, as History's do. */
   .branches-recent__node { border-color: ButtonText; }
   .branches-recent__row--local-only .branches-recent__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }

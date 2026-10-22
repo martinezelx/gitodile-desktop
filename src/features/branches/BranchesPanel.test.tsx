@@ -126,6 +126,7 @@ function routeVersion(subject: string, commit: string): BranchVersion {
     shortCommit: commit.slice(0, 7),
     subject,
     authorName: "Ada Lovelace",
+    authorEmail: "ada@example.com",
     committedAt: "2026-07-03T00:00:00Z",
   };
 }
@@ -149,12 +150,13 @@ function history(name: string, overrides: Partial<BranchHistory> = {}): BranchHi
     unpublished: null,
     route: null,
     versions: [
-      { ...tip, authorName: "Ada Lovelace" },
+      { ...tip, authorName: "Ada Lovelace", authorEmail: "ada@example.com" },
       {
         commit: "ccc333",
         shortCommit: "ccc333a",
         subject: "an earlier step",
         authorName: "Ada Lovelace",
+        authorEmail: "ada@example.com",
         committedAt: "2026-07-01T00:00:00Z",
       },
     ],
@@ -1077,6 +1079,15 @@ describe("BranchesPanel", () => {
     expect(onOpenHistory).toHaveBeenCalledWith("feature/new-thing");
   });
 
+  it("draws the user's own tip as \"You\" on the strip's avatar", async () => {
+    renderPanel({ readHistory: async (name: string) => history(name), selfEmail: " ADA@example.com " });
+    const detail = detailPanel("main");
+    await within(detail).findByText("Saved versions");
+    const avatar = detail.querySelector(".branches-detail__strip .author-avatar");
+    expect(avatar).toHaveClass("author-avatar--self");
+    expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
+  });
+
   it("reads the selected branch's saved versions and shows them beside its author and count", async () => {
     const user = userEvent.setup();
     const readHistory = vi.fn(async (name: string) => history(name));
@@ -1092,8 +1103,14 @@ describe("BranchesPanel", () => {
     expect(within(detail).getByText("first version")).toBeInTheDocument();
     expect(within(detail).getByText("an earlier step")).toBeInTheDocument();
     // The tip's author comes from the same read — the inventory has no author
-    // field, so without this call the byline states the date and no name.
-    expect(within(detail).getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
+    // field, so without this call the strip states the date and no avatar.
+    // One line: the avatar carries the name on its tooltip, and the strip
+    // wears no `Active` capsule and no `Latest saved` label.
+    const strip = detail.querySelector(".branches-detail__strip");
+    expect(strip?.querySelector(".author-avatar")).toHaveAttribute("data-tooltip", "Ada Lovelace");
+    expect(strip?.querySelector(".author-avatar")).toHaveTextContent("AL");
+    expect(within(strip as HTMLElement).getByText("Latest saved: Ada Lovelace")).toHaveClass("visually-hidden");
+    expect(strip?.querySelector(".state-glyph--accent")).not.toBeNull();
 
     // Selecting another branch asks for that branch's history, keyed by its tip.
     await user.click(screen.getByRole("treeitem", { name: "feature/new-thing" }));
@@ -1242,7 +1259,7 @@ describe("BranchesPanel", () => {
     await user.click(publish[0]);
     expect(onPublish).toHaveBeenCalledTimes(1);
     // When, as the list says it; the exact date is on the tooltip.
-    expect(detail.querySelector(".branches-detail__meta span[title]")?.textContent).toMatch(/ago|yesterday|last|tomorrow/);
+    expect(detail.querySelector(".branches-detail__byline span[title]")?.textContent).toMatch(/ago|yesterday|last|tomorrow/);
 
     // Another branch is published from that branch, not from here.
     await user.click(screen.getByRole("treeitem", { name: "main" }));
@@ -1588,6 +1605,7 @@ describe("BranchesPanel", () => {
             shortCommit: "zzz999a",
             subject: "saved a moment ago",
             authorName: "Grace Hopper",
+            authorEmail: "grace@example.com",
             committedAt: "2026-07-03T00:00:00Z",
           },
           ...history(name).versions,

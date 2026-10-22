@@ -36,6 +36,8 @@ export type BranchesScreenProps = {
    * the common case. Named, so a status still about the previous branch cannot
    * mark the one just switched to. */
   upstreamGoneBranch?: string | null;
+  /** The user's own Git email: their versions say "You", the name on hover. */
+  selfEmail?: string | null;
 };
 
 export function BranchesScreen({

@@ -88,6 +88,9 @@ export type BranchVersion = {
   shortCommit: string;
   subject: string;
   authorName: string;
+  /** Lets the strip say "You" for the user's own versions, and keys an
+   * author's colour on the address rather than the name. */
+  authorEmail: string;
   /** ISO 8601, same as `BranchTip.committedAt`. */
   committedAt: string;
 };

@@ -1142,7 +1142,7 @@ pub(crate) const BRANCH_HISTORY_LIMIT: usize = 8;
 /// `%s` is the subject — the first line of the message by definition — so a
 /// record can be newline-delimited with NUL between its fields, the same
 /// shape `parse_branch_refs` reads.
-const BRANCH_HISTORY_FORMAT: &str = "%H%x00%h%x00%s%x00%an%x00%cI";
+const BRANCH_HISTORY_FORMAT: &str = "%H%x00%h%x00%s%x00%an%x00%ae%x00%cI";
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -1151,6 +1151,9 @@ pub(crate) struct BranchVersion {
     pub(crate) short_commit: String,
     pub(crate) subject: String,
     pub(crate) author_name: String,
+    /// Who saved it, so the strip can tell the user's own versions apart and
+    /// key an author's colour on the address rather than the name.
+    pub(crate) author_email: String,
     /// ISO 8601 (`%cI`), matching `BranchTip::committed_at`.
     pub(crate) committed_at: String,
 }
@@ -1908,7 +1911,8 @@ pub(crate) fn parse_branch_history(bytes: &[u8], limit: usize) -> (Vec<BranchVer
             short_commit: text(1),
             subject: text(2),
             author_name: text(3),
-            committed_at: text(4),
+            author_email: text(4),
+            committed_at: text(5),
         });
     }
     (versions, has_more)
@@ -2489,7 +2493,7 @@ mod tests {
 
     #[test]
     fn parse_branch_history_reads_records_and_reports_the_overflow() {
-        let text = b"aaa111\0aaa1\0First subject\0Ada Lovelace\x002024-01-01T00:00:00+00:00\nbbb222\0bbb2\0Second\0Ada Lovelace\x002024-01-02T00:00:00+00:00\n";
+        let text = b"aaa111\0aaa1\0First subject\0Ada Lovelace\0ada@example.com\x002024-01-01T00:00:00+00:00\nbbb222\0bbb2\0Second\0Ada Lovelace\0ada@example.com\x002024-01-02T00:00:00+00:00\n";
         let (versions, has_more) = parse_branch_history(text, 4);
         assert_eq!(versions.len(), 2);
         assert!(!has_more);
@@ -2497,6 +2501,7 @@ mod tests {
         assert_eq!(versions[0].short_commit, "aaa1");
         assert_eq!(versions[0].subject, "First subject");
         assert_eq!(versions[0].author_name, "Ada Lovelace");
+        assert_eq!(versions[0].author_email, "ada@example.com");
         assert_eq!(versions[0].committed_at, "2024-01-01T00:00:00+00:00");
 
         // The walk asks for one more than it reports, and that extra record is
@@ -2511,7 +2516,7 @@ mod tests {
         // Nothing here addresses anything — the commit id beside it is hex —
         // so an unrepresentable author is shown lossily rather than hiding a
         // saved version that genuinely exists.
-        let text = b"aaa111\0aaa1\0Subject\0Ada \xff Lovelace\x002024-01-01T00:00:00+00:00\n";
+        let text = b"aaa111\0aaa1\0Subject\0Ada \xff Lovelace\0ada@example.com\x002024-01-01T00:00:00+00:00\n";
         let (versions, _) = parse_branch_history(text, 4);
         assert_eq!(versions.len(), 1);
         assert_eq!(versions[0].commit, "aaa111");

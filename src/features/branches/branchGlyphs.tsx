@@ -71,7 +71,7 @@ export type RowGlyph = {
 
 /** Where the project is: the ring with its centre filled, so it stands apart
  * from every other glyph in a theme whose accent is the text's own ink. */
-function ActiveIcon(): React.JSX.Element {
+export function ActiveIcon(): React.JSX.Element {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />

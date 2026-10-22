@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, formatNumber, formatRelativeTime, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, TimelineChip, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
+import { AuthorAvatar, AutomaticUpdatesNotice, contextMenuAnchorFrom, FilterCapsule, FilterCapsules, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, StateGlyph, StateGlyphs, TextPlaceholder, TimelineChip, autoHideScrollbarProps, type StateGlyphTone } from "../../shared/ui";
 import type { Branch, BranchHistory, BranchesSnapshot } from "./domain";
 import { deletabilityOf, deleteActionLabel, branchActions } from "./branchActions";
 import {
@@ -34,7 +34,7 @@ import {
   type BranchTreeItem,
 } from "./branchGroups";
 import { useStoredBranchFolds } from "./branchFolds";
-import { rowGlyphs, syncStatusOf, syncText } from "./branchGlyphs";
+import { ActiveIcon, rowGlyphs, syncStatusOf, syncText } from "./branchGlyphs";
 import { BranchContextMenu, type BranchContextMenuState } from "./BranchContextMenu";
 import { BranchQuickCreateBox } from "./BranchQuickCreateBox";
 import { BranchRenameStrip } from "./BranchRenameStrip";
@@ -677,6 +677,7 @@ function BranchDetail({
   history,
   historyLoading,
   previousRoute,
+  selfEmail,
   formats,
   onSwitch,
   onRename,
@@ -702,6 +703,8 @@ function BranchDetail({
   historyLoading: boolean;
   /** The route drawn for the branch selected before this one, if any. */
   previousRoute: DrawnRoute | null;
+  /** The user's own Git email: their versions say "You", the name on hover. */
+  selfEmail: string | null;
   formats: LocaleFormats;
   onSwitch: () => void;
   onRename: () => void;
@@ -738,13 +741,15 @@ function BranchDetail({
    * name beside `Latest saved` would then be whoever saved *that* one. */
   const tipRecord = history?.versions.find((version) => version.commit === branch.tip.commit) ?? null;
   const author = tipRecord?.authorName ?? "";
+  const self = selfEmail?.trim().toLocaleLowerCase();
+  const isSelf = Boolean(self && tipRecord && tipRecord.authorEmail.trim().toLocaleLowerCase() === self);
   /* The tip first, then the versions behind it. The tip comes from the
    * inventory rather than from the history read, so the list stands at one row
    * on a host that does not offer the read at all — and the rest is the read
    * minus that same commit, which is what keeps a version out of the list when
    * the two calls disagree about which one is newest. */
   const versions = [
-    { ...branch.tip, authorName: author },
+    { ...branch.tip, authorName: author, authorEmail: tipRecord?.authorEmail ?? "" },
     ...(history?.versions ?? []).filter((version) => version.commit !== branch.tip.commit),
   ];
   /* Where what is only on this computer ends and what the remote has begins,
@@ -780,14 +785,15 @@ function BranchDetail({
         {t.branchesBackToList}
       </button>
       <div className="branches-detail__card">
-        {/* The branch's strip: its name on the first branch, who last saved to it
-            and when on the second, its actions at the trailing
-            end. A fixed `--strip-height`, the height the list panel's header
-            beside it wears, so the two panels start their content on the same
-            pixel row — the shape History's version strip has. It used to be a
-            block of its own, a 34px branch glyph beside a 22px title over a
-            meta branch: taller than the header next to it, and the glyph was the
-            rail's own icon a second time. */}
+        {/* The branch's strip: one line, its name and nothing that competes
+            with it — who last saved to it and when are an avatar and a
+            relative time at the trailing end, before its actions. A fixed
+            `--strip-height`, the height the list panel's header beside it
+            wears, so the two panels start their content on the same pixel row
+            — the shape History's version strip has. It used to carry a second
+            line, `Latest saved` and the author spelled out, which was the first
+            thing to truncate, and an `Active` capsule beside the name: the
+            row's own glyph says that here too. */}
         {renameEditor ?? (
         <header
           className={`branches-detail__strip${settle ? " branches-detail__strip--settling" : ""}${
@@ -796,27 +802,35 @@ function BranchDetail({
         >
           <div className="branches-detail__identity">
             <h2>
+              {branch.isActive && <StateGlyph tone="accent" icon={<ActiveIcon />} tooltip={t.branchesGlyphActive} />}
               <span className="branches-detail__name" title={branch.name}>
                 {branch.name}
               </span>
-              {branch.isActive && (
-                <span className="branch-chip branch-chip--active">{t.branchesActiveLabel}</span>
-              )}
+              {branch.isActive && <span className="visually-hidden">{t.branchesActiveLabel}</span>}
             </h2>
-            {/* Not where the branch lives: the first state under the strip
-                already names the upstream, or says there is none, in a
-                sentence about it. Stated here as well it was the panel saying
-                one thing twice with a rule between them. */}
-            {(author || date) && (
-              <p className="branches-detail__meta">
-                <span className="branches-detail__byline-label">{t.branchesLatestSavedLabel}</span>
-                {author && <strong>{author}</strong>}
-                {/* Relative, as the list beside it says when; the exact date
-                    is on the tooltip. */}
-                {date && <span title={formatDate(date, formats)}>{formatRelativeTime(date, formats)}</span>}
-              </p>
-            )}
           </div>
+          {/* Not where the branch lives: the first state under the strip
+              already names the upstream, or says there is none, in a
+              sentence about it. */}
+          {(author || date) && (
+            <p className="branches-detail__byline">
+              {author && (
+                <>
+                  <AuthorAvatar
+                    name={author}
+                    email={tipRecord?.authorEmail}
+                    isSelf={isSelf}
+                    tooltip={isSelf ? t.branchesAuthorYouNamed(author) : author}
+                    size="strip"
+                  />
+                  <span className="visually-hidden">{`${t.branchesLatestSavedLabel}: ${author}`}</span>
+                </>
+              )}
+              {/* Relative, as the list beside it says when; the exact date
+                  is on the tooltip. */}
+              {date && <span title={formatDate(date, formats)}>{formatRelativeTime(date, formats)}</span>}
+            </p>
+          )}
           <BranchActions
             branch={branch}
             copiedInto={
@@ -1054,6 +1068,7 @@ export function BranchesPanel({
   onAutoOpenCreateHandled,
   selectBranchIntent,
   onSelectBranchIntentHandled,
+  selfEmail = null,
 }: {
   projectPath: string;
   sessionEpoch: string;
@@ -1100,6 +1115,8 @@ export function BranchesPanel({
    * version selected. Branches' own list of saved versions is a preview of the
    * one History draws in full. */
   onOpenHistory?: (name: string, commit?: string) => void;
+  /** The user's own Git email: their versions say "You", the name on hover. */
+  selfEmail?: string | null;
   /** Registers the dialog as a path-scoped mutation before it opens. Returns
    * false when another session sharing this Git directory owns a mutation. */
   onOperationStart: () => boolean;
@@ -1907,6 +1924,7 @@ export function BranchesPanel({
             history={history?.name === selected.name ? history : null}
             historyLoading={historyLoading}
             previousRoute={lastRoute}
+            selfEmail={selfEmail}
             formats={formats}
             onSwitch={() => openDialog({ kind: "switch", target: selected.name })}
             onRename={() => startRename(selected.name)}
