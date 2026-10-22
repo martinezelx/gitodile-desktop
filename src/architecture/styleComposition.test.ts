@@ -13,6 +13,7 @@ const EXPECTED_IMPORTS = [
   "./app/app-shell.css",
   "./shared/ui/primitives.css",
   "./features/overview/overview.css",
+  "./features/home/home.css",
   "./features/clone/clone.css",
   "./features/initialize-project/initialize-project.css",
   "./features/status/status.css",
@@ -20,11 +21,15 @@ const EXPECTED_IMPORTS = [
   "./features/save-version/save-version.css",
   "./features/publish/publish.css",
   "./features/sync/sync.css",
-  "./features/version-lines/version-lines.css",
+  "./features/branches/branches.css",
   "./features/console/console.css",
   "./features/history/history.css",
   "./features/workbench/workbench.css",
   "./features/settings/settings.css",
+  "./features/accounts/hosting-connections.css",
+  "./features/github/github.css",
+  "./features/repository-browser/repository-browser.css",
+  "./features/accounts/accounts.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",
   "./features/app-updates/app-updates.css",
@@ -58,7 +63,7 @@ describe("production style composition", () => {
   });
 
   it("keeps closed visual contracts with their feature owners", () => {
-    expect(readSource("features/overview/overview.css")).toContain(".journey");
+    expect(readSource("features/overview/overview.css")).toContain(".next-step");
     expect(readSource("features/clone/clone.css")).toContain(".clone-dialog");
     expect(readSource("features/initialize-project/initialize-project.css")).toContain(".initialize-dialog");
     expect(readSource("features/status/status.css")).toContain(".status-breakdown");
@@ -71,22 +76,25 @@ describe("production style composition", () => {
     expect(changes).toContain("background: var(--surface-code)");
     expect(changes).toContain("@media (max-width: 1024px)");
 
-    const versionLines = readSource("features/version-lines/version-lines.css");
-    // Lines pairs the same two panels Changes and History do, off the same two
+    const branches = readSource("features/branches/branches.css");
+    // Branches pairs the same two panels Changes and History do, off the same two
     // tokens and at the same width the other two narrow on.
-    expect(versionLines).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
-    expect(versionLines).toContain("height: var(--strip-height)");
-    expect(versionLines).toContain("@media (max-width: 1024px)");
+    expect(branches).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
+    expect(branches).toContain("height: var(--strip-height)");
+    expect(branches).toContain("@media (max-width: 1024px)");
 
     const settings = readSource("features/settings/settings.css");
-    expect(settings).toContain(".git-install__status");
     expect(settings).toContain("@media (max-width: 800px)");
     // The panel chrome is shared by both settings panels (task 098), so it
     // belongs to the primitives sheet; only one of them may define it.
     expect(settings).not.toContain(".settings-layout {");
+    // The tool row is shared by Settings (Git, GitHub) and the app update row,
+    // so it lives in the primitives sheet, not in either feature.
+    expect(settings).not.toContain(".tool-row");
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
-    // No screen opens on a page row any more: Changes, History and Lines head
+    expect(primitiveChrome).toContain(".tool-row__chip");
+    // No screen opens on a page row any more: Changes, History and Branches head
     // their list panels instead, so the shared row is gone and must not come
     // back as a private copy either.
     expect(primitiveChrome).not.toContain(".screen-header {");
@@ -125,19 +133,19 @@ describe("production style composition", () => {
     expect(changes).not.toContain(".changes-filter__trigger");
     expect(changes).not.toContain(".changes-filter__capsule");
     expect(changes).not.toContain(".changes-filter-chip");
-    // Lines asks the same question of a third list, and had kept a private
+    // Branches asks the same question of a third list, and had kept a private
     // copy of the whole surface — down to a `Sort by` legend that had never
     // picked up the shared sheet's fix for a legend not being a grid item.
-    expect(versionLines).not.toContain(".version-lines-filter__panel");
-    expect(versionLines).not.toContain(".version-lines-filter__trigger");
-    expect(versionLines).not.toContain(".version-lines-filter__range");
-    expect(versionLines).not.toContain(".version-lines-filter__switch");
+    expect(branches).not.toContain(".branches-filter__panel");
+    expect(branches).not.toContain(".branches-filter__trigger");
+    expect(branches).not.toContain(".branches-filter__range");
+    expect(branches).not.toContain(".branches-filter__switch");
     // What each feature is still allowed to own: the parts of its own panel
-    // that only it has. History's version-line picker, and the one group in
+    // that only it has. History's branch picker, and the one group in
     // Changes that grows with the repository and therefore scrolls.
     expect(history).toContain(".history-scope-picker {");
     expect(changes).toContain(".changes-filter__types {");
-    expect(versionLines).toContain(".version-lines-filter__prefixes {");
+    expect(branches).toContain(".branches-filter__prefixes {");
 
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
@@ -154,7 +162,7 @@ describe("production style composition", () => {
     const primitives = readSource("shared/ui/primitives.css");
     const changes = readSource("features/changes/changes.css");
     const history = readSource("features/history/history.css");
-    const versionLines = readSource("features/version-lines/version-lines.css");
+    const branches = readSource("features/branches/branches.css");
 
     expect(primitives).toContain(".app-menu {");
     // A feature override still has to be able to win on equal specificity —
@@ -162,7 +170,7 @@ describe("production style composition", () => {
     // strip and its items name the list under it: it opens rightward, across
     // the diff, so the files it names stay in view.
     expect(changes).toContain(".changes-actions-menu__popup { right: auto; left: 0;");
-    expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
+    expect(branches).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
 
     // The shared view picker is not one, in either of its two hosts. Both put
     // it at the right edge of a panel that clips its own overflow, so both
@@ -201,13 +209,13 @@ describe("production style composition", () => {
     expect(primitives).toContain(".gitodile-mascot__fill { fill: var(--mascot-fill); }");
   });
 
-  // ADR 0012: two layers. The brand identity is declared once in tokens.css
-  // and every theme block fills only the swap-able layer. A theme that set
-  // --accent-brand would recolour the crocodile and the primary action, and a
-  // theme without color-scheme would leave native scrollbars on the old scheme.
+  // ADR 0012: two layers. The identity colours are declared once in
+  // tokens.css and every theme block fills only the swap-able layer. A theme
+  // that set an avatar colour would recolour every project chip, and a theme
+  // without color-scheme would leave native scrollbars on the old scheme.
   it("keeps the brand layer out of every theme block", () => {
     const themes = readSource("styles/themes.css");
-    const brandTokens = ["--accent-brand:", "--accent-brand-contrast:", "--mascot-brand-fill:", "--mascot-brand-crest:", "--avatar-", "--tooltip-"];
+    const brandTokens = ["--avatar-", "--tooltip-"];
     const blocks = [...themes.matchAll(/\[data-theme="[^"]+"\]\s*\{([^}]*)\}/g)];
     expect(blocks.length).toBe(THEME_IDS.length);
     for (const [, body] of blocks) {
@@ -221,20 +229,19 @@ describe("production style composition", () => {
       expect(themes).toContain(`[data-theme="${id}"]`);
     }
 
-    // ADR 0013: the brand lime is identity only. Nothing in the cascade paints
-    // with it except the brand mark itself; the actionable accent is
-    // --accent-primary. A new in-app use of --accent-brand elsewhere is the
-    // regression this guards.
-    const paintedWithBrand: string[] = [];
+    // ADR 0033: the brand lime is no longer a token. The interface draws the
+    // mark in the ink and the actionable accent is --accent-primary; the lime
+    // lives only in the app icon's sources. Bringing --accent-brand back into
+    // the cascade, declared or painted with, is the regression this guards.
+    const brandLime: string[] = [];
     for (const importPath of EXPECTED_IMPORTS) {
       const relativePath = importPath.replace("./", "");
-      if (relativePath === "styles/tokens.css") continue;
       for (const rule of readRules(relativePath)) {
-        if (!rule.body.includes("var(--accent-brand")) continue;
-        paintedWithBrand.push(`${relativePath}: ${rule.selector}`);
+        if (!rule.body.includes("--accent-brand")) continue;
+        brandLime.push(`${relativePath}: ${rule.selector}`);
       }
     }
-    expect(paintedWithBrand).toEqual([]);
+    expect(brandLime).toEqual([]);
   });
 
   // The base default and the OS-dark override duplicate the official pair: the
@@ -258,6 +265,41 @@ describe("production style composition", () => {
     }
     for (const [name, value] of Object.entries(officialDark)) {
       expect(rootDark[name], `${name} OS-dark differs from gitodile-dark`).toBe(value);
+    }
+  });
+
+  // DESIGN.md § Visual character, Friendly Sheet (ADR 0032): inside the sheet
+  // only what floats casts a shadow. The screens' panes and bands are regions
+  // of the sheet, and an in-screen notice is a card inside a region; either
+  // one wearing a shadow, or the raised surface of what floats, is the old
+  // card recipe coming back one surface at a time.
+  it("keeps the sheet's regions flat and its notices on the inner-card fill", () => {
+    const regions: [string, string][] = [
+      ["features/changes/changes.css", ".changes-file-list"],
+      ["features/changes/changes.css", ".changes-diff"],
+      ["features/history/history.css", ".history-detail__card"],
+      ["features/branches/branches.css", ".branches-list-panel"],
+      ["features/overview/overview.css", ".next-step"],
+      ["features/overview/overview.css", ".overview-history"],
+      ["features/overview/overview.css", ".overview-detail"],
+    ];
+    for (const [file, selector] of regions) {
+      const body = ruleBody(file, selector);
+      expect(body, `${selector} casts a shadow`).not.toMatch(/box-shadow/);
+      expect(body, `${selector} wears a surface of its own`).not.toMatch(/background:\s*var\(--surface-(raised|panel)\)/);
+    }
+    const notices: [string, string][] = [
+      ["features/changes/changes.css", ".changes-status-notice"],
+      ["features/changes/changes.css", ".changes-notice"],
+      ["features/history/history.css", ".history-banner"],
+      ["features/branches/branches.css", ".branches-banner"],
+      ["shared/ui/primitives.css", ".automatic-updates-notice"],
+      ["shared/ui/primitives.css", ".restore-skipped-notice"],
+    ];
+    for (const [file, selector] of notices) {
+      const body = ruleBody(file, selector);
+      expect(body, `${selector} is not on the inner-card fill`).toMatch(/background:\s*var\(--surface-card\)/);
+      expect(body, `${selector} casts a shadow`).not.toMatch(/box-shadow/);
     }
   });
 
@@ -456,14 +498,14 @@ describe("production style composition", () => {
   // 14.5, 16, 18, 20 and 21 among them, each reasonable where it was written
   // and none of them agreeing with the next sheet over.
   it("keeps font size on the scale", () => {
-    // DESIGN.md § Typography names all three: a numeral inside a 14px status
-    // dot, the label inside a miniature drawing of the navigation rail, and the
-    // console's ASCII mascot, whose characters are shading. None is text anyone
-    // reads, and none fits the floor.
+    // DESIGN.md § Typography names both: the label inside a miniature drawing
+    // of the navigation rail, and the console's ASCII mascot, whose characters
+    // are shading. Neither is text anyone reads, and neither fits the floor.
     const documentedExceptions = new Set([
-      ".sidebar-project__badge-count",
       ".navigation-display__preview small",
       ".console-art",
+      ".console-watermark .console-art",
+      ".console-welcome .console-art",
     ]);
     const offenders: string[] = [];
 
@@ -650,15 +692,12 @@ describe("production style composition", () => {
     const expectedDeclarations = [
       ["app/app-shell.css", ".titlebar-menu__list", "padding: var(--space-2)"],
       ["app/app-shell.css", ".palette-list", "padding: var(--space-2)"],
-      ["app/app-shell.css", ".project-switcher-compact__popover", "padding: var(--space-2)"],
-      ["app/app-shell.css", ".sidebar-project__badge", "border-radius: var(--radius-pill)"],
+      ["app/app-shell.css", ".app-menu.project-quick-switch", "padding: var(--space-2)"],
       // A project's chip is the same rounded square wherever it is drawn —
       // one left round is the drift that made "the same project" look like two.
-      ["app/app-shell.css", ".sidebar-jump__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".sidebar-project__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".project-switcher__avatar", "border-radius: var(--radius-identity)"],
-      ["app/app-shell.css", ".project-switcher-compact__avatar", "border-radius: var(--radius-identity)"],
-      ["features/overview/overview.css", ".welcome-recents__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".status-bar__avatar", "border-radius: var(--radius-identity)"],
+      ["app/app-shell.css", ".project-quick-switch__avatar", "border-radius: var(--radius-identity)"],
+      ["features/home/home.css", ".home-launcher__avatar", "border-radius: var(--radius-identity)"],
       ["features/settings/settings.css", ".project-icons-card__avatar", "border-radius: var(--radius-identity)"],
       ["features/project-settings/project-settings.css", ".project-icon-preview__avatar", "border-radius: var(--radius-identity)"],
       // A dialog's header glyph and a progress step's dot are atomic marks
@@ -666,18 +705,16 @@ describe("production style composition", () => {
       ["shared/ui/primitives.css", ".app-dialog__glyph", "border-radius: var(--radius-round)"],
       ["shared/ui/primitives.css", ".app-dialog__step-dot", "border-radius: var(--radius-round)"],
       ["features/overview/overview.css", ".overview-history__node", "border-radius: var(--radius-round)"],
-      ["features/overview/overview.css", ".journey-step__icon", "border-radius: var(--radius-round)"],
+      ["features/overview/overview.css", ".next-step__glyph", "border-radius: var(--radius-round)"],
       ["features/settings/settings.css", ".identity-block__confirm", "border-radius: var(--radius-surface)"],
       // Every project chip carries the neutral brand ring. The fixed palette
       // cannot clear 3:1 on the lighter community dark panels (Nord, Catppuccin
       // Frappé) with white text still at 4.5:1, so the ring is what keeps the
       // chip edged against any surface — dropping it from one avatar is the
       // regression this keeps from returning. See tokens.css and ADR 0012.
-      ["app/app-shell.css", ".sidebar-jump__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".sidebar-project__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".project-switcher__avatar", "box-shadow: var(--avatar-ring)"],
-      ["app/app-shell.css", ".project-switcher-compact__avatar", "box-shadow: var(--avatar-ring)"],
-      ["features/overview/overview.css", ".welcome-recents__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".status-bar__avatar", "box-shadow: var(--avatar-ring)"],
+      ["app/app-shell.css", ".project-quick-switch__avatar", "box-shadow: var(--avatar-ring)"],
+      ["features/home/home.css", ".home-launcher__avatar", "box-shadow: var(--avatar-ring)"],
       // The shared filter trigger, which Changes and History both wear in the
       // trailing slot of their search box: an affordance attached to the box
       // rather than a control of its own, so it stays rectangular.
@@ -735,15 +772,17 @@ describe("production style composition", () => {
 
     // DESIGN.md § Pointer cursors reserves the hand for real links and text
     // actions deliberately styled as links, and for nothing else — every
-    // ordinary button keeps the platform arrow cursor. Five controls qualify,
-    // all text actions styled as links: the update link and the licence/source
-    // pair in About, Save version's detail toggle, a dialog's inline way out
-    // ("Add in Settings", "Save without hooks just this once") and a toast's
-    // action. Anything else appearing here is the drift this guard exists to
-    // catch.
+    // ordinary button keeps the platform arrow cursor. Seven controls qualify:
+    // the update link and the licence/source pair in About, About's copy
+    // control, About's stack credits (they leave the app for another site),
+    // Save version's detail toggle, a dialog's inline way out ("Add in
+    // Settings", "Save without hooks just this once") and a toast's action.
+    // Anything else appearing here is the drift this guard exists to catch.
     expect(pointerRules).toEqual([
       "app/app-shell.css: .about-dialog__update-link",
+      "app/app-shell.css: .about-technical__copy",
       "app/app-shell.css: .about-dialog__legal button",
+      "app/app-shell.css: .about-stack__item",
       "shared/ui/primitives.css: .app-dialog__link",
       "shared/ui/primitives.css: .app-toast__action",
       "features/save-version/save-version.css: .save-version-detail__toggle",

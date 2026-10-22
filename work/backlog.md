@@ -11,15 +11,15 @@ scoped task before coding it.
 
 - Select individual hunks or lines for save/discard while preserving the real
   index and providing recovery for discarded content.
-- Compare two saved versions or two version lines.
-- Restore one file from a saved version without moving the active version line.
-- Create a version line from an earlier saved version.
+- Compare two saved versions or two branches.
+- Restore one file from a saved version without moving the active branch.
+- Create a branch from an earlier saved version.
 - Add file history and blame only if they can be presented without crowding the
   default History experience.
 
-### Version lines and parallel work
+### Branches and parallel work
 
-- Rename a local version line with remote/upstream consequences explained.
+- Rename a local branch with remote/upstream consequences explained.
 - Add linked-worktree creation, switching, renaming, and deletion as a deliberate
   parallel-work model; do not conflate worktrees with ordinary branches.
 - Evaluate tags/releases against a validated release-management user outcome.
@@ -28,7 +28,7 @@ scoped task before coding it.
 
 - Amend the latest saved version.
 - Cherry-pick one or more saved versions.
-- Rebase a version line, including continue/skip/abort and conflict variants.
+- Rebase a branch, including continue/skip/abort and conflict variants.
 - Squash or reorder unpublished saved versions.
 - Design an exceptional force-publish workflow with remote protection checks,
   explicit teammate impact, lease semantics, and durable recovery evidence.
@@ -75,7 +75,7 @@ not implied by the `1.0.0` merge and restore workflows.
 
 - Finish the control-size scale on the four controls task
   [106](done/106-control-size-scale.md) left off. `.pending-versions__publish-button`
-  (34px), `.overview-history__all` (36px) and `.version-lines-filter__clear`
+  (34px), `.overview-history__all` (36px) and `.branches-filter__clear`
   (36px) still carry heights of their own, and `.segmented-control__option`
   derives ~34.6px from padding rather than declaring a tier — its only height is
   the `pointer: coarse` one, so a mouse user gets whatever the padding adds up
@@ -86,6 +86,11 @@ not implied by the `1.0.0` merge and restore workflows.
 - Promote `.changes-danger-button` to a shared danger variant of the button
   primitive. It reads the size tokens correctly today, but as a bespoke class the
   guard cannot hold it there — a markup change task 106 did not need.
+- Give the status bar's project mark a "set up" state (an empty ring in the
+  warning tone) when the active project cannot save because it has no
+  effective Git name or email. Task 189 designed it and left it out: the strip
+  only reads the global identity, and a project can set its own, so it needs
+  the project's effective identity, read on activation like the rest.
 
 ## Product and quality research
 
@@ -99,11 +104,17 @@ not implied by the `1.0.0` merge and restore workflows.
   - thousands of changes through status, IPC, virtualization, diffs, selection,
     save planning, watcher invalidation, and cancellation;
   - `reaching_refs_by_commit` memory/CPU with many branches and commits;
-  - temporary-index cost when planning a new version line in a large worktree.
+  - temporary-index cost when planning a new branch in a large worktree.
 - Measure automatic remote checks across slow/offline remotes and long-running
   multi-project sessions. Visibility alone must never trigger network work.
 - Extend accessibility audits to additional assistive technologies and desktop
   environments after the release matrix is established.
+
+- Open the system terminal at the project folder from the console (proposed
+  with task 149, 2026-10-06): an escape hatch for everything the console
+  deliberately refuses. Needs a per-platform launcher decision (Windows
+  Terminal or PowerShell, macOS Terminal, the Linux desktop's terminal) and
+  must never pass a shell string built from the path.
 
 ## Later hypotheses
 

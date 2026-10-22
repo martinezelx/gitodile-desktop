@@ -55,7 +55,7 @@ their styles and language strings without editing global monoliths.
       language or shift after a lazy dictionary arrives.
 - [x] Light/dark, reduced motion, narrow/large layouts and dense diff surfaces
       are visually equivalent.
-- [x] Overview, Changes and Version lines match the task-036 closure baseline,
+- [x] Overview, Changes and Branches match the task-036 closure baseline,
       including both diff modes and every popup state.
 - [x] CSS and JavaScript chunks satisfy task 023 budgets.
 
@@ -82,7 +82,7 @@ Tasks 026, 027, 028 and 029.
 
 - `src/styles.css` is now the single eager cascade manifest. Its tested order
   is tokens, base, app shell, shared primitives, then Overview, Status,
-  Changes, Save version, Publish and Version lines. Responsive, focus,
+  Changes, Save version, Publish and Branches. Responsive, focus,
   reduced-motion, forced-color and dense-data rules moved with their owners;
   no lazy screen imports CSS after its first frame.
 - The extraction retained all 796 original CSS rules exactly once. A focused
@@ -100,12 +100,12 @@ Tasks 026, 027, 028 and 029.
   English/Spanish copy, synchronous first frames and the exact CSS import
   order plus the closed diff/popup/theme/focus contracts. Existing component
   suites continue to cover both diff modes, popup states, keyboard/focus and
-  English/Spanish rendering for Overview, Changes and Version lines.
+  English/Spanish rendering for Overview, Changes and Branches.
 - The deterministic cascade and dictionary workflow are documented in
   `docs/ARCHITECTURE.md` and the frontend feature guide. No domain or request
   logic moved, no copy changed and no locale or dependency was added.
 - Final production sizes: CSS 94.44 kB raw / 14.45 kB gzip; entry JavaScript
-  375.09/107.86 kB raw/gzip; Changes 59.47 kB; Version-lines screen plus dialog
+  375.09/107.86 kB raw/gzip; Changes 59.47 kB; Branches screen plus dialog
   31.23 kB; `fileIcons` 255.22 kB and still outside the static entry graph.
   Every task-023 warning and failure budget remains satisfied.
 - Bounded visual QA used the local WebView surface at 1280x720 and 800x720 in

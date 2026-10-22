@@ -1,10 +1,13 @@
+import { gitlabToolingPort, useGitLabToolingCopy, type GitLabAuthController } from "../features/gitlab";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dispatch, SetStateAction } from "react";
-import { ArrowUpRight, Check, CircleAlert, Copy, Keyboard } from "lucide-react";
+import { Check, CircleAlert, Copy, FolderX, Keyboard, Settings } from "lucide-react";
 import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
-import { ConsoleAdvancedModeSetting, type ConsoleAdvancedModeState, type ConsolePreferences } from "../features/console";
+import { type GitHubAuthController } from "../features/github";
+import { AccountsSettings } from "../features/hosting-servers";
+import { ConsoleConfirmChangesSetting, type ConsoleConfirmChangesState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
   isGitInstallationBroken,
@@ -29,30 +32,38 @@ import {
   DialogCloseButton,
   Mascot,
   autoHideScrollbarProps,
+  dialogBackdropProps,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
   type TechnologyId,
 } from "../shared/ui";
 import { useModalFocus } from "../shared/ui/modalFocus";
-import { modifierKeyLabels } from "./branding";
-import { CURRENT_APP_RELEASE } from "./appRelease";
+import { PRODUCT_NAME_PARTS, modifierKeyLabels } from "./branding";
+import { APP_CHANGELOG, CURRENT_APP_RELEASE } from "./appRelease";
 import { ChangelogDialog, type AppUpdateStatusLine } from "./ChangelogDialog";
 import { IssueReportDialog } from "./IssueReportDialog";
 import type { IssueReportState } from "./useIssueReport";
-import type { AppUpdatesController, AppUpdatesSnapshot, UpdateState } from "../features/app-updates";
-import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations } from "../features/app-updates";
+import type { AppUpdatesController, AppUpdatesSnapshot, StartupUpdateConfirmation, UpdateState } from "../features/app-updates";
+import { AppUpdateDialog, AppUpdateSettingsControl, appUpdateTranslations, useStartupUpdateReceipt } from "../features/app-updates";
 import { describePlatform, formatDiagnostics, readWebviewVersion, useSystemInfo } from "./systemInfo";
 import { describeStack, describeStackHost } from "./stack";
 import { OperatingSystemMark, StackMark } from "./vendorMarks";
 
 type BooleanSetter = Dispatch<SetStateAction<boolean>>;
 
+const NO_STARTUP_CONFIRMATION: StartupUpdateConfirmation = { kind: "none" };
+
+/** Whether a provider CLI can run, or `null` while it has not been read yet. */
+function toolAvailable(tooling: GitToolingState): boolean | null {
+  return tooling.diagnostics === null ? null : tooling.diagnostics.state === "available";
+}
+
 /** The one line About can honestly say about updates: what the release model
  * knows and a person can act on. Every state names itself, so the line is never
  * blank — a development build with no feed reads "Updates unavailable" rather
  * than going silent — and only the one transient state with nothing useful to
  * say (`installing`) yields null. The design's own message is `upToDateLabel`
- * ("Up to date"), kept short because it rides the version line; the rest reuse
+ * ("Up to date"), kept short because it shares the text row; the rest reuse
  * the update copy so the two surfaces cannot describe one build differently. */
 function aboutUpdateStatus(
   state: UpdateState | undefined,
@@ -103,6 +114,13 @@ export type AppOverlaysProps = {
     section: SettingsSection;
     setSection: (section: SettingsSection) => void;
     gitTooling: GitToolingState;
+    ghTooling: GitToolingState;
+    glabTooling: GitToolingState;
+    gitlabAuth: GitLabAuthController;
+    githubAuth: GitHubAuthController;
+    /** Accounts opens with its provider menu open (Home's "+"), once. */
+    openAccountsMenu?: boolean;
+    onAccountsMenuOpened?: () => void;
     reopenLastProject: boolean;
     setReopenLastProject: BooleanSetter;
     confirmCloseProject: boolean;
@@ -124,7 +142,7 @@ export type AppOverlaysProps = {
     setDiffPreferences: Dispatch<SetStateAction<DiffPreferences>>;
     consolePreferences: ConsolePreferences;
     setConsolePreferences: Dispatch<SetStateAction<ConsolePreferences>>;
-    consoleAdvancedMode?: ConsoleAdvancedModeState;
+    consoleConfirmChanges?: ConsoleConfirmChangesState;
     /** Both read once after first paint and kept above this dialog, which is
      * unmounted on every close. The line-endings state already knows about the
      * open project, so the overlay never has to pass one down. */
@@ -194,6 +212,7 @@ export function AppOverlays({
   error,
 }: AppOverlaysProps): React.JSX.Element {
   const { t, language } = useLanguage();
+  const glabCopy = useGitLabToolingCopy();
   const systemInfo = useSystemInfo();
   const [didCopyDiagnostics, setDidCopyDiagnostics] = useState(false);
   /* The rail badges Updates only while there is something the reader can act
@@ -204,6 +223,18 @@ export function AppOverlays({
       ? appUpdateTranslations(language).available(appUpdateState.candidate.version)
       : null;
   const aboutUpdate = aboutUpdateStatus(appUpdateState, appUpdateTranslations(language), t.aboutUpToDate, t.aboutUpdateUnavailable);
+  /* The first launch after an install reports how it went: a toast leading to
+     What's new when it worked, the update dialog when it did not. Raised here
+     because this is inside the toast provider and owns both destinations. */
+  const setChangelogOpen = changelog.setOpen;
+  const setAppUpdateOpen = appUpdate?.setOpen;
+  const openWhatsNew = useCallback(() => setChangelogOpen(true), [setChangelogOpen]);
+  const openAppUpdate = useCallback(() => setAppUpdateOpen?.(true), [setAppUpdateOpen]);
+  useStartupUpdateReceipt({
+    confirmation: settings.appUpdates?.startupConfirmation ?? NO_STARTUP_CONFIRMATION,
+    onOpenWhatsNew: CURRENT_APP_RELEASE.highlights.length > 0 ? openWhatsNew : undefined,
+    onOpenDialog: openAppUpdate,
+  });
   const settingsRef = useRef<HTMLDivElement>(null);
   const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
@@ -337,7 +368,7 @@ export function AppOverlays({
       caption: t.shortcutsGroupEditing,
       items: [
         { label: t.shortcutsSaveVersion, keys: ["mod", "S"] },
-        { label: t.shortcutsRenameLine, keys: ["F2"] },
+        { label: t.shortcutsRenameBranch, keys: ["F2"] },
       ],
     },
     {
@@ -356,7 +387,7 @@ export function AppOverlays({
     <>
       <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
-        <div className="settings-backdrop" role="presentation" onMouseDown={() => requestSettingsClose(false)}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => requestSettingsClose(false))}>
           <div
             ref={settingsRef}
             className="settings-dialog"
@@ -364,9 +395,9 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="settings-dialog-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
+              <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
               <div className="settings-dialog__heading">
                 <h2 id="settings-dialog-title">{t.navSettings}</h2>
               </div>
@@ -395,6 +426,12 @@ export function AppOverlays({
               setProjectAvatarStyle={settings.setProjectAvatarStyle}
               activeSection={settings.section}
               onSectionChange={settings.setSection}
+              ghTooling={settings.ghTooling}
+              glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
+              accounts={(tooling) => <AccountsSettings tooling={tooling}
+                github={{ controller: settings.githubAuth, cliAvailable: toolAvailable(settings.ghTooling) }}
+                gitlab={{ controller: settings.gitlabAuth, cliAvailable: toolAvailable(settings.glabTooling) }}
+                openMenu={settings.openAccountsMenu} onMenuOpened={settings.onAccountsMenuOpened} />}
               gitDiagnostics={settings.gitTooling.diagnostics}
               gitUpdateStatus={settings.gitTooling.updateStatus}
               onCheckGitUpdate={settings.gitTooling.checkUpdate}
@@ -422,7 +459,7 @@ export function AppOverlays({
               setDiffPreferences={settings.setDiffPreferences}
               consolePreferences={settings.consolePreferences}
               setConsolePreferences={settings.setConsolePreferences}
-              consoleAdvancedMode={settings.consoleAdvancedMode ? <ConsoleAdvancedModeSetting state={settings.consoleAdvancedMode} /> : null}
+              consoleConfirmChanges={settings.consoleConfirmChanges ? <ConsoleConfirmChangesSetting state={settings.consoleConfirmChanges} /> : null}
               identity={settings.identity}
               defaultBranch={settings.defaultBranch}
               lineEndingsState={settings.lineEndings}
@@ -431,9 +468,11 @@ export function AppOverlays({
                   snapshot={settings.appUpdates}
                   controller={settings.appUpdatesController}
                   installed={CURRENT_APP_RELEASE}
+                  name={`${PRODUCT_NAME_PARTS.lead}${PRODUCT_NAME_PARTS.tail}`}
                   enabled={settings.automaticAppUpdates ?? false}
                   setEnabled={settings.setAutomaticAppUpdates}
                   onOpenDialog={appUpdate ? () => appUpdate.setOpen(true) : undefined}
+                  releases={APP_CHANGELOG}
                 />
               ) : null}
               applicationUpdateAttention={updateAttention}
@@ -446,9 +485,9 @@ export function AppOverlays({
 
       {projectSettings.isOpen && projectSettings.project && (
         <div
-          className="settings-backdrop"
+          className="app-dialog-backdrop"
           role="presentation"
-          onMouseDown={() => requestProjectSettingsClose(false)}
+          {...dialogBackdropProps(() => requestProjectSettingsClose(false))}
         >
           <div
             ref={projectSettingsRef}
@@ -457,9 +496,9 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="project-settings-dialog-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
             <header className="settings-dialog__header">
+              <span className="app-dialog__glyph" aria-hidden="true"><Settings /></span>
               <div className="settings-dialog__heading">
                 <h2 id="project-settings-dialog-title">{t.projectSettingsTitle}</h2>
                 {/* The project is named in the header rather than only in the
@@ -494,7 +533,7 @@ export function AppOverlays({
       )}
 
       {about.isOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => about.setOpen(false)}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => about.setOpen(false))}>
           <div
             {...autoHideScrollbarProps<HTMLDivElement>()}
             ref={aboutRef}
@@ -503,23 +542,28 @@ export function AppOverlays({
             aria-modal="true"
             aria-labelledby="about-title"
             tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
           >
+            {/* The build's version, parked in the corner the close control
+                occupies, so the identity block below is only the mark, the name
+                and the promise. */}
+            <p className="about-dialog__version" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
+              {CURRENT_APP_RELEASE.version}
+            </p>
             <DialogCloseButton label={t.commonClose} onClick={() => about.setOpen(false)} />
             {/* The mark at hero scale, then the name, then the promise. The
                 mark is decorative and stays out of the accessibility tree, and
                 the h2 still carries the product name, so the dialog is named by
                 the app it belongs to before it states its promise. */}
             <div className="about-dialog__hero">
-              <span className="about-dialog__mark"><Mascot motion="sweep" /></span>
+              <span className="about-dialog__mark"><Mascot motion="wink" /></span>
               <h2 id="about-title">
-                <span className="about-dialog__product-name">{t.aboutProductName}</span>{" "}
+                <span className="about-dialog__product-name">
+                  {PRODUCT_NAME_PARTS.lead}
+                  <span className="about-dialog__odile">{PRODUCT_NAME_PARTS.tail}</span>
+                </span>{" "}
                 <span className="about-dialog__tagline">{t.aboutHeading}</span>
               </h2>
             </div>
-            <p className="about-dialog__release" aria-label={`GitOdile ${CURRENT_APP_RELEASE.version}`}>
-              <span className="about-dialog__release-version">v{CURRENT_APP_RELEASE.version}</span>
-            </p>
             {/* The one line About can say about updates, and the way to the
                 release notes. The state is named whenever the release model has
                 one, so the slot is never blank and never an alarm About cannot
@@ -543,6 +587,15 @@ export function AppOverlays({
               </button>
             </p>
             <p className="about-dialog__description">{t.aboutDescription}</p>
+            {/* The licence leads the facts: it names what the build is and
+                where its text and source live. It keeps the plain link style
+                and drops its own rule, because one separator now closes it
+                against the diagnostics below. */}
+            <div className="about-dialog__legal about-dialog__legal--bare">
+              <span>{t.aboutLicense}</span>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
+              <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
+            </div>
             <div className="about-dialog__rule" aria-hidden="true" />
             {(systemInfo || webviewVersion || gitVersion) && (
               <section className="about-technical" aria-labelledby="about-technical-title">
@@ -588,14 +641,17 @@ export function AppOverlays({
                 </dl>
               </section>
             )}
+            <div className="about-dialog__rule about-dialog__rule--section" aria-hidden="true" />
             {/* Credits, kept apart from the diagnostics above because they are
                 not diagnostics: every user on this build runs these same
                 versions, so none of them can explain a machine-specific bug.
-                One inline line rather than a row of tiles — a name and a number
-                do not need a surface of their own. */}
+                One row per layer rather than a row of tiles — the mark beside
+                the name and number, which stack so a credit is wide, not tall. */}
             {stack.length > 0 && (
               <section className="about-stack" aria-labelledby="about-stack-title">
-                <h3 id="about-stack-title">{t.aboutBuiltWith}</h3>
+                {/* The credits are recognisable as marks and names, so the
+                    heading only names the section for assistive technology. */}
+                <h3 id="about-stack-title" className="visually-hidden">{t.aboutBuiltWith}</h3>
                 <ul className="about-stack__list">
                   {stack.map((layer) => (
                     <li key={layer.id}>
@@ -610,26 +666,24 @@ export function AppOverlays({
                         onClick={() => void openUrl(layer.url).catch(() => undefined)}
                       >
                         <StackMark layer={layer.id} />
-                        <span className="about-stack__name">{layer.name}</span>
-                        <span className="about-stack__version">{layer.version}</span>
-                        <ArrowUpRight className="about-stack__go" aria-hidden="true" />
+                        <span className="about-stack__text">
+                          <span className="about-stack__name">{layer.name}</span>
+                          <span className="about-stack__version">{layer.version}</span>
+                        </span>
                       </button>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-            <p className="about-dialog__footer">
-              {t.aboutFooterMadeWith}{" "}
-              <span className="about-dialog__heart" role="img" aria-label={t.aboutHeartLabel}>♥</span>{" "}
-              {t.aboutFooterByAuthor}
-            </p>
-            <div className="about-dialog__legal">
-              <span>{t.aboutLicense}</span>
-              <span className="about-dialog__legal-links">
-                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop/blob/main/LICENSE").catch(() => undefined)}>{t.aboutViewLicense}</button>
-                <button type="button" onClick={() => void openUrl("https://github.com/martinezelx/gitodile-desktop").catch(() => undefined)}>{t.aboutViewSource}</button>
-              </span>
+            {/* The credit closes the dialog, under the licence it used to sit
+                above. */}
+            <div className="about-dialog__legal about-dialog__legal--stacked">
+              <p className="about-dialog__made-with">
+                {t.aboutFooterMadeWith}{" "}
+                <span className="about-dialog__heart" role="img" aria-label={t.aboutHeartLabel}>♥</span>{" "}
+                {t.aboutFooterByAuthor}
+              </p>
             </div>
           </div>
         </div>
@@ -654,8 +708,8 @@ export function AppOverlays({
       )}
 
       {shortcuts.isOpen && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => shortcuts.setOpen(false)}>
-          <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => shortcuts.setOpen(false))}>
+          <div ref={shortcutsRef} className="about-dialog shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" tabIndex={-1}>
             <header className="shortcuts-dialog__header">
               <span className="shortcuts-dialog__tile">
                 <Keyboard aria-hidden="true" />
@@ -704,6 +758,8 @@ export function AppOverlays({
           title={t.closeConfirmTitle}
           titleId="close-confirm-title"
           descriptionId="close-confirm-body"
+          icon={<FolderX />}
+          tone="neutral"
           onClose={() => closeConfirmation.setOpen(false)}
           closeLabel={t.commonClose}
           dialogRef={closeRef}

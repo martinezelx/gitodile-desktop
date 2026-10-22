@@ -1,12 +1,10 @@
 /* ---------------------------------------------------------------------------
  * Layer 3: theme colour tokens (ADR 0012, DESIGN.md § Theming).
  *
- * Each block fills only the swap-able layer. The brand identity
- * (--accent-brand, --accent-brand-contrast, --avatar-*, --tooltip-*) is
- * declared once in `tokens.css` and must never appear here. That layer is the
- * mark and identity colours; the actionable accent is themed, so the primary
- * action, the notification badge and the attention halo all follow the theme
- * and a community palette is never fighting the brand lime.
+ * Each block fills only the swap-able layer. The identity colours
+ * (--avatar-*, --tooltip-*) are declared once in `tokens.css` and must never
+ * appear here; the actionable accent is themed, so the primary action, the
+ * notification badge and the attention halo all follow the theme.
  *
  * The default (`:root`) and the OS-dark override are the official GitOdile
  * Light and Dark values. They are declared again in the explicit
@@ -26,51 +24,57 @@
  * ------------------------------------------------------------------------- */
 
 /* Official GitOdile Light - also the default for "match device" on a light OS.
-   Warm stone neutrals. The accent is a deep green that reads as words at
-   4.5:1 on every surface; the brand lime stays as the fill of solid actions,
-   where it carries dark text. */
+   Ink on warm stone greys (ADR 0033): the text's own ink is the accent and
+   the fill of solid actions, with inverted text on it, and hover, selection
+   and the accent wash are ink washes. Colour belongs to content and meaning,
+   not to the interface: the diff, danger, warning, success and the remote's
+   blue keep a toned-down hue, and glyphs borrow them (tokens.css, glyph
+   tones). */
 :root {
   color-scheme: light dark;
-  --surface-app: #faf8f5;
+  --surface-app: #f8f7f4;
   --surface-panel: #ffffff;
   --surface-raised: #ffffff;
-  --surface-code: #f5f5f4;
+  --surface-code: #f5f4f2;
   --surface-hover: rgba(28, 25, 23, 0.05);
-  --surface-active: rgba(107, 155, 46, 0.12);
-  --surface-control: #f4f2ef;
-  --border-control: #dcd9d4;
+  --surface-active: rgba(28, 25, 23, 0.08);
+  --surface-control: #f2f1ee;
+  --border-control: #d6d3d1;
   --text-primary-color: #1c1917;
-  --text-secondary-color: #6f6a64;
+  --text-secondary-color: #625d58;
   --border-subtle: #e7e5e4;
   --border-divider: #dedad6;
-  --accent-primary: #4b7521;
-  --accent-primary-contrast: #14170f;
-  --accent-primary-fill: #9bd65a;
-  --status-success: #44691c;
-  --status-warning: #8a5b00;
-  --status-danger: #b3261e;
-  --status-danger-contrast: #fff7f5;
-  --status-renamed: #2f6fb3;
-  --accent-heart: #cc2936;
-  --diff-added: #44691c;
-  --diff-removed: #b3261e;
-  --syntax-comment: #586250;
-  --syntax-string: #7b5b12;
-  --syntax-number: #604080;
-  --syntax-keyword: #275f8f;
-  --syntax-type: #176f68;
-  --syntax-property: #8b3e6d;
-  --focus-ring: #4b7521;
+  --accent-primary: #1c1917;
+  --accent-primary-contrast: #ffffff;
+  --accent-primary-fill: #1c1917;
+  --status-success: #3f6a3b;
+  --status-warning: #7a5714;
+  --status-danger: #a83a32;
+  --status-danger-contrast: #ffffff;
+  --status-renamed: #2a66a6;
+  --tone-local: #44701a;
+  --accent-heart: #b8326a;
+  --diff-added: #3f6a3b;
+  --diff-removed: #a83a32;
+  --syntax-comment: #78716c;
+  --syntax-string: #57534e;
+  --syntax-number: #44403c;
+  --syntax-keyword: #1c1917;
+  --syntax-type: #2e2a27;
+  --syntax-property: #4d4843;
+  --focus-ring: #1c1917;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
   --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+
+  --shadow-up: 0 -16px 32px rgba(28, 25, 23, 0.14);
 }
 
 /* Official GitOdile Dark - the default for "match device" on a dark OS.
-   The same stone neutrals, inverted. The accent is a lighter green than
-   Light's: the deep green reads at barely 3:1 on these panels, and it paints
-   links, the selected rail item and focus. */
+   The same ink on warm near-black: panels step up in stone greys so a menu still
+   lifts off the page, white ink is the accent and the solid fill, and the kept
+   hues are lifted just enough to read on the dark surfaces. */
 @media (prefers-color-scheme: dark) {
   :root {
     --surface-app: #0c0a09;
@@ -78,74 +82,80 @@
     --surface-raised: #292524;
     --surface-code: #201d1b;
     --surface-hover: rgba(250, 250, 249, 0.06);
-    --surface-active: rgba(155, 214, 90, 0.14);
-    --surface-control: #24211f;
+    --surface-active: rgba(250, 250, 249, 0.1);
+    --surface-control: #24201e;
     --border-control: #44403c;
     --text-primary-color: #fafaf9;
     --text-secondary-color: #a8a29e;
-    --border-subtle: #38322f;
-    --border-divider: #44403c;
-    --accent-primary: #86c24a;
+    --border-subtle: #312c29;
+    --border-divider: #3b3532;
+    --accent-primary: #fafaf9;
     --accent-primary-contrast: #0c0a09;
-    --accent-primary-fill: #9bd65a;
-    --status-success: #9bd65a;
-    --status-warning: #e8b339;
-    --status-danger: #ff6b5b;
+    --accent-primary-fill: #fafaf9;
+    --status-success: #93c48a;
+    --status-warning: #dcb064;
+    --status-danger: #f08a80;
     --status-danger-contrast: #1c1917;
-    --status-renamed: #6ea8fe;
-    --accent-heart: #ff7a6b;
-    --diff-added: #9bd65a;
-    --diff-removed: #ff6b5b;
-    --syntax-comment: #a7b09a;
-    --syntax-string: #d6b56f;
-    --syntax-number: #c8a6ff;
-    --syntax-keyword: #8fc9ff;
-    --syntax-type: #72d6c9;
-    --syntax-property: #e0a6c7;
-    --focus-ring: #9bd65a;
+    --status-renamed: #7eb0f5;
+    --tone-local: #a8d26b;
+    --accent-heart: #f27aa8;
+    --diff-added: #93c48a;
+    --diff-removed: #f08a80;
+    --syntax-comment: #8f8984;
+    --syntax-string: #bfbab5;
+    --syntax-number: #d6d3d1;
+    --syntax-keyword: #fafaf9;
+    --syntax-type: #e2dfdc;
+    --syntax-property: #c9c4bf;
+    --focus-ring: #fafaf9;
     --overlay: rgba(0, 0, 0, 0.68);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
     --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+    --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
   }
 }
 
 [data-theme="gitodile-light"] {
   color-scheme: light;
-  --surface-app: #faf8f5;
+  --surface-app: #f8f7f4;
   --surface-panel: #ffffff;
   --surface-raised: #ffffff;
-  --surface-code: #f5f5f4;
+  --surface-code: #f5f4f2;
   --surface-hover: rgba(28, 25, 23, 0.05);
-  --surface-active: rgba(107, 155, 46, 0.12);
-  --surface-control: #f4f2ef;
-  --border-control: #dcd9d4;
+  --surface-active: rgba(28, 25, 23, 0.08);
+  --surface-control: #f2f1ee;
+  --border-control: #d6d3d1;
   --text-primary-color: #1c1917;
-  --text-secondary-color: #6f6a64;
+  --text-secondary-color: #625d58;
   --border-subtle: #e7e5e4;
   --border-divider: #dedad6;
-  --accent-primary: #4b7521;
-  --accent-primary-contrast: #14170f;
-  --accent-primary-fill: #9bd65a;
-  --status-success: #44691c;
-  --status-warning: #8a5b00;
-  --status-danger: #b3261e;
-  --status-danger-contrast: #fff7f5;
-  --status-renamed: #2f6fb3;
-  --accent-heart: #cc2936;
-  --diff-added: #44691c;
-  --diff-removed: #b3261e;
-  --syntax-comment: #586250;
-  --syntax-string: #7b5b12;
-  --syntax-number: #604080;
-  --syntax-keyword: #275f8f;
-  --syntax-type: #176f68;
-  --syntax-property: #8b3e6d;
-  --focus-ring: #4b7521;
+  --accent-primary: #1c1917;
+  --accent-primary-contrast: #ffffff;
+  --accent-primary-fill: #1c1917;
+  --status-success: #3f6a3b;
+  --status-warning: #7a5714;
+  --status-danger: #a83a32;
+  --status-danger-contrast: #ffffff;
+  --status-renamed: #2a66a6;
+  --tone-local: #44701a;
+  --accent-heart: #b8326a;
+  --diff-added: #3f6a3b;
+  --diff-removed: #a83a32;
+  --syntax-comment: #78716c;
+  --syntax-string: #57534e;
+  --syntax-number: #44403c;
+  --syntax-keyword: #1c1917;
+  --syntax-type: #2e2a27;
+  --syntax-property: #4d4843;
+  --focus-ring: #1c1917;
   --overlay: rgba(28, 25, 23, 0.4);
   --shadow-sm: 0 2px 8px rgba(28, 25, 23, 0.06);
   --shadow-md: 0 8px 20px rgba(28, 25, 23, 0.08);
   --shadow-lg: 0 24px 60px rgba(28, 25, 23, 0.14);
+
+  --shadow-up: 0 -16px 32px rgba(28, 25, 23, 0.14);
 }
 
 [data-theme="gitodile-dark"] {
@@ -155,35 +165,38 @@
   --surface-raised: #292524;
   --surface-code: #201d1b;
   --surface-hover: rgba(250, 250, 249, 0.06);
-  --surface-active: rgba(155, 214, 90, 0.14);
-  --surface-control: #24211f;
+  --surface-active: rgba(250, 250, 249, 0.1);
+  --surface-control: #24201e;
   --border-control: #44403c;
   --text-primary-color: #fafaf9;
   --text-secondary-color: #a8a29e;
-  --border-subtle: #38322f;
-  --border-divider: #44403c;
-  --accent-primary: #86c24a;
+  --border-subtle: #312c29;
+  --border-divider: #3b3532;
+  --accent-primary: #fafaf9;
   --accent-primary-contrast: #0c0a09;
-  --accent-primary-fill: #9bd65a;
-  --status-success: #9bd65a;
-  --status-warning: #e8b339;
-  --status-danger: #ff6b5b;
+  --accent-primary-fill: #fafaf9;
+  --status-success: #93c48a;
+  --status-warning: #dcb064;
+  --status-danger: #f08a80;
   --status-danger-contrast: #1c1917;
-  --status-renamed: #6ea8fe;
-  --accent-heart: #ff7a6b;
-  --diff-added: #9bd65a;
-  --diff-removed: #ff6b5b;
-  --syntax-comment: #a7b09a;
-  --syntax-string: #d6b56f;
-  --syntax-number: #c8a6ff;
-  --syntax-keyword: #8fc9ff;
-  --syntax-type: #72d6c9;
-  --syntax-property: #e0a6c7;
-  --focus-ring: #9bd65a;
+  --status-renamed: #7eb0f5;
+  --tone-local: #a8d26b;
+  --accent-heart: #f27aa8;
+  --diff-added: #93c48a;
+  --diff-removed: #f08a80;
+  --syntax-comment: #8f8984;
+  --syntax-string: #bfbab5;
+  --syntax-number: #d6d3d1;
+  --syntax-keyword: #fafaf9;
+  --syntax-type: #e2dfdc;
+  --syntax-property: #c9c4bf;
+  --focus-ring: #fafaf9;
   --overlay: rgba(0, 0, 0, 0.68);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Catppuccin Mocha - catppuccin.com/palette (MIT).
@@ -214,6 +227,7 @@
   --status-danger: #f38ba8;
   --status-danger-contrast: #1e1e2e;
   --status-renamed: #89b4fa;
+  --tone-local: #a6e3a1;
   --accent-heart: #f38ba8;
   --diff-added: #a6e3a1;
   --diff-removed: #f38ba8;
@@ -228,6 +242,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Catppuccin Latte - catppuccin.com/palette (MIT).
@@ -259,6 +275,7 @@
   --status-danger: #d00f38;
   --status-danger-contrast: #ffffff;
   --status-renamed: #125af5;
+  --tone-local: #33761e;
   --accent-heart: #d20f39;
   --diff-added: #30701b;
   --diff-removed: #c00f30;
@@ -273,13 +290,16 @@
   --shadow-sm: 0 2px 8px rgba(76, 79, 105, 0.08);
   --shadow-md: 0 8px 20px rgba(76, 79, 105, 0.1);
   --shadow-lg: 0 24px 60px rgba(76, 79, 105, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(76, 79, 105, 0.16);
 }
 
 /* Catppuccin Frappé - catppuccin.com/palette (MIT). Same role map as Mocha.
-   Frappé's surface0 is light enough that subtext0 cannot clear 4.5:1 on it
-   and still sit a visible step below text, so the control is a half step
-   darker than surface0 and subtext0 is lifted slightly. Red and the comment
-   are lifted for the tinted diff lines. */
+   Frappé's surface0 is light enough that the accent, danger and renamed inks
+   cannot clear 4.5:1 on it as a raised surface, so the raised row is a half
+   step darker than surface0 and subtext0 is lifted slightly; the control stays
+   surface0, a visible step above the row it sits on, as in Mocha. Red and the
+   comment are lifted for the tinted diff lines. */
 [data-theme="catppuccin-frappe"] {
   color-scheme: dark;
   --surface-app: #232634;
@@ -288,7 +308,7 @@
   --surface-code: #292c3c;
   --surface-hover: rgba(198, 208, 245, 0.07);
   --surface-active: rgba(202, 158, 230, 0.12);
-  --surface-control: #3a3e51;
+  --surface-control: #414559;
   --border-control: #51576d;
   --text-primary-color: #c6d0f5;
   --text-secondary-color: #acb4d8;
@@ -302,6 +322,7 @@
   --status-danger: #ef8d8f;
   --status-danger-contrast: #303446;
   --status-renamed: #8caaee;
+  --tone-local: #a6d189;
   --accent-heart: #e78284;
   --diff-added: #a6d189;
   --diff-removed: #ef8d8f;
@@ -316,6 +337,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Nord - nordtheme.com (MIT).
@@ -347,6 +370,7 @@
   --status-danger: #eca0a6;
   --status-danger-contrast: #2e3440;
   --status-renamed: #97b7e0;
+  --tone-local: #a3be8c;
   --accent-heart: #d0848b;
   --diff-added: #a3be8c;
   --diff-removed: #eca0a6;
@@ -361,6 +385,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Tokyo Night - enkia/tokyo-night-vscode-theme (MIT).
@@ -389,6 +415,7 @@
   --status-danger: #f7768e;
   --status-danger-contrast: #1a1b26;
   --status-renamed: #7aa2f7;
+  --tone-local: #9ece6a;
   --accent-heart: #f7768e;
   --diff-added: #9ece6a;
   --diff-removed: #f7768e;
@@ -403,6 +430,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Dracula - draculatheme.com (MIT).
@@ -434,6 +463,7 @@
   --status-danger: #ff7676;
   --status-danger-contrast: #282a36;
   --status-renamed: #8be9fd;
+  --tone-local: #50fa7b;
   --accent-heart: #ff5555;
   --diff-added: #50fa7b;
   --diff-removed: #ff7676;
@@ -448,26 +478,28 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Solarized Dark - ethanschoonover.com/solarized (MIT). Surfaces are base03
-   with base02 for controls and raised surfaces, so depth comes mostly from
-   borders. Primary text is base2 and secondary base1: Solarized's own
-   base1/base0 pairing measures the same, so the two roles would read as one.
-   The accent hues are dark by design and sit at 3-4:1 on base03; every
+   with base02 for raised surfaces, so depth comes mostly from borders. The
+   control is a half step between them - base03 into base02 - so it reads as a
+   step below the raised card it sits on without collapsing into the panel,
+   which is also base03. Primary text is base2 and secondary base1: Solarized's
+   own base1/base0 pairing measures the same, so the two roles would read as
+   one. The accent hues are dark by design and sit at 3-4:1 on base03; every
    accent, status and syntax colour here is the published hue lifted until it
-   reads at 4.5:1 (3:1 for the comment). Base1 on the accent wash has little
-   margin, so the wash is halved. */
+   reads at 4.5:1 (3:1 for the comment). */
 [data-theme="solarized-dark"] {
   color-scheme: dark;
-  --accent-wash-strength: 4%;
   --surface-app: #002b36;
   --surface-panel: #002b36;
   --surface-raised: #073642;
   --surface-code: #002b36;
   --surface-hover: rgba(147, 161, 161, 0.08);
   --surface-active: rgba(38, 139, 210, 0.14);
-  --surface-control: #073642;
+  --surface-control: #04313c;
   --border-control: #586e75;
   --text-primary-color: #eee8d5;
   --text-secondary-color: #93a1a1;
@@ -481,6 +513,7 @@
   --status-danger: #ff6562;
   --status-danger-contrast: #002b36;
   --status-renamed: #27aaa1;
+  --tone-local: #8da500;
   --accent-heart: #e43734;
   --diff-added: #8fa800;
   --diff-removed: #ff6562;
@@ -495,6 +528,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Solarized Light - ethanschoonover.com/solarized (MIT). Flat like the dark
@@ -524,6 +559,7 @@
   --status-danger: #db2623;
   --status-danger-contrast: #fdf6e3;
   --status-renamed: #177a72;
+  --tone-local: #697700;
   --accent-heart: #dc322f;
   --diff-added: #616b00;
   --diff-removed: #c12623;
@@ -538,6 +574,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 43, 54, 0.08);
   --shadow-md: 0 8px 20px rgba(0, 43, 54, 0.1);
   --shadow-lg: 0 24px 60px rgba(0, 43, 54, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(0, 43, 54, 0.16);
 }
 
 /* Gruvbox Dark - morhetz/gruvbox (MIT).
@@ -568,6 +606,7 @@
   --status-danger: #ff645c;
   --status-danger-contrast: #282828;
   --status-renamed: #83a598;
+  --tone-local: #b8bb26;
   --accent-heart: #fb4934;
   --diff-added: #b8bb26;
   --diff-removed: #ff645c;
@@ -582,6 +621,8 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+  --shadow-up: 0 -16px 32px rgba(0, 0, 0, 0.45);
 }
 
 /* Gruvbox Light - morhetz/gruvbox (MIT).
@@ -612,6 +653,7 @@
   --status-danger: #9d0006;
   --status-danger-contrast: #fbf1c7;
   --status-renamed: #076678;
+  --tone-local: #6d680e;
   --accent-heart: #9d0006;
   --diff-added: #635e0e;
   --diff-removed: #9d0006;
@@ -626,4 +668,6 @@
   --shadow-sm: 0 2px 8px rgba(60, 56, 54, 0.08);
   --shadow-md: 0 8px 20px rgba(60, 56, 54, 0.1);
   --shadow-lg: 0 24px 60px rgba(60, 56, 54, 0.16);
+
+  --shadow-up: 0 -16px 32px rgba(60, 56, 54, 0.16);
 }

@@ -10,12 +10,14 @@ export type CloneProgressPhase =
 export type DependencyDiscovery = "detected" | "not-detected" | "unknown";
 
 export type CloneRequest = {
+  accountId?: string | null;
   source: string;
   destinationParent: string;
   destinationName: string;
 };
 
 export type ClonePlan = {
+  accountId?: string | null;
   operationKind: "local-mutation";
   requiresConfirmation: true;
   operationId: string;
@@ -34,6 +36,8 @@ export type ClonePlan = {
 };
 
 export type CloneResult = {
+  /** False means the verified clone exists, but its chosen account needs setup. */
+  accountSelectionSaved?: boolean | null;
   outcome: "completed" | "cleanup-required";
   operationId: string;
   destinationPath: string;
@@ -52,4 +56,16 @@ export function readLastCloneParent(): string {
  * deliberately absent from browser persistence. */
 export function writeLastCloneParent(parent: string): void {
   if (parent) localStorage.setItem(LAST_CLONE_PARENT_KEY, parent);
+}
+
+/** The connection last chosen for a product's discovery tab. Only an account
+ * ID (no secret); preselecting it reads nothing from the network. */
+export function readLastCloneConnection(kind: string): string | null {
+  try { return localStorage.getItem(`gitodile-clone-connection-${kind}`); } catch { return null; }
+}
+
+export function writeLastCloneConnection(kind: string, accountId: string | null): void {
+  try {
+    if (accountId) localStorage.setItem(`gitodile-clone-connection-${kind}`, accountId);
+  } catch { /* A remembered choice is a convenience; the picker still works. */ }
 }

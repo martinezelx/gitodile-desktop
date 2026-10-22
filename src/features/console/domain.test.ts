@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  completionsFor, CONSOLE_SHORTCUTS_STORAGE_KEY, DEFAULT_SHORTCUTS, namesByOperation, parseConsoleInput,
-  defaultLineName, OPERATION_IDS, QUERY_COMMANDS, readShortcuts, SHORTCUT_CATALOGUE, shortcutCommand, shortcutNameIssue, widensTier, writeShortcuts,
+  completionsFor, CONSOLE_SHORTCUTS_STORAGE_KEY, DEFAULT_SHORTCUTS, HOSTING_COMMANDS, HOSTING_OPERATION_IDS, isHostingId, isLineShortcut,
+  isOperationId, namesByOperation, parseConsoleInput, defaultLineName, OPERATION_IDS, QUERY_COMMANDS, queryCommand, readShortcuts,
+  SHORTCUT_CATALOGUE, SHORTCUT_LIMIT, shortcutCommand, shortcutNameIssue, widensTier, writeShortcuts,
 } from "./domain";
 
 describe("console shortcuts", () => {
@@ -53,14 +54,15 @@ describe("console shortcuts", () => {
   });
 
   it("gives names saved before a catalogue grew the new queries, keeping what they removed", () => {
-    const firstFormat = JSON.stringify([{ name: "stat", operationId: "status" }, { name: "look", operationId: "status" }, { name: "graph", operationId: "log" }]);
-    const names = readShortcuts({ getItem: () => firstFormat });
+    const stored = JSON.stringify({ catalogue: ["status", "diff", "log", "branches"], shortcuts: [{ name: "stat", operationId: "status" }, { name: "look", operationId: "status" }, { name: "graph", operationId: "log" }] });
+    const names = readShortcuts({ getItem: () => stored });
     expect(names.slice(0, 3).map((item) => item.name)).toEqual(["stat", "look", "graph"]);
     // "diff" and "branches" were known and removed; "graph" is taken, so the graph query gets no name.
     // Their own "stat" keeps the built-in line of that name out as well.
     expect(names.slice(3).map((item) => item.name)).toEqual([
       "staged", "last", "tags", "remotes", "stashes", "authors",
-      "short", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size",
+      "prs", "my-prs", "issues", "runs", "checks", "repo",
+      "short", "today", "week", "unpublished", "incoming", "moves", "all-branches", "size",
     ]);
     const current = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => current })).toEqual([{ name: "look", operationId: "status" }]);
@@ -69,7 +71,10 @@ describe("console shortcuts", () => {
   it("brings the built-in command lines to lists saved before them, not back to those who removed them", () => {
     const beforeLines = JSON.stringify({ catalogue: [...OPERATION_IDS], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => beforeLines }).map((item) => item.name))
-      .toEqual(["look", "short", "stat", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size"]);
+      .toEqual([
+        "look", "prs", "my-prs", "issues", "runs", "checks", "repo",
+        "short", "stat", "today", "week", "unpublished", "incoming", "moves", "all-branches", "size",
+      ]);
     const removedToday = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => removedToday })).toEqual([{ name: "look", operationId: "status" }]);
   });
@@ -80,11 +85,28 @@ describe("console shortcuts", () => {
     expect(defaultLineName({ name: "look", operationId: "status" })).toBeNull();
   });
 
-  it("names the Git command every shortcut runs", () => {
-    for (const shortcut of DEFAULT_SHORTCUTS) expect(shortcutCommand(shortcut)).toMatch(/^git [a-z]/);
+  it("names the command every shortcut runs", () => {
+    for (const shortcut of DEFAULT_SHORTCUTS) {
+      expect(shortcutCommand(shortcut)).toMatch(isLineShortcut(shortcut) || !isHostingId(shortcut.operationId) ? /^git [a-z]/ : /^gh [a-z].* · glab [a-z]/);
+    }
     expect(shortcutCommand({ name: "look", operationId: "status" })).toBe("git status");
     expect(shortcutCommand({ name: "lg", line: "git log --oneline -20", tier: "read" })).toBe("git log --oneline -20");
     expect(Object.keys(QUERY_COMMANDS)).toEqual([...OPERATION_IDS]);
+    expect(Object.keys(HOSTING_COMMANDS)).toEqual([...HOSTING_OPERATION_IDS]);
+  });
+
+  it("names the CLI for the project's provider once it is known", () => {
+    expect(queryCommand("prs", "github")).toBe("gh pr list --limit 20");
+    expect(queryCommand("prs", "gitlab")).toBe("glab mr list --per-page 20");
+    expect(queryCommand("prs", "bitbucket")).toBe("gh pr list --limit 20 · glab mr list --per-page 20");
+    expect(queryCommand("prs")).toBe("gh pr list --limit 20 · glab mr list --per-page 20");
+    expect(queryCommand("status", "github")).toBe("git status");
+    expect(isOperationId("my-prs")).toBe(true);
+    expect(isOperationId("api")).toBe(false);
+  });
+
+  it("keeps every built-in name within the limit, with room for a few of one's own", () => {
+    expect(DEFAULT_SHORTCUTS.length).toBeLessThanOrEqual(SHORTCUT_LIMIT - 4);
   });
 
   it("writes a versioned app preference, never Git config", () => {

@@ -25,7 +25,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tokio::sync::watch;
 
-pub(crate) const UPDATER_PLUGIN_VERSION: &str = "2.11.0";
+pub(crate) const UPDATER_PLUGIN_VERSION: &str = "2.13.1";
 pub(crate) const MANIFEST_BYTES_LIMIT: u64 = 256 * 1024;
 pub(crate) const NOTES_BYTES_LIMIT: usize = 16 * 1024;
 const HIGHLIGHTS_LIMIT: usize = 8;
@@ -423,6 +423,25 @@ impl Drop for InstallPreparation {
     }
 }
 
+/// The state the app starts in. A failed post-install confirmation wins; then a
+/// build without an update key (development and local builds) starts as
+/// unavailable, so the Updates row says so at once instead of offering a check
+/// that can only answer the same; anything else has not been checked yet.
+fn initial_snapshot(
+    startup_confirmation: &StartupUpdateConfirmation,
+    identity_error: Option<UpdateError>,
+) -> UpdateState {
+    match (startup_confirmation, identity_error) {
+        (StartupUpdateConfirmation::Unconfirmed { error, .. }, _) => UpdateState::Failed {
+            error: error.clone(),
+        },
+        (_, Some(error)) if error.code == UpdateErrorCode::NotConfigured => {
+            UpdateState::Unavailable { error }
+        }
+        _ => UpdateState::Idle,
+    }
+}
+
 impl AppUpdateService {
     pub(crate) fn new<R: Runtime>(app: &AppHandle<R>) -> Self {
         let data_dir = app
@@ -431,12 +450,8 @@ impl AppUpdateService {
             .unwrap_or_else(|_| std::env::temp_dir().join("gitodile"));
         let handoff_path = data_dir.join(HANDOFF_FILE);
         let startup_confirmation = confirm_handoff(&handoff_path, env!("CARGO_PKG_VERSION"));
-        let snapshot = match &startup_confirmation {
-            StartupUpdateConfirmation::Unconfirmed { error, .. } => UpdateState::Failed {
-                error: error.clone(),
-            },
-            _ => UpdateState::Idle,
-        };
+        let snapshot =
+            initial_snapshot(&startup_confirmation, BuildUpdateIdentity::current().err());
         Self(Arc::new(ServiceInner {
             next_operation: AtomicU64::new(0),
             state: Mutex::new(ServiceState {
@@ -1043,7 +1058,7 @@ async fn perform_check<R: Runtime>(app: &AppHandle<R>) -> CheckOutcome {
 
 impl BuildUpdateIdentity {
     fn current() -> Result<Self, UpdateError> {
-        debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.11.0");
+        debug_assert_eq!(UPDATER_PLUGIN_VERSION, "2.13.1");
         build_update_identity(
             env!("CARGO_PKG_VERSION"),
             option_env!("GITODILE_UPDATER_PUBLIC_KEY").unwrap_or(""),
@@ -1820,7 +1835,11 @@ fn map_download_error(
         );
     }
     match error {
-        Error::Minisign(_) | Error::SignatureUtf8(_) | Error::Base64(_) => UpdateError::new(
+        Error::Minisign(_)
+        | Error::SignatureUtf8(_)
+        | Error::Base64(_)
+        | Error::SignedVersionMismatch { .. }
+        | Error::MissingSignedVersion => UpdateError::new(
             UpdateErrorCode::SignatureInvalid,
             UpdateStage::Verify,
             false,
@@ -2099,6 +2118,33 @@ mod tests {
     use crate::watch::WatchPaths;
     use base64::Engine;
     use std::sync::Arc;
+
+    #[test]
+    fn a_build_without_an_update_key_starts_unavailable() {
+        let Err(not_configured) = build_update_identity("0.3.1", "", "") else {
+            panic!("a build without a key must not have an update identity");
+        };
+        assert_eq!(not_configured.code, UpdateErrorCode::NotConfigured);
+        assert_eq!(
+            initial_snapshot(
+                &StartupUpdateConfirmation::None,
+                Some(not_configured.clone())
+            ),
+            UpdateState::Unavailable {
+                error: not_configured.clone()
+            }
+        );
+        assert_eq!(
+            initial_snapshot(&StartupUpdateConfirmation::None, None),
+            UpdateState::Idle
+        );
+        let invalid_version =
+            UpdateError::new(UpdateErrorCode::InvalidVersion, UpdateStage::Check, false);
+        assert_eq!(
+            initial_snapshot(&StartupUpdateConfirmation::None, Some(invalid_version)),
+            UpdateState::Idle
+        );
+    }
 
     #[test]
     fn releases_are_plain_versions() {
@@ -2619,6 +2665,25 @@ mod tests {
             .code,
             UpdateErrorCode::PayloadTooLarge
         );
+    }
+
+    #[test]
+    fn signed_version_failures_are_verification_errors_without_untrusted_details() {
+        use tauri_plugin_updater::Error;
+
+        for error in [
+            Error::SignedVersionMismatch {
+                signed: "untrusted signed version".into(),
+                announced: "untrusted announced version".into(),
+            },
+            Error::MissingSignedVersion,
+        ] {
+            let mapped = map_download_error(error, 7, Some(7));
+            assert_eq!(mapped.code, UpdateErrorCode::SignatureInvalid);
+            assert_eq!(mapped.stage, UpdateStage::Verify);
+            assert!(!mapped.retryable);
+            assert!(mapped.safe_detail.is_none());
+        }
     }
 
     #[test]

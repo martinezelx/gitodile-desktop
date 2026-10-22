@@ -94,7 +94,7 @@ Task 091 built the welcome screen this section sits under.
   switcher for exactly that reason, and this list is the second consumer.
   Features may not import `src/app/**` (`check:architecture`), so the move is
   also what makes the avatar reachable from Overview at all. The barrel is
-  already in the eager entry chunk through `version-lines`, so the two pure
+  already in the eager entry chunk through `branches`, so the two pure
   functions cost nothing extra there.
 - **Open reuses `handleOpenProject` with a preselected path** rather than a
   second open routine, so a recent row inherits validation, already-open

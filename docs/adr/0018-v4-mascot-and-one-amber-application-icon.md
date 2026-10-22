@@ -1,7 +1,12 @@
 # ADR 0018: Adopt the v4 mascot and one amber application icon
 
-- Status: accepted
+- Status: superseded
 - Date: 2026-09-30
+- Amended by: [ADR 0029](0029-slate-icon-tile.md) (the icon tile is slate,
+  `#2c3542` to `#161b22`)
+- Superseded by: [ADR 0031](0031-v5-flat-mascot-and-white-icon.md) (the flat
+  v5 mascot and an application icon on a white tile). One drawing for every surface
+  and one icon at every size still stand.
 
 ## Context
 

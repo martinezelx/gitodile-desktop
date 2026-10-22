@@ -61,7 +61,7 @@ contract of [138-1](138-1-type-read-only-git-commands.md).
   failures go through the provider-neutral classification of task 065-7 where
   it exists.
 - **Plans**: effect lines in plain language from a pre-flight read (files
-  staged, the version a commit will create and on which line, commits a push
+  staged, the version a commit will create and on which branch, commits a push
   will publish and where); the repository fingerprint enforced with
   `stale_preview`; single-use plan IDs; confirmation `[s/N]` in the terminal,
   where only `s`/`y` runs and anything else cancels.
@@ -147,8 +147,8 @@ when available but does not block this task.
   `--no-edit`. `stash pop` and `stash branch` are Destructive because they drop
   the entry; `stash apply` is the Local change. `bisect` is not available: it
   leaves the project detached across several commands.
-- `checkout <name>` is resolved at plan time: an existing local line, or a
-  single remote line Git would track, makes it a Local change switch.
+- `checkout <name>` is resolved at plan time: an existing local branch, or a
+  single remote branch Git would track, makes it a Local change switch.
 - Unstaging with `reset` (no commit named, only paths or nothing) is a Local
   change like `restore --staged`; every other `reset` waits for task 139.
 - Failed changes carry a hint (hook, signing, credentials, the remote's rules,
@@ -173,7 +173,7 @@ desktop check, and `pnpm run check`.
   refuses every change and names the tier; a change plan never runs through
   the read path or on any answer but yes, and stops when the mode is turned off
   after planning; History and Destructive plans stay refused. `add`,
-  `restore --staged`, `commit -m`, `mv`, `switch -c`, `checkout <line>` (and
+  `restore --staged`, `commit -m`, `mv`, `switch -c`, `checkout <branch>` (and
   `checkout <file>` still refused), `branch`, `tag -a -m`, `cherry-pick`,
   `revert`, `stash push` and `stash apply` each show their facts and run. A
   plan is refused with `stale_preview` after a new file appears or HEAD moves.

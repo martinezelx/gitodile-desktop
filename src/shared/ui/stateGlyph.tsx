@@ -2,8 +2,9 @@ import React from "react";
 
 /** The colour a state glyph speaks in. `accent` is for where the project
  * stands, `positive` and `warning` for a state that is good or needs a look,
- * and `neutral` for a fact worth flagging that is neither. */
-export type StateGlyphTone = "neutral" | "positive" | "warning" | "accent";
+ * `local` for only on this computer (localOnly.tsx), `remote` for what waits
+ * on the remote, and `neutral` for a fact worth flagging that is neither. */
+export type StateGlyphTone = "neutral" | "positive" | "warning" | "accent" | "local" | "remote";
 
 /** One state a list row flags as a 14px glyph instead of a text chip. The
  * `tooltip` is the sentence that says what it means to someone who has not

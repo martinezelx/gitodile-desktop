@@ -257,7 +257,7 @@ installed version and must not be used as promotion. See the
 The head of `main` can be preview while stable users receive the last stable
 tag. A stable release includes all changes in its tagged commit, so keep one
 release train: validate the entire candidate before marking it stable. A
-separate maintenance/hotfix line can be decided if backports become necessary;
+separate maintenance/hotfix branch can be decided if backports become necessary;
 this workflow does not pretend to exclude unready changes already on `main`.
 
 #### Artifact trust and publishing order

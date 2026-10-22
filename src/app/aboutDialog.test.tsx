@@ -1,7 +1,8 @@
 import React from "react";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { LanguageProvider } from "../i18n";
@@ -66,6 +67,9 @@ function buildProps(
       copyLink: vi.fn(),
     },
     settings: {
+      glabTooling: { diagnostics: null, isRefreshingDiagnostics: false, updateStatus: null, isCheckingUpdate: false, refreshDiagnostics: vi.fn(), checkUpdate: vi.fn() },
+      gitlabAuth: { snapshot: { state: "unchecked", account: null, operationId: null, needsCheck: false }, pending: false, check: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), cancel: vi.fn() },
+      githubAuth: { snapshot: { state: "unchecked", account: null, accounts: [], operationId: null, deviceCode: null, verificationUrl: null, needsCheck: false, signedOutAccount: null }, pending: false, browserFailed: false, check: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), activate: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn() },
       ...closedOverlay,
       theme: "system",
       setTheme: vi.fn(),
@@ -73,6 +77,10 @@ function buildProps(
       setReducedMotion: vi.fn(),
       section: "general",
       setSection: vi.fn(),
+      ghTooling: {
+        diagnostics: null, isRefreshingDiagnostics: false, updateStatus: null,
+        isCheckingUpdate: false, refreshDiagnostics: vi.fn(), checkUpdate: vi.fn(),
+      },
       gitTooling: {
         diagnostics: gitDiagnostics,
         updateStatus: null,
@@ -319,6 +327,66 @@ describe("Keyboard shortcuts dialog", () => {
   });
 });
 
+describe("dialog backdrops", () => {
+  /** Settings on a section the test can navigate to, with About out of the
+   * way: the dialog that hosts the Accounts provider menu. */
+  function renderSettings({ section = "general" }: { section?: AppOverlaysProps["settings"]["section"] } = {}): AppOverlaysProps {
+    const props = buildProps(null);
+    props.about = { isOpen: false, setOpen: vi.fn() };
+    props.settings = { ...props.settings, isOpen: true, section };
+    render(
+      <LanguageProvider>
+        <AppOverlays {...props} />
+      </LanguageProvider>,
+    );
+    return props;
+  }
+
+  it("closes the provider menu when the reader presses elsewhere in the dialog", async () => {
+    // Accounts reads its catalog through the transport; the menu stays enabled
+    // only after a successful read, so the read is answered here.
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "get_account_catalog" ? { providers: [], accounts: [], busy: false } : undefined);
+    try {
+      const props = renderSettings({ section: "accounts" });
+      const dialog = screen.getByRole("dialog", { name: "Settings" });
+      const connect = await within(dialog).findByRole("button", { name: "Connect account" });
+      await waitFor(() => expect(connect).toBeEnabled());
+
+      await userEvent.click(connect);
+      expect(within(dialog).getByRole("menu", { name: "Choose a provider" })).toBeVisible();
+
+      // The reader's "click anywhere else". The menu closes on a press observed
+      // at `document`; the dialog body used to stop that press on its way there,
+      // so this click left the menu on screen and only its trigger closed it.
+      await userEvent.click(within(dialog).getByRole("heading", { name: "Connected accounts" }));
+
+      expect(within(dialog).queryByRole("menu")).toBeNull();
+      // Reaching document must not also dismiss the dialog the menu sat in.
+      expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+      expect(props.settings.setOpen).not.toHaveBeenCalled();
+
+      // Escape dismisses just the provider menu and returns to its trigger.
+      await userEvent.click(connect);
+      await userEvent.keyboard("{Escape}");
+      expect(within(dialog).queryByRole("menu")).toBeNull();
+      expect(connect).toHaveFocus();
+      expect(props.settings.setOpen).not.toHaveBeenCalled();
+    } finally {
+      invokeMock.mockImplementation(async () => undefined);
+    }
+  });
+
+  it("still dismisses on a press that starts on the backdrop", () => {
+    const props = renderSettings();
+
+    fireEvent.mouseDown(document.querySelector(".app-dialog-backdrop") as HTMLElement);
+
+    expect(props.settings.setOpen).toHaveBeenCalledWith(false);
+  });
+});
+
 describe("About dialog", () => {
   it("is named by the app it belongs to, not only by its promise", () => {
     renderOverlays();
@@ -331,6 +399,9 @@ describe("About dialog", () => {
     const tagline = heading?.querySelector(".about-dialog__tagline");
     expect(heading).toHaveTextContent("GitOdile Git without the fear.");
     expect(productName).toHaveTextContent("GitOdile");
+    // The "Odile" half is the one that carries the brand sweep; the name still
+    // reads as one word because the halves are adjacent text.
+    expect(productName?.querySelector(".about-dialog__odile")).toHaveTextContent("Odile");
     expect(mark).toBeInTheDocument();
     expect(tagline).toHaveTextContent("Git without the fear.");
     // The mark leads the identity at hero scale, then the h2 names the product
@@ -370,11 +441,15 @@ describe("About dialog", () => {
   it("shows the project license and opens its license and source in the browser", async () => {
     renderOverlays();
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
-    const legal = dialog.querySelector(".about-dialog__legal");
+    const licence = dialog.querySelector(".about-dialog__legal--bare");
     const stack = dialog.querySelector(".about-stack");
-    expect(legal).toBeInTheDocument();
+    const credit = dialog.querySelector(".about-dialog__legal--stacked");
+    expect(licence).toBeInTheDocument();
     expect(stack).toBeInTheDocument();
-    expect(stack!.compareDocumentPosition(legal!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(credit).toBeInTheDocument();
+    // The licence leads the facts; the credit closes the dialog under them.
+    expect(licence!.compareDocumentPosition(stack!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(licence!.compareDocumentPosition(credit!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(dialog).toHaveTextContent("GNU AGPL v3.0 only");
     await userEvent.click(screen.getByRole("button", { name: "View license" }));
     await userEvent.click(screen.getByRole("button", { name: "View source code" }));
@@ -386,8 +461,8 @@ describe("About dialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
     expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
-    expect(dialog).toHaveTextContent(`v${__APP_VERSION__}`);
-    expect(dialog.querySelector(".about-dialog__release")).toHaveAccessibleName(
+    expect(dialog.querySelector(".about-dialog__version")?.textContent).toBe(__APP_VERSION__);
+    expect(dialog.querySelector(".about-dialog__version")).toHaveAccessibleName(
       `GitOdile ${__APP_VERSION__}`,
     );
     expect(dialog).toHaveTextContent("Windows 11 (x86_64)");

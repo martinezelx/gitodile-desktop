@@ -37,6 +37,7 @@ function renderCentre(overrides: Partial<React.ComponentProps<typeof Notificatio
     onToggleEnabled: vi.fn(),
     onReviewTeamChanges: vi.fn(),
     onReviewAppUpdate: vi.fn(),
+    onOpenProjectOverview: vi.fn(),
     onOpenSettings: vi.fn(),
     ...overrides,
   };
@@ -116,13 +117,28 @@ describe("the titlebar notification centre", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("v0.3.0 is available")).toBeInTheDocument();
+    expect(within(panel).getByText("New version available: 0.3.0")).toBeInTheDocument();
     expect(within(panel).getByText("Found at startup, and nothing has been downloaded.")).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "View update" }));
 
     expect(onReviewAppUpdate).toHaveBeenCalledOnce();
     expect(onReviewTeamChanges).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says a branch's remote branch is gone and opens Overview on its project", async () => {
+    const onOpenProjectOverview = vi.fn();
+    const onReviewTeamChanges = vi.fn();
+    const notification = entry({ kind: "upstreamGone", branch: "feature/login", remote: "origin" });
+    renderCentre({ notifications: [notification], unreadCount: 1, onOpenProjectOverview, onReviewTeamChanges });
+
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    const panel = screen.getByRole("dialog", { name: "Notifications" });
+    expect(within(panel).getByText("“feature/login” is no longer on “origin”")).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole("button", { name: "See options" }));
+
+    expect(onOpenProjectOverview).toHaveBeenCalledWith(notification);
+    expect(onReviewTeamChanges).not.toHaveBeenCalled();
   });
 
   it("gives a published notification no action", async () => {
@@ -324,6 +340,7 @@ describe("the titlebar notification centre", () => {
           onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
+          onOpenProjectOverview={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -347,6 +364,7 @@ describe("the titlebar notification centre", () => {
           onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
+          onOpenProjectOverview={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -397,6 +415,7 @@ describe("the titlebar notification centre", () => {
           onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
+          onOpenProjectOverview={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
@@ -425,6 +444,7 @@ describe("the titlebar notification centre", () => {
           onToggleEnabled={vi.fn()}
           onReviewTeamChanges={vi.fn()}
           onReviewAppUpdate={vi.fn()}
+          onOpenProjectOverview={vi.fn()}
           onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,

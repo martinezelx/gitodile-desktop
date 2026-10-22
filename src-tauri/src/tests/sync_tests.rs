@@ -17,6 +17,41 @@ fn session(label: &str) -> String {
     format!("sync-epoch-{label}")
 }
 
+/// The app's own order: a check fetches the remote, then the plan reads it.
+fn plan_after_check(repo: &str, label: &str) -> Result<GetTeamChangesPlan, AppError> {
+    check_team_changes(repo.to_string(), session(label))?;
+    plan_get_team_changes(repo.to_string(), session(label))
+}
+
+fn push(repo: &str, branch: &str) {
+    assert!(git_command(repo)
+        .args(["push", "-q", "origin", branch])
+        .status()
+        .unwrap()
+        .success());
+}
+
+fn set_identity(repo: &str) {
+    for (key, value) in [
+        ("user.name", "GitOdile Test"),
+        ("user.email", "test@gitodile.local"),
+    ] {
+        assert!(git_command(repo)
+            .args(["config", key, value])
+            .status()
+            .unwrap()
+            .success());
+    }
+}
+
+fn head(repo: &str) -> String {
+    git_stdout(&test_git(repo, &["rev-parse", "HEAD"]).unwrap())
+}
+
+fn read_text(repo: &str, name: &str) -> String {
+    String::from_utf8_lossy(&fs::read(Path::new(repo).join(name)).unwrap()).replace("\r\n", "\n")
+}
+
 fn clone_remote(remote: &str, label: &str) -> String {
     let other = unique_temp_dir(label);
     let status = base_git_command()
@@ -190,26 +225,228 @@ fn check_updates_only_the_configured_upstream_tracking_ref() {
     }
 }
 
-#[test]
-fn removed_upstream_fails_without_claiming_freshness_or_pruning_cached_tracking() {
-    let _guard = sync_test_guard();
-    let (repo, remote, branch) = published_repo_and_remote("sync-removed");
-    let tracking = format!("refs/remotes/origin/{branch}");
-    let cached_before = git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap());
-    assert!(git_command(&remote)
+fn delete_remote_branch(remote: &str, branch: &str) {
+    assert!(git_command(remote)
         .args(["update-ref", "-d", &format!("refs/heads/{branch}")])
         .status()
         .unwrap()
         .success());
+}
 
-    let error = check_team_changes(repo.clone(), session("removed"))
-        .expect_err("a removed configured upstream must not look fresh");
-    assert_eq!(error.code, AppErrorCode::RemoteRefMissing);
+fn save_file(repo: &str, name: &str, message: &str) {
+    write_file(repo, name, &format!("{message}\n"));
+    git_add_all(repo);
+    git_commit(repo, message);
+}
+
+fn git_succeeds(repo: &str, args: &[&str]) -> bool {
+    git_command(repo).args(args).status().unwrap().success()
+}
+
+/// The main branch published, then `feature` published with one version, then
+/// `feature` deleted on the remote — what a host does after merging a pull
+/// request — while this clone keeps its tracking ref.
+fn branch_deleted_on_remote(label: &str) -> (String, String) {
+    let (repo, remote, main) = published_repo_and_remote(label);
+    assert_ne!(main, "feature");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "feature"]));
+    save_file(&repo, "feature.txt", "feature work");
+    assert!(git_succeeds(
+        &repo,
+        &["push", "-q", "-u", "origin", "feature"]
+    ));
+    delete_remote_branch(&remote, "feature");
+    (repo, remote)
+}
+
+#[test]
+fn removed_upstream_reads_as_gone_without_pruning_cached_tracking() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("sync-removed");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    let cached_before = git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap());
+    delete_remote_branch(&remote, &branch);
+
+    let gone = check_team_changes(repo.clone(), session("removed"))
+        .expect("a removed upstream is an answer, not a failure");
+    assert_eq!(gone.state, TeamSyncState::UpstreamGone);
+    assert_eq!(gone.knowledge, SyncKnowledge::Fresh);
+    assert!(gone.checked_at.is_some());
+    assert_eq!(gone.remote_commit.as_deref(), Some(cached_before.as_str()));
+    assert_eq!(gone.tracking_ref.as_deref(), Some(tracking.as_str()));
+    assert_eq!((gone.ahead, gone.behind), (0, 0));
+    assert!(gone.forecast.is_none());
+    assert_eq!(gone.next_actions, vec![SyncNextAction::CheckAgain]);
     assert_eq!(
         git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap()),
         cached_before,
         "the explicit no-prune policy retains the last known tracking ref"
     );
+    // A local read cannot tell a kept ref from a live one; the frontend's
+    // sync controller is what keeps the fresh answer across it.
+    let cached = read_team_sync_status(repo.clone(), session("removed")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpToDate);
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_missing_tracking_ref_reads_as_gone_without_a_check() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("sync-gone-cached");
+    let tracking = format!("refs/remotes/origin/{branch}");
+    assert!(git_succeeds(&repo, &["update-ref", "-d", &tracking]));
+
+    let cached = read_team_sync_status(repo.clone(), session("gone-cached")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpstreamGone);
+    assert_eq!(cached.knowledge, SyncKnowledge::Cached);
+    assert!(cached.remote_commit.is_none());
+    assert!(cached.warnings.is_empty());
+    assert_eq!(cached.destination_branch.as_deref(), Some(branch.as_str()));
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn publishing_a_branch_deleted_on_the_remote_says_it_recreates_and_counts_only_new_versions() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = branch_deleted_on_remote("sync-recreate");
+    save_file(&repo, "more.txt", "more work");
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.recreates_deleted_branch);
+    assert!(!plan.will_create_upstream);
+    assert_eq!(plan.target.destination_branch, "feature");
+    // The two versions on `feature`, not the main branch's version under them:
+    // the remote's main branch already has that one.
+    assert_eq!(plan.commit_count, 2);
+    assert_eq!(
+        plan.commit_summary
+            .iter()
+            .map(|entry| entry.title.as_str())
+            .collect::<Vec<_>>(),
+        vec!["more work", "feature work"]
+    );
+
+    publish(
+        repo.clone(),
+        "origin".to_string(),
+        plan.state_token,
+        None,
+        true,
+    )
+    .unwrap();
+    assert!(git_succeeds(
+        &remote,
+        &["rev-parse", "--verify", "--quiet", "refs/heads/feature"]
+    ));
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_first_publish_counts_only_what_the_remote_lacks() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _) = published_repo_and_remote("sync-first-count");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "fresh"]));
+    save_file(&repo, "fresh.txt", "fresh work");
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.will_create_upstream);
+    assert!(!plan.recreates_deleted_branch);
+    assert_eq!(plan.commit_count, 1);
+    assert_eq!(plan.commit_summary.len(), 1);
+    // Overview's count agrees with the plan: the main branch's version is on
+    // the remote already.
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "fresh work");
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn a_new_branch_with_nothing_new_plans_only_its_branch() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _) = published_repo_and_remote("sync-empty-branch");
+    assert!(git_succeeds(&repo, &["switch", "-q", "-c", "empty"]));
+
+    let plan = plan_publish(repo.clone(), None, None).unwrap();
+    assert!(plan.will_create_upstream);
+    assert_eq!(plan.commit_count, 0);
+    assert!(plan.commit_summary.is_empty());
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn unpublished_versions_still_follow_a_local_upstream() {
+    let _guard = sync_test_guard();
+    let (repo, remote, main) = published_repo_and_remote("sync-local-upstream");
+    assert!(git_succeeds(
+        &repo,
+        &["switch", "-q", "-c", "topic", "--track", &main]
+    ));
+    save_file(&repo, "topic.txt", "topic work");
+
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "topic work");
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn unpublished_versions_read_past_a_pruned_upstream() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = branch_deleted_on_remote("sync-pruned-pending");
+    assert!(git_succeeds(
+        &repo,
+        &["update-ref", "-d", "refs/remotes/origin/feature"]
+    ));
+
+    let pending = list_unpublished_versions(repo.clone()).unwrap();
+    assert_eq!(pending.total_count, 1);
+    assert_eq!(pending.versions[0].title, "feature work");
+    let cached = read_team_sync_status(repo.clone(), session("pruned-pending")).unwrap();
+    assert_eq!(cached.state, TeamSyncState::UpstreamGone);
+
+    let _ = fs::remove_dir_all(repo);
+    let _ = fs::remove_dir_all(remote);
+}
+
+#[test]
+fn stop_tracking_remote_forgets_the_upstream_and_keeps_everything_else() {
+    let _guard = sync_test_guard();
+    let (repo, remote) = branch_deleted_on_remote("sync-stop-tracking");
+    let head_before = head(&repo);
+
+    let status = stop_tracking_remote(repo.clone(), session("stop-tracking")).unwrap();
+    assert_eq!(status.state, TeamSyncState::NoUpstream);
+    assert_eq!(head(&repo), head_before);
+    for key in ["branch.feature.remote", "branch.feature.merge"] {
+        assert!(!git_succeeds(&repo, &["config", "--get", key]));
+    }
+    assert!(
+        git_succeeds(
+            &repo,
+            &[
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/feature"
+            ]
+        ),
+        "the kept tracking ref is not deleted"
+    );
+    let again = stop_tracking_remote(repo.clone(), session("stop-tracking")).unwrap_err();
+    assert_eq!(again.code, AppErrorCode::InvalidRemoteConfiguration);
 
     let _ = fs::remove_dir_all(repo);
     let _ = fs::remove_dir_all(remote);
@@ -349,11 +586,7 @@ fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
     let remote_head = remote_branch_sha(&remote, &format!("refs/heads/{branch}")).unwrap();
     let previous = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
 
-    let mut phases = Vec::new();
-    let plan = plan_get_team_changes(repo.clone(), session("get-success"), |phase| {
-        phases.push(phase)
-    })
-    .unwrap();
+    let plan = plan_after_check(&repo, "get-success").unwrap();
     assert_eq!(plan.operation_kind, OperationKind::HistoryMutation);
     assert_eq!(plan.incoming_count, 2);
     assert_eq!(plan.incoming_versions.len(), 2);
@@ -361,13 +594,9 @@ fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
     assert!(plan.file_impact.counts.deleted >= 1);
     assert!(plan.file_impact.counts.renamed >= 1);
     assert!(plan.file_impact.counts.binary >= 1);
-    assert_eq!(
-        phases,
-        vec![
-            GetTeamChangesPhase::CheckingTeam,
-            GetTeamChangesPhase::CheckingLocalSafety
-        ]
-    );
+    assert_eq!(plan.integration, IntegrationKind::FastForward);
+    assert_eq!(plan.forecast.outcome, ForecastOutcome::Clear);
+    assert_eq!(plan.forecast.authors, vec!["GitOdile Test".to_string()]);
 
     let recovery_ref = plan.recovery.reference.clone();
     let result = get_team_changes(
@@ -375,6 +604,7 @@ fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
         session("get-success"),
         plan.state_token,
         recovery_ref.clone(),
+        true,
         |_| {},
     )
     .unwrap();
@@ -409,12 +639,11 @@ fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
 }
 
 #[test]
-fn get_plan_explicitly_blocks_up_to_date_ahead_and_diverged_relations() {
+fn get_plan_blocks_up_to_date_and_ahead_and_plans_a_merge_for_diverged() {
     let _guard = sync_test_guard();
     let (current_repo, current_remote, _) = published_repo_and_remote("get-current");
     let current_head = git_stdout(&test_git(&current_repo, &["rev-parse", "HEAD"]).unwrap());
-    let current_error =
-        plan_get_team_changes(current_repo.clone(), session("current"), |_| {}).unwrap_err();
+    let current_error = plan_after_check(&current_repo, "current").unwrap_err();
     assert_eq!(current_error.code, AppErrorCode::NothingToGet);
     assert_eq!(
         git_stdout(&test_git(&current_repo, &["rev-parse", "HEAD"]).unwrap()),
@@ -426,8 +655,7 @@ fn get_plan_explicitly_blocks_up_to_date_ahead_and_diverged_relations() {
     git_add_all(&ahead_repo);
     git_commit(&ahead_repo, "local ahead");
     let ahead_head = git_stdout(&test_git(&ahead_repo, &["rev-parse", "HEAD"]).unwrap());
-    let ahead_error =
-        plan_get_team_changes(ahead_repo.clone(), session("ahead"), |_| {}).unwrap_err();
+    let ahead_error = plan_after_check(&ahead_repo, "ahead").unwrap_err();
     assert_eq!(ahead_error.code, AppErrorCode::NothingToGet);
     assert_eq!(
         git_stdout(&test_git(&ahead_repo, &["rev-parse", "HEAD"]).unwrap()),
@@ -449,9 +677,15 @@ fn get_plan_explicitly_blocks_up_to_date_ahead_and_diverged_relations() {
     git_add_all(&diverged_repo);
     git_commit(&diverged_repo, "local side");
     let diverged_head = git_stdout(&test_git(&diverged_repo, &["rev-parse", "HEAD"]).unwrap());
-    let diverged_error =
-        plan_get_team_changes(diverged_repo.clone(), session("diverged"), |_| {}).unwrap_err();
-    assert_eq!(diverged_error.code, AppErrorCode::DivergedHistories);
+    let diverged = plan_after_check(&diverged_repo, "diverged").unwrap();
+    assert_eq!(diverged.integration, IntegrationKind::Merge);
+    assert_eq!(diverged.forecast.outcome, ForecastOutcome::Clear);
+    assert_eq!(diverged.local_count, 1);
+    assert_eq!(diverged.local_versions.len(), 1);
+    assert!(diverged
+        .merge_message
+        .as_deref()
+        .is_some_and(|message| message.starts_with("Merge remote-tracking branch 'origin/")));
     assert_eq!(
         git_stdout(&test_git(&diverged_repo, &["rev-parse", "HEAD"]).unwrap()),
         diverged_head
@@ -484,7 +718,7 @@ fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collis
         .unwrap()
         .success());
     write_file(&dirty_repo, "a.txt", "local dirty\n");
-    let dirty = plan_get_team_changes(dirty_repo.clone(), session("dirty"), |_| {}).unwrap();
+    let dirty = plan_after_check(&dirty_repo, "dirty").unwrap();
     assert_eq!(dirty.incoming_count, 1);
     assert_eq!(
         fs::read(Path::new(&dirty_repo).join("a.txt")).unwrap(),
@@ -503,9 +737,15 @@ fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collis
         .unwrap()
         .success());
     write_file(&collision_repo, "local-only.txt", "keep local\n");
-    let collision =
-        plan_get_team_changes(collision_repo.clone(), session("collision"), |_| {}).unwrap_err();
-    assert_eq!(collision.code, AppErrorCode::IncomingPathCollision);
+    let collision = plan_after_check(&collision_repo, "collision").unwrap();
+    assert_eq!(collision.forecast.outcome, ForecastOutcome::Blocked);
+    assert_eq!(
+        collision.forecast.blocker,
+        Some(ForecastBlocker {
+            kind: ForecastBlockerKind::UntrackedCollision,
+            path: Some("local-only.txt".to_string()),
+        })
+    );
     assert_eq!(
         fs::read(Path::new(&collision_repo).join("local-only.txt")).unwrap(),
         b"keep local\n"
@@ -531,7 +771,7 @@ fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collis
         .success());
     fs::create_dir_all(Path::new(&safe_repo).join("cache")).unwrap();
     write_file(&safe_repo, "cache/local.bin", "keep ignored\n");
-    let safe = plan_get_team_changes(safe_repo.clone(), session("safe"), |_| {}).unwrap();
+    let safe = plan_after_check(&safe_repo, "safe").unwrap();
     assert_eq!(safe.incoming_count, 1);
 
     for path in [
@@ -566,8 +806,7 @@ fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git
     git_add_all(&staged_repo);
     let staged_index = in_test_frame(|| resolve_index_path(&staged_repo)).unwrap();
     let staged_index_before = fs::read(&staged_index).unwrap();
-    let staged_plan =
-        plan_get_team_changes(staged_repo.clone(), session("staged"), |_| {}).unwrap();
+    let staged_plan = plan_after_check(&staged_repo, "staged").unwrap();
     assert_eq!(staged_plan.incoming_count, 1);
     assert_eq!(fs::read(&staged_index).unwrap(), staged_index_before);
     assert_eq!(
@@ -601,9 +840,11 @@ fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git
         .success());
     fs::create_dir_all(Path::new(&ignored_repo).join("cache")).unwrap();
     write_file(&ignored_repo, "cache/local.txt", "keep ignored\n");
-    let ignored_error =
-        plan_get_team_changes(ignored_repo.clone(), session("ignored"), |_| {}).unwrap_err();
-    assert_eq!(ignored_error.code, AppErrorCode::IncomingPathCollision);
+    let ignored = plan_after_check(&ignored_repo, "ignored").unwrap();
+    assert_eq!(
+        ignored.forecast.blocker.map(|blocker| blocker.kind),
+        Some(ForecastBlockerKind::UntrackedCollision)
+    );
     assert_eq!(
         fs::read(Path::new(&ignored_repo).join("cache/local.txt")).unwrap(),
         b"keep ignored\n"
@@ -628,8 +869,7 @@ fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git
         &operation_head,
     )
     .unwrap();
-    let operation_error =
-        plan_get_team_changes(operation_repo.clone(), session("operation"), |_| {}).unwrap_err();
+    let operation_error = plan_after_check(&operation_repo, "operation").unwrap_err();
     assert_eq!(operation_error.code, AppErrorCode::GitOperationInProgress);
     assert_eq!(
         git_stdout(&test_git(&operation_repo, &["rev-parse", "HEAD"]).unwrap()),
@@ -652,7 +892,7 @@ fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git
 }
 
 #[test]
-fn get_plan_blocks_tracked_changes_that_overlap_an_incoming_source_or_destination() {
+fn get_plan_blocks_a_prepared_change_to_an_incoming_source_or_destination() {
     let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-tracked-collision");
     let other = clone_remote(&remote, "get-tracked-collision-other");
@@ -671,8 +911,23 @@ fn get_plan_blocks_tracked_changes_that_overlap_an_incoming_source_or_destinatio
         .unwrap()
         .success());
     let status_before = test_git(&repo, &["status", "--porcelain=v2", "-z"]).unwrap();
-    let error =
-        plan_get_team_changes(repo.clone(), session("tracked-collision"), |_| {}).unwrap_err();
+    let plan = plan_after_check(&repo, "tracked-collision").unwrap();
+    assert_eq!(
+        plan.forecast.blocker,
+        Some(ForecastBlocker {
+            kind: ForecastBlockerKind::PreparedOverlap,
+            path: Some("local-name.txt".to_string()),
+        })
+    );
+    let error = get_team_changes(
+        repo.clone(),
+        session("tracked-collision"),
+        plan.state_token,
+        plan.recovery.reference,
+        true,
+        |_| {},
+    )
+    .unwrap_err();
     assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
     assert_eq!(
         test_git(&repo, &["status", "--porcelain=v2", "-z"])
@@ -721,12 +976,13 @@ fn get_team_changes_preserves_separate_staged_unstaged_and_untracked_work() {
     )
     .unwrap();
 
-    let plan = plan_get_team_changes(repo.clone(), session("local-work"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "local-work").unwrap();
     let result = get_team_changes(
         repo.clone(),
         session("local-work"),
         plan.state_token,
         plan.recovery.reference,
+        true,
         |_| {},
     )
     .unwrap();
@@ -786,7 +1042,7 @@ fn get_team_changes_rejects_local_content_changed_after_preview_before_recovery(
         .success());
 
     write_file(&repo, "a.txt", "first local edit\n");
-    let plan = plan_get_team_changes(repo.clone(), session("local-state-stale"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "local-state-stale").unwrap();
     let head_before = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
     write_file(&repo, "a.txt", "newer local edit\n");
 
@@ -795,6 +1051,7 @@ fn get_team_changes_rejects_local_content_changed_after_preview_before_recovery(
         session("local-state-stale"),
         plan.state_token,
         plan.recovery.reference.clone(),
+        true,
         |_| {},
     )
     .unwrap_err();
@@ -832,10 +1089,9 @@ fn execution_rejects_a_remote_target_that_advanced_after_preview_without_local_m
         .status()
         .unwrap()
         .success());
-    let plan = plan_get_team_changes(repo.clone(), session("stale"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "stale").unwrap();
     let head_before = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
     let index = in_test_frame(|| resolve_index_path(&repo)).unwrap();
-    let index_before = fs::read(&index).unwrap();
     write_file(&other, "two.txt", "two\n");
     git_add_all(&other);
     git_commit(&other, "two");
@@ -844,12 +1100,17 @@ fn execution_rejects_a_remote_target_that_advanced_after_preview_without_local_m
         .status()
         .unwrap()
         .success());
+    // Execution never fetches: the newer remote is only seen once a check
+    // records it, as the dialog's background check does.
+    check_team_changes(repo.clone(), session("stale")).unwrap();
+    let index_before = fs::read(&index).unwrap();
 
     let error = get_team_changes(
         repo.clone(),
         session("stale"),
         plan.state_token,
         plan.recovery.reference,
+        true,
         |_| {},
     )
     .unwrap_err();
@@ -879,8 +1140,7 @@ fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mu
         .status()
         .unwrap()
         .success());
-    let upstream_plan =
-        plan_get_team_changes(upstream_repo.clone(), session("upstream-change"), |_| {}).unwrap();
+    let upstream_plan = plan_after_check(&upstream_repo, "upstream-change").unwrap();
     let upstream_head = git_stdout(&test_git(&upstream_repo, &["rev-parse", "HEAD"]).unwrap());
     let upstream_index = in_test_frame(|| resolve_index_path(&upstream_repo)).unwrap();
     let upstream_index_before = fs::read(&upstream_index).unwrap();
@@ -898,6 +1158,7 @@ fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mu
         session("upstream-change"),
         upstream_plan.state_token,
         upstream_plan.recovery.reference,
+        true,
         |_| {},
     )
     .unwrap_err();
@@ -922,8 +1183,7 @@ fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mu
         .status()
         .unwrap()
         .success());
-    let locked_plan =
-        plan_get_team_changes(locked_repo.clone(), session("recovery-lock"), |_| {}).unwrap();
+    let locked_plan = plan_after_check(&locked_repo, "recovery-lock").unwrap();
     let locked_head = git_stdout(&test_git(&locked_repo, &["rev-parse", "HEAD"]).unwrap());
     let locked_index = in_test_frame(|| resolve_index_path(&locked_repo)).unwrap();
     let locked_index_before = fs::read(&locked_index).unwrap();
@@ -946,6 +1206,7 @@ fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mu
         session("recovery-lock"),
         locked_plan.state_token,
         locked_plan.recovery.reference.clone(),
+        true,
         |_| {},
     )
     .unwrap_err();
@@ -996,6 +1257,7 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
             destination_branch: "main".to_string(),
             tracking_ref: "refs/remotes/origin/main".to_string(),
             state_token: "test-token".to_string(),
+            unsaved_snapshot: None,
         };
         let incomplete_preview = plan_history_recovery(&repository);
         let mut incomplete_parts = incomplete_preview.reference.rsplit('/');
@@ -1026,6 +1288,8 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
             tracking_ref: "refs/remotes/origin/main".to_string(),
             state_token: "test-token".to_string(),
             retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
+            unsaved_reference: None,
+            unsaved_snapshot: None,
         };
         let pending = repository
             .common_git_dir
@@ -1075,6 +1339,7 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
                     destination_branch: "main".to_string(),
                     tracking_ref: "refs/remotes/origin/main".to_string(),
                     state_token: "test-token".to_string(),
+                    unsaved_snapshot: None,
                 },
             )
             .unwrap();
@@ -1120,7 +1385,7 @@ fn a_post_recovery_ref_lock_returns_uncertain_and_keeps_the_recovery() {
         .status()
         .unwrap()
         .success());
-    let plan = plan_get_team_changes(repo.clone(), session("uncertain-lock"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "uncertain-lock").unwrap();
     let git_dir = git_stdout(&test_git(&repo, &["rev-parse", "--absolute-git-dir"]).unwrap());
     let branch_lock = Path::new(&git_dir)
         .join("refs")
@@ -1133,6 +1398,7 @@ fn a_post_recovery_ref_lock_returns_uncertain_and_keeps_the_recovery() {
         session("uncertain-lock"),
         plan.state_token,
         plan.recovery.reference,
+        true,
         |_| {},
     )
     .unwrap();
@@ -1178,7 +1444,7 @@ fn get_plan_caps_many_incoming_versions_without_losing_the_total() {
         .status()
         .unwrap()
         .success());
-    let plan = plan_get_team_changes(repo.clone(), session("many"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "many").unwrap();
     assert_eq!(plan.incoming_count as usize, MAX_INCOMING_VERSIONS + 5);
     assert_eq!(plan.incoming_versions.len(), MAX_INCOMING_VERSIONS);
     assert!(plan.versions_truncated);
@@ -1204,7 +1470,7 @@ fn get_plan_caps_many_incoming_files_without_losing_categories_or_total() {
         .unwrap()
         .success());
 
-    let plan = plan_get_team_changes(repo.clone(), session("many-files"), |_| {}).unwrap();
+    let plan = plan_after_check(&repo, "many-files").unwrap();
     assert_eq!(plan.file_impact.total_count, MAX_INCOMING_FILES + 5);
     assert_eq!(plan.file_impact.files.len(), MAX_INCOMING_FILES);
     assert_eq!(plan.file_impact.counts.added, MAX_INCOMING_FILES + 5);
@@ -1215,9 +1481,14 @@ fn get_plan_caps_many_incoming_files_without_losing_categories_or_total() {
         "a.txt",
         "local work outside the visible incoming sample\n",
     );
-    let error =
-        plan_get_team_changes(repo.clone(), session("many-files-dirty"), |_| {}).unwrap_err();
-    assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
+    // Local work is compared with every incoming path, not the capped list.
+    let dirty = plan_after_check(&repo, "many-files-dirty").unwrap();
+    assert_eq!(dirty.forecast.outcome, ForecastOutcome::Clear);
+    assert_eq!(dirty.forecast.carried_unsaved_count, 1);
+    assert_eq!(
+        dirty.forecast.incoming_file_count as usize,
+        MAX_INCOMING_FILES + 5
+    );
 
     for path in [repo, remote, other] {
         let _ = fs::remove_dir_all(path);
@@ -1262,7 +1533,7 @@ fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
     assert_eq!(
         before.upstream_remote.as_deref(),
         Some("origin"),
-        "the published line's own remote, read from its configuration"
+        "the published branch's own remote, read from its configuration"
     );
 
     assert_eq!(
@@ -1305,4 +1576,438 @@ fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
     for path in [repo, remote] {
         let _ = fs::remove_dir_all(path);
     }
+}
+
+const EIGHT_LINES: &str = "l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n";
+
+/// A published repository whose `lines.txt` has eight lines, and a second
+/// clone of its remote to make team changes from.
+fn repo_with_lines(label: &str) -> (String, String, String, String) {
+    let (repo, remote, branch) = published_repo_and_remote(label);
+    set_identity(&repo);
+    write_file(&repo, "lines.txt", EIGHT_LINES);
+    git_add_all(&repo);
+    git_commit(&repo, "eight lines");
+    push(&repo, &branch);
+    let other = clone_remote(&remote, &format!("{label}-other"));
+    (repo, remote, other, branch)
+}
+
+fn recovery_ref_exists(repo: &str, reference: &str) -> bool {
+    test_git(repo, &["rev-parse", "--verify", reference])
+        .unwrap()
+        .status
+        .success()
+}
+
+#[test]
+fn diverged_branches_without_overlap_are_combined_with_a_merge_version() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-merge");
+    set_identity(&repo);
+    let other = clone_remote(&remote, "get-merge-other");
+    write_file(&other, "team.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team side");
+    push(&other, &branch);
+    write_file(&repo, "local.txt", "local\n");
+    git_add_all(&repo);
+    git_commit(&repo, "local side");
+    write_file(&repo, "a.txt", "unsaved and separate\n");
+    let previous = head(&repo);
+    let remote_head = remote_branch_sha(&remote, &format!("refs/heads/{branch}")).unwrap();
+
+    let status = check_team_changes(repo.clone(), session("merge")).unwrap();
+    assert_eq!(status.state, TeamSyncState::Diverged);
+    let forecast = status
+        .forecast
+        .expect("a diverged branch carries a forecast");
+    assert_eq!(forecast.outcome, ForecastOutcome::Clear);
+    assert_eq!(forecast.integration, IntegrationKind::Merge);
+    assert_eq!(forecast.incoming_count, 1);
+    assert_eq!(forecast.local_count, 1);
+    assert_eq!(forecast.carried_unsaved_count, 1);
+    assert!(status.next_actions.contains(&SyncNextAction::ReviewAndGet));
+
+    let plan = plan_get_team_changes(repo.clone(), session("merge")).unwrap();
+    let result = get_team_changes(
+        repo.clone(),
+        session("merge"),
+        plan.state_token,
+        plan.recovery.reference.clone(),
+        true,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(result.outcome, GetTeamChangesOutcome::Completed);
+    assert_eq!(result.integration, IntegrationKind::Merge);
+    let parents =
+        git_stdout(&test_git(&repo, &["rev-list", "--parents", "-n", "1", "HEAD"]).unwrap());
+    let parents = parents.split_whitespace().collect::<Vec<_>>();
+    assert_eq!(parents.len(), 3, "a merge version has two parents");
+    assert_eq!(parents[1], previous);
+    assert_eq!(parents[2], remote_head);
+    assert_eq!(
+        git_stdout(&test_git(&repo, &["log", "-1", "--format=%s"]).unwrap()),
+        format!("Merge remote-tracking branch 'origin/{branch}'")
+    );
+    assert_eq!(read_text(&repo, "team.txt"), "team\n");
+    assert_eq!(read_text(&repo, "local.txt"), "local\n");
+    assert_eq!(read_text(&repo, "a.txt"), "unsaved and separate\n");
+    assert_eq!(
+        git_stdout(&test_git(&repo, &["rev-parse", &plan.recovery.reference]).unwrap()),
+        previous
+    );
+    let sync = result
+        .sync_status
+        .expect("a completed merge reports status");
+    assert_eq!(sync.state, TeamSyncState::Ahead);
+    assert_eq!(sync.ahead, 2);
+    assert!(sync.forecast.is_none());
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn diverged_branches_that_change_the_same_lines_are_refused_with_the_files() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-merge-overlap");
+    set_identity(&repo);
+    let other = clone_remote(&remote, "get-merge-overlap-other");
+    write_file(&other, "a.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team edit");
+    push(&other, &branch);
+    write_file(&repo, "a.txt", "local\n");
+    git_add_all(&repo);
+    git_commit(&repo, "local edit");
+    let previous = head(&repo);
+
+    let status = check_team_changes(repo.clone(), session("merge-overlap")).unwrap();
+    let forecast = status.forecast.unwrap();
+    assert_eq!(forecast.outcome, ForecastOutcome::Overlap);
+    assert_eq!(
+        forecast.overlaps,
+        vec![ForecastOverlap {
+            path: "a.txt".to_string(),
+            side: OverlapSide::Saved,
+        }]
+    );
+    let plan = plan_get_team_changes(repo.clone(), session("merge-overlap")).unwrap();
+    assert_eq!(plan.forecast.outcome, ForecastOutcome::Overlap);
+    let error = get_team_changes(
+        repo.clone(),
+        session("merge-overlap"),
+        plan.state_token,
+        plan.recovery.reference.clone(),
+        true,
+        |_| {},
+    )
+    .unwrap_err();
+    assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
+    assert_eq!(head(&repo), previous);
+    assert_eq!(read_text(&repo, "a.txt"), "local\n");
+    assert!(!recovery_ref_exists(&repo, &plan.recovery.reference));
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn unsaved_edits_on_other_lines_of_an_incoming_file_stay_unsaved_on_top_of_it() {
+    let _guard = sync_test_guard();
+    let (repo, remote, other, branch) = repo_with_lines("get-combine");
+    write_file(&other, "lines.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nTEAM\n");
+    git_add_all(&other);
+    git_commit(&other, "team edits the last line");
+    push(&other, &branch);
+    write_file(&repo, "lines.txt", "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n");
+    let remote_head = remote_branch_sha(&remote, &format!("refs/heads/{branch}")).unwrap();
+
+    let status = check_team_changes(repo.clone(), session("combine")).unwrap();
+    let forecast = status.forecast.unwrap();
+    assert_eq!(forecast.outcome, ForecastOutcome::Clear);
+    assert_eq!(forecast.combined_unsaved, vec!["lines.txt".to_string()]);
+    assert_eq!(forecast.carried_unsaved_count, 0);
+
+    let plan = plan_get_team_changes(repo.clone(), session("combine")).unwrap();
+    let result = get_team_changes(
+        repo.clone(),
+        session("combine"),
+        plan.state_token,
+        plan.recovery.reference,
+        true,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(result.outcome, GetTeamChangesOutcome::Completed);
+    assert_eq!(result.combined_unsaved_count, 1);
+    assert_eq!(head(&repo), remote_head);
+    assert_eq!(
+        read_text(&repo, "lines.txt"),
+        "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nTEAM\n"
+    );
+    // The incoming version is saved; the local edit is still only unsaved.
+    assert!(test_git(&repo, &["diff", "--cached", "--quiet"])
+        .unwrap()
+        .status
+        .success());
+    assert!(!test_git(&repo, &["diff", "--quiet", "--", "lines.txt"])
+        .unwrap()
+        .status
+        .success());
+    let unsaved_reference = result
+        .recovery
+        .unsaved_reference
+        .clone()
+        .expect("combined unsaved content is kept");
+    let kept =
+        git_stdout(&test_git(&repo, &["show", &format!("{unsaved_reference}:lines.txt")]).unwrap())
+            .replace("\r\n", "\n");
+    assert_eq!(kept, "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nl8");
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn unsaved_edits_to_the_same_lines_are_refused_and_left_untouched() {
+    let _guard = sync_test_guard();
+    let (repo, remote, other, branch) = repo_with_lines("get-unsaved-overlap");
+    write_file(&other, "lines.txt", "TEAM\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n");
+    git_add_all(&other);
+    git_commit(&other, "team edits the first line");
+    push(&other, &branch);
+    write_file(&repo, "lines.txt", "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n");
+    let previous = head(&repo);
+
+    let status = check_team_changes(repo.clone(), session("unsaved-overlap")).unwrap();
+    let forecast = status.forecast.unwrap();
+    assert_eq!(forecast.outcome, ForecastOutcome::Overlap);
+    assert_eq!(
+        forecast.overlaps,
+        vec![ForecastOverlap {
+            path: "lines.txt".to_string(),
+            side: OverlapSide::Unsaved,
+        }]
+    );
+    let plan = plan_get_team_changes(repo.clone(), session("unsaved-overlap")).unwrap();
+    let error = get_team_changes(
+        repo.clone(),
+        session("unsaved-overlap"),
+        plan.state_token,
+        plan.recovery.reference,
+        true,
+        |_| {},
+    )
+    .unwrap_err();
+    assert_eq!(error.code, AppErrorCode::IncomingTrackedChangeCollision);
+    assert_eq!(head(&repo), previous);
+    assert_eq!(
+        read_text(&repo, "lines.txt"),
+        "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n"
+    );
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn a_prepared_edit_to_an_incoming_file_blocks_even_on_other_lines() {
+    let _guard = sync_test_guard();
+    let (repo, remote, other, branch) = repo_with_lines("get-prepared-overlap");
+    write_file(&other, "lines.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nTEAM\n");
+    git_add_all(&other);
+    git_commit(&other, "team edits the last line");
+    push(&other, &branch);
+    write_file(&repo, "lines.txt", "LOCAL\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n");
+    git_add(&repo, "lines.txt");
+
+    let status = check_team_changes(repo.clone(), session("prepared-overlap")).unwrap();
+    assert_eq!(
+        status.forecast.unwrap().blocker,
+        Some(ForecastBlocker {
+            kind: ForecastBlockerKind::PreparedOverlap,
+            path: Some("lines.txt".to_string()),
+        })
+    );
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn merge_hooks_can_stop_the_merge_version_before_anything_moves() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-merge-hook");
+    set_identity(&repo);
+    let other = clone_remote(&remote, "get-merge-hook-other");
+    write_file(&other, "team.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team side");
+    push(&other, &branch);
+    write_file(&repo, "local.txt", "local\n");
+    git_add_all(&repo);
+    git_commit(&repo, "local side");
+    let previous = head(&repo);
+    let git_dir = git_stdout(&test_git(&repo, &["rev-parse", "--absolute-git-dir"]).unwrap());
+    write_failing_hook(Path::new(&git_dir), "pre-merge-commit");
+
+    let plan = plan_after_check(&repo, "merge-hook").unwrap();
+    let error = get_team_changes(
+        repo.clone(),
+        session("merge-hook"),
+        plan.state_token,
+        plan.recovery.reference.clone(),
+        true,
+        |_| {},
+    )
+    .unwrap_err();
+    assert_eq!(error.code, AppErrorCode::HookRejected);
+    assert_eq!(head(&repo), previous);
+    assert!(!Path::new(&repo).join("team.txt").exists());
+    assert!(!recovery_ref_exists(&repo, &plan.recovery.reference));
+
+    // With hooks turned off in Settings, the same update goes through.
+    let plan = plan_get_team_changes(repo.clone(), session("merge-hook")).unwrap();
+    let result = get_team_changes(
+        repo.clone(),
+        session("merge-hook"),
+        plan.state_token,
+        plan.recovery.reference,
+        false,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(result.outcome, GetTeamChangesOutcome::Completed);
+    assert_eq!(read_text(&repo, "team.txt"), "team\n");
+
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn a_split_index_still_lets_the_plan_prove_separate_unsaved_work_can_be_carried() {
+    let _guard = sync_test_guard();
+    let (repo, remote, branch) = published_repo_and_remote("get-split-index");
+    let other = clone_remote(&remote, "get-split-index-other");
+    write_file(&other, "team.txt", "team\n");
+    git_add_all(&other);
+    git_commit(&other, "team");
+    push(&other, &branch);
+    // The dry run reads a copy of the index; with a split index that copy
+    // names a sharedindex file Git must still find.
+    assert!(git_command(&repo)
+        .args(["config", "core.splitIndex", "true"])
+        .status()
+        .unwrap()
+        .success());
+    assert!(git_command(&repo)
+        .args(["update-index", "--split-index"])
+        .status()
+        .unwrap()
+        .success());
+    write_file(&repo, "a.txt", "local unsaved\n");
+
+    let plan = plan_after_check(&repo, "split-index").unwrap();
+    assert_eq!(plan.forecast.outcome, ForecastOutcome::Clear);
+    let result = get_team_changes(
+        repo.clone(),
+        session("split-index"),
+        plan.state_token,
+        plan.recovery.reference,
+        true,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(result.outcome, GetTeamChangesOutcome::Completed);
+    assert_eq!(read_text(&repo, "a.txt"), "local unsaved\n");
+    for path in [repo, remote, other] {
+        let _ = fs::remove_dir_all(path);
+    }
+}
+
+#[test]
+fn remote_home_names_the_published_remote_and_never_reports_one_missing() {
+    let _guard = sync_test_guard();
+    let (repo, remote, _branch) = published_repo_and_remote("remote-home");
+    let leaf = std::path::Path::new(&remote)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap()
+        .to_string();
+
+    // The branch publishes to origin, a folder on this machine: named by its
+    // folder, with no page to open.
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "origin");
+    assert_eq!(home.provider, crate::sync::RemoteHomeProvider::Other);
+    assert_eq!(home.label, leaf);
+    assert!(!home.has_web_page);
+
+    // An address this cannot read is still a remote, named by its own name.
+    wire_remote(&repo, "mirror", "sso://team/app");
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["branch", "--unset-upstream"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "rename", "origin", "backup"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "backup");
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "remove", "backup"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let home = crate::sync::read_remote_home(repo.clone())
+        .unwrap()
+        .unwrap();
+    assert_eq!(home.remote, "mirror");
+    assert_eq!(home.label, "mirror");
+    assert!(!home.has_web_page);
+
+    // No page can be opened for a remote that has none, or does not exist.
+    // (`open_remote_home` authorizes the project before asking.)
+    let access = application::authorize_repository(&repo, "open_remote_home", None).unwrap();
+    assert_eq!(
+        crate::sync::remote_web_page(&repo, "mirror")
+            .unwrap_err()
+            .code,
+        AppErrorCode::RemoteNotFound
+    );
+    assert_eq!(
+        crate::sync::remote_web_page(&repo, "elsewhere")
+            .unwrap_err()
+            .code,
+        AppErrorCode::RemoteNotFound
+    );
+    drop(access);
+
+    // With no remote at all, there is none to name.
+    let status = std::process::Command::new("git")
+        .current_dir(&repo)
+        .args(["remote", "remove", "mirror"])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    assert_eq!(crate::sync::read_remote_home(repo).unwrap(), None);
 }

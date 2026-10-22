@@ -25,7 +25,6 @@ export const overviewScreenModule = {
   additionalPreloads: [
     () => import("./HistorySummarySection"),
     () => import("../publish"),
-    () => import("../version-lines"),
   ],
   lifecycle: { hidden: "retain-suspended", evict: "project-session" },
   accessibility: { inactive: "hidden-inert", announcements: "active-only" },

@@ -8,6 +8,7 @@ use tauri::Manager;
 use crate::application;
 use crate::changes::validate_repo_relative_path;
 use crate::error::{AppError, AppErrorCode};
+use crate::tooling;
 
 pub(crate) fn app_status() -> &'static str {
     "GitOdile is ready"
@@ -56,12 +57,76 @@ pub(crate) fn reveal_project_file(path: String, file_path: String) -> Result<(),
         );
     }
 
-    tauri_plugin_opener::reveal_item_in_dir(&full_path).map_err(|_| {
+    reveal_in_file_manager(&full_path).map_err(|error| {
+        error.with_remediation("Open the project folder yourself to find this file.")
+    })
+}
+
+/// Opens the project's own folder in the operating system's file manager.
+///
+/// Only the folder of a project this session has open: the path is
+/// authorised as a repository first, so the renderer can name a project but
+/// never an arbitrary place on the disk — the same reason
+/// `reveal_project_file` keeps the opener's scope-free API behind a command of
+/// its own. The authorised root is opened as it is: canonicalising it would
+/// hand Windows' file manager a verbatim `\\?\` path, which it does not
+/// always open.
+pub(crate) fn open_project_folder(path: String) -> Result<(), AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "open_project_folder", None)?;
+    let repo_root = Path::new(&path);
+    if !repo_root.is_dir() {
+        return Err(AppError::new(
+            AppErrorCode::PathUnusable,
+            "This project's folder can't be read.",
+        )
+        .with_remediation("Open the project again, or choose another folder."));
+    }
+    tauri_plugin_opener::open_path(repo_root, None::<&str>).map_err(|_| {
         AppError::new(
             AppErrorCode::PathUnusable,
             "Your file manager couldn't be opened.",
         )
-        .with_remediation("Open the project folder yourself to find this file.")
+        .with_remediation("Copy the path and open it yourself.")
+    })
+}
+
+/// Opens the web page of one of the project's remotes in the browser. The
+/// renderer names the remote; the address is derived here from the project's
+/// own configuration, so the opener never receives a URL the renderer wrote.
+pub(crate) fn open_remote_home(path: String, remote: String) -> Result<(), AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "open_remote_home", None)?;
+    let page = crate::sync::remote_web_page(&path, &remote)?;
+    open_derived_url(&page)
+}
+
+/// Shows where Git, or one of its configuration files, lives. The path is the
+/// one `tooling` found again for the named place, never one the renderer sent.
+pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {
+    let path = tooling::git_location_path(&target)?;
+    reveal_in_file_manager(&path)
+        .map_err(|error| error.with_remediation("Copy the path and open it yourself."))
+}
+
+fn reveal_in_file_manager(path: &Path) -> Result<(), AppError> {
+    tauri_plugin_opener::reveal_item_in_dir(path).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "Your file manager couldn't be opened.",
+        )
+    })
+}
+
+/// Opens a URL the native side derived itself (never one the renderer or a
+/// tool supplied); the renderer's opener scope stays a fixed allow-list.
+pub(crate) fn open_derived_url(url: &str) -> Result<(), AppError> {
+    tauri_plugin_opener::open_url(url, None::<&str>).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathUnusable,
+            "Your browser couldn't be opened.",
+        )
+        .with_remediation("Open the address shown in GitOdile in your browser yourself.")
     })
 }
 

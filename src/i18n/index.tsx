@@ -1,12 +1,22 @@
+import { gitlabTranslations } from "../features/gitlab/translations";
+import { gitlabTokenTranslations } from "../features/gitlab/tokenTranslations";
+import { gitlabToolingTranslations } from "../features/gitlab/toolingTranslations";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
+import { accountsTranslations } from "../features/accounts/translations";
+import { bitbucketTranslations } from "../features/bitbucket/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
 import { consoleTranslations } from "../features/console/translations";
 import { initializeProjectTranslations } from "../features/initialize-project/translations";
 import { notificationsTranslations } from "../features/notifications/translations";
 import { historyTranslations } from "../features/history/translations";
+import { githubTranslations } from "../features/github/translations";
+import { githubTokenTranslations } from "../features/github/tokenTranslations";
+import { hostingServersTranslations } from "../features/hosting-servers/translations";
+import { repositoryBrowserTranslations } from "../features/repository-browser/translations";
+import { homeTranslations } from "../features/home/translations";
 import { overviewTranslations } from "../features/overview/translations";
 import { projectSettingsTranslations } from "../features/project-settings/translations";
 import { publishTranslations } from "../features/publish/translations";
@@ -14,7 +24,7 @@ import { saveVersionTranslations } from "../features/save-version/translations";
 import { settingsTranslations } from "../features/settings/translations";
 import { statusTranslations } from "../features/status/translations";
 import { syncTranslations } from "../features/sync/translations";
-import { versionLinesTranslations } from "../features/version-lines/translations";
+import { branchesTranslations } from "../features/branches/translations";
 import { workbenchTranslations } from "../features/workbench/translations";
 import {
   DEFAULT_DATE_FORMAT,
@@ -55,6 +65,16 @@ export const translationNamespaces = {
   initializeProject: initializeProjectTranslations,
   notifications: notificationsTranslations,
   history: historyTranslations,
+  gitlab: gitlabTranslations,
+  gitlabToken: gitlabTokenTranslations,
+  gitlabTooling: gitlabToolingTranslations,
+  github: githubTranslations,
+  githubToken: githubTokenTranslations,
+  bitbucket: bitbucketTranslations,
+  hostingServers: hostingServersTranslations,
+  repositoryBrowser: repositoryBrowserTranslations,
+  accounts: accountsTranslations,
+  home: homeTranslations,
   overview: overviewTranslations,
   status: statusTranslations,
   sync: syncTranslations,
@@ -63,7 +83,7 @@ export const translationNamespaces = {
   settings: settingsTranslations,
   projectSettings: projectSettingsTranslations,
   publish: publishTranslations,
-  versionLines: versionLinesTranslations,
+  branches: branchesTranslations,
   workbench: workbenchTranslations,
 } as const;
 
@@ -75,6 +95,16 @@ const en = {
   ...initializeProjectTranslations.en,
   ...notificationsTranslations.en,
   ...historyTranslations.en,
+  ...gitlabTranslations.en,
+  ...gitlabTokenTranslations.en,
+  ...gitlabToolingTranslations.en,
+  ...githubTranslations.en,
+  ...githubTokenTranslations.en,
+  ...bitbucketTranslations.en,
+  ...hostingServersTranslations.en,
+  ...repositoryBrowserTranslations.en,
+  ...accountsTranslations.en,
+  ...homeTranslations.en,
   ...overviewTranslations.en,
   ...statusTranslations.en,
   ...syncTranslations.en,
@@ -83,7 +113,7 @@ const en = {
   ...settingsTranslations.en,
   ...projectSettingsTranslations.en,
   ...publishTranslations.en,
-  ...versionLinesTranslations.en,
+  ...branchesTranslations.en,
   ...workbenchTranslations.en,
 };
 
@@ -97,6 +127,16 @@ const es: Translations = {
   ...initializeProjectTranslations.es,
   ...notificationsTranslations.es,
   ...historyTranslations.es,
+  ...gitlabTranslations.es,
+  ...gitlabTokenTranslations.es,
+  ...gitlabToolingTranslations.es,
+  ...githubTranslations.es,
+  ...githubTokenTranslations.es,
+  ...bitbucketTranslations.es,
+  ...hostingServersTranslations.es,
+  ...repositoryBrowserTranslations.es,
+  ...accountsTranslations.es,
+  ...homeTranslations.es,
   ...overviewTranslations.es,
   ...statusTranslations.es,
   ...syncTranslations.es,
@@ -105,7 +145,7 @@ const es: Translations = {
   ...settingsTranslations.es,
   ...projectSettingsTranslations.es,
   ...publishTranslations.es,
-  ...versionLinesTranslations.es,
+  ...branchesTranslations.es,
   ...workbenchTranslations.es,
 };
 

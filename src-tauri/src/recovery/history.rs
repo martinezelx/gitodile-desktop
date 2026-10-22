@@ -1,11 +1,16 @@
-//! Recovery records for workflows that move or remove a version line.
+//! Recovery records for workflows that move or remove a branch.
 //!
-//! A `get team changes` rebase moves the version line, so the pre-rewrite tip
-//! is preserved as a hidden ref under `refs/gitodile/recovery/` per ADR 0008.
-//! Deleting a line whose work reached the main line only as copies removes
-//! the one ref holding its original versions, so their tip is preserved the
-//! same way first (ADR 0016). Each operation has its own namespace, manifest
-//! folder and retention limit; the protocol is one. Records are owned per
+//! Getting project changes moves the branch (a fast-forward or a merge
+//! version), so the previous tip is preserved as a hidden ref under
+//! `refs/gitodile/recovery/` per ADR 0008. When that update also combines
+//! unsaved edits with incoming ones, their previous content is kept as a
+//! snapshot commit under a sibling `-unsaved` namespace, owned by the same
+//! record (ADR 0030). Deleting a branch whose work reached the main branch only as
+//! copies removes the one ref holding its original versions, so their tip is
+//! preserved the same way first (ADR 0016). Cleaning up several branches at once
+//! keeps one record per deleted branch, so each can be recreated by name (ADR
+//! 0034). Each operation has its own namespace, manifest folder and retention
+//! limit; the protocol is one. Records are owned per
 //! worktree and reconciled before a new one is reserved.
 //! This is a separate owner from [`super::discard`]: the two share only the
 //! clock.
@@ -21,29 +26,48 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const HISTORY_RECOVERY_SCHEMA_VERSION: u32 = 1;
-/// Per operation: each keeps its own newest twenty.
+/// Per operation: each keeps its own newest twenty, except a clean-up.
 pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
+/// A clean-up writes one record per branch it deletes, so it keeps more, and a
+/// single clean-up may never ask for more branches than this: it would evict its
+/// own records while it wrote them.
+pub(crate) const MAX_CLEAN_UP_RECOVERY_RECORDS: usize = 50;
 
 /// The workflows that keep a recovery point before they change a version
-/// line. The slug names the ref namespace, the manifest folder and the
+/// branch. The slug names the ref namespace, the manifest folder and the
 /// record's `operation` field; `get-team-changes` is the ADR 0008 layout
 /// unchanged, so records already written stay where they are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HistoryRecoveryOperation {
     GetTeamChanges,
-    DeleteVersionLine,
+    DeleteBranch,
+    CleanUpBranches,
 }
 
 impl HistoryRecoveryOperation {
     fn slug(self) -> &'static str {
         match self {
             Self::GetTeamChanges => "get-team-changes",
-            Self::DeleteVersionLine => "delete-version-line",
+            Self::DeleteBranch => "delete-branch",
+            Self::CleanUpBranches => "clean-up-branches",
+        }
+    }
+
+    fn retention_limit(self) -> usize {
+        match self {
+            Self::CleanUpBranches => MAX_CLEAN_UP_RECOVERY_RECORDS,
+            Self::GetTeamChanges | Self::DeleteBranch => MAX_HISTORY_RECOVERY_RECORDS,
         }
     }
 
     fn namespace(self) -> String {
         format!("refs/gitodile/recovery/v1/{}", self.slug())
+    }
+
+    /// Outside [`Self::namespace`] on purpose: `for-each-ref` on the record
+    /// namespace must count only the records' own refs.
+    fn unsaved_namespace(self) -> String {
+        format!("refs/gitodile/recovery/v1/{}-unsaved", self.slug())
     }
 }
 
@@ -73,6 +97,13 @@ pub(crate) struct HistoryRecoveryRecord {
     pub(crate) tracking_ref: String,
     pub(crate) state_token: String,
     pub(crate) retention_limit: usize,
+    /// The unsaved content an update combined with incoming edits, as a
+    /// snapshot commit, and the hidden ref that keeps it. Absent from records
+    /// written before ADR 0030 and from updates that combined nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) unsaved_reference: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) unsaved_snapshot: Option<String>,
 }
 
 pub(crate) struct HistoryRecoveryMetadata {
@@ -83,6 +114,7 @@ pub(crate) struct HistoryRecoveryMetadata {
     pub(crate) destination_branch: String,
     pub(crate) tracking_ref: String,
     pub(crate) state_token: String,
+    pub(crate) unsaved_snapshot: Option<String>,
 }
 
 fn stable_fnv1a(value: &str) -> u64 {
@@ -161,18 +193,23 @@ pub(crate) fn plan_history_recovery_for(
             "GitOdile will protect the current saved version with a verified local reference before changing history or files.",
             "team-update",
         ),
-        HistoryRecoveryOperation::DeleteVersionLine => (
-            "GitOdile will keep this line's original saved versions with a verified local reference before deleting it.",
-            "deleted-line",
+        HistoryRecoveryOperation::DeleteBranch => (
+            "GitOdile will keep this branch's original saved versions with a verified local reference before deleting it.",
+            "deleted-branch",
+        ),
+        HistoryRecoveryOperation::CleanUpBranches => (
+            "GitOdile will keep each branch's name and last saved version with a verified local reference before deleting it.",
+            "cleaned-up-branch",
         ),
     };
+    let limit = operation.retention_limit();
     HistoryRecoveryPreview {
         reference: format!("{}/{owner_id}/{recovery_id}", operation.namespace()),
         explanation: explanation.to_string(),
         retention: format!(
-            "The recovery point stays local and is kept among the newest {MAX_HISTORY_RECOVERY_RECORDS} {kind} recovery points for this project repository."
+            "The recovery point stays local and is kept among the newest {limit} {kind} recovery points for this project repository."
         ),
-        retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
+        retention_limit: limit,
     }
 }
 
@@ -279,9 +316,20 @@ fn delete_history_record(
             "An expired history recovery reference did not disappear as expected.",
         ));
     }
+    delete_unsaved_snapshot_ref(path, record);
     fs::remove_file(manifest_path).map_err(|_| {
         history_error("GitOdile couldn't finish cleaning an expired history recovery record.")
     })
+}
+
+/// The snapshot only means something next to its record, so it goes with it.
+/// Best effort: a snapshot ref left behind protects content, it never moves
+/// a branch.
+fn delete_unsaved_snapshot_ref(path: &str, record: &HistoryRecoveryRecord) {
+    if let (Some(reference), Some(snapshot)) = (&record.unsaved_reference, &record.unsaved_snapshot)
+    {
+        let _ = run_git(path, &["update-ref", "-d", reference, snapshot]);
+    }
 }
 
 fn reconcile_pending_history_records(
@@ -325,8 +373,12 @@ fn reconcile_pending_history_records(
             })?;
             continue;
         }
+        // An interrupted creation may have written the unsaved snapshot ref
+        // too; neither is complete without the other, so it goes wherever the
+        // record's own evidence is cleaned, and stays wherever that is kept.
         match refs.get(&record.reference) {
             None => {
+                delete_unsaved_snapshot_ref(&path, &record);
                 fs::remove_file(entry.path()).map_err(|_| {
                     history_error("GitOdile couldn't clean incomplete recovery metadata.")
                 })?;
@@ -351,6 +403,7 @@ fn reconcile_pending_history_records(
                     ));
                 }
                 refs.remove(&record.reference);
+                delete_unsaved_snapshot_ref(&path, &record);
                 fs::remove_file(entry.path()).map_err(|_| {
                     history_error("GitOdile couldn't finish reconciling pending recovery evidence.")
                 })?;
@@ -387,7 +440,7 @@ fn reserve_history_recovery_slot(
         }
     });
     records.sort_by_key(|(_, record)| record.created_at_ms);
-    while refs.len() >= MAX_HISTORY_RECOVERY_RECORDS {
+    while refs.len() >= operation.retention_limit() {
         let Some((manifest_path, record)) = records.first().cloned() else {
             return Err(history_error(
                 "History recovery contains incomplete records, so GitOdile couldn't guarantee its retention limit.",
@@ -461,6 +514,10 @@ pub(crate) fn create_history_recovery_for(
             .map_err(|_| history_error("GitOdile couldn't create its history recovery folder."))?;
     }
 
+    let unsaved_reference = metadata
+        .unsaved_snapshot
+        .as_ref()
+        .map(|_| format!("{}/{owner_id}/{recovery_id}", operation.unsaved_namespace()));
     let record = HistoryRecoveryRecord {
         schema_version: HISTORY_RECOVERY_SCHEMA_VERSION,
         recovery_id,
@@ -475,7 +532,9 @@ pub(crate) fn create_history_recovery_for(
         destination_branch: metadata.destination_branch,
         tracking_ref: metadata.tracking_ref,
         state_token: metadata.state_token,
-        retention_limit: MAX_HISTORY_RECOVERY_RECORDS,
+        retention_limit: operation.retention_limit(),
+        unsaved_reference,
+        unsaved_snapshot: metadata.unsaved_snapshot,
     };
     let bytes = serde_json::to_vec_pretty(&record)
         .map_err(|_| history_error("GitOdile couldn't encode history recovery metadata."))?;
@@ -526,8 +585,20 @@ pub(crate) fn create_history_recovery_for(
             "The new history recovery reference could not be verified.",
         ));
     }
+    if let (Some(reference), Some(snapshot)) = (&record.unsaved_reference, &record.unsaved_snapshot)
+    {
+        let kept = run_git(&path, &["update-ref", reference, snapshot, &zero])?;
+        if !kept.status.success() || !resolves_to(&path, reference, snapshot)? {
+            delete_unsaved_snapshot_ref(&path, &record);
+            cleanup_partial_history_ref(&path, &record.reference, &record.previous_commit);
+            return Err(history_error(
+                "GitOdile couldn't keep a verified copy of the unsaved changes.",
+            ));
+        }
+    }
 
     if fs::rename(&pending, &final_path).is_err() {
+        delete_unsaved_snapshot_ref(&path, &record);
         cleanup_partial_history_ref(&path, &record.reference, &record.previous_commit);
         return Err(history_error(
             "GitOdile couldn't publish the completed history recovery metadata atomically.",
@@ -559,15 +630,30 @@ pub(crate) fn verify_history_recovery(
             &format!("{}^{{commit}}", record.reference),
         ],
     )?;
-    if output.status.success()
-        && String::from_utf8_lossy(&output.stdout).trim() == record.previous_commit
+    if !output.status.success()
+        || String::from_utf8_lossy(&output.stdout).trim() != record.previous_commit
     {
-        Ok(())
-    } else {
-        Err(history_error(
+        return Err(history_error(
             "The history recovery point no longer resolves to the protected commit.",
-        ))
+        ));
     }
+    if let (Some(reference), Some(snapshot)) = (&record.unsaved_reference, &record.unsaved_snapshot)
+    {
+        if !resolves_to(path, reference, snapshot)? {
+            return Err(history_error(
+                "The copy of the unsaved changes no longer resolves to its snapshot.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn resolves_to(path: &str, reference: &str, commit: &str) -> Result<bool, AppError> {
+    let output = run_git(
+        path,
+        &["rev-parse", "--verify", &format!("{reference}^{{commit}}")],
+    )?;
+    Ok(output.status.success() && String::from_utf8_lossy(&output.stdout).trim() == commit)
 }
 
 #[cfg(test)]
@@ -583,19 +669,27 @@ mod tests {
             "refs/gitodile/recovery/v1/get-team-changes"
         );
         assert_eq!(
-            HistoryRecoveryOperation::DeleteVersionLine.namespace(),
-            "refs/gitodile/recovery/v1/delete-version-line"
+            HistoryRecoveryOperation::DeleteBranch.namespace(),
+            "refs/gitodile/recovery/v1/delete-branch"
         );
         assert_eq!(
             history_record_path(
                 &common,
-                HistoryRecoveryOperation::DeleteVersionLine,
+                HistoryRecoveryOperation::DeleteBranch,
                 "worktree-main",
                 "record-id"
             ),
-            root.join("delete-version-line")
+            root.join("delete-branch")
                 .join("worktree-main")
                 .join("record-id.json")
+        );
+        assert_eq!(
+            HistoryRecoveryOperation::CleanUpBranches.namespace(),
+            "refs/gitodile/recovery/v1/clean-up-branches"
+        );
+        assert_eq!(
+            HistoryRecoveryOperation::CleanUpBranches.retention_limit(),
+            MAX_CLEAN_UP_RECOVERY_RECORDS
         );
         assert_eq!(
             history_record_path(

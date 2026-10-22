@@ -21,7 +21,7 @@ export type ChangesEmptyState =
 
 /** Chooses the empty state from the working-tree snapshot.
  *
- * A diverged line (ahead *and* behind) reports `behind`: publishing while the
+ * A diverged branch (ahead *and* behind) reports `behind`: publishing while the
  * remote has newer work is not the safe next step, so bringing those changes in
  * comes first and the publish offer waits for the next snapshot. */
 export function getChangesEmptyState(

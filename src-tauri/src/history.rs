@@ -2,16 +2,16 @@
 //!
 //! The timeline is deliberately narrower than a full repository graph: it
 //! follows commits reachable from a scope's tips in stable topological / date
-//! order. The scope is the current `HEAD`, one named local version line, or
-//! every local version line at once; it decides *which* graph is walked, while
+//! order. The scope is the current `HEAD`, one named local branch, or
+//! every local branch at once; it decides *which* graph is walked, while
 //! `HistoryFilters` decides how much of that graph is returned. Page cursors
 //! bind the offset to the exact scope/local/upstream snapshot so a changed
 //! history is rejected instead of silently skipping or duplicating rows.
 //!
-//! Scoping to a line means "reachable from that line's tip", never "these
-//! commits belong to that line". A commit reachable from five lines belongs to
-//! all of them, and Git will not cheaply say which line it is "on", so nothing
-//! here stamps a line name onto a row: decorations keep meaning only that a ref
+//! Scoping to a branch means "reachable from that branch's tip", never "these
+//! commits belong to that branch". A commit reachable from five branches belongs to
+//! all of them, and Git will not cheaply say which branch it is "on", so nothing
+//! here stamps a branch name onto a row: decorations keep meaning only that a ref
 //! points at that commit.
 
 use crate::application;
@@ -46,11 +46,11 @@ const MAX_CACHED_HISTORY_DETAILS: usize = 8;
 const MAX_CACHED_HISTORY_DETAIL_BYTES: usize = 512 * 1024;
 const MAX_FILTER_AUTHOR_CHARS: usize = 200;
 const MAX_FILTER_PATH_CHARS: usize = 1_024;
-/// How many local version lines `AllLines` will walk from. A repository with
-/// more than this many lines gets the first `MAX_SCOPE_LINES` by name plus a
+/// How many local branches `AllBranches` will walk from. A repository with
+/// more than this many branches gets the first `MAX_SCOPE_BRANCHES` by name plus a
 /// warning, rather than an unbounded argv and an unbounded walk.
-const MAX_SCOPE_LINES: usize = 500;
-const MAX_LINE_NAME_CHARS: usize = 255;
+const MAX_SCOPE_BRANCHES: usize = 500;
+const MAX_BRANCH_NAME_CHARS: usize = 255;
 const MAX_SCOPE_REF_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
 
 type PageObjects = (
@@ -149,31 +149,31 @@ pub(crate) enum HistoryWarningCode {
     MessagesTruncated,
     UnreadableMetadata,
     UpstreamUnavailable,
-    LinesTruncated,
+    BranchesTruncated,
 }
 
 /// Which history is being read.
 ///
 /// Deliberately not a field of `HistoryFilters`. A filter narrows the graph the
 /// scope selected, and the two are cleared by different gestures: clearing every
-/// filter must not quietly walk the reader back to the current line.
+/// filter must not quietly walk the reader back to the current branch.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub(crate) enum HistoryScope {
     /// Whatever `HEAD` points at, including a detached one. The default, and
     /// the only scope that existed before this was introduced.
     #[default]
-    CurrentLine,
-    /// One named local version line, read without checking anything out.
-    Line { name: String },
-    /// Every local version line at once, deduplicated by `rev-list`.
-    AllLines,
+    CurrentBranch,
+    /// One named local branch, read without checking anything out.
+    Branch { name: String },
+    /// Every local branch at once, deduplicated by `rev-list`.
+    AllBranches,
 }
 
 /// A scope after it has been resolved against the repository: the commits to
 /// walk from, and the refs that produced them.
 ///
-/// `tips` is what the snapshot token hashes, so a line that moves, is renamed
+/// `tips` is what the snapshot token hashes, so a branch that moves, is renamed
 /// or is deleted while a reader is paging invalidates the cursor instead of
 /// mixing two histories into one list.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -190,16 +190,16 @@ pub(crate) struct HistoryPage {
     pub(crate) repository_id: String,
     pub(crate) snapshot_token: String,
     /// The scope this page was read at, echoed so the screen can tell what it
-    /// actually got when a requested line has gone.
+    /// actually got when a requested branch has gone.
     pub(crate) scope: HistoryScope,
-    /// `HEAD`'s own line, whatever the scope is. The timeline uses it to mark
-    /// which decoration is the line being stood on, which stays true under a
+    /// `HEAD`'s own branch, whatever the scope is. The timeline uses it to mark
+    /// which decoration is the branch being stood on, which stays true under a
     /// scope that is looking somewhere else.
     pub(crate) branch: Option<String>,
     pub(crate) head_state: HeadState,
     pub(crate) head_commit: Option<String>,
     /// The publication boundary the versions below were classified against —
-    /// the scope's own upstream, not always `HEAD`'s. `None` under `AllLines`,
+    /// the scope's own upstream, not always `HEAD`'s. `None` under `AllBranches`,
     /// where no single boundary can answer the question.
     pub(crate) upstream: Option<UpstreamBoundary>,
     pub(crate) versions: Vec<SavedVersionSummary>,
@@ -655,24 +655,24 @@ fn read_upstream(path: &str, branch: Option<&str>) -> Result<Option<UpstreamBoun
     }))
 }
 
-fn missing_line_error(name: &str) -> AppError {
+fn missing_branch_error(name: &str) -> AppError {
     AppError::new(
-        AppErrorCode::VersionLineMissing,
-        format!("The version line \"{name}\" isn't in this project any more."),
+        AppErrorCode::BranchMissing,
+        format!("The branch \"{name}\" isn't in this project any more."),
     )
-    .with_remediation("Choose another version line, or go back to the current one.")
+    .with_remediation("Choose another branch, or go back to the current one.")
 }
 
-/// A local line name as it arrives from the interface.
+/// A local branch name as it arrives from the interface.
 ///
 /// It is never handed to `rev-list` as a revision: it is prefixed to
 /// `refs/heads/`, which is what keeps a name that looks like an option, a tag,
 /// or a path from being read as one. This only bounds it and rejects what Git
 /// refuses in a ref name anyway, so the failure is a sentence rather than exit
 /// 128.
-fn validated_line_name(name: &str) -> Result<&str, AppError> {
+fn validated_branch_name(name: &str) -> Result<&str, AppError> {
     let rejected = name.is_empty()
-        || name.chars().count() > MAX_LINE_NAME_CHARS
+        || name.chars().count() > MAX_BRANCH_NAME_CHARS
         || name.chars().any(|value| {
             value.is_control()
                 || value.is_whitespace()
@@ -687,18 +687,18 @@ fn validated_line_name(name: &str) -> Result<&str, AppError> {
     if rejected {
         return Err(AppError::new(
             AppErrorCode::InvalidSelection,
-            "That isn't a version line this project can show.",
+            "That isn't a branch this project can show.",
         )
-        .with_remediation("Choose a version line from the list."));
+        .with_remediation("Choose a branch from the list."));
     }
     Ok(name)
 }
 
-/// Every local version line and the commit it points at, oldest name first.
+/// Every local branch and the commit it points at, oldest name first.
 ///
 /// One `for-each-ref`, capped like every other read here — never one process
-/// per line.
-fn read_local_line_tips(path: &str) -> Result<(Vec<(String, String)>, bool), AppError> {
+/// per branch.
+fn read_local_branch_tips(path: &str) -> Result<(Vec<(String, String)>, bool), AppError> {
     let output = run_git_capped(
         path,
         &[
@@ -712,7 +712,7 @@ fn read_local_line_tips(path: &str) -> Result<(Vec<(String, String)>, bool), App
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "Git couldn't list this project's version lines.",
+            "Git couldn't list this project's branches.",
         )
         .with_remediation("Refresh History and try again."));
     }
@@ -733,8 +733,8 @@ fn read_local_line_tips(path: &str) -> Result<(Vec<(String, String)>, bool), App
         }
         tips.push((reference.to_string(), commit.to_string()));
     }
-    let truncated = output.limit_exceeded || tips.len() > MAX_SCOPE_LINES;
-    tips.truncate(MAX_SCOPE_LINES);
+    let truncated = output.limit_exceeded || tips.len() > MAX_SCOPE_BRANCHES;
+    tips.truncate(MAX_SCOPE_BRANCHES);
     Ok((tips, truncated))
 }
 
@@ -744,19 +744,19 @@ fn resolve_scope(
     head: &HeadContext,
 ) -> Result<ResolvedScope, AppError> {
     match &scope {
-        HistoryScope::CurrentLine => Ok(ResolvedScope {
+        HistoryScope::CurrentBranch => Ok(ResolvedScope {
             roots: head.head_commit.iter().cloned().collect(),
             // `HEAD` is already hashed into the token by itself, so the current
-            // line adds no tips of its own.
+            // branch adds no tips of its own.
             tips: Vec::new(),
             truncated: false,
             scope,
         }),
-        HistoryScope::Line { name } => {
-            let name = validated_line_name(name)?;
+        HistoryScope::Branch { name } => {
+            let name = validated_branch_name(name)?;
             let reference = format!("refs/heads/{name}");
             let commit =
-                resolve_commit(path, &reference)?.ok_or_else(|| missing_line_error(name))?;
+                resolve_commit(path, &reference)?.ok_or_else(|| missing_branch_error(name))?;
             Ok(ResolvedScope {
                 roots: vec![commit.clone()],
                 tips: vec![(reference, commit)],
@@ -764,15 +764,15 @@ fn resolve_scope(
                 scope,
             })
         }
-        HistoryScope::AllLines => {
-            let (tips, truncated) = read_local_line_tips(path)?;
+        HistoryScope::AllBranches => {
+            let (tips, truncated) = read_local_branch_tips(path)?;
             let mut roots = tips
                 .iter()
                 .map(|(_, commit)| commit.clone())
                 .collect::<Vec<_>>();
             // `rev-list` deduplicates the walk itself; deduplicating the roots
             // only keeps the argv proportional to distinct tips rather than to
-            // lines, which two lines on one commit would otherwise double.
+            // branches, which two branches on one commit would otherwise double.
             roots.sort();
             roots.dedup();
             Ok(ResolvedScope {
@@ -785,17 +785,17 @@ fn resolve_scope(
     }
 }
 
-/// The line a scope's publication boundary should be read from: `HEAD`'s line
-/// for the current scope, the named line for itself, and nothing for the union.
+/// The branch a scope's publication boundary should be read from: `HEAD`'s branch
+/// for the current scope, the named branch for itself, and nothing for the union.
 ///
-/// `AllLines` has no honest single boundary — each line answers to its own
+/// `AllBranches` has no honest single boundary — each branch answers to its own
 /// upstream — so publication is reported as unknown there rather than measured
 /// against a boundary that only describes one of them.
 fn scope_upstream_branch<'a>(scope: &'a HistoryScope, head: &'a HeadContext) -> Option<&'a str> {
     match scope {
-        HistoryScope::CurrentLine => head.branch.as_deref(),
-        HistoryScope::Line { name } => Some(name.as_str()),
-        HistoryScope::AllLines => None,
+        HistoryScope::CurrentBranch => head.branch.as_deref(),
+        HistoryScope::Branch { name } => Some(name.as_str()),
+        HistoryScope::AllBranches => None,
     }
 }
 
@@ -805,20 +805,20 @@ fn scope_upstream_branch<'a>(scope: &'a HistoryScope, head: &'a HeadContext) -> 
 /// is unambiguous.
 fn scope_tag(scope: &HistoryScope) -> String {
     match scope {
-        HistoryScope::CurrentLine => "c".to_string(),
-        HistoryScope::Line { name } => format!("l:{name}"),
-        HistoryScope::AllLines => "a".to_string(),
+        HistoryScope::CurrentBranch => "c".to_string(),
+        HistoryScope::Branch { name } => format!("b:{name}"),
+        HistoryScope::AllBranches => "a".to_string(),
     }
 }
 
 fn scope_from_token(token: &str) -> Option<HistoryScope> {
     let mut fields = token.splitn(3, ':');
     match fields.next()? {
-        "c" => Some(HistoryScope::CurrentLine),
-        "a" => Some(HistoryScope::AllLines),
-        "l" => {
+        "c" => Some(HistoryScope::CurrentBranch),
+        "a" => Some(HistoryScope::AllBranches),
+        "b" => {
             let name = fields.next().filter(|value| !value.is_empty())?;
-            Some(HistoryScope::Line {
+            Some(HistoryScope::Branch {
                 name: name.to_string(),
             })
         }
@@ -831,6 +831,7 @@ fn compute_snapshot_token(
     head: &HeadContext,
     scope: &ResolvedScope,
     upstream: Option<&UpstreamBoundary>,
+    remote_tips: Option<&str>,
     shallow: bool,
 ) -> String {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -847,6 +848,10 @@ fn compute_snapshot_token(
     // point where they did.
     scope.tips.hash(&mut hasher);
     scope.truncated.hash(&mut hasher);
+    // "All branches" measures publication against every remote-tracking branch, so
+    // a publish that moves one of them is a new answer even when no local tip
+    // moved — a detail cached under the old token would still say "local".
+    remote_tips.hash(&mut hasher);
     format!("{}:{:016x}", scope_tag(&scope.scope), hasher.finish())
 }
 
@@ -863,7 +868,19 @@ fn read_snapshot(
             Ok(value) => (value, false),
             Err(_) => (None, true),
         };
-    let token = compute_snapshot_token(repository_id, &head, &scope, upstream.as_ref(), shallow);
+    let remote_tips = if matches!(scope.scope, HistoryScope::AllBranches) {
+        Some(read_remote_tips(path)?)
+    } else {
+        None
+    };
+    let token = compute_snapshot_token(
+        repository_id,
+        &head,
+        &scope,
+        upstream.as_ref(),
+        remote_tips.as_deref(),
+        shallow,
+    );
     Ok((
         SnapshotContext {
             head,
@@ -1025,41 +1042,101 @@ fn prepare_filters(filters: Option<HistoryFilters>) -> Result<PreparedFilters, A
     })
 }
 
-/// Which of `commits` are not reachable from the upstream tip.
+/// How much `rev-list` may print while classifying a page: one line per
+/// unpublished version reachable from it, about 200,000 of them.
+const CLASSIFY_OUTPUT_LIMIT: usize = 8 * 1024 * 1024;
+
+/// Which of `commits` are not reachable from `published` — the upstream tip of
+/// one branch, or `--remotes` for every remote-tracking branch at once. `None` when
+/// more versions are unpublished than `CLASSIFY_OUTPUT_LIMIT` lets Git list.
 ///
-/// `--no-walk` keeps the answer bounded by the page rather than by the length
-/// of the branch, which is what lets publication stay correct once a filter
-/// makes the page a non-contiguous slice of history: the windowed walk in
-/// `read_local_only_commits` assumes the page is the next `limit` commits, and
-/// a filtered page is not.
+/// Per commit rather than by the windowed walk in `read_local_only_commits`,
+/// which assumes the page is the next `limit` commits in order — a filtered
+/// page, or the union "All branches" walks, is not. Git ignores `--no-walk` once
+/// a negative revision is given, so this lists every unpublished version
+/// reachable from the page and keeps the page's own; it used to be capped at
+/// the page's size and failed once more than a page's worth was unpublished.
 fn classify_local_only(
     path: &str,
     commits: &[String],
-    upstream: &str,
-) -> Result<HashSet<String>, AppError> {
+    published: &str,
+) -> Result<Option<HashSet<String>>, AppError> {
     if commits.is_empty() {
-        return Ok(HashSet::new());
+        return Ok(Some(HashSet::new()));
     }
-    let mut args = vec!["rev-list", "--no-walk"];
+    let mut args = vec!["rev-list"];
     args.extend(commits.iter().map(String::as_str));
     args.push("--not");
-    args.push(upstream);
-    let output = run_git_capped(path, &args, commits.len() * 80 + 1024)?;
-    if !output.status.success() || output.limit_exceeded {
+    args.push(published);
+    let output = run_git_capped(path, &args, CLASSIFY_OUTPUT_LIMIT)?;
+    if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "Git couldn't classify saved versions against the configured upstream.",
+            "Git couldn't classify saved versions against what is published.",
         ));
     }
-    Ok(git_stdout(&std::process::Output {
-        status: output.status,
-        stdout: output.stdout,
-        stderr: Vec::new(),
+    if output.limit_exceeded {
+        return Ok(None);
+    }
+    let page = commits.iter().map(String::as_str).collect::<HashSet<_>>();
+    Ok(Some(
+        git_stdout(&std::process::Output {
+            status: output.status,
+            stdout: output.stdout,
+            stderr: Vec::new(),
+        })
+        .lines()
+        .filter(|commit| is_valid_oid(commit) && page.contains(commit))
+        .map(str::to_string)
+        .collect(),
+    ))
+}
+
+/// Every remote-tracking branch and where it points, as one string for the
+/// snapshot token of "All branches".
+fn read_remote_tips(path: &str) -> Result<String, AppError> {
+    let output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--format=%(refname) %(objectname)",
+            "refs/remotes",
+        ],
+    )?;
+    Ok(if output.status.success() {
+        git_stdout(&output)
+    } else {
+        String::new()
     })
-    .lines()
-    .filter(|commit| is_valid_oid(commit))
-    .map(str::to_string)
-    .collect())
+}
+
+/// Whether the project has any remote-tracking branch at all. Without one there
+/// is nothing a version could have been published to, and "All branches" says
+/// publication is unknown rather than calling every version local.
+fn has_remote_tracking_branches(path: &str) -> Result<bool, AppError> {
+    let output = run_git(
+        path,
+        &[
+            "for-each-ref",
+            "--count=1",
+            "--format=%(refname)",
+            "refs/remotes",
+        ],
+    )?;
+    Ok(output.status.success() && !git_stdout(&output).trim().is_empty())
+}
+
+/// What a scope's publication is measured against when it has no single
+/// upstream: under "All branches" each branch answers to its own remote, so a
+/// version is published once any remote-tracking branch holds it.
+fn publication_against_remotes(
+    path: &str,
+    scope: &HistoryScope,
+    upstream: Option<&UpstreamBoundary>,
+) -> Result<bool, AppError> {
+    Ok(upstream.is_none()
+        && matches!(scope, HistoryScope::AllBranches)
+        && has_remote_tracking_branches(path)?)
 }
 
 fn read_graph_page(
@@ -1075,8 +1152,8 @@ fn read_graph_page(
     // "Only tagged" is the one question `rev-list` cannot ask: it keeps the
     // commits a tag points at, which is `--simplify-by-decoration` narrowed by
     // `--decorate-refs`, and only `log` takes the second. `%H %P` prints the
-    // same `commit parent…` line `--parents` does, so the parser is shared;
-    // color and signatures are pinned off so no user config can add lines.
+    // same `commit parent…` branch `--parents` does, so the parser is shared;
+    // color and signatures are pinned off so no user config can add branches.
     // Git keeps a root commit through the simplification whether or not a tag
     // points at it, so `%D` — narrowed by the same `--decorate-refs` — rides
     // after a tab and an empty one drops the row.
@@ -1126,7 +1203,7 @@ fn read_graph_page(
     }
     // Several roots are one walk, not several: `rev-list` returns their union
     // in one order, visiting a commit reachable from more than one of them
-    // exactly once. That is what makes "all lines" a deduplicated history
+    // exactly once. That is what makes "all branches" a deduplicated history
     // rather than a concatenation of branches.
     for root in roots {
         args.push(root.as_str());
@@ -1360,7 +1437,7 @@ fn decoration_for_ref(reference: &str) -> Option<HistoryDecoration> {
 }
 
 /// `head` is optional because a scope can list versions while `HEAD` itself has
-/// none — a named line in a project whose current line is unborn. The synthetic
+/// none — a named branch in a project whose current branch is unborn. The synthetic
 /// `HEAD` marker is only ever added where `HEAD` genuinely points.
 fn read_decorations(
     path: &str,
@@ -1595,10 +1672,10 @@ fn read_history_page_impl(
         warnings.push(HistoryWarningCode::UpstreamUnavailable);
     }
     if snapshot.scope.truncated {
-        warnings.push(HistoryWarningCode::LinesTruncated);
+        warnings.push(HistoryWarningCode::BranchesTruncated);
     }
-    // Emptiness is a fact about the scope, not about `HEAD`: a named line can
-    // have versions in a project whose current line is unborn, and "all lines"
+    // Emptiness is a fact about the scope, not about `HEAD`: a named branch can
+    // have versions in a project whose current branch is unborn, and "all branches"
     // in a project with none has nothing to walk from.
     if snapshot.scope.roots.is_empty() {
         return Ok(HistoryPage {
@@ -1654,8 +1731,21 @@ fn read_history_page_impl(
     if unreadable_refs {
         warnings.push(HistoryWarningCode::UnreadableMetadata);
     }
+    let page_commits = rows
+        .iter()
+        .map(|row| row.commit.clone())
+        .collect::<Vec<_>>();
+    // "All branches": per commit, against every remote-tracking branch. Too much
+    // unpublished work to list leaves publication unknown, as it was.
+    let remotes_local_only =
+        if publication_against_remotes(&path, &snapshot.scope.scope, snapshot.upstream.as_ref())? {
+            classify_local_only(&path, &page_commits, "--remotes")?
+        } else {
+            None
+        };
+    let against_remotes = remotes_local_only.is_some();
     let local_only = match snapshot.upstream.as_ref() {
-        None => HashSet::new(),
+        None => remotes_local_only.unwrap_or_default(),
         // The windowed walk only lines up with a page that is the next
         // `page_size` commits in order. That is exactly what an unfiltered page
         // is, and exactly what a filtered one is not.
@@ -1663,11 +1753,12 @@ fn read_history_page_impl(
             read_local_only_commits(&path, &roots, &upstream.commit, local_only_seen, page_size)?
         }
         Some(upstream) => {
-            let commits = rows
-                .iter()
-                .map(|row| row.commit.clone())
-                .collect::<Vec<_>>();
-            classify_local_only(&path, &commits, &upstream.commit)?
+            classify_local_only(&path, &page_commits, &upstream.commit)?.ok_or_else(|| {
+                AppError::new(
+                    AppErrorCode::GitCommandFailed,
+                    "Git couldn't classify saved versions against the configured upstream.",
+                )
+            })?
         }
     };
     let page_local_only = rows
@@ -1680,7 +1771,7 @@ fn read_history_page_impl(
             let parsed = objects
                 .get(&row.commit)
                 .map(|bytes| parse_commit_object(bytes, false));
-            let publication = if snapshot.upstream.is_none() {
+            let publication = if snapshot.upstream.is_none() && !against_remotes {
                 PublicationState::Unknown
             } else if local_only.contains(&row.commit) {
                 PublicationState::LocalOnly
@@ -1738,15 +1829,13 @@ fn validate_snapshot_and_commit(
     // The token names the scope it was taken at, so a detail read re-resolves
     // the same history the page walked without the request having to carry the
     // scope through every command. A token whose scope no longer resolves — a
-    // line deleted while its detail was open — is stale, not invalid input.
+    // branch deleted while its detail was open — is stale, not invalid input.
     let Some(scope) = scope_from_token(snapshot_token) else {
         return Err(stale_cursor_error());
     };
     let (snapshot, _) = match read_snapshot(path, repository_id, scope) {
         Ok(value) => value,
-        Err(error) if error.code == AppErrorCode::VersionLineMissing => {
-            return Err(stale_cursor_error())
-        }
+        Err(error) if error.code == AppErrorCode::BranchMissing => return Err(stale_cursor_error()),
         Err(error) => return Err(error),
     };
     if snapshot.token != snapshot_token {
@@ -1770,7 +1859,7 @@ fn validate_snapshot_and_commit(
 /// One process whatever the scope's size. A single root is the ancestry test
 /// `merge-base` already answered; a union asks Git which local tips reach the
 /// commit and intersects that with the tips this scope was walked from, rather
-/// than running one `merge-base` per line.
+/// than running one `merge-base` per branch.
 fn reachable_from_scope(path: &str, commit: &str, scope: &ResolvedScope) -> Result<bool, AppError> {
     if let [only] = scope.roots.as_slice() {
         let output = run_git(path, &["merge-base", "--is-ancestor", commit, only])?;
@@ -1790,7 +1879,7 @@ fn reachable_from_scope(path: &str, commit: &str, scope: &ResolvedScope) -> Resu
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitCommandFailed,
-            "Git couldn't check which version lines still hold this saved version.",
+            "Git couldn't check which branches still hold this saved version.",
         )
         .with_remediation("Refresh History and try again."));
     }
@@ -1952,10 +2041,10 @@ fn graph_row_for_commit(path: &str, commit: &str) -> Result<CommitGraphRow, AppE
 /// Whether the cheap freshness check still holds for a cached read.
 ///
 /// `HEAD` alone was enough while every history was `HEAD`'s. Under a scope it
-/// is not: the line being read can move while `HEAD` stands still, and serving
+/// is not: the branch being read can move while `HEAD` stands still, and serving
 /// a cached detail then would answer for a history that no longer exists. The
-/// current line still costs one `rev-parse`; a scoped read costs one more
-/// process, never one per line.
+/// current branch still costs one `rev-parse`; a scoped read costs one more
+/// process, never one per branch.
 fn cached_snapshot_is_current(path: &str, cached: &SnapshotContext) -> Result<bool, AppError> {
     let output = run_git(path, &["rev-parse", "--verify", "HEAD^{commit}"])?;
     let head = output.status.success().then(|| git_stdout(&output));
@@ -1963,13 +2052,15 @@ fn cached_snapshot_is_current(path: &str, cached: &SnapshotContext) -> Result<bo
         return Ok(false);
     }
     if cached.scope.tips.is_empty() {
-        return Ok(matches!(cached.scope.scope, HistoryScope::CurrentLine));
+        return Ok(matches!(cached.scope.scope, HistoryScope::CurrentBranch));
     }
-    let (tips, truncated) = read_local_line_tips(path)?;
+    let (tips, truncated) = read_local_branch_tips(path)?;
     Ok(match cached.scope.scope {
         // The union is only the same history while the whole set is, including
-        // a line that has since been added.
-        HistoryScope::AllLines => truncated == cached.scope.truncated && tips == cached.scope.tips,
+        // a branch that has since been added.
+        HistoryScope::AllBranches => {
+            truncated == cached.scope.truncated && tips == cached.scope.tips
+        }
         _ => cached
             .scope
             .tips
@@ -2059,6 +2150,12 @@ fn read_saved_version_detail_authorized(
             PublicationState::Published
         } else {
             PublicationState::LocalOnly
+        }
+    } else if publication_against_remotes(path, &snapshot.scope.scope, None)? {
+        match classify_local_only(path, std::slice::from_ref(&commit), "--remotes")? {
+            Some(local) if local.is_empty() => PublicationState::Published,
+            Some(_) => PublicationState::LocalOnly,
+            None => PublicationState::Unknown,
         }
     } else {
         PublicationState::Unknown
@@ -2221,6 +2318,33 @@ fn read_file_diff_for_change(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_scope_wire_names_match_the_branch_contract() {
+        assert_eq!(
+            serde_json::to_value(HistoryWarningCode::BranchesTruncated).unwrap(),
+            serde_json::json!("branchesTruncated")
+        );
+        for (scope, wire) in [
+            (
+                HistoryScope::CurrentBranch,
+                serde_json::json!({ "kind": "currentBranch" }),
+            ),
+            (
+                HistoryScope::Branch {
+                    name: "feature/a".to_string(),
+                },
+                serde_json::json!({ "kind": "branch", "name": "feature/a" }),
+            ),
+            (
+                HistoryScope::AllBranches,
+                serde_json::json!({ "kind": "allBranches" }),
+            ),
+        ] {
+            assert_eq!(serde_json::to_value(&scope).unwrap(), wire);
+            assert_eq!(serde_json::from_value::<HistoryScope>(wire).unwrap(), scope);
+        }
+    }
 
     #[test]
     fn parses_multiline_unicode_and_control_messages_without_delimiter_rules() {

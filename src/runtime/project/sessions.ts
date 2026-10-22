@@ -5,14 +5,14 @@ import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } fr
 
 /** Per-project view: `settings` lives outside any session (see `app/App.tsx`), so
  * a session only ever remembers which project screen it was last showing. */
-export type ProjectView = "overview" | "workbench" | "version-lines" | "console";
+export type ProjectView = "overview" | "workbench" | "branches" | "console";
 
 /** The two views of the Work screen (task 126). Which one is showing is the
  * session's to remember, like its selected file: Back and Forward move
  * between screens, and a project left on History comes back to History. */
 export type WorkbenchTab = "changes" | "history";
 
-export type ProjectMutationKind = "save" | "publish" | "discard" | "version-line" | "sync";
+export type ProjectMutationKind = "save" | "publish" | "discard" | "branch" | "sync";
 export type ProjectMutationPhase =
   | "planning"
   | "executing"
@@ -98,6 +98,7 @@ export const initialProjectSessionsState: ProjectSessionsState = {
 
 export type ProjectSessionsAction =
   | { type: "open"; project: RepositoryInfo }
+  | { type: "restore"; projects: RepositoryInfo[]; activeId: string | null }
   | { type: "activate"; id: string }
   | { type: "close"; id: string }
   | { type: "reorder"; id: string; toIndex: number }
@@ -266,6 +267,30 @@ export function projectSessionsReducer(
       };
     }
 
+    case "restore": {
+      // Launch restore lands every revalidated project and the active one in a
+      // single transition. Dispatching `open` per project would make each one
+      // active in turn, so the first frames show projects the user did not
+      // leave active. A session that already exists (opened by the user while
+      // restore was still revalidating) is kept as it is, and so is the
+      // active project that open made: a choice made now outranks the stored
+      // one from the last session.
+      const order = [...state.order];
+      const byId = { ...state.byId };
+      for (const project of action.projects) {
+        if (byId[project.path]) continue;
+        order.push(project.path);
+        byId[project.path] = freshSession(project);
+      }
+      if (order.length === state.order.length) {
+        return state;
+      }
+      const activeId =
+        state.activeId ??
+        (action.activeId !== null && byId[action.activeId] ? action.activeId : order[order.length - 1]);
+      return { order, byId, activeId };
+    }
+
     case "activate": {
       if (!state.byId[action.id]) {
         return state;
@@ -277,17 +302,15 @@ export function projectSessionsReducer(
       if (!state.byId[action.id]) {
         return state;
       }
-      const index = state.order.indexOf(action.id);
       const order = state.order.filter((id) => id !== action.id);
       const byId = { ...state.byId };
       delete byId[action.id];
-      let activeId = state.activeId;
-      if (state.activeId === action.id) {
-        // A predictable adjacent session: whichever project now sits at the
-        // closed one's index (the next one), or the previous project if the
-        // closed one was last, or no active project if none remain.
-        activeId = order.length === 0 ? null : order[Math.min(index, order.length - 1)];
-      }
+      // Closing the active project leaves none active, even with others open
+      // (task 184): moving the reader into another repository on its own is
+      // how a save or a publish lands in the wrong project. The shell shows
+      // Home, and the next project is one the reader picks. Closing any other
+      // project leaves the active one as it is.
+      const activeId = state.activeId === action.id ? null : state.activeId;
       return { order, byId, activeId };
     }
 

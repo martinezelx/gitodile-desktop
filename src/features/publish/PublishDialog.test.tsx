@@ -23,6 +23,7 @@ function plan(overrides: Partial<PublishPlan> = {}): PublishPlan {
     target: { remote: "origin", destinationBranch: "main" },
     localBranch: "main",
     willCreateUpstream: false,
+    recreatesDeletedBranch: false,
     commitCount: 1,
     commitSummary: [{
       commit: "abc123abc123abc123abc123abc123abc123ab",
@@ -135,6 +136,16 @@ describe("PublishDialog", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByText(PLAN_LINE)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Publish changes" })).not.toBeInTheDocument();
+  });
+
+  it("offers to get the remote's versions first instead of a dead end", async () => {
+    mockedInvoke.mockRejectedValueOnce({ code: "diverged_histories", message: "x", remediation: null });
+    const onGetFirst = vi.fn();
+    renderDialog({ onGetFirst });
+
+    await userEvent.click(await screen.findByRole("button", { name: "Get and publish" }));
+    expect(onGetFirst).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
   });
 
   it("shows the plan summary once it loads", async () => {
@@ -271,11 +282,54 @@ describe("PublishDialog", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("names the line in the title when it is published for the first time", async () => {
+  it("says a first publish creates the branch, and names it in the plan rather than the title", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({ willCreateUpstream: true }));
     renderDialog();
 
-    expect(await screen.findByRole("heading", { name: "Publish “main” for the first time" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Publish a new branch" })).toBeInTheDocument();
+    expect(screen.getByText(/to “main” on “origin”/)).toBeInTheDocument();
+  });
+
+  it("warns before recreating a branch the remote deleted and says so on the button", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      recreatesDeletedBranch: true,
+      target: { remote: "origin", destinationBranch: "feature/login" },
+      localBranch: "feature/login",
+    }));
+    renderDialog();
+
+    expect(await screen.findByRole("heading", { name: "Publish the branch again" })).toBeInTheDocument();
+    expect(screen.getByText("This branch was deleted on “origin”.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recreate and publish" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Publish changes" })).toBeNull();
+  });
+
+  it("says a recreated branch brings no new versions when the remote has them all", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      recreatesDeletedBranch: true,
+      commitCount: 0,
+      commitSummary: [],
+      target: { remote: "origin", destinationBranch: "feature/login" },
+    }));
+    renderDialog();
+
+    expect(
+      await screen.findByText("“feature/login” will be created again on “origin”. Its versions are already on the remote."),
+    ).toBeInTheDocument();
+  });
+
+  it("says a new branch brings no new versions when the remote has them all", async () => {
+    mockedInvoke.mockResolvedValueOnce(plan({
+      willCreateUpstream: true,
+      commitCount: 0,
+      commitSummary: [],
+      target: { remote: "origin", destinationBranch: "empty" },
+    }));
+    renderDialog();
+
+    expect(
+      await screen.findByText("“empty” will be created on “origin”. Its versions are already on the remote."),
+    ).toBeInTheDocument();
   });
 
   it("notes that unsaved files stay local when the plan reports them", async () => {

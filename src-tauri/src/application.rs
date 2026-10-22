@@ -97,6 +97,15 @@ const fn console_read(command: &'static str) -> ExecutionPolicy {
     }
 }
 
+/// gh/glab shortcuts: read-only and on the console's output budget, with
+/// time for the provider's API to answer.
+const fn console_hosting() -> ExecutionPolicy {
+    ExecutionPolicy {
+        timeout: Duration::from_secs(30),
+        ..console_read("run_console_hosting_query")
+    }
+}
+
 /// Typed console changes: local changes and remote transfers, exclusive
 /// like every mutation, on the console's output budget. Remote is the widest
 /// class one can have until history and destructive commands arrive.
@@ -123,7 +132,10 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     no_process_with_class("install_app_update", OperationClass::PlatformMutation),
     read("open_repository"),
     read("reveal_project_file"),
+    read("open_project_folder"),
     no_process("plan_clone"),
+    global_process("check_clone_source", OperationClass::ReadOnly, 20),
+    control("cancel_clone_source_check"),
     global_clone("clone_repository"),
     no_process_with_class("cancel_clone", OperationClass::LocalMutation),
     no_process_with_class("cleanup_clone", OperationClass::Destructive),
@@ -137,8 +149,11 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     console_read("plan_console_command"),
     console_read("run_console_plan"),
     console_change(),
+    // The project's provider is read from its own remotes; a hosting shortcut
+    // runs gh or glab, which reach the provider, on a longer clock.
+    console_read("read_console_host"),
+    console_hosting(),
     no_process("get_console_settings"),
-    no_process_with_class("set_console_advanced_mode", OperationClass::LocalMutation),
     no_process_with_class("set_console_confirm_changes", OperationClass::LocalMutation),
     read("read_file_diff"),
     read("read_file_image_preview"),
@@ -150,7 +165,66 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("list_discard_recoveries"),
     ExecutionPolicy::repository_write("restore_discarded_changes", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("delete_discard_recovery", OperationClass::Destructive),
+    global_process("glab_diagnostics", OperationClass::ReadOnly, 15),
+    global_process("install_glab", OperationClass::PlatformMutation, 900),
+    global_process("update_glab", OperationClass::PlatformMutation, 900),
+    global_process("check_glab_update", OperationClass::ReadOnly, 15),
+    control("get_gitlab_auth_state"),
+    global_process("check_gitlab_auth", OperationClass::ReadOnly, 60),
+    global_process("start_gitlab_login", OperationClass::PlatformMutation, 960),
+    global_process(
+        "logout_gitlab_account",
+        OperationClass::PlatformMutation,
+        90,
+    ),
+    control("cancel_gitlab_auth"),
+    no_process_with_class("add_gitlab_token", OperationClass::PlatformMutation),
+    no_process_with_class("remove_gitlab_token", OperationClass::PlatformMutation),
+    no_process_with_class("add_bitbucket_token", OperationClass::PlatformMutation),
+    no_process_with_class("remove_bitbucket_token", OperationClass::PlatformMutation),
+    no_process_with_class("add_hosting_server", OperationClass::PlatformMutation),
+    no_process_with_class("remove_hosting_server", OperationClass::PlatformMutation),
+    no_process_with_class("add_hosting_token", OperationClass::PlatformMutation),
+    no_process_with_class("remove_hosting_token", OperationClass::PlatformMutation),
+    control("get_hosting_cli_state"),
+    global_process("check_hosting_cli", OperationClass::ReadOnly, 60),
+    global_process(
+        "start_hosting_cli_login",
+        OperationClass::PlatformMutation,
+        960,
+    ),
+    global_process("logout_hosting_cli", OperationClass::PlatformMutation, 90),
+    control("cancel_hosting_cli"),
+    no_process("open_hosting_device_page"),
+    global_process("gh_diagnostics", OperationClass::ReadOnly, 15),
+    control("get_account_catalog"),
+    no_process_with_class("add_github_token", OperationClass::PlatformMutation),
+    no_process_with_class("remove_github_token", OperationClass::PlatformMutation),
+    no_process("list_hosting_repositories"),
+    control("cancel_hosting_request"),
+    global_process("check_account_catalog", OperationClass::ReadOnly, 60),
+    read("read_project_account"),
+    ExecutionPolicy::repository_write("set_project_account", OperationClass::LocalMutation),
+    control("get_github_auth_state"),
+    global_process("check_github_auth", OperationClass::ReadOnly, 60),
+    global_process("start_github_login", OperationClass::PlatformMutation, 960),
+    control("cancel_github_auth"),
+    global_process(
+        "logout_github_account",
+        OperationClass::PlatformMutation,
+        70,
+    ),
+    global_process(
+        "switch_github_account",
+        OperationClass::PlatformMutation,
+        70,
+    ),
+    global_process("install_gh", OperationClass::PlatformMutation, 900),
+    global_process("update_gh", OperationClass::PlatformMutation, 900),
+    global_process("check_gh_update", OperationClass::ReadOnly, 15),
     global_process("git_diagnostics", OperationClass::ReadOnly, 15),
+    global_process("git_installation_details", OperationClass::ReadOnly, 15),
+    global_process("reveal_git_location", OperationClass::ReadOnly, 15),
     global_process("install_git", OperationClass::PlatformMutation, 900),
     global_process("update_git", OperationClass::PlatformMutation, 900),
     global_process("check_git_update", OperationClass::ReadOnly, 15),
@@ -170,6 +244,8 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("plan_connect_remote"),
     ExecutionPolicy::repository_write("connect_remote", OperationClass::LocalMutation),
     read("read_project_remotes"),
+    read("read_remote_home"),
+    read("open_remote_home"),
     ExecutionPolicy::repository_write("set_remote_url", OperationClass::LocalMutation),
     read("read_project_identity"),
     ExecutionPolicy::repository_write("set_project_identity", OperationClass::LocalMutation),
@@ -179,9 +255,12 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("read_project_technology"),
     read("read_team_sync_status"),
     ExecutionPolicy::repository_write("check_team_changes", OperationClass::LocalMutation),
-    ExecutionPolicy::repository_write("plan_get_team_changes", OperationClass::LocalMutation),
+    ExecutionPolicy::repository_write("stop_tracking_remote", OperationClass::LocalMutation),
+    // Local since task 161: it reads the last-checked remote and never fetches.
+    read("plan_get_team_changes"),
     ExecutionPolicy::repository_write("get_team_changes", OperationClass::HistoryMutation),
     read("list_unpublished_versions"),
+    read("list_incoming_versions"),
     read("read_commit_file_changes"),
     read("read_commit_file_diff"),
     read("read_history_page"),
@@ -189,16 +268,18 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("read_saved_version_file_diff"),
     ExecutionPolicy::repository_write("plan_publish", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("publish", OperationClass::RemoteMutation),
-    read("get_version_lines"),
-    read("get_version_line_history"),
-    read("plan_create_version_line"),
-    ExecutionPolicy::repository_write("create_version_line", OperationClass::LocalMutation),
-    read("plan_switch_version_line"),
-    ExecutionPolicy::repository_write("switch_version_line", OperationClass::LocalMutation),
-    read("plan_delete_version_line"),
-    ExecutionPolicy::repository_write("delete_version_line", OperationClass::Destructive),
-    read("plan_rename_version_line"),
-    ExecutionPolicy::repository_write("rename_version_line", OperationClass::LocalMutation),
+    read("get_branches"),
+    read("get_branch_history"),
+    read("plan_create_branch"),
+    ExecutionPolicy::repository_write("create_branch", OperationClass::LocalMutation),
+    read("plan_switch_branch"),
+    ExecutionPolicy::repository_write("switch_branch", OperationClass::LocalMutation),
+    read("plan_delete_branch"),
+    ExecutionPolicy::repository_write("delete_branch", OperationClass::Destructive),
+    read("plan_clean_up_branches"),
+    ExecutionPolicy::repository_write("clean_up_branches", OperationClass::Destructive),
+    read("plan_rename_branch"),
+    ExecutionPolicy::repository_write("rename_branch", OperationClass::LocalMutation),
     read("watch_repository"),
     no_process_with_class("unwatch_repository", OperationClass::LocalMutation),
     no_process_with_class("close_project_session", OperationClass::LocalMutation),
@@ -635,6 +716,29 @@ pub(crate) fn authorize_repository(
     command: &'static str,
     cancellation: Option<&CancellationToken>,
 ) -> Result<(RepositoryContext, CommandAccess), AppError> {
+    authorize_repository_scoped(path, command, cancellation, None)
+}
+
+/// A read that supersedes only an earlier read of the same `subject`, not
+/// every read of the command. A newer read of a command is normally a newer
+/// copy of the same question — the status, the inventory — and cancels the
+/// one still out. Some reads ask a different question each time: one branch's
+/// history is not superseded by the next branch's, and a read started ahead of a
+/// press must not cancel the read the screen is waiting on.
+pub(crate) fn authorize_repository_read_of(
+    path: &str,
+    command: &'static str,
+    subject: &str,
+) -> Result<(RepositoryContext, CommandAccess), AppError> {
+    authorize_repository_scoped(path, command, None, Some(subject))
+}
+
+fn authorize_repository_scoped(
+    path: &str,
+    command: &'static str,
+    cancellation: Option<&CancellationToken>,
+    subject: Option<&str>,
+) -> Result<(RepositoryContext, CommandAccess), AppError> {
     let policy = *policy(command);
     let parent_cancellation = current_cancellation();
     let initial_cancellation = if policy.install_admission == InstallAdmissionPolicy::Drain {
@@ -706,7 +810,10 @@ pub(crate) fn authorize_repository(
         // refresh (or the workflow that called it).
         (None, parent_cancellation)
     } else if requested == AccessMode::Read {
-        let key = (repository_key, command);
+        let key = match subject {
+            Some(subject) => (format!("{repository_key}\0{subject}"), command),
+            None => (repository_key, command),
+        };
         let token = initial_cancellation
             .clone()
             .unwrap_or_else(CancellationToken::default);
@@ -749,7 +856,10 @@ mod tests {
         "install_app_update",
         "open_repository",
         "reveal_project_file",
+        "open_project_folder",
         "plan_clone",
+        "check_clone_source",
+        "cancel_clone_source_check",
         "clone_repository",
         "cancel_clone",
         "cleanup_clone",
@@ -761,8 +871,9 @@ mod tests {
         "plan_console_command",
         "run_console_plan",
         "run_console_change",
+        "read_console_host",
+        "run_console_hosting_query",
         "get_console_settings",
-        "set_console_advanced_mode",
         "set_console_confirm_changes",
         "read_file_diff",
         "read_file_image_preview",
@@ -774,7 +885,50 @@ mod tests {
         "list_discard_recoveries",
         "restore_discarded_changes",
         "delete_discard_recovery",
+        "glab_diagnostics",
+        "install_glab",
+        "update_glab",
+        "check_glab_update",
+        "get_gitlab_auth_state",
+        "check_gitlab_auth",
+        "start_gitlab_login",
+        "logout_gitlab_account",
+        "cancel_gitlab_auth",
+        "add_gitlab_token",
+        "remove_gitlab_token",
+        "add_bitbucket_token",
+        "remove_bitbucket_token",
+        "add_hosting_server",
+        "remove_hosting_server",
+        "add_hosting_token",
+        "remove_hosting_token",
+        "get_hosting_cli_state",
+        "check_hosting_cli",
+        "start_hosting_cli_login",
+        "logout_hosting_cli",
+        "cancel_hosting_cli",
+        "open_hosting_device_page",
+        "gh_diagnostics",
+        "get_account_catalog",
+        "add_github_token",
+        "remove_github_token",
+        "list_hosting_repositories",
+        "cancel_hosting_request",
+        "check_account_catalog",
+        "read_project_account",
+        "set_project_account",
+        "get_github_auth_state",
+        "check_github_auth",
+        "start_github_login",
+        "cancel_github_auth",
+        "logout_github_account",
+        "switch_github_account",
+        "install_gh",
+        "update_gh",
+        "check_gh_update",
         "git_diagnostics",
+        "git_installation_details",
+        "reveal_git_location",
         "install_git",
         "update_git",
         "check_git_update",
@@ -792,6 +946,8 @@ mod tests {
         "plan_connect_remote",
         "connect_remote",
         "read_project_remotes",
+        "read_remote_home",
+        "open_remote_home",
         "set_remote_url",
         "read_project_identity",
         "set_project_identity",
@@ -801,9 +957,11 @@ mod tests {
         "read_project_technology",
         "read_team_sync_status",
         "check_team_changes",
+        "stop_tracking_remote",
         "plan_get_team_changes",
         "get_team_changes",
         "list_unpublished_versions",
+        "list_incoming_versions",
         "read_commit_file_changes",
         "read_commit_file_diff",
         "read_history_page",
@@ -811,16 +969,18 @@ mod tests {
         "read_saved_version_file_diff",
         "plan_publish",
         "publish",
-        "get_version_lines",
-        "get_version_line_history",
-        "plan_create_version_line",
-        "create_version_line",
-        "plan_switch_version_line",
-        "switch_version_line",
-        "plan_delete_version_line",
-        "delete_version_line",
-        "plan_rename_version_line",
-        "rename_version_line",
+        "get_branches",
+        "get_branch_history",
+        "plan_create_branch",
+        "create_branch",
+        "plan_switch_branch",
+        "switch_branch",
+        "plan_delete_branch",
+        "delete_branch",
+        "plan_clean_up_branches",
+        "clean_up_branches",
+        "plan_rename_branch",
+        "rename_branch",
         "watch_repository",
         "unwatch_repository",
         "close_project_session",
@@ -848,12 +1008,12 @@ mod tests {
             "save_version",
             "plan_publish",
             "check_team_changes",
-            "plan_get_team_changes",
             "get_team_changes",
             "publish",
-            "create_version_line",
-            "switch_version_line",
-            "delete_version_line",
+            "create_branch",
+            "switch_branch",
+            "delete_branch",
+            "clean_up_branches",
             "discard_changes",
             "restore_discarded_changes",
         ] {
@@ -871,6 +1031,11 @@ mod tests {
         assert_eq!(
             policy("get_team_changes").class,
             OperationClass::HistoryMutation
+        );
+        // The plan reads the last-checked remote; only the check fetches.
+        assert_eq!(
+            policy("plan_get_team_changes").concurrency,
+            ConcurrencyClass::RepositoryRead
         );
         assert_eq!(
             policy("close_project_session").class,
@@ -910,6 +1075,48 @@ mod tests {
         let first_token = ready_rx.recv().unwrap();
         let (_context, _access) =
             authorize_repository(&path_text, "read_working_tree_status", None).unwrap();
+        assert!(first_token.is_cancelled());
+        finish_tx.send(()).unwrap();
+        assert!(first.join().unwrap());
+        let _ = fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn a_read_of_another_subject_does_not_supersede_the_first() {
+        let path =
+            std::env::temp_dir().join(format!("gitodile-subject-read-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
+        assert!(Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .arg(&path)
+            .status()
+            .unwrap()
+            .success());
+
+        let path_text = path.to_string_lossy().to_string();
+        let (ready_tx, ready_rx) = mpsc::channel();
+        let (finish_tx, finish_rx) = mpsc::channel();
+        let first_path = path_text.clone();
+        let first = thread::spawn(move || {
+            let (_context, _access) =
+                authorize_repository_read_of(&first_path, "get_branch_history", "main").unwrap();
+            let token = current_cancellation().unwrap();
+            ready_tx.send(token.clone()).unwrap();
+            finish_rx.recv().unwrap();
+            token.is_cancelled()
+        });
+        let first_token = ready_rx.recv().unwrap();
+        {
+            // Another branch's history leaves the first read alone…
+            let (_context, _access) =
+                authorize_repository_read_of(&path_text, "get_branch_history", "feature").unwrap();
+            assert!(!first_token.is_cancelled());
+        }
+        // …and a newer read of the same branch still supersedes it.
+        let (_context, _access) =
+            authorize_repository_read_of(&path_text, "get_branch_history", "main").unwrap();
         assert!(first_token.is_cancelled());
         finish_tx.send(()).unwrap();
         assert!(first.join().unwrap());

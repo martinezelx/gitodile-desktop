@@ -12,7 +12,7 @@ use crate::git_command::{git_stdout, run_git, run_global_git_with_env};
 use crate::operation::truncate_detail;
 use crate::platform;
 use crate::repository::display_path;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{hash_map::Entry, HashMap, VecDeque};
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
@@ -69,6 +69,7 @@ pub(crate) enum DependencyDiscovery {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ClonePlan {
+    pub(crate) account_id: Option<String>,
     pub(crate) operation_kind: &'static str,
     pub(crate) requires_confirmation: bool,
     pub(crate) operation_id: String,
@@ -95,6 +96,7 @@ pub(crate) enum CloneOutcome {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloneResult {
+    pub(crate) account_selection_saved: Option<bool>,
     pub(crate) outcome: CloneOutcome,
     pub(crate) operation_id: String,
     pub(crate) destination_path: String,
@@ -106,6 +108,209 @@ pub(crate) struct CloneResult {
 #[derive(Default)]
 pub(crate) struct CloneOperationRegistry {
     active: Mutex<HashMap<String, CancellationToken>>,
+    checks: Mutex<SourceChecks>,
+}
+
+#[derive(Default)]
+struct SourceChecks {
+    active: HashMap<String, CancellationToken>,
+    cancelled: VecDeque<String>,
+}
+
+#[derive(serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum CloneSourceAccess {
+    Accessible,
+    Unavailable,
+}
+
+/// Supported provider addresses only. Parse before reaching credentials or Git:
+/// no other hosts, local paths, URL secrets or executable-looking inputs.
+fn checked_hosting_source(raw: &str) -> Result<NormalizedSource, AppError> {
+    checked_hosting_source_with(raw, |name| {
+        let mut known = [
+            ("github.com", "github"),
+            ("gitlab.com", "gitlab"),
+            ("bitbucket.org", "bitbucket"),
+        ]
+        .into_iter()
+        .filter(|(host, _)| *host == name)
+        .map(|(host, kind)| (host.to_owned(), kind))
+        .collect::<Vec<_>>();
+        known.extend(crate::credentials::providers_named(name));
+        known
+    })
+}
+
+/// `providers` maps a host name to the registered `(authority, product)`
+/// pairs. HTTPS must match an exact authority; SSH matches the host name, and
+/// only a company server may use a nonstandard SSH port.
+fn checked_hosting_source_with(
+    raw: &str,
+    providers: impl Fn(&str) -> Vec<(String, &'static str)>,
+) -> Result<NormalizedSource, AppError> {
+    let raw = raw.trim();
+    let scp = raw
+        .strip_prefix("git@")
+        .and_then(|rest| rest.split_once(':'))
+        .filter(|(name, _)| !name.contains(['/', '@']) && !name.is_empty());
+    let (kind, path) = if let Some((name, path)) = scp {
+        let name = name.to_ascii_lowercase();
+        let (_, kind) = providers(&name)
+            .into_iter()
+            .next()
+            .ok_or_else(invalid_check_source)?;
+        (kind, path.to_string())
+    } else {
+        let url = reqwest::Url::parse(raw).map_err(|_| invalid_check_source())?;
+        let name = url.host_str().ok_or_else(invalid_check_source)?;
+        let authority = crate::credentials::authority(&url).ok_or_else(invalid_check_source)?;
+        let known = providers(name);
+        let kind = if url.scheme() == "https" && url.username().is_empty() {
+            known
+                .iter()
+                .find(|(host, _)| *host == authority)
+                .map(|(_, kind)| *kind)
+        } else if url.scheme() == "ssh" && url.username() == "git" {
+            known
+                .iter()
+                .find(|(host, _)| {
+                    url.port().is_none()
+                        || !matches!(host.as_str(), "github.com" | "gitlab.com" | "bitbucket.org")
+                })
+                .map(|(_, kind)| *kind)
+        } else {
+            None
+        };
+        if url.password().is_some() || url.query().is_some() || url.fragment().is_some() {
+            return Err(invalid_check_source());
+        }
+        (
+            kind.ok_or_else(invalid_check_source)?,
+            url.path().trim_start_matches('/').to_string(),
+        )
+    };
+    let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
+    if (matches!(kind, "github" | "bitbucket") && parts.len() != 2)
+        || parts.len() < 2
+        || parts.len() > 32
+        || parts.iter().any(|part| {
+            part.is_empty()
+                || *part == "."
+                || *part == ".."
+                || !part
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
+        })
+        || parts.last() == Some(&".git")
+    {
+        return Err(invalid_check_source());
+    }
+    normalize_source(raw)
+}
+
+fn invalid_check_source() -> AppError {
+    AppError::new(
+        AppErrorCode::InvalidCloneSource,
+        "Enter a complete GitHub or GitLab project address.",
+    )
+}
+
+fn read_source_access(source: &NormalizedSource) -> Result<CloneSourceAccess, AppError> {
+    // Existing Git credential helpers and SSH configuration remain scoped to
+    // the user's Git. No browser/prompt is launched during a speculative read.
+    let output = run_global_git_with_env(
+        ["ls-remote", "--quiet", "--", &source.argument, "HEAD"],
+        &[
+            ("GIT_TERMINAL_PROMPT", "0"),
+            ("GCM_INTERACTIVE", "never"),
+            ("SSH_ASKPASS_REQUIRE", "never"),
+        ],
+    )
+    .map_err(|error| AppError::new(error.code, "The project access check could not finish."))?;
+    if output.status.success() {
+        // A repository with no saved versions also returns success with no refs.
+        return Ok(CloneSourceAccess::Accessible);
+    }
+    let code = classify_clone_failure(&output.stderr).code;
+    match code {
+        AppErrorCode::AuthenticationFailed
+        | AppErrorCode::RemoteNotFound
+        | AppErrorCode::PermissionDenied => Ok(CloneSourceAccess::Unavailable),
+        _ => Err(AppError::new(
+            code,
+            "The project access check could not finish.",
+        )),
+    }
+}
+
+pub(crate) fn check_clone_source(
+    registry: &CloneOperationRegistry,
+    source: String,
+    account_id: Option<String>,
+    request_id: String,
+) -> Result<CloneSourceAccess, AppError> {
+    validate_operation_id(&request_id)?;
+    let source = checked_hosting_source(&source)?;
+    crate::credentials::validate_clone_account(account_id.as_deref(), &source.argument)?;
+    let token = CancellationToken::default();
+    {
+        let mut checks = registry.checks.lock().unwrap_or_else(|e| e.into_inner());
+        if checks.cancelled.contains(&request_id) {
+            return Err(AppError::new(
+                AppErrorCode::OperationCancelled,
+                "The access check was cancelled.",
+            ));
+        }
+        if checks.active.len() >= 16 || checks.active.contains_key(&request_id) {
+            return Err(AppError::new(
+                AppErrorCode::CloneOperationBusy,
+                "An access check is already running.",
+            ));
+        }
+        checks.active.insert(request_id.clone(), token.clone());
+    }
+    let result = {
+        let _command = application::enter_with_cancellation("check_clone_source", token.clone());
+        crate::credentials::with_accounts(account_id.iter().cloned().collect(), || {
+            read_source_access(&source)
+        })
+    };
+    registry
+        .checks
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .active
+        .remove(&request_id);
+    if token.is_cancelled() {
+        Err(AppError::new(
+            AppErrorCode::OperationCancelled,
+            "The access check was cancelled.",
+        ))
+    } else {
+        result
+    }
+}
+
+pub(crate) fn cancel_clone_source_check(
+    registry: &CloneOperationRegistry,
+    request_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("cancel_clone_source_check");
+    validate_operation_id(&request_id)?;
+    let mut checks = registry.checks.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(token) = checks.active.get(&request_id) {
+        token.cancel();
+    }
+    // A cancellation can reach IPC before registration. Bound those tombstones
+    // so abandoned edits cannot grow the process registry indefinitely.
+    if !checks.cancelled.contains(&request_id) {
+        checks.cancelled.push_back(request_id);
+    }
+    while checks.cancelled.len() > 64 {
+        checks.cancelled.pop_front();
+    }
+    Ok(())
 }
 
 impl CloneOperationRegistry {
@@ -617,18 +822,31 @@ fn validate_clone(source: &str, parent: &str, name: &str) -> Result<ValidatedClo
     })
 }
 
+#[cfg(test)]
 pub(crate) fn plan_clone(
     source: String,
     destination_parent: String,
     destination_name: String,
 ) -> Result<ClonePlan, AppError> {
+    plan_clone_with_account(source, destination_parent, destination_name, None)
+}
+
+pub(crate) fn plan_clone_with_account(
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+    account_id: Option<String>,
+) -> Result<ClonePlan, AppError> {
     let _command = application::enter("plan_clone");
     let validated = validate_clone(&source, &destination_parent, &destination_name)?;
+    crate::credentials::validate_clone_account(account_id.as_deref(), &validated.source.argument)?;
+    let state_token = account_state_token(&validated.state_token, account_id.as_deref());
     Ok(ClonePlan {
+        account_id,
         operation_kind: "local-mutation",
         requires_confirmation: true,
         operation_id: new_operation_id(),
-        state_token: validated.state_token,
+        state_token,
         source_kind: validated.source.kind,
         source_display: validated.source.safe_display,
         destination_parent: display_path(validated.parent),
@@ -640,6 +858,17 @@ pub(crate) fn plan_clone(
         checks_out_remote_default: true,
         uses_staging: true,
     })
+}
+
+fn account_state_token(base: &str, account: Option<&str>) -> String {
+    let Some(account) = account else {
+        return base.to_owned();
+    };
+    use sha2::{Digest, Sha256};
+    Sha256::digest(format!("{base}\0{account}"))
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn staging_paths(parent: &Path, operation_id: &str) -> Result<Staging, AppError> {
@@ -804,13 +1033,14 @@ fn classify_clone_failure(stderr: &[u8]) -> AppError {
         || lower.contains("could not read password")
         || lower.contains("permission denied (publickey")
         || lower.contains("terminal prompts disabled")
+        || lower.contains("told us to quit")
         || lower.contains("http 401")
         || lower.contains("http 403")
     {
         return clone_error(
             AppErrorCode::AuthenticationFailed,
             "GitOdile couldn't authenticate with the remote project.",
-            "Check your configured Git credential helper, SSH key, or access rights, then retry.",
+            "Check the selected account, existing Git credentials, SSH key, or access rights, then retry.",
         )
         .with_detail(detail());
     }
@@ -1160,6 +1390,7 @@ fn clone_with_token(
         Err(_) => CloneOutcome::CleanupRequired,
     };
     Ok(CloneResult {
+        account_selection_saved: None,
         outcome,
         operation_id: operation_id.to_string(),
         destination_path: display_path(validated.destination),
@@ -1170,6 +1401,7 @@ fn clone_with_token(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) fn clone_repository(
     registry: &CloneOperationRegistry,
     source: String,
@@ -1179,21 +1411,74 @@ pub(crate) fn clone_repository(
     state_token: String,
     mut progress: impl FnMut(CloneProgressPhase),
 ) -> Result<CloneResult, AppError> {
+    clone_repository_with_account(
+        registry,
+        source,
+        destination_parent,
+        destination_name,
+        operation_id,
+        state_token,
+        None,
+        &mut progress,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn clone_repository_with_account(
+    registry: &CloneOperationRegistry,
+    source: String,
+    destination_parent: String,
+    destination_name: String,
+    operation_id: String,
+    state_token: String,
+    account_id: Option<String>,
+    mut progress: impl FnMut(CloneProgressPhase),
+) -> Result<CloneResult, AppError> {
     let validated = validate_clone(&source, &destination_parent, &destination_name)?;
-    if validated.state_token != state_token {
+    crate::credentials::validate_clone_account(account_id.as_deref(), &validated.source.argument)?;
+    if account_state_token(&validated.state_token, account_id.as_deref()) != state_token {
         return Err(clone_error(
             AppErrorCode::StaleClonePlan,
             "The clone details changed since the preview.",
             "Review the destination and remote again.",
         ));
     }
+    let destination = validated.destination.clone();
     let token = registry.begin(&operation_id)?;
     let result = {
         let _command = application::enter_with_cancellation("clone_repository", token.clone());
-        clone_with_token(validated, &operation_id, &token, &mut progress)
+        let cloned =
+            crate::credentials::with_accounts(account_id.iter().cloned().collect(), || {
+                clone_with_token(validated, &operation_id, &token, &mut progress)
+            });
+        cloned.map(|mut result| {
+            // Publication already succeeded. A metadata failure must not turn
+            // the completed clone into an error that invites another clone.
+            result.account_selection_saved = account_id
+                .as_deref()
+                .map(|account| retain_clone_account(&destination, Some(account)).is_ok());
+            result
+        })
     };
     registry.finish(&operation_id, &token);
     result
+}
+
+fn retain_clone_account(destination: &Path, account: Option<&str>) -> Result<(), AppError> {
+    let Some(account) = account else {
+        return Ok(());
+    };
+    let provider = account
+        .split_once(':')
+        .map(|(provider, _)| provider)
+        .unwrap_or("");
+    crate::credentials::global().and_then(|service| service.select(destination, provider, Some(account), None))
+        .map(|_| ())
+        .map_err(|_| clone_error(
+            AppErrorCode::ClonePublishUncertain,
+            "The project was cloned, but its account selection could not be saved.",
+            "Open the completed project and select its account in project settings. Do not clone again into this folder.",
+        ))
 }
 
 pub(crate) fn cancel_clone(
@@ -1217,6 +1502,117 @@ pub(crate) fn cleanup_clone(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_checks_accept_only_safe_hosting_addresses() {
+        for value in [
+            "https://github.com/team/project.git",
+            "git@github.com:team/project.git",
+            "ssh://git@github.com/team/project",
+            "https://gitlab.com/team/subgroup/project.git",
+            "git@gitlab.com:team/subgroup/project.git",
+            "ssh://git@gitlab.com/team/project",
+            "https://bitbucket.org/workspace/project.git",
+            "git@bitbucket.org:workspace/project.git",
+            "ssh://git@bitbucket.org/workspace/project.git",
+        ] {
+            assert!(checked_hosting_source(value).is_ok(), "{value}");
+        }
+        for value in [
+            "https://github.com/team",
+            "https://gitlab.com/team",
+            "https://gitlab.com.evil.test/team/project",
+            "https://token@gitlab.com/team/project",
+            "https://gitlab.com/team/project?token=secret",
+            "https://gitlab.com:444/team/project",
+            "https://github.com.evil.test/team/project",
+            "https://token@github.com/team/project",
+            "https://github.com/team/project?token=secret",
+            "https://github.com/team/project#secret",
+            "https://github.com:444/team/project",
+            "https://bitbucket.org/workspace/group/project.git",
+            "https://nick@bitbucket.org/workspace/project.git",
+            "https://bitbucket.org:444/workspace/project.git",
+            "ssh://git@bitbucket.org:2222/workspace/project.git",
+            "--upload-pack=evil",
+            "C:\\projects",
+        ] {
+            assert!(checked_hosting_source(value).is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn source_checks_accept_registered_company_servers_by_exact_authority() {
+        let servers = |name: &str| match name {
+            "ghe.example.com" => vec![("ghe.example.com".to_owned(), "github")],
+            "gitlab.example.com" => vec![("gitlab.example.com:8443".to_owned(), "gitlab")],
+            _ => Vec::new(),
+        };
+        for value in [
+            "https://ghe.example.com/team/project.git",
+            "git@ghe.example.com:team/project.git",
+            "https://gitlab.example.com:8443/team/sub/project.git",
+            "git@gitlab.example.com:team/sub/project.git",
+            "ssh://git@gitlab.example.com:2222/team/project.git",
+        ] {
+            assert!(
+                checked_hosting_source_with(value, servers).is_ok(),
+                "{value}"
+            );
+        }
+        for value in [
+            "https://ghe.example.com/team/sub/project.git",
+            "https://ghe.example.com:8443/team/project.git",
+            "https://gitlab.example.com/team/project.git",
+            "https://token@ghe.example.com/team/project.git",
+            "https://unknown.example.com/team/project.git",
+            "git@unknown.example.com:team/project.git",
+            "https://github.com/team/project.git",
+        ] {
+            assert!(
+                checked_hosting_source_with(value, servers).is_err(),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn source_check_cancellation_can_arrive_before_registration() {
+        let registry = CloneOperationRegistry::default();
+        cancel_clone_source_check(&registry, "abc123".into()).unwrap();
+        assert_eq!(
+            check_clone_source(
+                &registry,
+                "https://github.com/team/project".into(),
+                None,
+                "abc123".into()
+            )
+            .unwrap_err()
+            .code,
+            AppErrorCode::OperationCancelled
+        );
+        assert!(registry.checks.lock().unwrap().active.is_empty());
+        for value in 0..100 {
+            cancel_clone_source_check(&registry, format!("{value:x}")).unwrap();
+        }
+        assert_eq!(registry.checks.lock().unwrap().cancelled.len(), 64);
+    }
+
+    #[test]
+    fn access_read_accepts_an_empty_repository_without_creating_a_clone() {
+        use crate::test_support::{git_init, unique_temp_dir};
+        let path = unique_temp_dir("empty-source-check");
+        git_init(&path);
+        let source = normalize_source(&path).unwrap();
+        let before = fs::read_dir(&path).unwrap().count();
+        let _frame = application::enter("check_clone_source");
+        assert_eq!(
+            read_source_access(&source).unwrap(),
+            CloneSourceAccess::Accessible
+        );
+        assert_eq!(fs::read_dir(&path).unwrap().count(), before);
+        assert!(!Path::new(&path).join("project").exists());
+    }
 
     #[test]
     fn supported_remote_grammar_is_provider_neutral_and_secret_safe() {
@@ -1260,6 +1656,23 @@ mod tests {
             assert!(validate_destination_name(invalid).is_err(), "{invalid}");
         }
         validate_destination_name("répô-friendly").unwrap();
+    }
+
+    #[test]
+    fn clone_preview_fingerprint_binds_its_account_without_changing_existing_plans() {
+        assert_eq!(account_state_token("plan", None), "plan");
+        assert_ne!(
+            account_state_token("plan", Some("github:Personal")),
+            account_state_token("plan", Some("github:work"))
+        );
+        assert_ne!(
+            account_state_token("plan", Some("github:Personal")),
+            account_state_token("changed", Some("github:Personal"))
+        );
+        assert_eq!(
+            classify_clone_failure(b"credential helper told us to quit").code,
+            AppErrorCode::AuthenticationFailed
+        );
     }
 
     #[test]

@@ -28,6 +28,11 @@
   --radius-surface: 18px; /* a container with its own background: card, dialog, popover, notice */
   --radius-pill: 999px;   /* a capsule: badge, count, short-text chip */
   --radius-round: 50%;    /* a circle: a person, single-glyph control */
+  /* The app search's field: a capsule, half the field's height (32px on the
+     strip; a shorter field sets its own half), and the top corners of the
+     results grown out of it. A real length, not the pill's 999px, so the
+     field can morph into the palette's foot. */
+  --radius-field: 16px;
   /* A project's identity chip: a rounded square, proportional so it keeps the
      same shape from the 20px jump list to the 56px settings preview. A fixed
      tier would close into a circle at the small sizes. Square for a project,
@@ -113,7 +118,7 @@
      lived on one screen and made it read as shouting next to every other. */
   --weight-normal: 400;  /* body copy and metadata */
   --weight-medium: 500;  /* a value that must not be mistaken for a name */
-  --weight-strong: 600;  /* the name of a thing: a file, a line, a row's subject */
+  --weight-strong: 600;  /* the name of a thing: a file, a branch, a row's subject */
   --weight-heading: 650; /* a heading, and the label of a selected control */
   --weight-title: 700;   /* a screen title, a primary action, an avatar's initials */
 
@@ -138,46 +143,40 @@
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
-  /* The app's one way of saying "this, now": a halo that leaves the element,
-     fades as it goes, and is born again at the edge — never seen coming back
-     in. One period, one reach, one colour by default; a surface re-points the
-     colour (a warning tile sets --attention-color to --status-warning) and
-     never the shape. See `.attention-breathe` in primitives.css. */
+  /* The app's one way of saying "this, now": a halo that leaves the element
+     and fades as it goes, seen once when the state arrives and then gone. One
+     reach, one colour by default; a surface re-points the colour (a warning
+     tile sets --attention-color to --status-warning) and never the shape. See
+     `.attention-breathe` in primitives.css. */
   --attention-duration: 2400ms;
   --attention-spread: 8px;
   --attention-color: var(--accent-primary);
 
-  /* Brand identity (Layer 2). Declared once and never themed: this is the
-     mark and identity colours. The actionable accent — primary action,
-     notification badge, attention halo, nav and focus — is `--accent-primary`
-     and belongs to the theme, so a community palette is coherent rather than
-     fighting the brand. Theme colour tokens (Layer 3) live in
+  /* Identity colours (Layer 2) — avatars, tooltip, the console's root and
+     the app tone, further down — are declared once here and never themed.
+     The actionable accent — primary action, notification badge, attention
+     halo, nav and focus — is `--accent-primary` and belongs to the theme.
+     The brand lime is not a token: it lives only in the app icon's sources
+     (`scripts/icons/mascot.mjs`), since the interface draws the mark in the
+     ink (ADR 0033). Theme colour tokens (Layer 3) live in
      `styles/themes.css`; the contract is DESIGN.md § Theming and ADR 0012. */
-  --accent-brand: #8bc53f;
-  --accent-brand-contrast: #14170f;
-  /* The mascot's green and its crest's deep teal (`scripts/icons/mascot.mjs`),
-     shown in the GitOdile themes; other themes tint the in-app mascot from
-     their own accent. */
-  --mascot-brand-fill: #86b640;
-  --mascot-brand-crest: #0f4a43;
   /* The fill of a card sitting *inside* a panel: a section of the History
-     overview, a fact card on the version-lines detail. A step off the panel it
+     overview, a fact card on the branches detail. A step off the panel it
      rests on rather than a colour of its own, so it holds in every theme
      without a second value — the mix resolves against whichever
      `--surface-raised`/`--surface-panel` the active theme has set. Written
      once here because two features now say it, and a recipe copied a third
      time is a recipe that drifts. */
   --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
-  /* How much of `--accent-primary-fill` an accent wash mixes into
-     `--surface-raised` — an unread notification row today. The fill, not
-     `--accent-primary`: in the official Light theme that accent is a deep
-     green that would read as a grey smudge, while the fill is the lime the
-     wash is meant to read as. A wash lightens a dark surface and darkens a
-     light one, so it eats the secondary text's margin; a theme with little
-     margin lowers the strength in its own block (Solarized Dark does), and
-     `themeContrast.test.ts` measures secondary text on the wash in every
-     theme. */
-  --accent-wash-strength: 8%;
+  /* The fill of a version node's filled and half states — the included file in
+     Changes, a published version in Overview, History and the Branches recent
+     list. 65% of the primary ink over the panel: a soft charcoal in light and a
+     soft stone in dark, the same recipe in both schemes. The accent stays for
+     the selected/active node, and the neutral fill still measures 5.4:1 on the
+     official light panel and 7.6:1 on the dark, so the shape reads without the
+     column out-shouting the one accent node. One derived value, no per-theme
+     colour to maintain; `themeContrast.test.ts` holds its 3:1 floor. */
+  --node-fill: color-mix(in srgb, var(--text-primary-color) 65%, var(--surface-panel));
   /* Deliberately theme-independent (unlike every other --surface-* token):
      a tooltip that flips light/dark with the app loses the one property
      that makes this style work — reliable contrast over *anything* behind
@@ -231,6 +230,18 @@
   --console-root: #6a3fd4;
   --console-root-contrast: #fff;
   --avatar-ring: 0 0 0 2px rgba(0, 0, 0, 0.9);
+  /* Glyph tones (ADR 0033). The official interface is ink, so a glyph's
+     colour says what kind of thing it stands for, never that it is
+     pressable. The remote and its copy (cloud, clone, getting changes,
+     updates) borrow the theme's blue, `--status-renamed`. What is saved here
+     (only on this computer, publish, a new project) is `--tone-local`, a
+     theme token of its own (themes.css): the official themes give it the
+     brand's lime so it reads apart from success and added lines; community
+     themes keep their success green. GitOdile itself (what's new, shortcuts,
+     reporting a problem) takes a violet no status uses, per scheme like the
+     console's root. */
+  --tone-remote: var(--status-renamed);
+  --tone-app: #6a3fd4;
 }
 
 @supports (color: light-dark(#000, #fff)) {
@@ -238,6 +249,7 @@
     --avatar-ring: 0 0 0 2px light-dark(transparent, rgba(0, 0, 0, 0.9));
     --console-root: light-dark(#6a3fd4, #b79cff);
     --console-root-contrast: light-dark(#ffffff, #1c1233);
+    --tone-app: light-dark(#6a3fd4, #b79cff);
   }
 }
 

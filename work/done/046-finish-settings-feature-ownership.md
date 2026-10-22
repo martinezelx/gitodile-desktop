@@ -44,7 +44,7 @@ not a project screen. Its dialog frame (`.settings-dialog*`) genuinely belongs
 to the shell. Only the panel's own rules are in question.
 
 **The panel is statically imported.** `main.tsx` lazily loads PublishDialog,
-PendingVersionsSection and the version-line dialogs, but imports SettingsPanel
+PendingVersionsSection and the branch dialogs, but imports SettingsPanel
 directly, so it sits in the entry chunk at 375.59 kB against a 378 kB warning —
 2.4 kB of headroom. Making it lazy is the obvious reclaim. The audit left it
 because the overlay has focus management (`settingsDialogRef`, `useModalFocus`)

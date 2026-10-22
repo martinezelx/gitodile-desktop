@@ -13,7 +13,7 @@ ordinary lifecycle of a project without falling back to the terminal:
 1. open an existing project, clone a remote project, or create a local project;
 2. understand and inspect current changes;
 3. save all or selected files as a version and review saved history;
-4. create, switch, publish, integrate, and remove version lines safely;
+4. create, switch, publish, integrate, and remove branches safely;
 5. check for, get, and publish project changes, including a diverged history;
 6. resolve overlaps without silent data loss;
 7. set unfinished work aside and restore it later;
@@ -36,8 +36,8 @@ Already delivered:
 - save all or selected files with hooks, signing, and index protection;
 - discard files or all unsaved work with persistent recovery and Undo;
 - discover remotes, check/fetch, fast-forward safely, and publish;
-- list, create, switch, and safely delete local version lines;
-- browse bounded current-line saved-version history and inspect typed commit
+- list, create, switch, and safely delete local branches;
+- browse bounded current-branch saved-version history and inspect typed commit
   diffs without changing the project;
 - configure Git identity, line endings, themes, language, watching, and
   confirmations;
@@ -82,31 +82,29 @@ references and therefore do not change when priorities move.
 
 | Queue | Task | Outcome |
 | --- | --- | --- |
-| Q01 | 142 | Publish and update through one release channel |
-| Q02 | 143 | Ship `0.3.0` on the single channel |
-| Q03 | 037-1 | Establish conflict truth and recovery |
-| Q04 | 037-2 | Select the editor foundation |
-| Q05 | 037-3 | Add the read-only conflict workspace |
-| Q06 | 037-4 | Resolve text conflicts safely |
-| Q07 | 037-5 | Complete or abort a merge |
-| Q08 | 037-6 | Handle non-text and structural conflicts |
-| Q09 | 037-7 | Audit the conflict workflow |
-| Q10 | 065-4 | Integrate local lines and diverged project changes |
-| Q11 | 065-5 | Make recovery records visible/actionable |
-| Q12 | 065-6 | Undo or reverse a saved version |
-| Q13 | 064-1 | Discover and inspect saved sets |
-| Q14 | 064-2 | Set all or selected changes aside |
-| Q15 | 064-3 | Restore a saved set and keep its copy |
-| Q16 | 064-4 | Remove one saved set with recovery |
-| Q17 | 064-5 | Audit the set-aside workflow |
-| Q18 | 065-7 | Harden credential and remote diagnostics |
-| Q19 | 065-8 | Verify and distribute `1.0.0` |
-| Q20 | 065-9-13 | Record the remaining updater evidence and add OS signing |
-| Q21 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
-| Q22 | 127 | Settle canonical colour themes |
-| Q23 | 130 | Add project identity icons |
-| Q24 | 131 | Replace the app icon with the mascot |
-| Q25 | 140 | Build the account sign-in screens against a functional mock |
+| Q01 | 037-1 | Establish conflict truth and recovery |
+| Q02 | 037-2 | Select the editor foundation |
+| Q03 | 037-3 | Add the read-only conflict workspace |
+| Q04 | 037-4 | Resolve text conflicts safely |
+| Q05 | 037-5 | Complete or abort a merge |
+| Q06 | 037-6 | Handle non-text and structural conflicts |
+| Q07 | 037-7 | Audit the conflict workflow |
+| Q08 | 065-4 | Integrate local branches and diverged project changes |
+| Q09 | 065-5 | Make recovery records visible/actionable |
+| Q10 | 065-6 | Undo or reverse a saved version |
+| Q11 | 064-1 | Discover and inspect saved sets |
+| Q12 | 064-2 | Set all or selected changes aside |
+| Q13 | 064-3 | Restore a saved set and keep its copy |
+| Q14 | 064-4 | Remove one saved set with recovery |
+| Q15 | 064-5 | Audit the set-aside workflow |
+| Q16 | 065-7 | Harden credential and remote diagnostics |
+| Q17 | 065-8 | Verify and distribute `1.0.0` |
+| Q18 | 065-9-13 | Record the remaining updater evidence and add OS signing |
+| Q19 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
+| Q20 | 127 | Settle canonical colour themes |
+| Q21 | 130 | Add project identity icons |
+| Q22 | 131 | Replace the app icon with the mascot |
+| Q23 | 140 | Build the account sign-in screens against a functional mock |
 
 ### Public distribution — delivered
 
@@ -144,7 +142,7 @@ and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
    folder and existing non-repository flows, explicit README/first-save choices,
    exact cleanup ownership, and a separate provider-neutral remote preview.
 - **015 (completed 2026-08-24): History timeline.** Bounded, snapshot-aware,
-  read-only current-line history and first-parent/root commit details using the
+  read-only current-branch history and first-parent/root commit details using the
   established typed diff renderer, with a recent-history summary in Overview.
 
 Exit condition: a first-time user can acquire or create a project, make and
@@ -156,9 +154,10 @@ save a change, and verify the result in History.
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
-   local-branch merge and non-fast-forward team integration. Clean results
-   complete normally; overlaps enter task 037's established session contract.
+- **Q08 / 065-4: Integrate branches and diverged project changes.** Add previewed
+   local-branch merge. Clean, non-fast-forward team integration shipped in
+   task 161 (ADR 0030); overlaps still enter task 037's established session
+   contract.
 
 Exit condition: both the clean and conflicting collaboration paths can finish
 without a terminal. Rebase and force push remain excluded.
@@ -194,10 +193,12 @@ restored safely.
    guided workflows or expose a system shell; see [task 134](../work/done/134-project-git-console.md).
 - **Q25–Q26 / 138: Git commands in the console.** Typed Git commands, parsed
    and classified in Rust into permission tiers
-   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read-only
-   commands for everyone, then an advanced mode, off by default, for local and
-   remote changes that are previewed and, unless the person turns that off,
-   confirmed; see [epic 138](../work/done/138-console-git-commands.md).
+   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read
+   commands, and local and remote changes that are previewed and, unless the
+   person turns that off, confirmed. The advanced mode that first gated changes
+   was removed by [ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md)
+   ([task 149](../work/done/149-single-console-mode.md)); see
+   [epic 138](../work/done/138-console-git-commands.md).
    138-1 is independent. History and destructive commands moved to
    [task 139](../work/blocked/139-console-history-and-destructive-commands.md),
    blocked on the Recovery Center (065-5).

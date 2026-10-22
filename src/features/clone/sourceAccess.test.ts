@@ -1,0 +1,119 @@
+import { afterEach, expect, it, vi } from "vitest";
+import { cloneSourceSummary, cloneSuggestedName, createCloneSourceAccess, githubCloneAddress, hostingCloneAddress } from "./sourceAccess";
+
+afterEach(() => vi.useRealTimers());
+it("only probes complete, secret-free GitHub addresses", () => {
+  expect(githubCloneAddress("https://github.com/team/project.git")).toEqual({ https: true });
+  expect(githubCloneAddress("git@github.com:team/project.git")).toEqual({ https: false });
+  expect(githubCloneAddress("ssh://git@github.com/team/project")).toEqual({ https: false });
+  for (const source of ["https://github.com/team", "https://github.com.evil.test/team/project", "https://token@github.com/team/project",
+    "https://github.com/team/project?token=secret", "https://github.com/team/project#secret", "C:\\projects", "--upload-pack=evil"]) {
+    expect(githubCloneAddress(source)).toBeNull();
+  }
+  expect(cloneSourceSummary("https://alice:secret@example.test/team/project.git?token=secret")).toBe("https://example.test/team/project.git");
+  expect(cloneSuggestedName("https://example.test/team/r%C3%A9po.git")).toBe("répo");
+});
+
+it("redacts malformed URL credentials and preserves local filename punctuation", () => {
+  for (const source of ["https://alice:secret@", "https://alice:secret@host:invalid/project?token=secret"]) {
+    expect(cloneSourceSummary(source)).not.toContain("secret");
+  }
+  for (const source of ["C:\\projects\\my#project.git", "/projects/my#project.git", "my?project.git"]) {
+    expect(cloneSourceSummary(source)).toBe(source);
+    expect(cloneSuggestedName(source)).toBe(source === "my?project.git" ? "my?project" : "my#project");
+  }
+});
+
+it("debounces edits, cancels the exact request and rejects late identities and results", async () => {
+  vi.useFakeTimers();
+  let finish!: (status: "accessible") => void;
+  const checkSource = vi.fn().mockImplementationOnce(() => new Promise<"accessible">(resolve => { finish = resolve; }))
+    .mockResolvedValueOnce("unavailable");
+  const cancelSourceCheck = vi.fn(async () => undefined);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck });
+  const first = "https://github.com/team/one";
+  controller.update(first, "github:token.one");
+  await vi.advanceTimersByTimeAsync(300);
+  controller.update(first, "github:token.two");
+  await vi.advanceTimersByTimeAsync(550);
+  expect(checkSource).toHaveBeenCalledTimes(1);
+  expect(checkSource.mock.calls[0].slice(0, 2)).toEqual([first, "github:token.two"]);
+  controller.update("https://github.com/team/two", null);
+  expect(cancelSourceCheck).toHaveBeenCalledWith(checkSource.mock.calls[0][2]);
+  finish("accessible");
+  await vi.advanceTimersByTimeAsync(550);
+  expect(controller.snapshot()).toMatchObject({ source: "https://github.com/team/two", accountId: null, status: "unavailable" });
+  controller.cancel();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(checkSource).toHaveBeenCalledTimes(2);
+  expect(controller.snapshot().status).toBe("idle");
+  controller.reset();
+  expect(controller.snapshot()).toEqual({ source: "", accountId: null, status: "idle" });
+});
+
+it("keeps transient failures unconfirmed and never runs from mere subscription", async () => {
+  vi.useFakeTimers();
+  const checkSource = vi.fn(async () => { throw new Error("network"); });
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  controller.subscribe(vi.fn());
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(checkSource).not.toHaveBeenCalled();
+  controller.update("https://github.com/team/project", null);
+  await vi.advanceTimersByTimeAsync(550);
+  expect(controller.snapshot().status).toBe("unconfirmed");
+  controller.update("https://github.com/team/project?secret=x", null);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(checkSource).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot().status).toBe("idle");
+  controller.reset();
+  expect(controller.snapshot()).toEqual({ source: "", accountId: null, status: "idle" });
+});
+
+it("accepts nested GitLab sources and refuses cross-provider account reads", async () => {
+  expect(hostingCloneAddress("https://gitlab.com/group/subgroup/project.git")).toEqual({ https: true, provider: "gitlab", providerId: "gitlab" });
+  expect(hostingCloneAddress("git@gitlab.com:group/subgroup/project.git")).toEqual({ https: false, provider: "gitlab", providerId: "gitlab" });
+  for (const source of ["https://gitlab.com.evil.test/team/project", "https://token@gitlab.com/team/project", "https://gitlab.com/team/project?token=x", "http://gitlab.com/team/project", "https://gitlab.com/group"]) expect(hostingCloneAddress(source)).toBeNull();
+  vi.useFakeTimers();
+  const checkSource = vi.fn(async () => "accessible" as const);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  controller.update("https://gitlab.com/team/subgroup/project", "github:token.work");
+  await vi.advanceTimersByTimeAsync(1000); expect(checkSource).not.toHaveBeenCalled();
+  controller.update("https://gitlab.com/team/subgroup/project", "gitlab:token.42");
+  await vi.advanceTimersByTimeAsync(550);
+  expect(checkSource).toHaveBeenCalledWith("https://gitlab.com/team/subgroup/project", "gitlab:token.42", expect.any(String));
+});
+
+it("accepts Bitbucket workspace/repository sources and maps them to its connections only", async () => {
+  expect(hostingCloneAddress("https://bitbucket.org/studio/site.git")).toEqual({ https: true, provider: "bitbucket", providerId: "bitbucket" });
+  expect(hostingCloneAddress("git@bitbucket.org:studio/site.git")).toEqual({ https: false, provider: "bitbucket", providerId: "bitbucket" });
+  // Bitbucket's copy button embeds the viewer's name; that address never selects an account.
+  for (const source of ["https://luis@bitbucket.org/studio/site.git", "https://bitbucket.org/studio/group/site.git",
+    "https://bitbucket.org:8443/studio/site.git", "https://bitbucket.org.evil.test/studio/site.git", "http://bitbucket.org/studio/site.git"]) {
+    expect(hostingCloneAddress(source)).toBeNull();
+  }
+  vi.useFakeTimers();
+  const checkSource = vi.fn(async () => "accessible" as const);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  controller.update("https://bitbucket.org/studio/site.git", "gitlab:token.42");
+  await vi.advanceTimersByTimeAsync(1000); expect(checkSource).not.toHaveBeenCalled();
+  const accountId = "bitbucket:token.3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+  controller.update("https://bitbucket.org/studio/site.git", accountId);
+  await vi.advanceTimersByTimeAsync(550);
+  expect(checkSource).toHaveBeenCalledWith("https://bitbucket.org/studio/site.git", accountId, expect.any(String));
+});
+
+it("recognizes registered company servers by exact authority and maps their connection", () => {
+  const providers = [
+    { id: "github", host: "github.com", kind: "github" as const, builtIn: true },
+    { id: "ghe-0123456789", host: "ghe.example.com", kind: "github" as const, builtIn: false },
+    { id: "gls-0123456789", host: "gitlab.example.com:8443", kind: "gitlab" as const, builtIn: false },
+  ];
+  expect(hostingCloneAddress("https://ghe.example.com/team/project.git", providers)).toEqual({ https: true, provider: "github", providerId: "ghe-0123456789" });
+  expect(hostingCloneAddress("https://gitlab.example.com:8443/group/sub/project.git", providers)).toEqual({ https: true, provider: "gitlab", providerId: "gls-0123456789" });
+  expect(hostingCloneAddress("git@gitlab.example.com:group/project.git", providers)).toEqual({ https: false, provider: "gitlab", providerId: "gls-0123456789" });
+  expect(hostingCloneAddress("ssh://git@gitlab.example.com:2222/group/project.git", providers)).toEqual({ https: false, provider: "gitlab", providerId: "gls-0123456789" });
+  for (const source of ["https://gitlab.example.com/group/project.git", "https://ghe.example.com/team/sub/project.git",
+    "https://ghe.example.com:8443/team/project.git", "ssh://git@github.com:2222/team/project.git", "https://other.example.com/team/project.git"]) {
+    expect(hostingCloneAddress(source, providers)).toBeNull();
+  }
+});

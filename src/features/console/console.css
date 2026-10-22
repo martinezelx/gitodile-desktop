@@ -7,13 +7,14 @@
   position: relative; display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0;
   color: var(--text-primary-color);
 }
+.console-panel__body { position: relative; display: flex; flex: 1; min-height: 0; min-width: 0; isolation: isolate; }
 .console-panel__transcript {
-  flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) 0 var(--space-5);
+  position: relative; z-index: 1; flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-4) 0 var(--space-5);
   font: var(--text-body)/var(--leading-code) var(--font-mono); overscroll-behavior: contain;
 }
 /* The prompt always has focus, so the shared "visible while focused inside"
    reveal would never let the scrollbar fade: only activity shows it here. */
-.console-panel__transcript.auto-hide-scrollbar:not(.auto-hide-scrollbar--pointer-active)::-webkit-scrollbar-thumb { background-color: transparent; }
+.console-panel__transcript.auto-hide-scrollbar:not([data-pointer-active])::-webkit-scrollbar-thumb { background-color: transparent; }
 .console-panel--text-small .console-panel__transcript { font-size: var(--text-label); }
 .console-panel--text-large .console-panel__transcript { font-size: var(--text-lead); }
 .console-panel--steady-cursor .console-prompt__cursor { animation: none; }
@@ -22,63 +23,97 @@
 
 /* Welcome: the whole mascot in ASCII beside a fetch-style summary. */
 .console-welcome { padding: var(--space-2) 0 0; }
-.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
+.console-welcome__fetch { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-4); }
 .console-art {
-  /* ASCII art in the mark's colours: forced colours would flatten it. Printed
+  /* ASCII art in the mark's colour: forced colours would flatten it. Printed
      small and at line-height 1, as fetch tools print their logos, so the
-     64-column mascot stands about as tall as the summary beside it. */
+     64-column mascot keeps the compact footprint of the v4 welcome. */
   forced-color-adjust: none; --console-art-body: var(--accent-primary-fill);
-  position: relative; flex: 0 1 auto; max-width: 100%; margin: 0; overflow: hidden;
+  position: relative; flex: 0 1 auto; width: max-content; max-width: 100%; margin: 0; padding-bottom: 2em; overflow: visible;
   font-family: var(--font-mono); font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-bold);
   color: var(--text-primary-color); white-space: pre;
 }
 .console-art__mascot { position: relative; margin: 0; font: inherit; }
+.console-art__row { display: block; height: 1em; line-height: var(--leading-none); }
+/* Only the rain is clipped. Two spare rows under the drawing keep the last
+   glyph's descender inside its box across platform monospace fonts. */
+.console-watermark {
+  position: absolute; z-index: 0; inset: var(--space-5); display: flex;
+  align-items: flex-end; justify-content: flex-end; container-type: size;
+  opacity: .32; --console-watermark-rain-opacity: .625; pointer-events: none; user-select: none;
+}
+.console-watermark[data-scheme="dark"] { opacity: .16; --console-watermark-rain-opacity: 1; }
+@media (prefers-color-scheme: dark) { .console-watermark:not([data-scheme]) { opacity: .16; --console-watermark-rain-opacity: 1; } }
+/* More legible light-theme glyphs, with the rain's effective opacity unchanged. */
+.console-watermark .console-art__rain { opacity: var(--console-watermark-rain-opacity); }
+.console-watermark .console-art { font-size: 5px; }
+/* Fit the complete 35-row box in a short pane too (e.g. the shortcut editor).
+   The overlay alone is a size container; it never changes transcript layout. */
+@supports (font-size: 1cqh) {
+  .console-watermark .console-art { font-size: min(5px, calc(100cqh / 35), calc(100cqw / 40)); }
+}
+.console-art--reveal { animation: console-art-settle 520ms ease-out both; }
+.console-art--reveal .console-art__row {
+  animation: console-art-reveal 150ms ease-out calc(var(--row) * 9ms) both;
+}
+@keyframes console-art-settle { from { transform: translateY(-16px) scale(.96); } to { transform: none; } }
+@keyframes console-art-reveal { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: none; } }
+/* Eye patches occupy only the original 3-by-5 eye cells. The base drawing
+   stays still; CSS swaps open/half/closed at Home's 17-second uneven rhythm. */
+.console-art__eyes, .console-art__eye-frame { position: absolute; top: 0; left: 0; }
+.console-art__eye-frame { opacity: 0; }
+.console-art__eye {
+  position: absolute; top: 3em; width: 3ch; height: 5em; background: var(--surface-app);
+  color: var(--console-art-skin); white-space: pre; line-height: var(--leading-none);
+}
+.console-art__eye-frame--half { animation: console-art-eye-half 17s steps(1) 1.2s infinite; }
+.console-art__eye-frame--closed { animation: console-art-eye-closed 17s steps(1) 1.2s infinite; }
+.console-art--reveal .console-art__eyes { animation: console-art-reveal 150ms ease-out 27ms both; }
+@keyframes console-art-eye-half {
+  0%, 27% { opacity: 0; }
+  27.15% { opacity: 1; } 27.4% { opacity: 0; } 27.75% { opacity: 1; } 28.1% { opacity: 0; }
+  58.95% { opacity: 1; } 59.2% { opacity: 0; } 59.55% { opacity: 1; } 59.9% { opacity: 0; }
+  61.05% { opacity: 1; } 61.3% { opacity: 0; } 61.65% { opacity: 1; } 62% { opacity: 0; }
+  91.95% { opacity: 1; } 92.2% { opacity: 0; } 92.55% { opacity: 1; } 92.9%, 100% { opacity: 0; }
+}
+@keyframes console-art-eye-closed {
+  0%, 27% { opacity: 0; }
+  27.4% { opacity: 1; } 27.75% { opacity: 0; }
+  59.2% { opacity: 1; } 59.55% { opacity: 0; }
+  61.3% { opacity: 1; } 61.65% { opacity: 0; }
+  92.2% { opacity: 1; } 92.55%, 100% { opacity: 0; }
+}
+.console-art[data-active="false"], .console-art[data-active="false"] * { animation-play-state: paused !important; }
 /* A cell on the silhouette, holes included: an exact 1em-tall block of the
    console's background, so the rain passes behind the mascot, not through it. */
 .console-art__solid { display: inline-block; height: 1em; vertical-align: top; background: var(--surface-app); }
-:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--mascot-brand-fill); }
-/* The art's tones, per colour scheme (light-dark() follows the scheme each
-   theme declares). The outline prints in the text colour so it holds on any
-   console. The sunglasses are black in the mark: on a light console they
-   print in the text colour, and on a dark one, where the text colour would
-   draw them white, in a smoked grey between the text and the background, so
-   they stay darker than the outline and still show. Their glints print white
-   on a dark console and as near-holes on a light one. The amber is the
-   mascot's, pulled toward the text colour: deeper on a light console. The
-   body is the mark's green (or the theme's accent fill), deepened toward the
-   text on a light console, where thin glyphs in a pale fill fade out. */
+:root:not([data-theme]) .console-art, [data-theme|="gitodile"] .console-art { --console-art-body: var(--text-primary-color); }
+/* The art's one tone, per colour scheme (light-dark() follows the scheme each
+   theme declares): the mark's green (or the theme's accent fill), deepened
+   toward the text on a light console, where thin glyphs in a pale fill fade
+   out. Its belly and eyes are spaces, so they read as the mark's white. */
 .console-art {
   --console-art-skin: var(--console-art-body);
-  --console-art-ink: var(--text-primary-color);
-  --console-art-amber: color-mix(in srgb, #e7b448 80%, var(--text-primary-color));
-  --console-art-glasses: var(--text-primary-color);
-  --console-art-glint: var(--surface-app);
   --console-art-rain: color-mix(in srgb, var(--console-art-skin) 50%, transparent);
 }
 @supports (color: light-dark(#000, #fff)) {
   .console-art {
     --console-art-skin: light-dark(color-mix(in srgb, var(--console-art-body) 45%, var(--text-primary-color)), var(--console-art-body));
-    --console-art-glasses: light-dark(var(--text-primary-color), color-mix(in srgb, var(--text-primary-color) 38%, var(--surface-app)));
     /* Thin digits fade faster on a light console, so the rain is a little stronger there. */
     --console-art-rain: light-dark(color-mix(in srgb, var(--console-art-skin) 75%, transparent), color-mix(in srgb, var(--console-art-skin) 50%, transparent));
-    --console-art-glint: light-dark(color-mix(in srgb, var(--text-primary-color) 12%, var(--surface-app)), #ffffff);
   }
 }
 .console-art__tone1 { color: var(--console-art-skin); }
-.console-art__tone2 { color: var(--console-art-ink); }
-.console-art__tone3 { color: var(--console-art-amber); }
-.console-art__tone4 { color: var(--console-art-glasses); }
-.console-art__tone5 { color: var(--console-art-glint); }
 /* The rain behind the mascot (DESIGN.md § Motion): short columns of hex
    digits, like commit hashes, each falling through the art's box at its own
    pace and fading out toward its top, with a brighter leading digit. Dim, in
    the body's colour, so it reads as depth behind the character rather than
    as text. Each column wraps to one glyph per line at 1ch wide. */
 .console-art__rain {
-  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
-  /* Faded at all four edges, so the rain dissolves into the console instead
-     of stopping at the art's box, which has no frame to justify an edge. */
-  --console-art-rain-edge: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+  position: absolute; inset: 0 0 auto; height: calc(var(--console-art-rows) * 1em); overflow: hidden; pointer-events: none;
+  /* The last drawing row is the ground. Rain stops there, above the spare
+     padding under the feet; only its top and sides dissolve into the scene. */
+  --console-art-rain-edge: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent), linear-gradient(to bottom, transparent, #000 12%);
   -webkit-mask-image: var(--console-art-rain-edge); -webkit-mask-composite: source-in;
   mask-image: var(--console-art-rain-edge); mask-composite: intersect;
 }
@@ -93,21 +128,27 @@
   from { transform: translateY(-100%); }
   to { transform: translateY(calc(var(--console-art-rows) * 1em)); }
 }
-@media (prefers-reduced-motion: reduce) { .console-art__rain { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .console-art__rain, .console-art__eyes { display: none; }
+  .console-art--reveal, .console-art--reveal .console-art__row { animation: none; }
+}
 :root[data-reduced-motion="true"] .console-art__rain { display: none; }
+@media (max-width: 520px) { .console-welcome .console-art { font-size: 5px; } }
 /* Fetch-style summary, as Omarchy's fastfetch draws it: framed groups with
    a title in the frame, each in its own theme colour, an icon per row, and the
    theme's palette underneath. Frames are borders, not box-drawing glyphs, so
    no font leaves gaps in them. */
-.console-welcome__info { display: flex; flex-direction: column; gap: var(--space-4); min-width: min(44ch, 100%); }
+/* Compact fact rows keep both frames and the palette level with the 231px
+   mascot at normal text size. Larger text and wrapped values can grow freely. */
+.console-welcome__info { display: flex; flex-direction: column; gap: var(--space-3); min-width: min(40ch, 100%); line-height: var(--leading-snug); }
 .console-welcome__section {
   --console-section: var(--accent-primary);
-  position: relative; padding: 10px var(--space-4) 8px; border: 1px solid var(--console-section); border-radius: var(--radius-item);
+  position: relative; padding: 8px var(--space-3) 6px; border: 1px solid var(--console-section); border-radius: var(--radius-item);
 }
 .console-welcome__section--environment { --console-section: var(--syntax-keyword); }
 .console-welcome__section-title {
   position: absolute; top: -0.8em; left: var(--space-3); margin: 0; padding: 0 6px; background: var(--surface-app);
-  color: var(--console-section); font: inherit; font-weight: var(--weight-title); line-height: var(--leading-code);
+  color: var(--console-section); font: inherit; font-weight: var(--weight-title);
 }
 .console-welcome__section dl { margin: 0; }
 .console-welcome__row { display: grid; grid-template-columns: 12ch 1fr; column-gap: var(--space-3); }
@@ -118,10 +159,11 @@
 .console-welcome__added { color: var(--diff-added); }
 .console-welcome__removed { color: var(--diff-removed); }
 .console-welcome__incoming { color: var(--status-warning); }
+.console-welcome__unknown { color: var(--text-secondary-color); }
 /* Loose under the frames, as fetch tools leave their palette, but starting
    where the frames' rows start (border plus padding), under the icons. */
-.console-welcome__palette { display: inline-flex; gap: 6px; vertical-align: middle; padding-inline-start: calc(var(--space-4) + 1px); }
-.console-welcome__dot { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-round); }
+.console-welcome__palette { display: inline-flex; gap: var(--space-1); vertical-align: middle; padding-inline-start: calc(var(--space-3) + 1px); }
+.console-welcome__dot { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-round); }
 .console-welcome__dot--accent { background: var(--accent-primary); }
 .console-welcome__dot--danger { background: var(--status-danger); }
 .console-welcome__dot--warning { background: var(--status-warning); }
@@ -135,12 +177,12 @@
 
 /* The prompt as Starship prints it: a context line of coloured text
    ("project on ⎇ line") above a bare ❯, so every command starts at the
-   left edge however long the line's name is. */
+   left edge however long the branch's name is. */
 .console-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .console-context__project { color: var(--accent-primary); font-weight: var(--weight-title); }
 .console-context__on { color: var(--text-secondary-color); }
-.console-context__line { color: var(--syntax-keyword); font-weight: var(--weight-title); }
-.console-context__line svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
+.console-context__branch { color: var(--syntax-keyword); font-weight: var(--weight-title); }
+.console-context__branch svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 
 .console-block { position: relative; min-width: 0; }
 .console-block__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 26px; overflow-wrap: anywhere; }
@@ -218,27 +260,64 @@
 .console-completions__name { color: var(--accent-primary); font-weight: var(--weight-strong); }
 .console-completions__label { min-width: 0; overflow: hidden; color: var(--text-secondary-color); text-overflow: ellipsis; white-space: nowrap; }
 
-/* Status line, as a multiplexer draws one: state on the left, keys on the right. */
+/* Status line, as a multiplexer draws one: state on the left, the search in
+   the middle, the prompt's keys and the actions on the right. The three tracks
+   keep the field centred on the window like the strip's. */
 .console-statusline {
-  position: relative; flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-3); height: 34px;
+  position: relative; flex: 0 0 auto; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px) minmax(0, 1fr);
+  align-items: center; gap: var(--space-3); height: 34px;
   margin: 0 calc(-1 * var(--workspace-inset-right)) 0 calc(-1 * var(--workspace-inset-left));
   padding: 0 calc(var(--workspace-inset-right) - 6px) 0 var(--workspace-inset-left);
   color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono);
 }
-/* The mode leads the line as a chip: tinted for read-only and advanced, solid
-   only for root, so the most permissive mode is the one that stands out. */
+/* The confirmation setting leads the line as one compact chip: a glyph and a
+   short word, with the full sentence in the tooltip and for the screen reader.
+   Tinted while changes are confirmed, solid when they run without asking, so
+   the more permissive setting is the one that stands out. */
+/* The chip and the prompt's first keys lead the line; the search sits between
+   them and the rest of the keys, which is why the hint can stay whole. */
+.console-statusline__lead { grid-column: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; max-width: 100%; }
 .console-statusline__state {
-  display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; height: 20px; padding: 0 9px;
-  border-radius: var(--radius-pill); font-weight: var(--weight-strong);
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px; border-radius: var(--radius-pill);
+  font-weight: var(--weight-strong); white-space: nowrap;
 }
-.console-statusline__state--read-only { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
-.console-statusline__dot { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--status-success); }
-.console-statusline__added { color: var(--diff-added); }
-.console-statusline__removed { color: var(--diff-removed); }
-.console-statusline__incoming { color: var(--status-warning); }
-/* The hint takes the free space, which sets the project facts to the right. */
-.console-statusline__hint { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.console-statusline__button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
+.console-statusline__state svg { width: 12px; height: 12px; }
+.console-statusline__state--confirm { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
+.console-statusline__search-slot { grid-column: 2; min-width: 0; width: 100%; }
+/* The app search wears the palette modal's material — the raised panel surface,
+   its subtle border and a small card radius — rather than the shortcut pane's
+   underline: the field and the results it deploys read as one object. The
+   keycap spells the shortcut that reaches it. */
+.console-statusline__search {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-raised); color: var(--text-secondary-color);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.console-statusline__search:hover { border-color: var(--text-secondary-color); }
+.console-statusline__search:focus-within,
+.console-statusline__search--open {
+  border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--focus-ring);
+  color: var(--text-primary-color);
+}
+.console-statusline__search svg { width: 12px; height: 12px; flex-shrink: 0; }
+.console-statusline__search-input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  color: var(--text-primary-color); font: inherit;
+}
+.console-statusline__search-input::placeholder { color: var(--text-secondary-color); }
+.console-statusline__search-kbd {
+  flex-shrink: 0; padding: 0 4px; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item); color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-micro);
+}
+/* The prompt's keys and the actions sit together at the right; the hint gives
+   way first when the window narrows. */
+.console-statusline__actions { grid-column: 3; display: flex; align-items: center; justify-self: end; gap: var(--space-3); min-width: 0; max-width: 100%; }
+.console-statusline__hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.console-statusline__button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
 .console-statusline__button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .console-statusline__button:disabled { opacity: .45; cursor: default; }
 .console-statusline__button svg { width: 14px; height: 14px; }
@@ -319,7 +398,10 @@
 .console-shortcuts__error { margin: 0 0 var(--space-2) 2ch; color: var(--status-danger); font-size: var(--text-label); }
 .console-panel button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .console-block--running .console-block__state, .console-prompt__cursor { animation: none; } }
-@media (max-width: 700px) { .console-panel__transcript { padding: var(--space-3) 0; } .console-statusline__hint { display: none; } .console-statusline > span:not(.console-statusline__state) { display: none; } .console-statusline__button:first-of-type { margin-left: auto; } }
+/* The line has room for both hint halves to about 1040px; below that they are
+   hidden rather than clipped mid-sentence. */
+@media (max-width: 1040px) { .console-statusline__hint { display: none; } }
+@media (max-width: 700px) { .console-panel__transcript { padding: var(--space-3) 0; } }
 .console-shortcuts__field--line { flex: 1 1 40ch; }
 .console-shortcuts__status { margin: 0 0 var(--space-2) 2ch; color: var(--text-secondary-color); font-size: var(--text-label); }
 .console-help__line { color: var(--text-primary-color); overflow-wrap: anywhere; }
@@ -331,42 +413,10 @@
 .console-plan__answer { color: var(--text-secondary-color); }
 .console-plan__answer span { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .console-prompt__question { color: var(--status-warning); font-weight: var(--weight-strong); white-space: nowrap; }
-/* The three modes. Root, where changes run without asking, wears
-   `--console-root`, a colour no status tone uses. */
-.console-statusline__state--advanced { background: color-mix(in srgb, var(--status-warning) 16%, transparent); color: var(--status-warning); }
-.console-statusline__state--advanced .console-statusline__dot { background: var(--status-warning); }
-.console-statusline__state--root { background: var(--console-root); color: var(--console-root-contrast); }
-.console-statusline__state--root .console-statusline__dot { background: var(--console-root-contrast); }
-.console-welcome__mode { font-weight: var(--weight-strong); }
-.console-welcome__mode--advanced { color: var(--status-warning); }
-.console-welcome__mode--root { color: var(--console-root); }
-/* Settings › Console mode: one card per mode. The chosen card takes its mode's
-   colour on the border and a check; root chosen is the one solid card. */
-.console-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--space-3); }
-.console-mode {
-  --mode-colour: var(--status-success);
-  display: grid; align-content: start; gap: var(--space-1); min-width: 0; padding: var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
-  background: var(--surface-raised); color: var(--text-primary-color); font: inherit; text-align: left;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
-}
-.console-mode--advanced { --mode-colour: var(--status-warning); }
-.console-mode--root { --mode-colour: var(--console-root); }
-.console-mode:hover { background: var(--surface-hover); }
-.console-mode:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.console-mode__head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.console-mode__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: var(--radius-round); background: var(--mode-colour); }
-.console-mode__name { min-width: 0; font-weight: var(--weight-strong); }
-.console-mode__check { flex: 0 0 auto; width: 16px; height: 16px; margin-left: auto; color: var(--mode-colour); }
-.console-mode__text { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
-.console-mode[aria-checked="true"] {
-  border-color: var(--mode-colour); box-shadow: inset 0 0 0 1px var(--mode-colour);
-  background: color-mix(in srgb, var(--mode-colour) 8%, var(--surface-raised));
-}
-.console-mode--root[aria-checked="true"] { background: var(--console-root); color: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__dot { background: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__check { color: var(--console-root-contrast); }
-.console-mode--root[aria-checked="true"] .console-mode__text { color: var(--console-root-contrast); opacity: .85; }
+/* Changes that run without asking wear `--console-root`, a colour no status
+   tone uses. */
+.console-statusline__state--unconfirmed { background: var(--console-root); color: var(--console-root-contrast); }
+.console-welcome__unconfirmed { color: var(--console-root); font-weight: var(--weight-strong); }
 /* The Git command a shortcut runs, beside what it shows. */
 .console-shortcuts__command {
   grid-area: command; min-width: 0; overflow: hidden; color: var(--text-primary-color); font: inherit;

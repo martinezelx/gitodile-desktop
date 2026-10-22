@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useActiveScreenEffect } from "../../runtime/screen/module";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -13,6 +13,7 @@ import {
   History,
   LoaderCircle,
   RotateCcw,
+  RotateCw,
   Settings,
   Trash2,
   X,
@@ -23,7 +24,7 @@ import { getFileTypeIcon } from "../../shared/file-icons";
 import {
   AutomaticUpdatesNotice, autoHideScrollbarProps, FilterCapsule, FilterCapsules, FilterChips,
   FilterGroup, FilterPanel, FilterSwitch, handlePopupMenuKeyDown, LoadingBar, LoadingPlaceholder, SearchBox, TextPlaceholder,
-  useAnchoredPopup, useRowArrival, type FilterChip,
+  InclusionNode, useAnchoredPopup, useRowArrival, type FilterChip,
 } from "../../shared/ui";
 import { QuickCommitBox, type QuickCommitBoxHandle } from "./QuickCommitBox";
 import { CATEGORY_ORDER, CHANGE_CATEGORY_ICONS, getOrderedChangeEntries, splitPath } from "../status";
@@ -150,7 +151,7 @@ export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: s
 
 /** Case-insensitive substring match over the whole repository-relative path,
  * so typing either a file name or a folder narrows the list — the same
- * behavior the Version lines screen's search box has. An all-whitespace query
+ * behavior the Branches screen's search box has. An all-whitespace query
  * is treated as no query at all, rather than as a filter nothing matches. */
 export function filterEntriesBySearch(entries: WorkingTreeEntry[], search: string): WorkingTreeEntry[] {
   const query = search.trim().toLowerCase();
@@ -309,7 +310,7 @@ function ChangesStatusNotice({ watcherState, error, busy, onRefresh, onOpenSetti
   if (error) {
     return <section className="changes-status-notice changes-status-notice--danger" role="alert">
       <CircleAlert aria-hidden="true" />
-      <div className="changes-status-notice__body"><strong>{t.changesRefreshFailedTitle}</strong><p>{error}</p></div>
+      <div className="changes-status-notice__body"><strong>{t.changesRefreshFailedTitle}</strong><p title={error}>{error}</p></div>
       <button className="secondary-button" type="button" onClick={onRefresh}>{t.changesCheckLocal}</button>
     </section>;
   }
@@ -341,6 +342,13 @@ function DiscardOutcomeNotice({
   if (!outcome) {
     return null;
   }
+  const message = outcome.status === "running"
+    ? t.changesDiscardingNow
+    : outcome.status === "error"
+      ? outcome.message
+      : outcome.status === "restored"
+        ? t.changesRestoreSuccess(outcome.restoredFiles)
+        : t.changesDiscardSuccess(outcome.discardedFiles);
   return (
     <div className={`changes-notice changes-notice--${outcome.status}`} role="status">
       {outcome.status === "running" ? (
@@ -350,15 +358,7 @@ function DiscardOutcomeNotice({
       ) : (
         <CheckCircle2 aria-hidden="true" />
       )}
-      <p>
-        {outcome.status === "running"
-          ? t.changesDiscardingNow
-          : outcome.status === "error"
-            ? outcome.message
-            : outcome.status === "restored"
-              ? t.changesRestoreSuccess(outcome.restoredFiles)
-              : t.changesDiscardSuccess(outcome.discardedFiles)}
-      </p>
+      <p title={message}>{message}</p>
       {outcome.status === "discarded" && (
         <button className="secondary-button" type="button" onClick={() => void onUndo(outcome.recovery)}>
           <RotateCcw aria-hidden="true" />
@@ -679,6 +679,62 @@ function DiffWorkspace({
     setHunkTarget({ index: 0, token: 0 });
   }, [selectedPath]);
 
+  /* The strip names the file, so the name keeps its room and the folder gives
+   * way first — but not to the point of showing a two-letter stub of the last
+   * folder (`…ne` beside the category read as a broken "New" badge). The
+   * folder is dropped whole when the name and it cannot both fit, and the
+   * decision has to be measured: whether it fits depends on the name's length,
+   * which CSS alone cannot compare against the space left. The folder stays in
+   * the DOM while hidden (removed from flow, not `display: none`) so its
+   * natural width is still readable and the folder can come back when the pane
+   * widens. */
+  const headerRef = useRef<HTMLElement>(null);
+  const [showsFolder, setShowsFolder] = useState(true);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) {
+      return undefined;
+    }
+    const measure = (): void => {
+      const row = header.querySelector<HTMLElement>(".changes-diff__title-row");
+      const path = row?.querySelector<HTMLElement>(".changes-diff__path");
+      const name = row?.querySelector<HTMLElement>(".changes-diff__name");
+      const folder = row?.querySelector<HTMLElement>(".changes-diff__dir");
+      if (!row || !path || !name || !folder || row.clientWidth <= 0) {
+        return;
+      }
+      const gap = Number.parseFloat(getComputedStyle(row).columnGap) || 0;
+      const siblings = Array.from(row.children).filter((child) => child !== path);
+      const siblingWidth = siblings.reduce((total, child) => total + child.getBoundingClientRect().width, 0);
+      const available = row.clientWidth - siblingWidth - gap * siblings.length;
+      const needed = name.scrollWidth + gap + folder.scrollWidth;
+      const next = needed <= available + 0.5;
+      setShowsFolder((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    // The category's label is translated, so a language switch changes the room
+    // it takes without resizing the header. Watching it re-runs the measure the
+    // one time it changes instead of leaving the folder decided against the old
+    // label. The name and folder widths only move with `selectedPath`, which
+    // reruns this effect by itself.
+    const category = header.querySelector<HTMLElement>(".changes-diff__category");
+    if (category) {
+      observer.observe(category);
+    }
+    let isCurrent = true;
+    void document.fonts?.ready.then(() => {
+      if (isCurrent) {
+        measure();
+      }
+    });
+    return () => {
+      isCurrent = false;
+      observer.disconnect();
+    };
+  }, [selectedPath]);
+
   const goToHunk = (index: number): void => {
     setHunkTarget((current) => ({ index, token: current.token + 1 }));
   };
@@ -704,7 +760,7 @@ function DiffWorkspace({
           one question between them — which file, shown how — so they are one
           row now, paired with the file list's. See `.changes-layout` in
           changes.css. */}
-      <header className="changes-diff__header">
+      <header className="changes-diff__header" ref={headerRef}>
         <span className="changes-diff__header-icon" aria-hidden="true">
           <FileTypeIcon className="changes-diff__type-icon" />
         </span>
@@ -714,7 +770,7 @@ function DiffWorkspace({
               full path stays on the pane's accessible name. */}
           <p className="changes-diff__path">
             <span className="changes-diff__name">{name}</span>
-            <span className="changes-diff__dir">{dir ?? t.changesProjectRoot}</span>
+            <span className={`changes-diff__dir${showsFolder ? "" : " changes-diff__dir--hidden"}`}>{dir ?? t.changesProjectRoot}</span>
           </p>
           {/* The category as the row it was chosen from says it — the same
               glyph in the same colour, with the word beside it — rather than
@@ -877,19 +933,18 @@ function FileListItem({
 
   return (
     <li
-      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${arrivalStyle ? " row-in" : ""}`}
+      className={`changes-file-row${virtualPosition === undefined ? "" : " changes-file-row--virtual"}${depth === undefined ? "" : " changes-file-row--tree"}${isIncluded ? "" : " changes-file-row--excluded"}${isSelected ? " changes-file-row--active" : ""}${arrivalStyle ? " row-in" : ""}`}
       data-index={virtualIndex}
       ref={measureElement}
       aria-posinset={virtualIndex === undefined ? undefined : virtualIndex + 1}
       aria-setsize={virtualCount}
       style={{ ...(virtualPosition === undefined ? arrivalStyle : { transform: `translateY(${virtualPosition}px)` }), ...(depth === undefined ? undefined : treeIndentStyle(depth)) }}
     >
-      <input
-        className="app-checkbox changes-file-row__checkbox"
-        type="checkbox"
+      <InclusionNode
+        className="changes-file-row__pick"
         checked={isIncluded}
         disabled={!canChoose}
-        aria-label={t.changesIncludeFile(entry.path)}
+        label={t.changesIncludeFile(entry.path)}
         onChange={onToggleIncluded}
       />
       <button
@@ -936,14 +991,18 @@ function FileListPlaceholder({ label }: { label: string }): React.JSX.Element {
   return (
     <LoadingPlaceholder label={label} className="changes-file-list__placeholder">
       <div className="changes-file-list__toolbar">
-        <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+        <span className="changes-file-row__pick-placeholder" aria-hidden="true">
+          <TextPlaceholder className="text-placeholder--glyph" />
+        </span>
         <TextPlaceholder width="100%" />
       </div>
       <div className="changes-file-list__scroll">
         <ul>
           {FILE_PLACEHOLDER_WIDTHS.map(([name, dir]) => (
             <li key={name} className="changes-file-row">
-              <TextPlaceholder className="text-placeholder--glyph changes-file-row__checkbox" />
+              <span className="changes-file-row__pick-placeholder" aria-hidden="true">
+                <TextPlaceholder className="text-placeholder--glyph" />
+              </span>
               <div className="changes-file-item">
                 <span className="changes-file-item__icon">
                   <TextPlaceholder className="text-placeholder--glyph" />
@@ -981,13 +1040,12 @@ function FolderListItem({ row, props, virtual }: {
       aria-setsize={virtual?.count}
       style={{ ...(virtual ? { transform: `translateY(${virtual.start}px)` } : undefined), ...treeIndentStyle(row.depth) }}
     >
-      <input
-        ref={(node) => { if (node) node.indeterminate = partial; }}
-        className="app-checkbox changes-file-row__checkbox"
-        type="checkbox"
+      <InclusionNode
+        className="changes-file-row__pick"
         checked={included === row.files.length}
+        indeterminate={partial}
         disabled={!props.canChoose}
-        aria-label={props.t.changesIncludeFolder(row.path)}
+        label={props.t.changesIncludeFolder(row.path)}
         onChange={() => props.onToggleFolderIncluded(row.files, included < row.files.length)}
       />
       <FileTreeFolderButton row={row} formats={props.formats} onToggle={props.onToggleFolder} t={props.t} />
@@ -1109,8 +1167,10 @@ function FileListRows(props: FileListRowsProps): React.JSX.Element {
   return <ul>{props.rows.map((row) => fileListItem(row, props, undefined, row.kind === "file" ? props.arrivals.get(row.path) : undefined))}</ul>;
 }
 
-/** One actionable control in the clean state's block. */
-type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void };
+/** One actionable control in the clean state's block. `busy` holds it disabled
+ * with a spinner while what it started is still running, so a second press
+ * cannot start it again. */
+type ChangesEmptyAction = { key: string; label: string; icon: React.ReactNode; onClick: () => void; busy?: boolean };
 
 /** The copy and the controls the clean state shows for one repository
  * situation: a headline, a sentence about what that situation means, an
@@ -1138,6 +1198,8 @@ export function ChangesPanel({
   onSaveCompleted,
   onPublishNow,
   onGetChanges,
+  onCheckRemote,
+  isCheckingRemote = false,
   onOpenHistory,
   headState = "branch",
   selectedPath,
@@ -1145,6 +1207,9 @@ export function ChangesPanel({
   onBeginDiscard,
   onDiscardClose,
   onDiscardPhaseChange,
+  restoredElsewhere = null,
+  onRestoredElsewhereHandled,
+  recoveriesRevision = 0,
 }: {
   /** The Work screen's tab pair, drawn as the list panel's header in every
    * state this panel has — it is what names the column now (task 126), and
@@ -1174,11 +1239,19 @@ export function ChangesPanel({
   onOpenSettings: () => void;
   onSaveCompleted: () => void;
   /** Opens the previewed publish flow: the empty state's primary action when
-   * the line has saved versions the remote does not have yet. */
+   * the branch has saved versions the remote does not have yet. */
   onPublishNow: () => void;
   /** Brings the remote's newer versions in through the same previewed flow
    * Overview's "review and get team changes" uses. */
   onGetChanges: () => void;
+  /** Asks the remote whether anything newer arrived — the same read-only
+   * check Overview and the status bar run. Offered when the last answer was
+   * that nothing is waiting: Get project changes would only confirm it. A
+   * check that finds newer versions moves this screen to "behind", whose
+   * primary action is Get project changes. */
+  onCheckRemote: () => void;
+  /** A check of the remote is under way for this project. */
+  isCheckingRemote?: boolean;
   /** Switches the Work screen to History — the natural next look when there is
    * nothing to review, and a tab away rather than a screen away. */
   onOpenHistory: () => void;
@@ -1195,6 +1268,14 @@ export function ChangesPanel({
   onBeginDiscard: () => boolean;
   onDiscardClose: () => void;
   onDiscardPhaseChange: (phase: "planning" | "executing" | "error" | "success") => void;
+  /** A restore finished from another screen — Overview's restore picker —
+   * which Changes reports in its header as it arrives, as if its own dialog
+   * had run it. The screen reports it handled so it is never shown twice. */
+  restoredElsewhere?: DirectDiscardOutcome | null;
+  onRestoredElsewhereHandled?: () => void;
+  /** Moves whenever another screen's restore picker closed, which may have
+   * deleted stored copies: the empty state's way back is read again. */
+  recoveriesRevision?: number;
 }): React.JSX.Element {
   const { t, formats } = useLanguage();
   const entries = useMemo(() => (workingTree ? getOrderedChangeEntries(workingTree) : []), [workingTree]);
@@ -1229,6 +1310,13 @@ export function ChangesPanel({
       icon: <ArrowDown aria-hidden="true" />,
       onClick: onGetChanges,
     };
+    const checkRemote: ChangesEmptyAction = {
+      key: "check-remote",
+      label: t.changesEmptyCheckRemote,
+      icon: <RotateCw aria-hidden="true" />,
+      onClick: onCheckRemote,
+      busy: isCheckingRemote,
+    };
     const viewHistory: ChangesEmptyAction = {
       key: "history",
       label: t.changesEmptyViewHistory,
@@ -1246,7 +1334,7 @@ export function ChangesPanel({
             icon: <ArrowUp aria-hidden="true" />,
             onClick: onPublishNow,
           },
-          secondary: [getChanges, viewHistory],
+          secondary: [checkRemote, viewHistory],
         };
       case "behind":
         return {
@@ -1289,10 +1377,10 @@ export function ChangesPanel({
           title: t.changesEmptyUpToDateTitle,
           description: t.changesEmptyUpToDateDescription,
           primary: null,
-          secondary: [getChanges, viewHistory],
+          secondary: [checkRemote, viewHistory],
         };
     }
-  }, [emptyState, t, onGetChanges, onOpenHistory, onOpenSettings, onPublishNow]);
+  }, [emptyState, t, onGetChanges, onCheckRemote, isCheckingRemote, onOpenHistory, onOpenSettings, onPublishNow]);
   useEffect(() => {
     if (!isClean) return undefined;
     let cancelled = false;
@@ -1300,7 +1388,7 @@ export function ChangesPanel({
       .then((value) => { if (!cancelled) setHasRecoveries(value); })
       .catch(() => { if (!cancelled) setHasRecoveries(false); });
     return () => { cancelled = true; };
-  }, [controller, isClean, projectPath, sessionEpoch, discardRequest]);
+  }, [controller, isClean, projectPath, sessionEpoch, discardRequest, recoveriesRevision]);
   const directDiscard = useDirectDiscard({
     controller,
     projectPath,
@@ -1323,6 +1411,13 @@ export function ChangesPanel({
       setDiscardRequest(request);
     }
   };
+  const reportRef = useRef(directDiscard.report);
+  reportRef.current = directDiscard.report;
+  useEffect(() => {
+    if (restoredElsewhere === null) return;
+    onRestoredElsewhereHandled?.();
+    reportRef.current(restoredElsewhere);
+  }, [restoredElsewhere, onRestoredElsewhereHandled]);
   const store = controller.getStore(projectPath, sessionEpoch, workingTree);
   // Seeded from the cache rather than starting at `idle`: on a remount with a
   // warm cache (navigating back to this screen) that difference is the one
@@ -1506,7 +1601,6 @@ export function ChangesPanel({
   const canSaveSelection = includedCount > 0;
   const totalCount = workingTree?.counts.total ?? 0;
   const allSelected = totalCount > 0 && includedCount === totalCount;
-  const selectAllRef = useRef<HTMLInputElement>(null);
   const fileListScrollRef = useRef<HTMLDivElement>(null);
   const quickCommitRef = useRef<QuickCommitBoxHandle>(null);
   // The desktop convention for "save", pointed at the one place this screen
@@ -1524,12 +1618,6 @@ export function ChangesPanel({
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = includedCount > 0 && includedCount < totalCount;
-    }
-  }, [includedCount, totalCount]);
-
   // File-to-file navigation walks the list the user can actually see, so
   // "next file" during a search means the next match, not the next file
   // hidden behind the filter.
@@ -1555,7 +1643,7 @@ export function ChangesPanel({
       {revealError && (
         <div className="changes-notice changes-notice--error" role="status">
           <CircleAlert aria-hidden="true" />
-          <p>{revealError}</p>
+          <p title={revealError}>{revealError}</p>
           <button
             className="changes-notice__dismiss"
             type="button"
@@ -1605,12 +1693,11 @@ export function ChangesPanel({
               <div className="changes-file-list__toolbar">
                 <span className="changes-file-list__select-all">
                   {canChooseFiles ? (
-                    <input
-                      ref={selectAllRef}
-                      className="app-checkbox changes-file-row__checkbox"
-                      type="checkbox"
+                    <InclusionNode
+                      className="changes-file-row__pick"
                       checked={allSelected}
-                      aria-label={allSelected ? t.changesSelectNone : t.changesSelectAll}
+                      indeterminate={includedCount > 0 && includedCount < totalCount}
+                      label={allSelected ? t.changesSelectNone : t.changesSelectAll}
                       onChange={() =>
                         allSelected
                           ? setExcludedPaths(new Set(entries.map((entry) => entry.path)))
@@ -1618,14 +1705,13 @@ export function ChangesPanel({
                       }
                     />
                   ) : (
-                    <input
-                      className="app-checkbox changes-file-row__checkbox"
-                      type="checkbox"
+                    <InclusionNode
+                      className="changes-file-row__pick"
                       checked
                       disabled
-                      aria-label={t.changesPartialUnavailableTruncated}
-                      data-tooltip={t.changesPartialUnavailableTruncated}
-                      readOnly
+                      label={t.changesPartialUnavailableTruncated}
+                      tooltip={t.changesPartialUnavailableTruncated}
+                      onChange={() => {}}
                     />
                   )}
                 </span>
@@ -1784,8 +1870,15 @@ export function ChangesPanel({
                 {emptyContent.secondary.length > 0 && (
                   <div className="changes-empty__secondary">
                     {emptyContent.secondary.map((action) => (
-                      <button key={action.key} className="secondary-button" type="button" onClick={action.onClick}>
-                        {action.icon}
+                      <button
+                        key={action.key}
+                        className="secondary-button"
+                        type="button"
+                        onClick={action.onClick}
+                        disabled={action.busy}
+                        aria-busy={action.busy || undefined}
+                      >
+                        {action.busy ? <LoaderCircle aria-hidden="true" className="icon--spinning" /> : action.icon}
                         {action.label}
                       </button>
                     ))}

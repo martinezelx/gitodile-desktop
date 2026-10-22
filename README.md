@@ -8,7 +8,7 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current development version: **0.3.0**.
+Current development version: **0.4.0**.
 This candidate has not been tagged or published yet.
 
 Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
@@ -34,11 +34,16 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 ## What works today
 
 - Open a local project from its root or any nested folder, validate it in Rust,
-  and switch between recent projects.
+  and switch between recent projects. Home greets you and its launcher finds a
+  recent or favourite project, continues the last one with Enter, and turns a
+  pasted folder path or remote address into an open or a prefilled clone.
 - Clone an HTTPS, SSH, Git, file-URL, or local-path project through a previewed
-  provider-neutral flow. GitOdile stages privately, verifies the worktree,
+  provider-neutral two-screen flow: choose an address or GitHub/GitLab/Bitbucket project, then
+  choose the destination and clone. Complete GitHub/GitLab/Bitbucket addresses get a cancellable
+  read-only access check using the chosen connection. GitOdile stages privately, verifies the worktree,
   publishes without replacement, and opens it through the normal session
-  lifecycle; configured Git credential helpers and SSH setup remain in control.
+  lifecycle; select a saved account for GitOdile's HTTPS access or use existing
+  Git credential helpers. SSH retains the user's configured keys.
 - Create a named local project or turn an ordinary existing folder into one
   through a previewed, revalidated flow. Existing files are never replaced;
   README creation and the first saved version require explicit consent, and a
@@ -60,7 +65,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   says what goes with it before it does.
 - Receive live, debounced repository updates without exposing raw filesystem
   paths to the frontend, or turn watching off — in which case Changes, History,
-  and Lines disclose that their local snapshot may be out of date and offer a
+  and Branches disclose that their local snapshot may be out of date and offer a
   focused update.
 - Save all or selected changes as a version with a title and description. The
   flow is planned and revalidated in Rust, preserves Git hooks and signing, and
@@ -68,44 +73,65 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Discover remotes and publish saved versions through a previewed,
   state-token-validated flow that reports uncertain remote outcomes honestly.
 - Check the configured upstream for project changes without moving the current
-  version line or files, manually or on an opt-in 15/30/60-minute cadence, with
+  branch or files, manually or on an opt-in 15/30/60-minute cadence, with
   cached/fresh status and clear next steps.
-- Review and get strictly newer upstream versions through a confirmed,
-  fast-forward-only update. GitOdile blocks local work and path collisions,
-  creates a verified durable recovery point first, and reports uncertain local
-  outcomes without attempting an automatic repair.
-- List, create, switch, rename, and safely delete version lines (local
-  branches), with dirty-worktree checks and recovery references where required.
-  A line is only called safe to delete when another local or remote-tracking
-  reference already holds its saved work; a published line can have its remote
+- Get project changes with one confirmation. Before anything is pressed,
+  Overview predicts locally whether the update is direct, needs a merge
+  version because both sides have new versions, or overlaps local work. Branches
+  that don't overlap are advanced or combined with a merge version (running
+  the project's merge hooks and honouring commit signing); unsaved edits on
+  other lines of an incoming file stay unsaved on top of it; real overlaps are
+  refused with the files named. A verified recovery point (and a copy of any
+  combined unsaved content) is kept first, and uncertain local outcomes are
+  reported without an automatic repair. Publishing when the remote moved on
+  gets, combines and publishes in the same confirmation.
+- List, create, switch, rename, and safely delete local branches, with dirty-worktree checks and recovery references where required.
+  A branch is only called safe to delete when another local or remote-tracking
+  reference already holds its saved work; a published branch can have its remote
   copy removed with it, and the two halves are reported separately. The remote's
-  own default line is never renamed or deleted.
-- See one version line's recent saved versions, its saved-version count and
-  where it stands against its remote, read on demand for the line you select
+  own default branch is never renamed or deleted. The list keeps the current and
+  main branches on top, then branches still in progress and finished branches ready to
+  clean up (their work is on the main branch and was their own; a branch that is
+  merely published, or idle, is never offered),
+  each grouped by name prefix and foldable, with folds remembered per project.
+  "Clean up N branches…" on the finished branches deletes the ones you choose in one
+  confirmed step, optionally with their published copies, rechecking each branch
+  first, keeping a recovery point with each one's name and last version, and
+  reporting what was deleted, kept, or is still published.
+- See one branch's recent saved versions, its saved-version count and
+  where it stands against its remote, read on demand for the branch you select
   rather than for every branch on every refresh.
-- Use a project-scoped Console to type read-only Git commands such as
+- Use a project-scoped Console to type Git commands such as
   `git log --graph --oneline -- src/`, `git show HEAD~2:README.md` or
-  `git blame -L 10,20 file`; `help git` lists them. GitOdile reads the line
-  itself, without a shell, and refuses anything that would change the project,
-  reach the remote, run another program or leave the project, saying why.
-  Settings › Console › Console mode offers three modes: read-only (the
-  default), advanced and root, each move up behind a confirmation. Advanced
-  also runs commands such as `git add`, `git commit -m`,
-  `git switch`, `git stash push`, `git fetch`, `git pull` (fast-forward only)
-  and `git push`: each prints what it will change and asks `[s/N]` first, and
-  does not run if the project changed in between. Root drops the question,
-  and the console's status line shows it in a colour of its own. Commands that rewrite history
-  or can discard work stay unavailable.
+  `git blame -L 10,20 file`; `help git` lists the read commands. GitOdile reads
+  the line itself, without a shell, and refuses anything that would run another
+  program, leave the project or need a terminal, saying why. Commands such as
+  `git add`, `git commit -m`, `git switch`, `git stash push`, `git fetch`,
+  `git pull` (fast-forward only) and `git push` run too: each prints what it
+  will change and asks `[s/N]` first, and does not run if the project changed
+  in between. Settings › Console › **Confirm each change** (on by default)
+  can drop the question, behind a confirmation; the console's status line and
+  welcome then say so in a colour of their own. Commands that
+  rewrite history or can discard work stay unavailable.
   Twenty built-in read-only shortcuts, such as `look` (`git status`), `graph`,
   `today` or `unpublished`, are listed with the Git command each runs in
   [docs/console-shortcuts.md](docs/console-shortcuts.md) and in the console's
   `help`; you can rename them or add your own names, including names for whole
-  command lines (`lg` → `git log --oneline -20`).
+  command lines (`lg` → `git log --oneline -20`). On GitHub and GitLab projects,
+  six more read-only shortcuts (`prs`, `my-prs`, `issues`, `runs`, `checks`,
+  `repo`) ask the hosting service through `gh` or `glab` with the CLI's own
+  login, and the console's welcome names the project's provider.
   Settings › Console turns suggestions and the welcome on or off and sets the
-  cursor and text size. The transcript stays in memory for the open project
+  cursor and text size. The welcome's ASCII mascot blinks; after a command it
+  appears as a small, faint watermark behind the output, revealed by rows.
+  Reduced motion keeps the drawing static. The transcript stays in memory for the open project
   session.
-- Browse the active version line as a bounded, read-only saved-version
-  timeline. Inspect author/date/publication/ref metadata, changed files, and
+- Browse the active branch as a bounded, read-only saved-version
+  timeline, or every branch at once from a toggle beside the filters. Local and
+  published versions read as two foldable blocks; merges fold what they
+  brought in and open it on a thin lane of its own, and pointing at a lane
+  names its branch and whether its versions are in another one. Inspect
+  author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
 - Review a bounded, redacted record of this session's app commands, Git
   operations, and failures before reporting an issue; copy it, save it locally to attach, or
@@ -122,7 +148,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   date and number formats, Git identity, installation diagnostics, supported
   Git update guidance, how diffs are read, and whether projects are watched
   and discards confirmed.
-- Set the default version-line name for new projects (written to Git's own
+- See which Git GitOdile uses: how it was installed and where the executable
+  lives, with copy and show-in-Explorer/Finder on hover, plus on-demand technical details — its
+  architecture, internal folder, configuration files, credential helper, Git
+  LFS and editor.
+- Set the default branch name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether
   GitOdile runs a project's Git hooks when it saves or publishes. Hooks run by
@@ -142,7 +172,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Return to Projects from More actions or the command palette while projects stay
   open, use recent closed projects, and go Back to the project screen you left.
 
-Not yet implemented: non-fast-forward/local-line integration, the recovery
+Not yet implemented: bringing in another local branch, the recovery
 center, guided conflict
 resolution, and setting changes aside. Windows/Linux release qualification also
 remains open. Windows Authenticode and macOS delivery are deliberately deferred
@@ -251,7 +281,7 @@ separate:
   by common Git directory;
 - `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`, `console/`,
   `save_version.rs`, `sync.rs`,
-  `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
+  `publish.rs`, `recovery.rs`, and `branches.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
   diagnostic details;
 - `index.rs` owns collision-safe temporary-index preparation shared by safe
@@ -280,7 +310,7 @@ hardcoded list:
 | Node.js | `>=24` |
 | pnpm | `pnpm@11.17.0` |
 | Rust | stable (`rust-toolchain.toml`) |
-| Tauri runtime / CLI | `2.11.6` / `2.11.5` |
+| Tauri runtime / CLI | `2.12.3` / `2.12.2` |
 | React / React DOM | `19.3.0` |
 | TypeScript | `6.0.3` (intentionally pinned; see ADR 0005) |
 | Vite / Vitest | `8.3.1` / `5.0.1` |
@@ -288,8 +318,159 @@ hardcoded list:
 | notify | `8.2.0` |
 
 GitOdile uses the system Git executable. Git **2.23 or newer** is required for
-version-line switching; diagnostics remain available when Git is missing or
+branch switching; diagnostics remain available when Git is missing or
 unusable.
+
+The GitHub block of Settings → Accounts offers optional **GitHub CLI (`gh`)** diagnostics,
+installation and update guidance. Windows starts WinGet for the exact
+`GitHub.cli` package, with official instructions as a fallback; macOS and Linux
+open the official platform instructions. Local version checks require no
+GitHub account or network request. On macOS/Linux, detection checks `PATH`
+first, then standard Homebrew/local installation paths when the executable is
+missing. Windows update checks are explicit and
+cached for five minutes; other platforms use the official update instructions.
+An installer being started is not proof of installation: reopen GitOdile after
+installing to inherit the updated `PATH`. This prepares the dependency for
+future PRs and Actions; those screens are not yet implemented. Settings → Accounts
+offers explicit account detection and browser connection through gh. It shows
+the saved github.com accounts and cached avatars, with the active account first,
+and retains their last known identities when offline,
+with a temporary device code, browser retry and cancellation during login.
+Opening Settings never checks authentication over the network. A gh version with
+JSON authentication-status support is required; older versions request update.
+The session is shared with GitHub CLI. Before connecting, GitOdile explains gh's
+repository permissions and possible plaintext credential fallback; file-backed
+and environment-provided credentials are disclosed afterwards. This browser
+connection keeps credentials owned by gh and does not change persistent Git
+credentials/SSH keys. Sign-out first explains
+that it removes the selected account from the shared local gh session; it does
+not revoke GitHub authorization or close the browser session. Another saved
+account may become active. Users can activate a saved account, connect another
+through the browser, or sign out an individual account. Switching also changes
+the active account for other tools using the shared gh session. Each row uses
+the same status chip and right-aligned actions as the installation settings.
+Avatars are retrieved only during explicit account actions and cached in memory.
+See
+[ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
+for ordinary local Git workflows.
+
+Settings → Accounts lists every connection first; each provider's company
+servers and CLI installation sit in that provider's folded block below. Browser connections and saved gh accounts require the CLI;
+token connections work with or without it. Cloning a GitHub or GitLab.com HTTPS URL
+and Project settings → Remote offer a shared account selector. Different projects
+can use different saved accounts without switching gh's active account. The
+native credential helper retrieves the exact saved account only when Git needs
+it; retrieved credentials never return to the frontend or enter command arguments/environment.
+Selections persist as local metadata, and a missing credential fails instead
+of silently choosing another account. Choosing existing Git credentials preserves
+the system's normal authentication. Account selection does not change commit
+authorship, configure SSH or prove publishing permissions. GitHub, GitLab.com and Bitbucket Cloud share this provider contract.
+See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
+
+Settings → Accounts starts with one **Connected accounts** list: every token and
+browser connection of every provider (github.com, gitlab.com, bitbucket.org and
+each company server), grouped under its host, leaving out hosts with nothing
+connected. One check action covers every provider, and one **Connect account**
+menu picks the provider and opens its panel (method, then host); Home's **+**
+opens Accounts with that menu open. Below, **By provider** folds GitHub, GitLab
+and Bitbucket into one block each, holding what only that provider has: its
+company servers and its CLI. A CLI that does not answer or has a known update
+marks its block and the Accounts entry and opens the block; choosing the
+browser method without the CLI shows its installation row inside the connect
+panel. The
+token method opens a masked field with storage guidance and expandable
+permission details. GitOdile verifies the token's identity and saves it only
+in the system's secure credential store, with no plaintext fallback. Up to eight
+token connections coexist with browser connections; even the same username has
+separate connection choices. Removing one deletes its local secret, leaves its
+project selections unavailable and does not revoke the token on GitHub. Saved connections
+of every product are verified in the background a few seconds after launch, as
+GitHub Desktop does; **Check accounts** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
+Metadata stores
+only usernames, and the token input clears when sent to Rust.
+
+Clone a project → **GitHub** lets you choose a connection (the one used last
+time, or the only usable one, is preselected) and lists its personal/team
+projects as soon as a connection is chosen. Pages contain up to 100 projects
+with private/archive metadata and a filter for the current page. Permissions and
+organization/SSO approval may limit the inventory. Choosing a project fills its
+HTTPS address and account into the existing destination review; nothing is
+cloned until you confirm. Discovery uses exactly that connection without changing
+gh's active account. Its private results are cached only for the app session.
+See [ADR 0023](docs/adr/0023-add-native-github-tokens-and-repository-discovery.md).
+
+GitLab connections share the same list (tokens and the glab browser connection
+per host); the GitLab block holds its company servers and the optional
+**GitLab CLI (`glab`)** tooling. Tokens work without
+glab and stay in a separate OS secure-store namespace, with no plaintext fallback.
+Use `read_api` for identity/project discovery, plus `read_repository` for clone/get
+changes or `write_repository` to publish too; the broader `api` scope covers both.
+Project membership still determines access. Expired/revoked tokens need replacing.
+Up to eight token connections coexist independently of the single glab session.
+Numeric GitLab user IDs keep selections stable after username changes.
+
+Browser connection requires **glab 1.120.0+** and an explicit connection check.
+It uses glab’s registered application and browser OAuth. Its GitLab.com session
+is shared with other tools and supports one account at a time. GitOdile requests
+system keyring storage; glab may fall back to a plaintext configuration file and
+owns OAuth refresh. Sign-out rechecks the confirmed numeric identity first;
+offline/invalid sessions must be repaired with glab rather than risking removal
+of another account. External identity changes make old project selections
+unavailable. Windows offers the exact WinGet package `GLab.GLab`; macOS/Linux
+provide official installation/update instructions. Local diagnostics need no account.
+After the Windows installer finishes, use the tooling card's recheck button.
+GitOdile also checks the standard user/system installation locations, so the
+running app can find glab even before its inherited PATH has been refreshed.
+
+Clone a project → **GitLab** reuses the connection selector and project browser,
+including group/subgroup names, current-page filters and explicit pagination.
+Discovery and HTTPS transfers use the exact token or CLI connection selected;
+there is no fallback to another source. API calls use only GitLab.com without
+redirects. SSH stays outside this account adapter’s scope.
+See [ADR 0024](docs/adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
+Automated fixtures and Windows UI/secure-store checks cover the implementation;
+real GitLab OAuth, private clone/publishing and macOS/Linux runtime qualification
+remain unclaimed until exercised with an authorized account and environment.
+
+### Bitbucket Cloud
+
+bitbucket.org **API token** connections join the same list in Settings → Accounts
+and use the same masked token form; there is no browser connection or CLI.
+Create an Atlassian API token with scopes for Bitbucket: `read:user:bitbucket`
+and `read:workspace:bitbucket` for identity and discovery, plus
+`read:repository:bitbucket` to clone and `write:repository:bitbucket` to publish.
+App passwords no longer exist. GitOdile verifies the token's Bitbucket UUID,
+stores it only in the OS secure store and never asks for the account email. Up
+to eight tokens; tokens expire and must be replaced, and removing one does not
+revoke it at Atlassian. Git uses the static username `x-bitbucket-api-token-auth`.
+
+Clone a project → **Bitbucket** lists the projects of every workspace the
+connection belongs to (up to 300 workspaces), one Bitbucket page per page.
+Addresses copied with a username (`https://name@bitbucket.org/…`) are cloned
+without it but never select an account. See
+[ADR 0026](docs/adr/0026-connect-bitbucket-cloud-through-api-tokens.md).
+Behavior is covered by hermetic fixtures; no real Bitbucket token has been
+qualified yet.
+
+### Company servers
+
+The GitHub and GitLab blocks of Settings → Accounts each list their **company
+servers** (**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated). Add a server by its HTTPS address (`https://git.example.com`, with
+an optional port); GitOdile contacts it once, without credentials, to confirm
+the product and a supported version (GHES 3.0+, GitLab 14.0+), then its
+accounts appear in the Accounts list under its host. Up to 8 servers;
+their accounts never mix with github.com/gitlab.com accounts, and a project can
+use a personal and a corporate account at the same time. Clone a project →
+GitHub/GitLab lists accounts from every host of that product, and project
+settings → Remote show an **HTTPS access** row per host its remotes use, after
+the remotes themselves. Removing a
+server deletes its saved tokens from the OS secure store; gh/glab sessions are
+left to those tools. API calls trust the certificates installed on the computer
+and its proxy settings; Git uses its own proxy/CA configuration. Relative-URL
+GitLab installations and GHE.com data residency are not supported yet. See
+[ADR 0025](docs/adr/0025-connect-company-servers-as-provider-instances.md).
+Behavior is covered by hermetic fixtures; no real corporate instance has been
+qualified yet.
 
 ## Requirements
 
@@ -325,7 +506,7 @@ Run only the Vite frontend at `http://localhost:1420`:
 pnpm run dev
 ```
 
-The status bar, About and What's new share the version injected from
+About, What's new and the update flow share the version injected from
 `package.json`. Vite watches that manifest as a configuration dependency and
 reloads the frontend after a version change. A Git branch name alone does not
 change the app version; installed packages retain the version they were built

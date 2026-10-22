@@ -69,9 +69,12 @@ export type InitializeProjectDialogProps = {
   isOpen: boolean;
   initialMode: InitializeTargetKind;
   initialExistingPath?: string;
+  /** A folder name the caller already has, such as one typed into Home's
+   * launcher, for a new-folder project. */
+  initialName?: string;
   controller: InitializeProjectController;
   saveVersionController: SaveVersionController;
-  /** The user's default version-line name, already resolved by the caller —
+  /** The user's default branch name, already resolved by the caller —
    * the stored `init.defaultBranch`, or the app's fallback when there is none.
    * It seeds the field below; the field, not this, is what the project is
    * created with, so a one-off name is still one edit away. */
@@ -91,6 +94,7 @@ export function InitializeProjectDialog({
   isOpen,
   initialMode,
   initialExistingPath = "",
+  initialName = "",
   controller,
   saveVersionController,
   defaultBranchName,
@@ -131,7 +135,7 @@ export function InitializeProjectDialog({
   const { errors, formProps, fieldProps, validate, reset: resetFieldErrors } = useFieldErrors();
   useInstallDraftBlocker(
     "initialize-project-dialog",
-    "new project details",
+    t.initializeDialogTitle,
     isOpen && step !== "success",
   );
 
@@ -155,7 +159,7 @@ export function InitializeProjectDialog({
     if (!isOpen) return;
     setTargetKind(initialMode);
     setExistingPath(initialExistingPath);
-    setDestinationName("");
+    setDestinationName(initialName);
     setInitialBranch(defaultBranchName);
     setCreateReadme(false);
     setSaveInitialVersion(false);
@@ -170,6 +174,7 @@ export function InitializeProjectDialog({
     defaultBranchName,
     initialExistingPath,
     initialMode,
+    initialName,
     isOpen,
     t.initializeFirstVersionTitlePlaceholder,
   ]);
@@ -427,7 +432,7 @@ export function InitializeProjectDialog({
   if (step === "success" || step === "error" || step === "open-error" || step === "cleanup" || step === "remote-error") {
     const isFailure = step === "error" || step === "open-error" || step === "remote-error";
     const title = step === "success"
-      ? firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeReadyTitle(openedProject?.name ?? projectName)
+      ? firstSaveError ? t.initializeFirstSaveFailedTitle : t.initializeReadyTitle
       : step === "cleanup"
         ? cleanupAfterFailure ? t.initializeFailureCleanupTitle : t.initializeCleanupTitle
         : step === "open-error" ? t.initializeOpenFailedTitle
@@ -447,7 +452,7 @@ export function InitializeProjectDialog({
       >
         <p className="app-dialog__text" role={isFailure ? undefined : "status"}>
           {step === "success"
-            ? firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription
+            ? firstSaveError ? t.initializeFirstSaveFailedDescription : t.initializeCreatedDescription(openedProject?.name ?? projectName)
             : step === "cleanup"
               ? cleanupAfterFailure ? t.initializeFailureCleanupDescription : t.initializeCleanupDescription
               : step === "open-error" ? t.initializeOpenFailedDescription : localizedError}
@@ -499,6 +504,7 @@ export function InitializeProjectDialog({
         titleId="initialize-dialog-title"
         subtitle={step === "remote-preview" ? t.initializeRemoteReviewDescription : t.initializeRemoteHelp}
         icon={<Link2 />}
+        tone="remote"
         onClose={isBusy ? undefined : () => setStep("success")}
         closeLabel={t.commonClose}
         dismissible={!isBusy}
@@ -585,9 +591,10 @@ export function InitializeProjectDialog({
     return (
       <Dialog
         size="l"
-        title={t.initializeCreatingTitle(projectName)}
+        title={t.initializeCreatingTitle}
         titleId="initialize-dialog-title"
         icon={<FolderPlus />}
+        tone="local"
         dismissible={false}
         dialogRef={dialogRef}
       >
@@ -620,7 +627,6 @@ export function InitializeProjectDialog({
         : t.initializeExistingFact,
     },
     ...(saveInitialVersion ? [{ icon: <GitBranch />, text: t.initializeFirstVersionEffect }] : []),
-    ...(connectRemote ? [{ icon: <Link2 />, text: t.initializeRemoteLaterEffect }] : []),
     { icon: <ShieldCheck />, text: t.initializeSafetyBody, safe: true },
   ];
   return (
@@ -631,6 +637,7 @@ export function InitializeProjectDialog({
       subtitle={<span id="initialize-dialog-description">{t.initializeDialogDescription}</span>}
       descriptionId="initialize-dialog-description"
       icon={<FolderPlus />}
+      tone="local"
       onClose={close}
       closeLabel={t.commonClose}
       dismissible={!isBusy}
@@ -694,7 +701,7 @@ export function InitializeProjectDialog({
           </DialogBanner>
         )}
 
-        {/* What most people never change: the main line's name, a README and
+        {/* What most people never change: the main branch's name, a README and
             a remote to connect afterwards. */}
         <details className="initialize-dialog__advanced" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
           <summary>{t.initializeAdvancedLabel}</summary>

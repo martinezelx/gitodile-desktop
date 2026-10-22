@@ -38,7 +38,7 @@ src/
   app/                      # application shell and composition
     App.tsx                 # composition root and cross-feature orchestration
     screens.tsx             # single screen registry, keep-alive host, prefetch
-    project-switcher/       # open-project switcher UI and avatar derivation
+    project-switcher/       # the status bar's project popup and its rows
     ...                     # overlays, rail nav, titlebar, preferences, branding
 
   runtime/                  # neutral, product-free runtime contracts
@@ -141,9 +141,8 @@ between screens, and a deep link from another screen sets the tab and then
 navigates.
 
 The complete implementation recipe is in the
-[`frontend feature guide`](architecture/frontend-feature-guide.md). Version
-lines remains a concrete
-[`reference slice`](architecture/version-lines-reference-slice.md).
+[`frontend feature guide`](architecture/frontend-feature-guide.md). Branches remains a concrete
+[`reference slice`](architecture/branches-reference-slice.md).
 
 ### Project state and freshness
 
@@ -237,8 +236,10 @@ src-tauri/src/
   repository_access.rs    # RepositoryContext + fair commonGitDir coordinator
   git_command.rs          # policy-aware domain-facing Git facade
   console/                # project console: catalogue, typed-line tokenizer,
-                          #   permission-tier classifier and single-use plans
-  git.rs                  # bounded process execution and cancellation
+                          #   permission-tier classifier, single-use plans and
+                          #   the project's provider with its gh/glab shortcuts
+  git.rs                  # bounded process execution and cancellation (Git, and
+                          #   other programs through run_program)
   error.rs                # stable structured application errors
   operation.rs            # shared operation kind and safe diagnostic details
   index.rs                # collision-safe temporary-index preparation
@@ -246,7 +247,7 @@ src-tauri/src/
   watch.rs                # filtered/debounced typed invalidation
   app_updates.rs          # bounded signed-update lifecycle and install handoff
   desktop.rs              # desktop-shell services
-  tooling.rs              # Git diagnostics, install/update, identity, line endings
+  tooling.rs              # Git/gh/glab diagnostics, install/update; Git identity/line endings
   project_settings.rs     # one project's own identity and ignore files
   repository.rs
   clone.rs                # staged provider-neutral acquisition and verification
@@ -258,13 +259,13 @@ src-tauri/src/
   recovery/               # two recovery owners that share only a clock
     mod.rs
     discard.rs            # working-tree discard snapshots and safe restore
-    history.rs            # pre-rewrite version-line tips as hidden refs
+    history.rs            # pre-rewrite branch tips as hidden refs
   save_version.rs
   publish.rs
   sync/                   # remotes, upstreams, fetch and relation knowledge
     mod.rs                # remote config and the team-sync read model
     get_team_changes.rs   # the one destructive workflow, with its safety checks
-  version_lines.rs        # product domains
+  branches.rs        # product domains
   test_support.rs         # shared hermetic Git-repository test fixtures
   tests/<domain>_tests.rs # cross-module integration tests grouped by owner
 ```
@@ -337,7 +338,7 @@ Local creation is a separate acquisition workflow owned by `initialize.rs` and
 `features/initialize-project`. Its eager dialog has typed ports and an
 attempt-generation controller; only the composition root passes a verified
 result into the existing open/session lifecycle. A plan canonicalizes the
-parent or existing folder, validates the project and initial version-line
+parent or existing folder, validates the project and initial branch
 names, rejects case/alias collisions, enclosing or descendant repositories,
 linked worktrees and existing `.git` metadata, and snapshots the exact path and
 README state. Execution repeats that inspection immediately before mutation.
@@ -383,6 +384,9 @@ Diagnostics redact URL credentials, queries, and fragments.
 On Windows the runner also passes `-c core.longpaths=true` to each Git process
 so valid project roots remain usable without writing to the user's Git config.
 
+The runner rejects an already-cancelled token before spawning when the policy
+allows cancellation, so cancelled work cannot launch Git or its descendants.
+Policies that disallow cancellation retain their existing execution behavior.
 Equivalent reads may cancel an older process token. Mutations never
 automatically cancel one another because interruption can leave an uncertain
 outcome. Windows requests descendant cleanup before killing/reaping the tracked
@@ -414,21 +418,37 @@ the same budget as the catalogue, with `--no-ext-diff`, `--no-textconv` and
 `--no-show-signature` added where the subcommand takes them. The renderer never
 splits the line or chooses an argument.
 
-Local change and Remote plans exist only in advanced mode, a GitOdile setting
-`console/settings.rs` keeps in the app's local data folder with a second one,
-change confirmations, and reads on every plan and run; the renderer can ask to
-change them but never passes them with a command. Their plan comes from a pre-flight read (`console/preview.rs`): plain
+Local change and Remote plans run for everyone ([ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md)).
+Whether they ask first is change confirmations, a GitOdile setting
+`console/settings.rs` keeps in the app's local data folder and reads on every
+plan and run; the renderer can ask to change it but never passes it with a
+command. Their plan comes from a pre-flight read (`console/preview.rs`): plain
 facts such as the files `git add` would stage or the versions `git push` would
 publish, and a fingerprint of HEAD, every ref and the `status` of the index and
 working tree. `run_console_change` runs under the exclusive write policy only
-after the person answered yes (or at once when confirmations are off, the
-console's "root" mode, and still off), only while advanced mode is still on, and only while the
-fingerprint still matches; otherwise it answers `stale_preview`.
+after the person answered yes (or at once when change confirmations were
+turned off in Settings and are still off), and only while the fingerprint still
+matches; otherwise it answers `stale_preview`.
 `pull` runs as `--no-rebase --ff-only`, `revert` with `--no-edit`, and the
 Settings hooks switch reaches the plan like the guided flows' `runHooks`: off,
 the plan adds `--no-verify` to `commit` and `push` and says so. A completed
 change refreshes the project through the guided flows' post-mutation path.
 History and Destructive plans stay refused until task 139.
+
+`console/hosting.rs` owns the project's provider and its gh/glab shortcuts
+(task 148-12). `read_console_host` reads the remote the current branch publishes
+to (else `origin`, else the only one) through `sync::project_remotes`, and
+classifies its host as GitHub, GitLab or Bitbucket, a company server registered
+in `credentials`, another Git server, local-only or unclear; nothing reaches the
+network. The console reads it once per project session, idle, for its welcome.
+`run_console_hosting_query` takes one fixed ID and runs a read-only gh or glab
+template in the project folder through `git::run_program`, the bounded runner
+Git itself uses (output caps, timeout, cancellation, process-tree cleanup) for
+a program the caller builds. The CLI keeps its own login; GitOdile pins the
+detected host, turns off prompts, pager, colour and update notices, removes
+inherited debug and repository overrides, and gives the Git processes the CLI
+starts the console's inert Git environment. A missing CLI, a CLI without a
+login, and an unsupported provider come back as structured reasons, not errors.
 
 Shortcut names, and the command lines a shortcut may store with the tier Rust
 gave them, are an app-wide frontend preference; a stored line is planned again
@@ -508,7 +528,7 @@ localized UI. It keeps at most four session caches, 5,000 loaded rows, 24
 details, 64 diffs, and 20 MiB of estimated detail/diff data. Project activation
 warms the first page without making screen visibility a fetch signal. Shared
 repository invalidations refresh it after save, publish, get-team-changes,
-version-line changes, watcher events, and explicit repository refresh; project
+branch changes, watcher events, and explicit repository refresh; project
 close evicts the epoch so late results cannot cross incarnations.
 
 ## Mutation model
@@ -536,51 +556,96 @@ same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
 activation, screen visibility, watchers, and cache warming never call the
 network command.
 
-Get-team-changes extends that single sync domain. Planning and execution each
-fetch the exact configured upstream under one exclusive `commonGitDir` permit,
-then require a named branch that is strictly behind with zero local-ahead
-commits. The plan token binds repository identity, session epoch, branch,
-local and remote commits, upstream destination/tracking ref, planned recovery
-ref, and the complete porcelain-v2 local-safety snapshot. Incoming versions
-are capped at 25 and file evidence at 100 while retaining authoritative totals
-and truncation flags. Untracked and ignored paths are compared by complete path
-components against added, modified, deleted, and renamed paths; when bounded
-evidence cannot prove safety, the operation blocks.
+A branch whose remote branch no longer exists reads as `upstreamGone`, an answer
+rather than an error: a check whose exact-refspec fetch reports the ref
+missing returns it, and so does a local read whose tracking ref is gone (Git's
+`[gone]`). Fetches pass `--no-prune`, so GitOdile never deletes the kept
+tracking ref; a local read cannot tell that ref from a live one, so the
+frontend sync controller keeps a fresh `upstreamGone` across local reads of
+the same branch and kept ref until a check or a publish replaces it. Publishing
+such a branch plans `recreatesDeletedBranch` and asks before recreating it; a
+destination with no remote branch counts the versions no branch of that remote
+holds (the gone ref excluded), never the whole history. `stop_tracking_remote`
+unsets only the current branch's `branch.<name>.remote` and `.merge`.
 
-Prepared and unsaved tracked changes use the same complete-path comparison,
-including both sides of local and incoming renames. Non-overlapping changes may
-continue only after a dry-run two-tree update proves Git can carry them. The
-state token also fingerprints the bytes of each changed tracked file or link,
-so an edit after preview makes the plan stale. The post-update verifier compares
-both that fingerprint and the exact porcelain-v2 tracked-change records from
-the reviewed snapshot, preserving staged and unstaged state instead of requiring
-a clean index. Truncated incoming-file evidence blocks whenever any local
-content would make non-overlap impossible to prove.
+Get-team-changes extends that single sync domain
+([ADR 0030](adr/0030-forecast-and-combine-project-changes.md)). One local
+analysis serves three callers: the `forecast` every team-sync read carries for
+a branch that is behind or diverged, the plan, and the execution that
+revalidates it. The analysis never changes files, the index or refs. It
+predicts a combination with `git merge-tree --write-tree` (diverged branches) or
+takes the remote tree (behind branches), lists every path that changes towards
+that tree, and compares local work with all of them; only what crosses IPC is
+capped (25 versions, 100 files, 20 forecast paths, with exact totals).
+Untracked and ignored paths are compared by complete path components, and a
+collision blocks. A prepared change to an incoming path blocks. An unsaved,
+unstaged edit to a regular file the remote edits in place is combined line by
+line with `merge-tree --merge-base=HEAD`, using a temporary index that holds
+the file's working content; any other unsaved overlap, or a saved one, is an
+overlap and is refused by name. Separate unsaved changes are carried; the plan
+and the execution also prove that with a dry-run two-tree update run against a
+copy of the index, so the question never takes `index.lock` beside other
+reads. The read model relies on the path comparison alone.
 
-Execution repeats the fetch and validation, creates and verifies recovery,
-then runs the narrow two-tree update `git read-tree -u -m <old> <target>` and
-the compare-and-swap branch move
-`git update-ref refs/heads/<branch> <target> <old>`. It never calls `pull`,
-merge, rebase, reset, checkout, stash, force, or conflict resolution. A failure
-after recovery is conservatively returned as an uncertain local result with
-the observed `HEAD` and inspection instructions. The authoritative success
-snapshot is committed before exactly one coordinated local refresh; coalesced
-watcher invalidations never issue a fetch.
+The plan reads the remote as of the last check under a shared read permit and
+never fetches; the dialog checks the remote in the background only when this
+session's last check is older than a minute. The plan token binds repository
+identity, session epoch, branch, local and remote commits, upstream
+destination/tracking ref, planned recovery ref, the predicted trees and the
+complete porcelain-v2 local-safety snapshot, including a fingerprint of the
+bytes of every changed tracked file or link. Execution does not fetch either:
+it applies exactly the reviewed remote commit, and a moved tracking ref or
+changed local state makes the plan stale, which the dialog answers by
+re-planning in place.
+
+Execution builds a merge version first when the branch diverged: `commit-tree`
+from the predicted tree with the previous tip and the reviewed remote commit
+as parents, after the project's `pre-merge-commit`, `prepare-commit-msg` and
+`commit-msg` hooks run through `git hook run` against a temporary index of the
+merge result (skipped only when hooks are turned off in Settings), and with
+`commit.gpgSign` honoured. A hook, identity or signing failure changes nothing.
+It then creates and verifies recovery (with a snapshot of combined unsaved
+content), hands combined files back to their saved content, runs the narrow
+two-tree update `git read-tree -u -m <old> <new>` and the compare-and-swap
+branch move `git update-ref refs/heads/<branch> <new> <old>`, writes combined
+content back through Git's filters, and verifies HEAD, the carried
+porcelain-v2 records and bytes, the combined files, the recovery refs and the
+relation to the remote. It never calls `pull`, `merge`, rebase, reset, stash,
+force or conflict resolution. A failure after recovery is conservatively
+returned as an uncertain local result with the observed `HEAD`, the recovery
+refs and inspection instructions. The authoritative success snapshot is
+committed before exactly one coordinated local refresh; coalesced watcher
+invalidations never issue a fetch. When Publish meets a remote that moved on,
+the same dialog gets, combines and then plans and publishes in one
+confirmation.
 
 History-mutation recovery follows
 [ADR 0008](adr/0008-store-history-recovery-as-versioned-hidden-refs.md): the
 previous commit is protected by a create-only ref under
 `refs/gitodile/recovery/v1/get-team-changes/`, paired with versioned metadata
-in the common Git directory. The newest 20 complete records are retained per
+in the common Git directory. Combined unsaved content is kept as a snapshot
+commit under the sibling `get-team-changes-unsaved/` namespace, owned by the
+same record and removed with it. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
 
-Deleting a version line whose work reached the main line only as copies
+Deleting a branch whose work reached the main branch only as copies
 (squash or rebase, found by `git patch-id --stable`) uses the same protocol
-under its own operation — `refs/gitodile/recovery/v1/delete-version-line/`,
-its own manifest folder and its own limit of 20 — before the line is removed
-([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md)).
-`recovery::HistoryRecoveryOperation` names the operations; the protocol is one.
+under its own operation — `refs/gitodile/recovery/v1/delete-branch/`,
+its own manifest folder and its own limit of 20 — before the branch is removed
+([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-branch.md)).
+Cleaning up several branches at once (`plan_clean_up_branches` /
+`clean_up_branches`) keeps one record per deleted branch under
+`refs/gitodile/recovery/v1/clean-up-branches/`, with its own limit of 50,
+which is also the most branches one clean-up deletes; each branch is rechecked
+against the single delete's rules, and against being finished
+(`finished_branches`: its work is on the main branch and was its own), right before
+it goes, and one that no longer qualifies is skipped and reported while the
+rest continue
+([ADR 0034](adr/0034-one-recovery-point-per-branch-in-a-clean-up.md)).
+`recovery::HistoryRecoveryOperation` names the operations and their limits;
+the protocol is one. See [ADR 0035](adr/0035-use-branches-as-the-product-vocabulary.md)
+for the accepted break with older delete/clean-up namespaces.
 
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.
@@ -711,6 +776,211 @@ absent from normal development and production builds.
 
 ## Platform and security constraints
 
+### Optional GitHub CLI tooling
+
+The GitHub block of Settings → Accounts owns machine-level `gh` readiness through its
+typed port and adapter. Git configuration stays in the separate Git section.
+`tooling.rs` shares fixed platform installation/update plans with Git while
+keeping each tool's launch guards and update cache independent. The renderer
+cannot provide executable paths, package IDs or command arguments. `gh --version`
+is a bounded, cancellable local probe with prompts/update notifications disabled;
+it never checks authentication or contacts GitHub. It first uses `PATH`; only
+a missing executable permits fixed fallbacks for standard Homebrew/local
+installation paths on macOS/Linux. A broken executable on `PATH` remains an
+error. No shell startup files are executed and process-wide `PATH` is unchanged.
+WinGet queries drain both
+output pipes concurrently with bounded retention and a 15-second deadline.
+Install/update helpers keep the native app-install blocker until their child
+exits. macOS/Linux provide official guidance rather than privileged package
+manager execution.
+
+The Settings tooling hook serializes local diagnostics and update checks. A
+changed version or unsuccessful local check invalidates its previous update
+answer. Manual checks supersede earlier action receipts, including responses
+from actions still in flight.
+
+Windows installs, upgrades and update queries pin the exact package to the
+`winget` source. Installation and upgrade share a per-tool launch guard until
+the helper exits. Git repair instructions remain available even when the
+executable is unusable; a browser failure can be retried. The macOS and Linux
+plans point to Git's current official installation pages, leaving package
+manager and privilege choices to the user.
+
+Machine authentication is separate: `github_auth.rs` owns the saved github.com
+accounts, their active selection and one bounded worker for explicit checks,
+browser login, switching or targeted local sign-out. Cached
+reads never start a process or contact GitHub. Status requires gh's JSON support;
+login streams only a validated temporary code. Tokens remain with gh; raw output
+and credentials never enter IPC or diagnostics. Checks drain for installation;
+login, switching and sign-out block it until their workers exit, including cancellation reaping.
+Cancellation can race with session persistence, so its result offers a check.
+Sign-out validates the confirmed username against the cached accounts, passes
+`--hostname github.com --user <login>` as separate arguments, and clears the
+removed identity even when follow-up verification fails. gh can select another
+stored account; its actual checked state replaces the previous one. Switching
+uses `gh auth switch --hostname github.com --user <login>` and checks the actual
+selected identity afterwards. An uncertain mutation requires another check before
+switching or removal. Status decodes every github.com JSON entry (at most 32),
+retains per-account authorization errors and orders the active account first.
+Environment-controlled sessions cannot be changed by these account commands.
+
+Explicit account actions can enrich a verified identity through a bounded gh
+`api users/<login>` public profile query with a validated username. Up to four
+accounts receive optional avatar enrichment concurrently; a newly activated
+account is first, and other cached images remain available. A separate native
+HTTP client with no credentials and
+no redirects downloads only a fixed GitHub avatar CDN URL derived from that
+profile's numeric id. The optional PNG/JPEG response is capped at 256 KiB,
+encoded through the shared `encoding.rs` helper and cached in memory. Renderer
+CSP and browser opener scopes remain unchanged; image failure never changes
+authentication status. Cached reads and Settings visibility cause no downloads.
+
+`features/github` owns the authentication port, controller and eager account
+body. The composition root injects it into Settings without cross-feature
+imports. The root retains the memory cache and hidden Settings suspends cached
+polling. Shared sessions, environment credentials and plaintext fallback are
+disclosed. See [ADR 0021](adr/0021-reuse-github-cli-authentication.md).
+
+Future PRs/Actions need their own feature ports, repository/session authorization,
+explicit network consent, bounded responses and permission handling. They must
+not extend Settings into generic gh execution or equate authentication with
+repository/action access. Discovery stays defined by
+[ADR 0020](adr/0020-prepare-optional-github-cli-tooling.md).
+
+### GitLab.com accounts and discovery
+
+`hosting_access.rs` owns the shared native token store lifecycle, verification,
+bounded fixed-origin HTTP reads and repository pagination. `github_access.rs`
+keeps its existing public adapter surface; `gitlab_access.rs` supplies a distinct
+Tauri state type over that owner. GitHub's persisted usernames and secure-store
+namespace are unchanged. GitLab metadata stores numeric user IDs and display
+usernames separately; `token.<id>` and `cli.<id>` are distinct connection keys.
+GitLab tokens live under `GitOdile/GitLab.com/token/v1`, never glab configuration.
+
+`gitlab_auth.rs` owns a single cached GitLab.com CLI identity and serialized
+check/login/logout worker. `cli_auth.rs` shares bounded process drainage,
+timeouts, cancellation/reaping and wiping with gh. glab 1.120.0+ provides a
+native credential receipt; the secret is captured and checked through the fixed
+`/api/v4/user` API before GitOdile supplies that same credential. No default-host,
+environment-token or identity fallback is allowed. Logout verifies the confirmed
+numeric ID immediately before glab's host-level removal. A concurrent external
+glab mutation cannot be made atomic; offline/invalid verification fails closed.
+
+`tooling.rs` gives glab separate launch/update state and the fixed WinGet package
+`GLab.GLab`. Diagnostics and authentication share PATH-first glab discovery;
+only a missing executable permits fallback to standard installation paths.
+On Windows these include per-user LocalAppData/Programs and Program Files,
+so a completed installer is detectable without refreshing the process environment.
+Both readers accept the released `glab X.Y.Z` version output and the labelled
+`glab version X.Y.Z` spelling. The neutral tooling hook and grouped Settings rows accept injected
+ports/copy. `features/gitlab` owns its typed adapter, cached controller and eager
+account/token bodies; hidden Settings suspends polling. Token/browser/tooling
+order, permission/storage consent and single CLI identity limitations are explicit.
+Visibility never authenticates or fetches projects; saved connections are verified
+after launch ([ADR 0027](adr/0027-verify-saved-accounts-after-launch.md)). Identity avatars use a local
+fallback. Shared clone discovery dispatches by registered provider and rechecks
+`/user` before `/projects?membership=true` with bounded 100-row pages. Nested
+namespace URLs must match the fixed provider host before entering the existing
+source-access/destination/credential-helper boundary. See
+[ADR 0024](adr/0024-connect-gitlab-through-shared-hosting-accounts.md).
+
+### Bitbucket Cloud accounts and discovery
+
+`ProviderKind::Bitbucket` is a third product of `hosting_access.rs` with the
+fixed instance `bitbucket` (`bitbucket.org`, `https://api.bitbucket.org/2.0`);
+`bitbucket_access.rs` is its distinct Tauri state type. It has no CLI: a
+token-only `NoCli` adapter supplies no rows or credentials, and
+`ProviderKind::server_kind` keeps it out of the company-server registry. API
+tokens are sent as Bearer, stored under `GitOdile/Bitbucket/token/v1`, keyed by
+the bare lowercased UUID from `/2.0/user`, with display names kept separately;
+Git uses the static `x-bitbucket-api-token-auth` username. Discovery lists
+`/2.0/user/workspaces` and then `/2.0/repositories/{workspace}?role=member`,
+treating the body's `next` only as a signal and rebuilding each request on the
+fixed origin. The service remembers per account and token generation where each
+browser page starts. Clone links must point to the same repository on
+`bitbucket.org`; the embedded viewer name is dropped. `features/bitbucket` owns
+the Settings section (shared Accounts list and token form) and its typed port.
+See [ADR 0026](adr/0026-connect-bitbucket-cloud-through-api-tokens.md).
+
+### Company servers
+
+`hosting.rs` owns user-added GitHub Enterprise Server and GitLab Self-Managed
+instances (`hosting-servers.json`, at most 8, validated on load by re-deriving
+each `ghe-`/`gls-` ID from its normalized authority). Each server composes a
+host-scoped `HostingAccessService` (API origin, OS-store namespace, clone-URL
+host) with a host-scoped `GitHubAuthService` or `GitLabAuthService`, and
+registers with `AccountService`, whose provider list is runtime-mutable. Adding
+probes the address without credentials; removing deletes that server's token
+secrets and unregisters it while bindings stay saved and unavailable. The Git
+helper receives a server's authority as an argument and rebuilds its adapter only
+when that authority derives the account's instance ID. Credential scopes, remote
+validation and header masking compare host and port. The `hosting-servers`
+feature owns the Settings → Accounts composition (`AccountsSettings`: one
+connected-accounts list for every provider grouped by host, the provider menu
+and connect panels, and a folded block per provider holding its server
+inventory and CLI tooling) and its typed port. It composes `accounts`' token
+rows and form with the embedded gh/glab account bodies and per-product token
+copy from `github`/`gitlab`/`bitbucket`, over one shared catalog read so a
+change anywhere in the section shows everywhere in it. Settings renders the
+gh/glab tooling rows and hands them to the section through its `accounts`
+render slot, which App fills. Native opens
+gh's device page for a server because the renderer's opener scope is a fixed
+list. See
+[ADR 0025](adr/0025-connect-company-servers-as-provider-instances.md).
+
+### Shared hosting accounts and Git access
+
+`credentials.rs` owns provider-neutral metadata, bounded persistent project
+bindings and the internal Git credential protocol. `hosting.rs` registers
+adapters for both the desktop and helper process; `main.rs` dispatches helper
+mode before Tauri starts. `github_auth.rs` and `gitlab_auth.rs` supply the CLI adapters;
+Bitbucket is token-only.
+`features/accounts` owns the typed account port, cached receipt controller and
+picker shared by clone and project settings. `useAccounts` keeps the last local
+receipt per port, so a remounted section renders it before the next read and
+reports `loaded` so an unread catalog is never shown as empty.
+`hosting::sync_accounts_after_launch` runs the Check accounts action for every
+product three seconds after launch; see
+[ADR 0027](adr/0027-verify-saved-accounts-after-launch.md). Providers implement adapters rather
+than duplicating the selection store, picker or Git access policy.
+
+`git_command.rs` applies process-only HTTPS helper configuration at the policy
+facade; the bounded runner in `git.rs` stays independent of hosting. Explicit
+account lookup is native-only and exact (saved-user lookup for gh, numeric
+identity verification for glab), without switching a CLI session or changing
+persistent Git configuration. Local preference reads and
+writes retain repository/session authorization. Clone fingerprints include the
+selected identity and publish its project binding after destination verification.
+Failure to save that binding preserves the completed clone result and reports
+manual account setup without a clone retry or automatic opening. A failed account
+check retains identities/avatars while marking old verified rows as unchecked.
+Verified token rows stay selectable while a background check runs. Checks and
+discovery are fenced per connection, so adding or removing one token never
+discards another token's result; a GitLab rename found by a check is persisted.
+Project settings warns beside the picker when a provider remote stores sign-in
+details (shown redacted) or uses HTTP, the cases the transfer guard refuses.
+Repository descriptions are display text: line endings are normalized, other
+control characters dropped and length bounded, while names, owners and clone
+URLs stay strictly validated. The Git helper's glab lookup skips the separate
+version probe and still verifies the numeric identity before answering. The
+hosting HTTP clients share the updater plugin's Reqwest features (one TLS
+provider); the app-update contract check fails if that client stops verifying
+against the OS trust store or stops honoring OS proxy settings.
+Git helper failure stops fallback to another identity. See
+[ADR 0022](adr/0022-share-provider-accounts-and-scope-git-access.md) for the narrow
+native-token exception to ADR 0021, scope isolation and platform qualification.
+
+`hosting_access.rs` composes CLI and native OS-stored token connections behind
+each provider adapter. Credential-source IDs and HTTP usernames are separate, so
+the same person can explicitly choose browser or token. `features/github`,
+`features/gitlab` and `features/bitbucket` inject their copy/ports into the shared one-way token form; `features/repository-browser` owns the typed
+paginated discovery port/controller and eager clone-overlay browser. Native API
+access verifies the exact selected identity and validates every clone URL.
+Visibility only reads local receipts; pages require clicks. Saved connections are
+verified in the background after launch (ADR 0027).
+See [ADR 0023](adr/0023-add-native-github-tokens-and-repository-discovery.md) for
+storage, cancellation, limits, caching and platform consequences.
+
 ### Canonical product identity
 
 The shipped product, npm/Cargo packages, Rust crate, executable, frontend
@@ -755,14 +1025,15 @@ claims.
 ### Application icon and Windows shortcuts
 
 `scripts/icons/mascot.mjs` is the only hand-maintained icon source. It holds
-the mascot as one element tree and crops it three ways (ADR 0018): the body,
-the head and the portrait the application icon uses. `pnpm icons` writes the
+the mascot as one drawing (ADR 0031), built from the traced shapes in
+`scripts/icons/mascot-shapes.mjs`, and crops it two ways: the whole body and
+the head. `pnpm icons` writes the
 standalone SVGs, the element tree the in-app mark renders inline
 (`src/shared/ui/mascotArtwork.ts`, so its fill can follow the theme) and the
 console welcome's ASCII art (`src/features/console/mascotAscii.ts`, sampled by
-the dependency-free `scripts/icons/ascii-art.mjs`) from it, then runs `tauri
-icon` on two 1024×1024 sources: the portrait on the amber tile filling the
-canvas, and the identical icon on Apple's 824px macOS grid. Every PNG, the
+the dependency-free `scripts/icons/ascii-art.mjs`), then runs `tauri icon` on two
+1024×1024 sources: the whole mascot on the white tile filling the canvas, and the
+identical icon on Apple's 824px macOS grid. Every PNG, the
 Windows `.ico` and the Store logos come from the first; the macOS `.icns` comes
 from the second. There is one icon at every size, with no head variant spliced
 into the small layers. The same run renders the brand PNGs under
@@ -780,16 +1051,19 @@ PNG-compressed small layer as a blank sheet. `scripts/icons/build-windows-ico.mj
 Tauri's layer order (32px first, then 16, 24, 48, 64, 256); `check:icons`
 fails the gate when the committed `icon.ico` drifts from that shape.
 
-The Windows installer is dressed from the same icons. `tauri.windows.conf.json`
+The Windows installer is dressed from the same drawing. `tauri.windows.conf.json`
 points `bundle.windows.nsis` at `icon.ico` for the installer and uninstaller
 executables and at two bitmaps under `src-tauri/windows/` that Modern UI 2
-draws at fixed sizes: `installer-sidebar.bmp` (164×314, the 128px icon on
-the light theme's warm white, shown on the Welcome and Finish pages) and
-`installer-header.bmp` (150×57, the 48px ICO layer on white, shown in the
-header of every other page). `scripts/icons/build-nsis-images.mjs` (the last
-step of `pnpm icons`) composes them as 24-bit BMPs from `128x128.png` and
-`icon.ico` without resampling; `check:icons` fails when the committed bitmaps
-drift from the icons. The installer ships English and Spanish (the app's two
+draws at fixed sizes: `installer-sidebar.bmp` (164×314, the whole mascot on
+the icon's white, shown on the Welcome and Finish pages) and
+`installer-header.bmp` (150×57, the mascot's head on the white, shown in the
+header of every other page). `mascot.mjs` composes both
+(`installerSourceSvg`); `pnpm icons` renders each in the corner of a square,
+because `tauri icon` renders only squares, and crops it to
+`src/assets/brand/png/gitodile-installer-*.png`.
+`scripts/icons/build-nsis-images.mjs` (the last step of `pnpm icons`) encodes
+those PNGs as the 24-bit BMPs NSIS needs without resampling; `check:icons`
+fails when the committed bitmaps drift from the PNGs. The installer ships English and Spanish (the app's two
 locales) and picks the system UI language without a selector dialog.
 `bundle.copyright` and `bundle.homepage` in `tauri.conf.json` feed the
 installer's branding text, the executables' version resources, and the
@@ -818,3 +1092,28 @@ Add an ADR before changing a durable decision such as the Git backend, state
 management model, credential storage, updates, telemetry, AI providers, WSL
 support, or extension architecture. Small ownership-preserving refactors do
 not need an ADR; update this document when the current architecture changes.
+
+## Clone source access and destination preview
+
+The eager clone overlay owns two input screens. Source selection hands the exact
+repository/connection to the editable destination. Its local native plan is
+refreshed on destination edits; only the matching plan can execute. The existing
+state-token, staging, verification, exclusive publication and recovery/error
+paths remain the mutation boundary.
+
+`features/clone/sourceAccess.ts` owns debounced source checks and generations.
+Editing a complete GitHub/GitLab address/account explicitly starts a read; visibility
+does not. A typed clone port invokes `check_clone_source`, which validates the
+fixed GitHub/GitLab host, protocol, complete (possibly nested) path and absence of URL secrets before credentials
+are read. `clone.rs` executes bounded, cancellable `git ls-remote --quiet -- URL
+HEAD` under the same process-scoped credentials as cloning. Success with zero
+refs is valid for an empty project. Failure never exposes stderr or tokens in
+the response, and lack of access is not labelled a definitely nonexistent repo.
+Checks have bounded cancellation tombstones for cancel-before-registration races.
+The default Git credential helpers and SSH configuration remain owned by Git;
+transient/authentication-tool failures can be checked during the actual clone.
+
+The reference inspected was GitButler's small remote transport representation
+(`crates/gitbutler-repo/src/remote.rs`): keep structured source metadata separate
+from the workflow. GitOdile keeps its existing system-Git/process policy instead
+of adopting GitButler's gix repository implementation. No code was adapted.

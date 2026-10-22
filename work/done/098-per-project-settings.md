@@ -29,7 +29,7 @@ rather than to this machine:
    overrides the global one, or explicit inheritance from it.
 
 It opens from a gear beside the star in the project switcher, and from a gear
-in the Overview summary card, next to the version-line controls.
+in the Overview summary card, next to the branch controls.
 
 # User outcome
 
@@ -110,13 +110,13 @@ remote with credentials says so before the user commits to replacing them.
   reason the row itself is; otherwise it activates that project first and then
   opens its settings.
 - The Overview `ProjectSummaryCard` gains the same gear in its actions row,
-  beside the version-line quick switch.
+  beside the branch quick switch.
 - Both surfaces get the same label and tooltip, because it is the same control.
 
 ## Remote
 
 - Lists every configured remote with its redacted URL, marking the one the
-  current version line publishes to.
+  current branch publishes to.
 - Editing a remote's URL validates through the existing connection rules,
   confirms the change inline (old → new, and that publishing and getting
   changes will use the new location), then writes with `git remote set-url` and

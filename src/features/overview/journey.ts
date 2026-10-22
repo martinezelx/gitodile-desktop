@@ -1,5 +1,5 @@
 import type { WorkingTreeStatus } from "../status";
-import type { TeamSyncViewState } from "../sync";
+import type { IncomingForecast, TeamSyncViewState } from "../sync";
 
 /** The three things the app is for, in the order they happen. Overview draws
  * them as one band — change, then save, then publish — so the model is on
@@ -26,6 +26,9 @@ export type Journey = {
   };
   publish: {
     state:
+      /** The branch's last known relation to its remote has not been read yet:
+       * a local read, not a check. */
+      | "reading"
       | "notChecked"
       | "checking"
       | "upToDate"
@@ -34,6 +37,8 @@ export type Journey = {
       | "diverged"
       | "noRemote"
       | "noUpstream"
+      /** The remote branch this branch tracks no longer exists there. */
+      | "upstreamGone"
       | "detached"
       | "unborn"
       | "unavailable";
@@ -42,13 +47,13 @@ export type Journey = {
      * remote has been checked this session. */
     pending: number;
     behind: number;
-    /** `origin/main`, when the line has a remote line to compare against. */
-    remoteLine: string | null;
-    /** The same line in its two parts, `origin` and `main`, for the tile that
+    /** `origin/main`, when the branch has a remote branch to compare against. */
+    remoteBranch: string | null;
+    /** The same branch in its two parts, `origin` and `main`, for the tile that
      * says them apart ("to origin · main") rather than as one ref. */
     remote: string | null;
     destinationBranch: string | null;
-    /** The line the project is on, so the tile can leave the destination
+    /** The branch the project is on, so the tile can leave the destination
      * unnamed when it is the same name — the header already says it. */
     localBranch: string | null;
     /** When the remote was last actually asked. A cached status was read from
@@ -64,6 +69,9 @@ export type Journey = {
     /** The local inventory of unpublished versions could not be read: the
      * band's count may be short, and the sentence under it says so. */
     inventoryError: string | null;
+    /** What getting the waiting versions would do, predicted locally;
+     * `null` when nothing is waiting or it couldn't be predicted. */
+    forecast: IncomingForecast | null;
   };
 };
 
@@ -106,15 +114,17 @@ export function deriveJourney({
   };
 
   const status = teamSync.status;
-  const remoteLine =
+  const remoteBranch =
     status?.upstreamRemote && status.destinationBranch
       ? `${status.upstreamRemote}/${status.destinationBranch}`
       : null;
   let publishState: Journey["publish"]["state"];
   if (teamSync.isCheckingRemote && !status) publishState = "checking";
   else if (teamSync.error && !status) publishState = "unavailable";
+  // Before the first local read lands there is no answer yet, not a remote
+  // that was never asked: saying "not checked" would flash on every opening.
+  else if (!status && (teamSync.isLoading || teamSync.generation === 0)) publishState = "reading";
   else if (!status) publishState = "notChecked";
-  else if (status.state === "unknown") publishState = "unavailable";
   else publishState = status.state;
   // The inventory knows about versions the last remote check predates; the
   // check knows about a remote that has moved on. Either alone would leave
@@ -125,9 +135,9 @@ export function deriveJourney({
     state: publishState,
     pending: pendingVersionsCount,
     behind: status?.behind ?? 0,
-    remoteLine,
-    remote: remoteLine ? (status?.upstreamRemote ?? null) : null,
-    destinationBranch: remoteLine ? (status?.destinationBranch ?? null) : null,
+    remoteBranch,
+    remote: remoteBranch ? (status?.upstreamRemote ?? null) : null,
+    destinationBranch: remoteBranch ? (status?.destinationBranch ?? null) : null,
     localBranch: status?.localBranch ?? null,
     checkedAt: status?.knowledge === "cached"
       ? teamSync.lastSuccessfulCheckAt
@@ -137,6 +147,7 @@ export function deriveJourney({
     isCached: status?.knowledge === "cached",
     error: teamSync.error,
     inventoryError: pendingVersionsError,
+    forecast: status?.forecast ?? null,
   };
 
   let activeStep: JourneyStepId | null = null;

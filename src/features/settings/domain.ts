@@ -96,6 +96,7 @@ export const SETTINGS_SECTIONS = [
   "reading",
   "console",
   "git",
+  "accounts",
   "line-endings",
   "updates",
 ] as const;
@@ -118,6 +119,7 @@ export function settingsSectionLabel(
     settingsReadingTitle: string;
     settingsConsoleTitle: string;
     settingsGitTitle: string;
+    settingsAccountsTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
   },
@@ -130,6 +132,7 @@ export function settingsSectionLabel(
     reading: t.settingsReadingTitle,
     console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
+    accounts: t.settingsAccountsTitle,
     "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,
   };
@@ -139,7 +142,55 @@ export function settingsSectionLabel(
 export type GitDiagnostics = {
   state: "available" | "missing" | "unusable" | "check_failed";
   version: string | null;
+  /** Only the system Git reports where it lives, and only once it ran. */
+  location?: GitLocation;
 };
+
+export type GitDistribution =
+  | "git_for_windows"
+  | "github_desktop"
+  | "scoop"
+  | "homebrew"
+  | "macports"
+  | "apple_developer_tools"
+  | "system_package"
+  | "other";
+
+/** The Git that GitOdile runs, read from its path without starting it. */
+export type GitLocation = {
+  executable: string;
+  distribution: GitDistribution;
+  /** Set for Git for Windows, whose installer offers both. */
+  scope: "all_users" | "current_user" | null;
+};
+
+export type GitPathFact = { path: string; exists: boolean };
+
+export type GitCredentialHelper =
+  | "none"
+  | "git_credential_manager"
+  | "macos_keychain"
+  | "libsecret"
+  | "windows_credential_store"
+  | "cache"
+  | "store"
+  | "other";
+
+/** What "Technical details" shows. Each fact is `null` when this Git could
+ * not answer it, which older Gits do for the configuration paths. */
+export type GitInstallationDetails = {
+  architecture: string | null;
+  execPath: GitPathFact | null;
+  globalConfig: GitPathFact | null;
+  systemConfig: GitPathFact | null;
+  credentialHelper: GitCredentialHelper;
+  largeFilesVersion: string | null;
+  editor: string | null;
+};
+
+/** The places the file manager can be asked to show. Rust finds each path
+ * again from this name; the renderer never sends one. */
+export type GitLocationTarget = "executable" | "global_config" | "system_config";
 
 /** The version worth reporting, or `null` when Git never answered. A version
  * field is carried in every state, but only `available` means the executable
@@ -159,13 +210,25 @@ export type GitUpdateStatus = {
   cached: boolean;
 };
 
+/** What an optional provider CLI asks of the reader. Not being installed asks
+ * nothing — the CLI is optional, and the connect panel says so where the
+ * browser method needs it; a CLI that is there but does not answer, or one
+ * with a known update, does. */
+export type ToolAttention = "update" | "problem" | null;
+
+export function toolAttention(diagnostics: GitDiagnostics | null, updateStatus: GitUpdateStatus | null): ToolAttention {
+  if (diagnostics === null || diagnostics.state === "missing") return null;
+  if (diagnostics.state !== "available") return "problem";
+  return updateStatus?.state === "update_available" ? "update" : null;
+}
+
 export type GitUpdateLaunchResult = {
   outcome: "started" | "already_starting" | "unavailable" | "failed";
 };
 
 export type GitIdentity = { name: string | null; email: string | null };
 
-/** The name Git gives a new project's first version line, from the global
+/** The name Git gives a new project's first branch, from the global
  * `init.defaultBranch`. `null` means the key is unset and Git's own built-in
  * default applies — a state to report, not a name to claim. */
 export type GitDefaultBranch = { name: string | null };

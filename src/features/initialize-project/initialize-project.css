@@ -47,12 +47,32 @@
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
-  background: var(--surface-panel);
+  background: var(--surface-card);
 }
-.initialize-dialog__mode label.is-selected { border-color: var(--accent-primary); background: var(--surface-active); }
+/* The shared selected recipe (`choice-list__option--active`). */
+.initialize-dialog__mode label.is-selected {
+  border-color: var(--text-secondary-color);
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
+}
 /* The radio stays visible: which card is chosen is said by the mark, not
-   only by a border colour. */
-.initialize-dialog__mode input { margin: 2px 0 0; accent-color: var(--accent-primary); }
+   only by a border colour. It is drawn as the app's own round mark — the
+   checkbox's circle with a dot — rather than the platform's control, which
+   painted Windows' blue into an ink theme. */
+.initialize-dialog__mode input {
+  appearance: none; display: grid; place-content: center;
+  width: 18px; height: 18px; margin: 1px 0 0;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  background: var(--surface-raised);
+  transition: border-color var(--duration-fast);
+}
+.initialize-dialog__mode input::before {
+  content: ""; width: 8px; height: 8px; border-radius: var(--radius-round);
+  background: var(--accent-primary); transform: scale(0);
+  transition: transform var(--duration-fast);
+}
+.initialize-dialog__mode input:hover { border-color: var(--accent-primary); }
+.initialize-dialog__mode input:checked { border-color: var(--accent-primary); }
+.initialize-dialog__mode input:checked::before { transform: scale(1); }
 .initialize-dialog__mode label:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .initialize-dialog__mode span { display: grid; gap: var(--space-1); }
 .initialize-dialog__mode strong { color: var(--text-primary-color); font-size: var(--text-body); }
@@ -65,8 +85,9 @@
   gap: var(--space-3);
   margin: 0 0 0 28px;
   padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
-  background: var(--surface-hover);
+  background: var(--surface-card);
 }
 .initialize-dialog__nested-fields > .initialize-dialog__field { width: 100%; }
 .initialize-dialog__nested-fields--remote { grid-template-columns: minmax(130px, 0.35fr) minmax(0, 1fr); }
@@ -84,9 +105,12 @@
 
 @media (forced-colors: active) {
   .initialize-dialog__mode label { border: 1px solid currentColor; }
+  /* A forced palette drops the drawn dot's fill: the platform's radio again,
+     as `.app-checkbox` does. */
+  .initialize-dialog__mode input { appearance: auto; }
 }
 
-/* What most people never change — the main line's name, a README, a remote —
+/* What most people never change — the main branch's name, a README, a remote —
    folded under one line, so the form is the three things that matter. */
 .initialize-dialog__advanced > summary {
   width: fit-content;

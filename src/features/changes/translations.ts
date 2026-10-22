@@ -5,6 +5,8 @@ export interface ChangesTranslations {
   changesEmptyPublish: (count: number) => string;
   changesEmptyBehindDescription: (count: number) => string;
   changesEmptyGetChanges: string;
+  /** Asks the remote whether anything newer arrived, without bringing it in. */
+  changesEmptyCheckRemote: string;
   changesEmptyViewHistory: string;
   changesEmptyUpToDateTitle: string;
   changesEmptyUpToDateDescription: string;
@@ -112,6 +114,7 @@ export interface ChangesTranslations {
   changesSaveVersionNoSelectionHint: string;
   changesQuickCommitFiles: (saved: number, total: number) => string;
   changesQuickCommitSaving: string;
+  changesQuickCommitClose: string;
 
   changesSelectAll: string;
   changesSelectNone: string;
@@ -184,6 +187,7 @@ const en: ChangesTranslations = {
       ? "1 newer version is available on the remote."
       : `${count} newer versions are available on the remote.`,
   changesEmptyGetChanges: "Get project changes",
+  changesEmptyCheckRemote: "Check for project changes",
   changesEmptyViewHistory: "View history",
   changesEmptyUpToDateTitle: "You're all caught up",
   changesEmptyUpToDateDescription: "Everything is saved and published.",
@@ -193,7 +197,7 @@ const en: ChangesTranslations = {
   changesEmptyUnbornTitle: "No saved versions yet",
   changesEmptyUnbornDescription: "Your first saved version starts this project's history.",
   changesEmptyDetachedTitle: "You're viewing an old version",
-  changesEmptyDetachedDescription: "This is a point in history, not a version line. Switch back to a line to keep working.",
+  changesEmptyDetachedDescription: "This is a point in history, not a branch. Switch back to a branch to keep working.",
   changesBackToList: "Back to the file list",
   changesListAriaLabel: "Changed files",
   changesCategoryLabelChanged: "Edited",
@@ -298,6 +302,7 @@ const en: ChangesTranslations = {
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 file" : `${total} files`) : `${saved} of ${total} files`,
   changesQuickCommitSaving: "Saving…",
+  changesQuickCommitClose: "Close save version form",
 
   changesSelectAll: "Select all",
   changesSelectNone: "Select none",
@@ -376,6 +381,7 @@ const es: ChangesTranslations = {
       ? "Hay 1 versión nueva en el remoto."
       : `Hay ${count} versiones nuevas en el remoto.`,
   changesEmptyGetChanges: "Traer cambios del proyecto",
+  changesEmptyCheckRemote: "Comprobar cambios del proyecto",
   changesEmptyViewHistory: "Ver historial",
   changesEmptyUpToDateTitle: "Todo al día",
   changesEmptyUpToDateDescription: "Todo está guardado y publicado.",
@@ -385,7 +391,7 @@ const es: ChangesTranslations = {
   changesEmptyUnbornTitle: "Aún no hay versiones guardadas",
   changesEmptyUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
   changesEmptyDetachedTitle: "Estás viendo una versión antigua",
-  changesEmptyDetachedDescription: "Es un punto del historial, no una línea de versión. Vuelve a una línea para seguir trabajando.",
+  changesEmptyDetachedDescription: "Es un punto del historial, no una rama. Vuelve a una rama para seguir trabajando.",
   changesBackToList: "Volver a la lista de archivos",
   changesListAriaLabel: "Archivos con cambios",
   changesCategoryLabelChanged: "Editado",
@@ -485,6 +491,7 @@ const es: ChangesTranslations = {
   changesQuickCommitFiles: (saved, total) =>
     saved === total ? (total === 1 ? "1 archivo" : `${total} archivos`) : `${saved} de ${total} archivos`,
   changesQuickCommitSaving: "Guardando…",
+  changesQuickCommitClose: "Cerrar formulario de guardar versión",
 
   changesSelectAll: "Seleccionar todo",
   changesSelectNone: "No seleccionar ninguno",

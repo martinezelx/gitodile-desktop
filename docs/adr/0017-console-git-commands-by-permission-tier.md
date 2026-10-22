@@ -5,6 +5,9 @@
 - Implemented by: [epic 138](../../work/done/138-console-git-commands.md)
   (Read, Local change and Remote tiers). The History and Destructive tiers,
   and section 5, are [task 139](../../work/blocked/139-console-history-and-destructive-commands.md).
+- Section 4 (advanced mode and the read-only default) is replaced by
+  [ADR 0028](0028-console-runs-changes-without-a-read-only-mode.md): changes
+  run for everyone, and change confirmations are the console's only setting.
 
 ## Context
 
@@ -108,7 +111,7 @@ is a Remote plan only as a fast-forward, so the plan adds `--no-rebase
 `revert` gets `--no-edit` to keep Git's own message. `stash pop` and
 `stash branch` drop the entry they apply, so they are Destructive, while
 `stash apply` is a Local change. `checkout <name>` is Destructive until the
-plan looks the name up: an existing line (or a single remote line Git would
+plan looks the name up: an existing branch (or a single remote branch Git would
 track) makes it a Local change switch, anything else may restore a file.
 
 ### 3. Every run is a plan Rust issued
@@ -122,7 +125,7 @@ changing anything: the files `clean -n` would remove, the diff `reset --hard`
 would discard, the commits a force push would drop from the remote.
 
 The plan is bound to a fingerprint of the repository state it describes (HEAD,
-the current line, the index and working-tree status, and the remote-tracking
+the current branch, the index and working-tree status, and the remote-tracking
 ref involved). A read runs through `run_console_plan(path, sessionEpoch,
 planId)`; a change runs through `run_console_change(path, sessionEpoch, planId,
 answer)`, which has the exclusive write policy, re-reads that state and refuses
@@ -139,6 +142,9 @@ Rust checks the answer again. Someone who chooses the **root** console mode
 prints, and the fingerprint still refuses a moved repository.
 
 ### 4. Advanced mode is a Rust-held setting, off by default
+
+> Replaced by [ADR 0028](0028-console-runs-changes-without-a-read-only-mode.md).
+> Kept as the record of the original decision.
 
 Only the **Read** tier runs by default. Everything above it requires advanced
 mode. Rust holds two settings, advanced mode and change confirmations (on by

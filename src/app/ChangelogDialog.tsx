@@ -4,7 +4,7 @@ import { Check, ChevronDown, Sparkles } from "lucide-react";
 
 import { useLanguage } from "../i18n";
 import { formatDate, type LocaleFormats } from "../shared/i18n";
-import { DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, useModalFocus } from "../shared/ui";
+import { DialogCloseButton, ReleaseHighlights, autoHideScrollbarProps, dialogBackdropProps, useModalFocus } from "../shared/ui";
 import { APP_CHANGELOG, CURRENT_APP_RELEASE, type AppReleaseEntry } from "./appRelease";
 
 /** Dates are stored as ISO in the release model and formatted here, so the
@@ -197,23 +197,26 @@ export function ChangelogDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
+    <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => setOpen(false))}>
       <div
-        {...autoHideScrollbarProps<HTMLDivElement>()}
         ref={dialogRef}
-        className="about-dialog changelog-dialog auto-hide-scrollbar"
+        className="about-dialog changelog-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="changelog-title"
         tabIndex={-1}
-        onMouseDown={(event) => event.stopPropagation()}
       >
-        <DialogCloseButton label={t.commonClose} onClick={() => setOpen(false)} />
         {/* Mark and title, with About's update line under the title turned
             around: About states the update and links here; this states it
             and links to the check. Is there a newer version? is a question
             about the app, not one more entry in its history, so it heads the
-            dialog rather than waiting below every old release. */}
+            dialog rather than waiting below every old release. The header
+            and its close control stay put; only the releases below scroll,
+            so opening a few earlier versions never carries the way out off
+            screen or floats it over the notes. Focus lands on that list,
+            not on the update link, so the arrow and page keys scroll the
+            notes from the moment the dialog opens, as they did when the whole
+            dialog was the scroller. */}
         <header className="changelog-dialog__header">
           <div className="changelog-dialog__mark" aria-hidden="true">
             <Sparkles />
@@ -222,22 +225,30 @@ export function ChangelogDialog({
             <h2 id="changelog-title">{t.changelogTitle}</h2>
             <UpdateLine status={updateStatus ?? null} onCheckForUpdates={onCheckForUpdates} onOpenUpdates={onOpenUpdates} />
           </div>
+          <DialogCloseButton label={t.commonClose} onClick={() => setOpen(false)} />
         </header>
-        <CurrentRelease release={CURRENT_APP_RELEASE} />
-        {earlierReleases.length > 0 && (
-          <section className="changelog-earlier" aria-labelledby="changelog-earlier-heading">
-            <h3 id="changelog-earlier-heading" className="changelog-earlier__heading">{t.changelogEarlierHeading}</h3>
-            {/* `role="list"` because both lists drop `list-style`, and WebKit —
-                the engine behind the macOS build — removes list semantics along
-                with the marker. The count is the point here: "six changes in this
-                release" is what a screen-reader user is owed. */}
-            <ol className="changelog" role="list">
-              {earlierReleases.map((release) => (
-                <EarlierRelease key={release.version} release={release} />
-              ))}
-            </ol>
-          </section>
-        )}
+        <div
+          {...autoHideScrollbarProps<HTMLDivElement>()}
+          className="changelog-dialog__body auto-hide-scrollbar"
+          tabIndex={-1}
+          data-autofocus
+        >
+          <CurrentRelease release={CURRENT_APP_RELEASE} />
+          {earlierReleases.length > 0 && (
+            <section className="changelog-earlier" aria-labelledby="changelog-earlier-heading">
+              <h3 id="changelog-earlier-heading" className="changelog-earlier__heading">{t.changelogEarlierHeading}</h3>
+              {/* `role="list"` because both lists drop `list-style`, and WebKit —
+                  the engine behind the macOS build — removes list semantics along
+                  with the marker. The count is the point here: "six changes in this
+                  release" is what a screen-reader user is owed. */}
+              <ol className="changelog" role="list">
+                {earlierReleases.map((release) => (
+                  <EarlierRelease key={release.version} release={release} />
+                ))}
+              </ol>
+            </section>
+          )}
+        </div>
       </div>
     </div>
   );

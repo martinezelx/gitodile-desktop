@@ -142,6 +142,19 @@ pub(crate) fn command() -> Command {
         .env("LC_ALL", "C")
         .env("LANG", "C")
         .env("GIT_OPTIONAL_LOCKS", "0");
+    // App diagnostics are bounded and redacted. Inherited Git trace modes can
+    // dump credential/cURL traffic before that boundary has a chance to redact.
+    for name in [
+        "GIT_TRACE",
+        "GIT_TRACE_CURL",
+        "GIT_CURL_VERBOSE",
+        "GIT_TRACE_PACKET",
+        "GIT_TRACE2",
+        "GIT_TRACE2_EVENT",
+        "GIT_TRACE2_PERF",
+    ] {
+        command.env_remove(name);
+    }
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
     command
@@ -263,9 +276,88 @@ where
     if let Some(cwd) = cwd {
         process.arg("-C").arg(cwd);
     }
+    process.args(args).envs(envs.iter().copied());
+    run_bounded(process, input, policy, cancellation).map_err(|failure| match failure {
+        ProgramFailure::Start(error) => start_error(error),
+        ProgramFailure::Output => {
+            AppError::new(AppErrorCode::GitUnusable, "Git's output couldn't be read.")
+        }
+        ProgramFailure::InputUnavailable => {
+            AppError::new(AppErrorCode::GitUnusable, "Git's input couldn't be opened.")
+        }
+        ProgramFailure::InputRejected => AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't receive its input.",
+        ),
+        ProgramFailure::Cancelled => AppError::new(
+            AppErrorCode::OperationCancelled,
+            "The Git operation was cancelled.",
+        ),
+        ProgramFailure::TimedOut => AppError::new(
+            AppErrorCode::GitTimeout,
+            "Git took too long and was stopped.",
+        )
+        .with_remediation("Check the project and try again."),
+        ProgramFailure::Wait => AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't finish the operation.",
+        ),
+    })
+}
+
+/// Why a bounded program did not produce an exit status. Each caller names
+/// its own program in the error it builds from this.
+#[derive(Debug)]
+pub(crate) enum ProgramFailure {
+    Start(std::io::Error),
+    Output,
+    InputUnavailable,
+    InputRejected,
+    Cancelled,
+    TimedOut,
+    Wait,
+}
+
+/// Runs a program other than Git under an execution policy: the same output
+/// caps, timeout, cancellation and process-tree cleanup as Git, with standard
+/// input closed. The caller builds the command, its arguments and its
+/// environment; this never goes through a shell.
+pub(crate) fn run_program(
+    process: Command,
+    policy: ExecutionPolicy,
+    cancellation: Option<&CancellationToken>,
+) -> Result<BoundedOutput, ProgramFailure> {
+    #[cfg(target_os = "windows")]
+    let process = {
+        let mut process = process;
+        process.creation_flags(CREATE_NO_WINDOW);
+        process
+    };
+    run_bounded(
+        process,
+        None,
+        ExecutionPolicy {
+            prompt: PromptPolicy::Disabled,
+            ..policy
+        },
+        cancellation,
+    )
+}
+
+fn run_bounded(
+    mut process: Command,
+    input: Option<&[u8]>,
+    policy: ExecutionPolicy,
+    cancellation: Option<&CancellationToken>,
+) -> Result<BoundedOutput, ProgramFailure> {
+    // An already-cancelled operation must not start Git or its descendants.
+    // On Windows they can outlive the parent and keep its output pipes open.
+    if policy.cancellation == CancellationPolicy::KillProcess
+        && cancellation.is_some_and(CancellationToken::is_cancelled)
+    {
+        return Err(ProgramFailure::Cancelled);
+    }
     process
-        .args(args)
-        .envs(envs.iter().copied())
         .stdin(if input.is_some() {
             Stdio::piped()
         } else {
@@ -277,36 +369,24 @@ where
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = process.spawn().map_err(start_error)?;
-    let stdout = child.stdout.take().ok_or_else(|| {
-        AppError::new(AppErrorCode::GitUnusable, "Git's output couldn't be read.")
-    })?;
-    let stderr = child.stderr.take().ok_or_else(|| {
-        AppError::new(AppErrorCode::GitUnusable, "Git's errors couldn't be read.")
-    })?;
+    let mut child = process.spawn().map_err(ProgramFailure::Start)?;
+    let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
+        terminate(&mut child);
+        return Err(ProgramFailure::Output);
+    };
     // Drain output before writing even a bounded input batch. Some machine
     // protocols answer one record at a time, so filling stdout while the
     // parent is still filling stdin must not deadlock on a small OS pipe.
-    let stdout_reader = start_reader(stdout, policy.stdout_cap);
-    let stderr_reader = start_reader(stderr, policy.stderr_cap);
+    let readers = [
+        start_reader(stdout, policy.stdout_cap),
+        start_reader(stderr, policy.stderr_cap),
+    ];
     if let Some(input) = input {
         let Some(mut stdin) = child.stdin.take() else {
-            terminate(&mut child);
-            let _ = stdout_reader.join();
-            let _ = stderr_reader.join();
-            return Err(AppError::new(
-                AppErrorCode::GitUnusable,
-                "Git's input couldn't be opened.",
-            ));
+            return stop(&mut child, readers, ProgramFailure::InputUnavailable);
         };
         if stdin.write_all(input).is_err() {
-            terminate(&mut child);
-            let _ = stdout_reader.join();
-            let _ = stderr_reader.join();
-            return Err(AppError::new(
-                AppErrorCode::GitCommandFailed,
-                "Git couldn't receive its input.",
-            ));
+            return stop(&mut child, readers, ProgramFailure::InputRejected);
         }
         drop(stdin);
     }
@@ -316,39 +396,19 @@ where
         if policy.cancellation == CancellationPolicy::KillProcess
             && cancellation.is_some_and(CancellationToken::is_cancelled)
         {
-            terminate(&mut child);
-            let _ = stdout_reader.join();
-            let _ = stderr_reader.join();
-            return Err(AppError::new(
-                AppErrorCode::OperationCancelled,
-                "The Git operation was cancelled.",
-            ));
+            return stop(&mut child, readers, ProgramFailure::Cancelled);
         }
         if started.elapsed() >= policy.timeout {
-            terminate(&mut child);
-            let _ = stdout_reader.join();
-            let _ = stderr_reader.join();
-            return Err(AppError::new(
-                AppErrorCode::GitTimeout,
-                "Git took too long and was stopped.",
-            )
-            .with_remediation("Check the project and try again."));
+            return stop(&mut child, readers, ProgramFailure::TimedOut);
         }
         match child.try_wait() {
             Ok(Some(status)) => break status,
             Ok(None) => thread::sleep(Duration::from_millis(10)),
-            Err(_) => {
-                terminate(&mut child);
-                let _ = stdout_reader.join();
-                let _ = stderr_reader.join();
-                return Err(AppError::new(
-                    AppErrorCode::GitCommandFailed,
-                    "Git couldn't finish the operation.",
-                ));
-            }
+            Err(_) => return stop(&mut child, readers, ProgramFailure::Wait),
         }
     };
 
+    let [stdout_reader, stderr_reader] = readers;
     let (stdout, stdout_truncated) = stdout_reader.join().unwrap_or_default();
     let (stderr, stderr_truncated) = stderr_reader.join().unwrap_or_default();
     Ok(BoundedOutput {
@@ -358,6 +418,19 @@ where
         stdout_truncated,
         stderr_truncated,
     })
+}
+
+/// Ends a run that will not report an exit status, and its output readers.
+fn stop(
+    child: &mut Child,
+    readers: [thread::JoinHandle<(Vec<u8>, bool)>; 2],
+    failure: ProgramFailure,
+) -> Result<BoundedOutput, ProgramFailure> {
+    terminate(child);
+    for reader in readers {
+        let _ = reader.join();
+    }
+    Err(failure)
 }
 
 /// Removes credentials and token-bearing URL components from safe diagnostic
@@ -498,6 +571,27 @@ mod tests {
         let error = result.unwrap_err();
         assert_eq!(error.code, AppErrorCode::OperationCancelled);
         assert!(error.message.contains("cancelled"));
+    }
+
+    #[test]
+    fn pre_cancelled_work_never_attempts_to_spawn_but_respects_non_cancellable_policy() {
+        let missing = std::env::temp_dir().join(format!(
+            "gitodile-missing-cancellation-fixture-{}",
+            std::process::id()
+        ));
+        assert!(!missing.exists());
+        let token = CancellationToken::default();
+        token.cancel();
+        let mut policy = ExecutionPolicy::repository_read("cancel_before_spawn_test");
+        assert!(matches!(
+            run_program(Command::new(&missing), policy, Some(&token)),
+            Err(ProgramFailure::Cancelled)
+        ));
+        policy.cancellation = CancellationPolicy::NotSupported;
+        assert!(matches!(
+            run_program(Command::new(&missing), policy, Some(&token)),
+            Err(ProgramFailure::Start(error)) if error.kind() == ErrorKind::NotFound
+        ));
     }
 
     #[test]

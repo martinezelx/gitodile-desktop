@@ -81,9 +81,18 @@ test("rebuildIco converts the small layers to DIBs and leaves the 256px layer as
   assert.ok(rebuildIco(rebuilt).equals(rebuilt));
 });
 
+test("rebuildIco puts the layers in Tauri's order whatever order tauri icon wrote", () => {
+  const smallestFirst = rebuildIco(tauriStyleIco([16, 24, 32, 48, 64, 256]));
+  assert.deepEqual(verifyIco(smallestFirst), []);
+  assert.deepEqual(
+    parseIco(smallestFirst).map((entry) => entry.width),
+    expectedLayerSizes,
+  );
+});
+
 test("verifyIco reports order, shape and encoding problems", () => {
   assert.deepEqual(verifyIco(Buffer.from("nope")), ["not an ICO file"]);
-  const reordered = rebuildIco(tauriStyleIco([16, 32, 24, 48, 64, 256]));
+  const reordered = tauriStyleIco([16, 32, 24, 48, 64, 256]);
   assert.match(verifyIco(reordered)[0], /layer sizes are \[16, 32, 24, 48, 64, 256\]/);
   const missing256 = rebuildIco(tauriStyleIco([32, 16, 24, 48, 64]));
   assert.match(verifyIco(missing256)[0], /expected \[32, 16, 24, 48, 64, 256\]/);

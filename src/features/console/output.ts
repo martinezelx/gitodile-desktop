@@ -1,4 +1,4 @@
-import type { ConsoleOperationId } from "./domain";
+import { isHostingId, type ConsoleOperationId, type ConsoleQueryId } from "./domain";
 import type { OutputShape } from "./port";
 
 export type OutputTone =
@@ -89,8 +89,9 @@ const QUERY_SHAPES: Record<ConsoleOperationId, OutputShape> = {
   branches: "branches", tags: "plain", remotes: "remotes", stashes: "stashes", authors: "authors",
 };
 
-export function queryShape(operationId: ConsoleOperationId): OutputShape {
-  return QUERY_SHAPES[operationId];
+export function queryShape(operationId: ConsoleQueryId): OutputShape {
+  // gh and glab print their own tables, which no Git shape describes.
+  return isHostingId(operationId) ? "plain" : QUERY_SHAPES[operationId];
 }
 
 function statusLines(lines: readonly string[]): OutputSegment[][] {

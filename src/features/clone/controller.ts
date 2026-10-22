@@ -1,5 +1,6 @@
 import type { ClonePlan, CloneProgressPhase, CloneRequest, CloneResult } from "./domain";
 import type { ClonePort } from "./port";
+import { createCloneSourceAccess } from "./sourceAccess";
 
 export type CloneAttempt = {
   generation: number;
@@ -17,6 +18,7 @@ export function createCloneController(port: ClonePort) {
   let activeOperation: { generation: number; operationId: string } | null = null;
 
   return {
+    sourceAccess: createCloneSourceAccess(port),
     chooseParent(initialParent?: string): Promise<string | null> {
       return port.chooseParent(initialParent);
     },

@@ -106,6 +106,7 @@ export function WorkbenchTabs({
             aria-selected={isActive}
             aria-controls={workbenchPanelId(tab)}
             tabIndex={isActive ? 0 : -1}
+            data-screen-focus={isActive ? "" : undefined}
             onClick={() => select(tab)}
             onKeyDown={onKeyDown}
           >

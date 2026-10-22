@@ -69,7 +69,7 @@ fallback. Deleting it without replacing that path breaks the Rust suite.
   `compatibility_capped_git_read` policy names.
 - Add a test proving a Git call without a frame fails.
 - Check `changes.rs`, `publish.rs`, `repository.rs`, `save_version.rs`,
-  `status.rs` and `version_lines.rs` test modules for the same pattern; they
+  `status.rs` and `branches.rs` test modules for the same pattern; they
   hold 63 further `run_git` call sites between them, and some are inside
   workflows that do enter a frame.
 
@@ -136,7 +136,7 @@ All 45 were test-side, and no production path was missing a frame. The three
 categories:
 
 - **Assertions reading repository state** (`git log -1`, `git ls-files`,
-  `git show HEAD:file`) — 28 sites in `lib.rs` and 4 in `version_lines.rs`. They
+  `git show HEAD:file`) — 28 sites in `lib.rs` and 4 in `branches.rs`. They
   now call the crate-level `#[cfg(test)] test_git`, which enters an explicit
   test-only frame.
 - **Internal helpers called directly** — `resolve_index_path`,
@@ -158,7 +158,7 @@ and no test can pass under a policy the production path never uses.
 
 The first attempt rewrote `run_git(` to `test_git(` by line range, assuming
 `mod tests` was the tail of each file. It is not: `changes.rs` and
-`version_lines.rs` both continue with production code after their test module,
+`branches.rs` both continue with production code after their test module,
 so the rewrite silently converted production Git calls. The compiler caught it,
 but only because the helper is `#[cfg(test)]` — a rename between two functions
 that both existed would have compiled and shipped. The corrected pass used each
@@ -169,9 +169,9 @@ module's actual test-module span.
 This change touches every Git call in the product, so it was verified in the
 real app rather than only under the test runner. A release build opened the
 task-023 standard fixture and every Git-running command was invoked over real
-IPC: `open_repository`, `read_working_tree_status`, `get_version_lines`,
+IPC: `open_repository`, `read_working_tree_status`, `get_branches`,
 `plan_save_version`, `discover_remotes`, `list_unpublished_versions`,
-`read_working_tree_diffs`, `plan_create_version_line`, `git_diagnostics`,
+`read_working_tree_diffs`, `plan_create_branch`, `git_diagnostics`,
 `get_git_identity`, `check_git_update` — all succeeded.
 
 The task-021 warmed protocol still passes: first selected diff 384 ms, warm

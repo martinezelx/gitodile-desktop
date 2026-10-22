@@ -15,13 +15,13 @@ completed: 2026-08-14
 # Goal
 
 Give the active project an explicit **Check for team changes** action and a
-durable, plain-language sync summary for the current version line. The check
+durable, plain-language sync summary for the current branch. The check
 may contact its configured upstream and update local remote-tracking metadata,
 but it must not change the current branch, `HEAD`, index, or working files.
 
 # User outcome
 
-The user can tell whether their current version line is up to date, has saved
+The user can tell whether their current branch is up to date, has saved
 versions to publish, has newer team versions available, or has moved apart
 from the team version. They can see when GitOdile last contacted the remote
 and choose an implemented next action without interpreting `fetch`, upstreams,
@@ -32,8 +32,7 @@ or ahead/behind notation.
 Task 011 already delivered most of the native groundwork inside
 `src-tauri/src/publish.rs`: remote discovery and selection, URL redaction,
 network execution with timeout/cancellation, a fresh fetch preflight, and
-ahead/behind/diverged classification. Working-tree status and the Version
-lines screen also expose relation counts derived from locally known
+ahead/behind/diverged classification. Working-tree status and the Branches screen also expose relation counts derived from locally known
 remote-tracking refs.
 
 This task must extract and harden that behavior as a provider-neutral `sync`
@@ -66,7 +65,7 @@ components do not call `invoke`, and `main.tsx` remains composition-only.
 ## Local-known and fresh status commands
 
 - Add a local-only `read_team_sync_status` command that compares the current
-  version line with the remote-tracking ref already present locally. It never
+  branch with the remote-tracking ref already present locally. It never
   contacts a remote and returns cached/locally-known knowledge.
 - Add an explicit `check_team_changes` command that:
   - revalidates repository and session identity;
@@ -77,7 +76,7 @@ components do not call `invoke`, and `main.tsx` remains composition-only.
     the index/worktree, or add an implicit tag policy;
   - recomputes the relation from commit ancestry after the fetch;
   - reports a fresh check time only after fetch and classification succeed.
-- A line without an upstream is not silently compared with a same-named branch
+- A branch without an upstream is not silently compared with a same-named branch
   on an arbitrary remote. Return a setup-required state; publishing remains
   the flow that selects a destination and creates tracking.
 - A fetch is a network read from the user's perspective but a local metadata
@@ -153,7 +152,7 @@ session** until an explicit network check succeeds.
 
 ## Secondary consumers
 
-- Version lines keeps its locally-known per-line relation pills. A successful
+- Branches keeps its locally-known per-branch relation pills. A successful
   check refreshes those facts through normal shared-ref invalidation; the
   screen does not gain a network action.
 - History may later consume the shared publication/reachability vocabulary,
@@ -165,7 +164,7 @@ session** until an explicit network check succeeds.
 - Integrating, merging, rebasing, or resolving overlapping changes.
 - Automatic/background/periodic network checks.
 - Checking every open project or every remote as a batch.
-- Selecting an arbitrary target for a line with no upstream.
+- Selecting an arbitrary target for a branch with no upstream.
 - Adding, editing, deleting, or pruning remotes/remote-tracking branches.
 - Built-in provider login, clone, pull requests, or hosting-specific APIs.
 - Persisting remote truth or credentials in frontend storage.
@@ -273,7 +272,7 @@ Use local bare remotes and separate clones/worktrees for:
 - Remote checks are explicit and project-scoped, never automatic.
 - No-upstream means setup required; sync does not guess an inbound target.
 - Freshness is session truth. Relaunch reconstructs only cached local knowledge.
-- Overview owns primary placement; Version lines remains a secondary cached
+- Overview owns primary placement; Branches remains a secondary cached
   view and no standalone Sync screen is added.
 - Divergence is explained and blocked from automatic resolution.
 

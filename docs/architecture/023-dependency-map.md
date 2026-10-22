@@ -1,5 +1,11 @@
 # Task 023 dependency and responsibility map
 
+Measurements below describe the historical snapshot; branch terminology and
+identifier spelling have been normalized without changing the recorded numbers.
+For the current implementation paths, see
+[ADR 0035](../adr/0035-use-branches-as-the-product-vocabulary.md) and
+[the current architecture](../ARCHITECTURE.md).
+
 This is the pre-migration map for epic 022. It describes production code at
 commit `bce8db0` and was rechecked from the identical `src/` and
 `src-tauri/src/` trees at `1dac6eb`. The target boundaries are accepted in
@@ -40,14 +46,14 @@ CI must continue to distinguish that debt from an actual eager import.
 | Module(s) | Current responsibility | Material outgoing edges / issue |
 | --- | --- | --- |
 | `main.tsx` | bootstrap, window show, shell, repository sessions, request generations, watcher subscription, refresh/mutation orchestration, Overview, Settings, dialogs and feature composition | imports almost every durable concept; direct IPC calls; root of all current feature composition |
-| `screens.tsx` | navigation registry, lazy screen declarations, idle prefetch list, keep-alive host and switch profiler | dynamic edges to Changes, Version lines, dialogs and pending/publish chunks; type edge to `projectSessions` |
-| `projectSessions.ts` | open-project reducer, cached status/version-line/pending snapshots, navigation and mutation phases | type edges to `repositoryOverview`, `publish` and `versionLines`; canonical path currently doubles as session identity |
+| `screens.tsx` | navigation registry, lazy screen declarations, idle prefetch list, keep-alive host and switch profiler | dynamic edges to Changes, Branches, dialogs and pending/publish chunks; type edge to `projectSessions` |
+| `projectSessions.ts` | open-project reducer, cached status/branch/pending snapshots, navigation and mutation phases | type edges to `repositoryOverview`, `publish` and `branches`; canonical path currently doubles as session identity |
 | `repositoryOverview.ts` | repository/status wire shapes plus plain-language status derivation and sorting | imported by app, changes, save, publish and session modules; it is the current accidental domain-type hub |
 | `changes.tsx` | changes screen, diff types/parsing presentation, file selection, virtualization, file reads, save dialog and speculative batch warm-up | runtime edges to `diffCache`, `saveVersionDialog`, file icons and UI helpers; direct IPC calls |
 | `diffCache.ts` | per-project diff cache and `read_file_diff` request dedupe | runtime edge from Changes/app; type-only edge back to `changes` creates the mixed cycle |
 | `saveVersion.ts`, `saveVersionDialog.tsx` | save plan/result types, breakdown and save workflow | dialog directly invokes plan/execute commands; Changes owns its visual entry |
 | `publish.ts`, `publishDialog.tsx`, `pendingVersions.tsx` | publish/remotes/pending types and workflows, saved-version file inspection | both visual modules import runtime helpers/types from Changes and file icons; direct IPC calls |
-| `versionLines.ts`, `versionLinesPanel.tsx`, `versionLinesDialog.tsx` | branch inventory types and create/switch/delete workflow | panel imports dialogs; dialogs invoke Rust directly; app owns snapshot freshness |
+| `branches.ts`, `branchesPanel.tsx`, `branchesDialog.tsx` | branch inventory types and create/switch/delete workflow | panel imports dialogs; dialogs invoke Rust directly; app owns snapshot freshness |
 | `fileIcons.ts` | approximately 70 generated file-type SVG components and path-to-icon mapping | shared by Changes, pending versions, publish and Overview's deferred icon; deliberately isolated in a separate chunk |
 | `i18n.tsx`, `styles.css` | all translations and all product styling | global ownership is postponed to task 030, deliberately after feature behavior migrates |
 | `appError.ts`, `modalFocus.ts`, `autoHideScrollbar.ts`, `loadingBar.tsx`, `popupMenu.tsx`, `tooltip.tsx`, `projectAvatar.ts` | stable cross-cutting helpers/primitives | candidates for shared placement only where their present consumers prove stable reuse |
@@ -66,11 +72,11 @@ changes -> appError, autoHideScrollbar, diffCache, fileIcons, i18n,
 diffCache -> type:changes, type:repositoryOverview
 main -> appError, autoHideScrollbar, diffCache, i18n, loadingBar, modalFocus,
         projectSessions, projectSwitcher, repositoryOverview, screens, styles,
-        tooltip, type:publish, type:versionLines
+        tooltip, type:publish, type:branches
 main -> dynamic:fileIcons, dynamic:pendingVersions, dynamic:publishDialog,
-        dynamic:versionLinesDialog
+        dynamic:branchesDialog
 pendingVersions -> autoHideScrollbar, changes, fileIcons, i18n, type:publish
-projectSessions -> type:publish, type:repositoryOverview, type:versionLines
+projectSessions -> type:publish, type:repositoryOverview, type:branches
 projectSwitcher -> autoHideScrollbar, i18n, projectAvatar
 publish -> type:repositoryOverview
 publishDialog -> appError, autoHideScrollbar, changes, fileIcons, i18n,
@@ -80,12 +86,12 @@ saveVersionDialog -> appError, autoHideScrollbar, i18n, modalFocus,
                      saveVersion, type:repositoryOverview
 screens -> type:i18n, type:projectSessions
 screens -> dynamic:changes, dynamic:pendingVersions, dynamic:publishDialog,
-           dynamic:versionLinesDialog, dynamic:versionLinesPanel
-versionLines -> type:repositoryOverview
-versionLinesDialog -> appError, autoHideScrollbar, i18n, modalFocus,
-                      type:versionLines
-versionLinesPanel -> i18n, loadingBar, popupMenu, versionLinesDialog,
-                     type:versionLines
+           dynamic:branchesDialog, dynamic:branchesPanel
+branches -> type:repositoryOverview
+branchesDialog -> appError, autoHideScrollbar, i18n, modalFocus,
+                      type:branches
+branchesPanel -> i18n, loadingBar, popupMenu, branchesDialog,
+                     type:branches
 ```
 
 Dynamic duplicates are intentional: the `lazy()` declaration and the idle
@@ -106,7 +112,7 @@ clusters are:
 | `projectSessions.test.ts` | reducer, generations, watch suppression and navigation |
 | `saveVersion*.test.*` | save breakdown, preview/execute dialog behavior |
 | `publishDialog.test.tsx`, `pendingVersions.test.tsx` | publish and saved-version inspection |
-| `versionLines*.test.*` | branch inventory and create/switch/delete UI |
+| `branches*.test.*` | branch inventory and create/switch/delete UI |
 | remaining focused tests | i18n, status mapping, switcher and shared UI helpers |
 
 Future architecture tests treat test-only edges as a separate graph: tests may
@@ -154,13 +160,13 @@ successful-path shape at `bce8db0`; validation/error branches may exit earlier.
 | `read_commit_file_diff` | `pendingVersions.tsx` | read | status/validation plus capped diff; 2 Git normal path |
 | `plan_publish` | `publishDialog.tsx` | remote-mutation preview | remote/branch-dependent multi-step read; no network push |
 | `publish` | `publishDialog.tsx` | remote mutation | repeats validation plus 1 networked push and result reads |
-| `get_version_lines` | `main.tsx` project activation/invalidation | read | 5 Git on Git 2.41+ for the four-branch reference repo; legacy fallback is `N` |
-| `plan_create_version_line` | `versionLinesDialog.tsx` | local-mutation preview | multi-step branch/status/token validation |
-| `create_version_line` | `versionLinesDialog.tsx` | local mutation | repeats preview, 1 branch/switch mutation, then `get_version_lines` |
-| `plan_switch_version_line` | `versionLinesDialog.tsx` | local-mutation preview | multi-step status/ref/worktree/diff validation |
-| `switch_version_line` | `versionLinesDialog.tsx` | local mutation | repeats preview, 1 switch, then `get_version_lines` |
-| `plan_delete_version_line` | `versionLinesDialog.tsx` | destructive preview | multi-step reachability/worktree/status validation |
-| `delete_version_line` | `versionLinesDialog.tsx` | destructive local mutation | repeats preview, 1 safe `branch -d`, then `get_version_lines` |
+| `get_branches` | `main.tsx` project activation/invalidation | read | 5 Git on Git 2.41+ for the four-branch reference repo; legacy fallback is `N` |
+| `plan_create_branch` | `branchesDialog.tsx` | local-mutation preview | multi-step branch/status/token validation |
+| `create_branch` | `branchesDialog.tsx` | local mutation | repeats preview, 1 branch/switch mutation, then `get_branches` |
+| `plan_switch_branch` | `branchesDialog.tsx` | local-mutation preview | multi-step status/ref/worktree/diff validation |
+| `switch_branch` | `branchesDialog.tsx` | local mutation | repeats preview, 1 switch, then `get_branches` |
+| `plan_delete_branch` | `branchesDialog.tsx` | destructive preview | multi-step reachability/worktree/status validation |
+| `delete_branch` | `branchesDialog.tsx` | destructive local mutation | repeats preview, 1 safe `branch -d`, then `get_branches` |
 | `watch_repository` | `main.tsx` active-session effect | read/platform | 2 Git then OS watcher creation |
 | `unwatch_repository` | `main.tsx` effect cleanup | platform mutation | 0 |
 
@@ -208,7 +214,7 @@ gaps, not changes made by task 023.
 
 The evidence confirms the task 022 order without amendments. Rust enforcement
 must precede session/watcher IPC (024 before 025); both precede the frontend
-runtime (026). Version lines remains the smallest complete read+mutation pilot
+runtime (026). Branches remains the smallest complete read+mutation pilot
 (027). Changes/status reads follow (028), then safety-sensitive save/publish
 mutations (029). Styles/i18n remain a separate migration (030), and only 031
 may declare the architecture complete or unlock History.

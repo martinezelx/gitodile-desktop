@@ -6,10 +6,11 @@
 //! target for a branch without an upstream.
 //!
 //! [`get_team_changes`] is a submodule rather than more of this file. It is the
-//! one destructive workflow in the domain, it reads *from* the model here and
-//! nothing here reads back, and its safety checks are eighteen helpers that no
-//! other part of sync should be able to call. Splitting it keeps those private
-//! and leaves this file as the read model.
+//! one history-changing workflow in the domain and its safety checks are
+//! helpers no other part of sync should be able to call. The read model here
+//! reaches it through one door, [`forecast_incoming`], so every status read of
+//! a branch with versions waiting can say what getting them would do; splitting
+//! it keeps everything else private and leaves this file as the read model.
 
 mod get_team_changes;
 
@@ -30,7 +31,6 @@ use std::process::ExitStatus;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub(crate) const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
-const MAX_WARNINGS: usize = 4;
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -106,7 +106,10 @@ pub(crate) enum TeamSyncState {
     Ahead,
     Behind,
     Diverged,
-    Unknown,
+    /// The branch tracks a remote branch that no longer exists: a check found
+    /// it missing on the remote, or the tracking ref is gone too (Git's
+    /// `[gone]`). The stale tracking ref, when there is one, is kept.
+    UpstreamGone,
 }
 
 #[derive(serde::Serialize, Debug, PartialEq, Clone, Copy)]
@@ -150,6 +153,9 @@ pub(crate) struct TeamSyncStatus {
     pub(crate) warnings: Vec<SyncWarning>,
     pub(crate) next_actions: Vec<SyncNextAction>,
     pub(crate) state_token: String,
+    /// What getting the waiting versions would do, predicted locally. Present
+    /// only while the branch is behind or diverged.
+    pub(crate) forecast: Option<IncomingForecast>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -382,7 +388,7 @@ pub(crate) struct ProjectRemote {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProjectRemotes {
     pub(crate) remotes: Vec<ProjectRemote>,
-    /// The remote the current version line publishes to, when it has one.
+    /// The remote the current branch publishes to, when it has one.
     pub(crate) upstream_remote: Option<String>,
 }
 
@@ -425,7 +431,7 @@ pub(crate) fn parse_project_remotes(output: &str) -> Vec<ProjectRemote> {
     remotes
 }
 
-/// The remote the checked-out version line publishes to, or `None` when it has
+/// The remote the checked-out branch publishes to, or `None` when it has
 /// no upstream or HEAD is detached. Read from the branch's own configuration
 /// rather than guessed from the remote list, which would be wrong the moment a
 /// project has two.
@@ -450,7 +456,7 @@ fn current_upstream_remote(path: &str) -> Option<String> {
     (!remote.is_empty()).then_some(remote)
 }
 
-fn project_remotes(path: &str) -> Result<ProjectRemotes, AppError> {
+pub(crate) fn project_remotes(path: &str) -> Result<ProjectRemotes, AppError> {
     let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
     let remotes = parse_project_remotes(&output);
     // With no remotes there is nothing for an upstream to point at, so the two
@@ -472,6 +478,220 @@ pub(crate) fn read_project_remotes(path: String) -> Result<ProjectRemotes, AppEr
     let (_repository, _access) =
         application::authorize_repository(&path, "read_project_remotes", None)?;
     project_remotes(&path)
+}
+
+/// The hosting service a remote's address names, as far as its host says.
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum RemoteHomeProvider {
+    Github,
+    Gitlab,
+    Bitbucket,
+    Other,
+}
+
+/// Where the project lives, as Overview's header names it: the service and
+/// the `owner/name` path of the remote the current branch publishes to (else
+/// `origin`, else the first one). Read from the raw configured address here,
+/// so the label and the page `remote_web_page` opens come from one reading;
+/// neither carries userinfo, a query or a fragment.
+#[derive(serde::Serialize, Debug, PartialEq, Eq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RemoteHome {
+    pub(crate) remote: String,
+    pub(crate) provider: RemoteHomeProvider,
+    /// `owner/name` (with GitLab's groups), or the folder of a local remote.
+    pub(crate) label: String,
+    /// Whether a web page can be derived for it and opened.
+    pub(crate) has_web_page: bool,
+}
+
+/// What a remote address says about where it lives.
+#[derive(Debug, PartialEq, Eq)]
+struct RemoteAddress {
+    provider: RemoteHomeProvider,
+    label: String,
+    web_page: Option<String>,
+}
+
+fn remote_home_provider(host: &str) -> RemoteHomeProvider {
+    let host = host.to_ascii_lowercase();
+    if host == "github.com" || host == "www.github.com" {
+        RemoteHomeProvider::Github
+    } else if host == "gitlab.com" || host.starts_with("gitlab.") {
+        RemoteHomeProvider::Gitlab
+    } else if host == "bitbucket.org" {
+        RemoteHomeProvider::Bitbucket
+    } else {
+        RemoteHomeProvider::Other
+    }
+}
+
+/// A repository path as hosting services lay it out: plain segments, no
+/// empty or dot-only parts, the `.git` suffix dropped.
+fn hosted_path(path: &str) -> Option<String> {
+    let trimmed = path.trim_matches('/');
+    let trimmed = trimmed.strip_suffix(".git").unwrap_or(trimmed);
+    let segments: Vec<&str> = trimmed.split('/').collect();
+    let valid = segments.iter().all(|segment| {
+        !segment.is_empty()
+            && *segment != "."
+            && *segment != ".."
+            && segment
+                .chars()
+                .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.' | '~'))
+    });
+    valid.then(|| segments.join("/"))
+}
+
+/// Reads a configured remote address. HTTP(S) pages are the address itself;
+/// SSH and SCP-like addresses get a page only on a service whose web address
+/// is known to follow its SSH host, never guessed for any other server.
+fn remote_address(raw: &str) -> Option<RemoteAddress> {
+    let value = raw.trim().split(['?', '#']).next().unwrap_or_default();
+    let (scheme, rest) = match value.split_once("://") {
+        Some((scheme, rest)) => (Some(scheme.to_ascii_lowercase()), rest),
+        None => (None, value),
+    };
+    let (authority, path, web_scheme) = match scheme.as_deref() {
+        Some("https") | Some("http") => {
+            let (authority, path) = rest.split_once('/')?;
+            let host_port = authority.rsplit('@').next().unwrap_or(authority);
+            (host_port.to_string(), path, scheme.clone())
+        }
+        Some("ssh") | Some("git") | Some("git+ssh") | Some("ssh+git") => {
+            let (authority, path) = rest.split_once('/')?;
+            let host_port = authority.rsplit('@').next().unwrap_or(authority);
+            let host = host_port.split(':').next().unwrap_or(host_port);
+            (host.to_string(), path, None)
+        }
+        Some("file") => return local_remote_address(rest),
+        Some(_) => return None,
+        None => {
+            // SCP-like `[user@]host:path`; a Windows drive or a plain path is a
+            // folder on this machine.
+            let (authority, path) = match value.split_once(':') {
+                Some((authority, path))
+                    if authority.len() > 1 && !authority.contains(['/', '\\']) =>
+                {
+                    (authority, path)
+                }
+                _ => return local_remote_address(value),
+            };
+            let host = authority.rsplit('@').next().unwrap_or(authority);
+            (host.to_string(), path, None)
+        }
+    };
+    let host = authority.split(':').next().unwrap_or(&authority);
+    if host.is_empty() {
+        return None;
+    }
+    let provider = remote_home_provider(host);
+    let label = hosted_path(path)?;
+    // Only a plain host name (and, over HTTP(S), a numeric port) ever reaches
+    // the opener: an address that bends the authority gets no page.
+    let plain_host = host
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.'));
+    let plain_port = authority
+        .split_once(':')
+        .is_none_or(|(_, port)| !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()));
+    let web_page = match web_scheme {
+        _ if !plain_host => None,
+        Some(_) if !plain_port => None,
+        Some(scheme) => Some(format!(
+            "{scheme}://{}/{label}",
+            authority.to_ascii_lowercase()
+        )),
+        None if provider != RemoteHomeProvider::Other => {
+            Some(format!("https://{}/{label}", host.to_ascii_lowercase()))
+        }
+        None => None,
+    };
+    Some(RemoteAddress {
+        provider,
+        label,
+        web_page,
+    })
+}
+
+fn local_remote_address(path: &str) -> Option<RemoteAddress> {
+    let leaf = path
+        .trim_end_matches(['/', '\\'])
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default();
+    let leaf = leaf.strip_suffix(".git").unwrap_or(leaf);
+    (!leaf.is_empty()).then(|| RemoteAddress {
+        provider: RemoteHomeProvider::Other,
+        label: leaf.to_string(),
+        web_page: None,
+    })
+}
+
+/// Each remote's name and raw fetch address, in `git remote -v` order. The
+/// raw values stay on this side of IPC.
+fn raw_fetch_urls(output: &str) -> Vec<(String, String)> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let (name, rest) = line.split_once('\t')?;
+            let url = rest.strip_suffix(" (fetch)")?;
+            Some((name.to_string(), url.to_string()))
+        })
+        .collect()
+}
+
+pub(crate) fn read_remote_home(path: String) -> Result<Option<RemoteHome>, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_remote_home", None)?;
+    let output = checked_git_stdout(run_git(&path, &["remote", "-v"])?)?;
+    let remotes = raw_fetch_urls(&output);
+    if remotes.is_empty() {
+        return Ok(None);
+    }
+    let upstream = current_upstream_remote(&path);
+    let (name, url) = upstream
+        .and_then(|name| remotes.iter().find(|(remote, _)| *remote == name))
+        .or_else(|| remotes.iter().find(|(remote, _)| remote == "origin"))
+        .unwrap_or(&remotes[0]);
+    // A remote whose address this cannot read (an unknown scheme, an encoded
+    // path) is still a remote: it is named by its own name, with no page,
+    // never reported as missing.
+    Ok(Some(match remote_address(url) {
+        Some(address) => RemoteHome {
+            remote: name.clone(),
+            provider: address.provider,
+            label: address.label,
+            has_web_page: address.web_page.is_some(),
+        },
+        None => RemoteHome {
+            remote: name.clone(),
+            provider: RemoteHomeProvider::Other,
+            label: name.clone(),
+            has_web_page: false,
+        },
+    }))
+}
+
+/// The web page of one of the project's remotes, derived from its configured
+/// address. The renderer names the remote; it never supplies the address.
+pub(crate) fn remote_web_page(path: &str, remote: &str) -> Result<String, AppError> {
+    let output = checked_git_stdout(run_git(path, &["remote", "-v"])?)?;
+    let no_page = || {
+        AppError::new(
+            AppErrorCode::RemoteNotFound,
+            "This remote has no web page GitOdile can open.",
+        )
+        .with_remediation("Open the project's settings to see its remotes.")
+    };
+    let (_, url) = raw_fetch_urls(&output)
+        .into_iter()
+        .find(|(name, _)| name == remote)
+        .ok_or_else(no_page)?;
+    remote_address(&url)
+        .and_then(|address| address.web_page)
+        .ok_or_else(no_page)
 }
 
 /// Points an existing remote somewhere else.
@@ -805,7 +1025,13 @@ pub(crate) fn run_git_networked(
     let started = Instant::now();
     let result = git::run_with_env(
         Some(Path::new(repo_path)),
-        args,
+        crate::git_command::prepare_transfer_args(
+            Some(Path::new(repo_path)),
+            &args
+                .iter()
+                .map(std::ffi::OsString::from)
+                .collect::<Vec<_>>(),
+        )?,
         &[("GIT_TERMINAL_PROMPT", "0")],
         policy,
         cancellation.as_ref(),
@@ -870,6 +1096,7 @@ pub(crate) fn looks_like_authentication_failure(stderr_lower: &str) -> bool {
         || stderr_lower.contains("could not read password")
         || stderr_lower.contains("permission denied (publickey")
         || stderr_lower.contains("terminal prompts disabled")
+        || stderr_lower.contains("told us to quit")
         || stderr_lower.contains("403")
         || stderr_lower.contains("401")
 }
@@ -884,7 +1111,7 @@ pub(crate) fn classify_remote_failure(stderr: &str) -> AppError {
     if looks_like_missing_remote_ref(&lower) {
         return AppError::new(
             AppErrorCode::RemoteRefMissing,
-            "The configured team version line no longer exists on the remote project.",
+            "The configured team branch no longer exists on the remote project.",
         )
         .with_remediation("Check the remote setup before trying again.");
     }
@@ -893,7 +1120,9 @@ pub(crate) fn classify_remote_failure(stderr: &str) -> AppError {
             AppErrorCode::AuthenticationFailed,
             "GitOdile couldn't sign in to the remote project.",
         )
-        .with_remediation("Check your Git credentials for this remote, then try again.")
+        .with_remediation(
+            "Check the project's selected account or existing Git credentials, then try again.",
+        )
         .with_detail(truncate_detail(stderr));
     }
     AppError::new(
@@ -998,7 +1227,7 @@ pub(crate) fn resolve_upstream(
             AppErrorCode::InvalidRemoteConfiguration,
             "The configured upstream doesn't identify a usable remote project.",
         )
-        .with_remediation("Repair this version line's upstream configuration in Git."));
+        .with_remediation("Repair this branch's upstream configuration in Git."));
     }
     validate_remote_name(&remote)?;
     let destination_branch = merge_ref
@@ -1009,7 +1238,7 @@ pub(crate) fn resolve_upstream(
                 AppErrorCode::InvalidRemoteConfiguration,
                 "The configured upstream branch is invalid.",
             )
-            .with_remediation("Repair this version line's upstream configuration in Git.")
+            .with_remediation("Repair this branch's upstream configuration in Git.")
         })?
         .to_string();
     validate_branch_ref_name(path, &destination_branch)?;
@@ -1112,14 +1341,14 @@ pub(super) fn relation_state(relation: &SyncRelation) -> TeamSyncState {
 fn actions_for(state: TeamSyncState, knowledge: SyncKnowledge) -> Vec<SyncNextAction> {
     let mut actions = match state {
         TeamSyncState::Ahead => vec![SyncNextAction::PublishChanges],
-        TeamSyncState::Behind => vec![SyncNextAction::ReviewAndGet],
+        TeamSyncState::Behind | TeamSyncState::Diverged => vec![SyncNextAction::ReviewAndGet],
         _ => Vec::new(),
     };
     if knowledge == SyncKnowledge::Cached
         || matches!(
             state,
             TeamSyncState::UpToDate
-                | TeamSyncState::Unknown
+                | TeamSyncState::UpstreamGone
                 | TeamSyncState::NoRemote
                 | TeamSyncState::NoUpstream
         )
@@ -1186,6 +1415,7 @@ fn base_status(
             None,
             None,
         ),
+        forecast: None,
     }
 }
 
@@ -1246,38 +1476,41 @@ pub(super) fn read_team_sync_status_inner(
         ));
     };
 
-    let fetched_commit = if perform_fetch {
-        Some(fetch_remote_target(
-            path,
-            &target.remote,
-            &target.fetch_refspec,
-        )?)
+    // A remote that no longer has the branch is an answer, not a failure: the
+    // branch's upstream is gone. The explicit no-prune policy keeps the last
+    // known tracking ref, which is reported but never compared against.
+    let (fetched_commit, remote_branch_missing) = if perform_fetch {
+        match fetch_remote_target(path, &target.remote, &target.fetch_refspec) {
+            Ok(commit) => (Some(commit), false),
+            Err(error) if error.code == AppErrorCode::RemoteRefMissing => (None, true),
+            Err(error) => return Err(error),
+        }
     } else {
-        None
+        (None, false)
     };
-    let remote_commit = match resolve_commit(path, &target.tracking_ref)? {
-        Some(commit) => Some(commit),
-        None => fetched_commit,
-    };
-    let mut warnings = Vec::new();
-    let (state, relation) = if let Some(remote_commit) = remote_commit.as_deref() {
-        let relation = classify_sync(path, &local_commit, Some(remote_commit))?;
-        (relation_state(&relation), relation)
-    } else {
-        warnings.push(SyncWarning {
-            code: "trackingRefUnavailable".to_string(),
-            message: "The configured team version has not been recorded locally yet.".to_string(),
-        });
-        (
-            TeamSyncState::Unknown,
+    let remote_commit = resolve_commit(path, &target.tracking_ref)?.or(fetched_commit);
+    let (state, relation) = match remote_commit.as_deref() {
+        Some(remote_commit) if !remote_branch_missing => {
+            let relation = classify_sync(path, &local_commit, Some(remote_commit))?;
+            (relation_state(&relation), relation)
+        }
+        // A configured upstream with no tracking ref is what Git reports as
+        // `[gone]`; a check that found the branch missing says the same.
+        _ => (
+            TeamSyncState::UpstreamGone,
             SyncRelation {
                 ahead: 0,
                 behind: 0,
                 diverged: false,
             },
-        )
+        ),
     };
-    warnings.truncate(MAX_WARNINGS);
+    let forecast = match (state, remote_commit.as_deref()) {
+        (TeamSyncState::Behind | TeamSyncState::Diverged, Some(remote_commit)) => {
+            forecast_incoming(path, &local_commit, remote_commit, &relation)
+        }
+        _ => None,
+    };
     let checked_at = perform_fetch.then(|| {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1297,7 +1530,7 @@ pub(super) fn read_team_sync_status_inner(
         behind: relation.behind,
         knowledge,
         checked_at,
-        warnings,
+        warnings: Vec::new(),
         next_actions: actions_for(state, knowledge),
         state_token: compute_team_sync_state_token(
             repository_identity,
@@ -1307,6 +1540,7 @@ pub(super) fn read_team_sync_status_inner(
             Some(&target),
             remote_commit.as_deref(),
         ),
+        forecast,
     })
 }
 
@@ -1334,6 +1568,55 @@ pub(crate) fn check_team_changes(
         application::authorize_repository(&path, "check_team_changes", None)?;
     let identity = repository.common_git_dir.match_key().to_string();
     read_team_sync_status_inner(&path, &session_epoch, SyncKnowledge::Fresh, true, &identity)
+}
+
+/// Local mutation, chosen by the person for a branch whose remote branch is
+/// gone: forget which remote branch the current branch tracks. Only the branch's
+/// own `branch.<name>.remote` and `.merge` entries change — the same pair a
+/// first publish writes — so publishing again reconnects it. Files, history
+/// and the kept tracking ref are untouched.
+pub(crate) fn stop_tracking_remote(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    let (repository, _access) =
+        application::authorize_repository(&path, "stop_tracking_remote", None)?;
+    let identity = repository.common_git_dir.match_key().to_string();
+    let working = read_working_tree_status(path.clone())?;
+    let (head_state, _) = resolve_head_state(&path, working.upstream.branch.clone())?;
+    let Some(branch) = working
+        .upstream
+        .branch
+        .filter(|_| head_state == HeadState::Branch)
+    else {
+        return Err(AppError::new(
+            AppErrorCode::DetachedHead,
+            "This project isn't on a branch right now.",
+        )
+        .with_remediation("Switch to a branch first."));
+    };
+    validate_branch_ref_name(&path, &branch)?;
+    if read_config_value(&path, &format!("branch.{branch}.merge"))?.is_none() {
+        return Err(AppError::new(
+            AppErrorCode::InvalidRemoteConfiguration,
+            "This branch doesn't follow a remote branch.",
+        ));
+    }
+    let output = run_git(&path, &["branch", "--unset-upstream", &branch])?;
+    if !output.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitConfigWriteFailed,
+            "GitOdile couldn't stop this branch from following its remote branch.",
+        )
+        .with_remediation("Check that the project's Git configuration can be written."));
+    }
+    read_team_sync_status_inner(
+        &path,
+        &session_epoch,
+        SyncKnowledge::Cached,
+        false,
+        &identity,
+    )
 }
 
 #[cfg(test)]
@@ -1461,6 +1744,81 @@ mod tests {
                 Some(&target),
                 Some("ccc"),
             )
+        );
+    }
+
+    #[test]
+    fn remote_home_reads_hosted_addresses_and_derives_pages() {
+        let github = remote_address("https://alice:secret@github.com/acme/app.git?x=1#y").unwrap();
+        assert_eq!(github.provider, RemoteHomeProvider::Github);
+        assert_eq!(github.label, "acme/app");
+        assert_eq!(
+            github.web_page.as_deref(),
+            Some("https://github.com/acme/app")
+        );
+
+        let scp = remote_address("git@github.com:acme/app.git").unwrap();
+        assert_eq!(scp.label, "acme/app");
+        assert_eq!(scp.web_page.as_deref(), Some("https://github.com/acme/app"));
+
+        let gitlab = remote_address("ssh://git@gitlab.com:2222/group/sub/app.git").unwrap();
+        assert_eq!(gitlab.provider, RemoteHomeProvider::Gitlab);
+        assert_eq!(gitlab.label, "group/sub/app");
+        assert_eq!(
+            gitlab.web_page.as_deref(),
+            Some("https://gitlab.com/group/sub/app")
+        );
+
+        let bitbucket = remote_address("https://bitbucket.org/team/repo").unwrap();
+        assert_eq!(bitbucket.provider, RemoteHomeProvider::Bitbucket);
+
+        // A company server over HTTPS keeps its own address, port included.
+        let company = remote_address("https://git.example.test:8443/team/repo.git").unwrap();
+        assert_eq!(company.provider, RemoteHomeProvider::Other);
+        assert_eq!(
+            company.web_page.as_deref(),
+            Some("https://git.example.test:8443/team/repo")
+        );
+    }
+
+    #[test]
+    fn remote_home_never_guesses_a_page_for_unknown_ssh_or_local_remotes() {
+        let ssh = remote_address("git@git.example.test:team/repo.git").unwrap();
+        assert_eq!(ssh.provider, RemoteHomeProvider::Other);
+        assert_eq!(ssh.label, "team/repo");
+        assert_eq!(ssh.web_page, None);
+
+        let local = remote_address("C:\\work\\shared\\app.git").unwrap();
+        assert_eq!(local.label, "app");
+        assert_eq!(local.web_page, None);
+        let file = remote_address("file:///srv/git/app.git").unwrap();
+        assert_eq!(file.label, "app");
+        assert_eq!(file.web_page, None);
+
+        assert_eq!(remote_address("https://github.com/acme/../app"), None);
+        // An authority that is not a plain host and port gets no page.
+        let odd = remote_address("https://git.example.test:80x/team/repo").unwrap();
+        assert_eq!(odd.web_page, None);
+        let spaced = remote_address("https://git example.test/team/repo").unwrap();
+        assert_eq!(spaced.web_page, None);
+        assert_eq!(
+            remote_address("javascript:alert(1)").and_then(|a| a.web_page),
+            None
+        );
+    }
+
+    #[test]
+    fn raw_fetch_urls_pairs_names_with_fetch_addresses_only() {
+        let output = "origin\thttps://github.com/acme/app.git (fetch)\norigin\tgit@github.com:acme/app.git (push)\nfork\tgit@github.com:me/app.git (fetch)\n";
+        assert_eq!(
+            raw_fetch_urls(output),
+            vec![
+                (
+                    "origin".to_string(),
+                    "https://github.com/acme/app.git".to_string()
+                ),
+                ("fork".to_string(), "git@github.com:me/app.git".to_string()),
+            ]
         );
     }
 }

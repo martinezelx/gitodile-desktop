@@ -26,7 +26,7 @@ What has changed and what has been saved are one place: a reader moves between
 the file list and the timeline with one click on the panel they are already
 looking at, and the rail has one destination for the loop instead of two
 neighbours that had to be kept looking alike. Back and Forward still move
-between screens; the tab is remembered per project, so leaving for Lines and
+between screens; the tab is remembered per project, so leaving for Branches and
 coming back lands on the tab that was open.
 
 # Context
@@ -42,7 +42,7 @@ Constraints that shaped the decisions below:
 - **The rail's width is a measurement, not a choice** (DESIGN.md § Navigation
   rail): 64px holds the widest destination label, "Overview", at 46px.
   "Workspace" measures ~54px in the rail's type and would break mid-word, and
-  "workspace" is already the plain-language word for a version line in
+  "workspace" is already the plain-language word for a branch in
   AGENTS.md's vocabulary table. The destination is **Work / Trabajo** (26px /
   37px); the registry id is `workbench`, the name the task series had been
   using for this pair of screens, and one that does not collide with the
@@ -53,7 +53,7 @@ Constraints that shaped the decisions below:
   the row. The checkbox moves to the head of the search strip; the state line
   goes (a first cut kept it in a row under the strip and it cost the list a
   file's height to say what the band and the status bar say); the scope chip
-  moves to a row under History's search strip, drawn only off the current line.
+  moves to a row under History's search strip, drawn only off the current branch.
 - **Nothing is counted twice** (DESIGN.md § Core screens): the Changes tab
   carries no count badge; the status bar and the Journey band already say it.
 - **A screen that is not showing must be quiet** (frontend-feature-guide): the
@@ -68,10 +68,10 @@ Registry and shell:
 - A `workbench` feature owns the screen: the module descriptor (label `Work`,
   the Changes glyph, preloads for both panels' chunks), the tab pair, and the
   per-tab keep-alive slots. `ProjectView` becomes `overview | workbench |
-  version-lines`.
+  branches`.
 - Each project session remembers its tab. `navigateToView("changes")` and
   `("history")` become "open Work on this tab": the Journey band's tiles,
-  Lines' "view on History", the notification's "review changes", the palette's
+  Branches' "view on History", the notification's "review changes", the palette's
   `Go to Changes` / `Go to History`, and the sync dialog's hand-off all route
   through it.
 - Stored navigation preferences migrate: `changes` becomes `workbench` in
@@ -107,7 +107,7 @@ History:
 
 - The timeline panel's header is the tab pair. The scope chip moves to a state
   row under the search strip and is drawn only when the scope is not the
-  current line, so the timeline's first row does not move for the common case.
+  current branch, so the timeline's first row does not move for the common case.
 - The detail card's version strip becomes a fixed `--strip-height`: it was
   `min-height` plus padding, with the subject's `h2` still carrying the
   browser's bottom margin, so its rule sat ~20px below the timeline header's.
@@ -121,11 +121,11 @@ History:
 - Any change to what either panel lists, filters, or shows in its diff.
 - A count on the Changes tab.
 - Back/Forward traversing tab switches.
-- Renaming the Lines screen or moving it.
+- Renaming the Branches screen or moving it.
 
 # Acceptance criteria
 
-- [x] The rail shows Overview, Work, Lines, Recovery; Work opens on the
+- [x] The rail shows Overview, Work, Branches, Recovery; Work opens on the
       project's remembered tab, Changes by default.
 - [x] The tab pair is a keyboard-operable `tablist` at the head of the list
       panel, on both tabs and in every state of both panels (loading, error,
@@ -134,7 +134,7 @@ History:
       `inert`, its lifecycle is `hidden`, and it resumes on return.
 - [x] Every former `navigateToView("changes" | "history")` caller lands on Work
       with the right tab, including the one-shot History scope/select intents
-      from Lines.
+      from Branches.
 - [x] Stored navigation preferences with `changes`/`history` adopt `workbench`
       in place; the superseded default order adopts the new default.
 - [x] Changes' checkbox heads the search strip and History's scope chip has a
@@ -168,7 +168,7 @@ Builds on tasks 112–125, which made the two screens one shape.
 # Decisions
 
 - **Work, not Workspace.** The rail cannot hold "Workspace" without widening,
-  and the word already means a version line in the product's vocabulary. The
+  and the word already means a branch in the product's vocabulary. The
   id is `workbench` for the same reason plus one: `.workspace` is the content
   region's class.
 - **The tab is screen state, not a view.** One screen is one view: Back and
@@ -198,7 +198,7 @@ per-view twin of `KeepAliveScreenSlot`: mount on first visit, `hidden` +
 `inert` afterwards, the hidden element re-rendered by identity, and a
 lifecycle controller derived from the surrounding screen's (`active` only
 while the screen is active and the view is shown; evicted with the screen).
-`ProjectView` is `overview | workbench | version-lines`; the session carries
+`ProjectView` is `overview | workbench | branches`; the session carries
 `workbenchTab` and a `setWorkbenchTab` action.
 
 **Feature.** `src/features/workbench/` owns the descriptor (`navWork`,
@@ -240,7 +240,7 @@ one-column media query stacks the two. The panel's visually-hidden `h1` is
 gone — the workbench renders one for the shown tab.
 
 **History.** The timeline header is `{tabs}`; the scope chip moved to
-`.history-timeline__state`, drawn only when the scope is not the current line.
+`.history-timeline__state`, drawn only when the scope is not the current branch.
 `.history-detail__strip` is `height: var(--strip-height)` with no vertical
 padding and the title's margin reset; its facts line ends with the
 `.history-publication` chip, sized to the ref badge by a strip-scoped rule.

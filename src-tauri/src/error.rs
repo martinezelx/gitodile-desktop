@@ -1,6 +1,6 @@
 //! Stable application error envelope shared by domains and IPC.
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(Clone, serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppError {
     pub(crate) code: AppErrorCode,
@@ -9,7 +9,7 @@ pub(crate) struct AppError {
     pub(crate) detail: Option<String>,
 }
 
-#[derive(serde::Serialize, Debug, PartialEq)]
+#[derive(Clone, serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AppErrorCode {
     StaleSession,
@@ -84,6 +84,8 @@ pub(crate) enum AppErrorCode {
     StaleGetTeamChangesPlan,
     InvalidRefName,
     AuthenticationFailed,
+    SecureStorageUnavailable,
+    ProviderRateLimited,
     NetworkTimeout,
     OperationCancelled,
     InvalidRemoteConfiguration,
@@ -97,18 +99,18 @@ pub(crate) enum AppErrorCode {
     PublishUncertain,
     GetTeamChangesUncertain,
     GitVersionTooOld,
-    VersionLineNameTaken,
-    VersionLineNameCollides,
-    VersionLineCheckedOutElsewhere,
-    VersionLineIsActive,
-    VersionLineIsDefault,
-    VersionLineMissing,
-    VersionLineUniqueWork,
-    VersionLineSwitchObstructed,
-    StaleVersionLinePlan,
+    BranchNameTaken,
+    BranchNameCollides,
+    BranchCheckedOutElsewhere,
+    BranchIsActive,
+    BranchIsDefault,
+    BranchMissing,
+    BranchUniqueWork,
+    BranchNotFinished,
+    BranchSwitchObstructed,
+    StaleBranchPlan,
     DirtyWorkingTree,
     IncomingTrackedChangeCollision,
-    IncomingPathCollision,
     RefLocked,
     NothingToDiscard,
     StaleDiscardPlan,
@@ -120,6 +122,7 @@ pub(crate) enum AppErrorCode {
     StaleIgnoreFile,
     IgnoreFileWriteFailed,
     InstallBlocked,
+    UnsupportedServer,
 }
 
 impl AppError {

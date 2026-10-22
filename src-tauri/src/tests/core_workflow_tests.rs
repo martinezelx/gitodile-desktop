@@ -118,13 +118,14 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
         .expect("fetch and classify the team update");
     assert_eq!(behind.state, TeamSyncState::Behind);
     assert_eq!((behind.ahead, behind.behind), (0, 1));
-    let get_plan = plan_get_team_changes(repo.clone(), opened.session_epoch.clone(), |_| {})
+    let get_plan = plan_get_team_changes(repo.clone(), opened.session_epoch.clone())
         .expect("plan the strict fast-forward update");
     let get_result = get_team_changes(
         repo.clone(),
         opened.session_epoch.clone(),
         get_plan.state_token,
         get_plan.recovery.reference,
+        true,
         |_| {},
     )
     .expect("apply the strict fast-forward update");
@@ -199,8 +200,8 @@ fn core_workflow_journey_opens_inspects_saves_checks_gets_publishes_and_reopens(
 }
 
 #[test]
-fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
-    let repo = unique_temp_dir("discard-version-lines-journey");
+fn discard_and_branch_journey_undoes_then_creates_switches_and_deletes() {
+    let repo = unique_temp_dir("discard-branches-journey");
     git_init(&repo);
     write_file(&repo, "tracked.txt", "saved\n");
     git_add_all(&repo);
@@ -235,7 +236,7 @@ fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
         "unsaved\n"
     );
 
-    let identity = write_test_identity_config("discard-version-lines-journey");
+    let identity = write_test_identity_config("discard-branches-journey");
     let save_plan = plan_save_version_with_identity_override(repo.clone(), Some(&identity))
         .expect("plan the recovered work save");
     save_version_with_identity_override(
@@ -247,56 +248,45 @@ fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
     )
     .expect("save the recovered work");
 
-    let create_plan = crate::version_lines::plan_create_version_line(
+    let create_plan =
+        crate::branches::plan_create_branch(repo.clone(), "audit-branch".to_string(), false, None)
+            .expect("plan a branch without switching");
+    crate::branches::create_branch(
         repo.clone(),
-        "audit-line".to_string(),
-        false,
-        None,
-    )
-    .expect("plan a version line without switching");
-    crate::version_lines::create_version_line(
-        repo.clone(),
-        "audit-line".to_string(),
+        "audit-branch".to_string(),
         false,
         None,
         create_plan.state_token,
     )
-    .expect("create a version line");
-    let switch_plan =
-        crate::version_lines::plan_switch_version_line(repo.clone(), "audit-line".to_string())
-            .expect("plan the switch");
-    crate::version_lines::switch_version_line(
+    .expect("create a branch");
+    let switch_plan = crate::branches::plan_switch_branch(repo.clone(), "audit-branch".to_string())
+        .expect("plan the switch");
+    crate::branches::switch_branch(
         repo.clone(),
-        "audit-line".to_string(),
+        "audit-branch".to_string(),
         switch_plan.state_token,
     )
-    .expect("switch to the created version line");
-    assert_eq!(current_branch(&repo), "audit-line");
+    .expect("switch to the created branch");
+    assert_eq!(current_branch(&repo), "audit-branch");
 
-    let switch_back =
-        crate::version_lines::plan_switch_version_line(repo.clone(), original_branch.clone())
-            .expect("plan switching back");
-    crate::version_lines::switch_version_line(
+    let switch_back = crate::branches::plan_switch_branch(repo.clone(), original_branch.clone())
+        .expect("plan switching back");
+    crate::branches::switch_branch(repo.clone(), original_branch, switch_back.state_token)
+        .expect("switch back to the original branch");
+    let delete_plan = crate::branches::plan_delete_branch(repo.clone(), "audit-branch".to_string())
+        .expect("plan a safe retained-branch deletion");
+    let deleted = crate::branches::delete_branch(
         repo.clone(),
-        original_branch,
-        switch_back.state_token,
-    )
-    .expect("switch back to the original line");
-    let delete_plan =
-        crate::version_lines::plan_delete_version_line(repo.clone(), "audit-line".to_string())
-            .expect("plan a safe retained-line deletion");
-    let deleted = crate::version_lines::delete_version_line(
-        repo.clone(),
-        "audit-line".to_string(),
+        "audit-branch".to_string(),
         false,
         delete_plan.state_token,
     )
-    .expect("delete the retained version line");
+    .expect("delete the retained branch");
     assert!(deleted
         .snapshot
-        .lines
+        .branches
         .iter()
-        .all(|line| line.name != "audit-line"));
+        .all(|candidate| candidate.name != "audit-branch"));
     // Nothing was asked of the remote, so nothing is reported about it.
     assert_eq!(deleted.remote_deleted, None);
 
@@ -305,8 +295,8 @@ fn discard_and_version_line_journey_undoes_then_creates_switches_and_deletes() {
 }
 
 #[test]
-fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
-    let repo = unique_temp_dir("version-line-history");
+fn branch_history_reports_recent_versions_the_count_and_the_overflow() {
+    let repo = unique_temp_dir("branch-history");
     git_init(&repo);
     for index in 0..10 {
         write_file(
@@ -322,13 +312,13 @@ fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
     }
     let branch = current_branch(&repo);
 
-    let history = crate::version_lines::get_version_line_history(repo.clone(), branch.clone())
-        .expect("read the active line's saved versions");
+    let history = crate::branches::get_branch_history(repo.clone(), branch.clone())
+        .expect("read the active branch's saved versions");
     assert_eq!(history.name, branch);
     // The panel's short list, newest first, with one more version behind it.
     assert_eq!(
         history.versions.len(),
-        crate::version_lines::VERSION_LINE_HISTORY_LIMIT
+        crate::branches::BRANCH_HISTORY_LIMIT
     );
     assert!(history.has_more);
     assert_eq!(history.versions[0].subject, "Version 9");
@@ -336,45 +326,39 @@ fn version_line_history_reports_recent_versions_the_count_and_the_overflow() {
     assert!(!history.versions[0].author_name.is_empty());
     assert!(!history.versions[0].committed_at.is_empty());
     assert_ne!(history.versions[0].short_commit, history.versions[0].commit);
-    // Every saved version on the line, not just the ones listed.
+    // Every saved version on the branch, not just the ones listed.
     assert_eq!(history.total_count, Some(10));
 
-    // A line with fewer versions than the limit says so instead of padding.
-    let create_plan = crate::version_lines::plan_create_version_line(
+    // A branch with fewer versions than the limit says so instead of padding.
+    let create_plan =
+        crate::branches::plan_create_branch(repo.clone(), "short-branch".to_string(), true, None)
+            .expect("plan a second branch");
+    crate::branches::create_branch(
         repo.clone(),
-        "short-line".to_string(),
-        true,
-        None,
-    )
-    .expect("plan a second line");
-    crate::version_lines::create_version_line(
-        repo.clone(),
-        "short-line".to_string(),
+        "short-branch".to_string(),
         true,
         None,
         create_plan.state_token,
     )
-    .expect("create and switch to a second line");
-    let short =
-        crate::version_lines::get_version_line_history(repo.clone(), "short-line".to_string())
-            .expect("read the second line's saved versions");
+    .expect("create and switch to a second branch");
+    let short = crate::branches::get_branch_history(repo.clone(), "short-branch".to_string())
+        .expect("read the second branch's saved versions");
     assert_eq!(short.total_count, Some(10));
     assert!(short.has_more);
 
     // A name that no local branch carries is refused rather than answered
-    // with an empty list, which would read as "this line has no versions".
-    let missing =
-        crate::version_lines::get_version_line_history(repo.clone(), "no-such".to_string())
-            .expect_err("refuse a line that does not exist");
+    // with an empty list, which would read as "this branch has no versions".
+    let missing = crate::branches::get_branch_history(repo.clone(), "no-such".to_string())
+        .expect_err("refuse a branch that does not exist");
     assert_eq!(missing.code, AppErrorCode::InvalidSelection);
 
     let _ = fs::remove_dir_all(repo);
 }
 
 #[test]
-fn version_line_delete_clears_the_remote_copy_and_protects_the_default_line() {
+fn branch_delete_clears_the_remote_copy_and_protects_the_default_branch() {
     let (repo, remote, branch) = published_repo_and_remote("vl-delete-remote");
-    // A second line, published, then merged into the default one: the ordinary
+    // A second branch, published, then merged into the default one: the ordinary
     // "this is finished, clean it up" case.
     let status = git_command(&repo)
         .args(["switch", "-q", "-c", "feature/done"])
@@ -385,13 +369,13 @@ fn version_line_delete_clears_the_remote_copy_and_protects_the_default_line() {
     write_file(&repo, "feature.txt", "done\n");
     git_add_all(&repo);
     git_commit(&repo, "Finish the feature");
-    // `-u`, so the line carries the upstream configuration this app reads to
+    // `-u`, so the branch carries the upstream configuration this app reads to
     // know where it is published — the same configuration the list shows as
     // "Tracks origin/feature/done".
     let status = git_command(&repo)
         .args(["push", "-q", "-u", "origin", "feature/done"])
         .status()
-        .expect("publish the finished line");
+        .expect("publish the finished branch");
     assert!(status.success());
     let status = git_command(&repo)
         .args(["switch", "-q", &branch])
@@ -401,23 +385,22 @@ fn version_line_delete_clears_the_remote_copy_and_protects_the_default_line() {
     let status = git_command(&repo)
         .args(["merge", "-q", "--no-edit", "feature/done"])
         .status()
-        .expect("merge the finished line");
+        .expect("merge the finished branch");
     assert!(status.success());
 
-    let plan =
-        crate::version_lines::plan_delete_version_line(repo.clone(), "feature/done".to_string())
-            .expect("plan the delete of a finished line");
+    let plan = crate::branches::plan_delete_branch(repo.clone(), "feature/done".to_string())
+        .expect("plan the delete of a finished branch");
     // The plan names the published copy, so the dialog can offer to clear it
     // away instead of leaving it behind for everyone else.
     let published = plan
         .published
         .clone()
-        .expect("a published line is reported");
+        .expect("a published branch is reported");
     assert_eq!(published.remote, "origin");
     assert_eq!(published.branch, "feature/done");
     assert_eq!(plan.upstream.as_deref(), Some("origin/feature/done"));
 
-    let deleted = crate::version_lines::delete_version_line(
+    let deleted = crate::branches::delete_branch(
         repo.clone(),
         "feature/done".to_string(),
         true,
@@ -428,47 +411,43 @@ fn version_line_delete_clears_the_remote_copy_and_protects_the_default_line() {
     assert!(deleted.remote_error.is_none());
     assert!(deleted
         .snapshot
-        .lines
+        .branches
         .iter()
-        .all(|line| line.name != "feature/done"));
+        .all(|candidate| candidate.name != "feature/done"));
     assert_eq!(remote_branch_sha(&remote, "refs/heads/feature/done"), None);
 
-    // The remote's own default line is refused outright: it is where the
+    // The remote's own default branch is refused outright: it is where the
     // project's shared work lives, and no local cleanup should take it away.
     // `set-head` is what a clone writes; a project created locally and pushed
     // has no remote HEAD, and then nothing is protected on a guess.
     let status = git_command(&repo)
         .args(["remote", "set-head", "origin", &branch])
         .status()
-        .expect("record the remote's default line");
+        .expect("record the remote's default branch");
     assert!(status.success());
-    // Stepping off it, so the refusal under test is the default-line one
-    // rather than the active-line one that is checked first.
+    // Stepping off it, so the refusal under test is the default-branch one
+    // rather than the active-branch one that is checked first.
     let status = git_command(&repo)
         .args(["switch", "-q", "-c", "scratch"])
         .status()
-        .expect("step off the default line");
+        .expect("step off the default branch");
     assert!(status.success());
 
-    let snapshot = crate::version_lines::get_version_lines(repo.clone()).expect("read the lines");
-    let default_line = snapshot
-        .lines
+    let snapshot = crate::branches::get_branches(repo.clone()).expect("read the branches");
+    let default_branch = snapshot
+        .branches
         .iter()
-        .find(|line| line.name == branch)
-        .expect("the default line is still listed");
-    assert!(default_line.is_default);
+        .find(|candidate| candidate.name == branch)
+        .expect("the default branch is still listed");
+    assert!(default_branch.is_default);
 
-    let refused_delete =
-        crate::version_lines::plan_delete_version_line(repo.clone(), branch.clone())
-            .expect_err("the default line cannot be deleted");
-    assert_eq!(refused_delete.code, AppErrorCode::VersionLineIsDefault);
-    let refused_rename = crate::version_lines::plan_rename_version_line(
-        repo.clone(),
-        branch.clone(),
-        "trunk".to_string(),
-    )
-    .expect_err("the default line cannot be renamed");
-    assert_eq!(refused_rename.code, AppErrorCode::VersionLineIsDefault);
+    let refused_delete = crate::branches::plan_delete_branch(repo.clone(), branch.clone())
+        .expect_err("the default branch cannot be deleted");
+    assert_eq!(refused_delete.code, AppErrorCode::BranchIsDefault);
+    let refused_rename =
+        crate::branches::plan_rename_branch(repo.clone(), branch.clone(), "trunk".to_string())
+            .expect_err("the default branch cannot be renamed");
+    assert_eq!(refused_rename.code, AppErrorCode::BranchIsDefault);
 
     for path in [&repo, &remote] {
         let _ = fs::remove_dir_all(path);
@@ -477,10 +456,10 @@ fn version_line_delete_clears_the_remote_copy_and_protects_the_default_line() {
 }
 
 #[test]
-fn version_line_delete_keeps_its_promise_for_work_that_only_a_sibling_line_holds() {
+fn branch_delete_keeps_its_promise_for_work_that_only_a_sibling_branch_holds() {
     // The case the screen used to get wrong. `git branch -d` accepts a branch
     // merged into HEAD or into its own upstream and nothing else, while this
-    // app calls a line safe when *any* other ref reaches its tip. A line whose
+    // app calls a branch safe when *any* other ref reaches its tip. A branch whose
     // work lives only on a sibling was advertised as "Safe to delete" and then
     // refused on the way out.
     let repo = unique_temp_dir("vl-delete-sibling");
@@ -498,7 +477,7 @@ fn version_line_delete_keeps_its_promise_for_work_that_only_a_sibling_line_holds
     assert!(status.success());
     write_file(&repo, "shared.txt", "shared\n");
     git_add_all(&repo);
-    git_commit(&repo, "Work both lines share");
+    git_commit(&repo, "Work both branches share");
     // `spun-off` is identical to `keeper`, so every commit on it is reachable
     // from `keeper` — and from nothing `git branch -d` accepts, since the trunk
     // is behind it and there is no upstream.
@@ -513,14 +492,14 @@ fn version_line_delete_keeps_its_promise_for_work_that_only_a_sibling_line_holds
         .expect("switch back to the trunk");
     assert!(status.success());
 
-    let plan = crate::version_lines::plan_delete_version_line(repo.clone(), "spun-off".to_string())
-        .expect("a line whose work a sibling holds is safe to delete");
+    let plan = crate::branches::plan_delete_branch(repo.clone(), "spun-off".to_string())
+        .expect("a branch whose work a sibling holds is safe to delete");
     assert!(plan
         .retained_by
         .iter()
         .any(|reference| reference == "refs/heads/keeper"));
 
-    let deleted = crate::version_lines::delete_version_line(
+    let deleted = crate::branches::delete_branch(
         repo.clone(),
         "spun-off".to_string(),
         false,
@@ -529,22 +508,22 @@ fn version_line_delete_keeps_its_promise_for_work_that_only_a_sibling_line_holds
     .expect("what the plan promised is what the delete does");
     assert!(deleted
         .snapshot
-        .lines
+        .branches
         .iter()
-        .all(|line| line.name != "spun-off"));
+        .all(|candidate| candidate.name != "spun-off"));
     // The work itself is untouched: the sibling still holds every commit.
     assert!(deleted
         .snapshot
-        .lines
+        .branches
         .iter()
-        .any(|line| line.name == "keeper"));
+        .any(|candidate| candidate.name == "keeper"));
 
     let _ = fs::remove_dir_all(repo);
     let _ = fs::remove_file(identity);
 }
 
 #[test]
-fn version_line_rename_moves_the_name_and_refuses_one_already_in_use() {
+fn branch_rename_moves_the_name_and_refuses_one_already_in_use() {
     let repo = unique_temp_dir("vl-rename");
     git_init(&repo);
     let identity = write_test_identity_config("vl-rename");
@@ -561,64 +540,64 @@ fn version_line_rename_moves_the_name_and_refuses_one_already_in_use() {
     git_add_all(&repo);
     git_commit(&repo, "Second version");
 
-    let plan = crate::version_lines::plan_rename_version_line(
+    let plan = crate::branches::plan_rename_branch(
         repo.clone(),
         "feature/old-name".to_string(),
         "feature/new-name".to_string(),
     )
-    .expect("plan a rename of the active line");
+    .expect("plan a rename of the active branch");
     // Nothing is lost and nothing leaves this computer, so this is not a
     // destructive operation and needs no confirmation step of its own.
     assert_eq!(plan.operation_kind, OperationKind::LocalMutation);
     assert!(plan.is_active);
     assert!(!plan.requires_confirmation);
 
-    let before = crate::version_lines::get_version_lines(repo.clone()).expect("read before");
+    let before = crate::branches::get_branches(repo.clone()).expect("read before");
     let tip = before
-        .lines
+        .branches
         .iter()
-        .find(|line| line.name == "feature/old-name")
-        .expect("the line to rename is listed")
+        .find(|candidate| candidate.name == "feature/old-name")
+        .expect("the branch to rename is listed")
         .tip
         .commit
         .clone();
 
-    let snapshot = crate::version_lines::rename_version_line(
+    let snapshot = crate::branches::rename_branch(
         repo.clone(),
         "feature/old-name".to_string(),
         "feature/new-name".to_string(),
         plan.state_token,
     )
-    .expect("rename the active line");
+    .expect("rename the active branch");
     assert_eq!(snapshot.branch.as_deref(), Some("feature/new-name"));
     let renamed = snapshot
-        .lines
+        .branches
         .iter()
-        .find(|line| line.name == "feature/new-name")
-        .expect("the renamed line is listed");
+        .find(|candidate| candidate.name == "feature/new-name")
+        .expect("the renamed branch is listed");
     // A rename moves a name, never a saved version.
     assert_eq!(renamed.tip.commit, tip);
     assert!(snapshot
-        .lines
+        .branches
         .iter()
-        .all(|line| line.name != "feature/old-name"));
+        .all(|candidate| candidate.name != "feature/old-name"));
 
-    // A name another line already holds is refused before anything moves.
-    let taken = crate::version_lines::plan_rename_version_line(
+    // A name another branch already holds is refused before anything moves.
+    let taken = crate::branches::plan_rename_branch(
         repo.clone(),
         "feature/new-name".to_string(),
         trunk.clone(),
     )
     .expect_err("a name in use is refused");
-    assert_eq!(taken.code, AppErrorCode::VersionLineNameTaken);
+    assert_eq!(taken.code, AppErrorCode::BranchNameTaken);
 
-    // And a line that no longer exists is refused rather than answered.
-    let missing = crate::version_lines::plan_rename_version_line(
+    // And a branch that no longer exists is refused rather than answered.
+    let missing = crate::branches::plan_rename_branch(
         repo.clone(),
         "feature/old-name".to_string(),
         "whatever".to_string(),
     )
-    .expect_err("a line that is gone cannot be renamed");
+    .expect_err("a branch that is gone cannot be renamed");
     assert_eq!(missing.code, AppErrorCode::InvalidSelection);
 
     let _ = fs::remove_dir_all(repo);
@@ -726,10 +705,12 @@ fn repository_state_journey_covers_unborn_dirty_clean_detached_conflicted_and_sy
     let diverged = check_team_changes(behind_repo.clone(), "state-diverged".to_string()).unwrap();
     assert_eq!(diverged.state, TeamSyncState::Diverged);
     let head_before = git_stdout(&test_git(&behind_repo, &["rev-parse", "HEAD"]).unwrap());
-    let blocked = plan_get_team_changes(behind_repo.clone(), "state-diverged".to_string(), |_| {})
-        .expect_err("diverged histories must stop before mutation");
-    assert_eq!(blocked.code, AppErrorCode::DivergedHistories);
-    assert!(blocked.remediation.is_some());
+    // A diverged branch is planned as a merge version, and planning moves
+    // nothing.
+    let merge_plan = plan_get_team_changes(behind_repo.clone(), "state-diverged".to_string())
+        .expect("a diverged branch without overlaps can be combined");
+    assert_eq!(merge_plan.integration, IntegrationKind::Merge);
+    assert_eq!(merge_plan.forecast.outcome, ForecastOutcome::Clear);
     assert_eq!(
         git_stdout(&test_git(&behind_repo, &["rev-parse", "HEAD"]).unwrap()),
         head_before

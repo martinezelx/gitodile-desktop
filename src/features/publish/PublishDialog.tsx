@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, CircleAlert, CloudUpload, Info, Laptop, LoaderCircle, Users } from "lucide-react";
+import { ArrowDownToLine, Check, ChevronDown, CircleAlert, CloudOff, CloudUpload, Info, Laptop, LoaderCircle, ShieldCheck, TriangleAlert, Users } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { localizeAppError, isAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, DialogFacts, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus, useToast } from "../../shared/ui";
@@ -102,7 +102,15 @@ function PublishSummary({
   return (
     <>
       <p className="app-dialog__summary">
-        <strong>{t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}</strong>
+        <strong>
+          {/* Nothing new can only mean a branch the remote doesn't have yet:
+              Rust refuses a publish with nothing to send to an existing one. */}
+          {plan.commitCount === 0
+            ? "recreatesDeletedBranch" in plan && plan.recreatesDeletedBranch
+              ? t.publishRecreateOnlyBranch(plan.target.remote, plan.target.destinationBranch)
+              : t.publishCreateOnlyBranch(plan.target.remote, plan.target.destinationBranch)
+            : t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}
+        </strong>
       </p>
       {plan.commitSummary.length > 0 && (
         <ul
@@ -136,6 +144,7 @@ function PublishSummary({
             : []),
           ...(plan.hasUnsavedFiles ? [{ icon: <Laptop />, text: t.publishUnsavedFilesNote }] : []),
           { icon: <Users />, text: t.publishTeammatesNote },
+          { icon: <ShieldCheck />, text: t.publishSafeNote, safe: true },
         ]}
       />
     </>
@@ -166,7 +175,12 @@ function PublishSummaryPlaceholder({ t }: { t: Translations }): React.JSX.Elemen
           ))}
         </ul>
       </LoadingPlaceholder>
-      <DialogFacts facts={[{ icon: <Users />, text: t.publishTeammatesNote }]} />
+      <DialogFacts
+        facts={[
+          { icon: <Users />, text: t.publishTeammatesNote },
+          { icon: <ShieldCheck />, text: t.publishSafeNote, safe: true },
+        ]}
+      />
     </>
   );
 }
@@ -209,6 +223,7 @@ export function PublishDialog({
   onClose,
   onPublished,
   onPhaseChange,
+  onGetFirst,
 }: {
   isOpen: boolean;
   controller?: PublishController;
@@ -231,6 +246,9 @@ export function PublishDialog({
   onPhaseChange?: (
     phase: "planning" | "executing" | "verifying" | "uncertain" | "error" | "success"
   ) => void;
+  /** Given, a remote that moved on is not a dead end: the dialog offers to
+   * get its versions first and publish in the same confirmation. */
+  onGetFirst?: () => void;
 }): React.JSX.Element | null {
   const { t } = useLanguage();
   const showToast = useToast();
@@ -315,6 +333,7 @@ export function PublishDialog({
   const summary: PublishPreview | null =
     plan ?? (isLoading && selectedRemote === null ? preview : null);
   const isFirstPublish = plan?.willCreateUpstream ?? false;
+  const recreatesBranch = plan?.recreatesDeletedBranch ?? false;
   const isUncertain =
     state.status === "publish-error" &&
     isAppError(state.error) &&
@@ -360,7 +379,9 @@ export function PublishDialog({
         // screen to dismiss (DESIGN.md § Dialogs).
         showToast({
           icon: <CloudUpload />,
-          message: t.publishSuccessDescription(result.publishedCount, result.target.remote),
+          message: result.publishedCount === 0
+            ? t.publishBranchCreatedDescription(result.target.destinationBranch, result.target.remote)
+            : t.publishSuccessDescription(result.publishedCount, result.target.remote),
         });
         onCloseRef.current();
       })
@@ -375,18 +396,37 @@ export function PublishDialog({
   // Retrying can't make versions appear: "everything is published" only
   // offers the way out. Any other planning failure may pass on a retry.
   const isNothingToPublish = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_publish";
+  // The remote has versions this branch doesn't: publishing needs them first.
+  const remoteMovedOn = (error: unknown): boolean =>
+    isAppError(error) && (error.code === "behind_remote" || error.code === "diverged_histories");
+  const canGetFirst = Boolean(onGetFirst) && (
+    (state.status === "blocked" && remoteMovedOn(state.error)) ||
+    (state.status === "publish-error" && remoteMovedOn(state.error))
+  );
+  /* A dead end is a short message with its own title and glyph, not the plan
+     with a sentence in it (DESIGN.md § Dialogs). */
+  const isBlocked = state.status === "blocked";
   const title = state.status === "remote-selection"
     ? t.publishChooseRemoteHeading
-    : isFirstPublish && plan
-      ? t.publishDialogTitleFirst(plan.target.destinationBranch)
-      : t.publishDialogTitle;
+    : isNothingToPublish
+      ? t.publishNothingTitle
+      : isBlocked
+        ? t.publishBlockedTitle
+        : isFirstPublish && plan
+          ? t.publishDialogTitleFirst
+          : recreatesBranch && plan
+            ? t.publishDialogTitleAgain
+            : t.publishDialogTitle;
 
   return (
     <Dialog
-      size="m"
+      size={isBlocked ? "s" : "m"}
+      role={isBlocked && !isNothingToPublish ? "alertdialog" : "dialog"}
       title={title}
       titleId="publish-dialog-title"
       subtitle={state.status === "remote-selection" ? t.publishChooseRemoteDescription : undefined}
+      icon={isNothingToPublish ? <Check /> : isBlocked ? <TriangleAlert /> : <CloudUpload />}
+      tone={isNothingToPublish ? "success" : isBlocked ? "warning" : "local"}
       onClose={onClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy && !isUncertain}
@@ -428,6 +468,16 @@ export function PublishDialog({
               <button className="primary-button" type="button" onClick={requestClose}>
                 {t.commonClose}
               </button>
+            ) : canGetFirst ? (
+              <>
+                <button className="secondary-button" type="button" onClick={requestClose}>
+                  {t.commonCancel}
+                </button>
+                <button className="primary-button" type="button" onClick={onGetFirst}>
+                  <ArrowDownToLine aria-hidden="true" />
+                  {t.getTeamConfirmPublish}
+                </button>
+              </>
             ) : (
               <>
                 <button className="secondary-button" type="button" onClick={requestClose}>
@@ -448,6 +498,14 @@ export function PublishDialog({
             <span className="visually-hidden" role="status">
               {t.publishCheckingRemote}
             </span>
+          )}
+          {/* Before the plan, so the consequence is read before the list. */}
+          {recreatesBranch && plan && (
+            <DialogBanner tone="warning" icon={<CloudOff />}>
+              <p>
+                <strong>{t.publishRecreateWarningTitle(plan.target.remote)}</strong> {t.publishRecreateWarningBody}
+              </p>
+            </DialogBanner>
           )}
           {summary ? (
             <PublishSummary
@@ -484,6 +542,12 @@ export function PublishDialog({
               >
                 {t.commonCancel}
               </button>
+              {canGetFirst ? (
+                <button className="primary-button" type="button" onClick={onGetFirst}>
+                  <ArrowDownToLine aria-hidden="true" />
+                  {t.getTeamConfirmPublish}
+                </button>
+              ) : (
               <button
                 className="primary-button"
                 type="button"
@@ -506,10 +570,13 @@ export function PublishDialog({
                       ? t.publishCheckRemoteAgain
                       : isStalePlan
                         ? t.publishReviewUpdatedPlan
-                        : t.publishConfirm}
+                        : recreatesBranch
+                          ? t.publishRecreateConfirm
+                          : t.publishConfirm}
                   </>
                 )}
               </button>
+              )}
             </div>
           </div>
         </>

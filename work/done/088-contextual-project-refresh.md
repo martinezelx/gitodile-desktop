@@ -9,7 +9,7 @@ areas:
   - overview
   - status
   - history
-  - version-lines
+  - branches
   - sync
   - accessibility
 created: 2026-08-29
@@ -36,7 +36,7 @@ and checking the remote project remains one consistent action from any screen.
 Overview, Changes, History, and the status bar currently reuse very similar
 refresh affordances for materially different work. Overview coordinates
 repository identity, working-tree status, pending versions, a network check,
-version lines, history, and cached sync facts. Changes reads local status,
+branches, history, and cached sync facts. Changes reads local status,
 History reloads its own timeline, and the status bar checks only the configured
 remote destination.
 
@@ -57,7 +57,7 @@ the persistent local controls can be quieter without removing recovery paths.
   current local snapshot failed to refresh.
 - Remove History's permanent full-timeline refresh and expose it in the watcher
   notice or beside a failed snapshot.
-- Add a retry beside the Version Lines stale-snapshot warning.
+- Add a retry beside the Branches stale-snapshot warning.
 - Keep the status-bar action remote-only and give equivalent remote retry
   actions the same semantics and state.
 - Add separate command-palette actions for local status, remote comparison, and
@@ -85,7 +85,7 @@ the persistent local controls can be quieter without removing recovery paths.
       refresh and truthful explanatory copy.
 - [x] History has no permanent refresh in a healthy state; watcher-off,
       watcher-unavailable, and failed-snapshot states retain contextual retry.
-- [x] Version Lines can retry a failed background refresh while preserving the
+- [x] Branches can retry a failed background refresh while preserving the
       last known inventory.
 - [x] The status bar continues to perform only an explicit remote comparison.
 - [x] Command-palette labels expose the exact scope of every manual check.
@@ -101,7 +101,7 @@ the persistent local controls can be quieter without removing recovery paths.
 - `src/features/overview/OverviewPanel.tsx`
 - `src/features/overview/HistorySummarySection.tsx`
 - `src/features/sync/TeamChangesSection.tsx`
-- `src/features/version-lines/VersionLinesPanel.tsx`
+- `src/features/branches/BranchesPanel.tsx`
 - `DESIGN.md`
 
 # Dependencies
@@ -137,11 +137,11 @@ rounded, feature-owned notice with manual recovery.
   controller while preserving cached content.
 - Kept the status-bar cloud action remote-only and made that scope explicit in
   its accessible name. The command palette now exposes separate local and
-  remote checks, plus History and Lines refresh commands only on their owning
+  remote checks, plus History and Branches refresh commands only on their owning
   screens.
 - Removed History's healthy-state refresh, added its manual action to the
   rounded watcher notice and failed snapshot, added a retained-snapshot retry
-  to Lines, and kept healthy cards free of redundant checker buttons.
+  to Branches, and kept healthy cards free of redundant checker buttons.
 - Updated English and Spanish copy, live-region ownership, CSS for contextual
   error actions, `DESIGN.md`, integration tests, and component tests.
 
@@ -168,7 +168,7 @@ rounded, feature-owned notice with manual recovery.
   architecture checks, 56 frontend files / 465 tests, production build, Rust
   formatting, Clippy, and 306 Rust tests.
 
-- `pnpm exec vitest run src/app/StatusBar.test.tsx src/features/changes/ChangesPanel.test.tsx src/features/sync/TeamChangesSection.test.tsx src/features/overview/HistorySummarySection.test.tsx src/features/overview/PendingVersionsSection.test.tsx src/features/version-lines/VersionLinesPanel.test.tsx src/features/history/HistoryPanel.test.tsx src/app/App.test.tsx` — 8 files, 123 tests passed.
+- `pnpm exec vitest run src/app/StatusBar.test.tsx src/features/changes/ChangesPanel.test.tsx src/features/sync/TeamChangesSection.test.tsx src/features/overview/HistorySummarySection.test.tsx src/features/overview/PendingVersionsSection.test.tsx src/features/branches/BranchesPanel.test.tsx src/features/history/HistoryPanel.test.tsx src/app/App.test.tsx` — 8 files, 123 tests passed.
 - `pnpm run typecheck` — passed.
 - Local browser inspection — the frontend shell rendered without console errors;
   repository-owned states were verified through the focused component and App

@@ -1,17 +1,22 @@
-import type { DefaultLineName, GitReadCommand } from "./domain";
-import type { ConsoleEffect, ConsoleRefusalReason, ConsoleRunFailure, ConsoleTier, PlanFact } from "./port";
+import type { ConsoleHostingId, DefaultLineName, GitReadCommand } from "./domain";
+import type { ConsoleEffect, ConsoleHost, ConsoleRefusalReason, ConsoleRunFailure, ConsoleTier, HostingUnavailable, PlanFact } from "./port";
 
 export interface ConsoleTranslations {
   consoleTitle: string;
   consoleShortcuts: string;
   consolePromptLabel: string;
   consolePromptOn: string;
-  consoleHint: string;
+  consoleHintComplete: string;
+  consoleHintNavigate: string;
   consoleEmpty: string;
   consoleWelcomeProject: string;
-  consoleWelcomeLine: string;
+  consoleWelcomeBranch: string;
   consoleWelcomeGit: string;
-  consoleWelcomeMode: string;
+  consoleWelcomeConfirm: string;
+  consoleWelcomeConfirmOn: string;
+  consoleWelcomeConfirmOff: string;
+  consoleWelcomeProvider: string;
+  consoleProvider: (host: ConsoleHost) => string;
   consoleWelcomeProjectSection: string;
   consoleWelcomeEnvironmentSection: string;
   consoleWelcomeChanges: string;
@@ -21,7 +26,6 @@ export interface ConsoleTranslations {
   consoleWelcomeUpToDate: string;
   consoleStatusSaved: string;
   consoleStatusUnsaved: (files: number) => string;
-  consoleStatusUnpublished: (versions: number) => string;
   consoleStatusIncoming: (versions: number) => string;
   consoleHelpIntro: string;
   consoleHelpNames: string;
@@ -37,7 +41,12 @@ export interface ConsoleTranslations {
   consoleOpenSettings: string;
   consoleCompletions: string;
   consoleStatusLine: string;
-  consoleReadOnly: string;
+  consoleSearch: string;
+  consoleSearchLabel: string;
+  consoleStatusConfirm: string;
+  consoleStatusConfirmShort: string;
+  consoleStatusNoConfirm: string;
+  consoleStatusNoConfirmShort: string;
   consoleCopy: string;
   consoleCopied: string;
   consoleRerun: string;
@@ -79,30 +88,16 @@ export interface ConsoleTranslations {
   consoleHelpGitFooter: string;
   consoleGitCommands: Record<GitReadCommand, string>;
   consoleRefusal: (reason: Exclude<ConsoleRefusalReason, "tier_not_allowed">, subject: string | null) => string;
-  consoleTierNotAllowed: (subcommand: string, tier: ConsoleTier, advancedMode: boolean) => string;
-  consoleHelpGitAdvanced: string;
-  consoleAdvancedMode: string;
-  consoleRootMode: string;
-  consoleSettingsModeTitle: string;
-  consoleSettingsModeIntro: string;
-  consoleModeReadOnly: string;
-  consoleModeAdvanced: string;
-  consoleModeRoot: string;
-  consoleModeReadOnlyDescription: string;
-  consoleModeAdvancedDescription: string;
-  consoleModeRootDescription: string;
-  consoleRootDialogTitle: string;
-  consoleRootDialogBody: string;
-  consoleRootDialogStillShown: string;
-  consoleRootDialogStillChecked: string;
-  consoleRootDialogConfirm: string;
-  consoleAdvancedSaveFailed: string;
-  consoleAdvancedDialogTitle: string;
-  consoleAdvancedDialogBody: string;
-  consoleAdvancedDialogPreview: string;
-  consoleAdvancedDialogLimits: string;
-  consoleAdvancedDialogGuided: string;
-  consoleAdvancedDialogConfirm: string;
+  consoleTierNotAllowed: (subcommand: string, tier: ConsoleTier) => string;
+  consoleConfirmChangesLabel: string;
+  consoleConfirmChangesDescription: string;
+  consoleConfirmOffDialogTitle: string;
+  consoleConfirmOffDialogBody: string;
+  consoleConfirmOffDialogStillShown: string;
+  consoleConfirmOffDialogLimits: string;
+  consoleConfirmOffDialogStillChecked: string;
+  consoleConfirmOffDialogConfirm: string;
+  consoleConfirmSaveFailed: string;
   consoleConfirmQuestion: string;
   consoleConfirmLabel: string;
   consoleAwaitingAnswer: string;
@@ -121,6 +116,8 @@ export interface ConsoleTranslations {
   consoleRemotes: string;
   consoleStashes: string;
   consoleAuthors: string;
+  consoleHostingLabels: Record<ConsoleHostingId, string>;
+  consoleHostingUnavailable: (reason: HostingUnavailable, host: ConsoleHost) => string;
 }
 
 const EN_TIER_EFFECTS: Record<ConsoleTier, string> = {
@@ -141,15 +138,26 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
   en: {
     consoleTitle: "Console", consoleShortcuts: "Shortcuts",
     consolePromptLabel: "Console command", consolePromptOn: "on",
-    consoleHint: "Tab completes · Enter runs · ↑↓ history · Ctrl+L clears",
-    consoleEmpty: "Type help to see the shortcuts, or a read-only Git command such as git log --oneline.",
-    consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeMode: "mode",
+    consoleHintComplete: "Tab completes · Enter runs", consoleHintNavigate: "↑↓ history · Ctrl+L clears",
+    consoleEmpty: "Type help to see the shortcuts, or a Git command such as git log --oneline.",
+    consoleWelcomeProject: "project", consoleWelcomeBranch: "branch", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
+    consoleWelcomeConfirmOn: "before each change", consoleWelcomeConfirmOff: "off",
+    consoleWelcomeProvider: "provider",
+    consoleProvider: (host) => {
+      switch (host.kind) {
+        case "github": return host.companyServer ? `GitHub Enterprise · ${host.host}` : "GitHub";
+        case "gitlab": return host.companyServer ? `GitLab Self-Managed · ${host.host}` : "GitLab";
+        case "bitbucket": return "Bitbucket";
+        case "git": return host.host ? `Git server · ${host.host}` : "Git server";
+        case "local": return "this computer only";
+        case "unclear": return "several remotes";
+      }
+    },
     consoleWelcomeProjectSection: "project", consoleWelcomeEnvironmentSection: "environment",
     consoleWelcomeChanges: "changes", consoleWelcomePublish: "publish", consoleWelcomeTheme: "theme",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "version" : "versions"}`, consoleWelcomeUpToDate: "up to date",
     consoleStatusSaved: "everything saved",
     consoleStatusUnsaved: (files) => `${files} unsaved`,
-    consoleStatusUnpublished: (versions) => `↑${versions} to publish`,
     consoleStatusIncoming: (versions) => `↓${versions} new`,
     consoleHelpIntro: "Available shortcuts (read-only)",
     consoleHelpNames: "Shortcut", consoleHelpMeaning: "What it shows", consoleHelpCommand: "Git command",
@@ -158,11 +166,15 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       short: "Compact project status", stat: "Unstaged changes per file", today: "Versions saved today",
       week: "Versions saved this week", unpublished: "Saved versions not yet published",
       incoming: "Newer changes already fetched", moves: "Recent moves of HEAD",
-      "all-lines": "All version lines, local and remote", size: "How much the project stores",
+      "all-branches": "All branches, local and remote", size: "How much the project stores",
     }, consoleHelpActions: "Also: help git lists the Git commands you can type, clear empties the view, shortcuts edits the names, settings opens the console settings.",
     consoleControlHelp: "List the shortcuts", consoleControlClear: "Clear the view", consoleControlShortcuts: "Edit shortcut names",
     consoleControlSettings: "Open the console settings", consoleOpenSettings: "Console settings",
-    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleReadOnly: "read-only",
+    consoleCompletions: "Matching shortcuts", consoleStatusLine: "Console status", consoleSearch: "Search or do something…", consoleSearchLabel: "Open command palette",
+    consoleStatusConfirm: "confirms changes",
+    consoleStatusConfirmShort: "Confirms",
+    consoleStatusNoConfirm: "no confirmation",
+    consoleStatusNoConfirmShort: "No confirm",
     consoleCopy: "Copy output", consoleCopied: "Copied", consoleRerun: "Run again",
     consoleDuration: (ms) => formatDuration(ms, "en"), consoleTruncatedShort: "Shortened", consoleSucceeded: "Finished",
     consoleUnknown: (input) => `“${input}” isn't a shortcut or a Git command. Type help to see the names, or help git for Git commands.`,
@@ -171,31 +183,31 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTruncated: "Output was shortened to keep the console responsive.",
     consoleRequestFailed: "The query couldn't run. Check the project and try again.",
     consoleShortcutsTitle: "Console shortcuts", consoleShortcutsDescription: "Shared by all your projects; each runs a Git command.",
-    consoleShortcutName: "Shortcut name", consoleShortcutTarget: "Git query", consoleQueryPrevious: "Previous query", consoleQueryNext: "Next query", consoleShortcutAdd: "Add shortcut",
+    consoleShortcutName: "Shortcut name", consoleShortcutTarget: "Query", consoleQueryPrevious: "Previous query", consoleQueryNext: "Next query", consoleShortcutAdd: "Add shortcut",
     consoleShortcutRename: "Rename", consoleShortcutRemove: "Remove", consoleShortcutSave: "Save name",
     consoleShortcutCancel: "Cancel", consoleShortcutReset: "Restore defaults", consoleShortcutClose: "Close shortcuts",
     consoleShortcutInvalid: "Use 1–20 lowercase letters, numbers or hyphens, starting with a letter.",
     consoleShortcutReserved: "That name is reserved for a console action.",
     consoleShortcutDuplicate: "That shortcut name is already in use.",
-    consoleShortcutLimit: "You can keep up to 24 shortcuts.",
+    consoleShortcutLimit: "You can keep up to 32 shortcuts.",
     consoleShortcutStorageError: "The shortcut couldn't be saved on this device.",
     consoleShortcutLineOption: "Git command line", consoleShortcutLine: "Git command line",
     consoleShortcutLineInvalid: "Write a Git command that starts with git, such as git log --oneline -20.",
     consoleShortcutChecking: "Checking the command…",
     consoleShortcutWidened: (name) => `“${name}” was saved as a read-only command and now asks for more, so it didn't run. Edit the shortcut to keep using it.`,
-    consoleHelpGitIntro: "Git commands you can type (read-only)", consoleHelpGitCommand: "Command",
-    consoleHelpGitFooter: "Commands that change the project, reach the remote copy, open an editor or run another program aren't available here.",
+    consoleHelpGitIntro: "Git commands that only read the project", consoleHelpGitCommand: "Command",
+    consoleHelpGitFooter: "Commands that change the project or reach the remote copy, such as git add, git commit -m, git switch, git fetch and git push, run here too, each shown first. Commands that rewrite saved history, can discard work, open an editor or run another program aren't available here.",
     consoleGitCommands: {
       status: "Project status", log: "Saved versions, newest first", show: "A saved version, or a file in it",
       diff: "Changes between versions or files", blame: "Who last changed each line", grep: "Search the project's files",
-      branch: "Version lines", tag: "Tags", reflog: "Where HEAD and the lines have been",
+      branch: "Branches", tag: "Tags", reflog: "Where HEAD and the branches have been",
       "stash list": "Changes set aside", "stash show": "What a set-aside change holds",
       remote: "Remote copies and their addresses", "ls-files": "Files Git tracks", "ls-tree": "Files in a saved version",
       "cat-file": "A stored object, as Git keeps it", "rev-parse": "The ID a name points to", describe: "A version named from its nearest tag",
       shortlog: "Saved versions by author", "count-objects": "How much the project stores",
-      whatchanged: "Saved versions with the files they changed", "name-rev": "A version named from a nearby line or tag",
-      "merge-base": "Where two lines parted", "for-each-ref": "Lines and tags, in a format you choose",
-      "show-ref": "Lines and tags with their IDs", version: "The Git version",
+      whatchanged: "Saved versions with the files they changed", "name-rev": "A version named from a nearby branch or tag",
+      "merge-base": "Where two branches parted", "for-each-ref": "Branches and tags, in a format you choose",
+      "show-ref": "Branches and tags with their IDs", version: "The Git version",
     },
     consoleRefusal: (reason, subject) => {
       const word = subject ?? "";
@@ -217,33 +229,16 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
           : `“${word}” needs an interactive terminal, which the console doesn't have.`;
       }
     },
-    consoleTierNotAllowed: (subcommand, tier, advancedMode) => {
-      const does = `git ${subcommand} ${EN_TIER_EFFECTS[tier]}`;
-      if (tier === "history_change" || tier === "destructive") return `${does}, which the console can't do yet. Use the guided actions for it.`;
-      if (!advancedMode && (tier === "local_change" || tier === "remote")) return `${does}. Choose the advanced console mode in Settings › Console to run it here, or use the guided actions.`;
-      return `${does}, and the console only runs read-only commands. Use the guided actions for it.`;
-    },
-    consoleHelpGitAdvanced: "Advanced mode is on: commands that change the project or reach the remote copy run here too, each shown first and run only when you answer yes.",
-    consoleAdvancedMode: "advanced",
-    consoleRootMode: "root",
-    consoleSettingsModeTitle: "Console mode",
-    consoleSettingsModeIntro: "What the console may do beyond reading, without changing how the guided actions work.",
-    consoleModeReadOnly: "Read-only", consoleModeAdvanced: "Advanced", consoleModeRoot: "Root",
-    consoleModeReadOnlyDescription: "Only reads the project, so nothing you type can change it.",
-    consoleModeAdvancedDescription: "Can also change the project and its remote copy, showing each change and asking before it runs.",
-    consoleModeRootDescription: "Changes the project and its remote copy like advanced, but runs each change as soon as you press Enter.",
-    consoleRootDialogTitle: "Switch to root mode?",
-    consoleRootDialogBody: "Commands that change the project or its remote copy will run as soon as you press Enter, including git push, without asking first.",
-    consoleRootDialogStillShown: "The console still prints what each one does before it runs.",
-    consoleRootDialogStillChecked: "A command still doesn't run if the project changed while it was being prepared.",
-    consoleRootDialogConfirm: "Switch to root",
-    consoleAdvancedSaveFailed: "The setting couldn't be saved. Try again.",
-    consoleAdvancedDialogTitle: "Switch to advanced mode?",
-    consoleAdvancedDialogBody: "The console will also run Git commands that change this project or its remote copy, such as git add, git commit -m, git switch, git stash, git fetch and git push.",
-    consoleAdvancedDialogPreview: "Every change is shown first and runs only when you answer yes. If the project moves in between, it doesn't run.",
-    consoleAdvancedDialogLimits: "Commands that rewrite saved history or can discard work stay unavailable.",
-    consoleAdvancedDialogGuided: "The guided actions remain the simplest and safest way to do all of this.",
-    consoleAdvancedDialogConfirm: "Switch to advanced",
+    consoleTierNotAllowed: (subcommand, tier) => `git ${subcommand} ${EN_TIER_EFFECTS[tier]}, which the console can't do yet. Use the guided actions for it.`,
+    consoleConfirmChangesLabel: "Confirm each change",
+    consoleConfirmChangesDescription: "Show what a command will change in the project or its remote copy and ask before it runs. Off, the console still shows it but runs it as soon as you press Enter.",
+    consoleConfirmOffDialogTitle: "Run without asking?",
+    consoleConfirmOffDialogBody: "Commands that change the project or its remote copy will run as soon as you press Enter, including git push, without asking first.",
+    consoleConfirmOffDialogStillShown: "The console still prints what each one does before it runs.",
+    consoleConfirmOffDialogLimits: "Commands that rewrite saved history or can discard work stay unavailable.",
+    consoleConfirmOffDialogStillChecked: "A command still doesn't run if the project changed while it was being prepared.",
+    consoleConfirmOffDialogConfirm: "Turn off",
+    consoleConfirmSaveFailed: "The setting couldn't be saved. Try again.",
     consoleConfirmQuestion: "Continue? [y/N]",
     consoleConfirmLabel: "Answer y to run the command, anything else to cancel",
     consoleAwaitingAnswer: "Waiting for your answer.",
@@ -260,17 +255,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       const remote = (name: string | null) => (name ? `“${name}”` : "the remote copy");
       switch (fact.kind) {
         case "stages": return fact.total === 0 ? "Nothing new to stage." : `Stages ${files(fact.total)}: ${fact.files.join(", ")}${fact.total > fact.files.length ? ", …" : ""}`;
-        case "commits": return `Saves a new version${fact.files === null ? " of the files you named" : ` with ${files(fact.files)} ready to save`}${fact.line ? ` on the line “${fact.line}”` : ""}.`;
-        case "switches": return fact.create ? `Creates the line “${fact.target}” and switches to it.` : `Switches to “${fact.target}”. Git stops if your changes would be overwritten.`;
-        case "creates_line": return `Creates the line “${fact.name}”.`;
+        case "commits": return `Saves a new version${fact.files === null ? " of the files you named" : ` with ${files(fact.files)} ready to save`}${fact.branch ? ` on the branch “${fact.branch}”` : ""}.`;
+        case "switches": return fact.create ? `Creates the branch “${fact.target}” and switches to it.` : `Switches to “${fact.target}”. Git stops if your changes would be overwritten.`;
+        case "creates_branch": return `Creates the branch “${fact.name}”.`;
         case "creates_tag": return `Creates the tag “${fact.name}”.`;
         case "sets_aside": return `Sets aside ${files(fact.files)} with changes.`;
         case "applies_set_aside": return `Brings back ${fact.stash} and keeps it in the list.`;
         case "reverts": return `Saves a new version that undoes ${fact.version}, with Git's own message.`;
-        case "copies_version": return `Copies ${fact.version} onto the current line as a new version.`;
+        case "copies_version": return `Copies ${fact.version} onto the current branch as a new version.`;
         case "fetches": return `Gets new project changes from ${remote(fact.remote)} without changing your files.`;
         case "pulls": return `Gets new project changes from ${remote(fact.remote)} and brings them in only if nothing needs combining.`;
-        case "publishes": return `Publishes ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "saved version" : "saved versions"} of `}${fact.line ? `“${fact.line}”` : "the current line"} to ${remote(fact.remote)}.`;
+        case "publishes": return `Publishes ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "saved version" : "saved versions"} of `}${fact.branch ? `“${fact.branch}”` : "the current branch"} to ${remote(fact.remote)}.`;
         case "asks_remote": return `Asks ${remote(fact.remote)} what it has; nothing changes.`;
         case "skips_hooks": return fact.typed ? "The project's hooks won't run, as the command asks." : "The project's hooks won't run: they are turned off in Settings.";
       }
@@ -280,24 +275,51 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       signing_failed: "Git couldn't sign it. Check your commit-signing setup.",
       authentication_failed: "Git couldn't sign in to the remote copy. Check your saved credentials for it; the console never asks for them.",
       remote_rejected: "The remote copy refused the change under its own rules.",
-      not_fast_forward: "The remote copy has changes you don't have yet. Get them first; the console never forces or combines lines.",
+      not_fast_forward: "The remote copy has changes you don't have yet. Get them first; the console never forces or combines branches.",
     },
     consoleStatus: "Project status", consoleDiff: "Unstaged changes", consoleLog: "Recent versions", consoleBranches: "Local branches",
     consoleStaged: "Changes ready to save", consoleGraph: "Version graph", consoleLast: "Latest saved version", consoleTags: "Tags",
     consoleRemotes: "Remote copies", consoleStashes: "Changes set aside", consoleAuthors: "Authors",
+    consoleHostingLabels: {
+      prs: "Open pull or merge requests", "my-prs": "Your pull or merge requests", issues: "Open issues",
+      runs: "Recent CI runs", checks: "Checks on this branch", repo: "The project on its hosting service",
+    },
+    consoleHostingUnavailable: (reason, host) => {
+      const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
+      const section = host.kind === "gitlab" ? "GitLab" : "GitHub";
+      if (reason === "cli_missing") return `${cli} isn't installed. Install it from Settings › ${section}, then try again.`;
+      if (reason === "signed_out") return `${cli} has no account signed in for ${host.host ?? "this server"}. Connect one in Settings › ${section}, then try again.`;
+      switch (host.kind) {
+        case "bitbucket": return "Bitbucket has no official command-line tool, so these shortcuts work only for GitHub and GitLab projects.";
+        case "local": return "This project has no remote yet, so there is no hosting service to ask.";
+        case "unclear": return "This project has several remotes and none is clearly its own. Publish the current branch, or name one of them origin, so the console knows which to ask.";
+        default: return "This project's remote isn't on GitHub or GitLab, so there is no hosting tool to ask.";
+      }
+    },
   },
   es: {
     consoleTitle: "Consola", consoleShortcuts: "Atajos",
     consolePromptLabel: "Comando de consola", consolePromptOn: "en",
-    consoleHint: "Tab completa · Intro ejecuta · ↑↓ historial · Ctrl+L limpia",
-    consoleEmpty: "Escribe help para ver los atajos, o un comando Git de solo lectura como git log --oneline.",
-    consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeMode: "modo",
+    consoleHintComplete: "Tab completa · Intro ejecuta", consoleHintNavigate: "↑↓ historial · Ctrl+L limpia",
+    consoleEmpty: "Escribe help para ver los atajos, o un comando Git como git log --oneline.",
+    consoleWelcomeProject: "proyecto", consoleWelcomeBranch: "rama", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
+    consoleWelcomeConfirmOn: "antes de cada cambio", consoleWelcomeConfirmOff: "desactivada",
+    consoleWelcomeProvider: "proveedor",
+    consoleProvider: (host) => {
+      switch (host.kind) {
+        case "github": return host.companyServer ? `GitHub Enterprise · ${host.host}` : "GitHub";
+        case "gitlab": return host.companyServer ? `GitLab Self-Managed · ${host.host}` : "GitLab";
+        case "bitbucket": return "Bitbucket";
+        case "git": return host.host ? `servidor Git · ${host.host}` : "servidor Git";
+        case "local": return "solo este ordenador";
+        case "unclear": return "varios remotos";
+      }
+    },
     consoleWelcomeProjectSection: "proyecto", consoleWelcomeEnvironmentSection: "entorno",
     consoleWelcomeChanges: "cambios", consoleWelcomePublish: "publicar", consoleWelcomeTheme: "tema",
     consoleWelcomeUnpublished: (versions) => `${versions} ${versions === 1 ? "versión" : "versiones"}`, consoleWelcomeUpToDate: "al día",
     consoleStatusSaved: "todo guardado",
     consoleStatusUnsaved: (files) => `${files} sin guardar`,
-    consoleStatusUnpublished: (versions) => `↑${versions} sin publicar`,
     consoleStatusIncoming: (versions) => `↓${versions} nuevas`,
     consoleHelpIntro: "Atajos disponibles (solo lectura)",
     consoleHelpNames: "Atajo", consoleHelpMeaning: "Qué muestra", consoleHelpCommand: "Comando Git",
@@ -306,11 +328,15 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       short: "Estado del proyecto compacto", stat: "Cambios sin preparar por archivo", today: "Versiones guardadas hoy",
       week: "Versiones guardadas esta semana", unpublished: "Versiones guardadas sin publicar",
       incoming: "Cambios nuevos ya obtenidos", moves: "Últimos movimientos de HEAD",
-      "all-lines": "Todas las líneas, locales y remotas", size: "Cuánto almacena el proyecto",
+      "all-branches": "Todas las ramas, locales y remotas", size: "Cuánto almacena el proyecto",
     }, consoleHelpActions: "Además: help git lista los comandos Git que puedes escribir, clear vacía la vista, shortcuts edita los nombres y settings abre los ajustes de la consola.",
     consoleControlHelp: "Ver los atajos", consoleControlClear: "Limpiar la vista", consoleControlShortcuts: "Editar los nombres",
     consoleControlSettings: "Abrir los ajustes de la consola", consoleOpenSettings: "Ajustes de la consola",
-    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleReadOnly: "solo lectura",
+    consoleCompletions: "Atajos que coinciden", consoleStatusLine: "Estado de la consola", consoleSearch: "Buscar o hacer algo…", consoleSearchLabel: "Abrir la paleta de comandos",
+    consoleStatusConfirm: "confirma cambios",
+    consoleStatusConfirmShort: "Confirma",
+    consoleStatusNoConfirm: "sin confirmación",
+    consoleStatusNoConfirmShort: "Sin confirmar",
     consoleCopy: "Copiar salida", consoleCopied: "Copiado", consoleRerun: "Repetir",
     consoleDuration: (ms) => formatDuration(ms, "es"), consoleTruncatedShort: "Acortada", consoleSucceeded: "Terminada",
     consoleUnknown: (input) => `«${input}» no es un atajo ni un comando Git. Escribe help para ver los nombres, o help git para los comandos Git.`,
@@ -319,31 +345,31 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleTruncated: "Se ha acortado la salida para mantener la consola ágil.",
     consoleRequestFailed: "No se pudo ejecutar la consulta. Comprueba el proyecto e inténtalo de nuevo.",
     consoleShortcutsTitle: "Atajos de consola", consoleShortcutsDescription: "Valen para todos tus proyectos y cada uno ejecuta un comando Git.",
-    consoleShortcutName: "Nombre del atajo", consoleShortcutTarget: "Consulta Git", consoleQueryPrevious: "Consulta anterior", consoleQueryNext: "Consulta siguiente", consoleShortcutAdd: "Añadir atajo",
+    consoleShortcutName: "Nombre del atajo", consoleShortcutTarget: "Consulta", consoleQueryPrevious: "Consulta anterior", consoleQueryNext: "Consulta siguiente", consoleShortcutAdd: "Añadir atajo",
     consoleShortcutRename: "Renombrar", consoleShortcutRemove: "Eliminar", consoleShortcutSave: "Guardar nombre",
     consoleShortcutCancel: "Cancelar", consoleShortcutReset: "Restaurar predeterminados", consoleShortcutClose: "Cerrar atajos",
     consoleShortcutInvalid: "Usa entre 1 y 20 letras minúsculas, números o guiones; empieza por una letra.",
     consoleShortcutReserved: "Ese nombre está reservado para una acción de la consola.",
     consoleShortcutDuplicate: "Ese nombre de atajo ya está en uso.",
-    consoleShortcutLimit: "Puedes guardar hasta 24 atajos.",
+    consoleShortcutLimit: "Puedes guardar hasta 32 atajos.",
     consoleShortcutStorageError: "No se pudo guardar el atajo en este dispositivo.",
     consoleShortcutLineOption: "Comando Git", consoleShortcutLine: "Comando Git",
     consoleShortcutLineInvalid: "Escribe un comando Git que empiece por git, como git log --oneline -20.",
     consoleShortcutChecking: "Comprobando el comando…",
     consoleShortcutWidened: (name) => `«${name}» se guardó como un comando de solo lectura y ahora pide más, así que no se ha ejecutado. Edita el atajo para seguir usándolo.`,
-    consoleHelpGitIntro: "Comandos Git que puedes escribir (solo lectura)", consoleHelpGitCommand: "Comando",
-    consoleHelpGitFooter: "Los comandos que cambian el proyecto, se comunican con la copia remota, abren un editor o ejecutan otro programa no están disponibles aquí.",
+    consoleHelpGitIntro: "Comandos Git que solo consultan el proyecto", consoleHelpGitCommand: "Comando",
+    consoleHelpGitFooter: "Los comandos que cambian el proyecto o se comunican con la copia remota, como git add, git commit -m, git switch, git fetch y git push, también se ejecutan aquí, cada uno mostrado antes. Los que reescriben el historial guardado, pueden descartar trabajo, abren un editor o ejecutan otro programa no están disponibles aquí.",
     consoleGitCommands: {
       status: "Estado del proyecto", log: "Versiones guardadas, de la más reciente", show: "Una versión guardada, o un archivo en ella",
       diff: "Cambios entre versiones o archivos", blame: "Quién cambió por última vez cada línea", grep: "Buscar en los archivos del proyecto",
-      branch: "Líneas de versiones", tag: "Etiquetas", reflog: "Por dónde han pasado HEAD y las líneas",
+      branch: "Ramas", tag: "Etiquetas", reflog: "Por dónde han pasado HEAD y las ramas",
       "stash list": "Cambios apartados", "stash show": "Qué contiene un cambio apartado",
       remote: "Copias remotas y sus direcciones", "ls-files": "Archivos que Git sigue", "ls-tree": "Archivos de una versión guardada",
       "cat-file": "Un objeto guardado, tal como lo guarda Git", "rev-parse": "El identificador al que apunta un nombre", describe: "Una versión nombrada por su etiqueta más cercana",
       shortlog: "Versiones guardadas por autor", "count-objects": "Cuánto almacena el proyecto",
-      whatchanged: "Versiones guardadas con los archivos que cambiaron", "name-rev": "Una versión nombrada por una línea o etiqueta cercana",
-      "merge-base": "Dónde se separaron dos líneas", "for-each-ref": "Líneas y etiquetas, con el formato que elijas",
-      "show-ref": "Líneas y etiquetas con sus identificadores", version: "La versión de Git",
+      whatchanged: "Versiones guardadas con los archivos que cambiaron", "name-rev": "Una versión nombrada por una rama o etiqueta cercana",
+      "merge-base": "Dónde se separaron dos ramas", "for-each-ref": "Ramas y etiquetas, con el formato que elijas",
+      "show-ref": "Ramas y etiquetas con sus identificadores", version: "La versión de Git",
     },
     consoleRefusal: (reason, subject) => {
       const word = subject ?? "";
@@ -365,33 +391,16 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
           : `«${word}» necesita un terminal interactivo, que la consola no tiene.`;
       }
     },
-    consoleTierNotAllowed: (subcommand, tier, advancedMode) => {
-      const does = `git ${subcommand} ${ES_TIER_EFFECTS[tier]}`;
-      if (tier === "history_change" || tier === "destructive") return `${does}, y la consola aún no puede hacerlo. Usa las acciones guiadas para ello.`;
-      if (!advancedMode && (tier === "local_change" || tier === "remote")) return `${does}. Elige el modo avanzado de la consola en Ajustes › Consola para ejecutarlo aquí, o usa las acciones guiadas.`;
-      return `${does}, y la consola solo ejecuta comandos de solo lectura. Usa las acciones guiadas para ello.`;
-    },
-    consoleHelpGitAdvanced: "El modo avanzado está activado: los comandos que cambian el proyecto o se comunican con la copia remota también se ejecutan aquí, cada uno se muestra antes y solo se ejecuta si respondes que sí.",
-    consoleAdvancedMode: "avanzado",
-    consoleRootMode: "root",
-    consoleSettingsModeTitle: "Modo de la consola",
-    consoleSettingsModeIntro: "Lo que la consola puede hacer además de leer, sin cambiar cómo funcionan las acciones guiadas.",
-    consoleModeReadOnly: "Solo lectura", consoleModeAdvanced: "Avanzado", consoleModeRoot: "Root",
-    consoleModeReadOnlyDescription: "Solo consulta el proyecto, así que nada de lo que escribas puede cambiarlo.",
-    consoleModeAdvancedDescription: "También puede cambiar el proyecto y su copia remota, mostrando cada cambio y preguntando antes de ejecutarlo.",
-    consoleModeRootDescription: "Cambia el proyecto y su copia remota como el avanzado, pero ejecuta cada cambio en cuanto pulsas Intro.",
-    consoleRootDialogTitle: "¿Pasar al modo root?",
-    consoleRootDialogBody: "Los comandos que cambian el proyecto o su copia remota se ejecutarán en cuanto pulses Intro, git push incluido, sin preguntar antes.",
-    consoleRootDialogStillShown: "La consola sigue mostrando qué hace cada uno antes de ejecutarlo.",
-    consoleRootDialogStillChecked: "Un comando sigue sin ejecutarse si el proyecto cambió mientras se preparaba.",
-    consoleRootDialogConfirm: "Pasar a root",
-    consoleAdvancedSaveFailed: "No se pudo guardar el ajuste. Inténtalo de nuevo.",
-    consoleAdvancedDialogTitle: "¿Pasar al modo avanzado?",
-    consoleAdvancedDialogBody: "La consola ejecutará también comandos Git que cambian este proyecto o su copia remota, como git add, git commit -m, git switch, git stash, git fetch y git push.",
-    consoleAdvancedDialogPreview: "Cada cambio se muestra antes y solo se ejecuta si respondes que sí. Si el proyecto cambia entretanto, no se ejecuta.",
-    consoleAdvancedDialogLimits: "Los comandos que reescriben el historial guardado o pueden descartar trabajo siguen sin estar disponibles.",
-    consoleAdvancedDialogGuided: "Las acciones guiadas siguen siendo la forma más sencilla y segura de hacer todo esto.",
-    consoleAdvancedDialogConfirm: "Pasar a avanzado",
+    consoleTierNotAllowed: (subcommand, tier) => `git ${subcommand} ${ES_TIER_EFFECTS[tier]}, y la consola aún no puede hacerlo. Usa las acciones guiadas para ello.`,
+    consoleConfirmChangesLabel: "Confirmar cada cambio",
+    consoleConfirmChangesDescription: "Muestra qué va a cambiar un comando en el proyecto o su copia remota y pregunta antes de ejecutarlo. Desactivado, la consola lo sigue mostrando pero lo ejecuta en cuanto pulsas Intro.",
+    consoleConfirmOffDialogTitle: "¿Ejecutar sin preguntar?",
+    consoleConfirmOffDialogBody: "Los comandos que cambian el proyecto o su copia remota se ejecutarán en cuanto pulses Intro, git push incluido, sin preguntar antes.",
+    consoleConfirmOffDialogStillShown: "La consola sigue mostrando qué hace cada uno antes de ejecutarlo.",
+    consoleConfirmOffDialogLimits: "Los comandos que reescriben el historial guardado o pueden descartar trabajo siguen sin estar disponibles.",
+    consoleConfirmOffDialogStillChecked: "Un comando sigue sin ejecutarse si el proyecto cambió mientras se preparaba.",
+    consoleConfirmOffDialogConfirm: "Desactivar",
+    consoleConfirmSaveFailed: "No se pudo guardar el ajuste. Inténtalo de nuevo.",
     consoleConfirmQuestion: "¿Continuar? [s/N]",
     consoleConfirmLabel: "Responde s para ejecutar el comando, cualquier otra cosa para cancelar",
     consoleAwaitingAnswer: "Esperando tu respuesta.",
@@ -408,17 +417,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       const remote = (name: string | null) => (name ? `«${name}»` : "la copia remota");
       switch (fact.kind) {
         case "stages": return fact.total === 0 ? "No hay nada nuevo que preparar." : `Prepara ${files(fact.total)}: ${fact.files.join(", ")}${fact.total > fact.files.length ? ", …" : ""}`;
-        case "commits": return `Guarda una versión nueva${fact.files === null ? " de los archivos que has indicado" : ` con ${files(fact.files)} listos para guardar`}${fact.line ? ` en la línea «${fact.line}»` : ""}.`;
-        case "switches": return fact.create ? `Crea la línea «${fact.target}» y cambia a ella.` : `Cambia a «${fact.target}». Git se detiene si tus cambios se sobrescribirían.`;
-        case "creates_line": return `Crea la línea «${fact.name}».`;
+        case "commits": return `Guarda una versión nueva${fact.files === null ? " de los archivos que has indicado" : ` con ${files(fact.files)} listos para guardar`}${fact.branch ? ` en la rama «${fact.branch}»` : ""}.`;
+        case "switches": return fact.create ? `Crea la rama «${fact.target}» y cambia a ella.` : `Cambia a «${fact.target}». Git se detiene si tus cambios se sobrescribirían.`;
+        case "creates_branch": return `Crea la rama «${fact.name}».`;
         case "creates_tag": return `Crea la etiqueta «${fact.name}».`;
         case "sets_aside": return `Aparta ${files(fact.files)} con cambios.`;
         case "applies_set_aside": return `Recupera ${fact.stash} y lo mantiene en la lista.`;
         case "reverts": return `Guarda una versión nueva que deshace ${fact.version}, con el mensaje de Git.`;
-        case "copies_version": return `Copia ${fact.version} en la línea actual como una versión nueva.`;
+        case "copies_version": return `Copia ${fact.version} en la rama actual como una versión nueva.`;
         case "fetches": return `Obtiene los cambios nuevos de ${remote(fact.remote)} sin tocar tus archivos.`;
         case "pulls": return `Obtiene los cambios nuevos de ${remote(fact.remote)} y los incorpora solo si no hay nada que combinar.`;
-        case "publishes": return `Publica ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "versión guardada" : "versiones guardadas"} de `}${fact.line ? `«${fact.line}»` : "la línea actual"} en ${remote(fact.remote)}.`;
+        case "publishes": return `Publica ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "versión guardada" : "versiones guardadas"} de `}${fact.branch ? `«${fact.branch}»` : "la rama actual"} en ${remote(fact.remote)}.`;
         case "asks_remote": return `Pregunta a ${remote(fact.remote)} qué tiene; no cambia nada.`;
         case "skips_hooks": return fact.typed ? "Los hooks del proyecto no se ejecutarán, como pide el comando." : "Los hooks del proyecto no se ejecutarán: están desactivados en Ajustes.";
       }
@@ -428,10 +437,26 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       signing_failed: "Git no pudo firmarlo. Revisa tu configuración de firma.",
       authentication_failed: "Git no pudo iniciar sesión en la copia remota. Revisa tus credenciales guardadas; la consola nunca las pide.",
       remote_rejected: "La copia remota rechazó el cambio según sus propias reglas.",
-      not_fast_forward: "La copia remota tiene cambios que aún no tienes. Obtenlos primero; la consola nunca fuerza ni combina líneas.",
+      not_fast_forward: "La copia remota tiene cambios que aún no tienes. Obtenlos primero; la consola nunca fuerza ni combina ramas.",
     },
     consoleStatus: "Estado del proyecto", consoleDiff: "Cambios sin preparar", consoleLog: "Versiones recientes", consoleBranches: "Ramas locales",
     consoleStaged: "Cambios listos para guardar", consoleGraph: "Grafo de versiones", consoleLast: "Última versión guardada", consoleTags: "Etiquetas",
     consoleRemotes: "Copias remotas", consoleStashes: "Cambios apartados", consoleAuthors: "Autores",
+    consoleHostingLabels: {
+      prs: "Solicitudes de cambios abiertas", "my-prs": "Tus solicitudes de cambios", issues: "Incidencias abiertas",
+      runs: "Ejecuciones recientes de CI", checks: "Comprobaciones de esta rama", repo: "El proyecto en su servicio de alojamiento",
+    },
+    consoleHostingUnavailable: (reason, host) => {
+      const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
+      const section = host.kind === "gitlab" ? "GitLab" : "GitHub";
+      if (reason === "cli_missing") return `${cli} no está instalado. Instálalo desde Ajustes › ${section} e inténtalo de nuevo.`;
+      if (reason === "signed_out") return `${cli} no tiene ninguna cuenta conectada para ${host.host ?? "este servidor"}. Conecta una en Ajustes › ${section} e inténtalo de nuevo.`;
+      switch (host.kind) {
+        case "bitbucket": return "Bitbucket no tiene una herramienta oficial de línea de comandos, así que estos atajos solo funcionan con proyectos de GitHub y GitLab.";
+        case "local": return "Este proyecto aún no tiene remoto, así que no hay ningún servicio de alojamiento al que preguntar.";
+        case "unclear": return "Este proyecto tiene varios remotos y ninguno es claramente el suyo. Publica la rama actual, o llama origin a uno de ellos, para que la consola sepa a cuál preguntar.";
+        default: return "El remoto de este proyecto no está en GitHub ni en GitLab, así que no hay ninguna herramienta de alojamiento a la que preguntar.";
+      }
+    },
   },
 };

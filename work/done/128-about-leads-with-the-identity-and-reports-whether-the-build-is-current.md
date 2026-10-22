@@ -37,7 +37,7 @@ affordance even though the release model already knows the answer, "Built with"
 spent four bordered tiles on a fact nobody reads down, and the footer ("Made
 with …") restated the credits heading one line below it. A set of HTML mockups
 explored four families; the chosen one ("3A") combined the existing body with the
-bare hero mark and a version line that names the update state. The mockups were
+bare hero mark and a branch that names the update state. The mockups were
 scratch and are deleted; this task records the result.
 
 # Decisions
@@ -48,7 +48,7 @@ scratch and are deleted; this task records the result.
   centred. The `h2` still holds the name and the promise, so the dialog's
   accessible name identifies the app before stating its promise, and the
   decorative mark stays out of the accessibility tree.
-- **The update line names the state, and is never blank.** `aboutUpdateStatus`
+- **The update branch names the state, and is never blank.** `aboutUpdateStatus`
   maps the release model's `UpdateState` to a short label: `current` →
   "Up to date" (new `aboutUpToDate` key), `idle` → the update surface's own
   "Not checked yet", `unavailable`/`failed`/`cancelled` → a short

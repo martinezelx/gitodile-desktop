@@ -152,7 +152,7 @@ None. Independent of tasks 066–068.
 **Rust.** `read_global_git_config(key)` became
 `read_global_git_config_many(keys)`, and `read_project_git_config(key)` became
 the same shape, both running one `git config -z --get-regexp` built by
-`config_pattern`. `-z` rather than the default line format because entries are
+`config_pattern`. `-z` rather than the default branch format because entries are
 then separated by NUL and the key from its value by a newline, so a config
 value that *contains* a newline cannot be read as the next entry — the failure
 the line format would have had. `config_pattern` escapes the `.` in each key,

@@ -57,7 +57,7 @@ cache on the frontend rather than adding a Rust command.
 # Scope
 
 - Search box in the changed-files panel, filtering the list by path
-  (case-insensitive substring, matching the Version lines search behavior).
+  (case-insensitive substring, matching the Branches search behavior).
 - `+n −m` totals in the subtitle, derived from the cached diffs, themed with
   `--diff-added` / `--diff-removed`.
 - Diff toolbar with: `File i of n` plus previous/next file buttons, a `View:`
@@ -75,7 +75,7 @@ cache on the frontend rather than adding a Rust command.
     its option list was unreadable in dark mode).
   - A "Checked just now" freshness note beside the refresh button.
   - Screen-specific button labels: `Refresh` and `Save selected (n)`.
-- Third round: convert the Version lines sort control to the same popup (it
+- Third round: convert the Branches sort control to the same popup (it
   had the identical dark-mode bug), and open up the header's action-row
   spacing, which read as cramped once the freshness note joined it.
 
@@ -196,12 +196,12 @@ scope here) are nearly free now that `countDiffLines` exists.
 `appearance: none` select still hands its *option list* to the platform,
 which ignores the app's theme — that is why it looked foreign and why dark
 mode was unreadable. It is now `DiffViewSelector`, a popup built on the same
-open/dismiss/Escape contract as `OverviewVersionLineQuickActions`, wearing
-that component's `.version-line-selector` trigger.
+open/dismiss/Escape contract as `OverviewBranchQuickActions`, wearing
+that component's `.branch-selector` trigger.
 
 To avoid a second near-identical popup stylesheet, the quick-switch menu's
 rules were promoted to a shared `.app-menu` / `.app-menu__item` pair, with
-the existing `.version-lines-quick-switch__*` selectors kept alongside them
+the existing `.branches-quick-switch__*` selectors kept alongside them
 so nothing on Overview changed. Any future dropdown should use `.app-menu`
 rather than a native select. (Converted in the third round below.)
 
@@ -222,11 +222,11 @@ choice to count (a truncated status) or nothing selected.
 
 ## Third round
 
-**Version lines sort control** is now `SortMenu`, the same `.app-menu` popup,
+**Branches sort control** is now `SortMenu`, the same `.app-menu` popup,
 reusing that panel's existing `useDismissablePopup` hook (the Changes view
 picker still hand-rolls the equivalent effect — worth unifying if a fourth
 dropdown appears). No native `<select>` remains in the app. The dead
-`.version-lines-select--native` rules were deleted and replaced with the
+`.branches-select--native` rules were deleted and replaced with the
 open/rotate-chevron states the trigger now needs.
 
 **Header action spacing.** Surveyed the other screens first: every button row
@@ -343,7 +343,7 @@ not actually implement.
 Known, deliberate leftovers:
 
 - Popup dismissal logic exists twice: `useDismissablePopup` in
-  `versionLinesPanel.tsx` and an equivalent effect in `DiffViewSelector` and
+  `branchesPanel.tsx` and an equivalent effect in `DiffViewSelector` and
   the Overview branch picker. With three call sites it is now worth lifting
   into a shared module; out of scope for a screen rework.
 - `FileLines.truncated` is returned but unused by this screen, which derives

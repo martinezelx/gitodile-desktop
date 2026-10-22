@@ -410,7 +410,7 @@ for by the acceptance criteria above), in the order they came up:
    `plan_publish`/`publish` gained an optional `upTo` (a specific pending
    commit hash) threaded through the same `validate_and_prepare_publish`
    core: `resolve_up_to_target` requires it to be an ancestor of `HEAD`
-   (never something outside this version line's own history) and to not
+   (never something outside this branch's own history) and to not
    already be reachable from the remote's last known position (else
    `NothingToPublish`). The push refspec's source becomes that resolved
    commit directly (a raw hash is a perfectly valid push source, not just a

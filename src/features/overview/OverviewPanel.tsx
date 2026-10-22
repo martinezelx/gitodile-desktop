@@ -1,319 +1,33 @@
-import React, { Suspense, lazy, useEffect, useId, useState } from "react";
-import {
-  Check,
-  CloudDownload,
-  Copy,
-  FolderInput,
-  FolderPlus,
-  GitBranch,
-  LoaderCircle,
-  Pencil,
-  Settings,
-  Star,
-  X,
-} from "lucide-react";
+import React, { Suspense, lazy, useMemo } from "react";
+import { FolderOpen, History, Pencil, Settings } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import type { RecentProject } from "../../runtime/project/recentProjects";
 import {
-  Mascot,
+  LoadingPlaceholder,
   ProjectAvatar,
   type ProjectAvatarStyle,
   type ProjectIconChoice,
-  TECHNOLOGY_LABELS,
   type TechnologyId,
 } from "../../shared/ui";
-import { getRepositoryOverviewState, type RepositoryInfo } from "../repository";
-import { getWorkingTreeBreakdown, type WorkingTreeStatus } from "../status";
+import type { RepositoryInfo } from "../repository";
+import type { WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
-import {
-  VersionLineQuickSwitch,
-  type VersionLineCreateContext,
-  type VersionLinesSnapshot,
-} from "../version-lines";
+import type { BranchesSnapshot } from "../branches";
 import type { TeamSyncViewState } from "../sync";
-import { ChangedFilesSection } from "./ChangedFilesSection";
 import { deriveJourney } from "./journey";
-import { JourneySection } from "./JourneySection";
+import { NextStepCard, type NextStepHandlers } from "./NextStepCard";
+import { deriveNextStep } from "./nextStep";
+import { OverviewNow } from "./OverviewNow";
+import { OverviewDetail, overviewDetailMode } from "./OverviewDetail";
+import { RemoteHomeCrumb } from "./RemoteHomeCrumb";
+import { useActiveWorkDetail, type RemoteHomeState, type WorkDetailController } from "./workDetail";
+import { HistoryPlaceholderList, OverviewPlaceholder } from "./OverviewPlaceholder";
+import { HomeLauncher, type HomeRecentEntry } from "../home";
 
 const HistorySummarySection = lazy(() =>
   import("./HistorySummarySection").then((m) => ({ default: m.HistorySummarySection })),
 );
-/** Truncated paths stay fully available: readable on hover/AT, and copyable. */
-export function ProjectPath({ path, onCopyError }: { path: string; onCopyError: () => void }): React.JSX.Element {
-  const { t } = useLanguage();
-  const [wasCopied, setWasCopied] = useState(false);
-
-  useEffect(() => {
-    if (!wasCopied) return;
-    const timer = window.setTimeout(() => setWasCopied(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [wasCopied]);
-
-  const copyPath = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(path);
-      setWasCopied(true);
-    } catch {
-      onCopyError();
-    }
-  };
-
-  return (
-    <p className="project-path">
-      <span className="project-path__value" data-tooltip={path}>
-        {path}
-      </span>
-      <button
-        className="project-path__copy"
-        type="button"
-        onClick={() => void copyPath()}
-        aria-label={t.overviewCopyPath}
-        data-tooltip={wasCopied ? t.overviewPathCopied : t.overviewCopyPath}
-      >
-        {wasCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      </button>
-      <span className="visually-hidden" role="status">
-        {wasCopied ? t.overviewPathCopied : ""}
-      </span>
-    </p>
-  );
-}
-
-/** A recent project plus whether it is one of the app's favourite projects —
- * the *same* favourites the rail and the project switcher show, from the same
- * store, so a project starred in either place is starred in both. Ordering is
- * done by the caller (`orderByFavourite`), which owns that rule for every list
- * that shows favourites. */
-export type WelcomeRecentEntry = RecentProject & {
-  isFavourite: boolean;
-  iconChoice?: ProjectIconChoice;
-  technology?: TechnologyId | null;
-  avatarStyle?: ProjectAvatarStyle;
-};
-
-/** How many recent projects the welcome screen lists. The store keeps more
- * (see `RECENT_PROJECTS_LIMIT`) so closing a project does not truncate the
- * tail; this is how many fit under the launcher before the front door starts
- * reading as a file manager. */
-const WELCOME_RECENTS_VISIBLE = 5;
-
-/** A project this machine has opened before. The name is the accessible name
- * and the path is its description, so a screen reader announces "gitodile,
- * C:\workspace\gitodile" rather than reading the path as part of the
- * label — and two projects that share a folder name are still told apart. */
-function WelcomeRecentRow({
-  index,
-  entry,
-  isDisabled,
-  onOpen,
-  onToggleFavourite,
-  onForget,
-}: {
-  /** Position in the list, for the staggered arrival the Overview lists share. */
-  index: number;
-  entry: WelcomeRecentEntry;
-  /** Gates opening only. Starring and forgetting a row touch nothing but this
-   * machine's own lists, so an open already in flight is no reason to block
-   * them. */
-  isDisabled: boolean;
-  onOpen: (path: string) => void;
-  onToggleFavourite: (path: string) => void;
-  onForget: (path: string) => void;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const nameId = useId();
-  const pathId = useId();
-
-  return (
-    <li className="welcome-recents__item row-in" style={{ "--row-index": index } as React.CSSProperties}>
-      <button
-        className="welcome-recents__open"
-        type="button"
-        disabled={isDisabled}
-        aria-labelledby={nameId}
-        aria-describedby={pathId}
-        onClick={() => onOpen(entry.path)}
-      >
-        <ProjectAvatar
-          id={entry.path}
-          name={entry.name}
-          className="welcome-recents__avatar"
-          iconChoice={entry.iconChoice}
-          technology={entry.technology}
-          style={entry.avatarStyle}
-        />
-        <span className="welcome-recents__copy">
-          <span className="welcome-recents__name" id={nameId}>
-            {entry.name}
-          </span>
-          <span className="welcome-recents__path" id={pathId} data-tooltip={entry.path}>
-            {entry.path}
-          </span>
-        </span>
-      </button>
-      {/* Before Remove, so the destructive control stays last in reading and
-          tab order — and rendered at rest rather than on hover, because a
-          marked favourite has to be readable without pointing at it. Same
-          reasoning, same shape and same strings as the switcher's own star:
-          it is the same mark on the same project. */}
-      <button
-        className={`welcome-recents__favourite${entry.isFavourite ? " welcome-recents__favourite--on" : ""}`}
-        type="button"
-        aria-pressed={entry.isFavourite}
-        aria-label={
-          entry.isFavourite
-            ? t.projectSwitcherUnfavourite(entry.name)
-            : t.projectSwitcherFavourite(entry.name)
-        }
-        data-tooltip={
-          entry.isFavourite ? t.projectSwitcherUnfavouriteHint : t.projectSwitcherFavouriteHint
-        }
-        onClick={() => onToggleFavourite(entry.path)}
-      >
-        <Star aria-hidden="true" />
-      </button>
-      <button
-        className="welcome-recents__forget"
-        type="button"
-        aria-label={t.overviewForgetRecentProject(entry.name)}
-        data-tooltip={t.overviewForgetRecentProjectShort}
-        onClick={() => onForget(entry.path)}
-      >
-        <X aria-hidden="true" />
-      </button>
-    </li>
-  );
-}
-
-/**
- * The welcome screen's second half: what you already work on, under the three
- * ways to start something new. It exists because the front door's real
- * question is usually "let me back into the thing I had open", and the answer
- * used to be the folder picker every single time.
- *
- * Entries outlive their sessions on purpose — a closed project is exactly the
- * one worth offering — so a row can name a folder that has since moved. That
- * is reported by the open attempt through the normal failure path, and the row
- * can be dropped by hand; it is never silently removed here.
- *
- * With many projects the list is a wall, so its heading carries the same star
- * the quick switch's search box does: pressed, only favourites are listed. It
- * appears once there is a favourite to filter by — before that it would only
- * empty the list — and, like the switch's, it is a view and not a setting: it
- * resets with the screen.
- */
-function WelcomeRecents({
-  entries,
-  isDisabled,
-  onOpen,
-  onToggleFavourite,
-  onForget,
-}: {
-  entries: readonly WelcomeRecentEntry[];
-  isDisabled: boolean;
-  onOpen: (path: string) => void;
-  onToggleFavourite: (path: string) => void;
-  onForget: (path: string) => void;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  const headingId = useId();
-  const [favouritesOnly, setFavouritesOnly] = useState(false);
-  const hasFavourites = entries.some((entry) => entry.isFavourite);
-  const shown = favouritesOnly && hasFavourites ? entries.filter((entry) => entry.isFavourite) : entries;
-
-  return (
-    <section className="welcome-recents" aria-labelledby={headingId}>
-      <div className="welcome-recents__header">
-        <h2 className="welcome-recents__title" id={headingId}>
-          {t.overviewRecentProjectsTitle}
-        </h2>
-        {hasFavourites && (
-          <button
-            type="button"
-            className={`welcome-recents__filter${favouritesOnly ? " welcome-recents__filter--on" : ""}`}
-            aria-pressed={favouritesOnly}
-            aria-label={favouritesOnly ? t.overviewRecentFavouritesOnlyOff : t.overviewRecentFavouritesOnly}
-            data-tooltip={favouritesOnly ? t.overviewRecentFavouritesOnlyOff : t.overviewRecentFavouritesOnly}
-            onClick={() => setFavouritesOnly((value) => !value)}
-          >
-            <Star aria-hidden="true" />
-          </button>
-        )}
-      </div>
-      <ul className="welcome-recents__list">
-        {shown.slice(0, WELCOME_RECENTS_VISIBLE).map((entry, index) => (
-          <WelcomeRecentRow
-            key={entry.path}
-            index={index}
-            entry={entry}
-            isDisabled={isDisabled}
-            onOpen={onOpen}
-            onToggleFavourite={onToggleFavourite}
-            onForget={onForget}
-          />
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/**
- * One entry point on the welcome screen: a circular glyph tile with its label
- * and a one-line hint underneath. Three peer actions is one more than the
- * shared `.empty-state` pattern's "1–2 actions", and as capsules their labels
- * wrapped to three lines *inside* the pill — the card puts the text under the
- * icon instead, where wrapping is normal, and reuses the add-project menu's
- * own glyphs so the two routes to the same three flows look related.
- *
- * The three are peers and look it: no accent, no recommended one. Which of
- * them is right depends entirely on what the user already has on disk, and the
- * hint answers that better than a colour that only says "this one".
- *
- * The label carries the accessible name on its own (`aria-labelledby`) so the
- * hint stays a description rather than being read as part of the name.
- */
-function WelcomeAction({
-  icon,
-  label,
-  hint,
-  isBusy = false,
-  disabled,
-  onClick,
-}: {
-  icon: React.JSX.Element;
-  label: string;
-  hint: string;
-  isBusy?: boolean;
-  disabled: boolean;
-  onClick: () => void;
-}): React.JSX.Element {
-  const labelId = useId();
-  const hintId = useId();
-
-  return (
-    <button
-      className="welcome-action"
-      type="button"
-      disabled={disabled}
-      aria-labelledby={labelId}
-      aria-describedby={hintId}
-      onClick={onClick}
-    >
-      <span className={`welcome-action__icon${isBusy ? " welcome-action__icon--loading" : ""}`} aria-hidden="true">
-        {icon}
-      </span>
-      <span className="welcome-action__label" id={labelId}>
-        {label}
-      </span>
-      <span className="welcome-action__hint" id={hintId}>
-        {hint}
-      </span>
-    </button>
-  );
-}
-
 /** How the project shows itself everywhere else — the rail, the switcher, the
  * recents — so the header can wear the same icon. */
 export type OverviewProjectIdentity = {
@@ -323,46 +37,33 @@ export type OverviewProjectIdentity = {
 };
 
 /**
- * Who this screen is about, as a page header rather than a card: the name,
- * where it lives, the line you are on and its settings. It sits directly on
- * the workspace because it is the one thing on the screen that does not
- * change while you work — the cards below are for what does — and a card
- * around three facts was a card that was mostly air.
- *
- * Its tile is the project's own icon — the chosen emoji, the detected
- * technology or the initials — at the header's size, the same chip the rail
- * shows for it, so the project is recognised here the way it is recognised
- * there. Pressing it opens the icon section of project settings.
+ * Who this screen is about, as one row rather than a block: the project's
+ * icon and name with its own tools right after it — its folder and its
+ * settings, actions on the project the name names — and where it lives as a
+ * chip at the far end: the service and its `owner/name`, opening its page,
+ * or "Only on this computer". The edge of the row is what leads out of the
+ * app, aligned with the next-step card's actions below it. The branch it is on
+ * is the status bar's, not repeated here. The path is the folder button's tooltip and the technology
+ * is the project's own icon, so neither is spelled out. The next-step card
+ * under it is the page's subject; this row only says whose page this is.
  */
 function OverviewHeader({
   project,
   identity,
-  overview,
-  versionValue,
-  versionLines,
-  isLoadingVersionLines,
-  favouriteVersionLines,
-  onToggleFavouriteVersionLine,
-  onQuickSwitchVersionLine,
-  versionLineCreate,
-  onGoToVersionLines,
-  onCopyPathError,
+  home,
+  onOpenRemoteHome,
+  onOpenProjectFolder,
   onOpenProjectSettings,
   onChangeProjectIcon,
   onPrefetchProjectSettings,
 }: {
   project: RepositoryInfo;
   identity: OverviewProjectIdentity;
-  overview: ReturnType<typeof getRepositoryOverviewState>;
-  versionValue: string;
-  versionLines: VersionLinesSnapshot | null;
-  isLoadingVersionLines: boolean;
-  favouriteVersionLines: ReadonlySet<string>;
-  onToggleFavouriteVersionLine: (name: string) => void;
-  onQuickSwitchVersionLine: (target: string) => void;
-  versionLineCreate?: VersionLineCreateContext;
-  onGoToVersionLines: () => void;
-  onCopyPathError: () => void;
+  home: RemoteHomeState;
+  /** Opens the named remote's page in the browser. */
+  onOpenRemoteHome: (remote: string) => void;
+  /** Opens the project's folder in the system file manager. */
+  onOpenProjectFolder: () => void;
   /** The same panel the project switcher's gear opens, for the project this
    * header is already about. */
   onOpenProjectSettings: () => void;
@@ -375,80 +76,49 @@ function OverviewHeader({
 
   return (
     <header className="overview-header" aria-labelledby="project-summary-heading">
-      <div className="overview-header__identity">
-        <button
-          className="overview-header__icon"
-          type="button"
-          aria-label={t.overviewChangeProjectIcon}
-          data-tooltip={t.overviewChangeProjectIcon}
-          onPointerEnter={() => onPrefetchProjectSettings?.()}
-          onFocus={() => onPrefetchProjectSettings?.()}
-          onClick={onChangeProjectIcon}
-        >
-          <ProjectAvatar
-            id={project.path}
-            name={project.name}
-            className="overview-header__avatar"
-            iconChoice={identity.iconChoice}
-            technology={identity.technology}
-            style={identity.avatarStyle}
-          />
-          <span className="overview-header__icon-edit" aria-hidden="true">
-            <Pencil />
-          </span>
-        </button>
-        <div className="overview-header__copy">
-          <div className="overview-header__title">
-            <h1 id="project-summary-heading" title={project.name}>{project.name}</h1>
-            {/* The same gear the project switcher shows for the same panel,
-                beside the name it configures. */}
-            <button
-              className="overview-header__settings"
-              type="button"
-              aria-label={t.projectSettingsOpenFor(project.name)}
-              data-tooltip={t.projectSettingsOpen}
-              onPointerEnter={() => onPrefetchProjectSettings?.()}
-              onFocus={() => onPrefetchProjectSettings?.()}
-              onClick={onOpenProjectSettings}
-            >
-              <Settings aria-hidden="true" />
-            </button>
-          </div>
-          <div className="overview-header__subline">
-            {/* First, so the path's copy control — invisible until the path
-                is pointed at — never opens a gap between the two. */}
-            {identity.technology && (
-              <span className="overview-header__technology">{TECHNOLOGY_LABELS[identity.technology]}</span>
-            )}
-            <ProjectPath path={project.path} onCopyError={onCopyPathError} />
-          </div>
-        </div>
-      </div>
-      <div className="overview-header__actions">
-        <div className="overview-meta" role="group" aria-label={t.overviewCurrentVersionLine}>
-          {overview.isUnborn ? (
-            <span className="overview-meta__branch-note">
-              <GitBranch aria-hidden="true" className="overview-meta__branch-icon" />
-              <span className="version-line-card__value">{versionValue}</span>
-              {t[overview.versionDescriptionKey]}
-            </span>
-          ) : (
-            <VersionLineQuickSwitch
-              snapshot={versionLines}
-              isLoadingSnapshot={isLoadingVersionLines}
-              currentValue={versionValue}
-              label={t.overviewVersionLineLabel}
-              canSwitch={!overview.isDetached}
-              favouriteLines={favouriteVersionLines}
-              onToggleFavourite={onToggleFavouriteVersionLine}
-              onSwitch={onQuickSwitchVersionLine}
-              create={versionLineCreate}
-              showCreateControl={false}
-              onSeeAll={onGoToVersionLines}
-            />
-          )}
-        </div>
-      </div>
+      <button
+        className="overview-header__icon"
+        type="button"
+        aria-label={t.overviewChangeProjectIcon}
+        data-tooltip={t.overviewChangeProjectIcon}
+        onPointerEnter={() => onPrefetchProjectSettings?.()}
+        onFocus={() => onPrefetchProjectSettings?.()}
+        onClick={onChangeProjectIcon}
+      >
+        <ProjectAvatar
+          id={project.path}
+          name={project.name}
+          className="overview-header__avatar"
+          iconChoice={identity.iconChoice}
+          technology={identity.technology}
+          style={identity.avatarStyle}
+        />
+        <span className="overview-header__icon-edit" aria-hidden="true">
+          <Pencil />
+        </span>
+      </button>
+      <h1 id="project-summary-heading" className="overview-header__name" title={project.name} tabIndex={-1} data-screen-focus>{project.name}</h1>
+      <button
+        className="overview-header__tool"
+        type="button"
+        aria-label={t.overviewOpenFolder}
+        data-tooltip={`${t.overviewOpenFolder} · ${project.path}`}
+        onClick={onOpenProjectFolder}
+      >
+        <FolderOpen aria-hidden="true" />
+      </button>
+      <button
+        className="overview-header__tool"
+        type="button"
+        aria-label={t.projectSettingsOpenFor(project.name)}
+        data-tooltip={t.projectSettingsOpen}
+        onPointerEnter={() => onPrefetchProjectSettings?.()}
+        onFocus={() => onPrefetchProjectSettings?.()}
+        onClick={onOpenProjectSettings}
+      >
+        <Settings aria-hidden="true" />
+      </button>
+      <RemoteHomeCrumb home={home} onOpen={onOpenRemoteHome} />
     </header>
   );
 }
@@ -456,6 +126,7 @@ function OverviewHeader({
 export function OverviewPanel({
   project,
   isOpening,
+  isRestoring = false,
   workingTree,
   workingTreeError,
   isCheckingChanges,
@@ -473,19 +144,20 @@ export function OverviewPanel({
   onPublishUpTo,
   pendingVersions,
   pendingVersionsError,
-  versionLines,
-  isLoadingVersionLines,
-  favouriteVersionLines,
-  onToggleFavouriteVersionLine,
-  onQuickSwitchVersionLine,
-  versionLineCreate,
-  onGoToVersionLines,
-  onCopyPathError,
+  branches,
+  onQuickSwitchBranch,
+  onGoToBranches,
+  onOpenProjectFolder,
+  onOpenRemoteHome,
   onOpenSaveVersion,
   teamSync,
   onCheckTeamChanges,
   onReviewAndGetTeamChanges,
+  onGetAndPublish,
+  onStopTrackingRemote,
   historyController,
+  workDetail,
+  onRestoreDiscarded,
   onOpenHistory,
   onOpenProjectSettings,
   onChangeProjectIcon,
@@ -500,6 +172,10 @@ export function OverviewPanel({
    * failures are reported in a standalone dialog (see `openError` in
    * `App`), never merged into this project's own status. */
   isOpening: boolean;
+  /** Launch is still revalidating the projects it will reopen. Overview is
+   * already the destination, so the launcher fallback below would flash Home
+   * for the length of that check; the screen's own shape stands in instead. */
+  isRestoring?: boolean;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
@@ -516,7 +192,7 @@ export function OverviewPanel({
    * (favourites first, then by recency) — read from the app's own stores, not
    * from repository state, so the welcome screen never touches Git to draw
    * them. Empty until one has been opened. */
-  recentProjects: readonly WelcomeRecentEntry[];
+  recentProjects: readonly HomeRecentEntry[];
   onOpenRecentProject: (path: string) => void;
   /** Marks the *project*, not the row: the same favourites store the rail and
    * the switcher read, so the star survives closing and reopening the app. */
@@ -524,21 +200,20 @@ export function OverviewPanel({
   onForgetRecentProject: (path: string) => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
-  /** The project session's cached branch inventory, shared with the Version
-   * lines screen so Overview's quick-switch menu opens instantly instead of
+  /** The project session's cached branch inventory, shared with the
+   * Branches screen so Overview's quick-switch menu opens instantly instead of
    * reading branches again every time (task 019). */
-  versionLines: VersionLinesSnapshot | null;
-  isLoadingVersionLines: boolean;
-  favouriteVersionLines: ReadonlySet<string>;
-  onToggleFavouriteVersionLine: (name: string) => void;
+  branches: BranchesSnapshot | null;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
-  onQuickSwitchVersionLine: (target: string) => void;
-  /** Where the header's quick switch makes a new line, inside its popup. */
-  versionLineCreate?: VersionLineCreateContext;
-  onGoToVersionLines: () => void;
-  onCopyPathError: () => void;
+  onQuickSwitchBranch: (target: string) => void;
+  onGoToBranches: () => void;
+  /** Opens the project's folder in the system file manager, from the
+   * header's folder button. */
+  onOpenProjectFolder: () => void;
+  /** Opens the named remote's web page, from the header's chip. */
+  onOpenRemoteHome: (remote: string) => void;
   /** Opens this project's own settings — the remote it publishes to, the files
    * it ignores, and the identity it saves as. */
   onOpenProjectSettings: () => void;
@@ -553,29 +228,39 @@ export function OverviewPanel({
   selfEmail?: string | null;
   /** Opens the save-version flow. Overview has no file-selection UI of its
    * own to drive `SaveVersionDialog`'s exclusion checkboxes, so — like
-   * `VersionLinesPanel` and `SwitchVersionLineDialog`'s own `onSaveVersion`
+   * `BranchesPanel` and `SwitchBranchDialog`'s own `onSaveVersion`
    * — this is expected to navigate to Changes and open the dialog there,
    * reusing its one existing implementation rather than a second copy of it. */
   onOpenSaveVersion: () => void;
   teamSync: TeamSyncViewState;
   onCheckTeamChanges: () => void;
   onReviewAndGetTeamChanges: () => void;
+  /** Gets the remote's versions, combines them and publishes, in one
+   * confirmation. */
+  onGetAndPublish: () => void;
+  /** The branch forgets the remote branch it tracked — offered once that
+   * branch is gone from the remote. */
+  onStopTrackingRemote: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
    * subscribes only while visible and never starts a second repository read. */
   historyController: HistoryController;
+  /** Overview's cache: the files of the unpublished versions, the newest
+   * restorable discard and where the project lives, filled by the
+   * composition root. */
+  workDetail: WorkDetailController;
+  /** Opens the restore picker over the Overview, from the side column's
+   * discarded-changes card, on the given copy when one is. */
+  onRestoreDiscarded: (recoveryId?: string) => void;
   onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
+  const query = useMemo(
+    () => ({ projectId: project?.path ?? "", sessionEpoch: project?.sessionEpoch ?? "" }),
+    [project?.path, project?.sessionEpoch],
+  );
+  const { home } = useActiveWorkDetail(workDetail, query);
 
   if (project) {
-    const overview = getRepositoryOverviewState(project);
-    const versionValue = overview.isDetached
-      ? t.overviewSpecificSavedVersion
-      : (overview.versionLine ?? t.overviewNoSavedVersions);
-    // The working tree is only unknown before the first check has finished, so
-    // the band never invents a count and never blanks out a known one while a
-    // later refresh is running.
-    const breakdown = workingTree ? getWorkingTreeBreakdown(workingTree) : [];
     const journey = deriveJourney({
       workingTree,
       workingTreeError,
@@ -584,67 +269,74 @@ export function OverviewPanel({
       pendingVersionsError,
       teamSync,
     });
+    // Where a branch whose remote branch is gone usually goes next: the
+    // remote's default branch, when this isn't it.
+    const defaultBranch = branches?.branches.find((branch) => branch.isDefault && !branch.isActive)?.name ?? null;
+    const nextStep = deriveNextStep(journey, { canPublish, defaultBranch });
     const isRefreshing = isCheckingChanges || teamSync.isCheckingRemote;
-    // Only a line with an upstream can be checked against one; the same gate
+    // Only a branch with an upstream can be checked against one; the same gate
     // the status bar's own cloud button uses.
     const canCheckTeamChanges =
       project.headState === "branch" && Boolean(project.branch) && !teamSync.isCheckingRemote;
+    const checkTeamChanges = canCheckTeamChanges ? onCheckTeamChanges : () => undefined;
+    const nextStepHandlers: NextStepHandlers = {
+      save: onOpenSaveVersion,
+      reviewChanges: () => onReviewChanges(),
+      resolve: () => onReviewChanges(),
+      publish: onPublish,
+      openHistory: onOpenHistory,
+      getChanges: onReviewAndGetTeamChanges,
+      checkRemote: checkTeamChanges,
+      checkLocal: onCheckLocalChanges,
+      openSettings: onOpenProjectSettings,
+      openBranches: onGoToBranches,
+      explainIncoming: onReviewAndGetTeamChanges,
+      getAndPublish: onGetAndPublish,
+      switchToDefault: () => {
+        if (defaultBranch) onQuickSwitchBranch(defaultBranch);
+      },
+      stopTracking: onStopTrackingRemote,
+    };
+    // Versions waiting on the remote lead the timeline, above "now", which is
+    // where they stand in time.
+    const incoming =
+      (journey.publish.state === "behind" || journey.publish.state === "diverged") && journey.publish.behind > 0
+        ? { count: journey.publish.behind, remote: journey.publish.remote, onGet: onReviewAndGetTeamChanges }
+        : null;
 
     return (
       <div className="project-overview" aria-busy={isRefreshing}>
         <OverviewHeader
           project={project}
           identity={projectIdentity}
-          overview={overview}
-          versionValue={versionValue}
-          versionLines={versionLines}
-          isLoadingVersionLines={isLoadingVersionLines}
-          favouriteVersionLines={favouriteVersionLines}
-          onToggleFavouriteVersionLine={onToggleFavouriteVersionLine}
-          onQuickSwitchVersionLine={onQuickSwitchVersionLine}
-          versionLineCreate={versionLineCreate}
-          onGoToVersionLines={onGoToVersionLines}
-          onCopyPathError={onCopyPathError}
+          home={home}
+          onOpenRemoteHome={onOpenRemoteHome}
+          onOpenProjectFolder={onOpenProjectFolder}
           onOpenProjectSettings={onOpenProjectSettings}
           onChangeProjectIcon={onChangeProjectIcon}
           onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
-        <JourneySection
-          journey={journey}
-          breakdown={breakdown}
-          canPublish={canPublish}
-          onReviewChanges={() => onReviewChanges()}
-          onCheckLocalChanges={onCheckLocalChanges}
-          onSaveVersion={onOpenSaveVersion}
-          onPublish={onPublish}
-          onCheckTeamChanges={canCheckTeamChanges ? onCheckTeamChanges : () => undefined}
-          onReviewAndGetTeamChanges={onReviewAndGetTeamChanges}
-          onOpenProjectSettings={onOpenProjectSettings}
-          onOpenHistory={onOpenHistory}
-          historyController={historyController}
-          projectPath={project.path}
-          sessionEpoch={project.sessionEpoch}
-        />
+        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} defaultBranch={defaultBranch} />
 
-        {/* The two things that change while you work, side by side and the
-            same height: which files, and which saved versions. With nothing
-            to list, the files card shrinks to its own content and history
-            takes the room it leaves. */}
-        <div className={`overview-columns${workingTree?.isClean ? " overview-columns--clean" : ""}`}>
-          <ChangedFilesSection
-            workingTree={workingTree}
-            workingTreeError={workingTreeError}
-            isCheckingChanges={isCheckingChanges}
-            onOpenFile={(path) => onReviewChanges(path)}
-            onSeeAll={() => onReviewChanges()}
-            onCheckAgain={onCheckLocalChanges}
-          />
-
+        {/* Where the work is, as one timeline — waiting on the remote, now,
+            only on this computer, published — beside what the next step will
+            move. */}
+        <div className="overview-body">
           <Suspense
             fallback={
-              <section className="overview-history overview-history--loading" aria-label={t.overviewHistoryLoading}>
-                <LoaderCircle aria-hidden="true" className="icon--spinning" />
+              // The section's code is still arriving: the same shape its own
+              // first read draws, so nothing changes when it lands.
+              <section className="overview-history" aria-labelledby="overview-history-title">
+                <header className="overview-history__header">
+                  <h2 id="overview-history-title">
+                    <History className="overview-history__glyph" aria-hidden="true" />
+                    {t.overviewHistoryTitle}
+                  </h2>
+                </header>
+                <LoadingPlaceholder label={t.overviewHistoryLoading}>
+                  <HistoryPlaceholderList />
+                </LoadingPlaceholder>
               </section>
             }
           >
@@ -656,15 +348,46 @@ export function OverviewPanel({
               onOpenHistory={onOpenHistory}
               onPublishUpTo={onPublishUpTo}
               selfEmail={selfEmail}
+              incoming={incoming}
+              hasNoRemote={journey.publish.state === "noRemote"}
+              remoteBranchGone={journey.publish.state === "upstreamGone"}
+              now={
+                <OverviewNow
+                  workingTree={workingTree}
+                  workingTreeError={workingTreeError}
+                  isCheckingChanges={isCheckingChanges}
+                  onReview={() => onReviewChanges()}
+                  onCheckAgain={onCheckLocalChanges}
+                />
+              }
             />
           </Suspense>
+
+          <OverviewDetail
+            mode={overviewDetailMode(journey)}
+            journey={journey}
+            workingTree={workingTree}
+            pendingVersions={pendingVersions}
+            workDetail={workDetail}
+            projectPath={project.path}
+            sessionEpoch={project.sessionEpoch}
+            onReviewChanges={onReviewChanges}
+            onResolve={() => onReviewChanges()}
+            onGetChanges={onReviewAndGetTeamChanges}
+            onOpenHistory={onOpenHistory}
+            onRestoreDiscarded={onRestoreDiscarded}
+          />
         </div>
       </div>
     );
   }
 
+  if (isRestoring) {
+    return <OverviewPlaceholder />;
+  }
+
   return (
-    <WelcomeScreen
+    <HomeLauncher
       isOpening={isOpening}
       recentProjects={recentProjects}
       onOpenProject={onOpenProject}
@@ -675,85 +398,5 @@ export function OverviewPanel({
       onForgetRecentProject={onForgetRecentProject}
       playGreeting={false}
     />
-  );
-}
-
-/** The app-level Home and the no-project fallback share one launcher. */
-export function WelcomeScreen({
-  isOpening,
-  recentProjects,
-  onOpenProject,
-  onCreateProject,
-  onCloneProject,
-  onOpenRecentProject,
-  onToggleFavouriteRecentProject,
-  onForgetRecentProject,
-  hasOpenProjects = false,
-  playGreeting = true,
-}: {
-  isOpening: boolean;
-  recentProjects: readonly WelcomeRecentEntry[];
-  onOpenProject: () => void;
-  onCreateProject: () => void;
-  onCloneProject: () => void;
-  onOpenRecentProject: (path: string) => void;
-  onToggleFavouriteRecentProject: (path: string) => void;
-  onForgetRecentProject: (path: string) => void;
-  hasOpenProjects?: boolean;
-  playGreeting?: boolean;
-}): React.JSX.Element {
-  const { t } = useLanguage();
-  return (
-    <div className="empty-state empty-state--welcome" aria-busy={isOpening}>
-      {/* The front door is a brand moment, so the mascot greets here rather
-          than in the titlebar: once a session it draws itself and builds its
-          history, then the commits on its crest light amber up to the HEAD now
-          and then. Decorative; the h1 names the screen. */}
-      <Mascot motion="commits" entrance={playGreeting} className="welcome-mascot" />
-      <h1>{hasOpenProjects ? t.overviewHomeTitle : t.overviewEmptyTitle}</h1>
-      <p>{t.overviewEmptyDescription}</p>
-      <div className="welcome-actions">
-        <WelcomeAction
-          icon={<FolderInput />}
-          label={t.overviewCreateLocalProject}
-          hint={t.overviewCreateLocalProjectHint}
-          disabled={isOpening}
-          onClick={onCreateProject}
-        />
-        <WelcomeAction
-          // Opening is the only one of the three that runs here rather than in
-          // a dialog, so its own card carries the progress instead of a
-          // spinner at the top of a screen that is otherwise unchanged.
-          icon={isOpening ? <LoaderCircle /> : <FolderPlus />}
-          label={isOpening ? t.overviewOpening : t.overviewOpenProject}
-          hint={t.overviewOpenProjectHint}
-          isBusy={isOpening}
-          disabled={isOpening}
-          onClick={onOpenProject}
-        />
-        <WelcomeAction
-          icon={<CloudDownload />}
-          label={t.overviewCloneRemoteProject}
-          hint={t.overviewCloneRemoteProjectHint}
-          disabled={isOpening}
-          onClick={onCloneProject}
-        />
-      </div>
-      {/* The window has taken a dropped folder since task 093 and nothing said
-          so — a gesture nobody is told about is a gesture nobody uses. It sits
-          under the cards as one quiet line rather than as a fourth card,
-          because it is another way to reach one of the three, not a fourth
-          thing to do. */}
-      <p className="welcome-drop-hint">{t.overviewDropFolderHint}</p>
-      {recentProjects.length > 0 && (
-        <WelcomeRecents
-          entries={recentProjects}
-          isDisabled={isOpening}
-          onOpen={onOpenRecentProject}
-          onToggleFavourite={onToggleFavouriteRecentProject}
-          onForget={onForgetRecentProject}
-        />
-      )}
-    </div>
   );
 }

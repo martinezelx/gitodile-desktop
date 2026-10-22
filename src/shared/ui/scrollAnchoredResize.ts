@@ -14,7 +14,7 @@ export type ScrollAnchor = {
  * Keeps a scrollable list's own scroll position anchored to a box docked at
  * its foot across every size change the box makes — not just the lucky case
  * where the list was already scrolled to its end. Shared by `QuickCommitBox`
- * (Changes) and `VersionLineQuickCreateBox` (Lines): both dock a
+ * (Changes) and `BranchQuickCreateBox` (Branches): both dock a
  * closed-until-used compose box under a scroll region that is their flex
  * sibling, and both need the same correction.
  *

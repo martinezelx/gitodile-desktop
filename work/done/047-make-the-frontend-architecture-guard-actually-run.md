@@ -63,7 +63,7 @@ immediately reports findings that need triage rather than a blanket fix:
 - **Dynamic imports are detected correctly** (`dynamic: true`), and this one is
   a genuine design question rather than a false positive: Overview's
   `additionalPreloads` dynamically import `../publish/PublishDialog` and
-  `../version-lines/VersionLinesDialog` — other features' internals. ADR 0003
+  `../branches/BranchesDialog` — other features' internals. ADR 0003
   says ownership rules apply to dynamic edges. Routing them through each
   feature's `index.ts` is the obvious fix, but it changes what lands in which
   chunk, so it needs a before/after measurement, not just an edit.
@@ -166,7 +166,7 @@ cycle was an artifact — there are no runtime cycles in this codebase.
 | Finding | Resolution |
 | --- | --- |
 | `status/port.ts` deep-imports `overview/pendingVersionsDomain` | Real, and worse than it looked: `PendingVersionsResult` and `SavedVersionSummary` were **defined twice**, in `publish/domain.ts` and in overview. ADR 0003 gives publish "pending versions" and forbids duplicating a wire shape. Overview's copy is deleted and both consumers point at `features/publish`. |
-| `overview/screen.tsx` preloads `../publish/PublishDialog` and `../version-lines/VersionLinesDialog` | Real. Preloads now name each feature's public entry. |
+| `overview/screen.tsx` preloads `../publish/PublishDialog` and `../branches/BranchesDialog` | Real. Preloads now name each feature's public entry. |
 | `overview/PendingVersionsSection.tsx` imports `changes/ChangesPanel` for `DiffResultView` | Real, and the correct fix makes a different rule fail. Recorded as the single entry in `ALLOWED_FEATURE_EDGES` with its measurement; see below. |
 
 ## The one exception, and why it is not a workaround

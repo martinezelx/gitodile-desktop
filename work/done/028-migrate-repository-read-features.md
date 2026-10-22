@@ -19,7 +19,7 @@ parent: "022"
 # Goal
 
 Move the established read-only repository features onto the architecture
-proven by Version lines while retaining batching, virtualization and freshness.
+proven by Branches while retaining batching, virtualization and freshness.
 
 # User outcome
 

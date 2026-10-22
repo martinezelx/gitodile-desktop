@@ -23,6 +23,9 @@ export type RecentProject = {
   /** Last successful local detection. Absent in entries written before task
    * 130; null means detection found no technology. */
   technology?: string | null;
+  /** When the project was last opened, in epoch milliseconds — Home's "opened
+   * 10 minutes ago". Absent in entries written before it was recorded. */
+  openedAt?: number;
 };
 
 export type StoredRecentProjectsV1 = {
@@ -72,6 +75,9 @@ export function readRecentProjects(): RecentProject[] {
         ...(typeof entry.technology === "string" || entry.technology === null
           ? { technology: entry.technology }
           : {}),
+        ...(typeof entry.openedAt === "number" && Number.isFinite(entry.openedAt)
+          ? { openedAt: entry.openedAt }
+          : {}),
       }));
     }
   } catch {
@@ -90,7 +96,7 @@ function write(entries: RecentProject[]): RecentProject[] {
 /** Records an opened project at the front of the list, replacing any earlier
  * entry for the same path — reopening a project promotes it instead of
  * duplicating it, and a renamed folder's new name wins. */
-export function rememberRecentProject(entry: RecentProject): RecentProject[] {
+export function rememberRecentProject(entry: RecentProject, now: number = Date.now()): RecentProject[] {
   const stored = readRecentProjects();
   const previous = stored.find((candidate) => candidate.path === entry.path);
   const rest = stored.filter((candidate) => candidate.path !== entry.path);
@@ -99,6 +105,7 @@ export function rememberRecentProject(entry: RecentProject): RecentProject[] {
     path: entry.path,
     name: entry.name,
     ...(technology !== undefined ? { technology } : {}),
+    openedAt: now,
   }, ...rest]);
 }
 

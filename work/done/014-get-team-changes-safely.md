@@ -16,7 +16,7 @@ completed: 2026-08-16
 # Goal
 
 Let the user review and bring newer upstream versions into the current project
-when Git can advance the active version line through a clean, verified,
+when Git can advance the active branch through a clean, verified,
 recoverable fast-forward.
 
 # User outcome
@@ -80,9 +80,9 @@ fast-forward-only update. It is not a generic `git pull`.
 
 An executable plan requires all of the following:
 
-- an active project/session on a named, born version line;
+- an active project/session on a named, born branch;
 - a configured and resolvable upstream;
-- a fresh task-013 fetch proving the local line is strictly behind with zero
+- a fresh task-013 fetch proving the local branch is strictly behind with zero
   local-ahead commits;
 - no merge, rebase, cherry-pick, revert, or bisect in progress;
 - no staged or unstaged changes;
@@ -201,8 +201,7 @@ instructions. Never rewrite files automatically to repair uncertainty.
   to the originating session.
 - Success supersedes older reads, updates sync state, clears invalid pending
   assumptions, and performs exactly one coordinated follow-up refresh.
-- Refresh repository identity, working-tree status, pending versions, Version
-  lines, and registered History through existing coordinator seams. Do not make
+- Refresh repository identity, working-tree status, pending versions, Branches, and registered History through existing coordinator seams. Do not make
   `features/repository` import sync or history.
 - Watcher events coalesce behind the mutation and never trigger another network
   check.
@@ -307,7 +306,7 @@ Use bare remotes, separate clones, and linked worktrees for:
 - `src/features/overview/OverviewPanel.tsx`
 - `src/features/repository/readCoordinator.ts`
 - `src/features/status/`
-- `src/features/version-lines/`
+- `src/features/branches/`
 - `src/projectRuntime.ts`
 - `src/projectSessions.ts`
 - `src/main.tsx`
@@ -399,7 +398,7 @@ git update-ref refs/heads/<active-branch> <fresh-target-commit> <old-commit>
 ```
 
 The two-tree read updates only the index and tracked files for the reviewed
-fast-forward; the compare-and-swap branch move then advances the active line.
+fast-forward; the compare-and-swap branch move then advances the active branch.
 No `pull`, merge, rebase, reset, checkout, stash, force operation or automatic
 resolution is used. Because the two local commands cannot be one transaction,
 any failure after recovery is classified as a local uncertain result. It

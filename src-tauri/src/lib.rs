@@ -6,15 +6,26 @@ mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;
+mod bitbucket_access;
+mod branches;
 mod changes;
+mod cli_auth;
 mod clone;
 mod console;
+mod credentials;
 mod desktop;
 mod diagnostics;
+mod encoding;
 mod error;
 mod git;
 mod git_command;
+mod github_access;
+mod github_auth;
+mod gitlab_access;
+mod gitlab_auth;
 mod history;
+pub mod hosting;
+mod hosting_access;
 mod index;
 mod initialize;
 mod ipc;
@@ -32,7 +43,6 @@ mod status;
 mod sync;
 mod technology;
 mod tooling;
-mod version_lines;
 mod watch;
 
 #[cfg(test)]
@@ -72,11 +82,49 @@ pub fn run() {
         .manage(watch::WatcherRegistry::default())
         .manage(clone::CloneOperationRegistry::default())
         .manage(history::HistoryReadCache::default())
+        .manage(github_auth::GitHubAuthService::default())
+        .manage(gitlab_auth::GitLabAuthService::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            let github = app
+                .state::<github_auth::GitHubAuthService>()
+                .inner()
+                .clone();
+            let access = github_access::GitHubAccessService::new(
+                github,
+                app.path()
+                    .app_config_dir()?
+                    .join("github-token-accounts.json"),
+            );
+            app.manage(access.clone());
+            let gitlab = gitlab_access::GitLabAccessService::new(
+                app.state::<gitlab_auth::GitLabAuthService>()
+                    .inner()
+                    .clone(),
+                app.path()
+                    .app_config_dir()?
+                    .join("gitlab-token-accounts.json"),
+            );
+            app.manage(gitlab.clone());
+            let bitbucket = bitbucket_access::BitbucketAccessService::new(
+                app.path()
+                    .app_config_dir()?
+                    .join("bitbucket-token-accounts.json"),
+            );
+            app.manage(bitbucket.clone());
+            let accounts = credentials::install(
+                app.path().app_config_dir()?.join("account-selections.json"),
+                hosting::providers(access, gitlab, bitbucket),
+            );
+            app.manage(hosting::HostingServers::load(
+                app.path().app_config_dir()?,
+                accounts.clone(),
+            ));
+            hosting::sync_accounts_after_launch(accounts.clone());
+            app.manage(accounts);
             app.manage(app_updates::AppUpdateService::new(app.handle()));
             app.manage(console::ConsoleSettings::for_app(app.handle()));
             Ok(())
@@ -91,8 +139,11 @@ pub fn run() {
             ipc::cancel_app_update,
             ipc::install_app_update,
             ipc::reveal_project_file,
+            ipc::open_project_folder,
             ipc::open_repository,
             ipc::plan_clone,
+            ipc::check_clone_source,
+            ipc::cancel_clone_source_check,
             ipc::clone_repository,
             ipc::cancel_clone,
             ipc::cleanup_clone,
@@ -101,11 +152,12 @@ pub fn run() {
             ipc::cleanup_initialize_project,
             ipc::read_working_tree_status,
             ipc::run_console_query,
+            ipc::read_console_host,
+            ipc::run_console_hosting_query,
             ipc::plan_console_command,
             ipc::run_console_plan,
             ipc::run_console_change,
             ipc::get_console_settings,
-            ipc::set_console_advanced_mode,
             ipc::set_console_confirm_changes,
             ipc::read_file_diff,
             ipc::read_file_image_preview,
@@ -117,7 +169,50 @@ pub fn run() {
             ipc::list_discard_recoveries,
             ipc::restore_discarded_changes,
             ipc::delete_discard_recovery,
+            ipc::glab_diagnostics,
+            ipc::install_glab,
+            ipc::update_glab,
+            ipc::check_glab_update,
+            ipc::get_gitlab_auth_state,
+            ipc::check_gitlab_auth,
+            ipc::start_gitlab_login,
+            ipc::logout_gitlab_account,
+            ipc::cancel_gitlab_auth,
+            ipc::add_gitlab_token,
+            ipc::remove_gitlab_token,
+            ipc::add_bitbucket_token,
+            ipc::remove_bitbucket_token,
+            ipc::add_hosting_server,
+            ipc::remove_hosting_server,
+            ipc::add_hosting_token,
+            ipc::remove_hosting_token,
+            ipc::get_hosting_cli_state,
+            ipc::check_hosting_cli,
+            ipc::start_hosting_cli_login,
+            ipc::logout_hosting_cli,
+            ipc::cancel_hosting_cli,
+            ipc::open_hosting_device_page,
+            ipc::gh_diagnostics,
+            ipc::get_account_catalog,
+            ipc::add_github_token,
+            ipc::remove_github_token,
+            ipc::list_hosting_repositories,
+            ipc::cancel_hosting_request,
+            ipc::check_account_catalog,
+            ipc::read_project_account,
+            ipc::set_project_account,
+            ipc::get_github_auth_state,
+            ipc::check_github_auth,
+            ipc::start_github_login,
+            ipc::cancel_github_auth,
+            ipc::logout_github_account,
+            ipc::switch_github_account,
+            ipc::install_gh,
+            ipc::update_gh,
+            ipc::check_gh_update,
             ipc::git_diagnostics,
+            ipc::git_installation_details,
+            ipc::reveal_git_location,
             ipc::install_git,
             ipc::update_git,
             ipc::check_git_update,
@@ -135,6 +230,8 @@ pub fn run() {
             ipc::plan_connect_remote,
             ipc::connect_remote,
             ipc::read_project_remotes,
+            ipc::read_remote_home,
+            ipc::open_remote_home,
             ipc::set_remote_url,
             ipc::read_project_identity,
             ipc::set_project_identity,
@@ -144,9 +241,11 @@ pub fn run() {
             ipc::read_project_technology,
             ipc::read_team_sync_status,
             ipc::check_team_changes,
+            ipc::stop_tracking_remote,
             ipc::plan_get_team_changes,
             ipc::get_team_changes,
             ipc::list_unpublished_versions,
+            ipc::list_incoming_versions,
             ipc::read_commit_file_changes,
             ipc::read_commit_file_diff,
             ipc::read_history_page,
@@ -154,16 +253,18 @@ pub fn run() {
             ipc::read_saved_version_file_diff,
             ipc::plan_publish,
             ipc::publish,
-            ipc::get_version_lines,
-            ipc::get_version_line_history,
-            ipc::plan_create_version_line,
-            ipc::create_version_line,
-            ipc::plan_switch_version_line,
-            ipc::switch_version_line,
-            ipc::plan_delete_version_line,
-            ipc::delete_version_line,
-            ipc::plan_rename_version_line,
-            ipc::rename_version_line,
+            ipc::get_branches,
+            ipc::get_branch_history,
+            ipc::plan_create_branch,
+            ipc::create_branch,
+            ipc::plan_switch_branch,
+            ipc::switch_branch,
+            ipc::plan_delete_branch,
+            ipc::delete_branch,
+            ipc::plan_clean_up_branches,
+            ipc::clean_up_branches,
+            ipc::plan_rename_branch,
+            ipc::rename_branch,
             ipc::watch_repository,
             ipc::unwatch_repository,
             ipc::close_project_session

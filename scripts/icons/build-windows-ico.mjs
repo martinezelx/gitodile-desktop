@@ -9,8 +9,10 @@
 // not renders as a blank sheet. Converting the small layers to DIBs removes
 // that variable without changing what the icon looks like.
 //
-// The Tauri layer order is kept: 32px first (Tauri asks for that so the
-// development window picks the right layer), then 16, 24, 48, 64 and 256.
+// The layers are put in Tauri's documented order: 32px first (Tauri asks for
+// that so the development window picks the right layer), then 16, 24, 48, 64
+// and 256. `tauri icon` itself wrote that order until 2.12, which writes them
+// smallest first, so the order is set here rather than inherited.
 //
 //   node scripts/icons/build-windows-ico.mjs            rewrite icon.ico in place
 //   node scripts/icons/build-windows-ico.mjs --check    fail if icon.ico is not in the expected shape
@@ -277,16 +279,25 @@ export function writeIco(entries) {
   return Buffer.concat([header, ...entries.map((entry) => entry.data)]);
 }
 
+/** A layer's place in `expectedLayerSizes`; unexpected sizes go last, where `verifyIco` reports them. */
+function layerRank(width) {
+  const rank = expectedLayerSizes.indexOf(width);
+  return rank === -1 ? expectedLayerSizes.length : rank;
+}
+
 /**
- * Re-encodes every layer below 256px as a DIB, leaving the 256px layer PNG.
- * Layers already stored as DIBs are passed through untouched.
+ * Re-encodes every layer below 256px as a DIB, leaving the 256px layer PNG,
+ * and puts the layers in `expectedLayerSizes` order. Layers already stored as
+ * DIBs are passed through untouched.
  */
 export function rebuildIco(buffer) {
   return writeIco(
-    parseIco(buffer).map((entry) => {
-      if (entry.width >= 256 || !isPng(entry.data)) return entry;
-      return { ...entry, data: rgbaToDib(decodePng(entry.data)) };
-    }),
+    parseIco(buffer)
+      .map((entry) => {
+        if (entry.width >= 256 || !isPng(entry.data)) return entry;
+        return { ...entry, data: rgbaToDib(decodePng(entry.data)) };
+      })
+      .sort((a, b) => layerRank(a.width) - layerRank(b.width)),
   );
 }
 

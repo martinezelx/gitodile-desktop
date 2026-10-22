@@ -1,4 +1,42 @@
+/** The Git section's installation facts: the origin and path lines in the
+ * Git row, and the "Technical details" disclosure under it. */
+export interface GitInstallationCopy {
+  origin: Record<"git_for_windows" | "github_desktop" | "scoop" | "homebrew" | "macports" | "apple_developer_tools" | "system_package" | "other", string>;
+  scope: Record<"all_users" | "current_user", string>;
+  pathLabel: string;
+  copyPath: string;
+  copied: string;
+  copyFailed: string;
+  reveal: Record<"windows" | "macos" | "other", string>;
+  revealFailed: string;
+  detailsTitle: string;
+  detailsLoading: string;
+  detailsFailed: string;
+  detailsRetry: string;
+  unknown: string;
+  version: string;
+  architecture: Record<"64" | "32" | "arm64", string>;
+  execPath: string;
+  globalConfig: string;
+  globalConfigNote: string;
+  globalConfigMissing: string;
+  systemConfig: string;
+  systemConfigNote: string;
+  signIns: string;
+  credentialHelpers: Record<"none" | "git_credential_manager" | "macos_keychain" | "libsecret" | "windows_credential_store" | "cache" | "store" | "other", string>;
+  credentialNotes: Partial<Record<"none" | "git_credential_manager" | "macos_keychain" | "libsecret" | "windows_credential_store" | "cache" | "store" | "other", string>>;
+  largeFiles: string;
+  largeFilesInstalled: string;
+  largeFilesMissing: string;
+  largeFilesNote: string;
+  editor: string;
+  editorNotSet: string;
+  editorNote: string;
+}
+
 export interface SettingsTranslations {
+  /** How a blocked app update names unsaved changes in this dialog. */
+  settingsInstallBlockerLabel: string;
   settingsInterfaceTitle: string;
   settingsNavigationTitle: string;
   settingsNavigationDestinationsTitle: string;
@@ -29,6 +67,10 @@ export interface SettingsTranslations {
   formatsNumberSpaceComma: string;
   formatsPreviewLabel: string;
   settingsGitTitle: string;
+  settingsAccountsTitle: string;
+  settingsGitToolDescription: string;
+  gitOfficialInstructions: string;
+  gitGuidanceFailed: string;
   settingsGitNeedsAttention: string;
   themeAriaLabel: string;
   settingsThemeDescription: string;
@@ -70,10 +112,16 @@ export interface SettingsTranslations {
   notificationsEventPublishedDescription: string;
   notificationsEventAppUpdateLabel: string;
   notificationsEventAppUpdateDescription: string;
-  settingsGitInstallationTitle: string;
+  notificationsEventUpstreamGoneLabel: string;
+  notificationsEventUpstreamGoneDescription: string;
+  settingsGitToolTitle: string;
   settingsGitInstalledVersionLabel: string;
+  /** Where Git lives and how it is set up, under the Git row. */
+  gitInstallation: GitInstallationCopy;
   settingsGeneralChecking: string;
   settingsGeneralUpdateAvailable: string;
+  settingsToolNeedsAttention: string;
+  settingsToolUpdateAttention: string;
   settingsGeneralGitMissing: string;
   settingsGeneralGitUnusable: string;
   settingsGeneralGitCheckFailed: string;
@@ -81,6 +129,38 @@ export interface SettingsTranslations {
   settingsGeneralInstallGit: string;
   settingsGeneralUpdate: string;
   gitStartingInstaller: string;
+  ghTitle: string;
+  ghDescription: string;
+  ghMissing: string;
+  ghUnusable: string;
+  ghCheckFailed: string;
+  ghInstall: string;
+  ghGuidanceOpened: string;
+  ghActionFailed: string;
+  ghInstallerLaunched: string;
+  ghUpdateUnavailable: string;
+  ghInstructions: string;
+  ghUpdateChecking: string;
+  ghUpdateUpToDate: string;
+  ghUpdateCheckFailed: string;
+  ghUpdateCheckTimedOut: string;
+  /** The shared installation row, used by Git and by the optional GitHub CLI. */
+  ghName: string;
+  ghChipMissing: string;
+  ghChipUnusable: string;
+  ghChipCheckFailed: string;
+  ghChipInstalled: string;
+  gitChipMissing: string;
+  gitChipUnusable: string;
+  gitChipCheckFailed: string;
+  gitChipInstalled: string;
+  settingsToolChipChecking: string;
+  settingsToolSearching: string;
+  settingsToolUpdateAvailableDetail: string;
+  settingsInstallGuided: string;
+  settingsInstallHintWindows: string;
+  settingsInstallHintGuided: string;
+  settingsUpdateHintWindows: string;
   gitInstallerLaunched: string;
   gitInstallerAlreadyStarting: string;
   gitInstallerFailedWithGuidance: string;
@@ -207,6 +287,7 @@ export interface SettingsTranslations {
 }
 
 const en: SettingsTranslations = {
+  settingsInstallBlockerLabel: "Settings",
   settingsInterfaceTitle: "Interface",
   settingsNavigationTitle: "Navigation",
   settingsNavigationDestinationsTitle: "Sections in the bar",
@@ -237,6 +318,10 @@ const en: SettingsTranslations = {
   formatsNumberSpaceComma: "Space groups",
   formatsPreviewLabel: "Example",
   settingsGitTitle: "Git",
+  settingsAccountsTitle: "Accounts",
+  settingsGitToolDescription: "Git saves your projects' versions; GitOdile uses this computer's installation.",
+  gitOfficialInstructions: "Official Git instructions",
+  gitGuidanceFailed: "Couldn't open the official Git instructions. Try again.",
   settingsGitNeedsAttention: "Git needs attention",
   themeAriaLabel: "Theme",
   settingsThemeDescription: "Pick a theme, or follow your system.",
@@ -275,10 +360,69 @@ const en: SettingsTranslations = {
   notificationsEventPublishedDescription: "A receipt of what you sent.",
   notificationsEventAppUpdateLabel: "A newer version of the app is out",
   notificationsEventAppUpdateDescription: "Found at startup, and nothing downloads on its own.",
-  settingsGitInstallationTitle: "Installation",
+  notificationsEventUpstreamGoneLabel: "A branch's remote branch is deleted",
+  notificationsEventUpstreamGoneDescription: "Usually after its pull request is merged. Your work stays on your computer.",
+  settingsGitToolTitle: "Git on your computer",
   settingsGitInstalledVersionLabel: "Installed version",
+  gitInstallation: {
+    origin: {
+      git_for_windows: "Git for Windows",
+      github_desktop: "The copy bundled with GitHub Desktop",
+      scoop: "Installed with Scoop",
+      homebrew: "Installed with Homebrew",
+      macports: "Installed with MacPorts",
+      apple_developer_tools: "Apple's developer tools",
+      system_package: "Installed by your system's package manager",
+      other: "A separate installation",
+    },
+    scope: { all_users: "installed for all users", current_user: "installed just for you" },
+    pathLabel: "Location of Git",
+    copyPath: "Copy path",
+    copied: "Copied",
+    copyFailed: "The path couldn't be copied.",
+    reveal: { windows: "Show in Explorer", macos: "Show in Finder", other: "Show in folder" },
+    revealFailed: "Your file manager couldn't be opened. Copy the path and open it yourself.",
+    detailsTitle: "Technical details",
+    detailsLoading: "Reading Git's details…",
+    detailsFailed: "Git's details couldn't be read.",
+    detailsRetry: "Try again",
+    unknown: "Not available",
+    version: "Version",
+    architecture: { "64": "64-bit", "32": "32-bit", arm64: "ARM, 64-bit" },
+    execPath: "Git's internal folder",
+    globalConfig: "Your configuration file",
+    globalConfigNote: "Your name, email and line endings live here",
+    globalConfigMissing: "Not created yet: Git creates it the first time a setting is saved",
+    systemConfig: "System configuration",
+    systemConfigNote: "Shared by everyone on this computer",
+    signIns: "Sign-ins",
+    credentialHelpers: {
+      none: "None set up",
+      git_credential_manager: "Git Credential Manager",
+      macos_keychain: "macOS Keychain",
+      libsecret: "Your system's keyring",
+      windows_credential_store: "Windows Credential Manager",
+      cache: "Kept in memory for a while",
+      store: "Saved in a plain text file",
+      other: "A custom helper",
+    },
+    credentialNotes: {
+      none: "Git asks for your password each time",
+      git_credential_manager: "Keeps your sign-ins in the system's secure store",
+      store: "Anyone who can open your user folder can read them",
+    },
+    largeFiles: "Large files",
+    largeFilesInstalled: "Git LFS {version}",
+    largeFilesMissing: "Git LFS isn't installed",
+    largeFilesNote: "For projects with images, videos or other large files",
+    editor: "Git's editor",
+    editorNotSet: "Not set",
+    editorNote: "The program Git opens when it needs you to write something",
+  },
   settingsGeneralChecking: "Checking…",
   settingsGeneralUpdateAvailable: "Update available",
+  settingsToolNeedsAttention: "{tool}: needs attention",
+  settingsToolUpdateAttention: "{tool}: update available",
   settingsGeneralGitMissing: "Git isn't installed, or GitOdile can't find it.",
   settingsGeneralGitUnusable: "Git was found, but it isn't working.",
   settingsGeneralGitCheckFailed: "Couldn't check Git.",
@@ -286,6 +430,37 @@ const en: SettingsTranslations = {
   settingsGeneralInstallGit: "Install Git",
   settingsGeneralUpdate: "Update",
   gitStartingInstaller: "Starting…",
+  ghTitle: "GitHub on your computer",
+  ghDescription: "Needed to connect through the browser, while tokens work without it. Installing it doesn't sign you in.",
+  ghMissing: "Not installed on this computer.",
+  ghUnusable: "It was found, but it is not responding as expected.",
+  ghCheckFailed: "Couldn't check whether it is installed.",
+  ghInstall: "Install",
+  ghGuidanceOpened: "The official GitHub CLI instructions were opened.",
+  ghActionFailed: "The GitHub CLI action could not be completed. You can open the official instructions and try again.",
+  ghInstallerLaunched: "The installer has opened. Reopen GitOdile when it finishes.",
+  ghUpdateUnavailable: "Automatic update checks are unavailable here. Use the official instructions to update GitHub CLI.",
+  ghInstructions: "Official GitHub CLI guide",
+  ghUpdateChecking: "Checking for a GitHub CLI update…",
+  ghUpdateUpToDate: "GitHub CLI is up to date.",
+  ghUpdateCheckFailed: "Couldn't check for a GitHub CLI update. Try again later.",
+  ghUpdateCheckTimedOut: "The GitHub CLI update check took too long. Try again later.",
+  ghName: "GitHub tool",
+  ghChipMissing: "Not installed",
+  ghChipUnusable: "Not responding",
+  ghChipCheckFailed: "Unchecked",
+  ghChipInstalled: "Installed",
+  gitChipMissing: "Not installed",
+  gitChipUnusable: "Not working",
+  gitChipCheckFailed: "Unchecked",
+  gitChipInstalled: "Installed",
+  settingsToolChipChecking: "Checking",
+  settingsToolSearching: "Searching…",
+  settingsToolUpdateAvailableDetail: "A newer version is available.",
+  settingsInstallGuided: "How to install",
+  settingsInstallHintWindows: "The Windows installer opens and may ask for administrator permission.",
+  settingsInstallHintGuided: "The instructions open in your browser.",
+  settingsUpdateHintWindows: "The Windows installer opens to update it.",
   gitInstallerLaunched: "Installer started and may take a moment to appear. Reopen GitOdile when it's done.",
   gitInstallerAlreadyStarting: "The installer is already starting.",
   gitInstallerFailedWithGuidance: "The installer couldn't start, so the official Windows instructions were opened.",
@@ -303,13 +478,13 @@ const en: SettingsTranslations = {
   gitUpdateLaunched: "Update started and may take a moment to appear. Reopen GitOdile when it's done.",
   gitUpdateAlreadyStarting: "The Git update is already starting.",
   gitCouldntStart: "Couldn't start it.",
-  settingsDefaultBranchTitle: "Default version line",
-  settingsDefaultBranchDescription: "The first line's name in new projects, which other Git tools use too.",
+  settingsDefaultBranchTitle: "Default branch",
+  settingsDefaultBranchDescription: "The first branch's name in new projects, which other Git tools use too.",
   defaultBranchOtherLabel: "Other",
-  defaultBranchCustomLabel: "Version line name",
+  defaultBranchCustomLabel: "Branch name",
   defaultBranchPlaceholder: "main",
   defaultBranchUnset: "Not set in Git yet, so other tools use their own default. Pick one to set it for all of them.",
-  defaultBranchSaved: "Default version line saved.",
+  defaultBranchSaved: "Default branch saved.",
   defaultBranchCouldntSave: "Couldn't save that name.",
   settingsHooksTitle: "Git hooks",
   hooksLabel: "Run Git hooks when saving and publishing",
@@ -380,7 +555,7 @@ const en: SettingsTranslations = {
   languageAriaLabel: "Language",
   settingsReadingTitle: "Reading",
   settingsConsoleTitle: "Console",
-  settingsConsoleDescription: "How the project console looks and helps you type. Shared by every project.",
+  settingsConsoleDescription: "Whether the project console asks before changes, and how it looks and helps you type. Shared by every project.",
   consoleSettingsAutocompleteLabel: "Suggest shortcuts",
   consoleSettingsAutocompleteDescription: "Complete names in grey as you type and list the ones that match. Tab accepts.",
   consoleSettingsWelcomeLabel: "Show the welcome",
@@ -410,6 +585,7 @@ const en: SettingsTranslations = {
 };
 
 const es: SettingsTranslations = {
+  settingsInstallBlockerLabel: "Ajustes",
   settingsInterfaceTitle: "Interfaz",
   settingsNavigationTitle: "Navegación",
   settingsNavigationDestinationsTitle: "Secciones de la barra",
@@ -440,6 +616,10 @@ const es: SettingsTranslations = {
   formatsNumberSpaceComma: "Grupos con espacio",
   formatsPreviewLabel: "Ejemplo",
   settingsGitTitle: "Git",
+  settingsAccountsTitle: "Cuentas",
+  settingsGitToolDescription: "Git guarda las versiones de tus proyectos; GitOdile usa la instalación de este ordenador.",
+  gitOfficialInstructions: "Instrucciones oficiales de Git",
+  gitGuidanceFailed: "No se pudieron abrir las instrucciones oficiales de Git. Vuelve a intentarlo.",
   settingsGitNeedsAttention: "Git necesita atención",
   themeAriaLabel: "Tema",
   settingsThemeDescription: "Elige un tema o usa el del sistema.",
@@ -478,10 +658,69 @@ const es: SettingsTranslations = {
   notificationsEventPublishedDescription: "Un recibo de lo que enviaste.",
   notificationsEventAppUpdateLabel: "Versiones nuevas de la aplicación",
   notificationsEventAppUpdateDescription: "Se detecta al iniciar y no se descarga nada solo.",
-  settingsGitInstallationTitle: "Instalación",
+  notificationsEventUpstreamGoneLabel: "Se borra la rama remota de una rama",
+  notificationsEventUpstreamGoneDescription: "Normalmente al fusionar su PR. Tu trabajo se queda en tu ordenador.",
+  settingsGitToolTitle: "Git en tu ordenador",
   settingsGitInstalledVersionLabel: "Versión instalada",
+  gitInstallation: {
+    origin: {
+      git_for_windows: "Git for Windows",
+      github_desktop: "La copia que trae GitHub Desktop",
+      scoop: "Instalado con Scoop",
+      homebrew: "Instalado con Homebrew",
+      macports: "Instalado con MacPorts",
+      apple_developer_tools: "Herramientas de desarrollo de Apple",
+      system_package: "Instalado con el gestor de paquetes del sistema",
+      other: "Una instalación aparte",
+    },
+    scope: { all_users: "instalación para todos los usuarios", current_user: "instalación solo para ti" },
+    pathLabel: "Ubicación de Git",
+    copyPath: "Copiar la ruta",
+    copied: "Copiada",
+    copyFailed: "No se ha podido copiar la ruta.",
+    reveal: { windows: "Mostrar en el Explorador", macos: "Mostrar en Finder", other: "Mostrar en la carpeta" },
+    revealFailed: "No se ha podido abrir el explorador de archivos. Copia la ruta y ábrela tú.",
+    detailsTitle: "Detalles técnicos",
+    detailsLoading: "Leyendo los detalles de Git…",
+    detailsFailed: "No se han podido leer los detalles de Git.",
+    detailsRetry: "Reintentar",
+    unknown: "No disponible",
+    version: "Versión",
+    architecture: { "64": "64 bits", "32": "32 bits", arm64: "ARM, 64 bits" },
+    execPath: "Carpeta interna de Git",
+    globalConfig: "Tu archivo de configuración",
+    globalConfigNote: "Aquí viven tu nombre, tu correo y los finales de línea",
+    globalConfigMissing: "Aún no existe: Git lo crea la primera vez que se guarda un ajuste",
+    systemConfig: "Configuración del sistema",
+    systemConfigNote: "La comparten todos los usuarios de este ordenador",
+    signIns: "Inicios de sesión",
+    credentialHelpers: {
+      none: "Ninguno configurado",
+      git_credential_manager: "Git Credential Manager",
+      macos_keychain: "Llavero de macOS",
+      libsecret: "El llavero del sistema",
+      windows_credential_store: "Administrador de credenciales de Windows",
+      cache: "Se guardan en memoria un rato",
+      store: "Se guardan en un archivo de texto",
+      other: "Un asistente propio",
+    },
+    credentialNotes: {
+      none: "Git te pedirá la contraseña cada vez",
+      git_credential_manager: "Guarda tus inicios de sesión en el almacén seguro del sistema",
+      store: "Cualquiera que pueda abrir tu carpeta de usuario puede leerlos",
+    },
+    largeFiles: "Archivos grandes",
+    largeFilesInstalled: "Git LFS {version}",
+    largeFilesMissing: "Git LFS no está instalado",
+    largeFilesNote: "Para proyectos con imágenes, vídeos u otros archivos grandes",
+    editor: "Editor de Git",
+    editorNotSet: "Sin configurar",
+    editorNote: "El programa que Git abre cuando te pide escribir un texto",
+  },
   settingsGeneralChecking: "Comprobando…",
   settingsGeneralUpdateAvailable: "Actualización disponible",
+  settingsToolNeedsAttention: "{tool}: necesita atención",
+  settingsToolUpdateAttention: "{tool}: actualización disponible",
   settingsGeneralGitMissing: "Git no está instalado o GitOdile no lo encuentra.",
   settingsGeneralGitUnusable: "Se encontró Git, pero no funciona.",
   settingsGeneralGitCheckFailed: "No se pudo comprobar Git.",
@@ -489,6 +728,37 @@ const es: SettingsTranslations = {
   settingsGeneralInstallGit: "Instalar Git",
   settingsGeneralUpdate: "Actualizar",
   gitStartingInstaller: "Iniciando…",
+  ghTitle: "GitHub en tu ordenador",
+  ghDescription: "Necesaria para conectar mediante el navegador, mientras que los tokens funcionan sin ella. Instalarla no inicia sesión.",
+  ghMissing: "No está instalada en este ordenador.",
+  ghUnusable: "Se encontró, pero no responde como se espera.",
+  ghCheckFailed: "No se pudo comprobar si está instalada.",
+  ghInstall: "Instalar",
+  ghGuidanceOpened: "Se abrieron las instrucciones oficiales de GitHub CLI.",
+  ghActionFailed: "No se pudo completar la acción de GitHub CLI. Puedes abrir las instrucciones oficiales y volver a intentarlo.",
+  ghInstallerLaunched: "Se ha abierto el instalador. Vuelve a abrir GitOdile al terminar.",
+  ghUpdateUnavailable: "Aquí no están disponibles las comprobaciones automáticas de actualizaciones. Usa las instrucciones oficiales para actualizar GitHub CLI.",
+  ghInstructions: "Guía oficial de GitHub CLI",
+  ghUpdateChecking: "Buscando una actualización de GitHub CLI…",
+  ghUpdateUpToDate: "GitHub CLI está al día.",
+  ghUpdateCheckFailed: "No se pudo buscar una actualización de GitHub CLI. Inténtalo más tarde.",
+  ghUpdateCheckTimedOut: "La búsqueda de una actualización de GitHub CLI tardó demasiado. Inténtalo más tarde.",
+  ghName: "Herramienta de GitHub",
+  ghChipMissing: "No instalada",
+  ghChipUnusable: "No responde",
+  ghChipCheckFailed: "Sin comprobar",
+  ghChipInstalled: "Instalada",
+  gitChipMissing: "No instalado",
+  gitChipUnusable: "No funciona",
+  gitChipCheckFailed: "Sin comprobar",
+  gitChipInstalled: "Instalado",
+  settingsToolChipChecking: "Comprobando",
+  settingsToolSearching: "Buscando…",
+  settingsToolUpdateAvailableDetail: "Hay una versión más reciente.",
+  settingsInstallGuided: "Cómo instalar",
+  settingsInstallHintWindows: "Se abrirá el instalador de Windows y puede pedir permisos.",
+  settingsInstallHintGuided: "Se abrirán las instrucciones en tu navegador.",
+  settingsUpdateHintWindows: "Se abrirá el instalador de Windows para actualizar.",
   gitInstallerLaunched: "El instalador se ha iniciado y puede tardar un momento en aparecer. Vuelve a abrir GitOdile cuando termine.",
   gitInstallerAlreadyStarting: "El instalador ya se está iniciando.",
   gitInstallerFailedWithGuidance: "El instalador no pudo iniciarse, así que se abrieron las instrucciones oficiales para Windows.",
@@ -506,13 +776,13 @@ const es: SettingsTranslations = {
   gitUpdateLaunched: "La actualización se ha iniciado y puede tardar un momento en aparecer. Vuelve a abrir GitOdile cuando termine.",
   gitUpdateAlreadyStarting: "La actualización de Git ya se está iniciando.",
   gitCouldntStart: "No se pudo iniciar.",
-  settingsDefaultBranchTitle: "Línea de versión predeterminada",
-  settingsDefaultBranchDescription: "El nombre de la primera línea en proyectos nuevos, que otras herramientas de Git también usan.",
+  settingsDefaultBranchTitle: "Rama predeterminada",
+  settingsDefaultBranchDescription: "El nombre de la primera rama en proyectos nuevos, que otras herramientas de Git también usan.",
   defaultBranchOtherLabel: "Otro",
-  defaultBranchCustomLabel: "Nombre de la línea de versión",
+  defaultBranchCustomLabel: "Nombre de la rama",
   defaultBranchPlaceholder: "main",
   defaultBranchUnset: "Aún no está configurado en Git, así que otras herramientas usan su propio valor. Elige uno para fijarlo en todas.",
-  defaultBranchSaved: "Línea de versión predeterminada guardada.",
+  defaultBranchSaved: "Rama predeterminada guardada.",
   defaultBranchCouldntSave: "No se pudo guardar ese nombre.",
   settingsHooksTitle: "Hooks de Git",
   hooksLabel: "Ejecutar los hooks de Git al guardar y publicar",
@@ -549,7 +819,7 @@ const es: SettingsTranslations = {
   lineEndingsEolNote: "Otro ajuste también decide lo que se escribe en el disco (core.eol):",
   lineEndingsSaved: "Guardado.",
   lineEndingsCouldntSave: "No se pudo guardar.",
-  settingsStartupTitle: "Inicio",
+  settingsStartupTitle: "Al abrir la app",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Recupera los proyectos que estaban abiertos al salir.",
   settingsWatchingTitle: "Actualización automática",
@@ -583,7 +853,7 @@ const es: SettingsTranslations = {
   languageAriaLabel: "Idioma",
   settingsReadingTitle: "Lectura",
   settingsConsoleTitle: "Consola",
-  settingsConsoleDescription: "Cómo se ve la consola del proyecto y cómo te ayuda a escribir. Se comparte entre proyectos.",
+  settingsConsoleDescription: "Si la consola del proyecto pregunta antes de cada cambio, y cómo se ve y te ayuda a escribir. Se comparte entre proyectos.",
   consoleSettingsAutocompleteLabel: "Sugerir atajos",
   consoleSettingsAutocompleteDescription: "Completa los nombres en gris mientras escribes y muestra los que coinciden. Tab acepta.",
   consoleSettingsWelcomeLabel: "Mostrar la bienvenida",

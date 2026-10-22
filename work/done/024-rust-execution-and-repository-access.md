@@ -153,7 +153,7 @@ Task 023.
 - `pnpm run test` — pass, 16 files and 206 tests.
 - `pnpm run build` — pass, 1,881 modules. Frontend output is exactly the task
   023 baseline: entry 360.36 kB raw / 104.60 kB gzip, Changes 59.86 kB,
-  Version-lines panel+dialog 30.75 kB and deferred `fileIcons` 255.22 kB; no
+  Branches panel+dialog 30.75 kB and deferred `fileIcons` 255.22 kB; no
   warning/failure budget moved and no static entry path to `fileIcons` changed.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.
 - `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets

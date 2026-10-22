@@ -7,4 +7,6 @@ export const statusPort: StatusPort = {
     invoke("read_working_tree_status", { path, sessionEpoch }),
   readPendingVersions: ({ projectId: path, sessionEpoch }) =>
     invoke("list_unpublished_versions", { path, sessionEpoch }),
+  readIncomingVersions: ({ projectId: path, sessionEpoch }) =>
+    invoke("list_incoming_versions", { path, sessionEpoch }),
 };

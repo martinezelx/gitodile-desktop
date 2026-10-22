@@ -374,7 +374,7 @@ fn classify_subcommand(subcommand: &str, rest: &[String]) -> Result<Classified, 
             {
                 Tier::Destructive
             } else if args.has_long("--soft") || !args.positionals.is_empty() {
-                // A bare name may be a commit, which moves the line.
+                // A bare name may be a commit, which moves the branch.
                 Tier::HistoryChange
             } else {
                 Tier::LocalChange
@@ -607,7 +607,7 @@ fn classify_checkout(args: &Args, rest: &[String]) -> Result<Plan, Refusal> {
                 target: target.to_string(),
                 create: false,
             }),
-        // `checkout name` switches line when the name is a line, and
+        // `checkout name` switches branch when the name is a branch, and
         // restores a file when it is a path: the plan looks it up and stays
         // Destructive until it does.
         [name] => Plan::new(Tier::Destructive, OutputShape::Plain)
@@ -904,7 +904,7 @@ fn classify_branch(args: &Args, rest: &[String]) -> Result<Plan, Refusal> {
             .first()
             .map(|name| name.to_string())
             .unwrap_or_default();
-        Plan::new(Tier::LocalChange, OutputShape::Plain).with_intent(Intent::CreateLine(name))
+        Plan::new(Tier::LocalChange, OutputShape::Plain).with_intent(Intent::CreateBranch(name))
     };
     match lists(rest, BRANCH_READ_LONG, "larvqi", "lv") {
         Some(true) => return Ok(Plan::new(Tier::Read, OutputShape::Branches)),
@@ -1187,7 +1187,7 @@ fn classify_transfer(subcommand: &str, args: &Args, rest: &[String]) -> Result<P
         }
         "push" => Plan::new(Tier::Remote, OutputShape::Plain).with_intent(Intent::Push {
             remote,
-            line: named.get(1).map(|line| line.to_string()),
+            branch: named.get(1).map(|branch| branch.to_string()),
             plain: named.is_empty(),
         }),
         _ => Plan::new(Tier::Remote, OutputShape::Plain).with_intent(Intent::AskRemote(remote)),
@@ -1341,10 +1341,10 @@ mod tests {
             ("git checkout -b try main", switch("try", true)),
             ("git checkout --detach HEAD~1", switch("HEAD~1", false)),
             ("git checkout main", Intent::CheckoutName("main".into())),
-            ("git branch try main", Intent::CreateLine("try".into())),
+            ("git branch try main", Intent::CreateBranch("try".into())),
             (
                 "git branch --track try origin/try",
-                Intent::CreateLine("try".into()),
+                Intent::CreateBranch("try".into()),
             ),
             ("git tag -a v1 -m 'release'", Intent::CreateTag("v1".into())),
             ("git tag -m 'release' v2", Intent::CreateTag("v2".into())),
@@ -1370,7 +1370,7 @@ mod tests {
                 "git push -u origin main",
                 Intent::Push {
                     remote: Some("origin".into()),
-                    line: Some("main".into()),
+                    branch: Some("main".into()),
                     plain: false,
                 },
             ),
@@ -1378,7 +1378,7 @@ mod tests {
                 "git push -o ci.skip origin",
                 Intent::Push {
                     remote: Some("origin".into()),
-                    line: None,
+                    branch: None,
                     plain: false,
                 },
             ),
@@ -1386,7 +1386,7 @@ mod tests {
                 "git push",
                 Intent::Push {
                     remote: None,
-                    line: None,
+                    branch: None,
                     plain: true,
                 },
             ),

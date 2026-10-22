@@ -263,7 +263,7 @@ describe("SaveVersionDialog", () => {
     expect(await screen.findByText("This will be the first saved version on main.")).toBeInTheDocument();
   });
 
-  it("names the version line this version will be saved to, from the plan", async () => {
+  it("names the branch this version will be saved to, from the plan", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({ branch: "0.2.1" }));
     renderDialog();
 
@@ -274,7 +274,7 @@ describe("SaveVersionDialog", () => {
     );
   });
 
-  it("names no destination when the plan has no version line to name", async () => {
+  it("names no destination when the plan has no branch to name", async () => {
     // A detached `HEAD`: there is a commit to make and no line to make it on.
     // Inventing a name here would be the one thing a destination must not do.
     mockedInvoke.mockResolvedValueOnce(plan({ branch: null }));
@@ -282,7 +282,7 @@ describe("SaveVersionDialog", () => {
 
     expect(
       await screen.findByText(
-        "You're not on a version line. Create one so this version is easy to find.",
+        "You're not on a branch. Create one so this version is easy to find.",
       ),
     ).toBeInTheDocument();
     expect(await screen.findByText("2 files")).toBeInTheDocument();

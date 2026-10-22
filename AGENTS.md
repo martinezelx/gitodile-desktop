@@ -88,7 +88,9 @@ Secondary:
   must suspend polling, costly effects, subscriptions, and announcements.
 - Never fetch merely because a screen became visible. Render the cached
   snapshot; refresh on project activation or an explicit repository
-  invalidation, idle-deferred where it is speculative.
+  invalidation, idle-deferred where it is speculative. The one exception is
+  the background verification of saved hosting accounts after launch
+  ([ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md)).
 - Visual components do not call `invoke`. A feature reaches Rust through its own
   typed port and `tauriAdapter.ts`. The only direct calls left in
   `src/app/App.tsx` are watcher and session lifecycle wiring, which the
@@ -184,8 +186,8 @@ Default simple-mode wording:
 | commit changes | save version |
 | push | publish changes |
 | fetch/pull | get project changes |
-| branch | separate workspace / version line |
-| checkout/switch | switch workspace |
+| branch | branch / rama |
+| checkout/switch | switch branch / cambiar de rama |
 | merge conflict | overlapping changes |
 | clean working tree | everything is saved |
 | ahead of remote | saved locally, not published |
@@ -193,6 +195,10 @@ Default simple-mode wording:
 | stash | set changes aside |
 
 This table is guidance, not a rigid translation layer. Use exact Git terminology in advanced views and educational explanations.
+
+Use branch/branches and rama/ramas in simple mode too. Do not introduce
+version-line or workspace synonyms for a branch; a linked workspace is a
+different concept. See [ADR 0035](docs/adr/0035-use-branches-as-the-product-vocabulary.md).
 
 ## Safety rules for Git operations
 

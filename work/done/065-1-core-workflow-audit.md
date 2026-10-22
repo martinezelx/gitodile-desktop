@@ -88,7 +88,7 @@ coverage gap, not an implication that the capability failed.
 | Discover remotes and preview/publish with uncertain outcomes | `remote_tests.rs`, `publish_tests.rs`, publish frontend tests | Core journey publishes to a temporary bare remote and proves the remote ref moved | Two local saved versions were previewed and published to a local bare `origin` | Provider/network ambiguity and credentials remain 065-7; uncertain-outcome classification is automated |
 | Check/fetch without moving the worktree | `sync_tests.rs`, sync controller and `TeamChangesSection.test.tsx` | Core journey fetches a teammate commit and proves local HEAD/files do not move | “Check again” found exactly one incoming version after a separate clone pushed it | Unavailable/malformed remotes are automated; real WAN/proxy/offline behavior remains 065-7/065-8 |
 | Review and get a strict fast-forward with recovery | `sync_tests.rs`, `GetTeamChangesDialog.test.tsx` | Core journey plans/applies the fast-forward, verifies the durable recovery ref and updated file; diverged journey blocks safely | Preview showed commit, author, file, destination, forbidden implicit actions, and recovery; apply reached `15fc140` | Crash/kill at every mutation boundary and filesystem lock variants remain release-hardening evidence |
-| List/create/switch/delete version lines safely | `version_lines_tests.rs` and version-lines frontend/controller tests | Branch journey creates without switching, switches both ways, and safely deletes the line | Version-lines screen was present but the mutating path was not repeated manually | Publish-a-new-line/provider behavior remains existing automation and 065-7 diagnostics |
+| List/create/switch/delete branches safely | `branches_tests.rs` and branches frontend/controller tests | Branch journey creates without switching, switches both ways, and safely deletes the branch | Branches screen was present but the mutating path was not repeated manually | Publish-a-new-branch/provider behavior remains existing automation and 065-7 diagnostics |
 | Configure themes, locales, Git/tooling, reading, watching, confirmations | Settings, tooling, i18n, and theme-transition tests | No new domain fixture required | Light and dark rendered; English and Spanish settings/main UI rendered; safety/watch settings inspected | Missing/broken Git and platform update variants remain automated/CI; macOS/Linux UI runtime remains 065-8 |
 | Explain and configure line endings and overrides | Tooling Rust tests and `SettingsPanel.test.tsx` | No new fixture required | Settings surface inspected; line-ending mutation was not needed for the core journey | `.gitattributes`, project override, and platform line-ending matrices remain automated/CI |
 | Command palette, keyboard dialogs, keep-alive screens, suspended hidden work | App-shell, screen-module, dialog, focus, and `main.test.tsx` tests | Session isolation journey exercises lifecycle boundaries below the UI | `Ctrl+K` opened the palette with focus in search; Escape restored the screen; dialogs/native picker were keyboard-addressable | Screen-reader software and macOS/Linux native focus behavior remain 065-8 |
@@ -110,7 +110,7 @@ dependency.
   publish, explicit check, teammate push, behind status, strict fast-forward
   with a verified recovery ref, another save/publish, close/reopen, stale-epoch
   rejection, and two-project session isolation.
-- `discard_and_version_line_journey_undoes_then_creates_switches_and_deletes`
+- `discard_and_branch_journey_undoes_then_creates_switches_and_deletes`
   connects selected discard, persistent Undo, saving the restored file, branch
   creation without switching, switching both directions, and safe deletion.
 - `repository_state_journey_covers_unborn_dirty_clean_detached_conflicted_and_sync_relations`
@@ -129,7 +129,7 @@ would make the audit slower without adding a new boundary.
 | Concern | Evidence and conclusion |
 | --- | --- |
 | Hooks, signing, identity, real-index protection | `save_version_tests.rs` verifies hooks are preserved, signing/identity failures surface, the real index is restored, and temporary indexes cannot collide. No bypass was added. |
-| Stale plans | Save, discard, publish, get, and version-line suites revalidate state tokens before mutation. The new journeys use planned operations instead of direct Git mutation for product actions. |
+| Stale plans | Save, discard, publish, get, and branch suites revalidate state tokens before mutation. The new journeys use planned operations instead of direct Git mutation for product actions. |
 | Watcher and invalidations | Rust watcher debounce/path-filter tests and frontend repository invalidation tests cover active/hidden/watch-off behavior. Long-soak and network-drive behavior remains 065-8. |
 | Concurrent operations | `repository_access` tests prove common-git-directory read sharing and exclusive mutation locks across worktrees/sessions. |
 | Uncertain outcomes | Publish distinguishes an uncertain remote result; get distinguishes uncertain local completion and never attempts an automatic repair after ambiguity. Failure injection remains automated. |

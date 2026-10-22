@@ -7,7 +7,7 @@ import { consoleScreenModule, ConsoleScreen } from "../features/console";
 import { overviewScreenModule, OverviewPanel } from "../features/overview";
 import { HistoryScreen } from "../features/history";
 import { settingsOverlayModule } from "../features/settings";
-import { versionLinesScreenModule, VersionLinesScreen } from "../features/version-lines";
+import { branchesScreenModule, BranchesScreen } from "../features/branches";
 import { workbenchScreenModule, WorkbenchScreen } from "../features/workbench";
 import { useLanguage } from "../i18n";
 import { ErrorBoundary, ViewErrorNotice } from "../shared/ui";
@@ -55,13 +55,13 @@ export type NavDestination = {
    * the first visit is a cache hit rather than a fetch (task 018's rule).
    * Listing them per destination rather than in one flat list is what stops a
    * new screen from silently shipping without a prefetch, which is exactly
-   * what happened to the Version-lines chunks between tasks 016 and 019. */
+   * what happened to the Branches chunks between tasks 016 and 019. */
   prefetch: (() => Promise<unknown>)[];
   /** App-level overlay opened without replacing the active workspace. */
   overlay?: "settings";
 };
 
-export { ChangesPanel, ConsoleScreen, HistoryScreen, HomeScreen, OverviewPanel, VersionLinesScreen, WorkbenchScreen };
+export { ChangesPanel, ConsoleScreen, HistoryScreen, HomeScreen, OverviewPanel, BranchesScreen, WorkbenchScreen };
 
 /** The single place a screen is registered. Nav (expanded and compact), the
  * command palette, idle prefetching, the "leave if the project closed" guard,
@@ -71,7 +71,7 @@ export { ChangesPanel, ConsoleScreen, HistoryScreen, HomeScreen, OverviewPanel, 
  *
  * Work is what has changed and what has been saved — one loop, one screen,
  * with Changes and History as its two tabs (task 126; they were neighbouring
- * screens before that). Lines follows: switching a version line is a
+ * screens before that). Branches follows: switching a branch is a
  * deliberate move between pieces of work, not part of that loop. The order
  * here is only the default; Navigation Settings still lets anyone rearrange
  * the rail. */
@@ -79,7 +79,7 @@ export const SCREEN_MODULES = defineScreenModules([
   homeScreenModule,
   overviewScreenModule,
   workbenchScreenModule,
-  versionLinesScreenModule,
+  branchesScreenModule,
   consoleScreenModule,
   {
     kind: "placeholder",

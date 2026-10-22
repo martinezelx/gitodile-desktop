@@ -106,22 +106,36 @@ export function useAnchoredPopup(
  * and hides the popup until that measurement lands, which is also why scroll
  * and resize dismiss it rather than letting it drift away from its trigger.
  *
- * `alignment` picks the flyout direction: "side" for the narrow rail, where a
- * menu as wide as the popup has nowhere to go but sideways, "below" for the
- * wider surfaces that can align it with the trigger's own left edge. Sideways
- * flyouts can opt into a shared vertical origin through the closest
- * `[data-flyout-group-anchor]`. This keeps sibling controls in a compact rail
- * from opening visually unrelated panels at opposite ends of the window.
+ * `alignment` picks where the flyout leaves from: "side" for the narrow rail,
+ * where a menu as wide as the popup has nowhere to go but sideways; "below" for
+ * the wider surfaces that align it with the trigger's own left edge; and
+ * "below-end" for a trigger near the trailing edge of a panel, where the popup
+ * is aligned to the trigger's right so it grows back over the panel instead of
+ * spilling past its right edge. Sideways flyouts can opt into a shared vertical
+ * origin through the closest `[data-flyout-group-anchor]`. This keeps sibling
+ * controls in a compact rail from opening visually unrelated panels at opposite
+ * ends of the window.
+ *
+ * `dismissOnViewportChange` is true for a menu, whose trigger drifts under it
+ * the moment anything scrolls or the window resizes. A find box is the
+ * exception: the reader scrolls the results to look at what they searched for,
+ * and its trigger sits in a strip that does not scroll, so the field must
+ * outlive the scroll and re-anchor on a resize instead of closing under their
+ * hands and dropping the query.
  */
 export function usePortalFlyout(
   isOpen: boolean,
   triggerRef: RefObject<HTMLElement | null>,
   close: (restoreFocus: boolean) => void,
-  alignment: "side" | "below",
+  alignment: "side" | "below" | "below-end",
   focusTarget: PopupFocusTarget = "selected-menu-item",
+  dismissOnViewportChange = true,
 ): { popupRef: RefObject<HTMLDivElement | null>; style: CSSProperties } {
   const popupRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  // Bumped by a resize for a popup that follows its anchor: the measurement
+  // effect below re-runs and places it again instead of the resize closing it.
+  const [measureToken, setMeasureToken] = useState(0);
   const closeRef = useRef(close);
   closeRef.current = close;
 
@@ -149,7 +163,12 @@ export function usePortalFlyout(
     const group =
       triggerRef.current?.closest<HTMLElement>("[data-flyout-group-anchor]")?.getBoundingClientRect() ??
       trigger;
-    const preferredLeft = alignment === "side" ? side.right + 6 : trigger.left;
+    const preferredLeft =
+      alignment === "side"
+        ? side.right + 6
+        : alignment === "below-end"
+          ? trigger.right - popup.width
+          : trigger.left;
     const below = trigger.bottom + 6;
     setPosition({
       left: Math.max(margin, Math.min(preferredLeft, window.innerWidth - popup.width - margin)),
@@ -160,7 +179,7 @@ export function usePortalFlyout(
             ? below
             : Math.max(margin, trigger.top - popup.height - 6),
     });
-  }, [alignment, isOpen, triggerRef]);
+  }, [alignment, isOpen, triggerRef, measureToken]);
 
   /**
    * Focus, in a second pass, once the measurement above has landed.
@@ -237,7 +256,7 @@ export function usePortalFlyout(
       event.preventDefault();
       closeRef.current(true);
     };
-    const dismissOnExternalScroll = (event: Event): void => {
+    const handleDocumentScroll = (event: Event): void => {
       const target = event.target;
       // Scroll events are observed in the capture phase so an ancestor scroll
       // can dismiss a fixed popup before it drifts away from its trigger. The
@@ -246,18 +265,30 @@ export function usePortalFlyout(
       if (target instanceof Node && popupRef.current?.contains(target)) return;
       closeRef.current(false);
     };
-    const dismiss = (): void => closeRef.current(false);
+    const handleResize = (): void => {
+      // A popup that follows its anchor re-measures instead of closing, so a
+      // resize neither loses the reader's query nor leaves the field behind.
+      if (dismissOnViewportChange) {
+        closeRef.current(false);
+      } else {
+        setMeasureToken((token) => token + 1);
+      }
+    };
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("scroll", dismissOnExternalScroll, true);
-    window.addEventListener("resize", dismiss);
+    if (dismissOnViewportChange) {
+      window.addEventListener("scroll", handleDocumentScroll, true);
+    }
+    window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("scroll", dismissOnExternalScroll, true);
-      window.removeEventListener("resize", dismiss);
+      if (dismissOnViewportChange) {
+        window.removeEventListener("scroll", handleDocumentScroll, true);
+      }
+      window.removeEventListener("resize", handleResize);
     };
-  }, [isOpen, triggerRef]);
+  }, [isOpen, triggerRef, dismissOnViewportChange]);
 
   return {
     popupRef,

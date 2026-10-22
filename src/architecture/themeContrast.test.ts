@@ -11,7 +11,7 @@ import { THEME_IDS } from "../shared/theme";
  *
  * The contract measures every pairing the stylesheets actually paint, not only
  * text on the four base surfaces: text on a control, on a hovered or selected
- * row and on the accent wash; accent and status colours used as words; the
+ * row and on an inner card; accent and status colours used as words; the
  * label of a solid button; diff ink on its own tinted line; and syntax on the
  * code well. Each floor is WCAG AA for what the pairing is: 4.5:1 for text
  * (GitOdile's type tops out at 13px bold, which is never "large text"), 3:1
@@ -42,6 +42,7 @@ const REQUIRED_TOKENS = [
   "--status-danger",
   "--status-danger-contrast",
   "--status-renamed",
+  "--tone-local",
   "--accent-heart",
   "--diff-added",
   "--diff-removed",
@@ -56,6 +57,7 @@ const REQUIRED_TOKENS = [
   "--shadow-sm",
   "--shadow-md",
   "--shadow-lg",
+  "--shadow-up",
 ] as const;
 
 type Rgb = [number, number, number];
@@ -129,13 +131,6 @@ function contrast(foreground: Rgb, background: Rgb): number {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
-function percentage(value: string | undefined): number | null {
-  const match = value?.match(/^(\d+(?:\.\d+)?)%$/);
-  return match ? Number(match[1]) / 100 : null;
-}
-
-const DEFAULT_WASH_STRENGTH = percentage(TOKENS_CSS.match(/--accent-wash-strength:\s*([^;]+);/)?.[1].trim());
-
 /** A theme's colours, resolved to opaque values, plus the surfaces the
  * stylesheets derive from them. */
 function paletteOf(block: Block) {
@@ -143,7 +138,6 @@ function paletteOf(block: Block) {
   const panel = hex("--surface-panel");
   const raised = hex("--surface-raised");
   const code = hex("--surface-code");
-  const washStrength = percentage(block.tokens["--accent-wash-strength"]) ?? DEFAULT_WASH_STRENGTH ?? 0;
   const surfaces: Record<string, Rgb> = {
     app: hex("--surface-app"),
     panel,
@@ -154,8 +148,6 @@ function paletteOf(block: Block) {
     card: blend(raised, 0.48, panel),
     hover: resolveColour(block.tokens["--surface-hover"], panel),
     active: resolveColour(block.tokens["--surface-active"], panel),
-    // The unread-notification wash in notifications.css.
-    "accent wash": blend(hex("--accent-primary-fill"), washStrength, raised),
   };
   return { hex, panel, raised, code, surfaces };
 }
@@ -210,6 +202,7 @@ describe("theme contrast contract", () => {
       "--status-warning",
       "--status-danger",
       "--status-renamed",
+      "--tone-local",
       "--diff-added",
       "--diff-removed",
     ];
@@ -289,6 +282,26 @@ describe("theme contrast contract", () => {
     expect(failures).toEqual([]);
   });
 
+  // The version node's filled and half states are `--node-fill` in tokens.css:
+  // a 65% mix of the primary ink over the panel. It is a state mark, not text,
+  // so it keeps the non-text floor in every theme; the selected/active accent
+  // is measured with the accent pairs.
+  it("keeps the version node fill at 3:1 over the panel in every theme", () => {
+    const definition = TOKENS_CSS.match(
+      /--node-fill:\s*color-mix\(in srgb,\s*var\(--text-primary-color\)\s*(\d+(?:\.\d+)?)%,\s*var\(--surface-panel\)\s*\)/,
+    );
+    expect(definition, "tokens.css defines --node-fill as an ink/panel mix").not.toBeNull();
+    if (!definition) return;
+    const weight = Number(definition[1]) / 100;
+    const failures: string[] = [];
+    for (const block of blocks) {
+      const { hex, panel } = paletteOf(block);
+      const fill = blend(hex("--text-primary-color"), weight, panel);
+      measure(failures, block.id, "--node-fill on panel", fill, panel, NON_TEXT_FLOOR);
+    }
+    expect(failures).toEqual([]);
+  });
+
   // A popover, menu or dialog is `--surface-raised`. On a dark palette it has
   // to lift off the panel beneath it, or a menu reads as a hole in the page;
   // light palettes lift with a shadow instead, like the official Light theme.
@@ -298,6 +311,23 @@ describe("theme contrast contract", () => {
       if (block.scheme !== "dark") continue;
       const { panel, raised } = paletteOf(block);
       if (luminance(raised) <= luminance(panel)) failures.push(`${block.id}: --surface-raised is not lighter than the panel`);
+    }
+    expect(failures).toEqual([]);
+  });
+
+  // A control sits *on* a raised card (DESIGN.md § semantic colors). If the two
+  // paint the same colour the control has no step of its own and disappears
+  // into the card it is part of - Solarized Dark and Catppuccin Frappé both
+  // shipped with that collision. The RGB distance is a rough perceptual step;
+  // the tightest passing theme (GitOdile Dark) measures about 8.
+  it("keeps the control surface a visible step from the raised surface", () => {
+    const failures: string[] = [];
+    for (const block of blocks) {
+      const { hex } = paletteOf(block);
+      const raised = hex("--surface-raised");
+      const control = hex("--surface-control");
+      const step = Math.hypot(raised[0] - control[0], raised[1] - control[1], raised[2] - control[2]);
+      if (step < 6) failures.push(`${block.id}: --surface-control is only ${step.toFixed(1)} from --surface-raised`);
     }
     expect(failures).toEqual([]);
   });

@@ -8,9 +8,8 @@ import {
   ChevronUp,
   CircleAlert,
   CircleArrowUp,
-  CloudDownload,
+  CircleFadingArrowUp,
   CornerDownLeft,
-  GitBranch,
   GripVertical,
   Info,
   LoaderCircle,
@@ -19,6 +18,7 @@ import {
   Settings,
   SquareTerminal,
   TriangleAlert,
+  UsersRound,
   WrapText,
 } from "lucide-react";
 
@@ -37,14 +37,18 @@ import {
 import {
   autoHideScrollbarProps,
   LoadingPlaceholder,
+  HostingProviderIcon,
   moveFocusWithinRadioGroup,
   TextPlaceholder,
   ToggleSwitch,
+  ToolGuideButton,
+  ToolInstallationRow,
   DEFAULT_PROJECT_AVATAR_STYLE,
   ProjectAvatar,
   PROJECT_AVATAR_STYLES,
   type ProjectAvatarStyle,
   type TechnologyId,
+  GitIcon,
 } from "../../shared/ui";
 import {
   COMMUNITY_THEMES,
@@ -85,8 +89,15 @@ import {
   type RemoteCheckIntervalMinutes,
   type RemoteCheckUnit,
   type SettingsSection,
+  type ToolAttention,
+  toolAttention,
 } from "./domain";
 import { NOTIFICATION_ICONS, NOTIFICATION_KINDS, type NotificationKind } from "../notifications";
+import { GhToolingSection, type HostingToolingCopy, type HostingToolingPort } from "./GhToolingSection";
+import { GitLocationFacts, GitTechnicalDetails } from "./GitInstallationFacts";
+import { ToolRecheckButton } from "./ToolRecheckButton";
+import type { GitToolingState } from "./useGitTooling";
+import { useToolNotice } from "./useToolNotice";
 import type { SettingsPort } from "./port";
 import { settingsPort } from "./tauriAdapter";
 import type { DefaultBranchState, GitIdentityState, LineEndingsState } from "./useGitConfig";
@@ -143,6 +154,11 @@ type ThemeCardOption = {
    reader will get rather than a flattering enlargement. */
 const CODE_FONT_SAMPLE = "0O 1lI {}[] != =>";
 
+const GLAB_GUIDANCE_URL = "https://gitlab.com/gitlab-org/cli#installation";
+
+/** One provider CLI as the Accounts section receives it. */
+export type AccountsToolSlot = { name: string; section: React.ReactNode; inline: React.ReactNode; attention: ToolAttention };
+
 /** Static: nothing about the rail's icons depends on state, a preference or the
  * language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
@@ -152,9 +168,10 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   navigation: <PanelLeft />,
   reading: <WrapText />,
   console: <SquareTerminal />,
-  git: <GitBranch />,
+  git: <GitIcon />,
+  accounts: <UsersRound />,
   "line-endings": <CornerDownLeft />,
-  updates: <CloudDownload />,
+  updates: <CircleFadingArrowUp />,
 };
 
 /** The three kinds the centre records, in the order the panel shows them: the
@@ -174,6 +191,11 @@ const NOTIFICATION_EVENT_ROWS = [
     kind: "remoteCheckFailed",
     label: "notificationsEventCheckFailedLabel",
     description: "notificationsEventCheckFailedDescription",
+  },
+  {
+    kind: "upstreamGone",
+    label: "notificationsEventUpstreamGoneLabel",
+    description: "notificationsEventUpstreamGoneDescription",
   },
   {
     kind: "appUpdateAvailable",
@@ -238,6 +260,7 @@ const SettingsNav = React.memo(function SettingsNav({
   onSectionChange,
   needsGitAttention,
   updateAttention,
+  accountsAttention,
   railLabel,
   attentionLabel,
 }: {
@@ -252,6 +275,8 @@ const SettingsNav = React.memo(function SettingsNav({
   /** An update waiting to be downloaded or installed, named for the badge's
    * accessible name — or null when the rail has nothing to point at. */
   updateAttention: string | null;
+  /** A provider CLI that needs a look, named for the badge's accessible name. */
+  accountsAttention: { tone: "update" | "problem"; label: string } | null;
   railLabel: string;
   attentionLabel: string;
 }): React.JSX.Element {
@@ -317,6 +342,14 @@ const SettingsNav = React.memo(function SettingsNav({
                 <CircleArrowUp aria-hidden="true" />
               </span>
             )}
+            {/* An optional CLI degrades one way of connecting, not the app, so
+                its problem is a warning rather than Git's alarm. */}
+            {section.id === "accounts" && accountsAttention && (
+              <span className={`settings-nav__alert settings-nav__alert--${accountsAttention.tone === "update" ? "accent" : "warning"}`}
+                role="img" aria-label={accountsAttention.label}>
+                {accountsAttention.tone === "update" ? <CircleArrowUp aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
+              </span>
+            )}
           </button>
         );
       })}
@@ -340,6 +373,9 @@ export function SettingsPanel({
   setProjectAvatarStyle = () => undefined,
   activeSection,
   onSectionChange,
+  ghTooling,
+  glabTooling, glabActions, glabCopy,
+  accounts,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -367,7 +403,7 @@ export function SettingsPanel({
   setDiffPreferences,
   consolePreferences = DEFAULT_CONSOLE_PREFERENCES,
   setConsolePreferences = () => undefined,
-  consoleAdvancedMode = null,
+  consoleConfirmChanges = null,
   identity,
   defaultBranch,
   lineEndingsState,
@@ -385,6 +421,13 @@ export function SettingsPanel({
   setProjectAvatarStyle?: (style: ProjectAvatarStyle) => void;
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
+  ghTooling: GitToolingState;
+  glabTooling?: GitToolingState; glabActions?: HostingToolingPort; glabCopy?: HostingToolingCopy;
+  /** The Accounts section, owned by the hosting features. It receives each
+   * product's CLI, which this panel renders — the full group for that
+   * product's block, the bare row for the connect panel, and whether it needs
+   * a look. */
+  accounts?: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -414,10 +457,10 @@ export function SettingsPanel({
   setDiffPreferences: (update: (previous: DiffPreferences) => DiffPreferences) => void;
   consolePreferences?: ConsolePreferences;
   setConsolePreferences?: (update: (previous: ConsolePreferences) => ConsolePreferences) => void;
-  /** The console feature's own Console mode group, with its three mode cards
-   * and dialogs: Rust holds those settings, so this panel only places it, first
-   * in the Console section: what the console may do comes before how it looks. */
-  consoleAdvancedMode?: React.ReactNode;
+  /** The console feature's own Confirm each change row and its dialog: Rust
+   * holds that setting, so this panel only places it, first in the Console
+   * group: what the console may do comes before how it looks. */
+  consoleConfirmChanges?: React.ReactNode;
   /** Both reads live above the dialog, which the shell unmounts on close, so
    * the values survive a closing instead of being fetched again. The panel
    * still owns the draft, the notices and the close guard: those are the parts
@@ -441,7 +484,7 @@ export function SettingsPanel({
 }): React.JSX.Element {
   const { t, languagePreference, setLanguagePreference, formats, setDateFormat, setNumberFormat } =
     useLanguage();
-  const [gitActionNotice, setGitActionNotice] = useState<Notice | null>(null);
+  const { notice: gitActionNotice, clear: clearGitActionNotice, begin: beginGitActionNotice } = useToolNotice();
   const notificationEventsTitleId = useId();
   const [nameInput, setNameInput] = useState(identity.identity.name);
   const [emailInput, setEmailInput] = useState(identity.identity.email);
@@ -606,7 +649,7 @@ export function SettingsPanel({
     isIdentityDirty ||
     (showsCustomBranch && branchInput.trim() !== (savedDefaultBranch ?? "")) ||
     (isCustomCadenceOpen && cadenceDraftMinutes !== remoteCheckInterval);
-  useInstallDraftBlocker("application-settings", "application settings", hasSettingsDraft);
+  useInstallDraftBlocker("application-settings", t.settingsInstallBlockerLabel, hasSettingsDraft);
 
   const saveIdentity = identity.save;
   const commitIdentity = useCallback(async (): Promise<boolean> => {
@@ -662,19 +705,24 @@ export function SettingsPanel({
   };
 
   const handleInstallGit = async (): Promise<void> => {
-    setGitActionNotice(null);
+    const report = beginGitActionNotice();
     setIsStartingGitInstallation(true);
     try {
       const result = await port.installGit();
       if (result.guidanceUrl) {
-        await port.openGuidance(result.guidanceUrl);
+        try {
+          await port.openGuidance(result.guidanceUrl);
+        } catch {
+          report({ tone: "danger", message: t.gitGuidanceFailed });
+          return;
+        }
       }
       switch (result.outcome) {
         case "started":
-          setGitActionNotice({ tone: "success", message: t.gitInstallerLaunched });
+          report({ tone: "success", message: t.gitInstallerLaunched });
           break;
         case "guidance":
-          setGitActionNotice({
+          report({
             tone: "neutral",
             message:
               result.platform === "macos"
@@ -685,43 +733,43 @@ export function SettingsPanel({
           });
           break;
         case "already_starting":
-          setGitActionNotice({ tone: "neutral", message: t.gitInstallerAlreadyStarting });
+          report({ tone: "neutral", message: t.gitInstallerAlreadyStarting });
           break;
         case "failed":
-          setGitActionNotice({
+          report({
             tone: "danger",
             message: result.guidanceUrl ? t.gitInstallerFailedWithGuidance : t.gitCouldntStart,
           });
           break;
       }
     } catch {
-      setGitActionNotice({ tone: "danger", message: t.gitCouldntStart });
+      report({ tone: "danger", message: t.gitCouldntStart });
     } finally {
       setIsStartingGitInstallation(false);
     }
   };
 
   const handleUpdateGit = async (): Promise<void> => {
-    setGitActionNotice(null);
+    const report = beginGitActionNotice();
     setIsStartingGitUpdate(true);
     try {
       const result = await port.updateGit();
       switch (result.outcome) {
         case "started":
-          setGitActionNotice({ tone: "success", message: t.gitUpdateLaunched });
+          report({ tone: "success", message: t.gitUpdateLaunched });
           break;
         case "already_starting":
-          setGitActionNotice({ tone: "neutral", message: t.gitUpdateAlreadyStarting });
+          report({ tone: "neutral", message: t.gitUpdateAlreadyStarting });
           break;
         case "unavailable":
-          setGitActionNotice({ tone: "warning", message: t.gitUpdateCheckerUnavailable });
+          report({ tone: "warning", message: t.gitUpdateCheckerUnavailable });
           break;
         case "failed":
-          setGitActionNotice({ tone: "danger", message: t.gitCouldntStart });
+          report({ tone: "danger", message: t.gitCouldntStart });
           break;
       }
     } catch {
-      setGitActionNotice({ tone: "danger", message: t.gitCouldntStart });
+      report({ tone: "danger", message: t.gitCouldntStart });
     } finally {
       setIsStartingGitUpdate(false);
     }
@@ -736,11 +784,11 @@ export function SettingsPanel({
     isCheckingGitUpdate || gitUpdateStatus?.state === "checking"
       ? { tone: "progress", icon: <LoaderCircle aria-hidden="true" className="icon--spinning" />, message: t.gitUpdateChecking }
       : gitUpdateStatus === null
-        ? { tone: "neutral", icon: <Info aria-hidden="true" />, message: t.gitUpdateNotChecked }
+        ? null
         : gitUpdateStatus.state === "up_to_date"
           ? { tone: "success", icon: <CheckCircle2 aria-hidden="true" />, message: t.gitUpdateUpToDate }
           : gitUpdateStatus.state === "update_available"
-            ? { tone: "accent", icon: <CircleArrowUp aria-hidden="true" />, message: t.settingsGeneralUpdateAvailable }
+            ? { tone: "accent", icon: <CircleArrowUp aria-hidden="true" />, message: t.settingsToolUpdateAvailableDetail }
             : gitUpdateStatus.state === "unavailable"
               ? { tone: "warning", icon: <TriangleAlert aria-hidden="true" />, message: t.gitUpdateCheckerUnavailable }
               : gitUpdateStatus.state === "failed"
@@ -838,6 +886,24 @@ export function SettingsPanel({
     [t],
   );
   const needsGitAttention = isGitInstallationBroken(gitDiagnostics);
+  const ghAttention = toolAttention(ghTooling.diagnostics, ghTooling.updateStatus);
+  const glabAttention = glabTooling ? toolAttention(glabTooling.diagnostics, glabTooling.updateStatus) : null;
+  // A problem outranks an update; GitHub is named first when both match.
+  // Keyed on the name rather than the copy object, which is new every render:
+  // the rail is memoized and must not redraw on every keystroke.
+  const glabName = glabCopy?.ghName ?? "GitLab CLI";
+  const accountsAttention = useMemo(() => {
+    const tools = [
+      { attention: ghAttention, name: t.ghName },
+      { attention: glabAttention, name: glabName },
+    ];
+    const pick = tools.find((tool) => tool.attention === "problem") ?? tools.find((tool) => tool.attention === "update");
+    if (!pick?.attention) return null;
+    return {
+      tone: pick.attention,
+      label: (pick.attention === "problem" ? t.settingsToolNeedsAttention : t.settingsToolUpdateAttention).replace("{tool}", pick.name),
+    };
+  }, [ghAttention, glabAttention, glabName, t]);
   const visibleNavigationIds = new Set(navigationPreferences.visibleDestinationIds);
   const setDestinationVisible = (id: string, isVisible: boolean): void => {
     setNavigationPreferences((previous) => {
@@ -932,6 +998,7 @@ export function SettingsPanel({
         onSectionChange={onSectionChange}
         needsGitAttention={needsGitAttention}
         updateAttention={applicationUpdateAttention}
+        accountsAttention={accountsAttention}
         railLabel={t.settingsSectionsAriaLabel}
         attentionLabel={t.settingsGitNeedsAttention}
       />
@@ -1162,7 +1229,7 @@ export function SettingsPanel({
                 </div>
                 {/* A list, not rows, and with no controls on purpose.
                     Per-event muting is a choice nobody can make usefully
-                    before they have seen the events, and four of them do not
+                    before they have seen the events, and five of them do not
                     need a preferences matrix. Each carries the icon the
                     notification itself will wear, so the vocabulary is learned
                     here. While the switch is off the list stays, dimmed and
@@ -1722,13 +1789,13 @@ export function SettingsPanel({
 
         {activeSection === "console" && (
           <div className="settings-groups">
-            {consoleAdvancedMode}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsConsoleTitle}</h3>
                 <p>{t.settingsConsoleDescription}</p>
               </header>
               <div className="settings-group__body">
+                {consoleConfirmChanges}
                 <div className="settings-row">
                   <div>
                     <strong>{t.consoleSettingsAutocompleteLabel}</strong>
@@ -1797,83 +1864,120 @@ export function SettingsPanel({
           <div className="settings-groups">
             <section className="settings-group">
               <header className="settings-group__header">
-                <h3>{t.settingsGitInstallationTitle}</h3>
+                <h3>{t.settingsGitToolTitle}</h3>
+                <p>{t.settingsGitToolDescription}</p>
               </header>
               <div className="settings-group__body">
-                <div className="settings-row">
-                  <div className="git-install">
-                    {gitDiagnostics === null && (
-                      <p className="status-line status-line--progress git-install__status">
-                        <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                        <span>{t.settingsGeneralChecking}</span>
-                      </p>
-                    )}
-                    {gitDiagnostics?.state === "available" && (
-                      <>
-                        {/* The version is the fact this row exists to report, so it
-                            gets the label + monospace value treatment rather than
-                            sitting as a bare paragraph indistinguishable from the
-                            hints under it. */}
-                        <p className="version-line">
-                          <span className="version-line__label">{t.settingsGitInstalledVersionLabel}</span>
-                          <span className="version-line__value">{gitDiagnostics.version}</span>
-                        </p>
-                        {gitUpdateLine && (
-                          <p className={`status-line status-line--${gitUpdateLine.tone} git-install__status`} role="status">
-                            {gitUpdateLine.icon}
-                            <span>{gitUpdateLine.message}</span>
-                          </p>
-                        )}
-                      </>
-                    )}
-                    {gitDiagnostics?.state === "missing" && (
-                      <p className="status-line status-line--danger git-install__status">
-                        <CircleAlert aria-hidden="true" />
-                        <span>{t.settingsGeneralGitMissing}</span>
-                      </p>
-                    )}
-                    {gitDiagnostics?.state === "unusable" && (
-                      <p className="status-line status-line--danger git-install__status">
+                <ToolInstallationRow
+                  mark={<GitIcon />}
+                  name={t.settingsGitTitle}
+                  chip={
+                    gitDiagnostics === null
+                      ? { label: t.settingsToolChipChecking, tone: "neutral", icon: <LoaderCircle aria-hidden="true" className="icon--spinning" /> }
+                      : gitDiagnostics.state === "missing"
+                        ? { label: t.gitChipMissing, tone: "danger", icon: <CircleAlert aria-hidden="true" /> }
+                        : gitDiagnostics.state === "unusable"
+                          ? { label: t.gitChipUnusable, tone: "danger", icon: <CircleAlert aria-hidden="true" /> }
+                          : gitDiagnostics.state === "check_failed"
+                            ? { label: t.gitChipCheckFailed, tone: "warning", icon: <TriangleAlert aria-hidden="true" /> }
+                            : gitUpdateStatus?.state === "update_available"
+                              ? { label: t.settingsGeneralUpdateAvailable, tone: "accent", icon: <CircleArrowUp aria-hidden="true" /> }
+                              : { label: t.gitChipInstalled, tone: "success", icon: <CheckCircle2 aria-hidden="true" /> }
+                  }
+                  detail={
+                    gitDiagnostics === null ? null : gitDiagnostics.state === "missing" ? (
+                      <strong>{t.settingsGeneralGitMissing}</strong>
+                    ) : gitDiagnostics.state === "unusable" ? (
+                      <p className="status-line status-line--danger">
                         <CircleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitUnusable}</span>
                       </p>
-                    )}
-                    {gitDiagnostics?.state === "check_failed" && (
-                      <p className="status-line status-line--danger git-install__status">
-                        <CircleAlert aria-hidden="true" />
+                    ) : gitDiagnostics.state === "check_failed" ? (
+                      <p className="status-line status-line--warning">
+                        <TriangleAlert aria-hidden="true" />
                         <span>{t.settingsGeneralGitCheckFailed}</span>
                       </p>
-                    )}
-                    {gitActionNotice && (
-                      <p className={`status-line status-line--${gitActionNotice.tone} git-install__status`} role="status">
+                    ) : null
+                  }
+                  /* The version is the fact this row exists to report: a
+                     monospace chip beside the name, labelled for screen readers. */
+                  version={gitDiagnostics?.state === "available" ? gitDiagnostics.version : null}
+                  versionLabel={t.settingsGitInstalledVersionLabel}
+                  facts={gitDiagnostics?.state === "available" && gitDiagnostics.location
+                    ? <GitLocationFacts location={gitDiagnostics.location} port={port} />
+                    : null}
+                  status={
+                    gitActionNotice ? (
+                      <p className={`status-line status-line--${gitActionNotice.tone}`} role="status">
                         {NOTICE_ICONS[gitActionNotice.tone]}
                         <span>{gitActionNotice.message}</span>
                       </p>
-                    )}
-                  </div>
-                  <div className="settings-row__actions">
-                    {gitDiagnostics?.state === "missing" && (
-                      <button className="primary-button" type="button" disabled={isStartingGitInstallation} onClick={() => void handleInstallGit()}>
-                        {isStartingGitInstallation ? t.gitStartingInstaller : t.settingsGeneralInstallGit}
+                    ) : gitUpdateLine ? (
+                      <p className={`status-line status-line--${gitUpdateLine.tone}`} role="status">
+                        {gitUpdateLine.icon}
+                        <span>{gitUpdateLine.message}</span>
+                      </p>
+                    ) : null
+                  }
+                  hint={
+                    gitDiagnostics === null ? null
+                      : gitDiagnostics.state !== "available" ? (
+                        <>
+                          <Info aria-hidden="true" />
+                          <span>{platform === "windows" ? t.settingsInstallHintWindows : t.settingsInstallHintGuided}</span>
+                        </>
+                      ) : gitUpdateStatus?.state === "update_available" && platform === "windows" ? (
+                        <>
+                          <Info aria-hidden="true" />
+                          <span>{t.settingsUpdateHintWindows}</span>
+                        </>
+                      ) : null
+                  }
+                  recheck={
+                    <ToolRecheckButton
+                      label={t.settingsGeneralCheckAgain}
+                      busyLabel={t.settingsToolChipChecking}
+                      busy={isRefreshingGitDiagnostics}
+                      disabled={isStartingGitInstallation || isStartingGitUpdate || isCheckingGitUpdate}
+                      onClick={() => {
+                        clearGitActionNotice();
+                        void onRefreshGitDiagnostics();
+                      }}
+                    />
+                  }
+                  primaryAction={
+                    gitDiagnostics === null ? (
+                      <button className="primary-button" type="button" disabled>
+                        {t.settingsToolChipChecking}
                       </button>
-                    )}
-                    {gitDiagnostics?.state !== "available" && (
-                      <button className="secondary-button" type="button" disabled={isRefreshingGitDiagnostics} onClick={() => void onRefreshGitDiagnostics()}>
-                        {isRefreshingGitDiagnostics ? t.settingsGeneralChecking : t.settingsGeneralCheckAgain}
+                    ) : gitDiagnostics.state !== "available" ? (
+                      <button className="primary-button" type="button" disabled={isStartingGitInstallation || isRefreshingGitDiagnostics} onClick={() => void handleInstallGit()}>
+                        {isStartingGitInstallation ? t.gitStartingInstaller : platform === "windows" ? t.settingsGeneralInstallGit : t.settingsInstallGuided}
                       </button>
-                    )}
-                    {gitDiagnostics?.state === "available" && (
-                      <button className="secondary-button" type="button" disabled={isCheckingGitUpdate} onClick={() => void onCheckGitUpdate()}>
-                        {isCheckingGitUpdate ? t.gitUpdateChecking : t.gitUpdateCheck}
-                      </button>
-                    )}
-                    {gitDiagnostics?.state === "available" && gitUpdateStatus?.state === "update_available" && (
-                      <button className="primary-button" type="button" disabled={isStartingGitUpdate} onClick={() => void handleUpdateGit()}>
+                    ) : gitUpdateStatus?.state === "update_available" ? (
+                      <button className="primary-button" type="button" disabled={isStartingGitUpdate || isRefreshingGitDiagnostics} onClick={() => void handleUpdateGit()}>
                         {isStartingGitUpdate ? t.gitUpdateStarting : t.settingsGeneralUpdate}
                       </button>
-                    )}
-                  </div>
-                </div>
+                    ) : (
+                      <button className="primary-button" type="button" disabled={isCheckingGitUpdate || isRefreshingGitDiagnostics} onClick={() => {
+                        clearGitActionNotice();
+                        void onCheckGitUpdate();
+                      }}>
+                        {isCheckingGitUpdate ? t.settingsToolSearching : t.gitUpdateCheck}
+                      </button>
+                    )
+                  }
+                  docs={
+                    <ToolGuideButton label={t.gitOfficialInstructions} onClick={() => {
+                      const report = beginGitActionNotice();
+                      const os = platform === "windows" ? "windows" : platform === "macos" ? "mac" : "linux";
+                      void port.openGuidance(`https://git-scm.com/install/${os}`).catch(() => {
+                        report({ tone: "danger", message: t.gitGuidanceFailed });
+                      });
+                    }} />
+                  }
+                />
+                {gitDiagnostics?.state === "available" && <GitTechnicalDetails diagnostics={gitDiagnostics} port={port} />}
               </div>
             </section>
             <section className="settings-group">
@@ -2069,6 +2173,27 @@ export function SettingsPanel({
                 )}
               </div>
             </section>
+          </div>
+        )}
+
+        {activeSection === "accounts" && (
+          <div className="settings-groups">
+            {accounts?.({
+              github: {
+                name: t.ghName,
+                section: <GhToolingSection port={port} tooling={ghTooling} />,
+                inline: <GhToolingSection port={port} tooling={ghTooling} variant="inline" />,
+                attention: ghAttention,
+              },
+              gitlab: glabTooling ? {
+                name: glabName,
+                section: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} />,
+                inline: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} variant="inline" />,
+                attention: glabAttention,
+              } : null,
+            })}
           </div>
         )}
 

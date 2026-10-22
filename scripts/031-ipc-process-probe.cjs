@@ -37,7 +37,7 @@ const countGitProcesses = () => {
   await measure("read_working_tree_status", () => invoke("read_working_tree_status", args));
   await measure("read_working_tree_diffs", () => invoke("read_working_tree_diffs", args));
   await measure("read_file_diff_tracked", () => invoke("read_file_diff", { ...args, filePath: "tracked-01.txt" }));
-  await measure("get_version_lines", () => invoke("get_version_lines", args));
+  await measure("get_branches", () => invoke("get_branches", args));
   process.stdout.write(JSON.stringify(deltas, null, 2));
   await browser.close();
 })().catch((error) => {

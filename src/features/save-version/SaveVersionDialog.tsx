@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, CircleAlert, CloudUpload, GitBranch, LoaderCircle, Plus, Save } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, CloudUpload, GitBranch, LoaderCircle, Plus, Save, TriangleAlert } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { Dialog, DialogBanner, LoadingPlaceholder, TextPlaceholder, autoHideScrollbarProps, useModalFocus } from "../../shared/ui";
@@ -43,7 +43,7 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPreview; t: Translations })
   const [showFiles, setShowFiles] = useState(false);
   // The same lines, in the same order, the quick commit box prints under its
   // plan — one list in `planNotes.ts` for both frames. The one that asks for
-  // action (no line to land on) is a banner rather than a note.
+  // action (no branch to land on) is a banner rather than a note.
   const notes = getSaveVersionNotes(plan, t).filter((note) => note !== t.saveVersionNoDestinationNote);
   const moreFiles = plan.totalFiles - plan.files.length;
   return (
@@ -53,7 +53,7 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPreview; t: Translations })
           and the save cannot disagree. One voice for the numbers: the count
           is the headline and the breakdown reads after it as text, so the
           line is a sentence rather than three kinds of mark side by side. A
-          detached `HEAD` names no line rather than guessing one. */}
+          detached `HEAD` names no branch rather than guessing one. */}
       <div className="save-version-summary">
         <div className="save-version-summary__head">
           <strong>{t.saveVersionFilesCount(plan.totalFiles)}</strong>
@@ -374,20 +374,28 @@ export function SaveVersionDialog({
   }
 
   const isNothingToSave = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_save";
+  const isBlocked = state.status === "blocked";
+  /* A dead end is a short message, not the plan with a sentence in it: its own
+     title and glyph in the small shell (DESIGN.md § Dialogs). */
   const titleText = state.status === "success"
     ? t.saveVersionSuccessTitle
-    : isFirstVersion
-      ? t.saveVersionDialogTitleFirst
-      : t.saveVersionDialogTitle;
+    : isNothingToSave
+      ? t.saveVersionNothingTitle
+      : isBlocked
+        ? t.saveVersionBlockedTitle
+        : isFirstVersion
+          ? t.saveVersionDialogTitleFirst
+          : t.saveVersionDialogTitle;
 
   return (
     <Dialog
-      size="m"
+      size={isBlocked ? "s" : "m"}
+      role={isBlocked && !isNothingToSave ? "alertdialog" : "dialog"}
       title={titleText}
       titleId="save-version-title"
       titleRef={headingRef}
-      icon={state.status === "success" ? <Check /> : undefined}
-      tone="success"
+      icon={state.status === "success" || isNothingToSave ? <Check /> : isBlocked ? <TriangleAlert /> : <Save />}
+      tone={state.status === "success" || isNothingToSave ? "success" : isBlocked ? "warning" : "local"}
       onClose={onClose}
       closeLabel={t.commonClose}
       dismissible={!isBusy}

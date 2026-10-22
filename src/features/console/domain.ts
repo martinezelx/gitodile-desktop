@@ -1,4 +1,4 @@
-import type { ConsoleTier } from "./port";
+import type { ConsoleTier, HostKind } from "./port";
 
 export const CONSOLE_SHORTCUTS_STORAGE_KEY = "gitodile-console-shortcuts-v1";
 
@@ -18,11 +18,18 @@ export type ConsoleProjectStatus = {
 export const OPERATION_IDS = [
   "status", "diff", "staged", "log", "graph", "last", "branches", "tags", "remotes", "stashes", "authors",
 ] as const;
-/** The catalogue the first stored shortcut lists were written against. */
-const FIRST_CATALOGUE: readonly string[] = ["status", "diff", "log", "branches"];
-const SHORTCUT_LIMIT = 24;
+/** How many names a person may keep, built-in ones included. */
+export const SHORTCUT_LIMIT = 32;
 export type ConsoleOperationId = (typeof OPERATION_IDS)[number];
-export type QueryShortcut = { name: string; operationId: ConsoleOperationId };
+/**
+ * The read-only gh/glab queries Rust's hosting catalogue offers (task
+ * 148-12). The project's remote decides which CLI answers.
+ */
+export const HOSTING_OPERATION_IDS = ["prs", "my-prs", "issues", "runs", "checks", "repo"] as const;
+export type ConsoleHostingId = (typeof HOSTING_OPERATION_IDS)[number];
+/** Anything a query shortcut may name: a Git query or a hosting one. */
+export type ConsoleQueryId = ConsoleOperationId | ConsoleHostingId;
+export type QueryShortcut = { name: string; operationId: ConsoleQueryId };
 /**
  * A name for a whole Git command line. The tier Rust gave the line when it was
  * saved is its ceiling: every run is planned again, and a plan that now needs
@@ -46,19 +53,6 @@ export const GIT_READ_COMMANDS = [
   "whatchanged", "name-rev", "merge-base", "for-each-ref", "show-ref", "version",
 ] as const;
 export type GitReadCommand = (typeof GIT_READ_COMMANDS)[number];
-
-/**
- * What the console may do, from least to most: reads only; changes, each
- * confirmed; changes that run without asking ("root"). Rust holds the two
- * settings they come from and checks them on every plan.
- */
-export const CONSOLE_MODES = ["read-only", "advanced", "root"] as const;
-export type ConsoleMode = (typeof CONSOLE_MODES)[number];
-
-export function consoleModeOf(settings: { advancedMode: boolean; confirmChanges: boolean }): ConsoleMode {
-  if (!settings.advancedMode) return "read-only";
-  return settings.confirmChanges ? "advanced" : "root";
-}
 
 /** Long enough for any command a person types; Rust enforces its own limit. */
 export const MAX_LINE_LENGTH = 4096;
@@ -94,9 +88,24 @@ export const QUERY_COMMANDS: Record<ConsoleOperationId, string> = {
   authors: "git shortlog -sn --no-merges HEAD",
 };
 
-/** The Git command a shortcut runs, for the editor, `help` and the docs. */
-export function shortcutCommand(shortcut: ConsoleShortcut): string {
-  return isLineShortcut(shortcut) ? shortcut.line : QUERY_COMMANDS[shortcut.operationId];
+export function isHostingId(id: ConsoleQueryId): id is ConsoleHostingId {
+  return HOSTING_OPERATION_IDS.some((hosting) => hosting === id);
+}
+
+/**
+ * The command a query runs. A hosting query names the CLI for the project's
+ * provider when it is known, and both otherwise.
+ */
+export function queryCommand(id: ConsoleQueryId, host: HostKind | null = null): string {
+  if (!isHostingId(id)) return QUERY_COMMANDS[id];
+  const commands = HOSTING_COMMANDS[id];
+  if (host === "github" || host === "gitlab") return commands[host];
+  return `${commands.github} · ${commands.gitlab}`;
+}
+
+/** The command a shortcut runs, for the editor, `help` and the docs. */
+export function shortcutCommand(shortcut: ConsoleShortcut, host: HostKind | null = null): string {
+  return isLineShortcut(shortcut) ? shortcut.line : queryCommand(shortcut.operationId, host);
 }
 
 /** Built-in command lines, planned by Rust on every run like any other. */
@@ -108,10 +117,23 @@ const DEFAULT_LINE_SHORTCUTS = [
   { name: "unpublished", line: "git log --oneline @{upstream}..HEAD", tier: "read" },
   { name: "incoming", line: "git log --oneline HEAD..@{upstream}", tier: "read" },
   { name: "moves", line: "git reflog -20", tier: "read" },
-  { name: "all-lines", line: "git branch -a -vv", tier: "read" },
+  { name: "all-branches", line: "git branch -a -vv", tier: "read" },
   { name: "size", line: "git count-objects -vH", tier: "read" },
 ] as const satisfies readonly LineShortcut[];
 export type DefaultLineName = (typeof DEFAULT_LINE_SHORTCUTS)[number]["name"];
+
+/**
+ * What each hosting query runs, for GitHub (gh) and GitLab (glab). Rust runs
+ * exactly these from its own templates, and a Rust test holds them equal.
+ */
+export const HOSTING_COMMANDS: Record<ConsoleHostingId, { github: string; gitlab: string }> = {
+  prs: { github: "gh pr list --limit 20", gitlab: "glab mr list --per-page 20" },
+  "my-prs": { github: "gh pr status", gitlab: "glab mr list --author=@me" },
+  issues: { github: "gh issue list --limit 20", gitlab: "glab issue list --per-page 20" },
+  runs: { github: "gh run list --limit 20", gitlab: "glab ci list --per-page 20" },
+  checks: { github: "gh pr checks", gitlab: "glab ci status" },
+  repo: { github: "gh repo view", gitlab: "glab repo view" },
+};
 
 const DEFAULT_QUERY_SHORTCUTS: readonly QueryShortcut[] = [
   { name: "look", operationId: "status" },
@@ -125,6 +147,12 @@ const DEFAULT_QUERY_SHORTCUTS: readonly QueryShortcut[] = [
   { name: "remotes", operationId: "remotes" },
   { name: "stashes", operationId: "stashes" },
   { name: "authors", operationId: "authors" },
+  { name: "prs", operationId: "prs" },
+  { name: "my-prs", operationId: "my-prs" },
+  { name: "issues", operationId: "issues" },
+  { name: "runs", operationId: "runs" },
+  { name: "checks", operationId: "checks" },
+  { name: "repo", operationId: "repo" },
 ];
 
 export const DEFAULT_SHORTCUTS: readonly ConsoleShortcut[] = [...DEFAULT_QUERY_SHORTCUTS, ...DEFAULT_LINE_SHORTCUTS];
@@ -156,8 +184,8 @@ const RESERVED: ReadonlySet<string> = new Set([...CONTROL_WORDS, "git"]);
 const isControlWord = (value: string): value is ConsoleControlWord => RESERVED.has(value);
 const SHORTCUT_NAME = /^[a-z][a-z0-9-]{0,19}$/;
 
-export function isOperationId(value: unknown): value is ConsoleOperationId {
-  return OPERATION_IDS.some((id) => id === value);
+export function isOperationId(value: unknown): value is ConsoleQueryId {
+  return OPERATION_IDS.some((id) => id === value) || HOSTING_OPERATION_IDS.some((id) => id === value);
 }
 
 export function shortcutNameIssue(name: string, shortcuts: readonly ConsoleShortcut[], except?: string): "invalid" | "reserved" | "duplicate" | null {
@@ -178,10 +206,9 @@ export function readShortcuts(storage?: Pick<Storage, "getItem">): ConsoleShortc
     const raw = (storage ?? localStorage).getItem(CONSOLE_SHORTCUTS_STORAGE_KEY);
     if (raw === null) return [...DEFAULT_SHORTCUTS];
     const parsed: unknown = JSON.parse(raw);
-    // The first format was the bare list; later ones record the catalogue too.
-    const stored = Array.isArray(parsed)
-      ? { catalogue: FIRST_CATALOGUE, shortcuts: parsed }
-      : parsed && typeof parsed === "object" ? parsed as { catalogue?: unknown; shortcuts?: unknown } : null;
+    const stored = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as { catalogue?: unknown; shortcuts?: unknown }
+      : null;
     if (!stored || !Array.isArray(stored.shortcuts) || !Array.isArray(stored.catalogue) || stored.shortcuts.length > SHORTCUT_LIMIT) return [...DEFAULT_SHORTCUTS];
     const shortcuts: ConsoleShortcut[] = [];
     for (const entry of stored.shortcuts as unknown[]) {
@@ -271,9 +298,9 @@ export function completionsFor(raw: string, shortcuts: readonly ConsoleShortcut[
 }
 
 /** Every name that reaches one query, in the order the user keeps them. */
-export function namesByOperation(shortcuts: readonly ConsoleShortcut[]): Array<{ operationId: ConsoleOperationId; names: string[] }> {
+export function namesByOperation(shortcuts: readonly ConsoleShortcut[]): Array<{ operationId: ConsoleQueryId; names: string[] }> {
   const queries = shortcuts.filter((shortcut): shortcut is QueryShortcut => !isLineShortcut(shortcut));
-  return OPERATION_IDS
+  return [...OPERATION_IDS, ...HOSTING_OPERATION_IDS]
     .map((operationId) => ({ operationId, names: queries.filter((shortcut) => shortcut.operationId === operationId).map((shortcut) => shortcut.name) }))
     .filter((group) => group.names.length > 0);
 }

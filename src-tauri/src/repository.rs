@@ -65,7 +65,7 @@ pub(crate) fn classify_head(has_branch: bool, has_commit: bool) -> HeadState {
 }
 
 /// Uses Git's own ref parser before a branch name enters a refspec or a
-/// version-line mutation.
+/// branch mutation.
 pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
     let output = run_git(path, &["check-ref-format", "--branch", name])?;
     if output.status.success() {
@@ -73,9 +73,9 @@ pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), App
     } else {
         Err(AppError::new(
             AppErrorCode::InvalidRefName,
-            "This version line's name isn't a valid Git reference.",
+            "This branch's name isn't a valid Git reference.",
         )
-        .with_remediation("Rename the version line to a valid Git branch name, then try again."))
+        .with_remediation("Rename the branch to a valid Git branch name, then try again."))
     }
 }
 

@@ -23,7 +23,7 @@ degrees of roundness.
 # User outcome
 
 Controls stop looking like three different design eras sharing a toolbar. The
-Save version button, the version-line selector and the circular refresh beside
+Save version button, the branch selector and the circular refresh beside
 it are now the same shape at different aspect ratios, so the eye groups them by
 what they are rather than by how round they happen to be, and hierarchy is
 carried by fill and colour where it belongs.
@@ -91,7 +91,7 @@ corners. Keeping the frame rectangular keeps the options as rows.
 - `src/features/history/history.css`
 - `src/features/overview/overview.css`
 - `src/features/settings/settings.css`
-- `src/features/version-lines/version-lines.css`
+- `src/features/branches/branches.css`
 - `DESIGN.md`
 
 # Dependencies

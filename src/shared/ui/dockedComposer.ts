@@ -7,7 +7,7 @@ export type DockedComposerFocusHandlers = {
 };
 
 /**
- * When a compose box docked under a list — Changes' save box, Lines' new-line
+ * When a compose box docked under a list — Changes' save box, Branches' new-branch
  * box — opens and folds. It opens on focus. It folds when focus leaves it and
  * folding would lose nothing (`canFold`: no draft, nothing in flight), and
  * never in a way the reader has to fight:

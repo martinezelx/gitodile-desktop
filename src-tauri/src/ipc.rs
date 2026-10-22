@@ -10,15 +10,30 @@ use crate::{
         UpdateCheckSource, UpdateState,
     },
     application,
-    changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
-    clone::{self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult},
-    console::{
-        self, ConsoleModes, ConsolePlan, ConsoleQueryResult, ConsoleRunResult, ConsoleSettings,
+    bitbucket_access::BitbucketAccessService,
+    branches::{
+        self, BranchHistory, BranchesSnapshot, CleanUpBranchRequest, CleanUpBranchesPlan,
+        CleanUpBranchesResult, CreateBranchPlan, DeleteBranchPlan, DeleteBranchResult,
+        RenameBranchPlan, SwitchBranchPlan,
     },
+    changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
+    clone::{
+        self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
+    },
+    console::{
+        self, ConsoleHost, ConsoleHostingResult, ConsoleModes, ConsolePlan, ConsoleQueryResult,
+        ConsoleRunResult, ConsoleSettings,
+    },
+    credentials::{self, AccountCatalog, AccountService, ProjectAccount},
     desktop,
     diagnostics::{self, DiagnosticsLog},
     error::AppError,
+    github_access::{GitHubAccessService, RepositoryPage},
+    github_auth::{GitHubAuthService, GitHubAuthSnapshot},
+    gitlab_access::GitLabAccessService,
+    gitlab_auth::{GitLabAuthService, GitLabAuthSnapshot},
     history::{self, HistoryPage, SavedVersionDetail},
+    hosting::{CliAction, HostingCliSnapshot, HostingServers},
     initialize::{
         self, InitializeProgressPhase, InitializeProjectPlan, InitializeProjectResult,
         InitializeTargetKind,
@@ -32,19 +47,139 @@ use crate::{
     status::{self, PendingVersionsResult, WorkingTreeStatus},
     sync::{
         self, ConnectRemotePlan, ConnectRemoteResult, GetTeamChangesPhase, GetTeamChangesPlan,
-        GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, TeamSyncStatus,
+        GetTeamChangesResult, ProjectRemotes, RemoteDiscovery, RemoteHome, TeamSyncStatus,
     },
     technology::{self, ProjectTechnology},
     tooling::{
-        self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationResult, GitLineEndings,
-        GitUpdateLaunchResult, GitUpdateStatus,
-    },
-    version_lines::{
-        self, CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
-        RenameVersionLinePlan, SwitchVersionLinePlan, VersionLineHistory, VersionLinesSnapshot,
+        self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationDetails,
+        GitInstallationResult, GitLineEndings, GitUpdateLaunchResult, GitUpdateStatus,
     },
     watch,
 };
+
+#[tauri::command]
+pub(crate) async fn add_github_token(
+    service: tauri::State<'_, GitHubAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_github_token", service.add(token, request_id).await)
+}
+
+#[tauri::command(async)]
+pub(crate) fn remove_github_token(
+    service: tauri::State<'_, GitHubAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_github_token");
+    report_result("remove_github_token", service.remove(&account_id))
+}
+
+#[tauri::command]
+pub(crate) async fn add_bitbucket_token(
+    service: tauri::State<'_, BitbucketAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_bitbucket_token", service.add(token, request_id).await)
+}
+
+#[tauri::command(async)]
+pub(crate) fn remove_bitbucket_token(
+    service: tauri::State<'_, BitbucketAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_bitbucket_token");
+    report_result("remove_bitbucket_token", service.remove(&account_id))
+}
+
+#[tauri::command]
+pub(crate) async fn list_hosting_repositories(
+    service: tauri::State<'_, GitHubAccessService>,
+    gitlab: tauri::State<'_, GitLabAccessService>,
+    bitbucket: tauri::State<'_, BitbucketAccessService>,
+    servers: tauri::State<'_, HostingServers>,
+    account_id: String,
+    page: u32,
+    request_id: String,
+) -> Result<RepositoryPage, AppError> {
+    report_result(
+        "list_hosting_repositories",
+        crate::hosting::repositories(
+            &service, &gitlab, &bitbucket, &servers, account_id, page, request_id,
+        )
+        .await,
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cancel_hosting_request(
+    service: tauri::State<'_, GitHubAccessService>,
+    gitlab: tauri::State<'_, GitLabAccessService>,
+    bitbucket: tauri::State<'_, BitbucketAccessService>,
+    servers: tauri::State<'_, HostingServers>,
+    request_id: String,
+) {
+    let _command = application::enter("cancel_hosting_request");
+    service.cancel(&request_id);
+    gitlab.cancel(&request_id);
+    bitbucket.cancel(&request_id);
+    servers.cancel(&request_id);
+}
+
+#[tauri::command]
+pub(crate) fn get_account_catalog(
+    service: tauri::State<'_, std::sync::Arc<AccountService>>,
+) -> AccountCatalog {
+    let _command = application::enter("get_account_catalog");
+    report_value("get_account_catalog", service.catalog())
+}
+
+#[tauri::command]
+pub(crate) fn check_account_catalog(
+    service: tauri::State<'_, std::sync::Arc<AccountService>>,
+    provider: String,
+) -> Result<AccountCatalog, AppError> {
+    let _command = application::enter("check_account_catalog");
+    report_result("check_account_catalog", service.check(&provider))
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_project_account(
+    path: String,
+    session_epoch: String,
+    provider: String,
+) -> Result<ProjectAccount, AppError> {
+    report_result(
+        "read_project_account",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            credentials::read_project(&path, &provider)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn set_project_account(
+    path: String,
+    session_epoch: String,
+    provider: String,
+    account_id: Option<String>,
+    expected_account_id: Option<String>,
+) -> Result<ProjectAccount, AppError> {
+    report_result(
+        "set_project_account",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            credentials::set_project(
+                &path,
+                &provider,
+                account_id.as_deref(),
+                expected_account_id.as_deref(),
+            )
+        })(),
+    )
+}
 
 #[tauri::command]
 pub(crate) fn get_app_update_state(service: tauri::State<'_, AppUpdateService>) -> UpdateState {
@@ -147,6 +282,17 @@ pub(crate) fn reveal_project_file(
 }
 
 #[tauri::command(async)]
+pub(crate) fn open_project_folder(path: String, session_epoch: String) -> Result<(), AppError> {
+    report_result(
+        "open_project_folder",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            desktop::open_project_folder(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
 pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
@@ -162,10 +308,35 @@ pub(crate) fn plan_clone(
     source: String,
     destination_parent: String,
     destination_name: String,
+    account_id: Option<String>,
 ) -> Result<ClonePlan, AppError> {
     report_result(
         "plan_clone",
-        clone::plan_clone(source, destination_parent, destination_name),
+        clone::plan_clone_with_account(source, destination_parent, destination_name, account_id),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_clone_source(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    source: String,
+    account_id: Option<String>,
+    request_id: String,
+) -> Result<CloneSourceAccess, AppError> {
+    report_result(
+        "check_clone_source",
+        clone::check_clone_source(&registry, source, account_id, request_id),
+    )
+}
+
+#[tauri::command]
+pub(crate) fn cancel_clone_source_check(
+    registry: tauri::State<'_, CloneOperationRegistry>,
+    request_id: String,
+) -> Result<(), AppError> {
+    report_result(
+        "cancel_clone_source_check",
+        clone::cancel_clone_source_check(&registry, request_id),
     )
 }
 
@@ -178,17 +349,19 @@ pub(crate) fn clone_repository(
     destination_name: String,
     operation_id: String,
     state_token: String,
+    account_id: Option<String>,
     on_progress: tauri::ipc::Channel<CloneProgressPhase>,
 ) -> Result<CloneResult, AppError> {
     report_result(
         "clone_repository",
-        clone::clone_repository(
+        clone::clone_repository_with_account(
             &registry,
             source,
             destination_parent,
             destination_name,
             operation_id,
             state_token,
+            account_id,
             |phase| {
                 let _ = on_progress.send(phase);
             },
@@ -314,6 +487,39 @@ pub(crate) fn run_console_query(
     )
 }
 
+/// The project's hosting provider for the console's welcome, read from its
+/// own remotes without reaching the network.
+#[tauri::command(async)]
+pub(crate) fn read_console_host(
+    path: String,
+    session_epoch: String,
+) -> Result<ConsoleHost, AppError> {
+    report_result(
+        "read_console_host",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::read_console_host(path)
+        })(),
+    )
+}
+
+/// One fixed gh/glab shortcut, chosen by ID; the renderer never sends an
+/// argument for either CLI.
+#[tauri::command(async)]
+pub(crate) fn run_console_hosting_query(
+    path: String,
+    session_epoch: String,
+    operation_id: String,
+) -> Result<ConsoleHostingResult, AppError> {
+    report_result(
+        "run_console_hosting_query",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            console::run_console_hosting_query(path, operation_id)
+        })(),
+    )
+}
+
 /// The typed line crosses IPC only here, to be parsed and classified in Rust;
 /// what may run comes back as a plan, never as arguments the renderer chose.
 ///
@@ -352,7 +558,7 @@ pub(crate) fn run_console_plan(
 }
 
 /// Runs a change plan once the person answered its `[s/N]`; Rust checks the
-/// answer, advanced mode and the repository against the plan again.
+/// answer, the confirmation setting and the repository against the plan again.
 #[tauri::command(async)]
 pub(crate) fn run_console_change(
     settings: tauri::State<'_, ConsoleSettings>,
@@ -373,20 +579,6 @@ pub(crate) fn run_console_change(
 #[tauri::command]
 pub(crate) fn get_console_settings(settings: tauri::State<'_, ConsoleSettings>) -> ConsoleModes {
     report_value("get_console_settings", settings.modes())
-}
-
-/// Turning advanced mode on needs `confirmed`, the renderer's word that the
-/// person accepted the dialog explaining it; turning it off does not.
-#[tauri::command]
-pub(crate) fn set_console_advanced_mode(
-    settings: tauri::State<'_, ConsoleSettings>,
-    enabled: bool,
-    confirmed: bool,
-) -> Result<ConsoleModes, AppError> {
-    report_result(
-        "set_console_advanced_mode",
-        settings.set_advanced_mode(enabled, confirmed),
-    )
 }
 
 /// Turning change confirmations off needs `confirmed`, the renderer's word
@@ -567,6 +759,19 @@ pub(crate) fn git_diagnostics() -> GitDiagnostics {
 }
 
 #[tauri::command(async)]
+pub(crate) fn git_installation_details() -> GitInstallationDetails {
+    report_value(
+        "git_installation_details",
+        tooling::git_installation_details(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn reveal_git_location(target: String) -> Result<(), AppError> {
+    report_result("reveal_git_location", desktop::reveal_git_location(target))
+}
+
+#[tauri::command(async)]
 pub(crate) fn install_git() -> GitInstallationResult {
     report_value("install_git", tooling::install_git())
 }
@@ -641,7 +846,7 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
     report_result("set_line_endings", tooling::set_line_endings(mode))
 }
 
-/// The name Git will give the first version line of the next project it
+/// The name Git will give the first branch of the next project it
 /// creates. Global like the identity, and absent when Git's own default
 /// applies.
 #[tauri::command(async)]
@@ -755,6 +960,37 @@ pub(crate) fn read_project_remotes(
         (|| {
             validate_session(&path, &session_epoch)?;
             sync::read_project_remotes(path)
+        })(),
+    )
+}
+
+/// Where the project lives, for Overview's header: the service and path of
+/// the remote its branch publishes to. Raw addresses stay on the Rust side.
+#[tauri::command(async)]
+pub(crate) fn read_remote_home(
+    path: String,
+    session_epoch: String,
+) -> Result<Option<RemoteHome>, AppError> {
+    report_result(
+        "read_remote_home",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::read_remote_home(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn open_remote_home(
+    path: String,
+    session_epoch: String,
+    remote: String,
+) -> Result<(), AppError> {
+    report_result(
+        "open_remote_home",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            desktop::open_remote_home(path, remote)
         })(),
     )
 }
@@ -896,28 +1132,44 @@ pub(crate) fn check_team_changes(
 }
 
 #[tauri::command(async)]
+pub(crate) fn stop_tracking_remote(
+    path: String,
+    session_epoch: String,
+) -> Result<TeamSyncStatus, AppError> {
+    report_result(
+        "stop_tracking_remote",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            sync::stop_tracking_remote(path, session_epoch)
+        })(),
+    )
+}
+
+/// Local only: the plan reads the remote as of the last check and never
+/// contacts the network, so the dialog can show it at once.
+#[tauri::command(async)]
 pub(crate) fn plan_get_team_changes(
     path: String,
     session_epoch: String,
-    on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesPlan, AppError> {
     report_result(
         "plan_get_team_changes",
         (|| {
             validate_session(&path, &session_epoch)?;
-            sync::plan_get_team_changes(path, session_epoch, |phase| {
-                let _ = on_progress.send(phase);
-            })
+            sync::plan_get_team_changes(path, session_epoch)
         })(),
     )
 }
 
+/// `run_hooks` is the Settings switch the other guided flows follow: it
+/// decides whether the project's merge hooks run for a merge version.
 #[tauri::command(async)]
 pub(crate) fn get_team_changes(
     path: String,
     session_epoch: String,
     state_token: String,
     recovery_reference: String,
+    run_hooks: bool,
     on_progress: tauri::ipc::Channel<GetTeamChangesPhase>,
 ) -> Result<GetTeamChangesResult, AppError> {
     report_result(
@@ -929,6 +1181,7 @@ pub(crate) fn get_team_changes(
                 session_epoch,
                 state_token,
                 recovery_reference,
+                run_hooks,
                 |phase| {
                     let _ = on_progress.send(phase);
                 },
@@ -947,6 +1200,20 @@ pub(crate) fn list_unpublished_versions(
         (|| {
             validate_session(&path, &session_epoch)?;
             status::list_unpublished_versions(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn list_incoming_versions(
+    path: String,
+    session_epoch: String,
+) -> Result<PendingVersionsResult, AppError> {
+    report_result(
+        "list_incoming_versions",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            status::list_incoming_versions(path)
         })(),
     )
 }
@@ -1077,161 +1344,192 @@ pub(crate) fn publish(
 }
 
 #[tauri::command(async)]
-pub(crate) fn get_version_lines(
+pub(crate) fn get_branches(
     path: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "get_version_lines",
+        "get_branches",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::get_version_lines(path)
+            branches::get_branches(path)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn get_version_line_history(
+pub(crate) fn get_branch_history(
     path: String,
     name: String,
     session_epoch: String,
-) -> Result<VersionLineHistory, AppError> {
+) -> Result<BranchHistory, AppError> {
     report_result(
-        "get_version_line_history",
+        "get_branch_history",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::get_version_line_history(path, name)
+            branches::get_branch_history(path, name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_create_version_line(
+pub(crate) fn plan_create_branch(
     path: String,
     name: String,
     switch: bool,
     start_commit: Option<String>,
     session_epoch: String,
-) -> Result<CreateVersionLinePlan, AppError> {
+) -> Result<CreateBranchPlan, AppError> {
     report_result(
-        "plan_create_version_line",
+        "plan_create_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_create_version_line(path, name, switch, start_commit)
+            branches::plan_create_branch(path, name, switch, start_commit)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn create_version_line(
+pub(crate) fn create_branch(
     path: String,
     name: String,
     switch: bool,
     start_commit: Option<String>,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "create_version_line",
+        "create_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::create_version_line(path, name, switch, start_commit, state_token)
+            branches::create_branch(path, name, switch, start_commit, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_switch_version_line(
+pub(crate) fn plan_switch_branch(
     path: String,
     target: String,
     session_epoch: String,
-) -> Result<SwitchVersionLinePlan, AppError> {
+) -> Result<SwitchBranchPlan, AppError> {
     report_result(
-        "plan_switch_version_line",
+        "plan_switch_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_switch_version_line(path, target)
+            branches::plan_switch_branch(path, target)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn switch_version_line(
+pub(crate) fn switch_branch(
     path: String,
     target: String,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "switch_version_line",
+        "switch_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::switch_version_line(path, target, state_token)
+            branches::switch_branch(path, target, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_delete_version_line(
+pub(crate) fn plan_delete_branch(
     path: String,
     name: String,
     session_epoch: String,
-) -> Result<DeleteVersionLinePlan, AppError> {
+) -> Result<DeleteBranchPlan, AppError> {
     report_result(
-        "plan_delete_version_line",
+        "plan_delete_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_delete_version_line(path, name)
+            branches::plan_delete_branch(path, name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn delete_version_line(
+pub(crate) fn delete_branch(
     path: String,
     name: String,
     delete_remote: bool,
     state_token: String,
     session_epoch: String,
-) -> Result<DeleteVersionLineResult, AppError> {
+) -> Result<DeleteBranchResult, AppError> {
     report_result(
-        "delete_version_line",
+        "delete_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::delete_version_line(path, name, delete_remote, state_token)
+            branches::delete_branch(path, name, delete_remote, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_rename_version_line(
+pub(crate) fn plan_clean_up_branches(
+    path: String,
+    names: Vec<String>,
+    session_epoch: String,
+) -> Result<CleanUpBranchesPlan, AppError> {
+    report_result(
+        "plan_clean_up_branches",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            branches::plan_clean_up_branches(path, names)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn clean_up_branches(
+    path: String,
+    branches: Vec<CleanUpBranchRequest>,
+    delete_remote: bool,
+    session_epoch: String,
+) -> Result<CleanUpBranchesResult, AppError> {
+    report_result(
+        "clean_up_branches",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            branches::clean_up_branches(path, branches, delete_remote)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn plan_rename_branch(
     path: String,
     name: String,
     new_name: String,
     session_epoch: String,
-) -> Result<RenameVersionLinePlan, AppError> {
+) -> Result<RenameBranchPlan, AppError> {
     report_result(
-        "plan_rename_version_line",
+        "plan_rename_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_rename_version_line(path, name, new_name)
+            branches::plan_rename_branch(path, name, new_name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn rename_version_line(
+pub(crate) fn rename_branch(
     path: String,
     name: String,
     new_name: String,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "rename_version_line",
+        "rename_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::rename_version_line(path, name, new_name, state_token)
+            branches::rename_branch(path, name, new_name, state_token)
         })(),
     )
 }
@@ -1432,6 +1730,9 @@ mod contract_tests {
             value if value.starts_with("Vec<") && value.ends_with('>') => {
                 format!("{}[]", &value[4..value.len() - 1])
             }
+            value if value.starts_with("Option<") && value.ends_with('>') => {
+                format!("{} | null", &value[7..value.len() - 1])
+            }
             value => value.to_string(),
         }
     }
@@ -1585,6 +1886,8 @@ mod contract_tests {
             AppErrorCode::StaleGetTeamChangesPlan,
             AppErrorCode::InvalidRefName,
             AppErrorCode::AuthenticationFailed,
+            AppErrorCode::SecureStorageUnavailable,
+            AppErrorCode::ProviderRateLimited,
             AppErrorCode::NetworkTimeout,
             AppErrorCode::OperationCancelled,
             AppErrorCode::InvalidRemoteConfiguration,
@@ -1598,18 +1901,18 @@ mod contract_tests {
             AppErrorCode::PublishUncertain,
             AppErrorCode::GetTeamChangesUncertain,
             AppErrorCode::GitVersionTooOld,
-            AppErrorCode::VersionLineNameTaken,
-            AppErrorCode::VersionLineNameCollides,
-            AppErrorCode::VersionLineCheckedOutElsewhere,
-            AppErrorCode::VersionLineIsActive,
-            AppErrorCode::VersionLineIsDefault,
-            AppErrorCode::VersionLineMissing,
-            AppErrorCode::VersionLineUniqueWork,
-            AppErrorCode::VersionLineSwitchObstructed,
-            AppErrorCode::StaleVersionLinePlan,
+            AppErrorCode::BranchNameTaken,
+            AppErrorCode::BranchNameCollides,
+            AppErrorCode::BranchCheckedOutElsewhere,
+            AppErrorCode::BranchIsActive,
+            AppErrorCode::BranchIsDefault,
+            AppErrorCode::BranchMissing,
+            AppErrorCode::BranchUniqueWork,
+            AppErrorCode::BranchNotFinished,
+            AppErrorCode::BranchSwitchObstructed,
+            AppErrorCode::StaleBranchPlan,
             AppErrorCode::DirtyWorkingTree,
             AppErrorCode::IncomingTrackedChangeCollision,
-            AppErrorCode::IncomingPathCollision,
             AppErrorCode::RefLocked,
             AppErrorCode::NothingToDiscard,
             AppErrorCode::StaleDiscardPlan,
@@ -1621,6 +1924,7 @@ mod contract_tests {
             AppErrorCode::StaleIgnoreFile,
             AppErrorCode::IgnoreFileWriteFailed,
             AppErrorCode::InstallBlocked,
+            AppErrorCode::UnsupportedServer,
         ];
         let serialized = codes
             .iter()
@@ -1716,4 +2020,241 @@ mod contract_tests {
             })
         );
     }
+}
+
+#[tauri::command(async)]
+pub(crate) fn gh_diagnostics() -> GitDiagnostics {
+    report_value("gh_diagnostics", tooling::gh_diagnostics())
+}
+
+#[tauri::command]
+pub(crate) fn get_github_auth_state(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    // Frequent cached reads need not fill the diagnostic ring buffer.
+    service.snapshot()
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_github_auth(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    report_value("check_github_auth", service.check())
+}
+
+#[tauri::command(async)]
+pub(crate) fn start_github_login(
+    service: tauri::State<'_, GitHubAuthService>,
+) -> GitHubAuthSnapshot {
+    report_value("start_github_login", service.login())
+}
+
+#[tauri::command]
+pub(crate) fn cancel_github_auth(
+    service: tauri::State<'_, GitHubAuthService>,
+    operation_id: String,
+) -> GitHubAuthSnapshot {
+    report_value("cancel_github_auth", service.cancel(&operation_id))
+}
+
+#[tauri::command(async)]
+pub(crate) fn install_gh() -> GitInstallationResult {
+    report_value("install_gh", tooling::install_gh())
+}
+
+#[tauri::command(async)]
+pub(crate) fn logout_github_account(
+    service: tauri::State<'_, GitHubAuthService>,
+    login: String,
+) -> GitHubAuthSnapshot {
+    report_value("logout_github_account", service.logout(login))
+}
+
+#[tauri::command(async)]
+pub(crate) fn switch_github_account(
+    service: tauri::State<'_, GitHubAuthService>,
+    login: String,
+) -> GitHubAuthSnapshot {
+    report_value("switch_github_account", service.switch(login))
+}
+
+#[tauri::command(async)]
+pub(crate) fn update_gh() -> GitUpdateLaunchResult {
+    report_value("update_gh", tooling::update_gh())
+}
+
+#[tauri::command(async)]
+pub(crate) fn check_gh_update() -> GitUpdateStatus {
+    report_value("check_gh_update", tooling::check_gh_update())
+}
+
+#[tauri::command]
+pub(crate) fn glab_diagnostics() -> GitDiagnostics {
+    report_value("glab_diagnostics", tooling::glab_diagnostics())
+}
+#[tauri::command]
+pub(crate) fn install_glab() -> GitInstallationResult {
+    report_value("install_glab", tooling::install_glab())
+}
+#[tauri::command]
+pub(crate) fn update_glab() -> GitUpdateLaunchResult {
+    report_value("update_glab", tooling::update_glab())
+}
+#[tauri::command(async)]
+pub(crate) fn check_glab_update() -> GitUpdateStatus {
+    report_value("check_glab_update", tooling::check_glab_update())
+}
+#[tauri::command]
+pub(crate) fn get_gitlab_auth_state(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    let _command = application::enter("get_gitlab_auth_state");
+    report_value("get_gitlab_auth_state", service.snapshot())
+}
+#[tauri::command]
+pub(crate) fn check_gitlab_auth(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    report_value("check_gitlab_auth", service.check_state())
+}
+#[tauri::command]
+pub(crate) fn start_gitlab_login(
+    service: tauri::State<'_, GitLabAuthService>,
+) -> GitLabAuthSnapshot {
+    report_value("start_gitlab_login", service.login())
+}
+#[tauri::command]
+pub(crate) fn logout_gitlab_account(
+    service: tauri::State<'_, GitLabAuthService>,
+    account_id: String,
+) -> GitLabAuthSnapshot {
+    report_value("logout_gitlab_account", service.logout(account_id))
+}
+#[tauri::command]
+pub(crate) fn cancel_gitlab_auth(
+    service: tauri::State<'_, GitLabAuthService>,
+    operation_id: String,
+) -> GitLabAuthSnapshot {
+    let _command = application::enter("cancel_gitlab_auth");
+    report_value("cancel_gitlab_auth", service.cancel(&operation_id))
+}
+#[tauri::command]
+pub(crate) async fn add_gitlab_token(
+    service: tauri::State<'_, GitLabAccessService>,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result("add_gitlab_token", service.add(token, request_id).await)
+}
+#[tauri::command(async)]
+pub(crate) fn remove_gitlab_token(
+    service: tauri::State<'_, GitLabAccessService>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_gitlab_token");
+    report_result("remove_gitlab_token", service.remove(&account_id))
+}
+#[tauri::command]
+pub(crate) async fn add_hosting_server(
+    servers: tauri::State<'_, HostingServers>,
+    kind: String,
+    address: String,
+    request_id: String,
+) -> Result<AccountCatalog, AppError> {
+    report_result(
+        "add_hosting_server",
+        servers.add(kind, address, request_id).await,
+    )
+}
+#[tauri::command(async)]
+pub(crate) fn remove_hosting_server(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<AccountCatalog, AppError> {
+    let _command = application::enter("remove_hosting_server");
+    report_result("remove_hosting_server", servers.remove(&provider))
+}
+#[tauri::command]
+pub(crate) async fn add_hosting_token(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result(
+        "add_hosting_token",
+        servers.add_token(&provider, token, request_id).await,
+    )
+}
+#[tauri::command(async)]
+pub(crate) fn remove_hosting_token(
+    servers: tauri::State<'_, HostingServers>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_hosting_token");
+    report_result("remove_hosting_token", servers.remove_token(&account_id))
+}
+#[tauri::command]
+pub(crate) fn get_hosting_cli_state(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    let _command = application::enter("get_hosting_cli_state");
+    report_result(
+        "get_hosting_cli_state",
+        servers.cli(&provider, CliAction::Read),
+    )
+}
+#[tauri::command]
+pub(crate) fn check_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "check_hosting_cli",
+        servers.cli(&provider, CliAction::Check),
+    )
+}
+#[tauri::command]
+pub(crate) fn start_hosting_cli_login(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "start_hosting_cli_login",
+        servers.cli(&provider, CliAction::Login),
+    )
+}
+#[tauri::command]
+pub(crate) fn logout_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    account: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "logout_hosting_cli",
+        servers.cli(&provider, CliAction::Logout(account)),
+    )
+}
+#[tauri::command]
+pub(crate) fn open_hosting_device_page(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("open_hosting_device_page");
+    report_result(
+        "open_hosting_device_page",
+        servers.open_device_page(&provider),
+    )
+}
+#[tauri::command]
+pub(crate) fn cancel_hosting_cli(
+    servers: tauri::State<'_, HostingServers>,
+    provider: String,
+    operation_id: String,
+) -> Result<HostingCliSnapshot, AppError> {
+    report_result(
+        "cancel_hosting_cli",
+        servers.cli(&provider, CliAction::Cancel(operation_id)),
+    )
 }

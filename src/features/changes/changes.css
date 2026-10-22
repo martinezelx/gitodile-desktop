@@ -73,23 +73,31 @@
 .changes-preview__item--renamed .changes-preview__category { color: var(--status-renamed); }
 .changes-preview__item--conflicted .changes-preview__category { color: var(--status-warning); }
 
-.changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.changes-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+/* The panes run to the sheet's edges (ADR 0032); a notice above them keeps an
+   inset of its own so it does not touch the sheet's border. */
+.changes-view > .changes-notice,
+.changes-view > .changes-status-notice { margin: var(--space-3) var(--space-3) 0; }
 /* The one line the list panel says about the tree when there is nothing to
    list: "Everything is saved", in the state row under the tabs. */
 .changes-view__summary {
   min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0;
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
 }
+/* One line, as every in-screen notice (DESIGN.md § Content design): the
+   title, then the explanation cut short with the whole of it on its tooltip;
+   the title gives way only once the explanation has nothing left. */
 .changes-status-notice {
-  display: flex; align-items: flex-start; gap: 10px;
+  display: flex; align-items: center; gap: 10px; min-width: 0;
   padding: 9px 11px;
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
 }
-.changes-status-notice__body { flex: 1; min-width: 0; }
-.changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-.changes-status-notice strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
-.changes-status-notice p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.changes-status-notice__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.changes-status-notice strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
+.changes-status-notice p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
 .changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; }
 .changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
 .changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
@@ -98,11 +106,11 @@
    full width, so the Undo is where the eye already is after the list changed
    under it. */
 .changes-notice {
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
   padding: 10px var(--space-4);
-  border-radius: var(--radius-surface); background: var(--surface-raised);
+  border-radius: var(--radius-surface); border: 1px solid var(--border-subtle); background: var(--surface-card);
 }
-.changes-notice p { flex: 1; min-width: 0; margin: 0; font-size: var(--text-lead); color: var(--text-primary-color); }
+.changes-notice p { flex: 1; min-width: 0; margin: 0; overflow: hidden; font-size: var(--text-lead); color: var(--text-primary-color); text-overflow: ellipsis; white-space: nowrap; }
 .changes-notice > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
 .changes-notice--error > svg { color: var(--status-danger); }
@@ -188,12 +196,13 @@
 .changes-restore-row__forget svg { width: 15px; height: 15px; }
 /* The row becomes its own question rather than opening a dialog over the
    dialog: the list stays readable behind the choice, and the answer sits
-   exactly where the thing it destroys was. */
+   exactly where the thing it destroys was. It wears the dialog's danger
+   banner (`.app-dialog__banner--danger`) rather than a recipe of its own. */
 .changes-restore-row--forgetting {
   flex-direction: column; gap: var(--space-2);
   padding: 10px var(--space-3);
-  border: 1px solid var(--status-danger); border-radius: var(--radius-item);
-  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+  border-radius: var(--radius-surface);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
 }
 .changes-restore-row__question { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
 .changes-restore-row__question strong { margin-right: 4px; }
@@ -252,7 +261,7 @@
      someone switches between the screens rather than stepping ~50px sideways
      and a few pixels up. */
   flex: 1; min-height: 0; display: grid;
-  grid-template-columns: var(--panel-column) minmax(0, 1fr); gap: var(--space-4);
+  grid-template-columns: var(--panel-column) minmax(0, 1fr); gap: 0;
   /* Each panel opens with one strip of the same height, so their contents
      start on the same pixel row rather than a step apart.
 
@@ -286,9 +295,9 @@
      workspace, which is outside this layout. */
   --changes-toolbar-control-height: var(--control-height-sm);
 }
+/* A region of the sheet, not a card (ADR 0032): one hairline to the diff. */
 .changes-file-list {
-  min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface); background: var(--surface-panel);
+  min-height: 0; display: flex; flex-direction: column; border-inline-end: 1px solid var(--border-subtle);
   /* The strips own their spacing through padding; the panel itself must not
      insert gutters between the paired list and diff headers. */
   gap: 0;
@@ -345,8 +354,10 @@
   padding: 0 var(--space-2);
 }
 /* Heads the search strip at the rows' own inset: the strip's 8px gutter plus
-   the checkbox's 6px margin is the same 14px a row's checkbox stands at. */
-.changes-file-list__select-all { display: inline-flex; flex-shrink: 0; }
+   the 18px pick column puts the select-all node on the same x as a row's. */
+.changes-file-list__select-all { display: inline-flex; align-items: center; flex-shrink: 0; }
+/* The strip has no row to stretch against; give its node a full target. */
+.changes-file-list__select-all .changes-file-row__pick { min-height: 36px; }
 /* The box itself is `.search-box` in primitives.css now. What stays here is
    what this strip asks of it: the free width, and the height contract the
    picker beside it reads — the two have to agree or the strip looks stepped. */
@@ -405,39 +416,68 @@
   list-style: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px;
 }
 .changes-file-list__virtual { position: relative; display: block !important; }
-.changes-file-row { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.changes-file-row { min-width: 0; display: flex; align-items: center; gap: 0; }
 .changes-file-row--virtual {
   position: absolute; top: 0; left: 0; width: 100%; padding-bottom: 2px;
 }
-/* The control itself is `.app-checkbox` in primitives.css. All this list adds
-   is where it stands in the row. */
-.changes-file-row__checkbox { margin: 0 0 0 4px; }
+/* The include control is History's node, not the shared checkbox: a 10px disc
+   in an 18px column. The input is still the checkbox — checked, indeterminate,
+   labelled, keyboard — and the label is what the pointer sees; the node is its
+   drawing. Included is the usual state, so it is said in the node fill; the
+   accent belongs to the file that is open, as on History's selected row. Left
+   out is an empty ring, and a folder that is only partly in is the half moon
+   History already uses for a version that exists only here. */
+.changes-file-row__pick {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 18px;
+  width: 18px;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The node is 10px; the target is not. The label is 18px wide and the row high,
+   and the 6px reach into the file item's padding makes it 24px. */
+.changes-file-row__pick::after {
+  content: "";
+  position: absolute;
+  inset: 0 -6px;
+}
+/* The pointer reveals the control: the whole row rings its node, because a
+   ring alone does not say "press me" the way a tick used to. The open row is
+   left to its own accent halo instead. */
+.changes-file-row:not(.changes-file-row--active):hover .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)) .inclusion-node__mark,
+.changes-file-list__select-all .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)):hover .inclusion-node__mark {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 26%, transparent);
+}
+/* The open file is the one node in the accent, and selecting it changes the
+   colour, never the shape: a filled node stays a disc, a half-filled one stays
+   a half moon, an empty one stays a ring. */
+.changes-file-row--active .inclusion-node__mark {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+}
+.changes-file-row--active .inclusion-node__input:checked + .inclusion-node__mark {
+  background: var(--accent-primary);
+}
+.changes-file-row--active .inclusion-node__input:indeterminate + .inclusion-node__mark {
+  background: linear-gradient(90deg, var(--accent-primary) 50%, transparent 50%);
+}
+/* The file list's first-load rows keep the same leading column. */
+.changes-file-row__pick-placeholder {
+  flex: 0 0 18px;
+  width: 18px;
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+}
+.changes-file-row__pick-placeholder .text-placeholder {
+  width: 10px;
+  height: 10px;
+}
 .changes-file-row .changes-file-item { flex: 1; width: auto; padding-inline-start: var(--space-2); }
-/* The list's include boxes, a size down from the shared control: they stand
-   on every row, so at 18px with its fill the column read louder than the
-   names it serves. Included is the usual state, so it is said quietly — a
-   tint-free ring and the tick; left out is the one worth seeing, an empty
-   ring with the row itself dimmed. */
-.changes-file-list .app-checkbox { width: 14px; height: 14px; }
-/* The tick is the app's Lucide check, drawn through a mask so it takes the
-   accent: two borders turned 45° landed half a pixel off centre at this size,
-   with square ends that read as a broken stroke. */
-.changes-file-list .app-checkbox::before {
-  width: 10px; height: 10px; border: 0; background: var(--accent-primary);
-  -webkit-mask: var(--file-check-mask) center / contain no-repeat; mask: var(--file-check-mask) center / contain no-repeat;
-  transform: scale(0);
-}
-.changes-file-list .app-checkbox:checked::before { transform: scale(1); }
-.changes-file-list .app-checkbox:indeterminate::before {
-  width: 6px; height: 1.5px; border: 0; border-radius: var(--radius-pill); -webkit-mask: none; mask: none; transform: scale(1);
-}
-.changes-file-list {
-  --file-check-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
-}
-.changes-file-list .app-checkbox:checked {
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle)); background: transparent;
-}
-.changes-file-list .app-checkbox:checked:hover { border-color: var(--accent-primary); }
 .changes-file-row--excluded .changes-file-item { opacity: 0.55; }
 .changes-file-row--excluded .changes-file-item:hover { opacity: 0.8; }
 /* Filters and the folder switch share the pill's tail: tight, a size down,
@@ -487,6 +527,9 @@
 }
 @media (forced-colors: active) {
   .file-tree-folder__kind { background: CanvasText; }
+  .changes-file-row--active .inclusion-node__mark { border-color: Highlight; }
+  .changes-file-row--active .inclusion-node__input:checked + .inclusion-node__mark { background: Highlight; border-color: Highlight; }
+  .changes-file-row--active .inclusion-node__input:indeterminate + .inclusion-node__mark { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
 }
 .changes-file-list__truncated {
   margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
@@ -526,8 +569,8 @@
 }
 
 /* The foot of the list panel: the save composer, and nothing else. The box
-   itself is `.docked-composer` in primitives.css — shared with Lines'
-   new-line box — which draws the hairline and the padding; what is left
+   itself is `.docked-composer` in primitives.css — shared with Branches'
+   new-branch box — which draws the hairline and the padding; what is left
    here is what only the save box holds. The discard/restore `⋯` heads the
    list in the search strip, so nothing destructive lives in here. */
 .changes-file-list__foot { flex: 0 0 auto; }
@@ -558,8 +601,7 @@
 .docked-composer:not(.docked-composer--expanded) .changes-quick-commit__publish-now { display: none; }
 
 .changes-diff {
-  min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface); background: var(--surface-panel); overflow: hidden;
+  min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
 .changes-diff__back {
   display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;
@@ -602,6 +644,9 @@
 .changes-diff__title-row {
   display: flex; align-items: baseline; gap: var(--space-2);
   min-width: 0; flex: 1 1 auto; flex-wrap: nowrap; overflow: hidden;
+  /* The containing block for a dropped folder (see `.changes-diff__dir--hidden`),
+     so it is clipped by the row like everything else rather than escaping it. */
+  position: relative;
 }
 .changes-diff__path { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; flex: 0 1 auto; margin: 0; }
 .changes-diff__name {
@@ -622,6 +667,12 @@
   color: var(--text-secondary-color); font-size: var(--text-caption);
   direction: rtl; text-align: left;
 }
+/* Dropped whole when the full name and folder cannot both fit (decided by
+   measurement in `DiffWorkspace`): a head-truncated `work/done` squeezed to
+   `…ne` sits right before the category and read as a broken "New" badge. Out
+   of flow — not `display: none`, which would make its natural width
+   unmeasurable and keep the folder from returning when the pane widens. */
+.changes-diff__dir--hidden { position: absolute; visibility: hidden; pointer-events: none; }
 /* The category the way its row says it: the same glyph in the same colour,
    with the word beside it. A pill here was a third shape for one fact the
    list row and the Overview band already draw the same way. */
@@ -648,20 +699,50 @@
    not as a second panel edge. */
 .changes-diff__controls {
   display: inline-flex; align-items: center; gap: var(--space-2);
-  /* Shrinkable, because the find box inside it is: the arrows and the view
-     picker keep their size, and the find — the one thing that can give way —
-     does. */
-  flex: 0 1 auto; min-width: 0;
+  /* Fixed, not shrinkable: the find that used to give way inside this row is a
+     portalled popover now (see `.changes-diff-find`), so nothing here can lose
+     width without clipping the view picker. The title row — the file's own
+     name — is the one that takes the pressure instead, which is the same
+     priority the strip already gave the name over its folder. */
+  flex: 0 0 auto;
   padding-left: var(--space-3);
   border-left: 1px solid var(--border-divider);
 }
 /* The diff's find, shared with History: an icon until it is asked for, then a
-   pill that grows into the room the strip has, up to a ceiling, and shrinks to
-   a floor before the path has to give up its last characters. The box follows
-   the wrapper's used width, so a tight strip narrows the find instead of
-   pushing the arrows and the picker off. */
-.changes-diff-find { display: inline-flex; align-items: center; flex: 0 1 auto; min-width: 110px; max-width: clamp(160px, 20vw, 260px); }
-.changes-diff-find__box { flex: 0 1 auto; width: clamp(160px, 20vw, 260px); max-width: 100%; min-width: 0; }
+   field that drops below its magnifier in a popover. It is portalled to the
+   body by `usePortalFlyout`, so it escapes the header's clip and the strip it
+   left behind keeps its width — the arrows and the reading picker stay put
+   instead of being shoved sideways. */
+.changes-diff-find {
+  width: min(320px, calc(100vw - 24px));
+  min-width: 0;
+  max-width: none;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  z-index: 5;
+  /* It grows out of the magnifier it belongs to, wearing the same settle the
+     app's menus use. The shared `.search-box` colour transition is dropped
+     here: a field that lights up over 120ms while it is still arriving reads
+     as a slow double gesture rather than one pop. */
+  transform-origin: top right;
+  transition: none;
+  animation: titlebar-menu-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* The reverse, and deliberately shorter than the entrance: leaving should feel
+   like releasing the control, not a second thing to watch. The portal is kept
+   mounted for exactly this by `DiffFind`. */
+.changes-diff-find[data-state="closed"] {
+  animation: changes-diff-find-out 100ms ease-in both;
+  pointer-events: none;
+}
+@keyframes changes-diff-find-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.98) translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .changes-diff-find,
+  .changes-diff-find[data-state="closed"] { animation: none; }
+}
 /* Each pair reads as a pair: the arrows inside one sit closer to each other
    than the two pairs do to each other, which is the only thing left telling
    "previous/next file" from "previous/next change" now that neither carries a
@@ -696,15 +777,15 @@
    the body by `usePortalFlyout`, so nothing absolute is laid out against this
    wrapper the way the old in-flow `.app-menu` was. */
 .changes-view-picker { display: inline-flex; }
-/* Doubled up on `.version-line-selector` on purpose. The trigger wears that
-   class too, and `features/version-lines` loads *after* this file, so at equal
+/* Doubled up on `.branch-selector` on purpose. The trigger wears that
+   class too, and `features/branches` loads *after* this file, so at equal
    specificity its `padding: 6px var(--space-4)` was quietly beating the `0`
    below — the block padding this rule asks for has never actually applied. It
    went unnoticed while the control was 34px tall and the label had 2px to
    spare; at the shared 32px row tier the text fills the content box exactly,
    which is what surfaced it. The fixed height is what centres the label here,
    so the block padding has to be the 0 this rule always meant. */
-.changes-view-picker__trigger.version-line-selector {
+.changes-view-picker__trigger.branch-selector {
   /* The fallback is load-bearing, not decoration. `DiffViewSelector` is shared,
      and `--changes-toolbar-control-height` is scoped to `.changes-layout` —
      which the History diff toolbar is not inside, so that host has to declare
@@ -726,8 +807,8 @@
    SVG itself, because the same icon is reused inside the menu where a
    different rule sizes it. The 15px the shared token sets therefore has to
    reach the SVG inside the wrapper. */
-.changes-view-picker__trigger .version-line-selector__icon { display: inline-flex; }
-.changes-view-picker__trigger .version-line-selector__icon svg { width: 100%; height: 100%; }
+.changes-view-picker__trigger .branch-selector__icon { display: inline-flex; }
+.changes-view-picker__trigger .branch-selector__icon svg { width: 100%; height: 100%; }
 .changes-diff__body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
   background: var(--surface-code);
@@ -747,7 +828,7 @@
 .changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: 6px; }
 .changes-diff__note-icon svg { width: 18px; height: 18px; }
 .changes-diff__note h3 { font-size: var(--text-subtitle); color: var(--text-primary-color); }
-.changes-diff__note--attention .changes-diff__note-icon { background: var(--surface-active); color: var(--status-warning); }
+.changes-diff__note--attention .changes-diff__note-icon { color: var(--status-warning); }
 
 .diff-code {
   /* `flex: 1; min-height: 0` (rather than a percentage height) so this
@@ -839,6 +920,7 @@
 
 @media (max-width: 1024px) {
   .changes-layout { grid-template-columns: 1fr; }
+  .changes-file-list { border-inline-end: 0; }
   /* One column: the list fills the window, so its strip's trigger is at the
      window's right edge and the menu goes back to the shared alignment. There
      is nothing to its right to open over any more. */
@@ -908,12 +990,31 @@
 }
 .image-diff__status svg { width: 22px; height: 22px; }
 .image-diff__status--error { color: var(--status-danger); }
-/* The stage hugs the pictures: it is a grid item of the frame, so it is sized
-   by its content rather than stretched to the frame's width. Both layers then
-   fill that one cell — overlaying exactly, whatever the two pictures measure —
-   and the divider and the clip below are percentages of the same box. */
+/* The stage hugs the picture: it is a grid item of the frame, so it is sized by
+   its content rather than stretched to the frame's width, and the divider and
+   the clip below are percentages of that one box. */
 .image-diff__stage { position: relative; display: grid; max-width: 100%; }
 .image-diff__layer { grid-area: 1 / 1; display: grid; place-items: center; min-width: 0; }
+/* The updated picture is the one the divider reveals, so it is what sizes the
+   stage; the original is laid across that same box and fitted into it. Fitting
+   the two independently (each centred in a cell the *larger* picture sized)
+   left the smaller one short of the edges: the bigger picture showed through on
+   the far side and the divider could be dragged past the picture it was meant
+   to cut. Now both share one box, so the cut and the clip stay on the picture
+   whichever way the two versions measure. The original is only ever scaled
+   down, never up, so a picture that already fitted keeps its size. */
+.image-diff__stage--swipe .image-diff__layer--before,
+.image-diff__stage--fade .image-diff__layer--before { position: absolute; inset: 0; }
+.image-diff__stage--swipe .image-diff__layer--before .image-diff__image,
+.image-diff__stage--fade .image-diff__layer--before .image-diff__image {
+  max-width: 100%; max-height: 100%;
+}
+/* The original is positioned, so it paints over any layer that is not. The
+   updated picture is positioned too, after it, so it stays on top on its own
+   merits: in fade it only did so while its opacity made it a stacking
+   context, and at 100% (opacity exactly 1) the original jumped back over it. */
+.image-diff__stage--swipe .image-diff__layer--after,
+.image-diff__stage--fade .image-diff__layer--after { position: relative; }
 .image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
 /* The one piece of movement in this view, and it is a cross-fade of state,
    not decoration. The app-wide reduced-motion rule removes it. */
@@ -925,9 +1026,5 @@
   width: 2px; margin-left: -1px; background: var(--accent-primary); pointer-events: none;
 }
 
-/* What a discard also does beyond the files going back: plain lines, not a
-   warning box, because each is a consequence already confirmed by the press. */
-.changes-discard-warnings {
-  display: grid; gap: var(--space-1); margin: 0; padding-left: var(--space-5);
-  color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
-}
+/* The discard plan's shape while it is read: its sentence and one fact. */
+.changes-discard-placeholder { display: grid; gap: var(--space-2); }

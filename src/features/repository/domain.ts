@@ -17,11 +17,11 @@ export type RepositoryOverviewState = {
   isUnborn: boolean;
   isWorktree: boolean;
   wasOpenedFromNestedFolder: boolean;
-  versionLine: string | null;
+  branch: string | null;
   projectTypeKey: "overviewLocalProject" | "overviewSeparateWorkspace";
   projectTypeDescriptionKey: "overviewRepositoryTypeDescription" | "overviewWorktreeTypeDescription";
   headlineKey: "overviewProjectReady" | "overviewWorktreeReady" | "overviewUnbornReady" | "overviewDetachedReady";
-  versionDescriptionKey: "overviewVersionLineDescription" | "overviewUnbornDescription" | "overviewDetachedDescription";
+  versionDescriptionKey: "overviewBranchDescription" | "overviewUnbornDescription" | "overviewDetachedDescription";
 };
 
 export function getRepositoryOverviewState(project: RepositoryInfo): RepositoryOverviewState {
@@ -33,7 +33,7 @@ export function getRepositoryOverviewState(project: RepositoryInfo): RepositoryO
     isUnborn,
     isWorktree,
     wasOpenedFromNestedFolder: project.selectedPath !== project.path,
-    versionLine: isDetached ? null : project.branch,
+    branch: isDetached ? null : project.branch,
     projectTypeKey: isWorktree ? "overviewSeparateWorkspace" : "overviewLocalProject",
     projectTypeDescriptionKey: isWorktree ? "overviewWorktreeTypeDescription" : "overviewRepositoryTypeDescription",
     headlineKey: isDetached
@@ -47,6 +47,6 @@ export function getRepositoryOverviewState(project: RepositoryInfo): RepositoryO
       ? "overviewDetachedDescription"
       : isUnborn
         ? "overviewUnbornDescription"
-        : "overviewVersionLineDescription",
+        : "overviewBranchDescription",
   };
 }

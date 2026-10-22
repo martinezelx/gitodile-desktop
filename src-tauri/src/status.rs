@@ -2,6 +2,7 @@ use crate::application;
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, run_git};
 use crate::repository::{resolve_head_state, HeadState};
+use crate::sync::{list_remotes, resolve_remote_selection};
 use std::{io::ErrorKind, path::Path};
 
 /// Product-level meaning of a change, rather than Git's index/worktree split.
@@ -458,7 +459,7 @@ pub(crate) struct SavedVersionSummary {
     pub(crate) title: String,
     pub(crate) description: Option<String>,
     /// `%cI` (committer date, ISO 8601 strict) — the same format already used
-    /// for a version line's tip (`committerdate:iso-strict` in
+    /// for a branch's tip (`committerdate:iso-strict` in
     /// `for-each-ref`'s format string), so the frontend parses both the same
     /// way.
     pub(crate) committed_at: String,
@@ -513,8 +514,10 @@ pub(crate) fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSumma
         .collect()
 }
 
-/// Runs `git log` for `range` with hash/short-hash/subject/body/committer-date/
-/// author-name in one machine-parseable pass. NUL separates both fields and records because Git commit
+/// Runs `git log` for `revisions` — a range, or a tip with its exclusions as
+/// separate arguments — with hash/short-hash/subject/body/committer-date/
+/// author-name in one machine-parseable pass, newest first and up to the
+/// shared cap. NUL separates both fields and records because Git commit
 /// messages cannot contain NUL bytes, while their bodies may contain any
 /// number of ordinary lines. A failing range (e.g. a configured upstream that has never
 /// been fetched locally, so Git can't resolve it as a revision yet) is
@@ -523,20 +526,18 @@ pub(crate) fn parse_saved_version_summaries(text: &str) -> Vec<SavedVersionSumma
 /// isn't actually broken.
 pub(crate) fn git_log_summaries(
     path: &str,
-    range: &str,
+    revisions: &[&str],
 ) -> Result<Vec<SavedVersionSummary>, AppError> {
     let cap = MAX_LISTED_SAVED_VERSIONS.to_string();
-    let output = run_git(
-        path,
-        &[
-            "log",
-            "-z",
-            "--pretty=format:%H%x00%h%x00%s%x00%b%x00%cI%x00%an",
-            "-n",
-            &cap,
-            range,
-        ],
-    )?;
+    let mut args = vec![
+        "log",
+        "-z",
+        "--pretty=format:%H%x00%h%x00%s%x00%b%x00%cI%x00%an",
+        "-n",
+        &cap,
+    ];
+    args.extend_from_slice(revisions);
+    let output = run_git(path, &args)?;
     let text = checked_git_stdout(output)?;
     if text.is_empty() {
         return Ok(Vec::new());
@@ -563,11 +564,103 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
         });
     }
 
-    let range = match &status.upstream.upstream {
-        Some(upstream) => format!("{upstream}..HEAD"),
-        None => "HEAD".to_string(),
+    let upstream = status.upstream.upstream.as_deref();
+    let revisions = match upstream {
+        Some(upstream) if upstream_resolves(&path, upstream)? => {
+            vec![format!("{upstream}..HEAD")]
+        }
+        // No upstream, or one whose tracking ref is gone (Git's `[gone]`):
+        // what publishing would send is what no branch of the remote it would
+        // choose holds — the same count the publish plan shows. A range over
+        // a missing ref would fail, and plain `HEAD` would count every version
+        // the remote's other branches already have.
+        _ => {
+            let remotes = list_remotes(&path)?;
+            match resolve_remote_selection(&remotes, upstream, None) {
+                Ok(remote) => {
+                    let branch = upstream
+                        .and_then(|upstream| upstream.strip_prefix(&format!("{remote}/")))
+                        .unwrap_or("");
+                    if branch.is_empty() {
+                        vec![
+                            "HEAD".to_string(),
+                            "--not".to_string(),
+                            format!("--remotes={remote}"),
+                        ]
+                    } else {
+                        not_on_remote_revisions("HEAD", &remote, branch)
+                    }
+                }
+                // No remote, or several with none chosen: nothing to compare
+                // against, so every version is still only here.
+                Err(_) => vec!["HEAD".to_string()],
+            }
+        }
     };
-    let total_count = checked_git_stdout(run_git(&path, &["rev-list", "--count", &range])?)?
+    let revisions = revisions.iter().map(String::as_str).collect::<Vec<_>>();
+    versions_in_range(&path, &revisions)
+}
+
+/// Whether the upstream `git status` names still resolves: a remote-tracking
+/// ref, or a local branch for a branch that tracks one (`remote = .`).
+fn upstream_resolves(path: &str, upstream: &str) -> Result<bool, AppError> {
+    let revision = format!("{upstream}^{{commit}}");
+    Ok(
+        run_git(path, &["rev-parse", "--verify", "--quiet", &revision])?
+            .status
+            .success(),
+    )
+}
+
+/// Revisions for "the versions at `tip` that no branch of `remote` has": a
+/// destination with no remote branch — never published, or deleted on the
+/// remote — receives these, not the whole history. The destination's own
+/// tracking ref is excluded, because a kept ref for a branch the remote
+/// deleted still names every version it used to hold. Branch names cannot
+/// contain glob characters, so the exclusion matches exactly that ref.
+pub(crate) fn not_on_remote_revisions(
+    tip: &str,
+    remote: &str,
+    destination_branch: &str,
+) -> Vec<String> {
+    vec![
+        tip.to_string(),
+        "--not".to_string(),
+        format!("--exclude={remote}/{destination_branch}"),
+        format!("--remotes={remote}"),
+    ]
+}
+
+/// Read-only and local-only, the mirror of [`list_unpublished_versions`]: the
+/// versions the last-known remote-tracking ref has and this branch does not —
+/// what the last remote check brought down, never a fresh fetch. Overview
+/// names them before the user chooses to get them. Without an upstream there
+/// is nothing to receive.
+pub(crate) fn list_incoming_versions(path: String) -> Result<PendingVersionsResult, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "list_incoming_versions", None)?;
+    let status = read_working_tree_status(path.clone())?;
+    let (head_state, _) = resolve_head_state(&path, status.upstream.branch.clone())?;
+    let Some(upstream) = status
+        .upstream
+        .upstream
+        .filter(|_| head_state == HeadState::Branch)
+    else {
+        return Ok(PendingVersionsResult {
+            total_count: 0,
+            versions: Vec::new(),
+            is_truncated: false,
+        });
+    };
+    versions_in_range(&path, &[&format!("HEAD..{upstream}")])
+}
+
+/// The versions in a `git log` range, counted in full and listed up to the
+/// shared cap.
+fn versions_in_range(path: &str, revisions: &[&str]) -> Result<PendingVersionsResult, AppError> {
+    let mut args = vec!["rev-list", "--count"];
+    args.extend_from_slice(revisions);
+    let total_count = checked_git_stdout(run_git(path, &args)?)?
         .parse::<u32>()
         .map_err(|_| {
             AppError::new(
@@ -576,7 +669,7 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
             )
             .with_remediation("Refresh and try again.")
         })?;
-    let versions = git_log_summaries(&path, &range)?;
+    let versions = git_log_summaries(path, revisions)?;
     Ok(PendingVersionsResult {
         total_count,
         is_truncated: total_count as usize > versions.len(),

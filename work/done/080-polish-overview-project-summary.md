@@ -20,12 +20,12 @@ queue: "18"
 Turn the Overview project identity and its branch-level shortcuts into one
 coherent summary surface, then carry the resulting control geometry, card
 treatment, and icon shape language across the screens that share those
-controls, so switching a version line, reviewing changes, saving a version,
+controls, so switching a branch, reviewing changes, saving a version,
 and refreshing all read as one family.
 
 # User outcome
 
-The active project's name, path, current version line, and common actions are
+The active project's name, path, current branch, and common actions are
 easy to find at a glance. Action clusters on Overview and Changes look like the
 same set of controls rather than two dialects. Cards rely on fill and elevation
 instead of hairlines, so the eye is only interrupted where something actually
@@ -41,7 +41,7 @@ summary component. This follow-up records the work, brings the controls to the
 same visual quality bar as the surrounding cards, and then applies the same
 rules where the same controls appear elsewhere.
 
-The selector and create action are owned by the version-lines feature, the
+The selector and create action are owned by the branches feature, the
 screen refresh reuses the shared `RefreshIconButton`, and the Changes header
 owns its own review actions. Overview and Changes must only adapt those
 controls inside their own containers and must not change their behavior or
@@ -62,7 +62,7 @@ decision seen from another screen:
 # Scope
 
 - Keep the project name, canonical path, optional selected nested path, current
-  version-line selector, create-version-line action, and Overview refresh in a
+  branch selector, create-branch action, and Overview refresh in a
   dedicated summary component on one opaque Friendly Card surface.
 - Give the selector, create action, and refresh action matching height, surface,
   border, icon scale, and interaction states inside Overview.
@@ -85,18 +85,18 @@ decision seen from another screen:
 
 # Out of scope
 
-- Changing version-line, refresh, repository-loading, or discard behavior.
+- Changing branch, refresh, repository-loading, or discard behavior.
 - Redesigning the main status, Team changes, Recent history, or pending
   versions sections.
 - Changing product vocabulary or adding another Overview or Changes action.
 - Creating a new shared button abstraction for these local compositions.
-- Changing the shared primitives or the full Version lines screen layout.
+- Changing the shared primitives or the full Branches screen layout.
 
 # Acceptance criteria
 
 - [x] Project identity and the three actions render inside one opaque Friendly
       Card surface using established tokens.
-- [x] The version-line selector, create action, and refresh action share a 38px
+- [x] The branch selector, create action, and refresh action share a 38px
       visual height and coherent default, hover, expanded, focus, busy, and
       disabled treatments.
 - [x] The selector remains visually primary within the group without making
@@ -106,19 +106,19 @@ decision seen from another screen:
 - [x] The Changes header actions render as one raised cluster whose controls
       share the Overview geometry, exposed as a labeled group.
 - [x] Project summary, unsaved changes, Team changes, Recent history, the
-      Changes notice, the History banner, and the Version lines banner have no
+      Changes notice, the History banner, and the Branches banner have no
       neutral card border; warning and error states still expose a visible
       semantic outline without changing layout.
 - [x] Icon-only controls and identity glyphs are circular; every control that
       carries a text label keeps the rounded-rectangle radius scale.
 - [x] Changes and History show no status-bar fade and end with one compact gap.
-- [x] Long project paths and version-line names do not overflow the card.
+- [x] Long project paths and branch names do not overflow the card.
 - [x] At narrow widths the identity and actions reflow in DOM order, and coarse
       pointers receive at least 44px targets.
 - [x] The UI mechanical scan and frontend/full project checks pass.
 - [x] Every card that lost its neutral border declares a forced-colors
       fallback outline, in `overview.css` as well as `changes.css`,
-      `history.css`, and `version-lines.css`.
+      `history.css`, and `branches.css`.
 - [x] A control sitting on a raised card has a perceptible boundary of its own
       in both themes, and the glyph identifying it clears 3:1.
 - [x] Icon-only controls are circular on Changes as well as Overview, and the
@@ -134,20 +134,20 @@ decision seen from another screen:
 - `src/features/changes/ChangesPanel.test.tsx`
 - `src/features/changes/changes.css`
 - `src/features/history/history.css`
-- `src/features/version-lines/version-lines.css`
+- `src/features/branches/branches.css`
 - `src/styles/tokens.css`
 - `DESIGN.md`
 
 # Dependencies
 
 Builds on task 075's single coordinated Overview refresh, task 079's rail
-chrome, and the existing shared version-line snapshot.
+chrome, and the existing shared branch snapshot.
 
 # Decisions
 
 - The three Overview controls form one action row through equal geometry and
   proximity, not through a nested card or decorative container.
-- The version-line selector retains its text and chevron because it communicates
+- The branch selector retains its text and chevron because it communicates
   both current state and switching behavior. Create and refresh stay icon-only
   because their localized tooltips and accessible names already provide the
   label without crowding a desktop summary.
@@ -169,12 +169,12 @@ chrome, and the existing shared version-line snapshot.
   only semantic outlines survive, drawn inward so a warning never nudges
   layout.
 - Overview and Changes use scoped overrides for feature-owned controls; shared
-  primitives and the full Version lines screen remain unchanged.
+  primitives and the full Branches screen remain unchanged.
 
 # Implementation notes
 
 - Added `ProjectSummaryCard` to keep the project identity, nested-selection
-  context, version-line shortcuts, unpublished count, and coordinated refresh
+  context, branch shortcuts, unpublished count, and coordinated refresh
   in one semantic section.
 - Replaced the uncontained Overview header with the established opaque raised
   surface, 18px card radius, 24px padding, and resting card shadow.
@@ -208,9 +208,9 @@ chrome, and the existing shared version-line snapshot.
   with the three constraints that keep the mix honest: concentricity, a square
   box for any circle, and the half-height point where a card becomes a pill.
 - Removed neutral borders from `.project-hero`, `.changes-notice`,
-  `.history-banner`, and `.version-lines-banner`; warning and error states use
+  `.history-banner`, and `.branches-banner`; warning and error states use
   an inward semantic outline. `changes.css`, `history.css`, and
-  `version-lines.css` gained forced-colors fallbacks.
+  `branches.css` gained forced-colors fallbacks.
 - Circular shape applied to `.rail-item__icon`, `.sidebar-project`,
   `.sidebar-project__avatar`, `.project-switcher-compact__trigger` and its
   avatar, and the Overview create and refresh actions.

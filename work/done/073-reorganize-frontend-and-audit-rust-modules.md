@@ -65,7 +65,7 @@ level down and is explicitly not the target.
 
 The current durable architecture also says Rust should remain flat until a
 module genuinely needs internal submodules. Several product modules are now
-large enough to deserve review (`version_lines.rs`, `sync.rs`, `history.rs`,
+large enough to deserve review (`branches.rs`, `sync.rs`, `history.rs`,
 `changes.rs`, `clone.rs`, `recovery.rs`), but line count alone is not a reason
 to split them.
 
@@ -202,7 +202,7 @@ not be artificially empty.
 ## Rust module-boundary audit
 
 - Review the current flat Rust production modules, with particular attention to
-  the largest product owners (`version_lines.rs`, `sync.rs`, `history.rs`,
+  the largest product owners (`branches.rs`, `sync.rs`, `history.rs`,
   `changes.rs`, `clone.rs`, `recovery.rs`).
 - For each reviewed module, identify whether it contains multiple stable,
   private responsibilities that would benefit from a Rust submodule boundary.
@@ -305,7 +305,7 @@ not be artificially empty.
 - `src/ipcContract.test.ts`
 - `src/styles.css`
 - `src-tauri/src/architecture.rs`
-- `src-tauri/src/version_lines.rs`
+- `src-tauri/src/branches.rs`
 - `src-tauri/src/sync.rs`
 - `src-tauri/src/history.rs`
 - `src-tauri/src/changes.rs`
@@ -437,7 +437,7 @@ private helpers should stop being visible to each other.
 
 | Module | Production shape | Decision |
 | --- | --- | --- |
-| `version_lines.rs` | 30 `pub(crate) fn`, 0 private fn | Keep flat. There is no private surface to protect. `tests/core_workflow_tests.rs` reaches its helpers through `crate::version_lines::`, so every item is already crate-visible; a submodule boundary could only widen visibility, never narrow it. |
+| `branches.rs` | 30 `pub(crate) fn`, 0 private fn | Keep flat. There is no private surface to protect. `tests/core_workflow_tests.rs` reaches its helpers through `crate::branches::`, so every item is already crate-visible; a submodule boundary could only widen visibility, never narrow it. |
 | `changes.rs` | 25 `pub(crate) fn`, 0 private fn | Keep flat, same reason. Four other modules (`history`, `publish`, `recovery`, `sync`) import from it and `tests/changes_tests.rs` uses the crate-root glob. |
 | `clone.rs` | 4 `pub(crate) fn`, 27 private fn | Keep flat. It is already the shape a split aims for: a narrow public API over a large private implementation. Splitting would force 27 private helpers up to `pub(super)`, the opposite of the goal. |
 | `history.rs` | 6 `pub(crate) fn`, 39 private fn | Keep flat. Two clusters look separable (the read cache, and commit-object/cursor parsing), but neither boundary is narrow: the cache exports 4 types back to the read paths and needs 8 items from them, and the parsing cluster exports 10 items. That is a dense two-way seam, not an interface. |
@@ -447,7 +447,7 @@ private helpers should stop being visible to each other.
 ### `recovery.rs` becomes `recovery/{mod,discard,history}.rs`
 
 Two owners had been sharing one namespace: working-tree discard snapshots
-(ADR 0007) and pre-rewrite version-line tips kept as hidden refs (ADR 0008).
+(ADR 0007) and pre-rewrite branch tips kept as hidden refs (ADR 0008).
 Measured coupling before the split: the history half used exactly one item from
 the discard half (`now_ms`, a six-line clock) and the discard half used none of
 the history half's. The collision was already visible in the source —

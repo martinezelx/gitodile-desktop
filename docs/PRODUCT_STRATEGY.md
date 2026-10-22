@@ -72,6 +72,12 @@ Default actions should describe outcomes:
 
 Exact Git terminology should remain available in advanced views and educational explanations.
 
+Branches are named **branches** in English and **ramas** in Spanish in the
+default interface too. Familiar nouns reduce the vocabulary people need to
+learn; friendly actions and explanations still describe consequences. A linked
+workspace remains distinct from a branch. See
+[ADR 0035](adr/0035-use-branches-as-the-product-vocabulary.md).
+
 ### Safety before cleverness
 
 GitOdile should create or offer recovery points before destructive or history-changing operations. It should clearly explain whether an action affects local files, history, a remote repository, or teammates.

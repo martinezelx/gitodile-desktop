@@ -16,7 +16,7 @@ parent:
 
 # Goal
 
-Let **Review and get** advance a strictly behind version line when prepared or
+Let **Review and get** advance a strictly behind branch when prepared or
 unsaved tracked changes are demonstrably separate from every incoming path,
 without stashing, discarding, or silently altering local work.
 
@@ -24,8 +24,7 @@ without stashing, discarding, or silently altering local work.
 
 People can receive unrelated team documentation or code while continuing
 local work. A real path overlap still stops safely and explains the relevant
-team-update problem instead of incorrectly referring to switching version
-lines.
+team-update problem instead of incorrectly referring to switching branches.
 
 # Context
 
@@ -33,7 +32,7 @@ The original fast-forward implementation rejected every dirty tracked working
 tree before inspecting incoming paths. That conservative first version kept
 work safe, but blocked updates Git's two-tree `read-tree` operation can carry
 without loss. It also reused the global `dirty_working_tree` translation, whose
-remediation was written specifically for version-line switching.
+remediation was written specifically for branch switching.
 
 # Scope
 
@@ -79,7 +78,7 @@ remediation was written specifically for version-line switching.
       work prevents a complete non-overlap proof.
 - [x] Editing an already-dirty file after preview makes the plan stale before
       recovery is created.
-- [x] The dialog no longer describes a team-update collision as a version-line
+- [x] The dialog no longer describes a team-update collision as a branch
       switch failure.
 
 # Validation

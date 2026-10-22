@@ -9,7 +9,7 @@ import type {
   SavedVersionDetail,
 } from "./domain";
 import {
-  CURRENT_LINE_SCOPE,
+  CURRENT_BRANCH_SCOPE,
   NO_HISTORY_FILTERS,
   sameHistoryFilters,
   sameHistoryScope,
@@ -56,7 +56,7 @@ function emptyState(query: HistoryQuery): HistoryState {
   return {
     ...query,
     filters: NO_HISTORY_FILTERS,
-    scope: CURRENT_LINE_SCOPE,
+    scope: CURRENT_BRANCH_SCOPE,
     snapshot: null,
     versions: [],
     isLoading: false,
@@ -514,7 +514,7 @@ export function createHistoryController(port: HistoryPort) {
       if (sameHistoryFilters(entry.state.filters, filters)) return Promise.resolve();
       return restartTimeline(query, entry, { filters });
     },
-    /** Read a different history: the current line, one named line, or all of
+    /** Read a different history: the current branch, one named branch, or all of
      * them.
      *
      * Same restart as a filter change — the pagination pointers are the

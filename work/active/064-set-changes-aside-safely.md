@@ -32,7 +32,7 @@ to know Git's stash stack, reflog syntax, index semantics, or conflict behavior.
 # Context
 
 GitOdile already uses **Set changes aside** as its simple-mode wording for
-`git stash`, but no workflow exists. Version-line switching and team updates
+`git stash`, but no workflow exists. Branch switching and team updates
 correctly refuse to hide or move unsaved work automatically, so users currently
 have to save an unfinished version or leave the app.
 
@@ -93,7 +93,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
 - Restore with `apply --index`, not `pop`. Keep the stash until the user removes
   it in a separate action, so a successful-looking restore never destroys the
   only safety copy.
-- Never auto-stash before switching a version line, getting project changes,
+- Never auto-stash before switching a branch, getting project changes,
   publishing, closing a project, or quitting. Those flows may link to this
   explicit action, but they must not invoke it silently.
 
@@ -111,7 +111,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
   - the stash commit ID and a display selector;
   - a stable action identity that does not rely on `stash@{n}` remaining fixed;
   - bounded message, creation time, base commit, and parent structure;
-  - originating version line/worktree only when evidence makes it known;
+  - originating branch/worktree only when evidence makes it known;
   - changed-file totals and tracked/new/prepared-state evidence;
   - truncation, unsupported, and metadata-confidence flags.
 - Treat reflog messages, commit messages, identities, paths, and metadata as
@@ -167,7 +167,7 @@ Use a hybrid of the best competitor behaviors without copying any product:
 ## Plan and restore
 
 - The restore plan binds the stash object and current reflog snapshot, compares
-  its base/origin with the active version line, lists affected paths, and
+  its base/origin with the active branch, lists affected paths, and
   explains that applying onto newer or different work may overlap.
 - Require a clean working tree/index for the first release. If current work
   exists, offer **Set current changes aside first** rather than attempting a
@@ -269,17 +269,17 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 
 # Out of scope
 
-- Automatic or “magic” stashing during version-line switch, sync, publish,
+- Automatic or “magic” stashing during branch switch, sync, publish,
   project close, or app exit.
-- Replacing GitOdile's version-line model with GitButler-style parallel applied
+- Replacing GitOdile's branch model with GitButler-style parallel applied
   branches or adding linked worktrees as the solution to context switching.
 - Ignored-file stashes (`git stash --all`).
 - Partial-hunk/line stashes, interactive patch mode, or arbitrary manual Git
   pathspec entry.
 - `git stash pop`, `git stash clear`, bulk deletion, stash export/import/share,
   or editing externally created stash commit messages.
-- Automatically switching to the originating version line or creating a new
-  line with `git stash branch`.
+- Automatically switching to the originating branch or creating a new
+  branch with `git stash branch`.
 - Building a duplicate conflict editor or the general Recovery screen.
 - Remote/cloud storage, synchronization, AI naming, or repository content
   leaving the machine.
@@ -344,7 +344,7 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 - Exact index bytes, ignored/unrelated files, `HEAD`, branch refs, remotes, and
   Git config remain unchanged except for the explicitly planned stash/index/
   worktree effects.
-- Same-base, moved-base, different-version-line, conflicting, stale, locked,
+- Same-base, moved-base, different-branch, conflicting, stale, locked,
   interrupted, and injected mid-operation restore outcomes with retained stash
   and recovery evidence.
 - Single-entry remove/undo with selector drift, duplicate OIDs, linked
@@ -375,7 +375,7 @@ uncertain-outcome rules. Incomplete mutating affordances remain unavailable.
 - `docs/architecture/023-performance-baseline.md`
 - `docs/adr/0007-store-discard-recovery-in-worktree-git-metadata.md`
 - `docs/adr/0008-store-history-recovery-as-versioned-hidden-refs.md`
-- `work/done/016-manage-version-lines.md`
+- `work/done/016-manage-branches.md`
 - `work/done/054-make-changes-readable-copyable-and-safely-discardable.md`
 - `work/active/037-guided-conflict-resolution.md`
 - `src/features/changes/`

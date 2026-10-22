@@ -51,13 +51,59 @@ describe("projectSessionsReducer", () => {
     expect(state.byId["/a"].project.branch).toBe("feature");
   });
 
+  it("restores every project and the stored active one in a single transition", () => {
+    const state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b"), makeProject("/c")],
+      activeId: "/b",
+    });
+    expect(state.order).toEqual(["/a", "/b", "/c"]);
+    expect(state.activeId).toBe("/b");
+  });
+
+  it("falls back to the last restored project when the stored active one was skipped", () => {
+    const state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/c")],
+      activeId: "/b",
+    });
+    expect(state.order).toEqual(["/a", "/c"]);
+    expect(state.activeId).toBe("/c");
+  });
+
+  it("keeps a project the user opened while restore was still revalidating", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, {
+      type: "open",
+      project: makeProject("/b", { branch: "feature" }),
+    });
+    state = projectSessionsReducer(state, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b")],
+      activeId: null,
+    });
+    expect(state.order).toEqual(["/b", "/a"]);
+    expect(state.activeId).toBe("/b");
+    expect(state.byId["/b"].project.branch).toBe("feature");
+  });
+
+  it("keeps the project the user opened during restore active over the stored one", () => {
+    let state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/x") });
+    state = projectSessionsReducer(state, {
+      type: "restore",
+      projects: [makeProject("/a"), makeProject("/b")],
+      activeId: "/a",
+    });
+    expect(state.order).toEqual(["/x", "/a", "/b"]);
+    expect(state.activeId).toBe("/x");
+  });
+
   it("ignores activating an id that isn't open", () => {
     const state = projectSessionsReducer(initialProjectSessionsState, { type: "open", project: makeProject("/a") });
     const next = projectSessionsReducer(state, { type: "activate", id: "/nope" });
     expect(next).toBe(state);
   });
 
-  it("closing the active session selects the next adjacent session", () => {
+  it("closing the active session leaves no project active, never a neighbour", () => {
     let state = initialProjectSessionsState;
     for (const path of ["/a", "/b", "/c"]) {
       state = projectSessionsReducer(state, { type: "open", project: makeProject(path) });
@@ -65,17 +111,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, { type: "activate", id: "/b" });
     state = projectSessionsReducer(state, { type: "close", id: "/b" });
     expect(state.order).toEqual(["/a", "/c"]);
-    expect(state.activeId).toBe("/c");
-  });
-
-  it("closing the last session in order falls back to the new last session", () => {
-    let state = initialProjectSessionsState;
-    for (const path of ["/a", "/b", "/c"]) {
-      state = projectSessionsReducer(state, { type: "open", project: makeProject(path) });
-    }
-    // activeId is already "/c" (last opened).
-    state = projectSessionsReducer(state, { type: "close", id: "/c" });
-    expect(state.activeId).toBe("/b");
+    expect(state.activeId).toBeNull();
   });
 
   it("closing the only open session returns to the no-project state", () => {
@@ -279,9 +315,9 @@ describe("projectSessionsReducer", () => {
 
     // A local mutation writes repository state itself; refreshing underneath
     // it would show a half-finished tree or move the ground under a plan being
-    // confirmed. Version-line operations use the same coordination contract
+    // confirmed. Branch operations use the same coordination contract
     // as save and publish.
-    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "version-line" });
+    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "branch" });
     expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(false);
     for (const phase of ["executing", "verifying", "uncertain"] as const) {
       state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
@@ -360,7 +396,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "startOperation",
       id: "/worktree-a",
-      kind: "version-line",
+      kind: "branch",
     });
 
     expect(getMutationBlocker(state, "/worktree-b")?.id).toBe("/worktree-a");

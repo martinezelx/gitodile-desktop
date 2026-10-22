@@ -69,7 +69,7 @@ shared with Overview, its counts go live for free.
   looking at.
 - `.gitignore`-aware filtering via the `ignore` crate. The debounce is the
   first-order fix; ignore rules are the next lever if profiling asks for one.
-- Live-updating the version-lines inventory or the pending-versions list from
+- Live-updating the branches inventory or the pending-versions list from
   watch events. This task is about the working tree.
 - Any change to how diffs are read or cached.
 - Large-repository performance *tests* as a deliverable. Measured informally
@@ -82,7 +82,7 @@ shared with Overview, its counts go live for free.
 - [x] GitOdile's own reads do not retrigger the watcher — no refresh loop when
       the app is left idle on the Changes screen.
 - [x] A burst of filesystem activity produces a bounded number of refreshes.
-- [x] Refreshes are suppressed while a save, publish, or version-line
+- [x] Refreshes are suppressed while a save, publish, or branch
       operation is in flight for that project, and replayed when it ends
       rather than being dropped.
 - [x] Closing a project stops its watcher; no watcher outlives its session.
@@ -159,7 +159,7 @@ Task 019 for the session-level caching this refreshes into.
   only for linked worktrees. `innermost_git_dir` makes the caller's ordering
   irrelevant, and a test asserts both orderings agree.
 - **Events that arrive mid-mutation are queued, not dropped.** Suppressing a
-  refresh while a save/publish/version-line operation owns the working tree
+  refresh while a save/publish/branch operation owns the working tree
   is right; losing it is not, because the change that arrived is exactly the
   one the user will want reflected when the dialog closes. They coalesce into
   a single pending entry per project and replay on `finishSessionOperation`,

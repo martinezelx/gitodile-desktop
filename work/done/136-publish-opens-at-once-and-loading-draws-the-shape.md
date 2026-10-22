@@ -24,7 +24,7 @@ only when the read is slow enough to need it.
 
 Publish opens straight into its final dialog — title, the plan, Cancel and
 Publish — instead of a "Checking…" dialog that another dialog later replaced.
-When the version line tracks a remote, the plan is already filled in from what
+When the branch tracks a remote, the plan is already filled in from what
 the project knows (the pending versions as of the last check), with Publish
 held back as "Checking the remote…" until the fresh plan confirms or corrects
 it. Without that, faint placeholders stand where the plan will be.
@@ -32,7 +32,7 @@ it. Without that, faint placeholders stand where the plan will be.
 Across the app, a list, sentence or form that is waiting for its first read
 shows its real layout with faint text placeholders: the Overview's changed
 files and recent history, the Changes file list, the History timeline and a
-version's detail, the version lines and a line's route, project settings and
+version's detail, the branches and a branch's route, project settings and
 line endings. Nothing shows for the first 320ms, so a quick read never
 flickers. Diffs and other content whose shape can't be guessed keep the
 loading bar; refreshes keep what is on screen; buttons keep their spinner.
@@ -45,7 +45,7 @@ loading bar; refreshes keep what is on screen; buttons keep their spinner.
   learn whether anything was unsaved.
 - The dialog showed a loading note in its own shape, then swapped to the plan.
 - The app waited in three visual languages: the loading bar (Changes, History,
-  version lines), spinners (all of Overview, settings) and, new in this task,
+  branches), spinners (all of Overview, settings) and, new in this task,
   placeholders — so one kind of wait looked different on each screen.
 
 # Scope
@@ -53,10 +53,10 @@ loading bar; refreshes keep what is on screen; buttons keep their spinner.
 - `plan_publish` / `publish` validation (`src-tauri/src/publish.rs`): a lean
   status read (`--untracked-files=normal --no-renames`, no line totals); the
   status, `HEAD` and remote list asked side by side, errors still checked in
-  the old order; one ref-name check when the destination is the local line;
+  the old order; one ref-name check when the destination is the local branch;
   the commit count taken from the ahead/behind comparison when publishing
   everything; the two summary logs read side by side for a checkpoint publish.
-- `in_parallel` moved from `version_lines.rs` to `application.rs` beside
+- `in_parallel` moved from `branches.rs` to `application.rs` beside
   `inherit_command`; `resolve_head_state` split into `read_head_commit` and
   `classify_head`.
 - Publish dialog: opens in its final shape; `previewFromPendingVersions`
@@ -100,7 +100,7 @@ loading bar; refreshes keep what is on screen; buttons keep their spinner.
 - `src-tauri/src/publish.rs`
 - `src-tauri/src/application.rs`
 - `src-tauri/src/repository.rs`
-- `src-tauri/src/version_lines.rs`
+- `src-tauri/src/branches.rs`
 - `src/shared/ui/loadingPlaceholder.tsx`
 - `src/shared/ui/primitives.css`
 - `src/shared/ui/loadingBar.tsx`
@@ -111,8 +111,8 @@ loading bar; refreshes keep what is on screen; buttons keep their spinner.
 - `src/features/overview/HistorySummarySection.tsx`
 - `src/features/changes/ChangesPanel.tsx`
 - `src/features/history/HistoryPanel.tsx`
-- `src/features/version-lines/VersionLinesPanel.tsx`
-- `src/features/version-lines/VersionLineRoute.tsx`
+- `src/features/branches/BranchesPanel.tsx`
+- `src/features/branches/BranchRoute.tsx`
 - `src/features/project-settings/ProjectSettingsPanel.tsx`
 - `src/features/settings/SettingsPanel.tsx`
 - `DESIGN.md`
@@ -156,7 +156,7 @@ loading bar; refreshes keep what is on screen; buttons keep their spinner.
 
 # Validation
 
-- `cargo test publish` and `cargo test version_line` — passed.
+- `cargo test publish` and `cargo test branch` — passed.
 - `pnpm exec vitest run` (publish, history, architecture, shared UI) — passed.
 - `pnpm run check` — passed (docs, architecture, frontend, Rust format, Clippy
   and tests).

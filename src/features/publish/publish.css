@@ -1,21 +1,27 @@
 
 
+/* The versions to publish: one inner card (DESIGN.md § Dialogs) whose rows
+   are separated by space, not a rule — the hairline divides regions, never
+   rows. Each row keeps the item radius for its hover. */
 .publish-commit-list {
+  display: grid;
+  gap: 2px;
   margin: 0;
-  padding: 0;
+  padding: 4px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
+  background: var(--surface-card);
   max-height: 220px;
   overflow-y: auto;
   list-style: none;
 }
-.publish-commit-list__item + .publish-commit-list__item { border-top: 1px solid var(--border-divider); }
 .publish-commit-list__summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: 36px;
   padding: 7px 10px;
+  border-radius: var(--radius-item);
   color: var(--text-primary-color);
   font-size: var(--text-body);
   list-style: none;

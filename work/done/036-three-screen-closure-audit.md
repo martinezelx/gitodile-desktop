@@ -1,6 +1,6 @@
 ---
 id: 036
-title: Close-out audit for Overview, Changes, and Version lines
+title: Close-out audit for Overview, Changes, and Branches
 status: done
 priority: high
 type: audit
@@ -16,7 +16,7 @@ completed: 2026-08-07
 # Goal
 
 Audit the visual and implementation rework completed after `fbae51f` for the
-Overview, Changes, and Version lines screens, then define the smallest closure
+Overview, Changes, and Branches screens, then define the smallest closure
 pass required before starting the modular architecture refactor.
 
 The initial pass was diagnostic. The approved bounded closure pass then fixed
@@ -35,13 +35,13 @@ Implemented in the closure pass:
 - Added an opt-in **Accessible text** diff view containing every loaded hunk and
   line in one selectable, findable document while preserving virtualized visual
   views as the default.
-- Consolidated Changes view and Version lines sort/filter popups behind one
+- Consolidated Changes view and Branches sort/filter popups behind one
   focus/dismissal contract. Menus now support Arrow keys, Home, End, Tab,
   Escape and first-letter search; the filter is a truthful non-modal dialog and
   focuses its first checkbox.
 - Removed the passive freshness label from the live region.
 - Renamed the ambiguous sort to **Local-only first** / **Solo locales primero**
-  and covered a tracked-but-ahead line in its test data.
+  and covered a tracked-but-ahead branch in its test data.
 - Bounded the filter to the viewport with an independently scrolling option
   area and a reachable clear action.
 - Corrected the stale native-select comment and recorded the deferred warm-up
@@ -65,7 +65,7 @@ P3 0.
 
 - Baseline: `fbae51f` (`docs(work): plan modular feature architecture`).
 - Audited range: `fbae51f..a868c9e`.
-- Product surfaces: Overview, Changes, Version lines, and the dialogs/popups
+- Product surfaces: Overview, Changes, Branches, and the dialogs/popups
   directly introduced or changed by those screens.
 - Dimensions: accessibility, performance, theming, responsive behavior,
   implementation integrity, Git safety, and regression coverage.
@@ -75,7 +75,7 @@ P3 0.
 
 The rework is visually coherent, product-specific, and substantially better
 than the baseline. It preserves GitOdile's Friendly Card direction, uses the
-plain-language vocabulary consistently, keeps destructive version-line
+plain-language vocabulary consistently, keeps destructive branch
 operations behind plans and revalidation, and includes unusually strong tests
 for the new diff behavior.
 
@@ -127,10 +127,10 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 ### 2. Custom popups announce menu/dialog semantics they do not implement
 
-- **Location:** `src/changes.tsx:1082`, `src/versionLinesPanel.tsx:313`,
-  `src/versionLinesPanel.tsx:373`
+- **Location:** `src/changes.tsx:1082`, `src/branchesPanel.tsx:313`,
+  `src/branchesPanel.tsx:373`
 - **Category:** Accessibility
-- **Impact:** the Changes view picker and Version lines sort picker use
+- **Impact:** the Changes view picker and Branches sort picker use
   `role="menu"` / `menuitemradio` without Arrow key, Home, End, or typeahead
   behavior. The sort picker also leaves focus on the trigger when opened. The
   filter trigger announces `aria-haspopup="dialog"`, while the popup is only a
@@ -161,22 +161,22 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 ### 4. "Not published first" only means "has no upstream"
 
-- **Location:** `src/versionLinesPanel.tsx:626`
+- **Location:** `src/branchesPanel.tsx:626`
 - **Category:** UX copy / Implementation integrity
-- **Impact:** lines with an upstream and commits that have not been pushed are
+- **Impact:** branches with an upstream and commits that have not been pushed are
   not moved first, even though the UI elsewhere calls those commits "not
   pushed" and the sort label says "Not published first". The result is
   internally consistent in code but ambiguous to users.
 - **Recommendation:** either sort by all unpublished work (`upstream === null`,
   `upstreamAhead > 0`, and the chosen policy for a gone upstream), or rename
   the choice to "Local-only first" / "Solo locales primero". Add a test with
-  one local-only line and one tracked-but-ahead line.
+  one local-only branch and one tracked-but-ahead branch.
 
-### 5. The Version lines filter popup is unbounded for real branch sets
+### 5. The Branches filter popup is unbounded for real branch sets
 
-- **Location:** `src/styles.css:2338`, `src/versionLinesPanel.tsx:438`
+- **Location:** `src/styles.css:2338`, `src/branchesPanel.tsx:438`
 - **Category:** Responsive design / Adaptivity
-- **Impact:** the backend can return up to 300 version lines and the popup can
+- **Impact:** the backend can return up to 300 branches and the popup can
   render one prefix option per distinct prefix. With no `max-height` or inner
   scrolling, the filter can extend beyond a short or split window and make
   options or "Clear filters" difficult to reach.
@@ -214,7 +214,7 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 # Systemic patterns
 
-1. **Popup behavior is duplicated.** Overview, Changes, Version lines, and the
+1. **Popup behavior is duplicated.** Overview, Changes, Branches, and the
    titlebar each own slightly different dismissal, focus, and keyboard logic.
    This is now observable behavioral drift, not merely aesthetic duplication.
 2. **Repository reads still leak into screen lifecycle.** Session caching is
@@ -236,12 +236,12 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
   and has integration coverage.
 - Cached snapshots remain visible through refreshes and failures instead of
   flashing empty/loading states.
-- Overview's hierarchy is materially clearer: identity, current line, unsaved
+- Overview's hierarchy is materially clearer: identity, current branch, unsaved
   work, and unpublished saved versions have distinct ownership and actions.
-- Version-line deletion remains plan-first and backend-revalidated; unique work
+- Version-branch deletion remains plan-first and backend-revalidated; unique work
   and linked worktrees are not silently discarded.
 - Responsive list/detail behavior for Changes and wrapping row actions for
-  Version lines are intentional rather than incidental.
+  Branches are intentional rather than incidental.
 - The rework added substantial regression coverage. Current result: 203
   frontend tests and 180 Rust tests pass.
 
@@ -265,7 +265,7 @@ should be captured as a baseline/acceptance criterion rather than moved twice.
 
 - [x] The selected diff has a documented and tested complete reading/copying
       path that does not depend on currently mounted virtual rows.
-- [x] Changes view mode, Version lines sort, and Version lines filters expose
+- [x] Changes view mode, Branches sort, and Branches filters expose
       truthful ARIA semantics and complete keyboard/focus behavior.
 - [x] The passive freshness age does not generate minute-by-minute live
       announcements.
@@ -302,8 +302,7 @@ scenarios. No production Rust code changed in this closure pass.
 The exceptional states in the closure checklist combine the recorded tasks
 033–035 visual review with this focused Tauri inspection and the existing
 state-specific regression suite. This pass re-inspected the surfaces that
-changed: both themes, Changes visual/text modes, keyboard focus/menu, Version
-lines, and the filter popup at bounded desktop sizes.
+changed: both themes, Changes visual/text modes, keyboard focus/menu, Branches, and the filter popup at bounded desktop sizes.
 
 Visual evidence inspected in Tauri:
 
@@ -311,8 +310,8 @@ Visual evidence inspected in Tauri:
 - Changes unified diff in dark and light themes.
 - Changes view menu with visible focus and the new Accessible text option.
 - Complete accessible text diff in light theme.
-- Version lines in dark and light themes.
-- Version lines filter dialog in light theme, including focus entry and the
+- Branches in dark and light themes.
+- Branches filter dialog in light theme, including focus entry and the
   viewport-bounded option region.
 
 # Validation performed during the initial audit

@@ -39,7 +39,7 @@ complete the ordinary local Git lifecycle without registration or payment.
 
 The exact release cut evolves with the product, but the free core is expected
 to include ordinary project acquisition and creation, Changes and readable
-diffs, saving versions, History, version-line basics, fetch/get/publish,
+diffs, saving versions, History, branch basics, fetch/get/publish,
 integration, guided conflict resolution, the basic set-aside workflow, and the
 recovery required by those operations.
 
@@ -124,7 +124,7 @@ Expected value includes the supported local core:
 - understand current changes and readable diffs;
 - save all or selected files as a version;
 - inspect saved history;
-- ordinary version-line creation, switching, integration, publication, and
+- ordinary branch creation, switching, integration, publication, and
   deletion as those workflows ship;
 - check for, get, and publish project changes;
 - guided resolution for supported overlapping changes;

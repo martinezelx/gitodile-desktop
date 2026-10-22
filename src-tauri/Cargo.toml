@@ -1,6 +1,6 @@
 [package]
 name = "gitodile"
-version = "0.3.0"
+version = "0.4.0"
 description = "A friendly Git desktop client"
 authors = ["Luis M. Martínez"]
 edition = "2021"
@@ -11,23 +11,30 @@ name = "gitodile_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7.2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-os = "2"
-tauri-plugin-updater = "=2.11.0"
+tauri = { version = "2.12.3", features = [] }
+tauri-plugin-dialog = "2.8.1"
+tauri-plugin-opener = "2.7.0"
+tauri-plugin-os = "2.4.0"
+tauri-plugin-updater = "=2.13.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+zeroize = "1"
 semver = "1"
 sha2 = "0.11"
 tokio = { version = "1", features = ["macros", "sync", "time"] }
-# The exact updater plugin owns the only HTTP client. This direct dependency is
-# type-level only: it lets GitOdile retain the plugin client's redirect/timeout
-# policy and classify its errors without selecting a second TLS provider.
+# The updater plugin supplies the TLS provider. This direct dependency retains
+# its redirect/timeout policy and supports a separate, unauthenticated, bounded
+# GitHub avatar client without selecting another TLS provider or new features.
+# The hosting API clients rely on the plugin's OS trust store and OS proxy
+# support; scripts/check-app-update-contracts.mjs fails if either disappears.
 reqwest = { version = "0.13", default-features = false }
+# Already supplied transitively by the updater. Initialize its existing ring
+# provider when an avatar is the first HTTPS request in this app session.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 time = { version = "0.3", features = ["formatting"] }
 # Filesystem watching for live working-tree updates (task 020). Default
 # features off: only the platform backends are wanted, not `serde` (events are

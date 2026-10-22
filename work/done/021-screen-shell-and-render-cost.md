@@ -13,7 +13,7 @@ completed: 2026-08-01
 # Goal
 
 Remove the remaining perceptible lag when switching between Overview, Changes
-and Version lines, and make "switching screens is free" a structural property
+and Branches, and make "switching screens is free" a structural property
 of the app rather than something each screen has to earn. After this task,
 adding a fourth screen (History timeline, task 015, is the next one) must
 inherit instant switching, chunk prefetching, background invalidation and the
@@ -23,17 +23,17 @@ tasks 018, 019 and this one did.
 # User outcome
 
 Reported directly by the user, after task 019 shipped: "cuando cambio entre
-pantallas hay un ligero lag... entre overview, changes y version lines."
+pantallas hay un ligero lag... entre overview, changes y branches."
 
 Task 019 removed most navigation-owned data work, but follow-up profiling found
-one expensive read still tied to arrival at Version lines. This task therefore
+one expensive read still tied to arrival at Branches. This task therefore
 addresses both halves: avoid rebuilding visited screens and ensure navigation
 never starts or synchronously waits for Git work.
 
 # Context
 
 Task 019 moved every per-project repository fact into `ProjectSession`
-(`workingTree`, `pendingVersions`, `versionLines`) and lifted the diff cache
+(`workingTree`, `pendingVersions`, `branches`) and lifted the diff cache
 into `diffCache.ts`, so `navigateToView` performs no fetch and no screen shows
 a spinner on a warm session. That part is done and must not be redone here.
 
@@ -55,8 +55,8 @@ What still costs work on every switch, found by reading the current code:
    screen together. Any unrelated `App` state change (tooltip, palette, dialog
    flags) also re-renders the visible screen's whole subtree.
 
-3. **Revalidation fires in the mount frame.** The Version lines arrival effect
-   (`view === "version-lines"` → `refreshVersionLines`) runs in the same commit
+3. **Revalidation fires in the mount frame.** The Branches arrival effect
+   (`view === "branches"` → `refreshBranches`) runs in the same commit
    as the screen mount, and its resolution triggers another full `App` render
    shortly after. The startup warm-up already goes through `scheduleIdleTask`;
    arrival revalidation does not.
@@ -69,13 +69,13 @@ What still costs work on every switch, found by reading the current code:
    the lazy import list, `prefetchLazyPanels`, the full nav list, the compact
    nav list, the ternary chain, and the "leave this screen if the project
    closed" effect. Every one of those is a chance for a new screen to silently
-   miss an optimisation — exactly how the two Version-lines chunks were left
+   miss an optimisation — exactly how the two Branches chunks were left
    out of task 018's prefetch list and were only caught in task 019.
 
 Item 5 is the durable half of this task. Items 1–4 are the visible half.
 
 Follow-up diagnosis against this repository (4 local branches, 91 commits)
-identified the dominant remaining cause: `get_version_lines` was a synchronous
+identified the dominant remaining cause: `get_branches` was a synchronous
 Tauri command that launched 10 Git processes and occupied about 339 ms median.
 The arrival refresh therefore blocked the desktop command thread at exactly
 the moment the user was switching screens. React mount cost was real, but it
@@ -83,7 +83,7 @@ was not the largest remaining cost.
 
 # Scope
 
-- **Measure the actual blocking path.** Record the native version-line read
+- **Measure the actual blocking path.** Record the native branch read
   before and after, and keep an opt-in dev `<Profiler>` available for future UI
   regressions without adding measurement overhead to normal development.
 - **Screen registry.** One `screens.tsx` (or equivalent) exporting a table
@@ -112,7 +112,7 @@ was not the largest remaining cost.
   visible. Refresh once when a project becomes active, then from explicit user
   refresh, successful mutations, and repository-watch invalidation.
 - **Non-blocking native boundary.** Git-backed Tauri commands execute
-  asynchronously, and version-line discovery batches per-branch metadata into
+  asynchronously, and branch discovery batches per-branch metadata into
   the inventory command on modern Git while retaining an older-Git fallback.
 - **Stable snapshots.** Cached refreshes do not publish loading state, and an
   unchanged branch snapshot preserves reducer/object identity.
@@ -141,7 +141,7 @@ was not the largest remaining cost.
 
 # Acceptance criteria
 
-- [x] Before/after measurements recorded for the blocking version-line read,
+- [x] Before/after measurements recorded for the blocking branch read,
       plus a warmed desktop stress pass across every screen combination. See
       Validation.
 - [x] Screens mount at most once per active project session; a test asserts it.
@@ -173,7 +173,7 @@ was not the largest remaining cost.
 - `src-tauri/src/lib.rs` — asynchronous command boundary and batched branch
   discovery with a compatibility fallback.
 - `src/changes.tsx` — `DiffHunkList` virtualizer, mount-time effects.
-- `src/versionLinesPanel.tsx` — controlled snapshot panel from task 019.
+- `src/branchesPanel.tsx` — controlled snapshot panel from task 019.
 - `src/projectSessions.ts` — `ProjectView`, per-session state and eviction.
 - `src/diffCache.ts` — cache lifetime already tied to the session.
 - `docs/ARCHITECTURE.md`, `AGENTS.md`, `work/done/015-history-timeline.md`.
@@ -203,7 +203,7 @@ New file `src/screens.tsx` owns the `NAV_DESTINATIONS` registry and the
 now derives the expanded nav, the compact nav, the palette's "go to" commands,
 the idle prefetch, and the project-closed guard from that registry instead of
 repeating every destination by hand. The two screen panels (`ChangesPanel`,
-`VersionLinesPanel`) moved their `lazy()` declarations there so a registry
+`BranchesPanel`) moved their `lazy()` declarations there so a registry
 entry sits next to the component it names; the dialogs stayed in `main.tsx`,
 since they are not screens.
 
@@ -243,7 +243,7 @@ belongs in its own task, with numbers behind it.
 panel staying mounted, those effects now run once per project rather than once
 per visit, so the cost this task set out to remove is already gone.
 
-Version-line discovery now uses `%(ahead-behind:<HEAD>)` and `%(worktreepath)`
+Branches discovery now uses `%(ahead-behind:<HEAD>)` and `%(worktreepath)`
 inside the existing `for-each-ref` inventory on Git 2.41 and newer. That removes
 the duplicate `rev-parse`, the separate worktree process, and one unique-count
 process per non-active branch. If the atom is unsupported, the read-only
@@ -265,7 +265,7 @@ request can neither populate the new session nor clear its replacement.
   query reaches the hidden screen, and that its slot carries `hidden`; plus a
   close/reopen race test that rejects the old session's delayed branch data).
 - `pnpm run build` — pass. Chunk split intact: `changes` 301.80 kB,
-  `versionLinesPanel` 8.01 kB, `versionLinesDialog` 12.76 kB, `publishDialog`
+  `branchesPanel` 8.01 kB, `branchesDialog` 12.76 kB, `publishDialog`
   9.96 kB, `pendingVersions` 4.75 kB. Entry 339.93 kB (gzip 98.72). The
   switch profiler is opt-in with `VITE_PROFILE_SCREEN_SWITCHES=true`, so normal
   development and production runs do not pay its instrumentation cost.
@@ -282,10 +282,10 @@ request can neither populate the new session nor clear its replacement.
   169.1 ms / 5 processes after — a 50% reduction. The remaining work runs
   behind an asynchronous Tauri command instead of occupying the UI thread.
 - Desktop stress pass in the running Tauri app after warming each lazy chunk:
-  Overview → Changes → Version lines → Overview, Overview → Version lines,
-  and Version lines → Changes all rendered complete in the first capture with
+  Overview → Changes → Branches → Overview, Overview → Branches,
+  and Branches → Changes all rendered complete in the first capture with
   no loading state. Repeated visits preserved the selected Changes diff and
-  the Version-lines snapshot.
+  the Branches snapshot.
 - `cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features`
   — pass, 172 tests.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.

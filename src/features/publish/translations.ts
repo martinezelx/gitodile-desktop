@@ -1,8 +1,25 @@
 export interface PublishTranslations {
   publishDialogTitle: string;
-  publishDialogTitleFirst: (branch: string) => string;
+  /** Titles fit one line, so the branch's name is in the plan's sentence. */
+  publishDialogTitleFirst: string;
+  /** The branch tracks a branch the remote deleted: publishing creates it again. */
+  publishDialogTitleAgain: string;
+  /** The dead ends, each a short message of its own. */
+  publishNothingTitle: string;
+  publishBlockedTitle: string;
+  /** What stays safe, the plan's last fact. */
+  publishSafeNote: string;
+  publishRecreateWarningTitle: (remote: string) => string;
+  publishRecreateWarningBody: string;
+  /** Recreating a branch whose versions the remote already has elsewhere. */
+  publishRecreateOnlyBranch: (remote: string, branch: string) => string;
+  publishRecreateConfirm: string;
+  /** A new remote branch whose versions the remote already has elsewhere. */
+  publishCreateOnlyBranch: (remote: string, branch: string) => string;
+  /** The toast for a publish that created a branch and sent no new version. */
+  publishBranchCreatedDescription: (branch: string, remote: string) => string;
   publishChooseRemoteHeading: string;
-  /** The plan in one line: how many versions, to which line on which remote. */
+  /** The plan in one line: how many versions, to which branch on which remote. */
   publishPlanLine: (count: number, remote: string, branch: string) => string;
   publishLoadingTitle: string;
   publishChooseRemoteTitle: string;
@@ -29,7 +46,20 @@ export interface PublishTranslations {
 
 const en: PublishTranslations = {
   publishDialogTitle: "Publish changes",
-  publishDialogTitleFirst: (branch) => `Publish “${branch}” for the first time`,
+  publishDialogTitleFirst: "Publish a new branch",
+  publishDialogTitleAgain: "Publish the branch again",
+  publishNothingTitle: "Everything is published",
+  publishBlockedTitle: "Can't publish yet",
+  publishSafeNote: "Nothing already on the remote is overwritten.",
+  publishRecreateWarningTitle: (remote) => `This branch was deleted on “${remote}”.`,
+  publishRecreateWarningBody:
+    "Publishing creates it there again. If its pull request was already merged, switching to the main branch is usually better.",
+  publishRecreateOnlyBranch: (remote, branch) =>
+    `“${branch}” will be created again on “${remote}”. Its versions are already on the remote.`,
+  publishRecreateConfirm: "Recreate and publish",
+  publishCreateOnlyBranch: (remote, branch) =>
+    `“${branch}” will be created on “${remote}”. Its versions are already on the remote.`,
+  publishBranchCreatedDescription: (branch, remote) => `“${branch}” is now on “${remote}”.`,
   publishChooseRemoteHeading: "Where to publish?",
   publishPlanLine: (count, remote, branch) =>
     count === 1
@@ -65,7 +95,20 @@ const en: PublishTranslations = {
 
 const es: PublishTranslations = {
   publishDialogTitle: "Publicar cambios",
-  publishDialogTitleFirst: (branch) => `Publicar «${branch}» por primera vez`,
+  publishDialogTitleFirst: "Publicar una rama nueva",
+  publishDialogTitleAgain: "Volver a publicar la rama",
+  publishNothingTitle: "Todo está publicado",
+  publishBlockedTitle: "Aún no se puede publicar",
+  publishSafeNote: "No se sobrescribe nada de lo que ya está en el remoto.",
+  publishRecreateWarningTitle: (remote) => `Esta rama se borró en «${remote}».`,
+  publishRecreateWarningBody:
+    "Publicar la volverá a crear allí. Si su PR ya se fusionó, normalmente es mejor cambiar a la rama principal.",
+  publishRecreateOnlyBranch: (remote, branch) =>
+    `«${branch}» se volverá a crear en «${remote}». Sus versiones ya están en el remoto.`,
+  publishRecreateConfirm: "Volver a crear y publicar",
+  publishCreateOnlyBranch: (remote, branch) =>
+    `«${branch}» se creará en «${remote}». Sus versiones ya están en el remoto.`,
+  publishBranchCreatedDescription: (branch, remote) => `«${branch}» ya está en «${remote}».`,
   publishChooseRemoteHeading: "¿Dónde publicar?",
   publishPlanLine: (count, remote, branch) =>
     count === 1

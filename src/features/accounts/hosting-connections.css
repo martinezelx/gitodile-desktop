@@ -1,0 +1,98 @@
+/* Inline panels and notes shared by the account list's rows and forms. */
+.github-account { display: grid; gap: var(--space-5); }
+.github-account p { margin: 0; }
+.github-account__avatar { width: 100%; height: 100%; border-radius: var(--radius-round); object-fit: cover; }
+.github-account__note { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.github-account__shared { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-label); line-height: var(--leading-normal); color: var(--text-secondary-color); }
+.github-account__shared svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.github-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.github-account__pending { justify-content: space-between; align-items: center; }
+.github-account__authorization { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-code); }
+.github-account__code { font-family: var(--font-mono); font-size: var(--text-display); letter-spacing: var(--tracking-caps); user-select: text; }
+.github-token__editor { display: grid; gap: var(--space-3); padding-block: var(--space-2); }
+.github-token__permissions { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.github-token__permissions summary { width: fit-content; color: var(--text-primary-color); font-weight: var(--weight-strong); border-radius: var(--radius-item); }
+.github-token__permissions summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--space-1); }
+.github-token__permissions p { margin-top: var(--space-2); }
+/* Settings → Accounts: one account list for every provider, grouped by host. */
+.hosting-accounts__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.hosting-accounts__header > div:first-child { display: grid; gap: var(--space-1); }
+.hosting-accounts__header .github-account__actions { flex-wrap: nowrap; flex-shrink: 0; }
+.hosting-accounts__header button { flex-shrink: 0; white-space: nowrap; }
+.hosting-accounts { display: grid; gap: var(--space-4); }
+.hosting-accounts__host { display: grid; gap: var(--space-2); }
+.hosting-accounts__host-label { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
+.hosting-accounts__host-label strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.hosting-accounts__host-label svg { width: 14px; height: 14px; flex-shrink: 0; }
+.hosting-accounts__pill { padding: 1px var(--space-2); border: 1px solid var(--border-divider); border-radius: var(--radius-pill); font-size: var(--text-caption); }
+.hosting-accounts__list { display: grid; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
+.hosting-accounts__list > * { padding: var(--space-3) var(--space-4); }
+.hosting-accounts__list > * + * { border-top: 1px solid var(--border-subtle); }
+.hosting-accounts__list > .hosting-accounts__method,
+.hosting-accounts__list > .github-account--embedded { display: grid; gap: var(--space-3); padding: 0; }
+.hosting-accounts__method > *, .github-account--embedded > * { margin-inline: var(--space-4); }
+.hosting-accounts__method > :first-child, .github-account--embedded > :first-child { margin-top: var(--space-3); }
+.hosting-accounts__method > :last-child, .github-account--embedded > :last-child { margin-bottom: var(--space-3); }
+.hosting-accounts__empty { padding: var(--space-3) var(--space-4); }
+.hosting-accounts__add { gap: var(--space-4); }
+.hosting-accounts__add-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); font-weight: var(--weight-strong); }
+.hosting-accounts__add-title svg { width: 16px; height: 16px; flex-shrink: 0; }
+/* Settings → Accounts lists every provider's hosts in one list: a host with
+   nothing connected and nothing in progress has an empty list, and folds away
+   rather than drawing an empty box under its name. */
+.hosting-accounts__host:has(> .hosting-accounts__list:empty) { display: none; }
+/* "Connect account" and the provider menu it opens. */
+.accounts-connect { position: relative; }
+.accounts-connect__menu { min-width: 280px; }
+.accounts-connect__item { gap: var(--space-3); }
+.accounts-connect__item svg { width: 18px; height: 18px; color: var(--text-primary-color); }
+.accounts-connect__item > span { display: grid; gap: 2px; }
+.accounts-connect__item strong { font-weight: var(--weight-strong); }
+.accounts-connect__item small { color: var(--text-secondary-color); font-size: var(--text-label); }
+/* One folded block per provider: what only that provider has. */
+.accounts-providers { display: grid; gap: var(--space-3); }
+.accounts-provider { border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); overflow: hidden; }
+.accounts-provider__head {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  min-height: var(--control-height-lg); padding: var(--space-3) var(--space-4);
+  border: 0; background: transparent; color: var(--text-primary-color); font: inherit; text-align: left;
+}
+.accounts-provider__head:hover { background: var(--surface-hover); }
+.accounts-provider__head:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-control); }
+.accounts-provider__mark { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; }
+.accounts-provider__mark svg { width: 18px; height: 18px; }
+.accounts-provider__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.accounts-provider__text strong { font-size: var(--text-subtitle); font-weight: var(--weight-heading); }
+.accounts-provider__text span { color: var(--text-secondary-color); font-size: var(--text-label); }
+.accounts-provider__chip { flex-shrink: 0; }
+.accounts-provider__chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
+.accounts-provider__head[aria-expanded="true"] .accounts-provider__chevron { transform: rotate(180deg); }
+.accounts-provider__body { padding: var(--space-4); border-top: 1px solid var(--border-subtle); }
+.accounts-provider__body[hidden] { display: none; }
+.accounts-provider__body > .settings-group + .settings-group { margin-top: var(--space-5); padding-top: var(--space-5); }
+.accounts-provider__note { display: grid; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
+.accounts-provider__note p { margin: 0; }
+.hosting-accounts__choices { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.hosting-accounts__segmented { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--surface-control); }
+.hosting-accounts__segmented button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-height-sm); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--control-font-sm); cursor: default; }
+.hosting-accounts__segmented button svg { width: 14px; height: 14px; }
+.hosting-accounts__segmented button[aria-checked="true"] { background: var(--surface-raised); color: var(--text-primary-color); font-weight: var(--weight-strong); }
+.hosting-accounts__segmented button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+@media (max-width: 800px) {
+  .hosting-accounts__header { flex-wrap: wrap; }
+}
+/* One account per row, all the same height: avatar, login + chips, actions. */
+.account-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: var(--control-height-lg); }
+.account-row__avatar { display: grid; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-secondary-color); }
+.account-row__avatar svg { width: 16px; height: 16px; }
+.account-row__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.account-row__main { display: grid; gap: var(--space-1); min-width: 0; }
+.account-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.account-row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
+.account-row__method { color: var(--text-secondary-color); }
+.account-row__notice { display: grid; gap: var(--space-1); }
+.account-row__notice > * { margin: 0; }
+.account-row__notice svg { width: 13px; height: 13px; flex-shrink: 0; }
+.account-row__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.hosting-accounts__method > .account-row + .account-row,
+.github-account--embedded > .account-row + .account-row { border-top: 1px solid var(--border-subtle); padding-top: var(--space-3); }

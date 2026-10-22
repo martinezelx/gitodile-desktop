@@ -6,7 +6,13 @@ import type { SettingsPort } from "./port";
 
 /** Only this adapter knows the stable IPC command names and payload casing. */
 export const settingsPort: SettingsPort = {
+  readGhDiagnostics: () => invoke("gh_diagnostics"),
+  checkGhUpdate: () => invoke("check_gh_update"),
+  installGh: () => invoke("install_gh"),
+  updateGh: () => invoke("update_gh"),
   readDiagnostics: () => invoke("git_diagnostics"),
+  readInstallationDetails: () => invoke("git_installation_details"),
+  revealGitLocation: (target) => invoke("reveal_git_location", { target }),
   checkUpdate: () => invoke("check_git_update"),
   installGit: () => invoke("install_git"),
   updateGit: () => invoke("update_git"),

@@ -45,7 +45,24 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 by explicit request. The next unused top-level ID after the
-current plan is `144`.
+current plan is `195`.
+
+The completed branch vocabulary refactor and expanded pre-commit review are recorded in
+[194](done/194-use-branches-throughout-project.md), including the bilingual
+inventory, current stored format, historical material and validation evidence.
+
+The current GitHub/GitLab epic is [148](active/148-connect-github-account.md). Its
+original browser connection and completed follow-ups remain historical evidence;
+the expanded epic tracks shared access, discovery, PRs and Actions separately.
+GitHub integration is complete: browser/CLI plus native tokens
+([148-9](done/148-9-github-token-connections.md)) and repository discovery
+([148-5](done/148-5-provider-repository-browser.md)). GitLab/glab is also complete
+([148-4](done/148-4-gitlab-accounts.md)). Corporate hosts (GitHub Enterprise
+Server and GitLab Self-Managed) are complete in
+[148-10](done/148-10-enterprise-and-self-managed-hosts.md). Bitbucket Cloud token
+connections and discovery are [148-11](active/148-11-bitbucket-token-connections.md),
+queued before the PR/Actions screens; Bitbucket browser authorization
+[148-8](blocked/148-8-bitbucket-accounts.md) stays deferred outside the active queue.
 
 A multi-task epic may group its child task files in a subfolder under
 `active/` (e.g. `active/architecture/`) to signal priority and keep the

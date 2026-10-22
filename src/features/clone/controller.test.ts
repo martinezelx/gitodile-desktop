@@ -50,6 +50,8 @@ function deferred<T>() {
 
 function port(overrides: Partial<ClonePort> = {}): ClonePort {
   return {
+    checkSource: async () => "accessible",
+    cancelSourceCheck: async () => undefined,
     chooseParent: async () => null,
     plan: async () => clonePlan(),
     execute: async () => cloneResult,

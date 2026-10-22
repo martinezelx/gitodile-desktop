@@ -45,7 +45,7 @@ states, and simple/advanced navigation registry.
 - Replace the expanded/collapsed sidebar pair with one fixed 88px rail.
 - Separate brand, project destinations, active-project controls, and app-level
   utilities through spacing and stable placement.
-- Keep Overview, Changes, Version lines, History, Recovery, and More in registry
+- Keep Overview, Changes, Branches, History, Recovery, and More in registry
   order, moving destinations that do not fit into More without a scrollbar.
 - Put the active project behind one searchable rail popover and keep the shared
   add-project menu directly below it.

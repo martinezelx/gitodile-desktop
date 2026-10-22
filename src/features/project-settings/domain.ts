@@ -47,7 +47,7 @@ export type ProjectRemote = {
 
 export type ProjectRemotes = {
   remotes: ProjectRemote[];
-  /** The remote the current version line publishes to, when it has one. */
+  /** The remote the current branch publishes to, when it has one. */
   upstreamRemote: string | null;
 };
 

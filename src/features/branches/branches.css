@@ -1,0 +1,1381 @@
+.branch-selector {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
+  padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  background: var(--surface-hover); color: var(--text-primary-color);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.branch-selector:hover { background: var(--surface-active); }
+.branch-selector[aria-expanded="true"] { border-color: var(--accent-primary); background: var(--surface-active); }
+.branch-selector--static { background: transparent; border-style: dashed; }
+.branch-selector__icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: currentColor;
+}
+.branch-selector__value {
+  min-width: 0; overflow-wrap: anywhere; color: var(--text-primary-color);
+  font-size: var(--text-subtitle); font-weight: var(--weight-heading);
+  font-family: var(--font-mono);
+}
+.branch-selector__chevron {
+  flex-shrink: 0; width: 15px; height: 15px; color: var(--text-secondary-color);
+  transition: transform var(--duration-fast);
+}
+.branch-selector[aria-expanded="true"] .branch-selector__chevron { transform: rotate(180deg); }
+/* The labelled face (`label`): the branch glyph in a neutral circle, then a
+   caption over the value — the label-and-value shape of a band tile. */
+.branch-selector__tile {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-round);
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.branch-selector__tile .branch-selector__icon { width: 17px; height: 17px; }
+.branch-selector__copy { min-width: 0; flex: 1 1 auto; display: grid; text-align: left; }
+.branch-selector__label {
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+}
+
+/* One line, as every in-screen notice (DESIGN.md § Content design): the
+   title, then the explanation cut short with the whole of it on its tooltip,
+   and the way out at the end. */
+.branches-banner {
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-surface);
+  border: 1px solid var(--border-subtle); background: var(--surface-card);
+}
+.branches-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.branches-banner h2 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
+.branches-banner p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-body); text-overflow: ellipsis; white-space: nowrap; }
+.branches-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.branches-banner .primary-button { flex: 0 0 auto; }
+.branches-banner .primary-button svg { width: 16px; height: 16px; }
+.branches-refresh-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) 10%, var(--surface-panel));
+  color: var(--status-danger);
+  font-size: var(--text-body);
+}
+.branches-refresh-error > span { min-width: 0; }
+.branches-refresh-error .secondary-button { flex: 0 0 auto; }
+
+/* Branches is built out of the same pieces as the Work screen's two tabs:
+   `--panel-column` and `--strip-height` from tokens.css, one list panel headed
+   by a strip and paired with one detail card, and no page row above them — the
+   panels are where the screen starts. Nothing here invents a measure Changes
+   and History do not already keep — see the notes on `.history-layout` and
+   `.changes-layout`. */
+.workspace--branches { overflow-y: hidden; }
+
+.branches-screen {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.branches-notices:empty { display: none; }
+.branches-notices { display: grid; gap: 6px; padding: var(--space-3) var(--space-3) 0; }
+.branches-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--panel-column) minmax(0, 1fr);
+  gap: 0;
+}
+
+/* A region of the sheet, not a bare column: the sibling of the History
+   timeline and of the Changes file list, with one strip at the top and one
+   hairline to the detail (ADR 0032). */
+.branches-list-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-inline-end: 1px solid var(--border-subtle);
+}
+/* The panel's header is the screen's name, at the height of a strip so the
+   detail card's strip beside it is level with it. Set the way the Work
+   screen's active tab is: the glyph the rail gives Branches in the accent and the
+   word in the title's type, primary — the header of a column, not a control. */
+.branches-list-panel__header {
+  flex: 0 0 auto;
+  height: var(--strip-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.branches-list-panel__header svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent-primary); }
+.branches-list-panel__header h1 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The positioning context for the filter panel below, which spans the strip
+   rather than hanging off a 24px trigger at its right end. A step down from
+   the header above it, the way History's search strip steps down from its
+   tabs. */
+.branches-list-panel__toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  height: var(--strip-height-inner);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+}
+.branches-list-panel__toolbar .search-box { flex: 1; }
+/* Two pixels under the strip, in the flow rather than over the rows: the list
+   below dims instead of blanking while Git answers. */
+.branches-list-panel__progress { flex: 0 0 auto; height: 2px; margin: 0 var(--space-2); }
+.branches-list-panel__progress .loading-state { gap: 0; }
+.branches-list-panel__footer {
+  flex: 0 0 auto;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+.branches-list-panel__footer p { margin: 0; }
+
+.branches-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) 5px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.branches-list__empty {
+  flex: 0 0 auto;
+  margin: auto;
+  padding: 20px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  text-align: center;
+}
+
+/* The new-branch composer at the foot of the list. The box itself is
+   `.docked-composer` in primitives.css — the pattern Changes' save box set
+   (DESIGN.md, Changes) — and what is left here is what only this box holds:
+   the choice of where the branch starts, the detached-`HEAD` note, the name in
+   mono and why Git would refuse it. */
+.branches-quick-create__from > span:first-child { flex: 0 0 auto; white-space: nowrap; }
+/* A detached `HEAD` has one honest starting point, and the plan line's slot
+   says why instead of naming a branch. */
+.branches-quick-create__note {
+  margin: 0; padding: 0 var(--space-4);
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
+/* `.segmented-control` at its own default size is Settings-scale, sized for
+   a whole panel row. In the plan line it is scaled down to the caption line
+   it sits in rather than growing the line to fit it — the same "smaller box,
+   not a quieter colour" reading DESIGN.md gives `.primary-button--sm`. A
+   branch's own name has no natural length limit, so the option is capped and
+   ellipsised, with the full name on the tooltip. `flex-direction: row`
+   overrides primitives.css's narrow-window stacking, which is sized for
+   Settings' much wider rows: two capped options fit side by side even in
+   this screen's narrowest list column. */
+.branches-quick-create__from .segmented-control {
+  flex: 0 1 auto; flex-direction: row; min-width: 0; padding: 2px; gap: 2px; border-radius: var(--radius-item);
+}
+.branches-quick-create__from .segmented-control__option {
+  flex: 0 1 auto; min-width: 0; max-width: 130px; padding: 2px 8px; border-radius: var(--radius-item);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-caption); font-weight: var(--weight-medium);
+}
+.branches-quick-create__from .segmented-control__option--mono { display: block; font-family: var(--font-mono); }
+/* The default branch's name is short almost everywhere ("main", "master",
+   "trunk"), so it keeps its width and the active branch's name, which has no
+   natural limit, is the one that gives way. */
+.branches-quick-create__from .segmented-control__option:first-child { flex-shrink: 0; max-width: 90px; }
+.branches-quick-create__from .segmented-control__option:disabled { opacity: 0.5; }
+/* The name is set in mono because it is a branch's name; the placeholder is
+   prose. */
+input.branches-quick-create__name { font-family: var(--font-mono); }
+/* The format, said quietly at the field's own inset while it is empty. */
+.branches-quick-create__hint {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0 var(--space-4);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+}
+.branches-quick-create__hint > span:first-child { flex: 0 0 auto; }
+.branches-quick-create__hint > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.branches-quick-create__name::placeholder { font-family: var(--font-sans); }
+/* Why Git would refuse the typed name, in the shared `.field-error` look and
+   at the field's own text inset, so it reads as the field's footnote. */
+.branches-quick-create__issue { align-items: flex-start; padding: 0 var(--space-4); }
+.branches-quick-create__issue svg { margin-top: 2px; }
+
+/* The row. Two lines and one height, the way a History timeline row is: what
+   the branch is called — alone, with only `Active` beside it — and under it,
+   quieter, the states worth flagging as glyphs and when it last moved at the
+   trailing end. Never the actions, which belong to the one branch the reader
+   has actually chosen.
+
+   The states were text chips on the second line first — at 272px `Local only
+   · Can't be deleted yet` is most of the row — and then glyphs on the name's
+   own line, which gave a long name half the row. The name is what the list is
+   scanned for, so it has the first line to itself; every row keeps the second
+   line, for the date if nothing else, so every row is the same height. */
+.branch-row {
+  position: relative;
+  width: 100%;
+  min-height: 48px;
+  /* Never shrink. In a column flex container an overflowing list is resolved
+     by squashing its items down to their content; `flex: 0 0 auto` is what
+     makes the scroller scroll instead. */
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: var(--space-1) 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out, border-color var(--duration-fast) ease-out;
+}
+.branch-row:hover { background: var(--surface-hover); }
+/* One border and one tint, the same pair the History row and the Changes file
+   row wear. The `Active` chip is what says which branch the project is on; the
+   selection says which one this column is describing, and the two are
+   different questions. */
+.branch-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
+.branch-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
+.branch-row__name-row { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+/* The branch the project is on: its name in the accent, the rail's colour for
+   "where you are". The word `Active` is the detail strip's; the row carries
+   the glyph, and its name says it before the glyph is read. */
+.branch-row--active .branch-row__name { color: var(--accent-primary); }
+.branch-row__name {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  font-weight: var(--weight-heading);
+  line-height: var(--leading-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The part of a name the eye can skip — a prefix shared with other branches, or
+   the middle of a name whose cluster heading already says the first part —
+   is quiet, so the reader scans the part that tells branches apart. */
+.branch-row__name-quiet,
+.branches-detail__name-quiet { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+
+/* The list's headings. A block ("In progress", "Ready to clean up") is an
+   uppercase label with its count in a capsule, the way Home's launcher heads
+   its sections; a prefix cluster inside one is a step quieter, in the
+   label's own case, so the two levels never compete. Both fold what is under
+   them, and say so with the chevron. */
+.branches-group {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 10px var(--space-1);
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-secondary-color);
+  text-align: left;
+  transition: color var(--duration-fast) ease-out;
+}
+.branches-group:hover { color: var(--text-primary-color); }
+.branches-group--bucket:not(:first-child) { margin-top: var(--space-2); }
+.branches-group--cluster { padding-block: 6px 2px; }
+.branches-group__title { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.branches-group__chevron { width: 14px; height: 14px; flex: 0 0 auto; transition: transform var(--duration-fast) ease-out; }
+.branches-group[aria-expanded="true"] .branches-group__chevron { transform: rotate(90deg); }
+.branches-group__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branches-group--bucket .branches-group__label {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+.branches-group--cluster .branches-group__label { font-size: var(--text-label); font-weight: var(--weight-strong); }
+.branches-group__count { flex: 0 0 auto; font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.branches-group--bucket .branches-group__count {
+  margin-inline-start: auto;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-none);
+}
+/* Under the clean-up block's heading, folded or open, the action it is there
+   for: a real button — surface, border, 44px — with the verb and the count,
+   and why it is safe under them. The trash is in the text's ink; red is kept
+   for the dialog's last button, where branches are actually deleted. */
+.branches-group-clean-up { flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-1); }
+.branches-group-clean-up:not(:first-child) { margin-top: var(--space-2); }
+.branches-clean-up {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0 var(--space-1) var(--space-1) 18px;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  background: var(--surface-raised);
+  color: var(--text-primary-color);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out;
+}
+.branches-clean-up:hover { background: var(--surface-hover); }
+.branches-clean-up:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.branches-clean-up__icon { width: 16px; height: 16px; flex: 0 0 auto; }
+.branches-clean-up__text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.branches-clean-up__title,
+.branches-clean-up__note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.branches-clean-up__title { font-size: var(--text-label); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
+.branches-clean-up__note { color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug); }
+.branches-clean-up__chevron { width: 14px; height: 14px; flex: 0 0 auto; margin-inline-start: auto; color: var(--text-secondary-color); }
+
+/* The clean-up dialog's list: one row per branch, its checkbox, its name, its
+   sync glyphs, then where its work is kept, quieter. Solid and scrolling
+   inside the dialog, so fifty branches never push the confirmation off it. */
+.clean-up-branches { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: var(--space-1); }
+.clean-up-branches__all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 15px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+.clean-up-branches__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+.clean-up-branches__branch {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius-item);
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  transition: background var(--duration-fast);
+}
+.clean-up-branches__branch:hover { background: var(--surface-hover); }
+/* The include node's column: as wide as the old checkbox, so the names stay
+   where they were. The whole row is the label, so its hover rings the node,
+   as a Changes row does. */
+.clean-up-branches__node { width: 16px; height: 16px; }
+.clean-up-branches__branch:hover .inclusion-node__mark,
+.clean-up-branches__all:hover .inclusion-node__mark {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 26%, transparent);
+}
+.clean-up-branches__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clean-up-branches__kept {
+  grid-column: 2 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+}
+.clean-up-branches__excluded { color: var(--text-secondary-color); font-size: var(--text-label); }
+.clean-up-branches__excluded ul,
+.clean-up-branches__outcome ul {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.clean-up-branches__excluded li,
+.clean-up-branches__outcome li { display: grid; gap: 2px; min-width: 0; }
+.clean-up-branches__excluded strong,
+.clean-up-branches__outcome strong { color: var(--text-primary-color); font-weight: var(--weight-strong); overflow-wrap: anywhere; }
+.clean-up-branches__outcome { display: grid; gap: var(--space-1); font-size: var(--text-label); color: var(--text-secondary-color); }
+.clean-up-branches__outcome h3 { margin: 0; color: var(--text-primary-color); font-size: var(--text-label); font-weight: var(--weight-heading); }
+
+/* The glyphs from the row's start, the date at its end: the date is the
+   column's constant, and a row with no states keeps it in the same place as a
+   row with three. */
+.branch-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.branch-row__date {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  line-height: var(--leading-snug);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  white-space: nowrap;
+}
+
+/* What is left of this screen's filters after the surface moved to `shared/ui`
+   (task 121): the trigger, the panel, the groups, the capsules, the switches
+   and the footer are `.filter-control` and `.filter-panel` there, the same
+   boxes Changes and History wear. Branches had a private copy of all of it — and
+   the copy had never picked up the fix for a `<legend>` not being a grid item,
+   so `Sort by` sat flush against the capsules under it where the shared panel
+   gives it 6px.
+
+   This is the one part only Branches has: the group that lists name prefixes
+   grows with the repository, so it scrolls on its own — the way the file-type
+   group in Changes does, and for the same reason. `.filter-panel` deliberately
+   has no overflow of its own.
+
+   Five rows of headroom: enough that an ordinary project needs no scrolling at
+   all, short enough that the footer under it stays on screen. */
+.branches-filter__prefixes {
+  max-height: 148px;
+  min-width: 0;
+  display: grid;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The detail column. The same shape as the History saved-version card: one
+   surface, a summary band at the top, the body scrolling under it, and a quiet
+   footer at the bottom. */
+.branches-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); overflow: hidden; }
+.branches-detail__back { display: none; align-self: flex-start; }
+.branches-detail__card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* The first read's shape under the list panel's real header, and a card of
+   lines beside it where the selected branch's detail will be. */
+.branches-placeholder { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.branches-detail__placeholder { display: grid; align-content: start; gap: var(--space-3); padding: 20px 22px; }
+.branches-detail__placeholder p { margin: 0; font-size: var(--text-body); }
+.branches-detail--empty {
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  color: var(--text-secondary-color);
+  text-align: center;
+}
+.branches-detail--empty p { margin: 0; }
+/* The branch's strip: a fixed `--strip-height`, level with the list panel's
+   header, the way History's version strip is level with its tabs. Two lines —
+   the name, then where the branch lives and who last saved to it, one tone
+   quieter — and the actions at the trailing end. Both lines truncate, so the
+   strip keeps its single height. */
+.branches-detail__strip {
+  flex: 0 0 auto;
+  min-width: 0;
+  height: var(--strip-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.branches-detail__identity { min-width: 0; flex: 1; display: grid; align-content: center; gap: 2px; }
+.branches-detail__identity h2 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  /* A step above the rows' name: the strip is one line and the name is what
+     it is for. History's version strip wears the same size. */
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+.branches-detail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Who last saved to the branch and when, at the strip's trailing end: the
+   avatar and the relative time, never truncated — the name gives way first. */
+.branches-detail__byline {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+.branches-detail__identity h2 .state-glyph { flex: 0 0 auto; }
+/* The rename strip's note: what renaming does, or why it cannot. */
+.branches-detail__meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+/* The strip while its branch is renamed. The name itself takes the typing: the
+   field wears the name's own type, size and place, and says it is editable with
+   one straight accent line under the text that fades in. No fill and no
+   radius: on a box only a line of text tall, a rounded fill bent the line into
+   a curve that ran under the letters and hid them. The box reaches 6px past
+   the text on each side and gives that back as margin, so the letters do not
+   move. The avatar and the time fade into the note, the actions into two
+   circles, and the strip keeps its one line. */
+.branches-rename__name {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  display: inline-grid;
+}
+.branches-rename__sizer,
+input.branches-rename__field {
+  grid-area: 1 / 1;
+  min-width: 4ch;
+  padding: 0 6px;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+.branches-rename__sizer { visibility: hidden; overflow: hidden; white-space: pre; }
+input.branches-rename__field {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 -6px;
+  border: 0;
+  background: transparent;
+  /* Drawn just outside the box, so it sits under the descenders, never on them. */
+  box-shadow: 0 1.5px 0 var(--focus-ring);
+  color: var(--text-primary-color);
+  outline: none;
+  text-overflow: ellipsis;
+  animation: branches-rename-field-in var(--duration-normal) ease-out;
+}
+input.branches-rename__field[aria-invalid="true"] { box-shadow: 0 1.5px 0 var(--status-danger); }
+/* While the rename runs the field only stops taking typing; the spinner in the
+   check's place is what says it is working. */
+input.branches-rename__field[aria-busy="true"] { cursor: progress; }
+/* Where the avatar and the time stand at rest, one line like them; the whole
+   sentence is on its tooltip. Capped, so a long Git error never leaves the
+   field too narrow to type in. The strip is its container: a narrow one keeps
+   the glyph and gives the words to the tooltip and the screen reader. */
+.branches-detail__strip--editing { container: branch-strip / inline-size; }
+.branches-rename__note-slot { flex: 0 1 auto; min-width: 0; max-width: 46%; display: grid; justify-items: end; }
+.branches-rename__note { max-width: 100%; min-width: 0; gap: 6px; white-space: nowrap; overflow: hidden; }
+.branches-rename__note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.branches-rename__note.field-error { font-size: var(--text-label); line-height: var(--leading-snug); }
+.branches-rename__note svg { flex: 0 0 auto; width: 13px; height: 13px; }
+@container branch-strip (max-width: 480px) {
+  .branches-rename__note > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+}
+.branches-detail__strip--editing .branches-rename__note-slot,
+.branches-detail__strip--editing .branches-rename__actions,
+.branches-detail__strip--settling .branches-detail__byline,
+.branches-detail__strip--settling .branches-detail__actions {
+  animation: branches-rename-swap-in var(--duration-normal) ease-out;
+}
+/* Confirming is the check in the accent, never a second filled button. */
+.branches-rename__confirm:not(:disabled) { color: var(--accent-primary); }
+/* Cancel: the fill, the underline, the note and the circles fade out before
+   the name at rest takes their place again. */
+.branches-detail__strip--leaving input.branches-rename__field {
+  animation: branches-rename-field-out 140ms ease-in forwards;
+}
+.branches-detail__strip--leaving .branches-rename__note-slot,
+.branches-detail__strip--leaving .branches-rename__actions {
+  animation: branches-rename-swap-out 140ms ease-in forwards;
+}
+/* Saved: the new name lights once in the accent, in the strip and in its row. */
+.branches-detail__strip--renamed .branches-detail__name,
+.branch-row--renamed .branch-row__name {
+  animation: branches-rename-lit 600ms ease-out;
+}
+@keyframes branches-rename-field-in {
+  from { box-shadow: 0 1.5px 0 transparent; }
+}
+@keyframes branches-rename-field-out {
+  to { box-shadow: 0 1.5px 0 transparent; }
+}
+@keyframes branches-rename-swap-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+@keyframes branches-rename-swap-out {
+  to { opacity: 0; transform: translateY(-3px); }
+}
+@keyframes branches-rename-lit {
+  from { color: var(--accent-primary); }
+}
+/* After the facts, a hairline: what the strip says, then what it does — the
+   rule History's version strip draws before its own circles. */
+.branches-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
+.branches-detail__actions .secondary-button { white-space: nowrap; }
+.branches-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* The right-click menu's surface is `.context-menu` in primitives.css. What is
+   this feature's is the one line only this menu shows; the rules between its
+   groups are the shared `.app-menu__divider`. */
+.branches-context-menu__error {
+  max-width: 280px;
+  margin: 4px 8px 6px;
+  color: var(--status-danger);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+/* Switch: the strip's one labelled action, a capsule with no fill — a
+   hairline and its word, so it reads as the primary one beside the circles
+   without the grey tile the three used to share. */
+.branches-detail__switch {
+  height: var(--control-height-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-primary-color);
+  font: inherit;
+  font-size: var(--control-font-sm);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+.branches-detail__switch svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary-color); }
+.branches-detail__switch:not(:disabled):hover { background: var(--surface-hover); }
+.branches-detail__switch:disabled { opacity: 0.5; }
+/* Rename and Delete: glyph-only circles at the control tier, the shape
+   History's version strip gives its Details and More, named on their
+   tooltips and to a screen reader. */
+.branches-detail__icon-action {
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-secondary-color);
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.branches-detail__icon-action svg { width: 16px; height: 16px; }
+.branches-detail__icon-action:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-primary-color);
+}
+.branches-detail__icon-action:disabled { opacity: 0.5; }
+/* Delete is told apart by colour rather than hidden: its glyph is in the
+   danger tone, and the tint is its own only under the pointer. */
+.branches-detail__delete,
+.branches-detail__delete:not(:disabled):hover { color: var(--status-danger); }
+.branches-detail__delete:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--status-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+}
+
+/* Not a scroller: the sections divide the panel's remaining height between
+   them, and the one that can outgrow it scrolls inside itself. */
+.branches-detail__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.branches-detail__grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.branches-card {
+  min-width: 0;
+  flex: 0 0 auto;
+  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border-divider);
+}
+/* The section that takes whatever height the ones above it leave, and scrolls
+   inside itself rather than pushing them off the top of the panel. */
+.branches-card--fill {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+}
+/* The first section opens against the strip, which already draws the rule
+   above it. */
+.branches-card:first-child { border-block-start: 0; }
+/* A section label, not a card title: the rule above it is what says a new
+   section has started, so the heading only has to name it. */
+.branches-card h3 {
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  font-weight: var(--weight-heading);
+}
+
+/* The versions' label with the way on to History at its far end. The link is
+   a ghost button, whose control height would push the list down a row's
+   worth; it gives that height back to the margin so the label keeps the
+   section's rhythm, and its text ends at the rows' own inset. */
+.branches-card__head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.branches-card__link { flex: 0 0 auto; margin: -8px -10px -8px 0; }
+
+/* The route: the main branch along the top, this branch leaving it on a second
+   lane. The main branch is drawn in the quiet ink of the rest of the panel and
+   this branch in the accent, so the one the section is about is the one that
+   stands out; versions not yet published are hollow on a dotted stretch, the
+   project map's own reading. The sentence under it carries the numbers. */
+.branches-route { min-width: 0; display: grid; gap: var(--space-1); }
+.branches-route__frame { position: relative; min-width: 0; }
+/* From one branch to the next: the previous branch's drawing is held, quieter,
+   while the next one is read, then laid over the new one and faded away as
+   the new one fades in. The main lane, its name and the parting sit on the
+   same pixels in both, so only what differs appears to change. */
+.branches-route__layer--held { opacity: 0.4; }
+.branches-route__layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.branches-route__layer--out { animation: branches-route-fade-out 200ms ease-out both; }
+.branches-route__layer--in { animation: branches-route-fade 200ms ease-out both; }
+.branches-route__frame svg { display: block; overflow: visible; }
+.branches-route__main { stroke: var(--border-control); stroke-width: 2; stroke-linecap: round; }
+.branches-route__main-dot { fill: var(--text-secondary-color); }
+.branches-route__fork { fill: var(--surface-panel); stroke: var(--text-secondary-color); stroke-width: 2; }
+.branches-route__line { fill: none; stroke: var(--accent-primary); stroke-width: 2; stroke-linecap: round; }
+.branches-route__line--unpublished { stroke-dasharray: 3 4; }
+.branches-route__dot { fill: var(--accent-primary); stroke: var(--accent-primary); stroke-width: 1.5; }
+.branches-route__dot--unpublished { fill: var(--surface-panel); }
+.branches-route__mark { fill: var(--accent-primary); stroke: var(--surface-panel); stroke-width: 2; }
+/* Squashed or rebased back: the work is on the main branch as a copy, so the
+   way back is fainter and lands on a ring — the versions on the lane are the
+   originals, and they are not the main branch's. */
+.branches-route__line--copied { opacity: 0.45; }
+.branches-route__mark--copy { fill: var(--surface-panel); stroke: var(--accent-primary); stroke-width: 2; }
+/* Every dot is a saved version: a larger, invisible target the pointer can
+   find, and the dot grows a step under it — the only motion in the drawing,
+   and none at all with reduced motion. The arrow cursor stays, as it does on
+   every row that opens something (DESIGN.md, Pointer cursors). */
+.branches-route__hit { fill: transparent; }
+.branches-route__version > circle:last-child {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--duration-fast) ease-out;
+}
+.branches-route__version:hover > circle:last-child,
+.branches-route__version--lit > circle:last-child { transform: scale(1.45); }
+/* Lit from the list under the drawing: a ring round the dot, so it is found
+   in the drawing and not only grown. */
+.branches-route__version--lit > .branches-route__hit {
+  fill: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .branches-route__version > circle:last-child { transition: none; }
+  .branches-route--reveal *,
+  .branches-route__layer--in,
+  .branches-route__layer--out { animation: none !important; }
+}
+/* Where the project is, when the branch drawn is the active one. */
+.branches-route__here { fill: none; stroke: var(--accent-primary); stroke-width: 1.5; }
+.branches-route__label {
+  fill: var(--text-secondary-color);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+.branches-route__sentence {
+  margin: 0;
+  color: var(--text-secondary-color);
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+}
+/* The sentence's own line, holding its placeholder while the read is out, so
+   the sentence lands where the placeholder was. */
+.branches-route__sentence--pending {
+  min-height: calc(var(--text-label) * var(--leading-normal));
+  display: flex;
+  align-items: center;
+}
+
+/* The arrival, when the section was waiting for it: this branch leaves the main
+   one — the curve draws itself out from the parting — its versions appear
+   along it from left to right, and the sentence settles under them. Short,
+   and all of it after the answer is in: nothing waits for it. */
+.branches-route--reveal .branches-route__line--leave,
+.branches-route--reveal .branches-route__line--return {
+  stroke-dasharray: 1;
+  animation: branches-route-draw 240ms ease-out both;
+}
+.branches-route--reveal .branches-route__line--return { animation-delay: 160ms; }
+.branches-route--reveal .branches-route__line--unpublished {
+  animation: branches-route-fade 180ms ease-out 140ms both;
+}
+.branches-route--reveal .branches-route__version {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: branches-route-dot 180ms ease-out both;
+  animation-delay: calc(60ms + var(--route-order, 0) * 14ms);
+}
+.branches-route--reveal .branches-route__fork,
+.branches-route--reveal .branches-route__mark,
+.branches-route--reveal .branches-route__here,
+.branches-route--reveal .branches-route__label,
+.branches-route--reveal .branches-route__sentence {
+  animation: branches-route-fade 180ms ease-out both;
+}
+@keyframes branches-route-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes branches-route-dot {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes branches-route-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes branches-route-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* This branch's saved versions, at the tier the History timeline lists them:
+   the subject is the row, and when it happened is the caption beside it. Each
+   sits on a rail with History's node, and the stretch only on this computer
+   is headed and closed the way History and Overview head and close it. No gap
+   between rows, so the rail runs unbroken. */
+.branches-recent { min-height: 0; display: grid; align-content: start; margin: 0 -6px; padding: 0; list-style: none; }
+/* It scrolls down and never across: every row gives way from its subject, so
+   nothing in it is ever wider than the panel. */
+.branches-card--fill .branches-recent { flex: 1; overflow-x: hidden; overflow-y: auto; }
+/* While the list scrolls, its two chips stay at the top as their versions pass
+   — Overview's timeline does the same — so what is in view always says
+   whether it is published. Opaque, with the rail drawn through them. */
+.branches-card--fill .branches-recent__head,
+.branches-card--fill .branches-recent__boundary {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface-panel);
+}
+.branches-recent li {
+  position: relative;
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 6px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+/* The rail, through the nodes' centre (6px inset, 12px node). It is structure,
+   in the divider colour, as on History; it starts at the first node, ends at
+   the last, and runs up into the head when there is one. */
+.branches-recent li::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 11.5px; width: 1px;
+  background: var(--border-divider);
+}
+.branches-recent__row[data-first]::before,
+.branches-recent li.branches-recent__head::before { top: 50%; }
+.branches-recent__row[data-last]::before { bottom: 50%; }
+.branches-recent__row[data-first][data-last]::before { display: none; }
+/* The row is the control: it opens this version in History, so it answers on
+   approach the way a row in the list column does, with the same tint and the
+   same item radius. It takes the row's own padding with it — the `li` keeps
+   it only for a host that offers nowhere to open, where the row is a line of
+   text rather than a button. */
+.branches-recent li:has(.branches-recent__open) { padding: 0; }
+.branches-recent__open {
+  min-width: 0;
+  flex: 1;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-caption);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease-out;
+}
+.branches-recent__open:hover { background: var(--surface-hover); }
+.branches-recent__open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* History's node, at its size: half filled while the version is only here, a
+   solid disc in the node fill once published, an empty ring when that is not
+   known. The accent ring and a soft halo come under the pointer; the shape
+   never changes. */
+.branches-recent__node {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  width: 12px; height: 12px;
+  border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
+  border-radius: var(--radius-round);
+  background: var(--surface-panel);
+  box-shadow: 0 0 0 3px var(--surface-panel);
+  transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
+}
+.branches-recent__row--local-only .branches-recent__node {
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
+}
+.branches-recent__row--published .branches-recent__node {
+  border-color: var(--node-fill);
+  background: var(--node-fill);
+}
+.branches-recent__row:hover .branches-recent__node,
+.branches-recent__row:focus-within .branches-recent__node {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+/* The code is there for whoever looks for it: under the pointer or focus,
+   never a column every row spends. */
+.branches-recent code {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border-divider);
+  border-radius: var(--radius-item);
+  background: var(--surface-code);
+  font-size: var(--text-micro);
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease-out;
+}
+.branches-recent__row:hover code,
+.branches-recent__row:focus-within code { opacity: 1; }
+.branches-recent__subject {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-primary-color);
+  font-size: var(--text-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.branches-recent__date { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+/* The head over the versions only here and the mark where the remote's copy
+   begins: Overview's TimelineChip, at its compact size, its glyph over the
+   rail (the rail is 11.5px in; the chip's glyph centre lands on it). */
+.branches-recent__head,
+.branches-recent__boundary { gap: 7px; }
+.branches-recent__chip { margin-inline-start: -4px; }
+/* Publishing what is waiting, where it is said: History's group-head capsule.
+   The cloud is always in the accent, so the word reads as an action before
+   the pointer finds it; under the pointer the capsule takes the control
+   surface and a hairline, and the words step up to the primary ink. */
+.branches-publish {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
+  height: 20px; margin-inline-start: auto; padding: 0 7px;
+  border: 1px solid transparent; border-radius: var(--radius-pill);
+  background: transparent; color: var(--text-secondary-color);
+  font: inherit; font-size: var(--text-caption); font-weight: var(--weight-medium); white-space: nowrap;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.branches-publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
+.branches-publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
+.branches-publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.branches-relations .branches-publish svg,
+.branches-publish svg { width: 12px; height: 12px; margin: 0; color: var(--tone-local); }
+
+/* What the branch can do with the other end: a glyph tile, the action in the
+   quick switch's words, what it would do under it, and `Soon` until the flow
+   exists. */
+.branches-integrations { display: grid; gap: 2px; margin: 0 -6px; padding: 0; list-style: none; }
+.branches-integrations li {
+  min-width: 0;
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3);
+  padding: 5px 6px;
+}
+.branches-integrations__tile {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  background: var(--surface-control); color: var(--text-secondary-color);
+}
+.branches-integrations__tile svg { width: 14px; height: 14px; }
+.branches-integrations__text { min-width: 0; display: grid; gap: 1px; }
+.branches-integrations__title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.branches-integrations__detail {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-variant-numeric: tabular-nums;
+}
+
+.branches-relations { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.branches-relations li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.branches-relations svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; color: var(--text-secondary-color); }
+.branches-relations__item--positive svg { color: var(--status-success); }
+.branches-relations__item--warning svg { color: var(--status-warning); }
+.branches-relations__item--protected svg { color: var(--accent-primary); }
+.branches-relations span { min-width: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere; }
+/* The state and the sentence that explains it on one line, not stacked. Given
+   the whole measure of the panel, the pair reads as a sentence — and stacked
+   it spent two lines and a 4px gap per state to fill a third of the width. */
+.branches-relations strong { margin-inline-end: 6px; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
+
+/* The list column narrows before the screen gives up its second panel, at the
+   width Changes and History narrow on. */
+@media (max-width: 1200px) {
+  .branches-layout { grid-template-columns: var(--panel-column-narrow) minmax(0, 1fr); }
+}
+
+/* One column, at the width the other two drop to one. */
+@media (max-width: 1024px) {
+  .branches-layout { grid-template-columns: 1fr; }
+  .branches-list-panel { border-inline-end: 0; }
+  .branches-detail { display: none; }
+  .branches-screen--narrow-detail .branches-list-panel { display: none; }
+  .branches-screen--narrow-detail .branches-detail { display: flex; }
+  .branches-detail__back { display: inline-flex; }
+}
+
+/* One column is the only place the strip may grow: nothing stands beside it
+   to be level with, and three actions and a long name no longer share a row. */
+@media (max-width: 700px) {
+  .branches-detail__strip { height: auto; min-height: var(--strip-height); flex-wrap: wrap; padding-block: var(--space-2); }
+  .branches-detail__actions { width: 100%; justify-content: flex-end; padding-left: 0; border-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-row, .branches-recent__node, .branches-recent code, .branches-publish,
+  .branches-group, .branches-group__chevron, .branches-clean-up { transition: none; }
+  input.branches-rename__field,
+  .branches-rename__note-slot,
+  .branches-rename__actions,
+  .branches-detail__strip--settling .branches-detail__byline,
+  .branches-detail__strip--settling .branches-detail__actions,
+  .branches-detail__name,
+  .branch-row__name { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .branch-row--selected { outline: 2px solid Highlight; outline-offset: -2px; }
+  /* The nodes keep their shapes in the forced palette, as History's do. */
+  .branches-recent__node { border-color: ButtonText; }
+  .branches-recent__row--local-only .branches-recent__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }
+  .branches-recent__row--published .branches-recent__node { background: CanvasText; }
+}
+
+/* A switch or delete plan's shape while it is read. */
+.branch-dialog__placeholder { display: grid; gap: var(--space-2); }
+
+.branches-quick-switch { position: relative; display: inline-flex; gap: 8px; }
+/* A circle at row scale. `min-height` as well as `height`, because the shared
+   button primitive sets a `min-height` of its own and a minimum outranks a
+   height — without this the glyph's box would be 32 wide and 38 tall. */
+.branches-quick-switch__create {
+  flex-shrink: 0;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.branches-quick-switch__create svg { width: 15px; height: 15px; }
+.branches-quick-switch__menu {
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 2 * var(--space-4)));
+  /* Down 42px with the footer's two rows: the box is fixed, so the row the
+     actions gave back has to come off the box or it becomes empty space under
+     the results. */
+  height: min(400px, calc(100vh - 2 * var(--space-4)));
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+}
+/* One size in every host. The status strip's popup was smaller, and the
+   composer docked at its foot then left the list no room at all; it keeps only
+   its own ceiling, since it opens upwards from a strip at the window's foot. */
+.branches-quick-switch__menu--status { height: min(400px, calc(100vh - 56px)); }
+/* The branch the project is on, at the head — the project popup's head
+   (task 189): its glyph, its name and its latest saved version, and what is
+   done to it, over a hairline. 62px taller than before, the room the head
+   takes, so the list keeps the rows it had. */
+.branches-quick-switch__head {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 2px 2px var(--space-2); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.branches-quick-switch__glyph--current { background: var(--surface-active); color: var(--text-primary-color); }
+.branches-quick-switch__head-action {
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.branches-quick-switch__head-action svg { width: 15px; height: 15px; }
+.branches-quick-switch__head-action:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__head-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.branches-quick-switch__menu:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.branches-quick-switch__search {
+  display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
+  padding: 0 var(--space-3); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill); color: var(--text-secondary-color);
+}
+.branches-quick-switch__search:focus-within { border-color: var(--focus-ring); }
+.branches-quick-switch__search > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.branches-quick-switch__search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body);
+}
+.branches-quick-switch__search input::placeholder { color: var(--text-secondary-color); }
+.branches-quick-switch__filter {
+  width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.branches-quick-switch__filter svg { width: 14px; height: 14px; }
+.branches-quick-switch__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__filter--on { color: var(--accent-primary); }
+.branches-quick-switch__filter--on svg { fill: currentColor; }
+.branches-quick-switch__results {
+  flex: 1; min-height: 0; margin: 6px -2px 0; padding: 0 2px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.branches-quick-switch__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.branches-quick-switch__item { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.branches-quick-switch__choose {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 46px;
+  padding: 5px 8px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary-color); text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.branches-quick-switch__choose:hover { background: var(--surface-hover); }
+.branches-quick-switch__glyph {
+  flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
+}
+.branches-quick-switch__glyph svg { width: 14px; height: 14px; }
+.branches-quick-switch__copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.branches-quick-switch__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.branches-quick-switch__context {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-secondary-color); font-size: var(--text-caption);
+}
+.branches-quick-switch__favourite {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color); opacity: 0.55;
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.branches-quick-switch__favourite svg { width: 14px; height: 14px; }
+.branches-quick-switch__item:hover .branches-quick-switch__favourite,
+.branches-quick-switch__favourite:focus-visible { opacity: 1; }
+.branches-quick-switch__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
+.branches-quick-switch__favourite--on svg { fill: currentColor; }
+/* The row's chevron: the branch's actions are a fact of the row, so it is always
+   visible, where the favourite is a convenience that can wait for the pointer.
+   A chevron, not an ellipsis, because it opens the actions in place of the
+   list rather than a floating menu over it. */
+.branches-quick-switch__more {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.branches-quick-switch__more svg { width: 15px; height: 15px; }
+.branches-quick-switch__more:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.branches-quick-switch__more[aria-expanded="true"] { background: var(--surface-active); color: var(--accent-primary); }
+
+/* The branch's actions, shown in place of the list rather than in a nested menu:
+   the popup clips its overflow and dismisses on a press outside itself, so a
+   second floating surface anchored to a row would be cut off or would close the
+   control that opened it. Merge, rebase and compare are stated but disabled
+   until the flows exist; renaming and deleting stay on the Branches screen. */
+/* The actions keep the popup's size and place, as the composer does: a popup
+   measured and placed once, for the list, and then shrunk to its actions hung
+   in the air — above the status bar, a gap opened between it and its trigger.
+   The actions take the popup's height and scroll inside it when a short window
+   cannot hold the note under them. */
+.branches-quick-switch__actions {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.branches-quick-switch__actions-head {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 2px 2px 6px; border-bottom: 1px solid var(--border-subtle);
+}
+.branches-quick-switch__back {
+  width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+}
+.branches-quick-switch__back:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__back:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.branches-quick-switch__back svg { width: 16px; height: 16px; }
+.branches-quick-switch__actions-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.branches-quick-switch__actions-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.branches-quick-switch__actions .app-menu__item { margin-top: 4px; }
+/* The composer at the popup's foot, where the footer was: the Branches
+   composer's own box, open, under the list the way it is under the Branches
+   list. The popup's height is fixed, so the list gives it the room and the
+   popup neither moves nor changes size. Its first row names what it is and
+   carries the way back to the footer. */
+.branches-quick-switch__composer {
+  flex-shrink: 0;
+  grid-template-areas: "title" "head" "field" "extra" "foot";
+  margin-top: 6px;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.branches-quick-switch__composer-title {
+  grid-area: title;
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  margin-bottom: var(--space-2); padding-inline-start: var(--space-2);
+  color: var(--text-primary-color); font-size: var(--text-label); font-weight: var(--weight-strong);
+}
+.branches-quick-switch__composer-title svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--accent-primary); }
+.branches-quick-switch__composer-close {
+  width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; margin-inline-start: auto;
+  padding: 0; border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color);
+}
+.branches-quick-switch__composer-close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.branches-quick-switch__composer-close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.branches-quick-switch__composer-close svg { width: 14px; height: 14px; color: currentColor; }
+/* The offer to make a branch the search named: the row a branch is, with the
+   glyph in the accent — it is the one row that makes something rather than
+   choosing it. */
+.branches-quick-switch__offer .branches-quick-switch__glyph {
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-hover));
+  color: var(--accent-primary);
+}
+.branches-quick-switch__actions .app-menu__item:disabled { opacity: 0.5; cursor: default; }
+.branches-quick-switch__actions .app-menu__item:disabled:hover { background: transparent; }
+.branches-quick-switch__soon {
+  flex-shrink: 0; padding: 1px 7px; border-radius: var(--radius-pill);
+  background: var(--surface-control); color: var(--text-secondary-color);
+  font-size: var(--text-micro); font-weight: var(--weight-strong);
+}
+.branches-quick-switch__actions-note {
+  margin: 8px 0 0; padding: 8px 4px 0; border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal);
+}
+/* The two hand-offs at the end of the list, on one row: a branch that does not
+   exist yet, and everything about a branch that is not "which one am I on". A
+   rule separates them from the results, because they act rather than choose.
+   They are ghost buttons, so they take the shared control height and the shared
+   quiet treatment rather than a size of their own. */
+.branches-quick-switch__footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
+}
+/* Only child, and it still belongs at the right-hand end. */
+.branches-quick-switch__footer > .branches-quick-switch__see-all:only-child { margin-left: auto; }
+.branches-quick-switch__new,
+.branches-quick-switch__see-all { min-width: 0; padding-inline: var(--space-2); }
+.branches-quick-switch__new span,
+.branches-quick-switch__see-all span {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* "Working on", in front of the value. The words are the sentence around the
+   control; the branch's name is the fact, and stays the heavier of the two. */
+.branches-quick-switch__context-label {
+  flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); white-space: nowrap;
+}
+
+.branches-quick-switch__empty {
+  display: grid; place-items: center; min-height: 100%; margin: 0; padding: var(--space-4);
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center;
+}
+.branches-quick-switch__status { display: grid; place-items: center; min-height: 100%; padding: 10px; }
+.branches-quick-switch__status svg { width: 16px; height: 16px; color: var(--text-secondary-color); }
+
+@media (forced-colors: active) {
+  .branches-banner { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .branches-quick-switch__filter--on,
+  .branches-quick-switch__favourite--on { outline: 1px solid Highlight; }
+}
+
+@media (pointer: coarse) {
+  .branches-quick-switch__filter,
+  .branches-quick-switch__favourite,
+  .branches-quick-switch__head-action { width: 44px; height: 44px; }
+  /* The two footer actions are `.ghost-button`s, which primitives.css already
+     raises to `--control-height-lg` here; restating it would be a second copy
+     of the same accommodation. */
+  .branches-quick-switch__choose { min-height: 44px; }
+}

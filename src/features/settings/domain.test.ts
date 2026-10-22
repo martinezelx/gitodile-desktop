@@ -6,6 +6,7 @@ import {
   isRemoteCheckIntervalMinutes,
   isRemoteCheckPreset,
   splitRemoteCheckInterval,
+  toolAttention,
 } from "./domain";
 
 describe("automatic remote-check cadence", () => {
@@ -57,5 +58,19 @@ describe("automatic remote-check cadence", () => {
       const { value, unit } = splitRemoteCheckInterval(minutes);
       expect(combineRemoteCheckInterval(value, unit)).toBe(minutes);
     }
+  });
+});
+
+describe("provider CLI attention", () => {
+  it("asks nothing of a CLI that is unread or simply not installed", () => {
+    expect(toolAttention(null, null)).toBeNull();
+    expect(toolAttention({ state: "missing", version: null }, null)).toBeNull();
+    expect(toolAttention({ state: "available", version: "2.80.0" }, { state: "up_to_date", cached: false })).toBeNull();
+  });
+
+  it("flags a CLI that does not answer, and a known update", () => {
+    expect(toolAttention({ state: "unusable", version: null }, null)).toBe("problem");
+    expect(toolAttention({ state: "check_failed", version: null }, null)).toBe("problem");
+    expect(toolAttention({ state: "available", version: "2.80.0" }, { state: "update_available", cached: true })).toBe("update");
   });
 });

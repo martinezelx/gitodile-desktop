@@ -1,19 +1,8 @@
 import React from "react";
-import { WelcomeScreen, type WelcomeRecentEntry } from "../overview";
+import { HomeLauncher, type HomeLauncherProps } from "./HomeLauncher";
 
-export type HomeScreenProps = {
-  isOpening: boolean;
-  recentProjects: readonly WelcomeRecentEntry[];
-  onOpenProject: () => void;
-  onCreateProject: () => void;
-  onCloneProject: () => void;
-  onOpenRecentProject: (path: string) => void;
-  onToggleFavouriteRecentProject: (path: string) => void;
-  onForgetRecentProject: (path: string) => void;
-  hasOpenProjects: boolean;
-  playGreeting: boolean;
-};
+export type HomeScreenProps = HomeLauncherProps;
 
 export function HomeScreen(props: HomeScreenProps): React.JSX.Element {
-  return <WelcomeScreen {...props} />;
+  return <HomeLauncher {...props} />;
 }

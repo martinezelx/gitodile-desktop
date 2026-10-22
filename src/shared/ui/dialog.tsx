@@ -3,9 +3,13 @@ import { DialogCloseButton } from "./dialogCloseButton";
 
 /** DESIGN.md § Dialogs: three sizes, never a width of a dialog's own. */
 export type DialogSize = "s" | "m" | "l";
-/** The header glyph's fill. `accent` is a flow's own mark; the status tones
- * say what kind of message this is before the sentence is read. */
-export type DialogTone = "accent" | "success" | "warning" | "danger" | "neutral";
+/** The header glyph's ink (DESIGN.md § Glyph tones). The status tones say
+ * what kind of message this is before the sentence is read — `danger` for a
+ * failure or a confirmation that removes work, `warning` for a block,
+ * `success` for done, `neutral` for a plain question or a cancellation — and
+ * the glyph tones what kind of thing the flow handles: `remote` the remote's
+ * copy, `local` what is saved here and not published, `app` GitOdile itself. */
+export type DialogTone = "success" | "warning" | "danger" | "neutral" | "remote" | "local" | "app";
 
 export type DialogProps = {
   size: DialogSize;
@@ -13,9 +17,11 @@ export type DialogProps = {
   titleId: string;
   subtitle?: React.ReactNode;
   descriptionId?: string;
-  /** A lucide icon element. Given, the header leads with it in a circle. */
-  icon?: React.ReactNode;
-  tone?: DialogTone;
+  /** A lucide icon element. Every dialog leads with its glyph, in a neutral
+   * circle beside the title (DESIGN.md § Dialogs): it says what kind of
+   * thing this is before the title is read. */
+  icon: React.ReactNode;
+  tone: DialogTone;
   role?: "dialog" | "alertdialog";
   /** Given, the header carries the close button and the backdrop dismisses. */
   onClose?: () => void;
@@ -30,6 +36,23 @@ export type DialogProps = {
   children: React.ReactNode;
 };
 
+/** How a dialog backdrop dismisses: only on a press that starts on the backdrop
+ * itself. The surface must not swallow `mousedown` instead — a press inside a
+ * dialog still has to reach `document`, because the menus and pickers a dialog
+ * contains close themselves on an outside press observed there. Settings →
+ * Accounts' provider menu is the case that exposed the difference: with the
+ * dialog body stopping the press, the menu survived every click inside the
+ * dialog and only its trigger could close it. */
+export function dialogBackdropProps(
+  onDismiss: (() => void) | undefined,
+): Pick<React.HTMLAttributes<HTMLDivElement>, "onMouseDown"> {
+  return {
+    onMouseDown: (event) => {
+      if (event.target === event.currentTarget) onDismiss?.();
+    },
+  };
+}
+
 /** The one shell every action dialog wears: backdrop, surface, header and
  * the body the caller supplies. Focus management stays with the caller —
  * dialogs differ in where focus lands — but the shape does not. */
@@ -40,7 +63,7 @@ export function Dialog({
   subtitle,
   descriptionId,
   icon,
-  tone = "accent",
+  tone,
   role = "dialog",
   onClose,
   closeLabel = "Close",
@@ -56,9 +79,7 @@ export function Dialog({
     <div
       className="app-dialog-backdrop"
       role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && canClose) onClose?.();
-      }}
+      {...dialogBackdropProps(canClose ? onClose : undefined)}
     >
       <div
         {...bodyProps}
@@ -71,7 +92,7 @@ export function Dialog({
         tabIndex={-1}
       >
         <header className="app-dialog__head">
-          {icon && <span className={`app-dialog__glyph app-dialog__glyph--${tone}`} aria-hidden="true">{icon}</span>}
+          <span className={`app-dialog__glyph app-dialog__glyph--${tone}`} aria-hidden="true">{icon}</span>
           <div className="app-dialog__titles">
             <h2 id={titleId} ref={titleRef} tabIndex={titleRef ? -1 : undefined}>{title}</h2>
             {subtitle && <p className="app-dialog__subtitle">{subtitle}</p>}

@@ -16,145 +16,135 @@
 }
 
 /* The in-app mascot (`branding.tsx`, drawn by `scripts/icons/mascot.mjs`).
-   The outline, glasses, teeth and amber details keep their own colours; only
-   the body's green and the crest follow the theme (ADR 0013), so the
-   silhouette is the identity in every palette.
+   A flat silhouette (ADR 0031): the body's green follows the theme
+   (ADR 0013) and the belly, toes and eyes are holes that show the surface
+   behind it, so the silhouette alone is the identity in every palette.
 
-   The fill is the theme's accent fill, lifted to at least OKLCH lightness 0.72
-   so the black outline and glasses keep a clear edge against it (about 8:1 or
-   more). Most accents are already lighter; the dark accents of some light
-   themes would otherwise swallow the glasses. A webview without relative
-   colour syntax keeps the plain accent fill. The lift sits behind `@supports`
-   because a custom property keeps a value it cannot compute, and `fill` would
-   then fail where it reads it. The GitOdile themes, and the system default
-   that resolves to them, use the brand green so the in-app mascot matches the
-   application icon.
-
-   The crest is a deep shade of the same accent, at the brand crest's OKLCH
-   lightness (about 0.37) with its chroma held down, so it stays a step above
-   the ink outline and the white commits keep their contrast on it. Without
-   relative colour syntax it is the accent mixed into black. */
+   The fill is the theme's accent fill, lifted to at least OKLCH lightness 0.72,
+   the brand green's own, so the body reads as the same light shape on every
+   surface and its holes keep a clear edge. Most accents are already
+   lighter; the dark accents of some light themes would otherwise turn it into
+   a dark blot. A webview without relative colour syntax keeps the plain accent
+   fill. The lift sits behind `@supports` because a custom property keeps a
+   value it cannot compute, and `fill` would then fail where it reads it. The
+   GitOdile themes, and the system default that resolves to them, draw it in
+   the ink instead (see below). */
 .gitodile-mascot {
   /* An illustration, not text: forced-colours mode (Windows high contrast)
-     would repaint its fill and outline into a solid block. It is decorative
-     and the text beside it names the surface, so it keeps its own colours. */
+     would repaint its fill into a solid block. It is decorative and the text
+     beside it names the surface, so it keeps its own colours. */
   forced-color-adjust: none;
   --mascot-fill: var(--accent-primary-fill);
-  --mascot-crest: color-mix(in srgb, var(--accent-primary-fill) 40%, #000);
   display: block;
   width: 100%;
   height: auto;
 }
 @supports (color: oklch(from red l c h)) {
-  .gitodile-mascot {
-    --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h);
-    --mascot-crest: oklch(from var(--accent-primary-fill) 0.37 min(c, 0.09) h);
-  }
+  .gitodile-mascot { --mascot-fill: oklch(from var(--accent-primary-fill) max(l, 0.72) c h); }
 }
+/* The official themes spend no colour on the interface (ADR 0033), the mark
+   included: there the mascot is drawn in the ink, black on light and white on
+   dark, like the application icon's monochrome reading. */
 :root:not([data-theme]) .gitodile-mascot,
-[data-theme|="gitodile"] .gitodile-mascot {
-  --mascot-fill: var(--mascot-brand-fill);
-  --mascot-crest: var(--mascot-brand-crest);
-}
-.gitodile-mascot--body { aspect-ratio: 1215 / 1095; }
-.gitodile-mascot--head { aspect-ratio: 1000 / 540; }
+[data-theme|="gitodile"] .gitodile-mascot { --mascot-fill: var(--text-primary-color); }
+.gitodile-mascot--body { aspect-ratio: 1160 / 990; }
+.gitodile-mascot--head { aspect-ratio: 920 / 470; }
 .gitodile-mascot__fill { fill: var(--mascot-fill); }
-.gitodile-mascot__crest { fill: var(--mascot-crest); }
+/* The entrance's outline is invisible at rest: it only exists to be traced. */
+.gitodile-mascot__outline { stroke: var(--text-primary-color); stroke-opacity: 0; }
 /* The mascot moves in the brand moments only (DESIGN.md § Motion).
 
-   `--sweep` (About): two slanted bands cross the lenses in under a second,
-   then rest for several — calm, for a card someone reads.
+   `--wink` (About): the front eye closes and opens again every few seconds, in
+   step with the light that crosses the wordmark's "Odile" (app-shell.css): the
+   same 6.5s cycle and 1.2s start, the eye shut while the light is halfway
+   across. It is a friendly gesture for a card someone reads, and brief.
 
-   `--commits` (the welcome screen): the crest's white commits light amber one
-   after another, from the oldest at the tail to the newest at the neck, and
-   the wave ends on the amber HEAD. Each commit swells as it lights and the
-   HEAD breathes once when the wave reaches it. It says what GitOdile does — keeps your
-   history, up to where you are now — and rests for several seconds between
-   waves.
+   `--blink` (the welcome screen): both eyes blink, quicker than the wink,
+   at an uneven pace — after about 5s, then a double blink 5s later, then one
+   more 5.5s on, and the 17s cycle starts over — so it reads as someone
+   waiting rather than a metronome. It starts once the entrance is over.
 
    `--enter` adds the welcome's one-time entrance, described below.
 
    Reduced motion (system or app) removes all of it: the mascot shows still. */
-.gitodile-mascot__shine { fill: #ffffff; opacity: .7; }
-.gitodile-mascot--sweep .gitodile-mascot__shine { animation: mascot-sweep 6.5s ease-in-out 1.2s infinite; }
-@keyframes mascot-sweep {
-  0% { transform: translateX(0); }
-  14%, 100% { transform: translateX(1000px); }
+.gitodile-mascot--wink .gitodile-mascot__wink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-wink 6.5s ease-in-out 1.2s infinite;
 }
-/* Six commits, newest first in the drawing: the last lights first. Each one
-   swells as it lights, breathes back to size and stays amber a moment; when
-   the wave reaches the neck the HEAD answers with one breath of its own. */
-.gitodile-mascot--commits .gitodile-mascot__commits circle,
-.gitodile-mascot--commits .gitodile-mascot__head-node { transform-box: fill-box; transform-origin: center; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle { animation: mascot-commit 6s ease-in-out infinite; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(6) { animation-delay: 1s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(5) { animation-delay: 1.22s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(4) { animation-delay: 1.44s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(3) { animation-delay: 1.66s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(2) { animation-delay: 1.88s; }
-.gitodile-mascot--commits .gitodile-mascot__commits circle:nth-child(1) { animation-delay: 2.1s; }
-.gitodile-mascot--commits .gitodile-mascot__head-node { animation: mascot-head-node 6s ease-in-out 2.3s infinite; }
-@keyframes mascot-commit {
-  0% { fill: #ffffff; transform: scale(1); }
-  4% { fill: #e7b448; transform: scale(1.5); }
-  10% { fill: #e7b448; transform: scale(1); }
-  22% { fill: #e7b448; transform: scale(1); }
-  32%, 100% { fill: #ffffff; transform: scale(1); }
+@keyframes mascot-wink {
+  0%, 3% { transform: scaleY(1); }
+  6.5%, 8% { transform: scaleY(0.12); }
+  12%, 100% { transform: scaleY(1); }
 }
-@keyframes mascot-head-node {
-  0% { transform: scale(1); }
-  5% { transform: scale(1.35); }
-  12%, 100% { transform: scale(1); }
+.gitodile-mascot--blink .gitodile-mascot__eyes path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mascot-blink 17s ease-in-out 1.2s infinite;
+}
+/* Each blink closes in about 70ms, stays shut 50ms and opens in 70ms. */
+@keyframes mascot-blink {
+  0%, 27% { transform: scaleY(1); }
+  27.4%, 27.7% { transform: scaleY(0.1); }
+  28.1%, 58.8% { transform: scaleY(1); }
+  59.2%, 59.5% { transform: scaleY(0.1); }
+  59.9%, 60.9% { transform: scaleY(1); }
+  61.3%, 61.6% { transform: scaleY(0.1); }
+  62%, 91.8% { transform: scaleY(1); }
+  92.2%, 92.5% { transform: scaleY(0.1); }
+  92.9%, 100% { transform: scaleY(1); }
 }
 /* `--enter` (the welcome's first appearance in a session): the mascot draws
-   itself, then builds its history. The outline traces in 0.7s, in the text
-   colour since its own ink would vanish on a dark theme; then the colours
-   fade in while the outline turns ink, the commits pop in from the tail to the
-   neck, the HEAD last, and the crest's wave starts once the entrance is over.
-   The outline paths measure pathLength 1 (mascot.mjs), so one dash covers any
-   of them. It exists only where motion is welcome: under the system's reduced
-   motion there is no entrance at all (the app's own setting stops every
-   animation in base.css), so no override has to outrank these selectors. */
+   itself. Every edge (the silhouette, belly, toes and eyes) traces in 0.7s in
+   the text colour, then the colours fade in while the trace fades out, since
+   the drawing itself has no outline. The outline paths measure pathLength 1
+   (mascot.mjs), so one dash covers any of them. It exists only where motion is
+   welcome: under the system's reduced motion there is no entrance at all (the
+   app's own setting stops every animation in base.css), so no override has to
+   outrank these selectors. */
 @media (prefers-reduced-motion: no-preference) {
-  .gitodile-mascot--enter > :not(.gitodile-mascot__outline):not(.gitodile-mascot__commits):not(.gitodile-mascot__head-node) {
+  .gitodile-mascot--enter > :not(.gitodile-mascot__outline):not(mask) {
     animation: mascot-enter-show 500ms ease-out 600ms both;
   }
   .gitodile-mascot--enter .gitodile-mascot__outline path {
     stroke-dasharray: 1;
-    animation: mascot-enter-draw 700ms ease-in-out both, mascot-enter-ink 500ms ease-out 600ms both;
+    animation: mascot-enter-draw 700ms ease-in-out both, mascot-enter-fade 500ms ease-out 600ms both;
   }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle,
-  .gitodile-mascot--enter .gitodile-mascot__head-node { transform-box: fill-box; transform-origin: center; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle { animation: mascot-enter-pop 260ms cubic-bezier(.3, .8, .3, 1.4) both, mascot-commit 6s ease-in-out infinite; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(6) { animation-delay: 950ms, 2.4s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(5) { animation-delay: 1030ms, 2.62s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(4) { animation-delay: 1110ms, 2.84s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(3) { animation-delay: 1190ms, 3.06s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(2) { animation-delay: 1270ms, 3.28s; }
-  .gitodile-mascot--enter .gitodile-mascot__commits circle:nth-child(1) { animation-delay: 1350ms, 3.5s; }
-  .gitodile-mascot--enter .gitodile-mascot__head-node { animation: mascot-enter-pop 320ms cubic-bezier(.3, .8, .3, 1.5) 1450ms both, mascot-head-node 6s ease-in-out 3.7s infinite; }
 }
+/* `--hop` (the app's update row, while it checks, verifies or installs): a
+   small hop that lands with a squash, twice a second, from the feet so the
+   mascot stays standing in its tile. It runs only while that work does, and
+   only where motion is welcome; the app's own setting stops it in base.css. */
+@media (prefers-reduced-motion: no-preference) {
+  .gitodile-mascot--hop > g {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: mascot-hop 600ms cubic-bezier(0.3, 0, 0.3, 1) infinite;
+  }
+}
+@keyframes mascot-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  10% { transform: translateY(0) scale(1.06, 0.92); }
+  45% { transform: translateY(-9%) scale(0.97, 1.04); }
+  80% { transform: translateY(0) scale(1.04, 0.95); }
+}
+/* `progress` (the update row's download): the body fills from the feet up
+   over a faint silhouette of itself, easing between progress reports. */
+.gitodile-mascot__pending { opacity: 0.28; }
+.gitodile-mascot__level { transition: transform var(--duration-normal) ease-out; }
 @keyframes mascot-enter-show { from { opacity: 0; } to { opacity: 1; } }
-@keyframes mascot-enter-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@keyframes mascot-enter-ink {
-  from { fill-opacity: 0; stroke: var(--text-primary-color); }
-  to { fill-opacity: 1; stroke: #13251f; }
-}
-@keyframes mascot-enter-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes mascot-enter-draw { from { stroke-dashoffset: 1; stroke-opacity: 1; } to { stroke-dashoffset: 0; stroke-opacity: 1; } }
+@keyframes mascot-enter-fade { from { stroke-opacity: 1; } to { stroke-opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .gitodile-mascot__shine { display: none; }
-  .gitodile-mascot--commits .gitodile-mascot__commits circle,
-  .gitodile-mascot--commits .gitodile-mascot__head-node { animation: none; }
+  .gitodile-mascot--wink .gitodile-mascot__wink,
+  .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
+  .gitodile-mascot__level { transition: none; }
 }
-:root[data-reduced-motion="true"] .gitodile-mascot__shine { display: none; }
-:root[data-reduced-motion="true"] .gitodile-mascot--commits .gitodile-mascot__commits circle,
-:root[data-reduced-motion="true"] .gitodile-mascot--commits .gitodile-mascot__head-node { animation: none; }
-/* The app's setting stops the entrance's animations globally (base.css); the
-   outline's dash must go too, or it would hold the undrawn state. */
-:root[data-reduced-motion="true"] .gitodile-mascot--enter .gitodile-mascot__outline path { stroke-dasharray: none; }
+:root[data-reduced-motion="true"] .gitodile-mascot--wink .gitodile-mascot__wink,
+:root[data-reduced-motion="true"] .gitodile-mascot--blink .gitodile-mascot__eyes path { animation: none; }
 
 /* A project avatar drawn from a detected technology or a chosen emoji. The box
-   itself stays the caller's class (`.sidebar-project__avatar`, …), which owns
+   itself stays the caller's class (`.status-bar__avatar`, …), which owns
    its size, radius and brand ring; these fill it. The technology mark sits on a
    neutral tray because vendor artwork keeps its own colours and would fight the
    identity colour behind it. */
@@ -190,7 +180,7 @@
   background-color: transparent;
   background-clip: padding-box;
 }
-.auto-hide-scrollbar--pointer-active::-webkit-scrollbar-thumb,
+.auto-hide-scrollbar[data-pointer-active]::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:focus-visible::-webkit-scrollbar-thumb,
 .auto-hide-scrollbar:has(:focus-visible)::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--text-secondary-color) 32%, transparent);
@@ -208,7 +198,7 @@
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
-/* A state a list row flags as a glyph instead of a text chip — Lines' and
+/* A state a list row flags as a glyph instead of a text chip — Branches' and
    History's rows speak one vocabulary: 14px, the caption's weight for a count
    beside it, and colour only where the state is good, needs a look, or is
    where the project stands. The unremarkable state draws no glyph at all. */
@@ -229,6 +219,110 @@
 .state-glyph--positive { color: var(--status-success); }
 .state-glyph--warning { color: var(--status-warning); }
 .state-glyph--accent { color: var(--accent-primary); }
+.state-glyph--local { color: var(--tone-local); }
+.state-glyph--remote { color: var(--tone-remote); }
+
+/* Who saved a version (authorAvatar.tsx), shared by History's rows and both
+   detail strips. Tinted, not filled: a column of solid circles down a solo
+   project's timeline was the loudest thing on the screen. The initials take
+   the author's colour pulled toward the text colour, so they hold contrast on
+   their own tint in either theme. At the micro floor and a medium weight:
+   bold capitals filled an 18px circle edge to edge. */
+.author-avatar {
+  width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center;
+  border-radius: var(--radius-round);
+  background: color-mix(in srgb, var(--author-color) 20%, var(--surface-panel));
+  color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
+  font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
+}
+/* The user's own versions: a person glyph on the neutral tint, not the
+   initials on a colour of their own. */
+.author-avatar--self {
+  background: var(--surface-hover);
+  color: var(--text-secondary-color);
+}
+.author-avatar--self svg { width: 11px; height: 11px; }
+/* Beside a strip's title, where it is the author's only trace. */
+.author-avatar--strip { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-caption); }
+.author-avatar--strip.author-avatar--self svg { width: 14px; height: 14px; }
+@media (forced-colors: active) {
+  .author-avatar { border: 1px solid CanvasText; }
+}
+
+/* The include control of a list whose items go into one action (inclusionNode.tsx):
+   History's node at 10px. In is the node fill, out an empty ring, part of it
+   the half moon History uses for a version that exists only here. The native
+   checkbox stays the control, visually hidden; the caller sets the column and
+   the reach, and may ring the node from its whole row on hover. */
+.inclusion-node {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.inclusion-node__input {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.inclusion-node__mark {
+  width: 10px; height: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
+  border-radius: var(--radius-round);
+  background: transparent;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast), opacity var(--duration-fast);
+}
+.inclusion-node__input:checked + .inclusion-node__mark {
+  border-color: var(--node-fill);
+  background: var(--node-fill);
+}
+.inclusion-node__input:indeterminate + .inclusion-node__mark {
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, transparent 50%);
+}
+.inclusion-node:has(.inclusion-node__input:focus-visible) .inclusion-node__mark {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.inclusion-node__input:disabled + .inclusion-node__mark { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) {
+  .inclusion-node__mark { transition: none; }
+}
+@media (forced-colors: active) {
+  .inclusion-node__mark { border-color: ButtonText; }
+  .inclusion-node__input:checked + .inclusion-node__mark { background: Highlight; border-color: Highlight; }
+  .inclusion-node__input:indeterminate + .inclusion-node__mark { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
+  .inclusion-node:has(.inclusion-node__input:focus-visible) .inclusion-node__mark { outline: 2px solid Highlight; }
+}
+/* A timeline's "On this computer" and "Published" (TimelineChip): one chip
+   on the rail, its glyph where the nodes are, no count and no rule. Overview
+   draws it at the label size; Branches, denser, at the caption size. */
+.timeline-chip {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 24px; padding: 0 var(--space-3) 0 5px;
+  border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
+  background: var(--surface-panel); color: var(--text-primary-color);
+  font-size: var(--text-label); font-weight: var(--weight-heading); white-space: nowrap;
+}
+.timeline-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.timeline-chip--local > svg:first-child { color: var(--tone-local); }
+.timeline-chip--noRemote > svg:first-child { color: var(--status-warning); }
+.timeline-chip--published > svg:first-child { color: var(--tone-remote); }
+/* As a button (History's, which folds its block): the hover tint mixed into
+   the panel rather than laid over it, so the rail behind never shows through
+   the chip, and the app's focus ring. */
+.timeline-chip--button { font-family: inherit; transition: background var(--duration-fast); }
+.timeline-chip--button:hover { background: color-mix(in srgb, var(--text-primary-color) 6%, var(--surface-panel)); }
+.timeline-chip--button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.timeline-chip--compact { gap: 5px; min-height: 22px; padding: 0 var(--space-2) 0 4px; font-size: var(--text-caption); }
+.timeline-chip--compact svg { width: 11px; height: 11px; }
 
 /* A release's highlights — one tinted glyph and one sentence per line — as
    What's new and the update dialog both draw them. The host owns the
@@ -315,25 +409,31 @@
 .ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .ghost-button:disabled { opacity: 0.5; }
 .ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+/* One line, as every in-screen notice (DESIGN.md § Content design). Where
+   the notice is too narrow for the text and both actions, the actions wrap
+   to a row of their own, at the end, and the text keeps its one line. */
 .automatic-updates-notice {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
   gap: 10px;
   padding: 9px 11px;
   border-radius: var(--radius-surface);
+  /* An in-screen notice is a card inside a region (DESIGN.md § Visual
+     character, Friendly Sheet rule 3): the card fill and the subtle border,
+     never the raised surface of what floats. */
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
   outline: 1px solid var(--status-warning);
   outline-offset: -1px;
   background: var(--surface-raised);
 }
-.automatic-updates-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; color: var(--status-warning); }
-.automatic-updates-notice__body { flex: 1; min-width: 0; }
-.automatic-updates-notice strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
-.automatic-updates-notice p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
-.automatic-updates-notice__actions { flex: 0 0 auto; align-self: center; display: flex; align-items: center; gap: var(--space-2); }
-@media (max-width: 760px) {
-  .automatic-updates-notice { flex-wrap: wrap; }
-  .automatic-updates-notice__actions { width: 100%; padding-inline-start: 26px; flex-wrap: wrap; }
-}
+.automatic-updates-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--status-warning); }
+.automatic-updates-notice__body { flex: 1 1 12rem; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.automatic-updates-notice strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
+.automatic-updates-notice p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
+.automatic-updates-notice__actions { flex: 0 1 auto; min-width: 0; margin-inline-start: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-2); }
 @media (forced-colors: active) {
   .automatic-updates-notice { outline: 1px solid CanvasText; outline-offset: -1px; }
 }
@@ -375,12 +475,14 @@
   font-size: var(--text-caption); text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
 }
 
+/* One line, as every in-screen notice (DESIGN.md § Content design). */
 .restore-skipped-notice {
-  display: flex; align-items: center; gap: var(--space-2); justify-content: space-between;
+  display: flex; align-items: center; gap: var(--space-2); justify-content: space-between; min-width: 0;
   margin: 0 0 var(--space-4); padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-panel); color: var(--text-secondary-color); font-size: var(--text-body);
+  background: var(--surface-card); color: var(--text-secondary-color); font-size: var(--text-body);
 }
+.restore-skipped-notice > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .restore-skipped-notice button {
   flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
@@ -425,11 +527,13 @@
    The one animation that asks for the reader's eye, wherever it is asked
    for: the next step on Overview today, and any future "this, now" — a badge,
    an update that is ready. A halo spreads out from the element and fades to
-   nothing by the time it reaches its full reach; then it is invisible while it
-   resets, so the wave is only ever seen leaving. Nothing inside the element
-   moves and no layout changes, which is what lets the same class sit on a 40px
-   tile and an 18px badge. Duration, reach and colour come from tokens so a
-   surface tunes it without writing a second keyframe; the element must be
+   nothing by the time it reaches its full reach, so the wave is only ever seen
+   leaving; then the element goes still. It fires a single time, when the state
+   arrives, rather than looping: a wave that never ends stops meaning
+   "something happened" and starts meaning "ignore me". Nothing inside the
+   element moves and no layout changes, which is what lets the same class sit on
+   a 40px tile and an 18px badge. Duration, reach and colour come from tokens so
+   a surface tunes it without writing a second keyframe; the element must be
    rounded already — the halo takes its shape. Both reduced-motion paths switch
    it off: the system one here, the app one in base.css. */
 @keyframes attention-breathe {
@@ -437,7 +541,7 @@
   70% { box-shadow: 0 0 0 var(--attention-spread) color-mix(in srgb, var(--attention-color) 0%, transparent); }
   100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--attention-color) 0%, transparent); }
 }
-.attention-breathe { animation: attention-breathe var(--attention-duration) ease-out infinite; }
+.attention-breathe { animation: attention-breathe var(--attention-duration) ease-out 1; }
 @media (prefers-reduced-motion: reduce) {
   .attention-breathe { animation: none; }
 }
@@ -480,13 +584,15 @@
    two to read as one family, and the Clone and Initialize path pickers put one
    of each in a single grid row, where any difference is visible. It keeps its
    own slightly larger type: the user's text is the content here, not a label. */
-.text-field input {
+.text-field input,
+.text-field select {
   min-height: var(--control-height-md);
   padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
-.text-field input:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
+.text-field input:focus-visible,
+.text-field select:focus-visible { border-color: var(--focus-ring); background: var(--surface-raised); }
 .text-field input[aria-invalid="true"],
 .text-field textarea[aria-invalid="true"] { border-color: var(--status-danger); }
 
@@ -643,7 +749,7 @@
    still override it: the cascade order in `styles.css` puts shared primitives
    ahead of every feature, so a rule like
    `.changes-actions-menu__popup { left: 0 }` wins on equal specificity. When
-   this block lived in `features/version-lines/version-lines.css` it loaded
+   this block lived in `features/branches/branches.css` it loaded
    *after* `features/changes/changes.css`, so `.app-menu`'s `right: 0` beat
    the Changes override and dropped that menu leftwards, overlapping the file
    list beside it. Default alignment stays `right: 0` — most triggers in this
@@ -971,10 +1077,12 @@
   .app-menu__item,
   .segmented-control__option,
   .choice-list__option,
-  .text-field input {
+  .text-field input,
+  .text-field select {
     min-height: var(--control-height-lg);
   }
   .dialog-close-button { width: var(--control-height-lg); height: var(--control-height-lg); }
+  .app-toast__close { width: var(--control-height-lg); height: var(--control-height-lg); }
   .toggle-switch { width: 52px; height: var(--control-height-lg); padding: 6px; }
   .toggle-switch__knob { width: 30px; height: 30px; }
   .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
@@ -1000,7 +1108,7 @@
  * a different list through the same control in the same slot — ADR 0003's bar
  * for a primitive — so the vocabulary lost its feature name and moved here.
  * What stayed behind is what only History has: the completion fields, the
- * version-line picker and the two ends of a date range.
+ * branch picker and the two ends of a date range.
  * ------------------------------------------------------------------------- */
 .filter-control { display: inline-flex; }
 /* One trigger for every filter, and it never grows. Filters used to be menus
@@ -1225,8 +1333,12 @@
   grid-template-columns: 208px minmax(0, 1fr);
   background: var(--surface-raised);
 }
+/* The rail and the content are two regions of one surface, so they meet on
+   the subtle hairline (DESIGN.md, Regions, not cards). The rail's 12px plus
+   an item's 12px put its icons on the header's 24px inset. */
 .settings-nav {
-  display: grid; align-content: start; gap: 4px; padding: 20px 14px;
+  display: grid; align-content: start; gap: 4px; padding: 20px 12px;
+  border-right: 1px solid var(--border-subtle);
   background: var(--surface-raised);
 }
 .settings-nav__item {
@@ -1236,10 +1348,10 @@
   transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
 }
 .settings-nav__item:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+/* The app rail's own selected state: a fill, no ring. */
 .settings-nav__item--active {
-  background: color-mix(in srgb, var(--text-primary-color) 9%, var(--surface-raised));
+  background: var(--surface-active);
   color: var(--text-primary-color); font-weight: var(--weight-title);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary-color) 12%, transparent);
 }
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
 .settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
@@ -1256,7 +1368,7 @@
 .settings-group { display: grid; gap: var(--space-4); }
 .settings-group + .settings-group {
   margin-top: var(--space-6); padding-top: var(--space-6);
-  border-top: 1px solid var(--border-divider);
+  border-top: 1px solid var(--border-subtle);
 }
 .settings-group__header { padding: 0; }
 .settings-group__header h3 { margin: 0 0 4px; font-size: var(--text-lead); line-height: var(--leading-snug); }
@@ -1315,8 +1427,8 @@
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .settings-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
-/* Only the two tones the identity notice can actually take. The Git action
-   notice uses the `git-install__status--*` scale instead. */
+/* Only the two tones the identity notice can actually take. The installation
+   rows use the `status-line--*` scale instead. */
 .settings-row__hint--success { color: var(--status-success); }
 .settings-row__hint--danger { color: var(--status-danger); }
 /* Not an error: the hooks switch uses this to say what "off" costs, which is a
@@ -1324,6 +1436,58 @@
 .settings-row__hint--warning { color: var(--status-warning); }
 .settings-row__hint--warning p { color: inherit; }
 .settings-row__actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+
+/* The installable-or-updatable row, shared by Git, the optional GitHub and
+   GitLab CLIs and the application update. It has the account row's geometry:
+   a 32px round tile; the name, the installed version and the state chip on
+   one line; the actions on the right. The detail, status and hint lines
+   collapse when empty, so a settled row is one line and nothing moves between
+   states. Directly in a settings group it sits in its own card, like an
+   account list. See DESIGN.md § Shape and § Size. */
+.tool-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: var(--control-height-lg); }
+.settings-group__body > .tool-row { padding: var(--space-3) var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
+.tool-row__body { min-width: 0; display: grid; gap: var(--space-1); }
+.tool-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.tool-row__tile {
+  width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; overflow: hidden;
+  border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-primary-color);
+}
+.tool-row__tile svg { width: 16px; height: 16px; }
+/* The app's own mark is the whole mascot, so it sits a touch larger in the
+   same circle without the tile changing size; its aspect ratio sets the height
+   and leaves headroom for the update row's hop. */
+.tool-row__tile .gitodile-mascot { width: 24px; height: auto; }
+.tool-row__name { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
+.tool-row__chip {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 1px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong);
+  line-height: var(--leading-snug); white-space: nowrap;
+}
+.tool-row__chip svg { width: 11px; height: 11px; }
+.tool-row__chip--success { color: var(--status-success); }
+.tool-row__chip--accent { color: var(--accent-primary); }
+.tool-row__chip--warning { color: var(--status-warning); }
+.tool-row__chip--danger { color: var(--status-danger); }
+.tool-row__version { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tool-row__detail, .tool-row__status { display: flex; align-items: center; }
+.tool-row__detail > *, .tool-row__status > * { margin: 0; }
+.tool-row__hint {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug);
+}
+.tool-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
+.tool-row__detail:empty,
+.tool-row__status:empty,
+.tool-row__hint:empty { display: none; }
+.tool-row__buttons { flex-wrap: wrap; justify-content: flex-end; }
+/* With settled facts under the name the row is several lines tall, so the
+   tile and the actions sit on the first line instead of centring on the
+   whole block. */
+.tool-row:has(.tool-row__facts) { align-items: start; }
+.tool-row:has(.tool-row__facts) .tool-row__tile { margin-top: 1px; }
+.tool-row__facts { display: grid; gap: 2px; min-width: 0; }
+.tool-row__facts > * { margin: 0; }
 
 /* A label-and-value row whose value is a version: "Installed version 2.47.0",
    Git's in its section and the app's own in Updates. The value is monospace
@@ -1370,14 +1534,14 @@
 .choice-list__option {
   display: grid; gap: 3px; padding: 10px var(--space-3); text-align: left;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
-  background: var(--surface-raised); color: var(--text-primary-color);
+  background: var(--surface-card); color: var(--text-primary-color);
 }
 .choice-list__option:hover:not(:disabled) { background: var(--surface-hover); }
 .choice-list__option:disabled { cursor: default; opacity: 0.6; }
 .choice-list__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .choice-list__option--active {
   border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-raised));
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
 }
 .choice-list__label {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
@@ -1407,6 +1571,10 @@
   .settings-view .segmented-control { flex-flow: row wrap; }
   .settings-row { align-items: flex-start; flex-direction: column; }
   .settings-row__actions { width: 100%; }
+  /* The tool row keeps its tile and text side by side and moves its
+     actions under them, in the same order. */
+  .tool-row { grid-template-columns: 32px minmax(0, 1fr); row-gap: var(--space-3); }
+  .tool-row__buttons { grid-column: 1 / -1; justify-content: flex-start; }
 }
 
 @media (pointer: coarse) {
@@ -1415,7 +1583,7 @@
 
 /* ---- Docked composer ----
    The compose box docked at the foot of a list — Changes' save box and
-   Lines' new-line box (DESIGN.md, Changes), the two consumers ADR 0003 asks
+   Branches' new-branch box (DESIGN.md, Changes), the two consumers ADR 0003 asks
    for, and the CSS half of `useDockedComposerFocus`. A section of the panel
    rather than a card floating on it: a hairline over it, the panel's own
    background, the way GitHub Desktop and Fork dock their commit box.
@@ -1458,6 +1626,24 @@
   transition: opacity var(--duration-fast), transform var(--duration-normal) ease-out;
 }
 .docked-composer__head > div { transform-origin: bottom; }
+.docked-composer__head > .docked-composer__heading {
+  flex-direction: row; align-items: center; gap: var(--space-2);
+}
+.docked-composer__heading > :first-child:not(.docked-composer__close) { flex: 1; min-width: 0; }
+.docked-composer__close {
+  display: grid; place-items: center; flex: 0 0 auto; margin-left: auto;
+  width: var(--control-height-sm); height: var(--control-height-sm); padding: 0;
+  border: 0; border-radius: var(--radius-item); background: transparent;
+  color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.docked-composer__close:hover:enabled { background: var(--surface-hover); color: var(--text-primary-color); }
+.docked-composer__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.docked-composer__close:disabled { opacity: 0.5; }
+.docked-composer__close svg { width: 14px; height: 14px; }
+@media (pointer: coarse) {
+  .docked-composer__close { width: var(--control-height-lg); height: var(--control-height-lg); }
+}
 .docked-composer__extra > div { transform-origin: top; }
 .docked-composer--expanded .docked-composer__head > div,
 .docked-composer--expanded .docked-composer__extra > div { opacity: 1; transform: scaleY(1); }
@@ -1473,7 +1659,7 @@
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
 .docked-composer__line svg { width: 12px; height: 12px; flex: 0 0 auto; }
-/* A version line named in the plan line, in the status bar's own mono. */
+/* A branch named in the plan line, in the status bar's own mono. */
 .docked-composer__mono {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-primary-color); font-family: var(--font-mono);
@@ -1530,10 +1716,16 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
  * sizes, one padding, one border, one header. About and What's new keep their
  * identity shell on purpose; everything that asks or tells wears this one.
  * ------------------------------------------------------------------------- */
+/* Every modal's backdrop — the action dialogs, Settings and the documents
+   (About, What's new, the shortcut sheet). Three copies of it had drifted to
+   two paddings. A dialog that opens over another one (Console's confirmation
+   inside Settings) keeps its own backdrop transparent, so the window behind
+   is not veiled twice. */
 .app-dialog-backdrop {
   position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
   background: var(--overlay); backdrop-filter: blur(8px);
 }
+.app-dialog-backdrop .app-dialog-backdrop { background: transparent; backdrop-filter: none; }
 .app-dialog {
   --dialog-width: 560px;
   box-sizing: border-box; width: min(100%, var(--dialog-width)); max-height: calc(100vh - 48px);
@@ -1551,19 +1743,27 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog form { display: grid; gap: var(--space-4); }
 .app-dialog__titles { flex: 1; min-width: 0; }
 .app-dialog__head h2 {
-  margin: 0; font-size: var(--text-display); font-weight: var(--weight-title);
+  margin: 0; font-size: var(--text-title); font-weight: var(--weight-title);
   letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); outline: none;
 }
 .app-dialog__subtitle { margin: 2px 0 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
 .app-dialog__glyph {
   flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round);
-  background: var(--surface-active); color: var(--accent-primary);
+  background: var(--surface-control); color: var(--accent-primary);
 }
 .app-dialog__glyph svg { width: 20px; height: 20px; }
-.app-dialog__glyph--success { background: color-mix(in srgb, var(--status-success) 16%, transparent); color: var(--status-success); }
-.app-dialog__glyph--warning { background: color-mix(in srgb, var(--status-warning) 16%, transparent); color: var(--status-warning); }
-.app-dialog__glyph--danger { background: color-mix(in srgb, var(--status-danger) 14%, transparent); color: var(--status-danger); }
-.app-dialog__glyph--neutral { background: var(--surface-control); color: var(--text-secondary-color); }
+/* The circle stays neutral in every tone and every theme; only the glyph
+   takes the colour (DESIGN.md § Glyph tones). `--surface-active` is not
+   neutral: a community theme tints it with its accent. The glyph tones
+   (tokens.css) say what kind of thing the flow handles — the remote, this
+   computer, or GitOdile itself. */
+.app-dialog__glyph--success { color: var(--status-success); }
+.app-dialog__glyph--warning { color: var(--status-warning); }
+.app-dialog__glyph--danger { color: var(--status-danger); }
+.app-dialog__glyph--neutral { color: var(--text-secondary-color); }
+.app-dialog__glyph--remote { color: var(--tone-remote); }
+.app-dialog__glyph--local { color: var(--tone-local); }
+.app-dialog__glyph--app { color: var(--tone-app); }
 /* Body copy is the secondary ink at the body size; the title is the one
    strong line. */
 .app-dialog__text { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); overflow-wrap: anywhere; }
@@ -1578,7 +1778,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog__fact--safe > span:first-child { color: var(--status-success); }
 .app-dialog__banner {
   display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px var(--space-3);
-  border-radius: var(--radius-item); font-size: var(--text-body); line-height: var(--leading-normal);
+  border-radius: var(--radius-surface); font-size: var(--text-body); line-height: var(--leading-normal);
 }
 .app-dialog__banner > span:first-child { display: grid; margin-top: 2px; }
 .app-dialog__banner svg { width: 16px; height: 16px; }
@@ -1592,14 +1792,23 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog__banner--info > span:first-child { color: var(--accent-primary); }
 .app-dialog__note { display: flex; gap: var(--space-2); align-items: center; margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
 .app-dialog__note svg { flex: none; width: 16px; height: 16px; color: var(--accent-primary); }
+/* An inline link inside a dialog's prose. With the ink accent (ADR 0033) its
+   colour no longer sets it apart from the words around it, so the underline
+   does that at rest (WCAG 1.4.1: never colour alone); hover only thickens it. */
 .app-dialog__link {
   border: 0; background: none; padding: 0; color: var(--accent-primary);
   font: inherit; font-weight: var(--weight-strong); cursor: pointer;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
 }
-.app-dialog__link:hover { text-decoration: underline; }
+.app-dialog__link:hover { text-decoration-thickness: 2px; }
 .app-dialog__link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
 .app-dialog__check { display: flex; gap: 10px; align-items: center; color: var(--text-primary-color); font-size: var(--text-body); }
-.app-dialog__check--block { align-items: flex-start; padding: 10px var(--space-3); border-radius: var(--radius-item); background: var(--surface-control); }
+/* A choice that carries its own explanation is a card inside the dialog: the
+   one inner-card recipe (DESIGN.md § Dialogs). */
+.app-dialog__check--block {
+  align-items: flex-start; padding: 10px var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-card);
+}
 .app-dialog__check--block .app-checkbox { margin-top: 1px; }
 .app-dialog__check > span { display: flex; flex-direction: column; gap: 2px; }
 .app-dialog__check small { color: var(--text-secondary-color); font-size: var(--text-label); }
@@ -1614,7 +1823,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
   border-radius: var(--radius-round); background: var(--surface-control);
 }
 .app-dialog__step-dot svg { width: 12px; height: 12px; }
-.app-dialog__step--done .app-dialog__step-dot { background: var(--surface-active); color: var(--accent-primary); }
+.app-dialog__step--done .app-dialog__step-dot { color: var(--status-success); }
 .app-dialog__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .app-dialog__step--active .app-dialog__step-dot {
   background: transparent; border: 2px solid var(--accent-primary); border-right-color: transparent;
@@ -1628,6 +1837,8 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog .dialog-actions button { white-space: nowrap; }
 .app-dialog__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .app-dialog__foot > .app-dialog__note { flex: 1 1 200px; }
+/* The actions stay on the right when the row has no note to its left. */
+.app-dialog__foot > .dialog-actions { margin-left: auto; }
 .app-dialog__details > summary { width: fit-content; color: var(--text-secondary-color); font-size: var(--text-label); }
 .app-dialog__details pre {
   margin: var(--space-2) 0 0; padding: 10px var(--space-3); border-radius: var(--radius-item);
@@ -1640,7 +1851,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 }
 
 /* The destructive action's one colour (DESIGN.md § Dialogs): anything that
-   removes work — discard, delete a line, delete a stored copy — is red,
+   removes work — discard, delete a branch, delete a stored copy — is red,
    whichever screen asks. */
 .danger-button {
   min-height: var(--control-height-md);
@@ -1657,24 +1868,53 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .danger-button--sm svg { width: 14px; height: 14px; }
 
 /* A result with no next step: bottom centre, above the status bar, gone on
-   its own after a few seconds (paused while pointed at or focused). */
+   its own after a few seconds (paused while pointed at or focused). Toasts
+   stack, newest closest to the status bar; a toast that offers an action has
+   no clock and stays until it is dismissed. */
 .app-toast-viewport {
   position: fixed; left: 50%; bottom: 44px; z-index: 30; transform: translateX(-50%);
-  display: flex; justify-content: center; pointer-events: none; max-width: calc(100vw - 32px);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  pointer-events: none; max-width: calc(100vw - 32px);
 }
 .app-toast {
   pointer-events: auto; display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-raised); box-shadow: var(--shadow-md);
   color: var(--text-primary-color); font-size: var(--text-body);
+  min-width: 0; max-width: 100%;
   animation: app-toast-in var(--duration-normal) ease-out;
 }
-.app-toast__icon { display: grid; color: var(--accent-primary); }
+.app-toast__icon { display: grid; color: var(--accent-primary); flex-shrink: 0; }
 .app-toast__icon svg { width: 16px; height: 16px; }
+.app-toast__message { min-width: 0; }
 .app-toast__action {
   margin-left: var(--space-2); border: 0; background: none; padding: 0; white-space: nowrap;
   color: var(--accent-primary); font: inherit; font-weight: var(--weight-strong); cursor: pointer;
 }
 .app-toast__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
+.app-toast__close {
+  display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px;
+  margin-left: 2px; padding: 0; border: 0; border-radius: var(--radius-item);
+  background: none; color: var(--text-secondary-color);
+}
+.app-toast__close:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.app-toast__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.app-toast__close svg { width: 14px; height: 14px; }
+/* The bar is the toast's own clock: it drains over the same wait, and pausing
+   the toast pauses this too, so the fill and the dismissal stay in step. */
+.app-toast--progress { position: relative; overflow: hidden; padding-bottom: 13px; }
+.app-toast__progress {
+  display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+  background: var(--border-subtle);
+}
+.app-toast__progress-fill {
+  display: block; height: 100%; width: 100%;
+  background: var(--accent-primary); transform-origin: left center;
+  animation: app-toast-drain var(--duration-normal) linear forwards;
+}
 @keyframes app-toast-in { from { opacity: 0; transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .app-toast { animation: none; } }
+@keyframes app-toast-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-toast { animation: none; }
+  .app-toast__progress-fill { animation: none; }
+}

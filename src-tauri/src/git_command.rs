@@ -26,6 +26,60 @@ where
         .collect()
 }
 
+/// Provider selection is added at the policy facade, never in the bounded
+/// process runner. Query header names only; secret header values are not read.
+pub(crate) fn prepare_transfer_args(
+    cwd: Option<&Path>,
+    args: &[OsString],
+) -> Result<Vec<OsString>, AppError> {
+    let mut prepared = crate::credentials::transfer_args(cwd, args)?;
+    if prepared == args {
+        return Ok(prepared);
+    }
+    crate::credentials::validate_transfer_urls(args, &prepared)?;
+    let mut policy = require_policy()?;
+    if cwd.is_some() {
+        policy.stdout_cap = 64 * 1024;
+        policy.timeout = std::time::Duration::from_secs(10);
+        let remotes = git::run(
+            cwd,
+            ["remote", "-v"],
+            policy,
+            application::current_cancellation().as_ref(),
+        )?;
+        if remotes.stdout_truncated || !remotes.status.success() {
+            return Err(AppError::new(
+                AppErrorCode::AuthenticationFailed,
+                "GitOdile couldn't verify this project's remote authentication settings.",
+            ));
+        }
+        crate::credentials::validate_remote_urls(&remotes.stdout, &prepared)?;
+    }
+    policy.stdout_cap = 16 * 1024;
+    policy.timeout = std::time::Duration::from_secs(10);
+    let headers = git::run(
+        cwd,
+        [
+            "config",
+            "-z",
+            "--name-only",
+            "--get-regexp",
+            "^http\\..*extraheader$",
+        ],
+        policy,
+        application::current_cancellation().as_ref(),
+    )?;
+    if headers.stdout_truncated || (!headers.status.success() && headers.status.code() != Some(1)) {
+        return Err(AppError::new(
+            AppErrorCode::AuthenticationFailed,
+            "GitOdile couldn't verify this project's HTTPS authentication settings.",
+        ));
+    }
+    let mut overrides = crate::credentials::header_overrides(&headers.stdout, &prepared)?;
+    overrides.append(&mut prepared);
+    Ok(overrides)
+}
+
 fn record_result(
     policy: git::ExecutionPolicy,
     subcommand: &'static str,
@@ -113,9 +167,10 @@ pub(crate) fn run_git_bounded_with_env(
     let cancellation = application::current_cancellation();
     let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsStr::new));
     let started = Instant::now();
+    let args = prepare_transfer_args(Some(Path::new(repo_path)), &owned_args(args))?;
     let result = git::run_with_env(
         Some(Path::new(repo_path)),
-        args,
+        &args,
         envs,
         policy,
         cancellation.as_ref(),
@@ -137,6 +192,7 @@ where
     let cancellation = application::current_cancellation();
     let args = owned_args(args);
     let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsString::as_os_str));
+    let args = prepare_transfer_args(Some(Path::new(repo_path)), &args)?;
     let started = Instant::now();
     let result = git::run_with_env(
         Some(Path::new(repo_path)),
@@ -167,6 +223,7 @@ where
     let cancellation = application::current_cancellation();
     let args = owned_args(args);
     let subcommand = diagnostics::safe_git_subcommand(args.first().map(OsString::as_os_str));
+    let args = prepare_transfer_args(None, &args)?;
     let started = Instant::now();
     let result = git::run_with_env(None, &args, envs, policy, cancellation.as_ref());
     record_result(policy, subcommand, started, &result);
@@ -196,7 +253,7 @@ pub(crate) fn run_git_capped(
     let started = Instant::now();
     let result = git::run(
         Some(Path::new(repo_path)),
-        args,
+        prepare_transfer_args(Some(Path::new(repo_path)), &owned_args(args))?,
         policy,
         cancellation.as_ref(),
     );
@@ -222,7 +279,7 @@ pub(crate) fn run_git_with_input_capped(
     let started = Instant::now();
     let result = git::run_with_input(
         Some(Path::new(repo_path)),
-        args,
+        prepare_transfer_args(Some(Path::new(repo_path)), &owned_args(args))?,
         input,
         policy,
         cancellation.as_ref(),

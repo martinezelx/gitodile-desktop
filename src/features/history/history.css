@@ -6,26 +6,28 @@
   /* The gap replaces the margin the notices used to carry: an empty notice
      block collapses to nothing, and a screen whose spacing lives in one
      property is a screen whose header can be added without re-deriving it. */
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .history-notices:empty { display: none; }
-.history-notices { display: grid; gap: 6px; }
+.history-notices { display: grid; gap: 6px; padding: var(--space-3) var(--space-3) 0; }
 
 .history-banner {
   display: flex;
-  align-items: flex-start;
+  min-width: 0;
+  align-items: center;
   gap: 10px;
   padding: 9px 11px;
   border-radius: var(--radius-surface);
-  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
 }
-.history-banner__body { flex: 1; min-width: 0; }
+.history-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
 .history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
 .history-banner > .secondary-button svg { width: 14px; height: 14px; }
-.history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 2px; }
-.history-banner strong { display: block; margin-bottom: 2px; font-size: var(--text-label); }
-.history-banner p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
+.history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; align-self: center; }
+.history-banner strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
+.history-banner p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
 .history-banner--warning > svg { color: var(--status-warning); }
 .history-banner--danger > svg { color: var(--status-danger); }
 .history-banner--warning { outline: 1px solid var(--status-warning); outline-offset: -1px; }
@@ -43,20 +45,33 @@
      to read as one product. Neither feature owns a measure whose whole job is
      to hold two screens together, so both now read it from the scale. */
   grid-template-columns: var(--panel-column) minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: 0;
 }
 
 /* A panel, not a bare column: the timeline is the sibling of the detail card
    beside it and of the Changes file list, and all three carry their own
    surface with one strip at the top holding the row's controls. */
 .history-timeline {
+  /* Lane tints. The branch being read is the trunk, a step above the rail's
+     divider ink; every other branch takes one of the brand's avatar hues
+     pulled most of the way toward that ink, so lanes tell apart without
+     shouting and every theme gets them without tokens of its own. Declared
+     on the timeline, not its scroller: the lane card beside the pointer sits
+     outside the scroller and wears its lane's colour too. */
+  --history-lane-0: color-mix(in srgb, var(--text-secondary-color) 70%, var(--border-divider));
+  --history-lane-1: color-mix(in srgb, var(--avatar-color-2) 75%, var(--border-divider));
+  --history-lane-2: color-mix(in srgb, var(--avatar-color-5) 75%, var(--border-divider));
+  --history-lane-3: color-mix(in srgb, var(--avatar-color-0) 75%, var(--border-divider));
+  --history-lane-4: color-mix(in srgb, var(--avatar-color-7) 75%, var(--border-divider));
+  --history-lane-5: color-mix(in srgb, var(--avatar-color-3) 75%, var(--border-divider));
+  --history-lane-6: color-mix(in srgb, var(--avatar-color-6) 75%, var(--border-divider));
+  --history-lane-7: color-mix(in srgb, var(--avatar-color-1) 75%, var(--border-divider));
+  --history-lane-8: color-mix(in srgb, var(--avatar-color-4) 75%, var(--border-divider));
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
+  border-inline-end: 1px solid var(--border-subtle);
 }
 /* No rule under it. The search box is already a bordered capsule floating on
    the panel, and a second line right below it fenced the box off from the very
@@ -77,7 +92,7 @@
 }
 /* The state row under the search strip — the row the Changes list gives its
    breakdown — at the inner strip's height. It holds the scope chip while the
-   timeline is not the current line's; the rest of the time it is not drawn,
+   timeline is not the current branch's; the rest of the time it is not drawn,
    so the rows keep their first pixel. */
 .history-timeline__state {
   flex: 0 0 auto;
@@ -90,7 +105,7 @@
 }
 /* The scope, as a chip: which history is being read, removable where it is
    stated. It has a row of its own rather than a place among the filter chips,
-   because it is not a filter — clearing the filters must not change the line. */
+   because it is not a filter — clearing the filters must not change the branch. */
 .history-scope-chip {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   max-width: 100%; height: 24px; padding: 0 6px 0 9px;
@@ -122,7 +137,7 @@
 .history-timeline__toolbar .search-box { flex: 1; }
 
 /* What stayed behind when the filter surface moved to `shared/ui` (task 121):
-   the completion fields, the version-line picker and the two ends of a date
+   the completion fields, the branch picker and the two ends of a date
    range are questions only History asks, and a primitive is not the place for
    the one screen's vocabulary.
 
@@ -146,7 +161,7 @@
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .history-filter__field:focus-within { border-color: var(--focus-ring); background: var(--surface-panel); }
-/* A line is chosen: the field is holding an answer, not waiting for one. The
+/* A branch is chosen: the field is holding an answer, not waiting for one. The
    accent border and the heavier value say so on their own — the clear control
    beside them is the second, non-colour signal. */
 .history-filter__field--selected {
@@ -226,7 +241,7 @@
 .history-scope-picker__option:hover { background: var(--surface-hover); }
 .history-scope-picker__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* The tick, not the fill: a highlighted row and a hovered row would be the same
-   thing to look at, and the chosen line has to stay legible under the pointer. */
+   thing to look at, and the chosen branch has to stay legible under the pointer. */
 .history-scope-picker__option--selected { font-weight: var(--weight-strong); }
 .history-scope-picker__tick { color: var(--accent-primary); }
 .history-scope-picker__empty {
@@ -318,38 +333,98 @@
   overflow-x: hidden;
 }
 .history-timeline__virtual { position: relative; width: 100%; }
+/* Each piece — a row, the local head, the boundary — is a
+   virtual item of its own fixed height (`PIECE_HEIGHT`), set inline. */
 .history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 64px; padding: 0 5px; contain: layout paint style; }
-/* The published boundary rides on the first published row, so the rows
-   keep one height and the virtualizer only has to know about one taller one. */
-.history-timeline__virtual-row--boundary { height: calc(64px + 26px); }
-/* A rule across the column that names both sides — `↑ 4 not published` at
-   the text's start, `Published ↓` at the end — so it cannot be read as a
-   fact about the one row over it. The remote is on its tooltip. The rail
-   runs through it at the rows' x (the row's 1px border and 17.5px, inside the
-   5px inset), in the accent while the selection sits below it. */
+/* Both are Overview's chips, at Overview's size, their glyph on the rail.
+   The rail runs through them at the rows' x (the row's 1px border and 17.5px,
+   inside the 5px inset), in the accent while the selection sits below the
+   boundary. */
+
+/* Where the remote's copy of the branch begins: the "Published" chip on the
+   rail (TimelineChip, as on Overview and Branches), which folds the block, with
+   its air above. The remote and its branch are the piece's tooltip. */
 .history-boundary {
-  position: relative; height: 26px;
-  display: flex; align-items: center; gap: 6px;
-  padding: 0 10px 0 41px;
-  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-medium);
+  position: relative; height: 32px;
+  /* The rows' transparent 1px border, so every piece of the timeline measures
+     its rail from the same edge: a display that draws that border as less
+     than one CSS pixel moves rows and headings alike, never one against the
+     other. */
+  border: 1px solid transparent;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 5px 10px 0 6px;
+  min-width: 0;
+  color: var(--text-secondary-color); font-size: var(--text-caption);
 }
 .history-boundary::before {
-  content: ""; position: absolute; top: 0; bottom: 0; left: 18.5px; width: 1px; background: var(--border-divider);
+  content: ""; position: absolute; top: -1px; bottom: -1px; left: 17.5px; width: 1px; background: var(--history-lane-0, var(--border-divider));
 }
 .history-boundary[data-rail]::before { background: color-mix(in srgb, var(--accent-primary) 62%, var(--border-divider)); }
-.history-boundary__rule { flex: 1 1 auto; min-width: 12px; height: 0; border-top: 1px dashed var(--border-subtle); }
-.history-boundary__side { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-/* The count, as a way to publish what it counts: a capsule that shows it is
-   pressable only under the pointer, with the publish glyph arriving there. */
-.history-boundary__publish {
-  height: 20px; margin-inline-start: -7px; padding: 0 7px; border: 1px solid transparent; border-radius: var(--radius-pill);
-  background: transparent; color: inherit; font: inherit;
+/* Folded, nothing comes after the chip: the rail ends under it. */
+.history-boundary[data-folded]::before { bottom: 50%; }
+
+/* Over the versions only on this computer: the "On this computer" chip on
+   the rail, which folds the block. Its rail starts at the chip and runs into
+   the first row's. */
+.history-local-head {
+  position: relative; height: 34px;
+  border: 1px solid transparent;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 3px 10px 0 6px;
+  min-width: 0;
+}
+.history-local-head::before {
+  content: ""; position: absolute; top: calc(50% + 2px); bottom: -1px; left: 17.5px; width: 1px; background: var(--history-lane-0, var(--border-divider));
+}
+/* The chip folds its block: its chevron turns with it. */
+.history-block-chip { min-width: 0; }
+.history-block-chip__chevron { width: 12px; height: 12px; color: var(--text-secondary-color); transition: transform var(--duration-fast) ease-out; }
+.history-block-chip[aria-expanded="true"] .history-block-chip__chevron { transform: rotate(90deg); }
+/* The way to publish what is under the head. The publish cloud is always
+   there, in the accent, so the word reads as an action before the pointer
+   finds it; under the pointer the capsule takes the shape Overview's "Publish
+   up to here" and the status bar's sync pill wear — the control surface with
+   a hairline — and the words step up to the primary ink. Only the cloud is
+   ever green. */
+.history-local-head__publish {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
+  height: 20px; margin-inline: auto -7px; padding: 0 7px;
+  border: 1px solid transparent; border-radius: var(--radius-pill);
+  background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-caption); font-weight: var(--weight-medium); white-space: nowrap;
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
-.history-boundary__publish:hover { background: var(--surface-hover); border-color: var(--border-subtle); color: var(--accent-primary); }
-.history-boundary__publish-icon { opacity: 0; transition: opacity var(--duration-fast); }
-.history-boundary__publish:hover .history-boundary__publish-icon { opacity: 1; }
-.history-boundary svg { width: 12px; height: 12px; }
+.history-local-head__publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
+.history-local-head__publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
+.history-local-head__publish svg { width: 12px; height: 12px; color: var(--tone-local); }
+/* Lanes, where the history really branches (`history-timeline--lanes`): the
+   pieces draw them as SVG at their own height, so the CSS rails step aside,
+   the nodes shrink to sit on 9px lanes without covering the next one, and the
+   words move right by however many lanes there are. */
+.history-lanes { position: absolute; top: -1px; left: -1px; z-index: 0; overflow: visible; pointer-events: none; fill: none; stroke-width: 1; }
+.history-timeline--lanes .history-row::before,
+.history-timeline--lanes .history-row::after,
+.history-timeline--lanes .history-boundary::before,
+.history-timeline--lanes .history-local-head::before { display: none; }
+.history-timeline--lanes .history-row { padding-left: var(--history-lanes-inset); }
+.history-timeline--lanes .history-boundary,
+.history-timeline--lanes .history-local-head { padding-left: var(--history-lanes-inset); }
+/* The node is the same on lanes as on the rail; only where it sits moves. */
+.history-timeline--lanes .history-row__node { left: calc(var(--history-node-x, 19px) - 6px); }
+
+/* What a merge brought in, on a single line: how many, behind a chevron that
+   opens them on a lane of their own. A pointer shortcut out of the tab order
+   — the row's Right and Left arrows do the same — so nothing interactive is
+   nested in the row. */
+.history-detour {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px;
+  height: 16px; padding: 0 6px 0 3px;
+  border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
+  color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; line-height: var(--leading-none);
+  transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.history-detour svg { width: 11px; height: 11px; transition: transform var(--duration-fast) ease-out; }
+.history-detour--open svg { transform: rotate(90deg); }
+.history-detour:hover { background: var(--surface-control); border-color: var(--border-control); color: var(--text-primary-color); }
 /* The first page's rows, at the virtual rows' height and inset. */
 .history-timeline__placeholder { flex: 1; min-height: 0; overflow: hidden; }
 .history-timeline__placeholder-row { height: 64px; padding: 0 5px; }
@@ -396,7 +471,7 @@
   bottom: -1px;
   left: 17.5px;
   width: 1px;
-  background: var(--border-divider);
+  background: var(--history-lane-0, var(--border-divider));
 }
 .history-row[data-first]::after { top: 32px; }
 .history-row[data-last]::after { bottom: calc(100% - 32px); }
@@ -425,10 +500,15 @@
 .history-row[data-rail="half"]::before { bottom: calc(100% - 32px); }
 .history-row[data-first]::before { top: 32px; }
 
-/* The node carries the state, and it carries all of it: a ring at rest, the
-   accent under the pointer, a filled dot with a soft halo when selected. No
-   keyframes — DESIGN.md § Motion asks motion to communicate a state change,
-   and an `infinite` pulse under the pointer is the definition of decoration.
+/* The node carries the state, and it carries all of it. Its shape says where
+   the version stands, as on Overview's timeline: half filled when it is saved
+   only here, a solid disc in the node fill once published, an empty ring when
+   that is not known. Both fills are the node fill, so one family reads "saved"
+   and only the shape says where; the accent ring and a soft halo come under
+   the pointer, and the selection turns the node's own shape to the accent with
+   a halo — the one green node in the list. No keyframes — DESIGN.md § Motion
+   asks motion to communicate a state change, and an `infinite` pulse under the
+   pointer is the definition of decoration.
 
    The resting ring is mixed off the secondary text colour rather than taking a
    border token: it has to sit a clear step above the rail it stands on, and
@@ -436,51 +516,55 @@
 .history-row__node {
   position: absolute;
   z-index: 2;
-  top: 26px;
-  left: 12px;
-  width: 12px;
-  height: 12px;
-  border: 2px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
+  top: 27px;
+  left: 13px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--text-secondary-color) 52%, transparent);
   border-radius: var(--radius-round);
   background: var(--surface-panel);
-  box-shadow: 0 0 0 3px var(--surface-panel);
+  box-shadow: 0 0 0 2px var(--surface-panel);
   transition: border-color var(--duration-fast) ease-out, background-color var(--duration-fast) ease-out, box-shadow var(--duration-fast) ease-out;
 }
-.history-row:hover .history-row__node,
-.history-row:focus-visible .history-row__node { border-color: var(--accent-primary); }
+.history-row--local .history-row__node {
+  border-color: var(--node-fill);
+  background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
+}
+.history-row--published .history-row__node {
+  border-color: var(--node-fill);
+  background: var(--node-fill);
+}
+/* The pointer halo is for the rows that have none of their own: a selected
+   row already carries the accent node and its own halo, so hovering it must
+   not grow that halo. Its hover feedback stays the row's own background. */
+.history-row:not(.history-row--selected):hover .history-row__node,
+.history-row:not(.history-row--selected):focus-visible .history-row__node {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 4.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+/* Selection changes the node's colour, never its shape: a version saved only
+   here stays half filled — the filled half in the accent — and only a
+   published one becomes a solid accent dot, so selecting a row never makes it
+   look published. The hollow half takes the selected row's own tint. An
+   unknown publication stays a ring, in the accent. */
 .history-row--selected .history-row__node {
   border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel));
+  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 3.5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
+.history-row--selected.history-row--local .history-row__node {
+  background: linear-gradient(90deg, var(--accent-primary) 50%, color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)) 50%);
+}
+.history-row--selected.history-row--published .history-row__node { background: var(--accent-primary); }
 .history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
 /* One line, truncated: the subject gets a full line and the message behind it
    is read in the detail strip, which is the surface that has room for it. */
 .history-row__title { overflow: hidden; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); line-height: var(--leading-snug); text-overflow: ellipsis; white-space: nowrap; }
 /* Who, then the states, from the row's start; when, at its end — the shape
-   of a Lines row, so the two lists read alike. The author used to be spelled
+   of a Branches row, so the two lists read alike. The author used to be spelled
    out here, the longest and most repetitive fact down the column; as initials
    it leaves the glyphs room, and the date keeps one place in every row. */
 .history-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-row__avatar {
-  width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center;
-  /* Tinted, not filled: a column of solid circles down a solo project's
-     timeline was the loudest thing on the screen. The initials take the
-     author's colour pulled toward the text colour, so they hold contrast on
-     their own tint in either theme. At the micro floor and a medium weight:
-     bold capitals filled an 18px circle edge to edge. */
-  border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--author-color) 20%, var(--surface-panel));
-  color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
-  font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
-}
-/* The user's own versions: a person glyph on the neutral tint, not the
-   initials on a colour of their own. */
-.history-row__avatar--self {
-  background: var(--surface-hover);
-  color: var(--text-secondary-color);
-}
-.history-row__avatar--self svg { width: 11px; height: 11px; }
 /* The Conventional Commits prefix, one tone quieter than the words after it,
    and a merge's whole title the same: both are there, neither leads. */
 .history-title-prefix,
@@ -492,7 +576,7 @@
 /* Shared with the Overview summary, like the badge below it. */
 .history-meta-dot { flex: 0 0 auto; color: var(--border-subtle); }
 
-/* The version line or tag a saved version sits on, said in the same breath as
+/* The branch or tag a saved version sits on, said in the same breath as
    who saved it and when — and the only one of the three that is not prose.
    Author and date are bare text; a reference is a name Git owns, so it takes a
    capsule and a glyph and cannot be read as the continuation of a sentence.
@@ -501,8 +585,8 @@
    its own rows. This sheet loads after `overview.css`, so one definition
    serves both without an override.
 
-   Only the checked-out line spends a color. A tag is not a warning and a
-   remote line is not a status, so they part from a local line by glyph and by
+   Only the checked-out branch spends a color. A tag is not a warning and a
+   remote branch is not a status, so they part from a local branch by glyph and by
    nothing else: the accent marks a state, never a category. */
 .history-ref-badge {
   min-width: 0; max-width: 40%; flex-shrink: 0;
@@ -518,9 +602,11 @@
 }
 .history-ref-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
 .history-ref-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The current branch is a fact about the row, not a state to act on: a neutral
+   capsule, so the accent stays with selection and the screen's action. */
 .history-ref-badge--current {
-  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
-  background: var(--surface-active); color: var(--accent-primary);
+  border-color: var(--border-divider);
+  background: var(--surface-control); color: var(--text-primary-color);
 }
 
 /* The column, not the card: on a narrow window it also carries the button back
@@ -539,11 +625,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-surface);
-  background: var(--surface-panel);
 }
-.history-detail--state, .history-detail--loading { gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
+.history-detail--state, .history-detail--loading { gap: 0; }
 .history-detail--state { align-items: center; justify-content: center; padding: 28px; color: var(--text-secondary-color); text-align: center; }
 .history-detail--state > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--status-danger); }
 .history-detail--state h2, .history-detail--state p { margin: 0 0 10px; }
@@ -573,24 +656,19 @@
   padding: 0 var(--space-4) 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* Two lines, the way the Changes list panel heads its own column: the subject
-   gets a line to itself, and the author sits under it — one tone quieter, so
-   the name the row exists to show is never crowded by who saved it. Both lines
-   truncate, and the strip keeps its single height. */
-.history-detail__strip-identity { min-width: 0; flex: 1 1 auto; display: grid; align-content: center; gap: 2px; overflow: hidden; }
+/* One line: the subject takes what the strip has, and truncates first. A step
+   above the rows' subject, as Branches' strip names its branch. */
 .history-detail__strip-title {
-  min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  font-size: var(--text-lead); font-weight: var(--weight-strong); line-height: var(--leading-snug);
+  min-width: 0; flex: 1 1 auto; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: var(--text-subtitle); font-weight: var(--weight-strong); line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
 }
+/* Whether it left the machine, who saved it and when, at the trailing end —
+   the timeline row's shorthand, never truncated: the subject gives way. */
 .history-detail__strip-facts {
-  min-width: 0; display: flex; align-items: center; gap: var(--space-1); margin: 0; overflow: hidden; white-space: nowrap;
+  flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-2); margin: 0; white-space: nowrap;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug);
 }
-/* The name gives way first; the reference beside it is a capsule and holds its
-   own width. */
-.history-detail__strip-facts strong { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
-.history-detail__strip-facts code { color: inherit; font-size: var(--text-caption); }
 .history-detail__strip-trailing { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 /* Two glyph-only controls, the strip's own shape: circles at the control tier,
    as every other icon control in the app is, each named to a screen reader and
@@ -638,8 +716,10 @@
 
 .history-publication, .history-kind-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
 .history-publication svg { width: 11px; height: 11px; }
-.history-publication--published { background: color-mix(in srgb, var(--status-success) 12%, var(--surface-raised)); color: var(--status-success); }
-.history-publication--local-only { color: var(--accent-primary); }
+.history-publication--published { background: color-mix(in srgb, var(--tone-remote) 12%, var(--surface-raised)); color: var(--tone-remote); }
+/* Saved here but not published is work still to do, not a success: the
+   primary ink on the neutral capsule, the published capsule keeps its green. */
+.history-publication--local-only { background: color-mix(in srgb, var(--tone-local) 12%, var(--surface-raised)); color: var(--tone-local); }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; }
 /* Two panes, each opening with its own strip — the shape the screen around it
@@ -715,16 +795,17 @@
    arrows act on the file and take the far edge. */
 .history-diff-toolbar .history-icon-button { width: 28px; height: 28px; border-color: transparent; background: transparent; }
 /* The copy control is a convenience, not a fact: it stays invisible until the
-   toolbar is pointed at, or focused into, the way Overview's project-path copy
-   does, so the open file's name keeps the row. */
+   toolbar is pointed at, or focused into, so the open file's name keeps the
+   row. */
 .history-diff-toolbar__copy { opacity: 0; transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast); }
 .history-diff-toolbar:hover .history-diff-toolbar__copy,
 .history-diff-toolbar:focus-within .history-diff-toolbar__copy,
 .history-diff-toolbar__copy:focus-visible { opacity: 1; }
-/* Shrinkable, because the find box inside it is: the arrows and the view picker
-   keep their size, and the find — the one thing that can give way — does. The
-   rule is the same hairline Changes draws before its own reading controls. */
-.history-diff-toolbar__controls { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 1 auto; min-width: 0; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
+/* Fixed, not shrinkable, for the same reason as Changes' `.changes-diff__controls`:
+   the find is a portalled popover, so the only thing a squeeze would do is clip the
+   view picker. The name and folder give way instead. The rule is the same hairline
+   Changes draws before its own reading controls. */
+.history-diff-toolbar__controls { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); flex: 0 0 auto; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 .history-detail__diff { flex: 1; min-height: 120px; display: flex; flex-direction: column; overflow: hidden; }
 .history-detail__diff .diff-code { flex: 1; min-height: 0; margin: 0; border-radius: 0; }
 .history-detail__diff .changes-diff__note { flex: 1; }
@@ -753,6 +834,7 @@
    between the two widths had Changes on one panel and History still on two. */
 @media (max-width: 1024px) {
   .history-layout { grid-template-columns: 1fr; }
+  .history-timeline { border-inline-end: 0; }
   .history-detail { display: none; }
   .history-screen--narrow-detail .history-timeline { display: none; }
   .history-screen--narrow-detail .history-detail { display: flex; }
@@ -772,7 +854,7 @@
 /* Nothing on the timeline animates any more, so this is the whole of it: the
    states themselves stay, they simply arrive at once. */
 @media (prefers-reduced-motion: reduce) {
-  .history-row, .history-row::before, .history-row__node, .history-file { transition: none; }
+  .history-row, .history-row::before, .history-row__node, .history-file, .history-detour, .history-detour svg, .history-block-chip, .history-block-chip__chevron { transition: none; }
 }
 
 @media (pointer: coarse) {
@@ -799,11 +881,36 @@
   .history-banner { outline: 1px solid CanvasText; outline-offset: -1px; }
   .history-row--selected, .history-file--selected { outline: 2px solid Highlight; outline-offset: -2px; }
   .history-row__node { border-color: ButtonText; }
-  .history-row__avatar { border: 1px solid CanvasText; }
-  .history-row--selected .history-row__node { background: Highlight; }
+  .history-row--selected .history-row__node { background: Canvas; border-color: Highlight; }
+  .history-row--local .history-row__node { background: linear-gradient(90deg, CanvasText 50%, Canvas 50%); }
+  .history-row--published .history-row__node { background: CanvasText; }
+  .history-row--selected.history-row--local .history-row__node { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); }
+  .history-row--selected.history-row--published .history-row__node { background: Highlight; }
   /* `color-mix` does not survive a forced palette, so the walked rail names a
      system colour instead of losing its fill entirely. */
   .history-row[data-rail="filled"]::before, .history-row[data-rail="half"]::before { background: Highlight; }
   .history-publication, .history-kind-chip, .history-ref-badge { border: 1px solid CanvasText; }
   .history-diff-toolbar__copy { opacity: 1; }
 }
+
+/* Pointing at a lane: an invisible 9px band over each stroke takes the
+   pointer, the lane lifts (2px, the others step back) and a card beside the
+   pointer says what the line is. It wears the app tooltip's own look — the
+   fixed dark surface — so it reads as the tooltip it is; the lane's colour is
+   said once, by a dot before its name, the shape of a node on that lane. */
+.history-lanes .history-lane-hit { stroke: transparent; stroke-width: 9; pointer-events: stroke; cursor: default; }
+.history-lane-stroke { transition: opacity var(--duration-fast) ease-out; }
+.history-lane-tip {
+  position: fixed; z-index: 1000; pointer-events: none;
+  display: grid; gap: 1px; max-width: 280px; width: max-content;
+  padding: 6px 9px; border-radius: var(--radius-item);
+  background: var(--tooltip-surface); color: color-mix(in srgb, var(--tooltip-text) 72%, transparent);
+  box-shadow: var(--tooltip-shadow);
+  font-size: var(--text-caption); line-height: var(--leading-normal);
+}
+.history-lane-tip__name {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  color: var(--tooltip-text); font-size: var(--text-label); font-weight: var(--weight-medium);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.history-lane-tip__name::before { content: ""; flex: 0 0 auto; width: 7px; height: 7px; border-radius: var(--radius-round); background: var(--lane-color); }

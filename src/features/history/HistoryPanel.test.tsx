@@ -11,10 +11,19 @@ import { LanguageProvider } from "../../i18n";
 import { createHistoryController } from "./controller";
 import type { HistoryDecoration, HistoryPage, HistoryState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { primaryDecoration } from "./HistoryRefBadge";
-import { HistoryPanel, type HistoryLineActions } from "./HistoryPanel";
-import { CURRENT_LINE_SCOPE, NO_HISTORY_FILTERS } from "./port";
+import { HistoryPanel, type HistoryBranchActions } from "./HistoryPanel";
+import { CURRENT_BRANCH_SCOPE, NO_HISTORY_FILTERS } from "./port";
 import { formatHistoryDate } from "./formatHistoryDate";
 import type { HistoryPort } from "./port";
+
+/** The first version row drawn after a timeline piece (a head, the boundary). */
+function rowAfter(piece: Element): HTMLElement | null {
+  for (let item = piece.closest(".history-timeline__virtual-row")?.nextElementSibling; item; item = item.nextElementSibling) {
+    const row = item.querySelector<HTMLElement>(".history-row");
+    if (row) return row;
+  }
+  return null;
+}
 
 function metaOrder(row: HTMLElement, meta: string): string[] {
   return [...row.querySelectorAll<HTMLElement>(`${meta} > *`)].map((element) => element.className.split(" ")[0]);
@@ -47,7 +56,7 @@ function page(count: number, overrides: Partial<HistoryPage> = {}): HistoryPage 
   return {
     repositoryId: "/repo",
     snapshotToken: "snapshot-1",
-    scope: CURRENT_LINE_SCOPE,
+    scope: CURRENT_BRANCH_SCOPE,
     branch: "main",
     headState: "branch",
     headCommit: versions[0]?.commit ?? null,
@@ -68,7 +77,7 @@ function state(count: number, overrides: Partial<HistoryState> = {}): HistorySta
     projectId: "/repo",
     sessionEpoch: "epoch-1",
     filters: NO_HISTORY_FILTERS,
-    scope: CURRENT_LINE_SCOPE,
+    scope: CURRENT_BRANCH_SCOPE,
     snapshot,
     versions,
     isLoading: false,
@@ -102,7 +111,7 @@ function renderPanel(
   historyState: HistoryState,
   error: string | null = null,
   watcherState: "starting" | "watching" | "off" | "unavailable" = "watching",
-  actions: HistoryLineActions = {},
+  actions: HistoryBranchActions = {},
   selfEmail: string | null = null,
 ) {
   const historyController = controller();
@@ -127,9 +136,9 @@ function renderPanel(
   return { historyController, select, selectFile, setScope, ...utils };
 }
 
-/** A version carrying a real local line, which is the only decoration this
+/** A version carrying a real local branch, which is the only decoration this
  *  screen can also act on. */
-function versionOnLine(index: number, name: string): SavedVersionSummary {
+function versionOnBranch(index: number, name: string): SavedVersionSummary {
   return {
     ...version(index),
     decorations: [{ kind: "localBranch", name, fullRef: `refs/heads/${name}` }],
@@ -139,6 +148,54 @@ function versionOnLine(index: number, name: string): SavedVersionSummary {
 afterEach(cleanup);
 
 describe("HistoryPanel", () => {
+  it("shows the native branch inventory limit warning without hiding history", () => {
+    const history = state(3);
+    renderPanel({
+      ...history,
+      snapshot: { ...history.snapshot!, warnings: ["branchesTruncated"] },
+    });
+    expect(screen.getByText("Some branches aren't included: this project has more than History can read at once.")).toHaveAttribute("role", "status");
+    expect(screen.getByText("Saved version 2")).toBeInTheDocument();
+  });
+
+  it("keeps the same tab nodes through every state a refresh moves it between", () => {
+    // A refresh takes this panel through its states on its own. Each state
+    // used to draw a frame of its own, which rebuilt the tabs: a press that
+    // straddled the change landed on a detached button and was lost.
+    const historyController = controller();
+    const panel = (historyState: HistoryState, error: string | null = null) => (
+      <LanguageProvider>
+        <HistoryPanel
+          tabs={TABS}
+          controller={historyController}
+          query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={historyState}
+          watcherState="watching"
+          onOpenSettings={() => {}}
+          error={error}
+        />
+      </LanguageProvider>
+    );
+    const unread = state(0, { snapshot: null, versions: [], selectedCommit: null });
+    const { rerender } = render(panel(unread));
+    const tabs = screen.getByRole("tablist", { name: "Changes or history" });
+
+    const sequence: [string, HistoryState, string | null][] = [
+      ["first page loading", { ...unread, isLoading: true }, null],
+      ["first page failed", unread, "Couldn't read history"],
+      ["loading again", { ...unread, isLoading: true }, null],
+      ["loaded", state(3), null],
+      ["refreshing over the rows", state(3, { isLoading: true }), null],
+      ["no saved versions", state(0), null],
+      ["loaded again", state(2), null],
+    ];
+    for (const [label, historyState, error] of sequence) {
+      rerender(panel(historyState, error));
+      expect(screen.getByRole("tablist", { name: "Changes or history" }), label).toBe(tabs);
+      expect(tabs.isConnected, label).toBe(true);
+    }
+  });
+
   it("shows the empty, initial-loading, and cached-error states truthfully", () => {
     const first = renderPanel(state(0));
     expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
@@ -201,12 +258,12 @@ describe("HistoryPanel", () => {
     const { versions, ...snapshot } = detachedPage;
     renderPanel(state(1, { snapshot, versions }));
     expect(screen.getByText("Partial history")).toBeInTheDocument();
-    expect(screen.getByText("Viewing a version outside a line")).toBeInTheDocument();
+    expect(screen.getByText("Viewing a version outside a branch")).toBeInTheDocument();
   });
 
   it("virtualizes a thousand versions within the declared DOM budget", () => {
     const { container } = renderPanel(state(1_000));
-    const renderedRows = container.querySelectorAll('[role="option"]');
+    const renderedRows = container.querySelectorAll('[role="treeitem"]');
     expect(renderedRows.length).toBeGreaterThan(0);
     expect(renderedRows.length).toBeLessThan(50);
     expect(container.querySelectorAll("*").length).toBeLessThan(400);
@@ -228,8 +285,8 @@ describe("HistoryPanel", () => {
     const user = userEvent.setup();
     const historyState = state(20);
     const { select } = renderPanel(historyState);
-    const timeline = screen.getByRole("listbox", { name: "Saved versions timeline" });
-    const selected = await within(timeline).findByRole("option", { selected: true });
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    const selected = await within(timeline).findByRole("treeitem", { selected: true });
     selected.focus();
     await user.keyboard("{ArrowDown}");
     expect(select).toHaveBeenCalledWith(
@@ -335,13 +392,13 @@ describe("HistoryPanel", () => {
     // The row is the subject, the author and the time — no reference badge.
     expect(selectedRow.querySelector(".history-ref-badge")).toBeNull();
     const detailRegion = screen.getByRole("region", { name: selected.subject });
-    // The strip is the subject, the author in full and the reference that
-    // points here — no avatar, and a published version wears no glyph; the
-    // hash moves behind Details, closed by default, where the publication is
-    // stated in full.
-    expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
-    expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
-    expect(detailRegion.querySelector(".history-detail__strip .history-row__avatar")).toBeNull();
+    // The strip is one line: the subject, then the author's avatar and when.
+    // The references pointing here, the hash and the publication are behind
+    // Details, closed by default; a published version wears no glyph.
+    const stripFacts = detailRegion.querySelector(".history-detail__strip-facts");
+    expect(stripFacts?.querySelector(".author-avatar")).toHaveAttribute("data-tooltip", selected.author!.name);
+    expect(stripFacts?.querySelector(".history-detail__strip-date")).not.toBeNull();
+    expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toBeNull();
     expect(detailRegion.querySelector(".history-detail__strip .state-glyph")).toBeNull();
     expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
     fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
@@ -382,11 +439,11 @@ describe("HistoryPanel", () => {
     }
   });
 
-  it("picks one reference per version: a tag first, the checked-out line over its siblings, a remote last", () => {
+  it("picks one reference per version: a tag first, the checked-out branch over its siblings, a remote last", () => {
     const [tip, released, sibling, remote, plain] = state(5).versions;
     const ref = (kind: HistoryDecoration["kind"], name: string): HistoryDecoration => ({ kind, name, fullRef: `refs/${name}` });
 
-    // No tag in play: the checked-out line wins even though a sibling line sorts
+    // No tag in play: the checked-out branch wins even though a sibling branch sorts
     // first, and it outranks the synthetic HEAD marker and the remote ref that
     // repeats it. The shape this repository's own tip has.
     expect(primaryDecoration({ ...tip, decorations: [
@@ -396,14 +453,14 @@ describe("HistoryPanel", () => {
       ref("remoteBranch", "origin/main"),
     ] }, "main")?.name).toBe("main");
 
-    // A tag outranks a line sharing its commit: the line is implied by being
+    // A tag outranks a branch sharing its commit: the branch is implied by being
     // there, the tag is the fact you cannot infer.
     expect(primaryDecoration({ ...released, decorations: [
       ref("localBranch", "release/1.0"),
       ref("tag", "v1.0.0"),
     ] }, "main")?.name).toBe("v1.0.0");
 
-    // A line that shares no commit with HEAD is named; a remote is named last;
+    // A branch that shares no commit with HEAD is named; a remote is named last;
     // no ref at all is no badge.
     expect(primaryDecoration({ ...sibling, decorations: [ref("localBranch", "codex/app-shell")] }, "main")?.name).toBe("codex/app-shell");
     expect(primaryDecoration({ ...remote, decorations: [ref("remoteBranch", "origin/legacy")] }, "main")?.name).toBe("origin/legacy");
@@ -414,15 +471,15 @@ describe("HistoryPanel", () => {
     const base = state(2);
     const { container } = renderPanel({
       ...base,
-      versions: [versionOnLine(0, "feature/foo"), version(1)],
+      versions: [versionOnBranch(0, "feature/foo"), version(1)],
     });
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".history-row");
     expect(rows[0].querySelector(".history-ref-badge")).toBeNull();
-    // Published, on a line but not a tag: nothing to flag.
-    expect(metaOrder(rows[0], ".history-row__meta")).toEqual(["history-row__avatar", "history-row__date"]);
-    expect(metaOrder(rows[1], ".history-row__meta")).toEqual(["history-row__avatar", "state-glyphs", "history-row__date"]);
-    const avatar = rows[1].querySelector(".history-row__avatar");
+    // Published, on a branch but not a tag: nothing to flag.
+    expect(metaOrder(rows[0], ".history-row__meta")).toEqual(["author-avatar", "history-row__date"]);
+    expect(metaOrder(rows[1], ".history-row__meta")).toEqual(["author-avatar", "state-glyphs", "history-row__date"]);
+    const avatar = rows[1].querySelector(".author-avatar");
     expect(avatar).toHaveTextContent("AL");
     expect(avatar).toHaveAttribute("data-tooltip", "Ada Lovelace");
     expect(within(rows[1]).queryByText("Ada Lovelace")).not.toBeInTheDocument();
@@ -456,19 +513,100 @@ describe("HistoryPanel", () => {
       " ADA@example.test ",
     );
 
-    const avatar = container.querySelector(".history-row .history-row__avatar");
-    expect(avatar).toHaveClass("history-row__avatar--self");
+    const avatar = container.querySelector(".history-row .author-avatar");
+    expect(avatar).toHaveClass("author-avatar--self");
     expect(avatar).not.toHaveTextContent("AL");
     expect(avatar?.querySelector("svg")).not.toBeNull();
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
     expect(container.querySelector(".history-row")).toHaveAttribute("aria-description", expect.stringContaining("You (Ada Lovelace)"));
 
+    // The strip says it with the same avatar, the name on its tooltip, and
+    // names no branch: the status bar already says where the project is.
     const strip = container.querySelector(".history-detail__strip-facts");
-    expect(within(strip as HTMLElement).getByText("You")).toHaveAttribute("title", "Ada Lovelace");
-    // The line the project stands on is "current"; its name is on the title.
-    const badge = strip?.querySelector(".history-ref-badge");
-    expect(badge).toHaveTextContent("current");
-    expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
+    const stripAvatar = strip?.querySelector(".author-avatar");
+    expect(stripAvatar).toHaveClass("author-avatar--self", "author-avatar--strip");
+    expect(stripAvatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
+    expect(within(strip as HTMLElement).getByText("You")).toHaveClass("visually-hidden");
+    expect(container.querySelector(".history-detail__strip .history-ref-badge")).toBeNull();
+  });
+
+  describe("days and lanes", () => {
+    const DAY = 86_400;
+    /** A published version with its own parents, `days` before the fixture's day. */
+    const at = (commit: string, parents: string[], days = 0, merge = false): SavedVersionSummary => ({
+      ...version(0),
+      commit,
+      shortCommit: commit,
+      parents,
+      subject: `Version ${commit}`,
+      decorations: [],
+      isRoot: parents.length === 0,
+      isMerge: merge,
+      publication: "published",
+      authoredAt: { unixSeconds: 1_700_000_000 - days * DAY, offsetMinutes: 60 },
+    });
+    const titles = (container: HTMLElement): string[] =>
+      [...container.querySelectorAll(".history-row__title")].map((title) => title.getAttribute("title") ?? "");
+    /* m merges q1 into b's branch. */
+    const merged = [at("m", ["b", "q1"], 0, true), at("q1", ["b"]), at("b", [], 1)];
+
+    it("folds what a merge brought in and opens it on a lane of its own, by pointer and by keyboard", async () => {
+      const user = userEvent.setup();
+      const { container } = renderPanel(state(3, { versions: merged, selectedCommit: "m" }));
+      expect(titles(container)).toEqual(["Version m", "Version b"]);
+      expect(container.querySelector(".history-timeline--lanes")).toBeNull();
+      const merge = screen.getByRole("treeitem", { name: /Version m/ });
+      expect(merge).toHaveAccessibleDescription(expect.stringContaining("Brought in 1 version, hidden"));
+
+      fireEvent.click(container.querySelector(".history-detour")!);
+      expect(titles(container)).toEqual(["Version m", "Version q1", "Version b"]);
+      expect(container.querySelector(".history-timeline--lanes")).not.toBeNull();
+      expect(container.querySelectorAll(".history-lanes").length).toBeGreaterThan(0);
+
+      merge.focus();
+      await user.keyboard("{ArrowLeft}");
+      expect(titles(container)).toEqual(["Version m", "Version b"]);
+      await user.keyboard("{ArrowRight}");
+      expect(titles(container)).toEqual(["Version m", "Version q1", "Version b"]);
+    });
+
+    it("names a lane's branch and says where its versions are when the pointer rests on it", () => {
+      const named = [
+        { ...merged[0]!, subject: "Merge branch 'feature/quick' into main" },
+        merged[1]!,
+        merged[2]!,
+      ];
+      const { container } = renderPanel(state(3, { versions: named, selectedCommit: "m", scope: { kind: "allBranches" } }));
+      const hit = [...container.querySelectorAll(".history-lane-hit")].find((path) => path.getAttribute("data-tint") === "1")!;
+      fireEvent.pointerMove(hit, { clientX: 40, clientY: 40 });
+      const card = document.querySelector(".history-lane-tip");
+      expect(card).toHaveTextContent("feature/quick");
+      // Inside the timeline, which declares the lane colours its dot wears.
+      expect(card?.closest(".history-timeline")).not.toBeNull();
+      expect(card).toHaveTextContent("All its versions are in");
+      expect(document.querySelector("style")?.textContent).toContain('data-tint="1"');
+
+      fireEvent.pointerLeave(container.querySelector(".history-timeline__scroll")!);
+      expect(document.querySelector(".history-lane-tip")).toBeNull();
+    });
+
+    it("opens the merge that holds a selected version", () => {
+      const { container } = renderPanel(state(3, { versions: merged, selectedCommit: "q1" }));
+      expect(titles(container)).toContain("Version q1");
+    });
+
+    it("keeps every version on the plain rail while a filter narrows the history", () => {
+      const { container } = renderPanel(state(3, { versions: merged, selectedCommit: "m", filters: { ...NO_HISTORY_FILTERS, author: "Ada" } }));
+      expect(titles(container)).toEqual(["Version m", "Version q1", "Version b"]);
+      expect(container.querySelector(".history-detour")).toBeNull();
+      expect(container.querySelector(".history-timeline--lanes")).toBeNull();
+    });
+
+    it("draws every branch on its own lane under All branches", () => {
+      const { container } = renderPanel(state(3, { versions: merged, selectedCommit: "m", scope: { kind: "allBranches" } }));
+      expect(titles(container)).toEqual(["Version m", "Version q1", "Version b"]);
+      expect(container.querySelector(".history-timeline--lanes")).not.toBeNull();
+    });
   });
 
   it("draws where the published versions begin, once, and nothing when every version is on one side", () => {
@@ -476,15 +614,98 @@ describe("HistoryPanel", () => {
     const { container, unmount } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
     const boundaries = container.querySelectorAll(".history-boundary");
     expect(boundaries).toHaveLength(1);
-    // Both sides named: two unpublished above it, published below.
-    expect(boundaries[0]).toHaveTextContent("2 not published");
-    expect(boundaries[0]).toHaveTextContent("Published");
+    // Overview's chips: "Published" where the remote's copy begins, and "On
+    // this computer" over the versions only here, on the first row.
+    expect(boundaries[0]).toHaveTextContent(/^Published$/);
+    expect(boundaries[0].querySelector(".timeline-chip--published")).not.toBeNull();
+    const heads = container.querySelectorAll(".history-local-head");
+    expect(heads).toHaveLength(1);
+    expect(heads[0].querySelector(".timeline-chip--local")).toHaveTextContent(/^On this computer$/);
+    expect(rowAfter(heads[0])).toHaveAttribute("aria-label", expect.stringContaining("Saved version 3"));
     expect(boundaries[0]).toHaveAttribute("data-tooltip", "Versions above are only on this computer; versions below are already on origin/main");
-    expect(boundaries[0].closest(".history-timeline__virtual-row")?.querySelector(".history-row")).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
+    expect(rowAfter(boundaries[0])).toHaveAttribute("aria-label", expect.stringContaining("Saved version 0"));
     unmount();
 
     const published = renderPanel({ ...base, versions: [version(2), version(0)] });
     expect(published.container.querySelector(".history-boundary")).toBeNull();
+    expect(published.container.querySelector(".history-local-head")).toBeNull();
+  });
+
+  it("folds either block from its heading, by pointer and by keyboard", async () => {
+    const user = userEvent.setup();
+    const base = state(2);
+    const { container } = renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)] });
+    const titles = (): string[] => [...container.querySelectorAll(".history-row__title")].map((title) => title.getAttribute("title") ?? "");
+    const local = screen.getByRole("treeitem", { name: "On this computer, 2 versions" });
+    const published = screen.getByRole("treeitem", { name: "Published" });
+    expect(local).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(local);
+    expect(local).toHaveAttribute("aria-expanded", "false");
+    expect(titles()).toEqual(["Saved version 0", "Saved version 2"]);
+    // Folded or not, the chip carries no count.
+    expect(local).toHaveTextContent(/^On this computer$/);
+
+    published.focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(published).toHaveAttribute("aria-expanded", "false");
+    expect(titles()).toEqual([]);
+    // Nothing follows a folded "Published": its rail ends under the chip.
+    expect(container.querySelector(".history-boundary")).toHaveAttribute("data-folded");
+    await user.keyboard("{ArrowRight}");
+    await user.click(local);
+    expect(titles()).toEqual(["Saved version 3", "Saved version 1", "Saved version 0", "Saved version 2"]);
+  });
+
+  it("offers no older versions while the published block is folded", async () => {
+    const user = userEvent.setup();
+    const base = state(2);
+    renderPanel({ ...base, versions: [version(3), version(1), version(0), version(2)], snapshot: { ...base.snapshot!, hasMore: true } });
+    expect(screen.getByRole("button", { name: "Load older versions" })).toBeInTheDocument();
+    await user.click(screen.getByRole("treeitem", { name: "Published" }));
+    expect(screen.queryByRole("button", { name: "Load older versions" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("treeitem", { name: "Published" }));
+    expect(screen.getByRole("button", { name: "Load older versions" })).toBeInTheDocument();
+  });
+
+  it("says the publish status is unknown for a branch without upstream, never for All branches", () => {
+    const base = state(2);
+    const noUpstream = { ...base.snapshot!, upstream: null };
+    const branch = renderPanel({ ...base, snapshot: noUpstream });
+    const title = screen.getByText("Publish status unknown");
+    // One line: the title and its explanation share a row, the explanation
+    // cut short with the whole of it on its tooltip.
+    const explanation = title.nextElementSibling as HTMLElement;
+    expect(title.parentElement).toHaveClass("history-banner__body");
+    expect(explanation).toHaveAttribute("title", explanation.textContent);
+    branch.unmount();
+
+    renderPanel({ ...base, scope: { kind: "allBranches" }, snapshot: { ...noUpstream, scope: { kind: "allBranches" } } });
+    expect(screen.queryByText("Publish status unknown")).not.toBeInTheDocument();
+  });
+
+  it("heads the published block in one word and names where on its tooltip", () => {
+    const base = state(2);
+    const versions = [version(3), version(1), version(0), version(2)];
+    const releaseUpstream = { remote: "origin", destinationBranch: "release", trackingRef: "refs/remotes/origin/release", commit: version(0).commit };
+    const { container } = renderPanel({ ...base, versions, snapshot: { ...base.snapshot!, upstream: releaseUpstream } });
+    const boundary = container.querySelector(".history-boundary");
+    expect(boundary).toHaveTextContent(/^Published$/);
+    expect(boundary).toHaveAttribute("data-tooltip", expect.stringContaining("origin/release"));
+  });
+
+  it("draws the blocks under All branches only when every local version comes first", () => {
+    const base = state(2);
+    const allBranches = { ...base, scope: { kind: "allBranches" } as const, snapshot: { ...base.snapshot!, scope: { kind: "allBranches" } as const, upstream: null } };
+    // version(1) and version(3) are local, the even ones published.
+    const ordered = renderPanel({ ...allBranches, versions: [version(3), version(1), version(0), version(2)] });
+    expect(ordered.container.querySelector(".history-local-head")).not.toBeNull();
+    expect(ordered.container.querySelector(".history-boundary")).toHaveTextContent("Published");
+    ordered.unmount();
+
+    const mixed = renderPanel({ ...allBranches, versions: [version(3), version(0), version(1), version(2)] });
+    expect(mixed.container.querySelector(".history-local-head")).toBeNull();
+    expect(mixed.container.querySelectorAll(".history-row--local")).toHaveLength(2);
   });
 
   it("quiets a Conventional Commits prefix and a merge's title without changing the text", () => {
@@ -508,19 +729,26 @@ describe("HistoryPanel", () => {
 
     await user.clear(screen.getByPlaceholderText("Search saved versions"));
     await user.type(screen.getByPlaceholderText("Search saved versions"), "lovelace");
-    const row = screen.getByRole("option", { name: /Saved version 2/ });
+    const row = screen.getByRole("treeitem", { name: /Saved version 2/ });
     expect(row).toHaveTextContent("author");
     expect(row).toHaveAccessibleDescription(expect.stringContaining("Matches its author"));
   });
 
-  it("publishes from the boundary's count on the current line", () => {
+  it("publishes from the local head on the current branch only", () => {
     const onPublish = vi.fn();
     const { container } = renderPanel(state(2), null, "watching", { onPublish });
-    const publish = container.querySelector<HTMLButtonElement>(".history-boundary__publish");
+    const publish = container.querySelector<HTMLButtonElement>(".history-local-head__publish");
     expect(publish).not.toBeNull();
     expect(publish).toHaveAttribute("tabindex", "-1");
+    expect(publish).toHaveTextContent("Publish");
     fireEvent.click(publish!);
     expect(onPublish).toHaveBeenCalledWith();
+    cleanup();
+
+    // Another branch's versions are not what the publish flow sends.
+    const scoped = renderPanel(state(2, { scope: { kind: "branch", name: "release" } }), null, "watching", { onPublish });
+    expect(scoped.container.querySelector(".history-local-head")).not.toBeNull();
+    expect(scoped.container.querySelector(".history-local-head__publish")).toBeNull();
   });
 
   it("flags where you are, what is unpublished, a tag and a merge as glyphs, read out as the row's description", () => {
@@ -536,14 +764,14 @@ describe("HistoryPanel", () => {
     };
     const { container } = renderPanel({ ...base, versions: [flagged] });
 
-    const row = screen.getByRole("option", { name: /Saved version 1/ });
-    expect(row).toHaveAccessibleDescription("Ada Lovelace, Where you are, Saved locally, Tag v2.0, Joins two lines");
+    const row = screen.getByRole("treeitem", { name: /Saved version 1/ });
+    expect(row).toHaveAccessibleDescription("Ada Lovelace, Where you are, Saved locally, Tag v2.0, Joins two branches");
     const glyphs = [...container.querySelectorAll<HTMLElement>(".history-row .state-glyph")];
     expect(glyphs.map((glyph) => glyph.getAttribute("data-tooltip"))).toEqual([
       "Where you are — your files are at this version",
       "Saved locally — not published yet, so it's only on this computer",
       "Tag v2.0",
-      "Joins two version lines into one",
+      "Joins two branches into one",
     ]);
     expect(glyphs[0]).toHaveClass("state-glyph--accent");
     expect(glyphs[2]).toHaveTextContent("v2.0");
@@ -555,8 +783,8 @@ describe("HistoryPanel", () => {
     renderPanel(historyState);
 
     await user.type(screen.getByPlaceholderText("Search saved versions"), "version 2");
-    expect(screen.getByRole("option", { name: "Saved version 2" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /Saved version 5/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("treeitem", { name: "Saved version 2" })).toBeInTheDocument();
+    expect(screen.queryByRole("treeitem", { name: /Saved version 5/ })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear search" }));
     expect(screen.getByPlaceholderText("Search saved versions")).toHaveValue("");
@@ -593,7 +821,7 @@ describe("HistoryPanel", () => {
 
     const filtering = renderPanel({ ...emptied, filters: { ...NO_HISTORY_FILTERS, unpublishedOnly: true } });
     expect(screen.queryByText("No saved versions yet")).not.toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Saved versions timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("tree", { name: "Saved versions timeline" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
     filtering.unmount();
 
@@ -601,13 +829,13 @@ describe("HistoryPanel", () => {
     // read is in flight. Nothing here is a statement about the repository.
     const clearing = renderPanel({ ...emptied, isLoading: true });
     expect(screen.queryByText("No saved versions yet")).not.toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Saved versions timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("tree", { name: "Saved versions timeline" })).toBeInTheDocument();
     clearing.unmount();
 
     // Settled, unfiltered and genuinely empty: now it is a statement.
     renderPanel(emptied);
     expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
-    expect(screen.queryByRole("listbox", { name: "Saved versions timeline" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tree", { name: "Saved versions timeline" })).not.toBeInTheDocument();
   });
 
   // The filters are answered by Git over the whole history, so the panel's job
@@ -634,7 +862,7 @@ describe("HistoryPanel", () => {
     );
 
     // Every row stays on screen: nothing here narrows the list on the client.
-    expect(within(screen.getByRole("listbox", { name: "Saved versions timeline" })).getAllByRole("option"))
+    expect(within(screen.getByRole("tree", { name: "Saved versions timeline" })).getAllByRole("treeitem").filter((item) => item.classList.contains("history-row")))
       .toHaveLength(6);
   });
 
@@ -838,72 +1066,72 @@ describe("HistoryPanel", () => {
     expect(formatHistoryDate(timestamp, { language: "es", dateFormat: "system", numberFormat: "system" }, now)?.absolute).toMatch(/2026/);
   });
 
-  it("reads a named version line from the strip's filter panel, and says which one in a chip", async () => {
+  it("reads a named branch from the strip's filter panel, and says which one in a chip", async () => {
     const user = userEvent.setup();
-    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
+    const { setScope } = renderPanel(state(3), null, "watching", { branches: ["main", "feature/foo"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.click(screen.getByRole("button", { name: "A specific line" }));
+    await user.click(screen.getByRole("button", { name: "A specific branch" }));
     await user.click(screen.getByRole("option", { name: "feature/foo" }));
 
     expect(setScope).toHaveBeenCalledWith(
       { projectId: "/repo", sessionEpoch: "epoch-1" },
-      { kind: "line", name: "feature/foo" },
+      { kind: "branch", name: "feature/foo" },
     );
 
     // The chip states which history is being read, and is not a filter chip:
-    // clearing the filters must not silently change the line.
+    // clearing the filters must not silently change the branch.
     cleanup();
-    renderPanel(state(3, { scope: { kind: "line", name: "feature/foo" } }));
-    expect(screen.getByRole("button", { name: "Back to the current line" })).toHaveTextContent("feature/foo");
+    renderPanel(state(3, { scope: { kind: "branch", name: "feature/foo" } }));
+    expect(screen.getByRole("button", { name: "Back to the current branch" })).toHaveTextContent("feature/foo");
   });
 
-  it("offers the project's own version lines, so an unknown name cannot be asked for", async () => {
+  it("offers the project's own branches, so an unknown name cannot be asked for", async () => {
     const user = userEvent.setup();
     // The inventory the status bar already holds, listed rather than typed:
-    // there is no longer a way to name a line this project does not have.
-    renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo", "release/1.0"] });
+    // there is no longer a way to name a branch this project does not have.
+    renderPanel(state(3), null, "watching", { branches: ["main", "feature/foo", "release/1.0"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.click(screen.getByRole("button", { name: "A specific line" }));
+    await user.click(screen.getByRole("button", { name: "A specific branch" }));
 
-    const options = within(screen.getByRole("listbox", { name: "A specific line" })).getAllByRole("option");
+    const options = within(screen.getByRole("listbox", { name: "A specific branch" })).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual(["main", "feature/foo", "release/1.0"]);
   });
 
-  it("filters a long list of lines and closes on Escape without closing the filters", async () => {
+  it("filters a long list of branches and closes on Escape without closing the filters", async () => {
     const user = userEvent.setup();
-    const lines = Array.from({ length: 12 }, (_, index) => `feature/${index}`);
-    renderPanel(state(3), null, "watching", { lines });
+    const branches = Array.from({ length: 12 }, (_, index) => `feature/${index}`);
+    renderPanel(state(3), null, "watching", { branches });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    const trigger = screen.getByRole("button", { name: "A specific line" });
+    const trigger = screen.getByRole("button", { name: "A specific branch" });
     await user.click(trigger);
 
-    await user.type(screen.getByRole("searchbox", { name: "Search version lines…" }), "feature/1");
-    const options = within(screen.getByRole("listbox", { name: "A specific line" })).getAllByRole("option");
+    await user.type(screen.getByRole("searchbox", { name: "Search branches…" }), "feature/1");
+    const options = within(screen.getByRole("listbox", { name: "A specific branch" })).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual(["feature/1", "feature/10", "feature/11"]);
 
     // Escape belongs to the innermost thing that is open.
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("listbox", { name: "A specific line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "A specific branch" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
 
   it("closes a list inside the panel when the press lands elsewhere in it", async () => {
     const user = userEvent.setup();
-    renderPanel(state(3), null, "watching", { lines: ["main", "feature/foo"] });
+    renderPanel(state(3), null, "watching", { branches: ["main", "feature/foo"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.click(screen.getByRole("button", { name: "A specific line" }));
-    expect(screen.getByRole("listbox", { name: "A specific line" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "A specific branch" }));
+    expect(screen.getByRole("listbox", { name: "A specific branch" })).toBeInTheDocument();
 
     // The panel's own dismissal only covers presses outside the panel, so
     // without this the list stayed open under whatever was reached for next —
     // and two of them could be open at once, overlapping.
     await user.click(screen.getByRole("radio", { name: "Any" }));
-    expect(screen.queryByRole("listbox", { name: "A specific line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "A specific branch" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
   });
 
@@ -922,30 +1150,38 @@ describe("HistoryPanel", () => {
     expect(screen.getByRole("button", { name: "Filters (2 on)" })).toBeInTheDocument();
   });
 
-  it("offers every local line at once, and a way back to the current one", async () => {
+  it("switches between this branch and every branch from one toggle beside the filters", async () => {
     const user = userEvent.setup();
-    const { setScope } = renderPanel(state(3), null, "watching", { lines: ["main"] });
+    const { setScope } = renderPanel(state(3), null, "watching", { branches: ["main"] });
 
-    await user.click(screen.getByRole("button", { name: "Filters" }));
-    await user.click(screen.getByRole("radio", { name: "All lines" }));
+    const toggle = screen.getByRole("button", { name: "All branches" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("data-tooltip", "Show all branches");
+    await user.click(toggle);
     expect(setScope).toHaveBeenCalledWith(
       { projectId: "/repo", sessionEpoch: "epoch-1" },
-      { kind: "allLines" },
+      { kind: "allBranches" },
     );
+    // The filter panel no longer offers the two; it keeps reading a branch by name.
+    await user.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.queryByRole("radio", { name: "All branches" })).toBeNull();
 
     cleanup();
-    const scoped = renderPanel(state(3, { scope: { kind: "allLines" } }));
-    await user.click(screen.getByRole("button", { name: "Back to the current line" }));
+    const scoped = renderPanel(state(3, { scope: { kind: "allBranches" } }));
+    const pressed = screen.getByRole("button", { name: "All branches" });
+    expect(pressed).toHaveAttribute("aria-pressed", "true");
+    expect(pressed).toHaveAttribute("data-tooltip", "Show only this branch");
+    await user.click(pressed);
     expect(scoped.setScope).toHaveBeenCalledWith(
       { projectId: "/repo", sessionEpoch: "epoch-1" },
-      { kind: "currentLine" },
+      { kind: "currentBranch" },
     );
   });
 
   it("keeps the scope when the filters are cleared", async () => {
     const user = userEvent.setup();
     const scoped = state(3, {
-      scope: { kind: "line", name: "feature/foo" },
+      scope: { kind: "branch", name: "feature/foo" },
       filters: { ...NO_HISTORY_FILTERS, noMerges: true },
     });
     const { setScope } = renderPanel(scoped);
@@ -959,114 +1195,115 @@ describe("HistoryPanel", () => {
     expect(document.querySelector(".history-scope-chip")).toHaveTextContent("feature/foo");
   });
 
-  it("offers a local line's own actions from the row that names it", async () => {
+  it("offers a local branch's own actions from the row that names it", async () => {
     const user = userEvent.setup();
-    const onViewLine = vi.fn();
-    const onSwitchLine = vi.fn();
-    const onCreateLineFromVersion = vi.fn();
+    const onViewBranch = vi.fn();
+    const onSwitchBranch = vi.fn();
+    const onCreateBranchFromVersion = vi.fn();
     const rows = state(1);
     const scoped: HistoryState = {
       ...rows,
-      versions: [versionOnLine(0, "feature/foo")],
-      selectedCommit: versionOnLine(0, "feature/foo").commit,
+      versions: [versionOnBranch(0, "feature/foo")],
+      selectedCommit: versionOnBranch(0, "feature/foo").commit,
     };
-    renderPanel(scoped, null, "watching", { onViewLine, onSwitchLine, onCreateLineFromVersion });
+    renderPanel(scoped, null, "watching", { onViewBranch, onSwitchBranch, onCreateBranchFromVersion });
 
-    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
-    await user.click(screen.getByRole("button", { name: "View “feature/foo” in Lines" }));
-    expect(onViewLine).toHaveBeenCalledWith("feature/foo");
+    fireEvent.contextMenu(screen.getAllByRole("treeitem")[0]);
+    await user.click(screen.getByRole("button", { name: "View “feature/foo” in Branches" }));
+    expect(onViewBranch).toHaveBeenCalledWith("feature/foo");
 
-    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
+    fireEvent.contextMenu(screen.getAllByRole("treeitem")[0]);
     await user.click(screen.getByRole("button", { name: "Switch to “feature/foo”" }));
-    expect(onSwitchLine).toHaveBeenCalledWith("feature/foo");
+    expect(onSwitchBranch).toHaveBeenCalledWith("feature/foo");
 
-    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
-    await user.click(screen.getByRole("button", { name: "New version line from here" }));
-    expect(onCreateLineFromVersion).toHaveBeenCalledWith(
-      expect.objectContaining({ commit: versionOnLine(0, "feature/foo").commit }),
+    fireEvent.contextMenu(screen.getAllByRole("treeitem")[0]);
+    await user.click(screen.getByRole("button", { name: "New branch from here" }));
+    expect(onCreateBranchFromVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ commit: versionOnBranch(0, "feature/foo").commit }),
     );
   });
 
-  it("does not offer to switch to the line the project is already on", async () => {
+  it("does not offer to switch to the branch the project is already on", async () => {
     const rows = state(1);
     const scoped: HistoryState = {
       ...rows,
-      versions: [versionOnLine(0, "main")],
-      selectedCommit: versionOnLine(0, "main").commit,
+      versions: [versionOnBranch(0, "main")],
+      selectedCommit: versionOnBranch(0, "main").commit,
     };
-    renderPanel(scoped, null, "watching", { onViewLine: vi.fn(), onSwitchLine: vi.fn() });
+    renderPanel(scoped, null, "watching", { onViewBranch: vi.fn(), onSwitchBranch: vi.fn() });
 
-    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
-    expect(screen.getByRole("button", { name: "View “main” in Lines" })).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getAllByRole("treeitem")[0]);
+    expect(screen.getByRole("button", { name: "View “main” in Branches" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
   });
 
-  it("offers no line actions on a row that names only a tag", async () => {
-    // A tag is a fact about a version, not a line this project can view or
+  it("offers no branch actions on a row that names only a tag", async () => {
+    // A tag is a fact about a version, not a branch this project can view or
     // switch to, so it never becomes a control.
-    renderPanel(state(1), null, "watching", { onViewLine: vi.fn(), onSwitchLine: vi.fn() });
+    renderPanel(state(1), null, "watching", { onViewBranch: vi.fn(), onSwitchBranch: vi.fn() });
 
-    fireEvent.contextMenu(screen.getAllByRole("option")[0]);
-    expect(screen.queryByRole("button", { name: /in Lines/ })).not.toBeInTheDocument();
+    fireEvent.contextMenu(screen.getAllByRole("treeitem")[0]);
+    expect(screen.queryByRole("button", { name: /in Branches/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Switch this project/ })).not.toBeInTheDocument();
   });
 
-  it("states the scope in the timeline header, and only when it is not the current line", () => {
-    // The status bar already says which line is being worked on. Repeating it
+  it("states a branch chosen by name in the timeline header, and nothing for the current branch or All branches", () => {
+    // The status bar already says which branch is being worked on. Repeating it
     // would be noise; saying nothing when the two differ would be worse.
     const current = renderPanel(state(3));
     expect(current.container.querySelector(".history-scope-chip")).toBeNull();
     cleanup();
 
-    const all = renderPanel(state(3, { scope: { kind: "allLines" } }));
-    expect(all.container.querySelector(".history-scope-chip")).toHaveTextContent("All lines");
+    // All branches says itself on the toggle; a chip would say it twice.
+    const all = renderPanel(state(3, { scope: { kind: "allBranches" } }));
+    expect(all.container.querySelector(".history-scope-chip")).toBeNull();
     cleanup();
 
-    const named = renderPanel(state(3, { scope: { kind: "line", name: "main" } }));
+    const named = renderPanel(state(3, { scope: { kind: "branch", name: "main" } }));
     const chip = named.container.querySelector(".history-scope-chip");
     expect(chip).toHaveTextContent("main");
     // Removable where it is stated: the chip itself is the way back, so the
     // scope is cleared from the header rather than from the filter panel.
-    expect(chip).toHaveAttribute("aria-label", "Back to the current line");
+    expect(chip).toHaveAttribute("aria-label", "Back to the current branch");
   });
 
-  it("shows a chosen line as a chosen line, and lets it be undone from the field itself", async () => {
+  it("shows a chosen branch as a chosen branch, and lets it be undone from the field itself", async () => {
     const user = userEvent.setup();
     const { setScope, container } = renderPanel(
-      state(3, { scope: { kind: "line", name: "feature/foo" } }),
+      state(3, { scope: { kind: "branch", name: "feature/foo" } }),
       null,
       "watching",
-      { lines: ["main", "feature/foo"] },
+      { branches: ["main", "feature/foo"] },
     );
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
-    // A picker waiting to be opened and one holding the line being read are not
+    // A picker waiting to be opened and one holding the branch being read are not
     // the same thing, and the state does not rest on colour alone: the name is
     // in the trigger, and its own way out is beside it.
-    expect(screen.getByRole("button", { name: "A specific line" })).toHaveTextContent("feature/foo");
+    expect(screen.getByRole("button", { name: "A specific branch" })).toHaveTextContent("feature/foo");
     expect(container.querySelector(".history-filter__field--selected")).not.toBeNull();
 
     const panel = screen.getByRole("dialog", { name: "Filters" });
-    await user.click(within(panel).getByRole("button", { name: "Back to the current line" }));
+    await user.click(within(panel).getByRole("button", { name: "Back to the current branch" }));
     expect(setScope).toHaveBeenCalledWith(
       { projectId: "/repo", sessionEpoch: "epoch-1" },
-      { kind: "currentLine" },
+      { kind: "currentBranch" },
     );
   });
 
-  it("offers no clear control while no line is chosen", async () => {
+  it("offers no clear control while no branch is chosen", async () => {
     const user = userEvent.setup();
-    renderPanel(state(3), null, "watching", { lines: ["main"] });
+    renderPanel(state(3), null, "watching", { branches: ["main"] });
 
     await user.click(screen.getByRole("button", { name: "Filters" }));
     const panel = screen.getByRole("dialog", { name: "Filters" });
-    expect(screen.getByRole("button", { name: "A specific line" })).toHaveTextContent("Choose a line…");
-    expect(within(panel).queryByRole("button", { name: "Back to the current line" })).toBeNull();
+    expect(screen.getByRole("button", { name: "A specific branch" })).toHaveTextContent("Choose a branch…");
+    expect(within(panel).queryByRole("button", { name: "Back to the current branch" })).toBeNull();
   });
 
   it("keeps the version's own actions reachable, and says when they are open", async () => {
     const user = userEvent.setup();
-    const onCreateLineFromVersion = vi.fn();
+    const onCreateBranchFromVersion = vi.fn();
     const detail: SavedVersionDetail = {
       version: version(0),
       comparisonBase: "empty-tree",
@@ -1081,7 +1318,7 @@ describe("HistoryPanel", () => {
       state(1, { detail: { detail, isLoading: false, error: null } }),
       null,
       "watching",
-      { onCreateLineFromVersion },
+      { onCreateBranchFromVersion },
     );
 
     const trigger = screen.getByRole("button", { name: "What this saved version can do" });
@@ -1089,15 +1326,15 @@ describe("HistoryPanel", () => {
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-    await user.click(screen.getByRole("button", { name: "New version line from here" }));
-    expect(onCreateLineFromVersion).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "New branch from here" }));
+    expect(onCreateBranchFromVersion).toHaveBeenCalledOnce();
     // Focus goes back to the control that opened the menu, not to the document.
     expect(trigger).toHaveFocus();
   });
 
-  it("opens the version's line actions from More and leaves a tag a fact", async () => {
+  it("opens the version's branch actions from More and leaves a tag a fact", async () => {
     const user = userEvent.setup();
-    const onViewLine = vi.fn();
+    const onViewBranch = vi.fn();
     const withRefs: SavedVersionSummary = {
       ...version(0),
       decorations: [
@@ -1120,18 +1357,18 @@ describe("HistoryPanel", () => {
       state(1, { detail: { detail, isLoading: false, error: null } }),
       null,
       "watching",
-      { onViewLine },
+      { onViewBranch },
     );
 
-    // A tag and HEAD are facts about this version; neither is a line this
+    // A tag and HEAD are facts about this version; neither is a branch this
     // project can view or switch to, so neither becomes a control.
     expect(screen.queryByRole("button", { name: /v1\.0/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /HEAD/ })).toBeNull();
 
     const more = screen.getByRole("button", { name: "What this saved version can do" });
     await user.click(more);
-    await user.click(screen.getByRole("button", { name: "View “main” in Lines" }));
-    expect(onViewLine).toHaveBeenCalledWith("main");
+    await user.click(screen.getByRole("button", { name: "View “main” in Branches" }));
+    expect(onViewBranch).toHaveBeenCalledWith("main");
     expect(more).toHaveFocus();
   });
 

@@ -40,7 +40,7 @@ threads, all shaped by what 112 had already settled for Changes:
   began 156px below the detail card's beside it. Two panels that are meant to
   pair had never been level.
 - **Copies.** Five near-identical search boxes existed (Changes' file list,
-  History's timeline, its diff, its file pane, Version lines), at 32, 34 and
+  History's timeline, its diff, its file pane, Branches), at 32, 34 and
   36px over three different backgrounds. Two screens rendering the same diff
   had different controls for stepping through it.
 - **Motion.** The timeline ran five `@keyframes` and two blocks of React state
@@ -65,7 +65,7 @@ threads, all shaped by what 112 had already settled for Changes:
 # Out of scope
 
 - The filters themselves — [task 113](113-filter-saved-versions-by-author-date-and-file.md).
-- Version lines' search box. It sits at a different control tier
+- Branches' search box. It sits at a different control tier
   (`--control-height-md`, `--text-lead`) and moving it would change that
   screen's look without being asked.
 

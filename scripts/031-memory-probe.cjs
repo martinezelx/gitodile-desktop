@@ -36,7 +36,7 @@ const sampleTree = () => {
   if (mode === "all-screens") {
     await click("Changes");
     await page.waitForTimeout(4000);
-    await click("Version lines");
+    await click("Branches");
     await page.waitForTimeout(3000);
     await click("Overview");
   }

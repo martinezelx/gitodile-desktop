@@ -1,4 +1,4 @@
-import { FolderGit2 } from "lucide-react";
+import { House } from "lucide-react";
 import { createEagerScreenContainer, type ScreenModule } from "../../runtime/screen/module";
 import { HomeScreen as HomeScreenComponent } from "./HomeScreen";
 
@@ -12,7 +12,7 @@ export const homeScreenModule = {
   labelKey: "navHome",
   disabledLabelKey: null,
   commandLabelKey: "commandGoHome",
-  icon: <FolderGit2 />,
+  icon: <House />,
   requiresProject: false,
   inCompactNav: false,
   inRail: false,

@@ -1,5 +1,5 @@
 import React, { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
-import { ArrowRight, Check, CircleAlert, CloudUpload, LoaderCircle } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, CloudUpload, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { localizeAppError } from "../../shared/i18n";
 import { autoHideScrollbarProps, useDockedComposerFocus, useScrollAnchoredResize } from "../../shared/ui";
@@ -204,13 +204,11 @@ export function QuickCommitBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expanded, canSave, selectedPathsKey, loadPlan, cancel]);
 
-  /** Escape is the way out for "opened this by accident": it clears whatever
-   * draft is there and folds the box back to its one-row rest state. Not
-   * offered mid-save — clearing what a request already captured would just
-   * be confusing to watch. */
+  /** Closing folds the box without losing the draft. Move focus off the
+   * disappearing control before folding, without reopening the field. */
   function handleDismiss(): void {
     if (isBusy) return;
-    clearMessageDraft();
+    containerRef.current?.focus({ preventScroll: true });
     beginExpandedChange(false);
   }
   /** A success that is still on screen goes the moment the next draft
@@ -253,22 +251,24 @@ export function QuickCommitBox({
   return (
     <div
       ref={containerRef}
+      tabIndex={-1}
       className={`docked-composer changes-quick-commit${expanded ? " docked-composer--expanded" : ""}`}
       {...focusHandlers}
       onKeyDown={(event) => {
         if (event.key === "Escape" && expanded) {
           event.preventDefault();
+          event.stopPropagation();
           handleDismiss();
         }
       }}
     >
       {/* What the press will do, over the field it is about: the count
-          first, then the line it lands on in the status bar's own mono. Once
+          first, then the branch it lands on in the status bar's own mono. Once
           saved, the same slot says what was saved and offers the step after
           it. Kept one line tall while the plan loads, so the field under it
           does not jump when the answer arrives. */}
-      <div className="docked-composer__head">
-        <div>
+      <div className="docked-composer__head" inert={!expanded}>
+        <div className="docked-composer__heading">
           {isSaved ? (
             <p className="docked-composer__line docked-composer__success row-in" role="status">
               <Check aria-hidden="true" />
@@ -300,6 +300,18 @@ export function QuickCommitBox({
               )}
             </p>
           )}
+          {expanded && (
+            <button
+              type="button"
+              className="docked-composer__close"
+              aria-label={t.changesQuickCommitClose}
+              data-tooltip={t.commonClose}
+              disabled={isBusy}
+              onClick={handleDismiss}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
       <input
@@ -321,7 +333,7 @@ export function QuickCommitBox({
           }
         }}
       />
-      <div className="docked-composer__extra">
+      <div className="docked-composer__extra" inert={!expanded}>
         <div>
           {/* Grows with what is written, up to the CSS `max-height` (about
               eight lines), then scrolls: room for a long message without a

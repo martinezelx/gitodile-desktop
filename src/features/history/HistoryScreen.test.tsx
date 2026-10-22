@@ -13,7 +13,7 @@ import type { HistoryPort } from "./port";
 
 function emptyPage(token: string): HistoryPage {
   return {
-    repositoryId: "/repo", snapshotToken: token, scope: { kind: "currentLine" } as const, branch: "main", headState: "branch", headCommit: null,
+    repositoryId: "/repo", snapshotToken: token, scope: { kind: "currentBranch" } as const, branch: "main", headState: "branch", headCommit: null,
     upstream: null, versions: [], nextCursor: null, hasMore: false, shallow: false, warnings: [],
   };
 }
@@ -50,7 +50,7 @@ describe("HistoryScreen lifecycle", () => {
     expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
   });
 
-  it("takes a line another screen asked for once, and does not re-apply it on later renders", async () => {
+  it("takes a branch another screen asked for once, and does not re-apply it on later renders", async () => {
     const port: HistoryPort = {
       readPage: vi.fn(async () => emptyPage("token-1")),
       readDetail: vi.fn(),
@@ -73,8 +73,8 @@ describe("HistoryScreen lifecycle", () => {
               projectPath="/repo"
               sessionEpoch="epoch-1"
               watcherState="watching"
-              scopeLineIntent={intent}
-              onScopeLineIntentHandled={handled}
+              scopeBranchIntent={intent}
+              onScopeBranchIntentHandled={handled}
               onOpenSettings={() => {}}
             />
           </ScreenLifecycleProvider>
@@ -83,7 +83,7 @@ describe("HistoryScreen lifecycle", () => {
     }
 
     const view = render(<Screen intent="feature/foo" />);
-    expect(setScope).toHaveBeenCalledWith(query, { kind: "line", name: "feature/foo" });
+    expect(setScope).toHaveBeenCalledWith(query, { kind: "branch", name: "feature/foo" });
     expect(handled).toHaveBeenCalledOnce();
 
     // The composition root clears the intent as soon as it is taken. From here
@@ -125,8 +125,8 @@ describe("HistoryScreen lifecycle", () => {
             projectPath="/repo"
             sessionEpoch="epoch-1"
             watcherState="watching"
-            scopeLineIntent="feature/foo"
-            onScopeLineIntentHandled={scopeHandled}
+            scopeBranchIntent="feature/foo"
+            onScopeBranchIntentHandled={scopeHandled}
             selectCommitIntent="abc123"
             onSelectCommitIntentHandled={commitHandled}
             onOpenSettings={() => {}}
@@ -135,7 +135,7 @@ describe("HistoryScreen lifecycle", () => {
       </LanguageProvider>,
     );
 
-    expect(setScope).toHaveBeenCalledWith(query, { kind: "line", name: "feature/foo" });
+    expect(setScope).toHaveBeenCalledWith(query, { kind: "branch", name: "feature/foo" });
     // Setting the scope restarts the timeline, and a restarted timeline picks
     // its own selection when the first page lands. The asked-for version is
     // only the one that stays selected if it is chosen after that.

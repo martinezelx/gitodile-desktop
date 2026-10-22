@@ -1,11 +1,11 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n";
 import {
-  ProjectSwitcherCompact,
-  ProjectSwitcherRail,
+  ProjectQuickSwitch,
   orderByFavourite,
+  type ProjectQuickSwitchProps,
   type ProjectSwitcherEntry,
 } from "./ProjectSwitcher";
 
@@ -13,324 +13,210 @@ const entries: ProjectSwitcherEntry[] = [
   {
     id: "/projects/alpha",
     name: "alpha",
+    path: "/projects/alpha",
     contextLabel: null,
+    branch: "main",
+    hasError: false,
+    hasOperationInProgress: false,
+    hasUnsavedChanges: false,
+    isFavourite: false,
+  },
+  {
+    id: "/projects/beta",
+    name: "beta",
+    path: "/projects/beta",
+    contextLabel: null,
+    branch: "feature/hero",
     hasError: false,
     hasOperationInProgress: false,
     hasUnsavedChanges: true,
     isFavourite: false,
   },
   {
-    id: "/projects/beta",
-    name: "beta",
+    id: "/projects/gamma",
+    name: "gamma",
+    path: "/projects/gamma",
     contextLabel: null,
+    branch: "main",
     hasError: false,
     hasOperationInProgress: false,
     hasUnsavedChanges: false,
-    isFavourite: false,
+    isFavourite: true,
   },
 ];
 
-function commonProps() {
+function props(overrides: Partial<ProjectQuickSwitchProps> = {}): ProjectQuickSwitchProps {
   return {
     entries,
+    recent: [{ path: "/projects/old", name: "old-notes" }],
     activeId: entries[0].id,
     canSwitch: true,
     isOpening: false,
     onActivate: vi.fn(),
+    onOpenRecent: vi.fn(),
     onClose: vi.fn(),
     onOpenAnother: vi.fn(),
     onCreate: vi.fn(),
     onClone: vi.fn(),
     onToggleFavourite: vi.fn(),
     onOpenProjectSettings: vi.fn(),
+    onOpenFolder: vi.fn(),
+    onOpenHome: vi.fn(),
+    ...overrides,
   };
+}
+
+function renderSwitch(overrides: Partial<ProjectQuickSwitchProps> = {}): ProjectQuickSwitchProps {
+  const all = props(overrides);
+  render(
+    <LanguageProvider>
+      <ProjectQuickSwitch {...all} />
+    </LanguageProvider>,
+  );
+  return all;
+}
+
+async function openPopup(): Promise<HTMLElement> {
+  await userEvent.click(screen.getByRole("button", { name: /alpha — switch project/ }));
+  return screen.getByRole("dialog", { name: "Open projects" });
 }
 
 afterEach(cleanup);
 
-describe("ProjectSwitcherRail", () => {
-  it("exposes the active project and non-color status text", async () => {
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...commonProps()} />
-      </LanguageProvider>,
-    );
+describe("ProjectQuickSwitch", () => {
+  it("leads with the active project and lists the others, favourites first, then the recent ones", async () => {
+    renderSwitch();
+    const popup = await openPopup();
 
-    // The rail itself shows one square; the status rides along on its badge.
-    const trigger = screen.getByRole("button", { name: "alpha — switch project" });
-    expect(trigger).toHaveAttribute("data-tooltip", "alpha — switch project");
-    expect(screen.getByLabelText("Has unsaved changes")).toBeInTheDocument();
-
-    await userEvent.click(trigger);
-    const popover = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(popover).getByRole("button", { name: /alpha.*has unsaved changes/i })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
+    const head = popup.querySelector(".project-quick-switch__head");
+    expect(head).toHaveTextContent("alpha");
+    expect(head).toHaveTextContent("/projects/alpha");
+    const open = within(popup).getByRole("region", { name: "Open" });
+    const names = Array.from(open.querySelectorAll(".project-quick-switch__name")).map((node) => node.textContent);
+    expect(names).toEqual(["gamma", "beta"]);
+    // Another project's state rides its row, in shape as well as colour.
+    expect(within(open).getByLabelText("Has unsaved changes")).toBeInTheDocument();
+    const recent = within(popup).getByRole("region", { name: "Recent" });
+    expect(recent).toHaveTextContent("old-notes");
   });
 
-  it("keeps a long non-ASCII project name intact in the rail tooltip", () => {
-    const longName = "Diseño_日本語_del proyecto con un nombre especialmente largo";
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail
-          {...commonProps()}
-          entries={[{ ...entries[0], name: longName }]}
-          activeId={entries[0].id}
-        />
-      </LanguageProvider>,
-    );
+  it("switches to another open project and closes, giving focus back to the trigger", async () => {
+    const all = renderSwitch();
+    await openPopup();
 
-    expect(
-      screen.getByRole("button", { name: `${longName} — switch project` }),
-    ).toHaveAttribute("data-tooltip", `${longName} — switch project`);
-  });
-
-  it("shows duplicate-name context and exposes every simultaneous status", async () => {
-    const ambiguousEntries: ProjectSwitcherEntry[] = [
-      {
-        ...entries[0],
-        contextLabel: "client-a",
-        hasError: true,
-      },
-    ];
-
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...commonProps()} entries={ambiguousEntries} />
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    const popover = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(popover).getByText("client-a")).toBeInTheDocument();
-    expect(within(popover).getByLabelText("Needs attention")).toBeInTheDocument();
-    expect(within(popover).getByLabelText("Has unsaved changes")).toBeInTheDocument();
-  });
-
-  it("opens a project's own settings from its row, and closes the popover", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...props} />
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    const popover = screen.getByRole("dialog", { name: "Open projects" });
-    await userEvent.click(within(popover).getByRole("button", { name: "Settings for beta" }));
-
-    expect(props.onOpenProjectSettings).toHaveBeenCalledWith("/projects/beta");
-    // Same rule as switching: the popover gets out of the dialog's way.
+    await userEvent.click(screen.getByRole("button", { name: "Switch to beta" }));
+    expect(all.onActivate).toHaveBeenCalledWith("/projects/beta");
     expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /alpha — switch project/ })).toHaveFocus();
   });
 
-  it("disables the gear for a project it cannot switch to", async () => {
-    const props = { ...commonProps(), canSwitch: false };
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherCompact {...props} />
-      </LanguageProvider>,
-    );
+  it("acts on the active project from its head: settings, folder, close", async () => {
+    const all = renderSwitch();
+    await openPopup();
+    await userEvent.click(screen.getByRole("button", { name: "Settings for alpha" }));
+    expect(all.onOpenProjectSettings).toHaveBeenCalledWith("/projects/alpha");
 
-    await userEvent.click(screen.getByRole("button", { name: "Switch project" }));
-    // Reading a project's settings means switching to it first, which a
-    // blocking dialog forbids — the active project is still reachable.
-    expect(screen.getByRole("button", { name: "Settings for beta" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Settings for alpha" })).toBeEnabled();
+    await openPopup();
+    await userEvent.click(screen.getByRole("button", { name: "Show in folder" }));
+    expect(all.onOpenFolder).toHaveBeenCalledWith("/projects/alpha");
+
+    await openPopup();
+    await userEvent.click(screen.getByRole("button", { name: "Close alpha" }));
+    expect(all.onClose).toHaveBeenCalledWith("/projects/alpha");
   });
 
-  it("filters the popover by name and says so when nothing matches", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...props} />
-      </LanguageProvider>,
-    );
+  it("shows a project's actions in place of the list, with a way back", async () => {
+    const all = renderSwitch();
+    const popup = await openPopup();
 
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    const search = screen.getByRole("textbox", { name: "Search projects…" });
-    await waitFor(() => expect(search).toHaveFocus());
+    await userEvent.click(within(popup).getByRole("button", { name: "Actions for beta" }));
+    expect(within(popup).queryByRole("searchbox")).not.toBeInTheDocument();
+    const back = within(popup).getByRole("button", { name: "Back to projects" });
+    expect(back).toHaveFocus();
+    expect(within(popup).getByRole("button", { name: "Close beta" })).toBeInTheDocument();
 
-    await userEvent.type(search, "bet");
-    const popover = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
-    expect(within(popover).queryByRole("button", { name: /^alpha/ })).not.toBeInTheDocument();
+    await userEvent.click(back);
+    expect(within(popup).getByRole("searchbox", { name: "Search projects…" })).toBeInTheDocument();
+
+    await userEvent.click(within(popup).getByRole("button", { name: "Actions for beta" }));
+    await userEvent.click(within(popup).getByRole("button", { name: "Go to this project" }));
+    expect(all.onActivate).toHaveBeenCalledWith("/projects/beta");
+  });
+
+  it("filters by name, takes the first match on Enter, and says when nothing matches", async () => {
+    const all = renderSwitch();
+    const popup = await openPopup();
+    const search = within(popup).getByRole("searchbox", { name: "Search projects…" });
 
     await userEvent.type(search, "zzz");
-    expect(screen.getByText("No project by that name")).toBeInTheDocument();
+    expect(popup).toHaveTextContent("No project by that name");
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "old{Enter}");
+    expect(all.onOpenRecent).toHaveBeenCalledWith("/projects/old");
   });
 
-  it("switches project from the popover and closes it", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...props} />
-      </LanguageProvider>,
-    );
+  it("docks the three ways to add a project at the foot, and goes Home", async () => {
+    const all = renderSwitch();
+    const popup = await openPopup();
 
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    await userEvent.click(screen.getByRole("button", { name: "beta" }));
+    await userEvent.click(within(popup).getByRole("button", { name: "Add project" }));
+    const add = within(popup).getByRole("group", { name: "Add project" });
+    expect(within(add).getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Create local project…",
+      "Open another project…",
+      "Clone remote project…",
+    ]);
+    await userEvent.click(within(add).getByRole("button", { name: "Clone remote project…" }));
+    expect(all.onClone).toHaveBeenCalledOnce();
 
-    expect(props.onActivate).toHaveBeenCalledWith(entries[1].id);
-    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+    await openPopup();
+    await userEvent.click(screen.getByRole("button", { name: "All in Home" }));
+    expect(all.onOpenHome).toHaveBeenCalledOnce();
   });
 
-  it("keeps blocked rail controls explainable without allowing activation", async () => {
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...commonProps()} canSwitch={false} />
-      </LanguageProvider>,
-    );
+  it("disables switching, reopening and closing while a dialog blocks them, and says why", async () => {
+    renderSwitch({ canSwitch: false });
+    const popup = await openPopup();
 
-    const project = screen.getByRole("button", { name: "alpha — switch project" });
-    const add = screen.getByRole("button", { name: "Add project" });
-    expect(project).toHaveAttribute("aria-disabled", "true");
-    expect(project).toHaveAttribute("data-tooltip", "alpha — switch project");
-    expect(add).toHaveAttribute("aria-disabled", "true");
-    expect(add).toHaveAttribute("data-tooltip", "Add project");
-
-    await userEvent.click(project);
-    await userEvent.click(add);
-    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
+    const beta = within(popup).getByRole("button", { name: "Switch to beta" });
+    expect(beta).toBeDisabled();
+    expect(beta).toHaveAttribute("title", "Close the open dialog before switching projects");
+    expect(within(popup).getByRole("button", { name: "Open old-notes again" })).toBeDisabled();
+    expect(within(popup).getByRole("button", { name: "Close alpha" })).toBeDisabled();
+    // The project the dialog belongs to can still be configured.
+    expect(within(popup).getByRole("button", { name: "Settings for alpha" })).toBeEnabled();
   });
 
-  it("filters the list to favourites and says so when there are none", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail
-          {...props}
-          entries={[entries[0], { ...entries[1], isFavourite: true }]}
-        />
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    // Anchored to the start: inside the popover "alpha" also appears in the
-    // row's star ("Add alpha to favourites") and its close button.
-    const popover = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(popover).getByRole("button", { name: /^alpha/i })).toBeInTheDocument();
-    expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Show favorites only" }));
-    expect(within(popover).getByRole("button", { name: "beta" })).toBeInTheDocument();
-    expect(within(popover).queryByRole("button", { name: /^alpha/i })).not.toBeInTheDocument();
-  });
-
-  it("explains an empty favourites filter instead of showing the search empty text", async () => {
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...commonProps()} />
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "alpha — switch project" }));
-    await userEvent.click(screen.getByRole("button", { name: "Show favorites only" }));
-
-    // "No projects match that search" would be a lie: nothing was searched.
-    expect(
-      screen.getByText("No favorites yet. Star a project to keep it here."),
-    ).toBeInTheDocument();
-  });
-
-  it("folds creating, opening and cloning into one add-project menu", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...props} />
-      </LanguageProvider>,
-    );
-
-    const trigger = screen.getByRole("button", { name: "Add project" });
-    expect(trigger).toHaveAttribute("data-tooltip", "Add project");
-    expect(screen.queryByRole("menuitem", { name: "Create local project" })).not.toBeInTheDocument();
-
-    await userEvent.click(trigger);
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
-    const menu = screen.getByRole("menu", { name: "Add project" });
-    // Plain menu furniture, sized by its three items. It used to borrow the
-    // project switcher's panel class, which carries a flat `height: 180px` —
-    // three options stretched across a panel built for a scrolling list.
-    expect(menu).toHaveClass("app-menu", "project-switcher-add-menu__popup");
-    expect(menu).not.toHaveClass("sidebar-project-flyout");
-    expect(within(menu).getAllByRole("menuitem")).toHaveLength(3);
-    await waitFor(() =>
-      expect(within(menu).getByRole("menuitem", { name: "Create local project" })).toHaveFocus(),
-    );
-
-    await userEvent.click(within(menu).getByRole("menuitem", { name: "Clone remote project" }));
-    expect(props.onClone).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
-
-    await userEvent.click(trigger);
-    await userEvent.click(screen.getByRole("menuitem", { name: "Create local project" }));
-    expect(props.onCreate).toHaveBeenCalledOnce();
-  });
-
-  it("dismisses the add-project menu on Escape and restores the trigger", async () => {
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherRail {...commonProps()} />
-      </LanguageProvider>,
-    );
-
-    const trigger = screen.getByRole("button", { name: "Add project" });
-    await userEvent.click(trigger);
-    expect(screen.getByRole("menu", { name: "Add project" })).toBeInTheDocument();
+  it("closes on Escape and returns focus to the trigger", async () => {
+    renderSwitch();
+    await openPopup();
 
     await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
-    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /alpha — switch project/ })).toHaveFocus();
   });
 
-  it("keeps the compact popover open while its portaled add-project menu is used", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherCompact {...props} />
-      </LanguageProvider>,
-    );
+  it("opens with nothing open, offering the recent projects and the ways to add one", async () => {
+    const all = renderSwitch({ entries: [], activeId: null });
 
-    await userEvent.click(screen.getByRole("button", { name: "Switch project" }));
-    await userEvent.click(screen.getByRole("button", { name: "Add project" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Open another project" }));
-
-    expect(props.onOpenAnother).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "No project open" }));
+    const popup = screen.getByRole("dialog", { name: "Open projects" });
+    expect(popup.querySelector(".project-quick-switch__head")).toBeNull();
+    await userEvent.click(within(popup).getByRole("button", { name: "Open old-notes again" }));
+    expect(all.onOpenRecent).toHaveBeenCalledWith("/projects/old");
   });
 
-  it("lets Escape close the add-project menu without also closing the compact popover", async () => {
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherCompact {...commonProps()} />
-      </LanguageProvider>,
-    );
+  it("toggles a favourite from its row without closing", async () => {
+    const all = renderSwitch();
+    const popup = await openPopup();
 
-    await userEvent.click(screen.getByRole("button", { name: "Switch project" }));
-    await userEvent.click(screen.getByRole("button", { name: "Add project" }));
-    await userEvent.keyboard("{Escape}");
-
-    expect(screen.queryByRole("menu", { name: "Add project" })).not.toBeInTheDocument();
+    const star = within(popup).getByRole("button", { name: "Add beta to favorites" });
+    expect(star).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(star);
+    expect(all.onToggleFavourite).toHaveBeenCalledWith("/projects/beta");
     expect(screen.getByRole("dialog", { name: "Open projects" })).toBeInTheDocument();
-  });
-
-  it("uses dialog semantics in compact mode and restores focus after closing a project", async () => {
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherCompact {...props} />
-      </LanguageProvider>,
-    );
-
-    const trigger = screen.getByRole("button", { name: "Switch project" });
-    await userEvent.click(trigger);
-    const dialog = screen.getByRole("dialog", { name: "Open projects" });
-
-    await userEvent.click(within(dialog).getByRole("button", { name: "Close beta" }));
-    expect(props.onClose).toHaveBeenCalledWith(entries[1].id);
-    await waitFor(() => expect(trigger).toHaveFocus());
-    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
+    expect(within(popup).getByRole("button", { name: "Remove gamma from favorites" })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
@@ -352,32 +238,5 @@ describe("project favourites", () => {
     const ids = ["a", "b", "c"];
     const ordered = orderByFavourite(ids.map((id) => ({ ...entries[0], id, isFavourite: false })));
     expect(ordered.map((entry) => entry.id)).toEqual(ids);
-  });
-
-  it("marks a favourite row so it reads without hovering, and toggles back", async () => {
-    const onToggleFavourite = vi.fn();
-    const props = commonProps();
-    render(
-      <LanguageProvider>
-        <ProjectSwitcherCompact
-          {...props}
-          entries={[{ ...entries[0], isFavourite: true }, entries[1]]}
-          onToggleFavourite={onToggleFavourite}
-        />
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: /switch project|alpha/i }));
-
-    // The marked one offers removal and reports itself pressed; the unmarked
-    // one offers the opposite. That pair is what a screen reader has to
-    // distinguish, since the difference is otherwise only colour and fill.
-    const marked = await screen.findByRole("button", { name: "Remove alpha from favorites" });
-    expect(marked).toHaveAttribute("aria-pressed", "true");
-    const unmarked = screen.getByRole("button", { name: "Add beta to favorites" });
-    expect(unmarked).toHaveAttribute("aria-pressed", "false");
-
-    await userEvent.click(marked);
-    expect(onToggleFavourite).toHaveBeenCalledWith("/projects/alpha");
   });
 });

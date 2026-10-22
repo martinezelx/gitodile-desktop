@@ -78,6 +78,13 @@ model. The API intentionally has no visibility reason.
 Chunk preloads remain app-level idle work through `prefetchScreenChunks` after
 session restore. Neither chunk nor repository warming may precede first paint.
 
+The production build extracts third-party runtime dependencies into a `vendor`
+chunk through Vite's Rolldown `codeSplitting` configuration. App code keeps its
+existing eager/lazy boundaries, including deferred file-type icons. Keep the
+default chunk-size warning enabled. Additional preloads must point to deferred
+modules, not feature barrels already imported statically; registered lazy
+screens already preload their own container and additional chunks.
+
 ## 6. Prove the contract
 
 At minimum add tests for:
@@ -99,7 +106,7 @@ with an owning-module error.
 
 For the complete read-and-mutation example, including epoch-keyed request
 deduplication, mutation supersession, bounded eviction and the Rust service
-boundary, see [the Version-lines reference slice](version-lines-reference-slice.md).
+boundary, see [the Branches reference slice](branches-reference-slice.md).
 
 For read-only repository state, use the task-028 ownership split: repository
 identity/invalidation coordination, status snapshot equality/generations and

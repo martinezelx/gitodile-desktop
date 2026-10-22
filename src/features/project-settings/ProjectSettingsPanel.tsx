@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
+import { ProjectAccountSection } from "../accounts";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
 import {
@@ -296,14 +297,18 @@ function SectionState({
   return null;
 }
 
+/** `access` is the HTTPS account group. It follows the remotes it depends on,
+ * as a sibling group so it shares the section's spacing and dividers. */
 function RemoteSection({
   project,
   port,
   resource,
+  access,
 }: {
   project: ProjectSettingsTarget;
   port: ProjectSettingsPort;
   resource: Resource<ProjectRemotes>;
+  access?: React.ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const remotes = resource.data;
@@ -327,7 +332,7 @@ function RemoteSection({
     pendingChange !== null;
   useInstallDraftBlocker(
     `project-settings-remotes:${project.path}`,
-    "project remote address",
+    t.projectSettingsRemoteTitle,
     hasRemoteDraft,
   );
 
@@ -568,6 +573,7 @@ function RemoteSection({
           <NoticeLine notice={notice} />
         </div>
       </section>
+      {access}
     </div>
   );
 }
@@ -1200,7 +1206,7 @@ export function ProjectSettingsPanel({
     isOverriding && identity.data !== null && hasIdentityDraftChanged(identityDraft, identity.data);
   useInstallDraftBlocker(
     `project-settings-editor:${project.path}`,
-    unsavedIgnoreScope !== null ? "project ignore rules" : "project identity",
+    unsavedIgnoreScope !== null ? t.projectSettingsIgnoredTitle : t.projectSettingsIdentityTitle,
     unsavedIgnoreScope !== null || hasUnsavedIdentity,
   );
 
@@ -1263,7 +1269,11 @@ export function ProjectSettingsPanel({
         )}
 
         {activeSection === "remote" && (
-          <RemoteSection project={project} port={port} resource={remotes} />
+          <RemoteSection project={project} port={port} resource={remotes} access={remotes.data &&
+            <ProjectAccountSection key={`${project.path}:${project.sessionEpoch}`} project={project}
+              remoteUrls={remotes.data.remotes.flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])}
+              signInRemoteUrls={remotes.data.remotes.filter(remote => remote.hasHiddenCredentials)
+                .flatMap(remote => [remote.url, ...(remote.pushUrl ? [remote.pushUrl] : [])])} />} />
         )}
         {activeSection === "ignored" && (
           <IgnoredSection

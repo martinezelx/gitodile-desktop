@@ -9,10 +9,10 @@
       "es": "Resumen te guía por Cambios, Guardar y Publicar y te señala el siguiente paso, y Cambios e Historial son ahora las dos pestañas de una sola pantalla, Trabajo."
     },
     {
-      "id": "versionLineRoute",
+      "id": "branchRoute",
       "icon": "git-branch",
-      "en": "Lines shows where each version line left the main line, what it changes and whether its work is already there, even as copies.",
-      "es": "Líneas muestra dónde se separó cada línea de versiones de la principal, qué cambia y si su trabajo ya está en ella, aunque sea como copias."
+      "en": "The Branches screen shows where each branch left the main branch, what it changes and whether its work is already there, even as copies.",
+      "es": "Ramas muestra dónde se separó cada rama de la principal, qué cambia y si su trabajo ya está en ella, aunque sea como copias."
     },
     {
       "id": "gitConsole",
@@ -28,7 +28,7 @@
     },
     {
       "id": "oneUpdateChannel",
-      "icon": "cloud-download",
+      "icon": "circle-fading-arrow-up",
       "en": "Updates follow one channel, so everyone gets every release, and the update dialog lists what a new version brings, in your language.",
       "es": "Las actualizaciones siguen un único canal, así que todo el mundo recibe cada versión, y el diálogo de actualización muestra qué trae, en tu idioma."
     }

@@ -1,13 +1,12 @@
-/* `--rail-width` lives here, not on `.sidebar`, because the display-mode class
-   that retunes it lives here too — it also drives the caption and spacing
-   rules further down. Base value and override stay in one place. */
+/* `--rail-width` lives here, not on `.sidebar`, so the titlebar's lead inset
+   can read the same value the rail draws. The width is one value in every
+   display mode: icons-only removes captions, not columns. */
 .app-window {
   --rail-width: 64px;
   height: 100%;
   overflow: hidden;
   background: var(--surface-app);
 }
-.app-window--icons-only { --rail-width: 56px; }
 /* Collapsed on request. `display: none` rather than a zero width so the rail
    stops being focusable and stops being announced — a 0px sidebar still in the
    tab order is a trap for keyboard and screen-reader users. The workspace is
@@ -32,15 +31,6 @@
 .sidebar-jump__menu .app-menu__item:disabled { opacity: 0.45; }
 .sidebar-jump__menu .app-menu__item--selected svg { color: var(--accent-primary); }
 .sidebar-jump__menu .app-menu__item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The rail's 36px project avatar, reduced to menu-row scale. */
-.sidebar-jump__avatar {
-  width: 20px; height: 20px; flex-shrink: 0;
-  display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-}
-
 .window-titlebar {
   /* The first control (the ··· menu) sits centred over the rail's icon
      column, so the titlebar and the rail share one vertical axis. The inset
@@ -73,6 +63,9 @@
 }
 .titlebar-icon-button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .titlebar-icon-button:disabled { opacity: 0.35; }
+/* The theme toggle lives in the rail's foot (task 189); the title bar's copy
+   shows only while the rail is not there to hold it. */
+.titlebar-theme-toggle--in-rail { display: none; }
 .titlebar-icon-button:disabled:hover { background: transparent; }
 .titlebar-icon-button svg { width: 16px; height: 16px; }
 /* Opting the sun/moon glyph out of the root snapshot so it turns over on its own
@@ -121,6 +114,9 @@
 }
 .titlebar-menu__item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
 .titlebar-menu__item:hover { background: var(--surface-hover); }
+/* A shortcut hint, not a keycap: quiet text pushed to the row's end, so it
+   teaches the shortcut without competing with the label. */
+.titlebar-menu__shortcut { margin-left: auto; padding-left: var(--space-4); color: var(--text-secondary-color); font-family: inherit; font-size: var(--text-label); }
 .titlebar-menu__item:disabled { color: var(--text-secondary-color); }
 .titlebar-menu__item:disabled:hover { background: transparent; }
 .titlebar-menu__item[aria-disabled="true"] { color: var(--text-secondary-color); }
@@ -138,18 +134,209 @@
 .window-control__close::before { transform: rotate(45deg); }
 .window-control__close::after { transform: rotate(-45deg); }
 
-.palette-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: center; padding: 14vh 24px 24px; background: var(--overlay); }
-.palette-dialog { width: min(100%, 560px); height: fit-content; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-raised); box-shadow: var(--shadow-lg); overflow: hidden; }
-.palette-input-row { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary-color); }
-.palette-input-row:focus-within { box-shadow: inset 0 -2px 0 var(--focus-ring); }
-.palette-input-row svg { width: 16px; height: 16px; flex-shrink: 0; }
-.palette-input { flex: 1; border: 0; background: transparent; outline: none; font: inherit; font-size: var(--text-subtitle); color: var(--text-primary-color); }
-.palette-input::placeholder { color: var(--text-secondary-color); }
-.palette-list { list-style: none; margin: 0; max-height: 280px; overflow-y: auto; padding: var(--space-2); }
-.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: var(--radius-item); font-size: var(--text-body); color: var(--text-primary-color); }
+/* The results of the strip's search: not a dialog of its own but the field's
+   own surface, deployed from it — centred on it and eight pixels above it — so
+   what a search answers to arrives next to the control that asked. The field
+   keeps the query and the keyboard; this only shows what matches. */
+.palette-panel {
+  position: fixed;
+  z-index: 20;
+  /* Narrower than the two-line palette it replaced: the rows here are a glyph,
+     a name and a shortcut, so 480px holds them without a river of empty space
+     to the right of every label. */
+  width: min(480px, calc(100vw - 48px));
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+  transform-origin: bottom center;
+  /* It arrives from the field, with the curve and the 120ms the app's menus
+     already use. */
+  animation: palette-rise-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Clips its own scrollbar, whose track would otherwise cross the top and
+     bottom corners. */
+  overflow: hidden;
+}
+/* Grown out of the field (DESIGN.md § Status bar): one object with the field
+   as its foot — the field's width, sitting on its top edge, square below,
+   with an edge mixed from the accent and a soft halo round the whole thing.
+   Its top corners are the field's own (half its height, measured), so both
+   halves are one shape. It casts its shadow upward and the halo stops at the
+   seam, so nothing is cut flat or drawn twice where the two halves meet; an
+   inner line, clear of the edges, says where the query begins. The rows
+   take the app's own shapes: sentence-case sections, capsule rows, each
+   glyph in a circle, and the chosen row saying Enter instead of a key list. */
+:root {
+  --palette-edge: color-mix(in srgb, var(--accent-primary) 45%, var(--border-subtle));
+  --palette-halo: color-mix(in srgb, var(--accent-primary-fill) 12%, transparent);
+}
+.palette-panel--fused {
+  border-color: var(--palette-edge);
+  border-bottom: 0;
+  border-radius: var(--radius-field) var(--radius-field) 0 0;
+  box-shadow: 0 0 0 3px var(--palette-halo), var(--shadow-up);
+  clip-path: inset(-60px -60px 0 -60px);
+  /* It unfolds from the seam: nothing moves out of place, so the object reads
+     as growing out of the field rather than arriving over it. Its rows come
+     with it, on the clock and curve of the floating panel and the menus. */
+  animation: palette-unfold-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.palette-panel--fused::after {
+  content: "";
+  position: absolute;
+  inset: auto 14px 0;
+  height: 1px;
+  background: var(--border-divider);
+}
+.palette-panel--fused.palette-panel--closing {
+  animation: palette-unfold-out 90ms ease-in both;
+}
+.palette-panel--fused.palette-panel--closing .palette-list { animation: palette-fade-out 50ms linear both; }
+@keyframes palette-unfold-in { from { clip-path: inset(100% -60px 0 -60px); } }
+@keyframes palette-unfold-out { to { clip-path: inset(100% -60px 0 -60px); } }
+@keyframes palette-fade-in { from { opacity: 0; } }
+@keyframes palette-fade-out { to { opacity: 0; } }
+.palette-panel--fit .palette-group {
+  padding: 10px 12px 2px;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-heading);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.palette-panel--fit .palette-item { min-height: 38px; padding: 0 12px 0 8px; border-radius: var(--radius-pill); }
+.palette-panel--fit .palette-item svg {
+  width: 24px; height: 24px; padding: 5px; box-sizing: border-box;
+  border-radius: var(--radius-round); background: var(--surface-hover);
+}
+.palette-panel--fit .palette-item[aria-selected="true"] { background: var(--surface-hover); }
+.palette-panel--fit .palette-item[aria-selected="true"] svg { background: var(--surface-active); }
+.palette-panel--fit .palette-item[aria-selected="true"] .palette-item__hint { display: none; }
+/* The key it answers to, drawn as the footer's keys are: a loose glyph sat
+   below the label's line and outweighed the row. */
+.palette-panel--fit .palette-item[aria-selected="true"]::after {
+  content: "↵";
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  min-width: 22px; height: 20px; padding: 0 5px; box-sizing: border-box;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
+  background: var(--surface-control); color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong);
+}
+/* Leaving is quicker and only a fade and a small drop: the reader has already
+   decided, and a long goodbye is in the way. */
+.palette-panel--closing {
+  animation: palette-rise-out 90ms ease-in both;
+  pointer-events: none;
+}
+@keyframes palette-rise-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.99); }
+}
+@keyframes palette-rise-out {
+  to { opacity: 0; transform: translateX(-50%) translateY(4px) scale(0.99); }
+}
+.palette-list { list-style: none; margin: 0; max-height: 300px; overflow-y: auto; padding: var(--space-2); }
+/* Shrinks with the panel when the window is short, so the list never spills
+   past the corners the panel has to clip. */
+.palette-panel .palette-list { min-height: 0; flex: 1 1 auto; }
+/* A section label, the way a menu groups what it lists: the glyphs beside the
+   rows carry the meaning, so the heading only has to name the kind of work. */
+.palette-group {
+  padding: 8px 10px 4px;
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  list-style: none;
+}
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-item);
+  font-size: var(--text-body);
+  color: var(--text-primary-color);
+  list-style: none;
+}
+.palette-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
 .palette-item[aria-selected="true"] { background: var(--surface-active); }
-.palette-item__hint { color: var(--text-secondary-color); font-size: var(--text-label); }
+.palette-item[aria-selected="true"] svg { color: var(--accent-primary); }
+.palette-item__label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A shortcut, not a keycap to press: quiet text at the row's end. */
+.palette-item__hint { flex-shrink: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .palette-empty { padding: 24px 16px; text-align: center; color: var(--text-secondary-color); font-size: var(--text-body); list-style: none; }
+/* The keys the results answer to, spelled once at the panel's foot. */
+.palette-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 0 var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-divider);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption);
+}
+.palette-footer span { display: inline-flex; align-items: center; gap: 5px; }
+.palette-footer kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item);
+  background: var(--surface-control);
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-strong);
+}
+/* On Console the results are a pane of the terminal, not the app's raised card:
+   the console's own surface, the mono face, the accent action names and the
+   dashed rules the shortcut pane already wears. Only Console asks for this; the
+   strip's field keeps the app's card so a search started there still reads as
+   chrome. */
+.palette-panel--console {
+  border-radius: var(--radius-item);
+  background: var(--surface-app);
+  box-shadow: none;
+}
+.palette-panel--console .palette-list { padding: var(--space-2) var(--space-3); }
+.palette-panel--console .palette-group {
+  padding: 10px 4px 6px;
+  color: var(--accent-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: var(--weight-title);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.palette-panel--console .palette-group::before { content: "> "; }
+.palette-panel--console .palette-item {
+  min-height: 34px;
+  padding: 0 6px;
+  border-bottom: 1px dashed var(--border-subtle);
+  border-radius: 0;
+  font-family: var(--font-mono);
+}
+.palette-panel--console .palette-item:last-child { border-bottom: 0; }
+.palette-panel--console .palette-item__label { color: var(--accent-primary); font-weight: var(--weight-strong); }
+.palette-panel--console .palette-item__hint { font-family: var(--font-mono); }
+.palette-panel--console .palette-empty { font-family: var(--font-mono); }
+.palette-panel--console .palette-footer {
+  border-top: 1px dashed var(--border-subtle);
+  font-family: var(--font-mono);
+}
+.palette-panel--console .palette-footer kbd {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-panel);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-title);
+}
 
 /* Grid rather than a row of two, so the status bar can span from the rail's
    edge to the window's without the workspace being wrapped in a column of its
@@ -166,6 +353,11 @@
   /* Also the height of the fade above the status bar, and not by coincidence:
      the two being equal is what makes the fade free at the end of a scroll. */
   --workspace-inset-bottom: 40px;
+  /* The frame left round the sheet (ADR 0032): the same on all four sides —
+     under the titlebar, beside the rail and to the window's edges — so the
+     sheet floats evenly rather than leaning on two of them. 16px rather than
+     8: at 8 the gap read as a misalignment, at 16 as a decision. */
+  --sheet-frame: var(--space-4);
   height: calc(100vh - 44px);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -175,33 +367,38 @@
 .workspace { grid-column: 2; grid-row: 1; }
 .status-bar { grid-column: 2; grid-row: 2; }
 
-/* Chrome, not content: no fill, no radius, no shadow. Friendly Card is the
-   language for surfaces that stack — DESIGN.md reserves shadow for stacking
-   order, and this strip is the floor of the window rather than something
-   resting on it. It also could not carry the system's 14-18px card radius at
-   34px tall without reading as a pill. Same reasoning that took the panel off
-   the rail: the window chrome is one continuous plane, and only content sits
-   in cards on top of it. */
+/* The foot of the sheet (ADR 0032): no card of its own, only the hairline
+   that closes the content above it. Inside it the strip is three columns —
+   where you are, the search, the remote — so the field is centred on the
+   window at any width rather than pushed around by how long the names happen
+   to be. Its side and bottom margins put it inside the sheet's border. */
 .status-bar {
   position: relative;
-  display: flex;
+  display: grid;
+  /* The middle track is a measure, not the field's intrinsic width: `auto`
+     let a grid `auto` track collapse to the input's default size (235px),
+     which left the strip's centre a small pill instead of the field the
+     design asks for. It grows to 430 and no further; the two blocks share
+     what is left. */
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 430px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  height: 34px;
-  padding: 0 var(--workspace-inset-right) 0 var(--workspace-inset-left);
+  gap: var(--space-3);
+  height: 44px;
+  margin: 0 calc(var(--sheet-frame) + 1px) calc(var(--sheet-frame) + 1px);
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--border-subtle);
   color: var(--text-primary-color);
   font-size: var(--text-body);
   line-height: var(--leading-snug);
 }
-/* No rule above it either — a hairline was drawing a boundary the layout
-   already draws. What was missing is what happens *mid-scroll*, where content
-   was clipped dead against this strip with nothing marking the cut.
+/* The hairline above the strip is the boundary. What it does not mark is
+   what happens *mid-scroll*, where content would be clipped dead against the
+   strip with nothing marking the cut.
 
-   So: a short fade to the window's own colour, sitting directly above the bar.
+   So: a short fade to the sheet's own colour, sitting directly above the bar.
    It is drawn from here rather than as a mask on the workspace because a mask
    on a scroll container recomposites every frame. Fixed workbenches whose
-   panes own scrolling — Changes, History and Lines — opt out below: their panel
+   panes own scrolling — Changes, History and Branches — opt out below: their panel
    edge already marks the end, and fading that edge makes the surface look
    unfinished.
 
@@ -213,9 +410,11 @@
 .status-bar::before {
   content: "";
   position: absolute;
+  /* The fade spans the sheet's width, the same as the strip: the cut it
+     marks runs from one edge of the sheet to the other. */
   left: 0;
   right: 0;
-  bottom: 100%;
+  bottom: calc(100% + 1px);
   height: var(--workspace-inset-bottom);
   pointer-events: none;
   /* Smoothstep, not a straight ramp. A linear alpha ramp changes by the same
@@ -234,226 +433,301 @@
      veil is not something an eye can find. */
   background: linear-gradient(
     to top,
-    var(--surface-app) 0%,
-    color-mix(in srgb, var(--surface-app) 95.7%, transparent) 12.5%,
-    color-mix(in srgb, var(--surface-app) 84.4%, transparent) 25%,
-    color-mix(in srgb, var(--surface-app) 68.4%, transparent) 37.5%,
-    color-mix(in srgb, var(--surface-app) 50%, transparent) 50%,
-    color-mix(in srgb, var(--surface-app) 31.6%, transparent) 62.5%,
-    color-mix(in srgb, var(--surface-app) 15.6%, transparent) 75%,
-    color-mix(in srgb, var(--surface-app) 4.3%, transparent) 87.5%,
-    color-mix(in srgb, var(--surface-app) 0%, transparent) 100%
+    var(--surface-panel) 0%,
+    color-mix(in srgb, var(--surface-panel) 95.7%, transparent) 12.5%,
+    color-mix(in srgb, var(--surface-panel) 84.4%, transparent) 25%,
+    color-mix(in srgb, var(--surface-panel) 68.4%, transparent) 37.5%,
+    color-mix(in srgb, var(--surface-panel) 50%, transparent) 50%,
+    color-mix(in srgb, var(--surface-panel) 31.6%, transparent) 62.5%,
+    color-mix(in srgb, var(--surface-panel) 15.6%, transparent) 75%,
+    color-mix(in srgb, var(--surface-panel) 4.3%, transparent) 87.5%,
+    color-mix(in srgb, var(--surface-panel) 0%, transparent) 100%
   );
 }
 .app-shell--internal-scroll .status-bar::before { display: none; }
-/* Three tiers of gap and no rules between them: 5px binds an icon to its own
-   text, 8px binds the parts of one fact, 24px separates one fact from the
-   next. DESIGN.md reserves hairlines for the edges of cards and asks for
-   spacing alone inside a row of items — the rail already groups this way, and
-   a strip this short reads more calmly for it. */
-.status-bar__group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  min-width: 0;
-}
-.status-bar__group--project {
-  flex: 1 1 auto;
-  overflow: hidden;
-}
-.status-bar__group--system { flex: 0 1 auto; gap: var(--space-6); }
-.status-bar__cluster {
+/* Two blocks and a field. A block is one object: segments of the same size,
+   weight and hover. The left block says where you are
+   — the project, then the line — and the right block says what is happening
+   to it and carries the one gesture that renews it. Within a block, 6px binds
+   a glyph to its words; a slash joins the project to its line as one path,
+   and the remote's two segments sit apart by air alone; the strip's own
+   12px gap separates the blocks from the field. */
+.status-bar__block {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0;
   min-width: 0;
+  height: 30px;
+  border-radius: var(--radius-pill);
 }
-.status-bar__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.status-bar__item svg { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar__item > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.status-bar__sync { max-width: min(30vw, 320px); }
-.status-bar__release {
+/* A block starts or ends its column but never outgrows it: as a grid item
+   placed at one edge it would size to its content and slide under the field
+   in a narrow window, so it is capped at its track and its segments give way
+   with an ellipsis instead. */
+.status-bar__block { max-width: 100%; }
+.status-bar__block--where { justify-self: start; }
+.status-bar__block--remote { justify-self: end; }
+.status-bar__seg {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 5px;
+  height: 30px;
+  min-width: 0;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-secondary-color);
-  font: inherit;
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.status-bar__release:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.status-bar__release:active { background: var(--surface-active); }
-.status-bar__release:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
-}
-.status-bar__version { font-size: var(--text-label); font-variant-numeric: tabular-nums; }
-/* "<project> <line>": the two facts, 8px apart because they are the parts
-   of one statement. The project's name is a fact at the primary tier, like
-   the line beside it, and the two of them share the room: each may take
-   about a third of the window and gives the rest back with an ellipsis, the
-   name first. */
-.status-bar__working { flex: 0 1 auto; }
-.status-bar__project {
-  flex: 0 1 auto;
-  max-width: min(18vw, 240px);
   color: var(--text-primary-color);
-  font-weight: var(--weight-strong);
-  cursor: default;
-  user-select: none;
-}
-.status-bar__project-settings { color: var(--text-secondary-color); }
-.status-bar .version-lines-quick-switch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: min(32vw, 340px);
-}
-/* The working tree as the project switcher's own mark: the icon with the
-   count riding its corner, and the sentence ("28 unsaved changes") in the
-   tooltip and for the screen reader. Same recipe as `.sidebar-project__badge`
-   — a ring the strip's colour so the number sits *on* the icon — at the
-   strip's 14px icon size. */
-.status-bar__changes { overflow: visible; cursor: default; user-select: none; }
-/* The icon and its corner badge, one positioned box. The compound selector is
-   deliberate: `.status-bar__item > span` clips its children, and the badge has
-   to overhang this box's corner. */
-.status-bar__changes .status-bar__changes-mark {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  overflow: visible;
-}
-.status-bar__changes-count {
-  position: absolute;
-  top: -7px;
-  right: -9px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-  border: 2px solid var(--surface-app);
-  background: var(--accent-primary-fill);
-  color: var(--accent-primary-contrast);
-  font-size: var(--text-micro);
-  font-weight: var(--weight-title);
-  line-height: var(--leading-none);
-  font-variant-numeric: tabular-nums;
-}
-/* The line totals as a quiet second fact beside the count: the diff's own two
-   inks at the label size, tabular so the strip does not twitch as they change.
-   `margin-left` clears the corner badge, which is absolutely positioned and
-   would otherwise sit over the first digit. */
-.status-bar__diff-stats {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: 8px;
-}
-.status-bar__diff-stat {
-  font-size: var(--text-label);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-none);
-  font-variant-numeric: tabular-nums;
-}
-.status-bar__diff-stat--added { color: var(--diff-added); }
-.status-bar__diff-stat--removed { color: var(--diff-removed); }
-.status-bar__changes--error { color: var(--status-danger); }
-/* The remote fact in one word and one tone: the cloud goes green when all is
-   well and amber when the reader should doubt or act, and how it is known —
-   snapshot, when it was checked — stays in the tooltip. */
-.status-bar__sync--success { color: var(--status-success); }
-.status-bar__sync--warning { color: var(--status-warning); }
-/* Ahead, the cloud is also the shortcut to publishing, so it wears the strip's
-   one interactive shape: the same 28px pill as the version-line control beside
-   it, on the strip's hover surface, with the same focus ring. A stale, failed
-   or still-loading relation never takes this shape. */
-.status-bar__sync-action {
-  height: 28px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: inherit;
   font: inherit;
-  cursor: default;
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
   transition: background var(--duration-fast);
 }
-.status-bar__sync-action:hover { background: var(--surface-hover); }
-.status-bar__sync-action:active { background: var(--surface-active); }
-.status-bar__sync-action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
-}
-.status-bar .version-line-selector {
-  width: 100%;
-  height: 28px;
+button.status-bar__seg:hover { background: var(--surface-hover); }
+.status-bar__seg svg { width: 14px; height: 14px; flex-shrink: 0; }
+.status-bar__seg > span {
   min-width: 0;
-  padding: 0 6px;
-  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A fact is not a control: no hover and no hand, so the strip never invites a
+   press it cannot honour. */
+.status-bar__seg--fact { cursor: default; }
+.status-bar__seg--muted { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+.status-bar__block--remote { gap: 4px; }
+/* Project and branch: two controls of one shape — a glyph, a name, the
+   chevron of a popup that opens upwards — side by side with the remote
+   block's own 4px between them, so the strip reads the same on both ends.
+   Each may take about a third of the window and gives the rest back with an
+   ellipsis, the name first. */
+.status-bar__block--where { gap: 4px; }
+.status-bar .status-bar__project { max-width: min(20vw, 240px); }
+.status-bar__project[aria-expanded="true"] { background: var(--surface-active); }
+.status-bar__project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+/* Visible overflow, against `.status-bar__seg > span`, which clips names for
+   their ellipsis: clipped, the avatar's ring survived only in the four corners
+   its rounded shape leaves inside the square, and the attention dot lost the
+   part that overhangs. */
+.status-bar .status-bar__project-avatar { position: relative; flex-shrink: 0; display: inline-grid; overflow: visible; }
+.status-bar__avatar {
+  width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: var(--radius-identity); color: var(--avatar-foreground);
+  box-shadow: var(--avatar-ring);
+  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+}
+/* The active project's own state, at the avatar's corner (another project's
+   state stays on its popup row). One mark, the most urgent, told apart by
+   shape as well as tone: the popup rows' alert glyph for something to
+   resolve, a ring turning while work runs. A disc of the strip's own surface
+   behind each lifts it off the avatar. */
+.status-bar__mark {
+  position: absolute; top: -4px; right: -4px;
+  width: 10px; height: 10px; display: grid; place-items: center;
+  border-radius: var(--radius-round); background: var(--surface-panel);
+}
+.status-bar__mark svg { width: 10px; height: 10px; }
+.status-bar__mark--resolve { color: var(--status-danger); --attention-color: var(--status-danger); }
+.status-bar__mark--busy { color: var(--text-secondary-color); }
+.status-bar__mark--busy::after {
+  content: ""; width: 6px; height: 6px; border-radius: var(--radius-round);
+  border: 1.5px solid currentColor; border-right-color: transparent; box-sizing: border-box;
+  animation: spin 0.9s linear infinite;
+}
+.status-bar__project-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The branch selector's chevron, so the two segments end alike. */
+.status-bar .status-bar__chevron { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-secondary-color); }
+.status-bar .branches-quick-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(32vw, 320px);
+}
+.status-bar .branch-selector {
+  height: 30px;
+  min-width: 0;
+  padding: 0 8px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-primary-color);
+  font: inherit;
+  transition: background var(--duration-fast);
 }
-.status-bar .version-line-selector:hover { background: var(--surface-hover); }
-.status-bar .version-line-selector[aria-expanded="true"] { background: var(--surface-active); }
-.status-bar .version-line-selector:focus-visible {
+.status-bar .branch-selector:hover { background: var(--surface-hover); }
+.status-bar .branch-selector[aria-expanded="true"] { background: var(--surface-active); }
+.status-bar .branch-selector:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 0;
 }
-.status-bar .version-line-selector__icon { width: 14px; height: 14px; }
-.status-bar .version-line-selector__value {
+.status-bar .branch-selector__icon { width: 14px; height: 14px; }
+.status-bar .branch-selector__value {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* The same type as the project's name: `project / branch` is one sentence, so
+     the branch name drops the selector's mono rather than switching typeface after
+     the slash. */
+  font-family: inherit;
   font-size: var(--text-body);
   font-weight: var(--weight-strong);
 }
-.status-bar .version-line-selector__chevron { width: 12px; height: 12px; }
-/* The hierarchy is two text tokens, not one token at two opacities. Fading
-   `--text-secondary-color` to 0.72 to make a third tier measured 2.92:1 on the light
-   surface and 4.45:1 on the dark one — both under the 4.5:1 that small text
-   needs. Primary against secondary gives the same separation at 16.5:1 and
-   5.05:1. */
-.status-bar__item--muted { color: var(--text-secondary-color); }
-.status-bar__action {
-  width: 28px; height: 28px; flex-shrink: 0;
-  display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-round);
-  background: transparent; color: inherit;
-  transition: background var(--duration-fast), color var(--duration-fast);
+.status-bar .branch-selector__chevron {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: var(--text-secondary-color);
 }
-.status-bar__action svg { width: 14px; height: 14px; }
-.status-bar__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.status-bar__action:disabled { opacity: 0.45; }
-.status-bar__action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+/* Unsaved work is a dot after the branch's name, the way an editor marks an
+   unsaved tab: in the warning tone the rail and the project switcher already
+   give unsaved work, and in the danger tone when the tree could not be read.
+   The count and the sentence are the trigger's tooltip and the reader's. */
+.status-bar .branch-selector__marker {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: var(--radius-round);
+  background: var(--status-warning);
+}
+.status-bar .branch-selector__marker--unsaved { --attention-color: var(--status-warning); }
+/* A tree that could not be read: the alert glyph, not a red dot, so it is told
+   from unsaved work by shape as well as tone. */
+.status-bar .branch-selector__marker--error {
+  width: 12px; height: 12px; display: grid; place-items: center;
+  background: transparent; color: var(--status-danger);
+  --attention-color: var(--status-danger);
+}
+.status-bar .branch-selector__marker--error svg { width: 12px; height: 12px; }
+/* The remote fact wears the strip's own ink, the same as the branch's name: the
+   two blocks read as the same object. It takes the warning tone when the
+   reader should doubt it, and the quiet ink while a check holds the last
+   answer. */
+.status-bar__sync { color: var(--text-primary-color); }
+.status-bar__sync--warning { color: var(--status-warning); }
+.status-bar__sync--held { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+/* The action is the block's first segment: the fact's own metrics with the
+   glyph in its tone and the verb in the reader's words, so turning from one
+   into the other moves nothing but the words. The fill belongs to the block,
+   not here. */
+.status-bar__sync-action { font-weight: var(--weight-medium); }
+/* Publishing carries what is saved here, in its green; getting, alone or
+   first, brings the remote's copy, in its blue (glyph tones, tokens.css). */
+.status-bar__sync-action svg { color: var(--tone-local); }
+.status-bar__sync-action--get svg,
+.status-bar__sync-action--getAndPublish svg { color: var(--tone-remote); }
+/* The check: the gesture that renews the fact, right after it and behind the
+   fact with only air between them. At rest it carries how fresh the
+   answer is — "3 min ago" — so "up to date" is trusted without hovering;
+   while a check runs the remote's one spinner lives on the fact, and this
+   segment only goes quiet. */
+.status-bar__refresh { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
+.status-bar__refresh:disabled { opacity: 0.45; cursor: default; }
+.status-bar__refresh:disabled:hover { background: transparent; }
+/* How fresh "up to date" is, before the check's glyph. */
+.status-bar__sync-age { font-size: var(--text-label); font-variant-numeric: tabular-nums; color: var(--text-secondary-color); }
+/* The field: one press opens the palette, and the shortcut is spelled on it,
+   so a search can start from anywhere without leaving the strip. A well in the
+   panel — the same control surface every other field in the app wears — keeps
+   the strip to one material instead of adding a second border. */
+.status-bar__search-slot {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 460px;
+}
+.status-bar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 0 10px;
+  /* Not `--radius-pill`: the same capsule at rest, and a radius that can
+     morph — from 999px the change all landed in the last frames and read as
+     a jump. */
+  border-radius: var(--radius-field);
+  /* At rest the field is already the object it opens into, closed: what
+     floats' surface, the subtle edge and a small lift (DESIGN.md § Status
+     bar). Opening grows it rather than swapping its material. */
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
+  color: var(--text-secondary-color);
+  font: inherit;
+  font-size: var(--text-body);
+  text-align: left;
+  transition: background var(--duration-fast), box-shadow var(--duration-fast), border-radius 90ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Focused but not deployed — or deployed as a panel of its own, when the
+   field is too narrow to carry the results — it wears the open object's edge
+   and halo, so putting the results away changes only the field's top
+   corners. The ink ring snapped on as the results left. */
+.status-bar__search:hover { background: color-mix(in srgb, var(--text-primary-color) 4%, var(--surface-raised)); }
+.status-bar__search:focus-within,
+.status-bar__search--open { box-shadow: 0 0 0 1px var(--palette-edge), 0 0 0 3px var(--palette-halo), var(--shadow-sm); }
+.status-bar__search svg { width: 15px; height: 15px; flex-shrink: 0; }
+.status-bar__search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-primary-color);
+}
+.status-bar__search-input::placeholder { color: var(--text-secondary-color); }
+.status-bar__search-input:focus-visible { outline: none; }
+/* Deployed, the open field is the foot of one object with the results above
+   it: square on top where the panel sits, the object's edge round its sides
+   and bottom, and the same halo (see `.palette-panel--fused`). It keys off
+   the panel's phase (`data-palette-state`), not the caller's open flag, so
+   it stays the foot until the panel has folded back into it. Its halo is
+   clipped at its top edge, where the panel's own ends, so the two are never
+   drawn over each other. */
+.status-bar__search[data-palette-fused][data-palette-state],
+.home-status__search[data-palette-fused][data-palette-state] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  background: var(--surface-raised);
+  box-shadow:
+    inset 1px 0 0 var(--palette-edge), inset -1px 0 0 var(--palette-edge), inset 0 -1px 0 var(--palette-edge),
+    0 0 0 3px var(--palette-halo);
+  clip-path: inset(0 -4px -4px -4px);
+}
+/* Left at once — the chosen command changed the screen — the field drops its
+   open shape in the same frame as the results (`leaveAtOnce`). */
+.status-bar__search[data-palette-snap],
+.home-status__search[data-palette-snap] { transition: none; }
+
+/* A narrow window: the two blocks would be left a few letters each beside a
+   240px field, so the field folds to its glyph — a 32px circle in the same
+   closed material — and the blocks take the room. Pressing it, or the
+   shortcut, unfolds it centred over the strip at the width the results can
+   grow out of; the input covers the circle so a press lands in it. */
+@media (max-width: 1000px) {
+  .status-bar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .status-bar__search-slot { width: auto; }
+  /* It folds only once the results have folded back into it. */
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open):not([data-palette-state]) {
+    width: var(--control-height-sm); padding: 0; justify-content: center;
+  }
+  .status-bar__search:not(:focus-within):not(.status-bar__search--open):not([data-palette-state]) .status-bar__search-input {
+    position: absolute; inset: 0; width: 100%; opacity: 0;
+  }
+  .status-bar__search:is(:focus-within, .status-bar__search--open, [data-palette-state]) {
+    position: absolute; top: 50%; left: 50%; z-index: 2;
+    width: min(340px, calc(100% - var(--space-5)));
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* One width, always. The rail carries an icon in a 40px square with its name
@@ -478,12 +752,16 @@
    stay legible without a container behind it.
 
    The width is a variable because it is a function of the widest thing the
-   rail has to hold, and that changes with the display mode: captions need a
-   measure, bare icons need a 40px square and nothing else. */
+   rail has to hold: the longest caption. Icons-only removes the captions but
+   keeps the column, so the foot and the content edge stay put when the
+   setting changes. */
 .sidebar {
   width: var(--rail-width);
   flex-shrink: 0;
-  padding: 10px var(--space-2) var(--space-3);
+  /* Top and bottom take the sheet's frame (ADR 0032), so the first
+     destination starts on the sheet's top edge and the last utility ends on
+     its bottom edge: the rail and the sheet share two horizontal lines. */
+  padding: var(--sheet-frame) var(--space-2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -587,37 +865,34 @@
   to { transform: scale(1); }
 }
 
-/* Everything in the tray is one group: project context first, then the
-   app-level utilities that desktop users expect at the foot. `.rail-nav`
-   grows into the free height above, so this block always sits against the
-   bottom without an auto margin fighting it. */
-.sidebar-project-section {
-  flex-shrink: 0;
-}
+/* The foot is the app-level utilities desktop users expect there — the
+   theme, Settings, Account. Which project is open is the status bar's
+   (task 189). `.rail-nav` grows into the free height above, so this block
+   always sits against the bottom without an auto margin fighting it.
+
+   No tray behind it any more. The faint pill was there to group the square
+   project chip with the round utilities; three identical filled circles with
+   no caption already read as one group apart from the captioned, unfilled
+   destinations, also when a short window closes the free height above — and
+   the pill under them was a second fill behind fills of their own. */
 .sidebar-foot {
   flex-shrink: 0;
-  padding-top: var(--space-3);
+  margin-top: var(--space-3);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
 }
 
-/* Only destinations are captioned. The controls in the tray — project,
-   add, settings, account — are stable shapes, and the two that are less
-   self-evident (the avatar, the "+") sit directly under what they act on.
-   Naming them cost a line of text each and turned the column into a wall of
-   words for four controls that never change. Accessible names and delegated
-   tooltips keep those compact controls discoverable without restoring the
-   captions.
+/* Only destinations are captioned. The controls at the foot — theme,
+   settings, account — are stable shapes; naming them cost a line of text
+   each and turned the column into a wall of words for controls that never
+   change. Accessible names and delegated tooltips keep them discoverable
+   without the captions.
 
-   With the captions gone the widest element is the 40px icon square, so the
-   88px measure the labels needed becomes 24px of dead margin on either side
-   of every icon — the column reads as a wide empty strip rather than a
-   compact tool rail. 56px is that square plus the panel's own padding, and
-   nothing else. */
+   With the captions gone the column keeps its 64px, so the content edge does
+   not move on every switch. */
 .app-window--icons-only .sidebar-foot { gap: var(--space-2); }
-.app-window--icons-only .sidebar-project-group { gap: var(--space-2); }
 .sidebar-round {
   width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
@@ -630,127 +905,82 @@
   width: 18px;
   height: 18px;
 }
-.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-hover); color: var(--text-primary-color); }
+/* The circle already wears the hover fill at rest, so hover steps up to the
+   active fill rather than repainting the same one. */
+.sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-active); color: var(--text-primary-color); }
 .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
+/* Each utility says what it does when pointed at, once, and rests there:
+   the gear turns 60°, the sun 45°, the moon tips back, the person lifts.
+   A transform on the glyph alone, over the rail's 180ms; it returns when the
+   pointer leaves. Disabled controls stay still — the
+   account's motion waits for sign-in to exist — and the system's reduced
+   motion, or the app's own setting, leaves every glyph where it is. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Ease-in-out rather than the rail icons' sharp ease-out: the same 180ms,
+     but the turn no longer spends itself in the first 40ms, so a 60° gear
+     and a 45° sun read as a turn instead of a jump. */
+  :root:not([data-reduced-motion="true"]) .sidebar-round svg {
+    transition: transform var(--duration-normal) cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--settings:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: rotate(60deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="sun"]:hover svg { transform: rotate(45deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="moon"]:hover svg { transform: rotate(-18deg); }
+  :root:not([data-reduced-motion="true"]) .sidebar-round--account:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: translateY(-2px); }
+}
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
 .sidebar-round:disabled,
 .sidebar-round[aria-disabled="true"] { opacity: 0.55; }
-
-.sidebar-project-group { display: grid; justify-items: center; gap: var(--space-3); }
-.sidebar-project {
-  position: relative; padding: 0; border: 0; border-radius: var(--radius-identity); background: transparent;
-}
-.sidebar-project__avatar {
-  width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-  transition: filter var(--duration-fast), transform var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sidebar-project__avatar--empty { background: var(--surface-hover); color: var(--text-secondary-color); }
-.sidebar-project__avatar--empty svg { width: 18px; height: 18px; }
-.sidebar-project:hover:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { filter: brightness(1.08); }
-.sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar { transform: scale(0.97); }
-.sidebar-project:disabled,
-.sidebar-project[aria-disabled="true"] { opacity: 0.55; }
-.sidebar-project:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.sidebar-project__chevron {
-  position: absolute; right: -4px; bottom: -4px; width: 15px; height: 15px;
-  display: grid; place-items: center; border-radius: var(--radius-round);
-  border: 1px solid var(--border-subtle); background: var(--surface-raised); color: var(--text-secondary-color);
-}
-.sidebar-project__chevron svg {
-  width: 10px;
-  height: 10px;
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
-.sidebar-project__badge {
-  position: absolute; top: -4px; right: -4px; min-width: 14px; height: 14px; padding: 1px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
-  border-radius: var(--radius-pill); background: var(--surface-raised); border: 1px solid var(--border-subtle);
-}
-.sidebar-project__badge svg { width: 10px; height: 10px; }
-/* Below the scale's floor on purpose, and named in DESIGN.md § Typography: a
-   numeral inside a 14px dot has a 10px box once the ring and padding are out,
-   and `--text-micro` would fill it edge to edge with nothing left to breathe.
-   It is a count on a status dot, not text anyone reads a sentence of. */
-.sidebar-project__badge-count { font-size: 7px; line-height: var(--leading-none); font-weight: var(--weight-title); font-variant-numeric: tabular-nums; }
-.sidebar-project__badge--error { color: var(--status-danger); }
-.sidebar-project__badge--operation { color: var(--accent-primary); }
-.sidebar-project__badge--unsaved { color: var(--status-warning); }
-
-/* Sized by its content, capped rather than fixed. It used to declare a flat
-   `height: 180px`, which did two bad things at once: it left dead space under
-   a short list, and — because the add-project menu borrowed this same class —
-   it stretched that menu's three items across 180px, making three options look
-   like a screen. The list below keeps a floor so filtering cannot collapse the
-   panel under the pointer, which is the one thing the fixed height did well. */
-.sidebar-project-flyout {
-  width: 280px;
-  min-width: 280px;
-  max-height: min(440px, calc(100vh - 16px));
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-.sidebar-project__popover .project-switcher__list { min-height: 124px; }
-.sidebar-project__popover { padding: 8px; gap: 6px; }
-.sidebar-project__search {
-  display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 var(--space-3);
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); color: var(--text-secondary-color);
-}
-.sidebar-project__search:focus-within { border-color: var(--focus-ring); }
-.sidebar-project__search svg { width: 14px; height: 14px; flex-shrink: 0; }
-.sidebar-project__search input {
-  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
-  font: inherit; font-size: var(--text-body); color: var(--text-primary-color);
-}
-.sidebar-project__search input::placeholder { color: var(--text-secondary-color); }
-/* Rides in the search row, sized to the row's own height so it reads as part
-   of the field rather than a button parked next to it. Same star, same on-state
-   accent as the per-row control, so "marked" and "showing only marked" are
-   visibly the same idea.
-
-   24 around 14 on purpose: both even, so the icon's inset lands on a whole 5px
-   on every side. At 22 around 13 it was 4.5px, and a half pixel rounds to a
-   different whole one top and bottom once the display is scaled — the hover
-   fill then reads as offset from the star it is meant to sit behind. No
-   negative margin either: the row's 9px padding puts this the same distance
-   from its edge as the magnifier is from the other.
-
-   `padding: 0` is load-bearing, not tidiness. A button keeps the UA's default
-   `1px 6px` unless told otherwise, and with `border-box` that left a 12px
-   content box for a 14px icon: too narrow to centre in, so the grid pushed the
-   icon to the start and the hover fill sat 6px to its left and 4px to its
-   right. The vertical axis hid it, having 22px of content box for the same
-   14px. */
-.sidebar-project__filter {
-  width: 24px; height: 24px; flex-shrink: 0;
-  display: grid; place-items: center;
-  padding: 0; border: 0; border-radius: var(--radius-item);
-  background: transparent; color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.sidebar-project__filter svg { width: 14px; height: 14px; }
-.sidebar-project__filter:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.sidebar-project__filter--on { color: var(--accent-primary); }
-.sidebar-project__filter--on svg { fill: currentColor; }
-.sidebar-project__empty {
-  margin: 0; padding: 14px 8px; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center;
-}
 
 .workspace {
   flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto;
   padding: 28px var(--workspace-inset-right) var(--workspace-inset-bottom) var(--workspace-inset-left);
 }
-/* Work and Lines are fixed workbenches whose child panes own
-   scrolling. The shell's full bottom inset is useful for document-style
-   screens, where it creates the quiet end of the outer scroll, but here it
-   becomes a permanent empty strip. Keep only one compact step so the panel has
-   a visible ending without giving back the space recovered from the old 40px
-   gap. */
-.workspace--workbench,
-.workspace--version-lines { padding-bottom: var(--space-2); }
+/* One sheet per screen (ADR 0032). The titlebar and the rail stay the flat
+   frame; column 2 is a single surface in the card's material — the panel,
+   the subtle border, the surface radius — and what
+   the screens lay on it are regions meeting on hairlines, not cards. It is
+   drawn behind the workspace and the status bar rather than as a wrapper so
+   neither has to change parent; as the first grid item it paints under both
+   without a z-index, so nothing inside the workspace is trapped beneath the
+   strip. Console and Home keep the plain plane: Console is a terminal across
+   the workspace, and Home's launcher is the one object on its screen, so it
+   floats on the plane by itself rather than resting on a sheet. */
+.app-shell--sheet::before {
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / -1;
+  margin: var(--sheet-frame);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-surface);
+  background: var(--surface-panel);
+  /* The one object resting on the window's plane, with room round it: the
+     focused-object step, not the resting card's. */
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+/* The workspace sits inside the sheet's border, and its rounded top clips a
+   scrolled page to the sheet's corners. */
+.app-shell--sheet .workspace {
+  margin: calc(var(--sheet-frame) + 1px) calc(var(--sheet-frame) + 1px) 0;
+  border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+}
+/* Work and Branches lay their panes edge to edge on the sheet, so they take no
+   inset at all: the sheet's border is their outer edge and a hairline the
+   one between them. */
+.app-shell--sheet .workspace--workbench,
+.app-shell--sheet .workspace--branches { padding: 0; }
+/* Overview's bands run edge to edge too and carry their own insets. Below
+   its fit size it scrolls as a page and keeps the bottom inset, which is what
+   makes the fade over the strip free at the end of the scroll. Once it fits
+   the window its timeline scrolls inside its band and the page itself does
+   not, so that inset and the fade would only be an empty strip above the
+   status bar. The query must match OVERVIEW_FIT_QUERY in
+   features/overview/fit.ts. */
+.app-shell--overview .workspace { padding: 0 0 var(--workspace-inset-bottom); }
+@media (min-height: 620px) and (min-width: 981px) {
+  .app-shell--overview .workspace { padding-bottom: 0; }
+  .app-shell--overview .status-bar::before { display: none; }
+}
 /* Console hides the status bar and draws its own status line in the same
    place, flush with the window's foot, so it keeps no bottom inset. */
 .workspace--console { padding-top: var(--space-3); padding-bottom: 0; }
@@ -815,201 +1045,164 @@
   .app-tooltip--above { animation: none; transform: translate(-50%, -100%); }
   .app-tooltip--below { animation: none; transform: translate(-50%, 0); }
 }
-/* The boundary between the destinations and the project/app foot is the
-   foot's own shape: a faint tray behind the project chip and the utilities.
-   A 3px capsule did this before, and a full-width rule before that; both were
-   strokes in a column made of rounded fills, and the capsule, glyph-sized and
-   right above "+", read as a minus button rather than a boundary. The tray
-   says "these belong together" in the rail's own language and still divides
-   when a short window folds destinations into More and closes the free
-   height above.
-
-   At rest it is about a third of the hover fill; resting on it, focusing into
-   it or opening one of its menus brings the whole group up to that fill, so
-   the pointer learns the group's extent. A pill, so it nests concentrically
-   around the 36px circles. The fill lives on a pseudo-element so only its
-   opacity animates. */
-.sidebar-tray {
-  position: relative;
-  flex-shrink: 0;
-  margin-top: var(--space-3);
-  padding: 6px 0;
-  isolation: isolate;
+/* The status bar's project popup (task 189): the branch popup's twin, so the
+   two halves of the `project · branch` block open the same shape. A fixed box,
+   like the branch popup, because the actions and the add rows replace the list
+   in place: a popup measured once and then shrunk would hang in the air above
+   the strip with a gap under it. Doubled class because primitives.css loads
+   after this sheet and `.app-menu` would otherwise win the width. */
+.app-menu.project-quick-switch {
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 2 * var(--space-4)));
+  height: min(400px, calc(100vh - 56px));
+  min-width: 0;
+  max-width: none;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.sidebar-tray::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: var(--radius-pill);
-  background: var(--surface-hover);
-  opacity: 0.38;
-  pointer-events: none;
-  transition: opacity var(--duration-normal) ease;
+/* The project the reader is in, and the three things done to it. */
+.project-quick-switch__head {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 2px 2px var(--space-2); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
-/* Led by the project chip, the tray follows the chip's shape instead: a
-   pill's 24px cap nests circles, but it pinched the chip's square corners to
-   ~3px from the edge and left its status badge well past the curve. The
-   surface radius keeps the chip's corners about the same 6px in as its sides
-   (its ~10px corner plus the inset), the badge overhangs the tray by no more
-   than it overhangs the chip, and the round utilities below sit
-   comfortably inside it. Not mixed with the pill at the foot: a 999px corner
-   beside an 18px one makes the browser scale every corner down together. */
-.sidebar-tray:has(.sidebar-project)::before { border-radius: var(--radius-surface); }
-.sidebar-tray:hover::before,
-.sidebar-tray:focus-within::before,
-.sidebar-tray:has([aria-expanded="true"])::before { opacity: 1; }
-.project-switcher__list { display: grid; gap: 2px; list-style: none; margin: 0; padding: 0; }
-.project-switcher__item { display: flex; align-items: center; gap: 2px; }
-.project-switcher__button {
-  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; height: 40px;
-  padding: 0 8px; border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary-color); text-align: left;
+.project-quick-switch__head-actions { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.project-quick-switch__icon {
+  width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.project-switcher__button:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
-.project-switcher__button--active {
-  color: var(--text-primary-color); background: var(--surface-active); font-weight: var(--weight-strong);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 35%, transparent);
-}
-.project-switcher__button:disabled { opacity: 0.45; }
-.project-switcher__avatar {
-  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
+.project-quick-switch__icon svg { width: 15px; height: 15px; }
+.project-quick-switch__icon:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.project-quick-switch__icon:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__icon:disabled { opacity: 0.4; }
+.project-quick-switch__avatar {
+  flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
   border-radius: var(--radius-identity); color: var(--avatar-foreground);
   box-shadow: var(--avatar-ring);
-  font-size: var(--text-micro); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
+  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
 }
-.project-switcher__button--active .project-switcher__avatar { box-shadow: 0 0 0 2px var(--accent-primary); }
-.project-switcher__copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
-.project-switcher__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); }
-.project-switcher__context {
+.project-quick-switch__avatar--small { width: 22px; height: 22px; font-size: var(--text-micro); }
+.project-quick-switch__copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.project-quick-switch__name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-body); font-weight: var(--weight-strong);
+}
+.project-quick-switch__context {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
+}
+.project-quick-switch__search {
+  display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px;
+  padding: 0 var(--space-3); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill); color: var(--text-secondary-color);
+}
+.project-quick-switch__search:focus-within { border-color: var(--focus-ring); }
+.project-quick-switch__search > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.project-quick-switch__search input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+  color: var(--text-primary-color); font: inherit; font-size: var(--text-body);
+}
+.project-quick-switch__search input::placeholder { color: var(--text-secondary-color); }
+.project-quick-switch__results {
+  flex: 1; min-height: 0; margin: 6px -2px 0; padding: 0 2px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+.project-quick-switch__caption {
+  margin: 0; padding: var(--space-2) var(--space-2) var(--space-1);
+  color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.project-quick-switch__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.project-quick-switch__item { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.project-quick-switch__choose {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 46px;
+  padding: 5px 8px; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-primary-color); font: inherit; text-align: left;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.project-quick-switch__choose:hover:not(:disabled) { background: var(--surface-hover); }
+.project-quick-switch__choose:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__choose:disabled { opacity: 0.45; }
+.project-quick-switch__favourite,
+.project-quick-switch__more {
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: var(--radius-item);
+  background: transparent; color: var(--text-secondary-color);
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.project-quick-switch__favourite svg { width: 14px; height: 14px; }
+.project-quick-switch__more svg { width: 15px; height: 15px; }
+/* The star waits for the pointer unless it is marked; the chevron is a fact
+   of the row and always shows, as on the branch popup. */
+.project-quick-switch__favourite { opacity: 0.55; }
+.project-quick-switch__item:hover .project-quick-switch__favourite,
+.project-quick-switch__favourite:focus-visible { opacity: 1; }
+.project-quick-switch__favourite--on { color: var(--accent-primary); opacity: 1; }
+.project-quick-switch__favourite--on svg { fill: currentColor; }
+.project-quick-switch__favourite:hover,
+.project-quick-switch__more:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.project-quick-switch__favourite:focus-visible,
+.project-quick-switch__more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.project-quick-switch__empty {
+  margin: 0; padding: var(--space-4); text-align: center;
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
+}
+/* A project's actions, in place of the list. */
+.project-quick-switch__actions {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 2px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.project-quick-switch__actions .project-quick-switch__head { gap: 6px; }
+.project-quick-switch__actions .app-menu__item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-quick-switch__actions .app-menu__item:disabled,
+.project-quick-switch__add .app-menu__item:disabled { opacity: 0.5; cursor: default; }
+/* The foot: adding a project, and the view of every project. Ghost buttons,
+   because they leave the list rather than choose in it; adding docks its
+   three ways here in place of the foot. */
+.project-quick-switch__footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
+}
+.project-quick-switch__foot-action { min-width: 0; padding-inline: var(--space-2); }
+.project-quick-switch__foot-action span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-quick-switch__add {
+  flex-shrink: 0; display: grid; gap: 2px;
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle);
 }
 .project-switcher__indicators { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; }
 .project-switcher__indicator { flex-shrink: 0; width: 14px; height: 14px; }
 .project-switcher__indicator--error { color: var(--status-danger); }
 .project-switcher__indicator--operation { color: var(--accent-primary); }
 .project-switcher__indicator--unsaved { color: var(--status-warning); }
-.project-switcher__close {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__close svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__close,
-.project-switcher__close:focus-visible { opacity: 1; }
-.project-switcher__close:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__close:disabled { opacity: 0.3; }
-/* Mirrors Close in footprint so the two trailing controls line up, but not in
-   behaviour: Close fades until the row is hovered because it is destructive
-   and rarely wanted, while a star has to be readable at rest — the whole point
-   is telling favourites apart at a glance. Unmarked it sits at the same low
-   opacity as Close; marked it goes solid and takes the brand accent, which is
-   the one state that must survive not pointing at the row. */
-.project-switcher__favourite {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__favourite svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__favourite,
-.project-switcher__favourite:focus-visible { opacity: 1; }
-.project-switcher__favourite:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__favourite--on {
-  opacity: 1;
-  color: var(--accent-primary);
-}
-.project-switcher__favourite--on svg { fill: currentColor; }
 
-/* Same size and same resting weight as the star beside it: they are two marks
-   on the same row, and one of them looking heavier would read as the more
-   important one. */
-.project-switcher__settings {
-  flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  opacity: 0.55;
-  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
-}
-.project-switcher__settings svg { width: 14px; height: 14px; }
-.project-switcher__item:hover .project-switcher__settings,
-.project-switcher__settings:focus-visible { opacity: 1; }
-.project-switcher__settings:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher__settings:disabled { opacity: 0.3; }
-
-.project-switcher__item--add { margin-top: 2px; }
-.project-switcher__add {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px;
-  border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
-  font-size: var(--text-body); transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher__add svg { width: 16px; height: 16px; flex-shrink: 0; }
-.project-switcher__add:hover:not(:disabled) { color: var(--text-primary-color); background: var(--surface-hover); }
-.project-switcher__add:disabled { opacity: 0.45; }
-
-/* One trigger for create/open/clone. The popup wears the shared `.app-menu`
-   surface unchanged — width and z-index included — and is placed by
-   project-switcher/ProjectSwitcher.tsx, which portals it and positions it `fixed`. Only the
-   trigger's open state belongs here. (A rule for the popup would be dead
-   weight anyway: primitives.css loads after this file, so `.app-menu` wins
-   every tie at equal specificity.) */
-.project-switcher-add-menu__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher-add-menu__trigger > svg {
-  transition: transform var(--duration-normal) cubic-bezier(0.16, 1, 0.3, 1);
-}
-.project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
-.project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
-  transform: rotate(45deg) scale(1.08);
-}
-
-.project-switcher-compact { position: relative; display: none; }
-.project-switcher-compact__trigger {
-  width: 32px; height: 32px; padding: 2px; display: grid; place-items: center; flex-shrink: 0;
-  border: 1px solid var(--border-subtle); border-radius: var(--radius-round); background: var(--surface-panel);
-  color: var(--text-secondary-color);
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-.project-switcher-compact__trigger:hover,
-.project-switcher-compact__trigger[aria-expanded="true"] { background: var(--surface-hover); color: var(--text-primary-color); }
-.project-switcher-compact__trigger svg { width: 16px; height: 16px; }
-.project-switcher-compact__avatar {
-  width: 100%; height: 100%; display: grid; place-items: center;
-  border-radius: var(--radius-identity); color: var(--avatar-foreground);
-  box-shadow: var(--avatar-ring);
-  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-wide);
-}
-.project-switcher-compact__popover {
-  position: absolute; z-index: 5; top: calc(100% + var(--space-2)); left: 0; min-width: 220px;
-  max-height: min(420px, calc(100vh - 140px)); overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
-  background: var(--surface-raised); box-shadow: var(--shadow-lg);
-}
-.project-switcher-compact__popover .project-switcher__button { height: 36px; }
-
-.settings-backdrop {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
-  padding: 28px; background: var(--overlay); backdrop-filter: blur(8px);
-}
 /* A wide, stable preference workspace: the dialog does not resize under the
    pointer when the active category changes, and the 208px category rail still
    leaves room for a deliberately capped reading measure. The viewport caps
    retain the narrow-window fallback below without turning Settings into a
-   full screen. */
+   full screen. It is the one dialog outside the three sizes (DESIGN.md
+   § Dialogs): a preferences workspace, not a question. Its header and its
+   rail are regions of one surface and meet the content on the subtle
+   hairline, at the 24px inset the rail's icons already sit on. */
 .settings-dialog {
-  width: min(1000px, 100%); height: min(680px, calc(100vh - 56px)); min-height: 420px;
+  width: min(1000px, 100%); height: min(680px, calc(100vh - 48px)); min-height: 420px;
   display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   outline: none; background: var(--surface-raised); box-shadow: var(--shadow-lg);
 }
 .settings-dialog__header {
-  min-height: 76px; padding: 16px 22px; display: flex; align-items: center;
-  gap: var(--space-4);
-  border-bottom: 1px solid var(--border-divider);
+  min-height: 76px; padding: 16px var(--space-5); display: flex; align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--surface-raised);
 }
+/* The header's glyph is the dialog shell's own circle, so Settings opens the
+   way every other dialog does. */
+.settings-dialog__header > .app-dialog__glyph { color: var(--text-secondary-color); }
 .settings-dialog__heading { flex: 1 1 auto; min-width: 0; }
 .settings-dialog__alert {
   flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px;
@@ -1032,30 +1225,37 @@
   background: color-mix(in srgb, var(--status-danger) 14%, transparent);
 }
 .settings-dialog__alert svg { width: 14px; height: 14px; }
-.settings-dialog__header h2 { margin: 0 0 3px; font-size: var(--text-display); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); }
-.settings-dialog__header p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
+.settings-dialog__header h2 { margin: 0; font-size: var(--text-title); font-weight: var(--weight-title); letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); }
+.settings-dialog__header p { margin: 2px 0 0; color: var(--text-secondary-color); font-size: var(--text-body); }
 /* Names the project the panel is scoped to. It wears the same shell as
    Settings, so the one thing it must never be mistaken for is Settings. */
 .project-settings-dialog__project {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Every modal in the app shell sits on this one backdrop — About, the
-   changelog, the shortcut sheet, the close confirmation and the open-failure
-   alert. It was called `.about-backdrop` while About happened to be the first
-   thing that needed it, which is how two later dialogs ended up reaching for
-   About's *identity* shell as well. */
-.dialog-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: var(--overlay); backdrop-filter: blur(8px); }
+/* About, the changelog and the shortcut sheet sit on the dialogs' one
+   backdrop (`.app-dialog-backdrop`, primitives.css). */
 .about-dialog {
+  /* The dialog's own insets and corner-control height, named so its two corner
+     controls align to them rather than repeat the numbers. The close control
+     rests at the block-start inset, the version pill mirrors it on the left, and
+     both share one height so they stay on a line when the pointer is coarse and
+     the close grows. */
+  --about-pad-block-start: 28px;
+  --about-pad-inline: 30px;
+  --about-corner-size: 36px;
   position: relative;
   width: min(100%, 420px);
   max-height: calc(100vh - 48px);
-  padding: 28px 30px 24px;
+  padding: var(--about-pad-block-start) var(--about-pad-inline) 24px;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
   outline: none;
   background: var(--surface-raised);
   box-shadow: var(--shadow-lg);
+  /* About is a document to read, not a form: its text keeps the platform
+     arrow rather than the I-beam, and only the controls take the hand. */
+  cursor: default;
 }
 
 .issue-report-dialog__report {
@@ -1063,9 +1263,9 @@
      element's own border-radius leaves its scrollbar uncut, which let the
      thumb spill past the corner curve. */
   overflow: hidden;
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
-  background: var(--surface-control);
+  background: var(--surface-code);
 }
 .issue-report-dialog__report:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
 .issue-report-dialog__report-body {
@@ -1085,6 +1285,8 @@
   tab-size: 2;
 }
 
+/* The same box while the report is gathered, its lines as placeholders. */
+.issue-report-dialog__report-body--placeholder { display: grid; align-content: start; gap: var(--space-2); white-space: normal; }
 .issue-report-dialog .issue-report-dialog__status { min-height: 20px; margin: 0; font-size: var(--text-label); }
 /* The failed link and its copy button on one row. */
 .issue-report-dialog__link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
@@ -1100,22 +1302,24 @@
    turns the dialog itself into the scroller — which is exactly what
    `position: absolute` inside that scroller used to lose. */
 .about-dialog > .dialog-close-button {
-  --about-close-size: 36px;
   position: sticky;
   top: var(--space-2);
   z-index: 1;
-  margin: 0 calc(-1 * var(--space-3)) calc(-1 * var(--about-close-size)) auto;
+  margin: 0 calc(-1 * var(--space-3)) calc(-1 * var(--about-corner-size)) auto;
 }
 /* The changelog and the shortcut sheet extend About's shell, but they are
-   documents to read rather than an identity card, so they keep the roomier
-   padding the identity dialog gave up to stay within one screen. */
+   documents to read rather than an identity card: they share one width (the
+   dialogs' `s`), the dialogs' 28px inset and the action dialogs' header — a
+   40px glyph circle and a `--text-title` heading. */
 .changelog-dialog,
-.shortcuts-dialog { padding: 32px; }
+.shortcuts-dialog { --document-inset: 28px; width: min(100%, 440px); }
+.about-dialog.changelog-dialog h2,
+.about-dialog.shortcuts-dialog h2 { font-size: var(--text-title); line-height: var(--leading-tight); }
 @media (pointer: coarse) {
-  .about-dialog > .dialog-close-button { --about-close-size: var(--control-height-lg); }
+  .about-dialog { --about-corner-size: var(--control-height-lg); }
 }
 /* The full mascot at hero scale, on its own line, with its theme fill and
-   the `sweep` glasses motion, never on a tile (DESIGN.md § Brand). The mark
+   the `wink` motion, never on a tile (DESIGN.md § Brand). The mark
    used to be a 24px separator wedged between the name and the promise, which
    read as a divider rather than a logo. */
 .about-dialog__hero { display: flex; flex-direction: column; align-items: center; }
@@ -1125,6 +1329,44 @@
   min-width: 0; margin: var(--space-4) 0 0;
 }
 .about-dialog__product-name { font-size: var(--text-hero); font-weight: var(--weight-title); letter-spacing: var(--tracking-hero); color: var(--text-primary-color); }
+/* The "Odile" half carries the brand sweep: a band of light crosses it in step
+   with the mascot's `mascot-wink` (primitives.css) — the same 6.5s cycle and
+   the same 1.2s start, the eye shut while the light is halfway across its 14%
+   travel — so the wordmark and the mark move as one gesture. In a community
+   theme the band takes the accent fill, a saturated colour there. The
+   official themes' fill is the ink itself (ADR 0033), so the band would not
+   show: there it takes the ink's opposite, `--accent-primary-contrast` —
+   white crossing black in light, black crossing white in dark — a gleam
+   rather than a hue. The gradient's body is the word's own ink, so it reads
+   normally at rest. */
+.about-dialog__odile {
+  --odile-shine: var(--accent-primary-fill);
+  background-image: linear-gradient(
+    100deg,
+    var(--text-primary-color) 35%,
+    var(--odile-shine) 50%,
+    var(--text-primary-color) 65%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: about-odile-shine 6.5s ease-in-out 1.2s infinite;
+}
+:root:not([data-theme]) .about-dialog__odile,
+[data-theme|="gitodile"] .about-dialog__odile { --odile-shine: var(--accent-primary-contrast); }
+@keyframes about-odile-shine {
+  0% { background-position: 100% 0; }
+  14%, 100% { background-position: 0% 0; }
+}
+/* Reduced motion clears the sweep and leaves the word in its own ink. The
+   app's own preference also stops the animation globally (base.css); this
+   restores the fill so the half never stays transparent. */
+@media (prefers-reduced-motion: reduce) {
+  .about-dialog__odile { background: none; -webkit-text-fill-color: inherit; }
+}
+:root[data-reduced-motion="true"] .about-dialog__odile { background: none; -webkit-text-fill-color: inherit; }
 .about-dialog__tagline { color: var(--text-secondary-color); font-size: var(--text-title); font-weight: var(--weight-heading); letter-spacing: var(--tracking-tight); }
 /* The app's state line, then the way to the release notes. It is the one place
    About answers "am I current?" without leaving the dialog, and it borrows the
@@ -1139,13 +1381,12 @@
 .about-dialog__update-link { border: 0; background: transparent; color: var(--accent-primary); font: inherit; font-weight: var(--weight-medium); cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 .about-dialog__update-link:hover { color: var(--text-primary-color); }
 .about-dialog__description { margin: var(--space-4) 0 0; text-align: center; color: var(--text-secondary-color); }
-/* A single quiet rule between the product introduction and the facts, exactly
-   as the design draws it; the licence block carries its own rule at the foot.
-   Written as a border on a zero-height box, not as a 1px background: the
-   licence rule below is a `border-top`, and at a fractional device scale a
-   1px background and a 1px border snap to different thicknesses, so the two
-   separators on this one surface did not read as the same line. */
-.about-dialog__rule { height: 0; border-top: 1px solid var(--border-divider); margin: 18px 0 0; }
+/* A single quiet rule closes the intro above the facts, and one more sets each
+   section off from the next. Written as a border on a zero-height box, not as a
+   1px background: at a fractional device scale a 1px background and a 1px
+   border snap to different thicknesses, so the separators stopped reading as
+   the same line. */
+.about-dialog__rule { height: 0; border-top: 1px solid var(--border-divider); margin: var(--space-4) 0 0; }
 /* The copy control heads the rows it copies, rather than following them in a
    full-width button that spent a row of height restating the same thing. It is
    a text action, not a labelled button: the section heading already says what
@@ -1155,27 +1396,46 @@
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
   padding: 2px 0; border: 0; background: transparent;
   color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-medium);
+  cursor: pointer;
 }
 .about-technical__copy:hover { color: var(--text-primary-color); }
 .about-technical__copy svg { width: 13px; height: 13px; }
-.about-dialog__footer { margin: 18px 0 0; color: var(--text-secondary-color); font-size: var(--text-label); text-align: center; }
+.about-dialog__made-with {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  margin: 0; color: var(--text-secondary-color); font-size: var(--text-label);
+}
 .about-dialog__heart { color: var(--accent-heart); }
-/* Licensing is supporting information, not part of the product introduction.
-   It closes the dialog after the credits, separated by a quiet rule so the
-   hero can lead directly into the useful machine-specific information. */
+/* Licensing and credits share one block: the licence-and-links line leads the
+   facts, and the made-with credit closes the dialog. */
 .about-dialog__legal {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--border-divider);
   color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
-.about-dialog__legal-links { display: flex; align-items: center; gap: var(--space-3); }
+/* The version of the block that leads the facts: no rule of its own, because a
+   single separator closes it against the diagnostics below, and the licence and
+   its two links sit together as one centred line. */
+.about-dialog__legal--bare {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: var(--space-4);
+  justify-content: center;
+  gap: var(--space-2);
+}
+/* The version that closes the dialog: one centred credit line under the
+   section's own rule. */
+.about-dialog__legal--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
 .about-dialog__legal button { display: inline-flex; align-items: center; min-height: var(--control-height-sm); padding: 0; border: 0; background: transparent; color: var(--accent-primary); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .about-dialog__legal button:hover { color: var(--text-primary-color); }
 .about-dialog h2 {
@@ -1184,15 +1444,29 @@
   font-weight: var(--weight-title);
   letter-spacing: var(--tracking-tight);
 }
-.about-dialog__release {
-  display: flex;
+/* The build's version. It parks in the corner the close control occupies, at
+   the same 36px height and the dialog's own insets, so the two read as one
+   header line and the identity block below is only the mark, the name and the
+   promise. */
+.about-dialog__version {
+  position: absolute;
+  top: var(--about-pad-block-start);
+  left: var(--about-pad-inline);
+  height: var(--about-corner-size);
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  margin: var(--space-3) 0 0;
+  margin: 0;
+  padding: 0 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
   color: var(--text-secondary-color);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.about-dialog__release-version { font-size: var(--text-label); font-weight: var(--weight-heading); font-variant-numeric: tabular-nums; }
 .about-dialog > p:not(.eyebrow) { color: var(--text-secondary-color); line-height: var(--leading-normal); }
 /* About's two lower sections are siblings in weight as well as in role, so they
    share a heading and a rhythm rather than each inventing one. */
@@ -1200,51 +1474,41 @@
 .about-stack h3 { margin: 0; font-size: var(--text-body); font-weight: var(--weight-title); }
 .about-technical,
 .about-stack { margin-top: var(--space-4); }
-/* Credits, not diagnostics — three inline lockups of mark, name and number.
-   The heading stays on the section's left edge with "Your system" above it, so
-   the two sections read as one language, while the row itself centres as a set:
-   a short row centred under a left-aligned heading is a balanced line rather
-   than a cluster against the edge. A credit is not a call to action, so it stays
-   at rest until pointed at; each still opens that project's own site, and the
-   outward arrow that says the press leaves the app is the one thing held back
-   for hover. */
+/* Credits, not diagnostics — three rows of mark, name and number. Each row puts
+   the mark beside a small text block, so a credit is wide rather than tall and
+   three fit the dialog's width in one band. The heading is hidden and only
+   names the section for assistive technology, because a mark and a product name
+   already read as a credit. Each row is a control that opens its project's own
+   site, and takes the hand to say so. */
 .about-stack__list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px var(--space-3);
-  margin: var(--space-2) 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 .about-stack__list > li { display: flex; }
 .about-stack__item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
   border: 0;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-primary-color);
   font: inherit;
-  line-height: var(--leading-snug);
+  text-align: left;
+  cursor: pointer;
 }
-.about-stack__item:hover .about-stack__name,
-.about-stack__item:focus-visible .about-stack__name { color: var(--accent-primary); }
-/* The outward arrow says the press leaves the app, so it arrives only on
-   approach. It is the one fact the resting credit cannot state. */
-.about-stack__go {
-  width: 12px;
-  height: 12px;
-  color: var(--accent-primary);
-  opacity: 0;
-  transition: opacity var(--duration-fast);
-}
-.about-stack__item:hover .about-stack__go,
-.about-stack__item:focus-visible .about-stack__go { opacity: 1; }
+.about-stack__item:hover,
+.about-stack__item:focus-visible { background: var(--surface-hover); }
 /* These are the only fixed vendor colours in the app; see
    `src/app/vendorMarks.tsx` for why a logo keeps them. */
-.about-stack__mark { width: 15px; height: 15px; display: block; }
+.about-stack__mark { width: 30px; height: 30px; display: block; flex: 0 0 auto; }
+.about-stack__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .about-stack__name { font-size: var(--text-label); font-weight: var(--weight-strong); }
 .about-stack__version {
   font-size: var(--text-caption);
@@ -1257,18 +1521,81 @@
    the backdrop, surface, close button, eyebrow and heading are shared, so the
    two surfaces cannot drift apart visually. Slightly wider than About because
    a release note is a sentence, not a label. */
-.changelog-dialog { width: min(100%, 460px); }
+/* The dialog is a column that never scrolls itself: the header (mark, title,
+   update line and close) stays put and only the release list scrolls under it.
+   The inline padding moves onto the two rows so the scrollbar runs along the
+   dialog's own edge instead of inside the text column.
+
+   Mid-scroll the notes would be cut dead against the header and the dialog's
+   bottom edge. Both cuts get the status bar's fade (see `.status-bar::before`
+   for why it is a smoothstep to the surface colour and not a ramp to
+   `transparent`), here to the dialog's own raised surface. Each band is
+   exactly as tall as the body's padding on its side, so at either end of the
+   scroll it covers only padding and costs nothing; it shows only while there
+   is more to see. The same heights are the body's scroll padding, so a
+   release brought into view by the keyboard stops clear of the fade rather
+   than under it, and the bands stop short of the scrollbar so the thumb stays
+   crisp. */
+.changelog-dialog {
+  --changelog-fade-top: 24px;
+  --changelog-fade-bottom: 32px;
+  display: flex; flex-direction: column;
+  padding-inline: 0; padding-bottom: 0;
+  overflow: hidden;
+}
+.changelog-dialog__body {
+  flex: 1 1 auto; min-height: 0;
+  padding: var(--changelog-fade-top) var(--document-inset) var(--changelog-fade-bottom);
+  overflow-y: auto;
+  scroll-padding-block: var(--changelog-fade-top) var(--changelog-fade-bottom);
+  /* The landing point for focus, not a control: the dialog's own surface
+     already says where focus is. */
+  outline: none;
+}
+.changelog-dialog__header::after,
+.changelog-dialog::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 6px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    var(--changelog-fade-direction),
+    var(--surface-raised) 0%,
+    color-mix(in srgb, var(--surface-raised) 95.7%, transparent) 12.5%,
+    color-mix(in srgb, var(--surface-raised) 84.4%, transparent) 25%,
+    color-mix(in srgb, var(--surface-raised) 68.4%, transparent) 37.5%,
+    color-mix(in srgb, var(--surface-raised) 50%, transparent) 50%,
+    color-mix(in srgb, var(--surface-raised) 31.6%, transparent) 62.5%,
+    color-mix(in srgb, var(--surface-raised) 15.6%, transparent) 75%,
+    color-mix(in srgb, var(--surface-raised) 4.3%, transparent) 87.5%,
+    color-mix(in srgb, var(--surface-raised) 0%, transparent) 100%
+  );
+}
+.changelog-dialog__header::after {
+  --changelog-fade-direction: to bottom;
+  top: 100%;
+  height: var(--changelog-fade-top);
+}
+.changelog-dialog::after {
+  --changelog-fade-direction: to top;
+  bottom: 0;
+  height: var(--changelog-fade-bottom);
+}
 /* A glyph on a fill, so it is round — the identity mark belongs to About and
    is not repeated here. */
-/* Mark, then the title over its update line. The row stops short of the
-   corner close control (36px plus a gap), which shares its top, so a long
-   translation never runs beneath it. */
+/* Mark, then the title over its update line, then the close control in the
+   row's own corner, so a long translation wraps before it rather than running
+   beneath it. */
 .changelog-dialog__header {
-  display: flex; align-items: center; gap: 14px;
-  min-height: 44px; padding-right: 44px;
+  display: flex; align-items: center; gap: var(--space-3);
+  position: relative;
+  flex-shrink: 0;
+  min-height: 44px; padding: 0 var(--document-inset);
 }
 .changelog-dialog__heading { flex: 1; min-width: 0; }
-.changelog-dialog > .dialog-close-button { margin-top: 4px; }
+.changelog-dialog__header > .dialog-close-button { align-self: flex-start; margin: 4px calc(-1 * var(--space-3)) 0 0; }
 /* About's update line, left-aligned under the title instead of centred under
    a hero. */
 .changelog-dialog .changelog-dialog__update { justify-content: flex-start; flex-wrap: wrap; gap: 4px 7px; margin: 2px 0 0; }
@@ -1278,18 +1605,18 @@
 .changelog-dialog .changelog-dialog__update-action { color: var(--status-warning); }
 .changelog-dialog .changelog-dialog__update-action:hover { color: var(--text-primary-color); }
 .changelog-dialog__mark {
-  width: 44px; height: 44px; display: grid; place-items: center;
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  background: var(--surface-control);
+  color: var(--tone-app);
 }
-.changelog-dialog__mark svg { width: 22px; height: 22px; }
+.changelog-dialog__mark svg { width: 20px; height: 20px; }
 /* The running build's notes, open and set apart on the one tinted surface in
    the dialog: it is the answer the reader came for, so it leads and needs no
    click. Everything below it is history. */
 .changelog-current {
   display: grid; gap: 14px;
-  margin: 24px 0 0; padding: 14px 16px 16px;
+  margin: 0; padding: 14px 16px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
   background: var(--surface-control);
@@ -1305,9 +1632,10 @@
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
-.changelog { margin: 0; padding: 0; list-style: none; }
-/* Earlier releases are one line each, so twenty of them still scan. */
-.changelog-release + .changelog-release { border-top: 1px solid var(--border-subtle); }
+/* Earlier releases are one line each, so twenty of them still scan. They are
+   rows of one list, so space separates them rather than a rule (DESIGN.md:
+   the hairline divides regions, never rows). */
+.changelog { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
 .changelog-release__trigger {
   width: 100%;
   padding: 8px 4px;
@@ -1417,7 +1745,7 @@
 .about-details__value { display: inline-flex; align-items: center; gap: 6px; }
 .about-details__mark { flex-shrink: 0; width: 14px; height: 14px; }
 
-.shortcuts-dialog { width: min(100%, 420px); cursor: default; padding: 0 var(--space-6) var(--space-6); }
+.shortcuts-dialog { cursor: default; padding: 0 var(--document-inset) var(--document-inset); }
 /* The sheet's identity is the tile: a keyboard glyph whose corner badge is the
    mark of the platform being described, so the sheet says which keyboard its
    keycaps are drawn for without a caption competing with the title for width.
@@ -1438,8 +1766,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin: 0 calc(-1 * var(--space-6)) 0;
-  padding: var(--space-5) var(--space-6) var(--space-3);
+  margin: 0 calc(-1 * var(--document-inset)) 0;
+  padding: var(--document-inset) var(--document-inset) var(--space-3);
   background: var(--surface-raised);
 }
 .shortcuts-dialog__header h2 {
@@ -1457,10 +1785,10 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  color: var(--accent-primary);
+  background: var(--surface-control);
+  color: var(--tone-app);
 }
-.shortcuts-dialog__tile > svg { width: 21px; height: 21px; }
+.shortcuts-dialog__tile > svg { width: 20px; height: 20px; }
 .shortcuts-dialog__tile-badge {
   position: absolute;
   right: -3px;
@@ -1552,24 +1880,22 @@
   .titlebar-menu__list { animation: none; }
   .rail-more__menu { animation: none; }
   .sidebar-jump__menu { animation: none; }
+  /* No movement: grown from the field the results fade in, and every panel
+     fades out, so none sits frozen through the exit hold or simply blinks. */
+  .palette-panel,
+  .palette-panel--fused.palette-panel--closing .palette-list { animation: none; }
+  .palette-panel--fused { animation: palette-fade-in 80ms ease-out both; }
+  .palette-panel--closing,
+  .palette-panel--fused.palette-panel--closing { animation: palette-fade-out 80ms linear both; }
   .rail-item__icon,
-  .sidebar-tray::before,
-  .sidebar-round,
-  .sidebar-project__avatar,
-  .sidebar-project__chevron svg,
-  .project-switcher-add-menu__trigger > svg {
+  .sidebar-round {
     animation: none;
     transition: none;
   }
+  .status-bar__mark--busy::after { animation: none; }
   .rail-item:active:not(:disabled):not([aria-disabled="true"]) .rail-item__icon,
-  .sidebar-round:active:not(:disabled):not([aria-disabled="true"]),
-  .sidebar-project:active:not(:disabled):not([aria-disabled="true"]) .sidebar-project__avatar {
+  .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) {
     transform: none;
-  }
-  .sidebar-project[aria-expanded="true"] .sidebar-project__chevron svg { transform: rotate(180deg); }
-  .project-switcher-add-menu__trigger[aria-expanded="true"] > svg { transform: rotate(45deg); }
-  .project-switcher-add-menu__trigger[aria-expanded="true"]:hover:not(:disabled) > svg {
-    transform: rotate(45deg);
   }
   /* The row and its keys still answer the pointer, but without the tap motion:
      a static colour change stands in for the press. */
@@ -1582,11 +1908,13 @@
 }
 
 @media (max-width: 800px) {
-  .settings-backdrop { padding: 12px; }
+  .app-dialog-backdrop:has(> .settings-dialog) { padding: 12px; }
   .settings-dialog { height: calc(100vh - 24px); min-height: 0; }
   .settings-dialog__header { min-height: 68px; padding: 14px 16px; flex-wrap: wrap; }
   .settings-dialog__header p { max-width: 46ch; }
   .titlebar-history-controls { display: none; }
+  /* No rail at this width, so the title bar keeps the theme toggle. */
+  .titlebar-theme-toggle--in-rail { display: grid; }
   /* The rail is already hidden at this width and the compact nav has replaced
      it, so the toggle has nothing to toggle. */
   .titlebar-sidebar-toggle { display: none; }
@@ -1598,9 +1926,13 @@
     --workspace-inset-right: 20px;
     --workspace-inset-bottom: 20px;
   }
+  /* The compact nav heads the workspace, so on the screens whose panes run
+     edge to edge it takes the inset they gave up. */
+  .app-shell--sheet .workspace--workbench .compact-nav-row,
+  .app-shell--sheet .workspace--branches .compact-nav-row,
+  .app-shell--overview .compact-nav-row { margin: var(--space-3); }
   .workspace { padding-top: 20px; }
   .compact-nav-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
-  .compact-nav-row .project-switcher-compact { display: flex; }
   .compact-history-controls { display: flex; align-items: center; gap: var(--space-1); }
   .compact-nav {
     display: grid;
@@ -1609,10 +1941,10 @@
     gap: var(--space-2);
     margin-bottom: 0;
     padding: var(--space-1);
+    /* A card inside the sheet, not one lifted off it (Friendly Sheet). */
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-surface);
-    background: var(--surface-panel);
-    box-shadow: var(--shadow-sm);
+    background: var(--surface-card);
   }
   .compact-nav__item {
     display: inline-flex;
@@ -1635,35 +1967,35 @@
 @media (pointer: coarse) {
   .window-titlebar { --titlebar-lead-button: 44px; }
   .titlebar-icon-button,
-  .sidebar-project__filter,
-  .project-switcher__close,
-  .project-switcher__favourite,
-  .project-switcher__settings {
+  .project-quick-switch__icon,
+  .project-quick-switch__favourite,
+  .project-quick-switch__more {
     width: 44px;
     height: 44px;
   }
   .rail-item__icon,
-  .sidebar-project,
   .sidebar-round {
     width: 44px;
     height: 44px;
   }
-  .status-bar { height: 48px; }
-  .status-bar .version-line-selector,
-  .status-bar__action {
+  .status-bar { height: 52px; }
+  .status-bar__block,
+  .status-bar .branch-selector,
+  .status-bar__seg,
+  .status-bar__project,
+  .status-bar__sync-action,
+  .status-bar__refresh,
+  .status-bar__search {
     height: 44px;
     min-height: 44px;
   }
-  .status-bar__action { width: 44px; }
-  .project-switcher__button,
-  .project-switcher-compact__popover .project-switcher__button,
-  .project-switcher__add {
-    height: 44px;
-  }
+  .status-bar__search { --radius-field: 22px; }
+  .status-bar__search-slot { max-width: none; }
+  .project-quick-switch__choose { min-height: 44px; }
 }
 
 @media (hover: none) {
-  .project-switcher__close:not(:disabled) { opacity: 1; }
+  .project-quick-switch__favourite { opacity: 1; }
 }
 
 /* The window's last-resort notice: the app shell itself failed, so it stands

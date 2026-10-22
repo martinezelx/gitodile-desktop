@@ -45,6 +45,7 @@ function ControlledChangesPanel(
     | "onDiscardPhaseChange"
     | "onOpenSettings"
     | "onGetChanges"
+    | "onCheckRemote"
     | "onOpenHistory"
     | "tabs"
   > & {
@@ -59,6 +60,7 @@ function ControlledChangesPanel(
     runGitHooks?: boolean;
     onOpenSettings?: () => void;
     onGetChanges?: () => void;
+    onCheckRemote?: () => void;
     onOpenHistory?: () => void;
   },
 ): React.JSX.Element {
@@ -85,6 +87,7 @@ function ControlledChangesPanel(
       onDiscardPhaseChange={() => {}}
       onOpenSettings={props.onOpenSettings ?? (() => {})}
       onGetChanges={props.onGetChanges ?? (() => {})}
+      onCheckRemote={props.onCheckRemote ?? (() => {})}
       onOpenHistory={props.onOpenHistory ?? (() => {})}
     />
     </ScreenLifecycleProvider>
@@ -683,6 +686,27 @@ describe("ChangesPanel review controls", () => {
     expect(list.getByText("edited.txt").closest(".changes-file-row")).not.toHaveClass("row-in");
   });
 
+  it("draws the include control as a node, marks the open row, and toggles from the node", async () => {
+    renderPanel();
+    await screen.findByText("File 1 of 2");
+
+    const openBox = screen.getByRole("checkbox", { name: "Include edited.txt in this version" });
+    const openRow = openBox.closest("li");
+    expect(openRow).toHaveClass("changes-file-row--active");
+    expect(openBox).toHaveClass("inclusion-node__input");
+    expect(openBox.closest(".changes-file-row__pick")).not.toBeNull();
+    const node = openBox.nextElementSibling;
+    expect(node).toHaveClass("inclusion-node__mark");
+
+    // The visible node is inside the label: pressing it must work without
+    // aiming at the 1px native input.
+    await userEvent.click(node as HTMLElement);
+    expect(openBox).not.toBeChecked();
+
+    const otherRow = screen.getByRole("checkbox", { name: "Include new.txt in this version" }).closest("li");
+    expect(otherRow).not.toHaveClass("changes-file-row--active");
+  });
+
   it("expands the unchanged lines between hunks, and keeps a marker for the rest", async () => {
     // The first hunk covers old lines 1-2, the second starts at old line 50,
     // so the gap is 47 lines starting at new line 3. The stub returns two.
@@ -839,9 +863,12 @@ describe("ChangesPanel review controls", () => {
       expect(document.querySelector(".diff-search-match")).toHaveTextContent("fifty"),
     );
 
-    // The pill's single X ends the find and clears the highlight with it.
+    // The pill's single X ends the find and clears the highlight with it. The
+    // field plays a short exit before it unmounts, so the absence is awaited.
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText("Search in diff")).not.toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "Search in the selected file's changes" })).toBeInTheDocument();
     expect(document.querySelector(".diff-search-match")).toBeNull();
   });
@@ -1052,6 +1079,11 @@ describe("ChangesPanel review controls", () => {
     const description = await screen.findByText("This screen may be out of date.");
     expect(description).toBeInTheDocument();
     const notice = description.closest(".automatic-updates-notice");
+    // One line: title and explanation share the notice's body, the
+    // explanation cut short with the whole of it on its tooltip.
+    expect(description).toHaveAttribute("title", "This screen may be out of date.");
+    expect(description.parentElement).toHaveClass("automatic-updates-notice__body");
+    expect(description.parentElement).toHaveTextContent(/^Automatic updates are off/);
     const tabs = screen.getByRole("tablist", { name: "Changes or history" });
     expect(notice).not.toBeNull();
     expect((notice as HTMLElement).compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1323,6 +1355,30 @@ describe("ChangesPanel review controls", () => {
     expect(screen.getByText("kept.txt")).toBeInTheDocument();
   });
 
+  it("reports a restore another screen finished as it arrives", async () => {
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_discard_recovery") {
+        return Promise.reject(new Error("none"));
+      }
+      if (command === "list_discard_recoveries") {
+        return Promise.resolve([]);
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const onRestoredElsewhereHandled = vi.fn();
+    render(
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={workingTree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} restoredElsewhere={{ status: "restored", restoredFiles: 2 }} onRestoredElsewhereHandled={onRestoredElsewhereHandled} />
+      </ToastProvider></LanguageProvider>,
+    );
+
+    // Overview's restore picker restored the files and moved here: the header
+    // says so, as if this screen's own dialog had run it, and only once.
+    expect(await screen.findByText("2 files restored.")).toBeInTheDocument();
+    expect(onRestoredElsewhereHandled).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("heading", { name: "Restore discarded changes" })).not.toBeInTheDocument();
+  });
+
   it("keeps a way back to discarded work after the last change is discarded", async () => {
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_discard_recovery") {
@@ -1432,14 +1488,18 @@ describe("ChangesPanel clean state", () => {
   function renderClean({
     upstream,
     headState,
+    isCheckingRemote,
     onGetChanges = vi.fn(),
+    onCheckRemote = vi.fn(),
     onOpenHistory = vi.fn(),
     onPublishNow = vi.fn(),
     onOpenSettings = vi.fn(),
   }: {
     upstream: Upstream;
     headState?: "branch" | "detached" | "unborn";
+    isCheckingRemote?: boolean;
     onGetChanges?: () => void;
+    onCheckRemote?: () => void;
     onOpenHistory?: () => void;
     onPublishNow?: () => void;
     onOpenSettings?: () => void;
@@ -1454,17 +1514,19 @@ describe("ChangesPanel clean state", () => {
           onRefresh={vi.fn()}
           onPublishNow={onPublishNow}
           onGetChanges={onGetChanges}
+          onCheckRemote={onCheckRemote}
           onOpenHistory={onOpenHistory}
           onOpenSettings={onOpenSettings}
           {...(headState ? { headState } : {})}
+          {...(isCheckingRemote ? { isCheckingRemote } : {})}
         />
       </ToastProvider></LanguageProvider>,
     );
-    return { onGetChanges, onOpenHistory, onPublishNow, onOpenSettings };
+    return { onGetChanges, onCheckRemote, onOpenHistory, onPublishNow, onOpenSettings };
   }
 
   it("offers to publish when saved versions are still only local", async () => {
-    const { onPublishNow, onGetChanges, onOpenHistory } = renderClean({
+    const { onPublishNow, onGetChanges, onCheckRemote, onOpenHistory } = renderClean({
       upstream: { upstream: "origin/main", ahead: 4, behind: 0 },
     });
 
@@ -1474,8 +1536,11 @@ describe("ChangesPanel clean state", () => {
     await userEvent.click(screen.getByRole("button", { name: "Publish 4 versions" }));
     expect(onPublishNow).toHaveBeenCalledTimes(1);
 
-    await userEvent.click(screen.getByRole("button", { name: "Get project changes" }));
-    expect(onGetChanges).toHaveBeenCalledTimes(1);
+    // Nothing is known to be waiting, so the offer is to ask, not to get.
+    expect(screen.queryByRole("button", { name: "Get project changes" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Check for project changes" }));
+    expect(onCheckRemote).toHaveBeenCalledTimes(1);
+    expect(onGetChanges).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "View history" }));
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
@@ -1499,8 +1564,17 @@ describe("ChangesPanel clean state", () => {
 
     expect(screen.getByRole("heading", { name: "You're all caught up" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Publish/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Get project changes" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Get project changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check for project changes" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "View history" })).toBeInTheDocument();
+  });
+
+  it("holds the check while one is already asking the remote", () => {
+    renderClean({ upstream: { upstream: "origin/main", ahead: 0, behind: 0 }, isCheckingRemote: true });
+
+    const check = screen.getByRole("button", { name: "Check for project changes" });
+    expect(check).toBeDisabled();
+    expect(check).toHaveAttribute("aria-busy", "true");
   });
 
   it("points to project settings when there is no remote", async () => {
@@ -1694,6 +1768,7 @@ describe("ChangesPanel filters", () => {
     // already gone, so the message needs a surface that outlives it.
     const notice = await screen.findByText("Couldn't show that file.");
     expect(notice.closest(".changes-notice--error")).not.toBeNull();
+    expect(notice).toHaveAttribute("title", "Couldn't show that file.");
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByText("Couldn't show that file.")).not.toBeInTheDocument();
   });

@@ -1,17 +1,19 @@
-import { Fragment, memo, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, CloudUpload, Copy, Diff, Eye, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Settings, SquareTerminal, X } from "lucide-react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Check, CloudUpload, Copy, Diff, Folder, GitBranch, GitCommitHorizontal, Keyboard, Palette, RotateCcw, RotateCw, Search, Server, Settings, ShieldCheck, ShieldOff, SquareTerminal, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useScreenLifecycle } from "../../runtime/screen/module";
 import { localizeAppError } from "../../shared/i18n";
 import { themeById, type ThemePreference } from "../../shared/theme";
-import { copyTextToClipboard } from "../../shared/ui";
+import { copyTextToClipboard, setAutoHideScrollbarActive } from "../../shared/ui";
 import {
   completionsFor,
-  consoleModeOf,
   DEFAULT_SHORTCUTS,
   defaultLineName,
-  QUERY_COMMANDS,
+  HOSTING_OPERATION_IDS,
+  isHostingId,
+  queryCommand,
   shortcutCommand,
+  SHORTCUT_LIMIT,
   GIT_READ_COMMANDS,
   isGitLine,
   isLineShortcut,
@@ -24,27 +26,27 @@ import {
   widensTier,
   writeShortcuts,
   type ConsoleCompletion,
-  type ConsoleOperationId,
   type ConsoleProjectStatus,
+  type ConsoleQueryId,
   type ConsoleShortcut,
 } from "./domain";
-import { mascotLines, mascotRain, type MascotRun } from "./mascotArt";
+import { ConsoleMascot } from "./ConsoleMascot";
 import { highlightOutput, queryShape, type OutputSegment } from "./output";
 import { DEFAULT_CONSOLE_PREFERENCES, type ConsolePreferences } from "./preferences";
-import type { ConsolePlan, ConsoleRunResult, ConsoleTier, OutputShape } from "./port";
+import type { ConsoleHost, ConsolePlan, ConsoleRunResult, ConsoleTier, HostKind, OutputShape } from "./port";
 import { consolePort } from "./tauriAdapter";
 
 /** What any run returns: a catalogue query's result or a typed command's. */
 type ConsoleOutput = Omit<ConsoleRunResult, "shape" | "failure">;
 /** A shortcut's target in the editor: a catalogue query, or a command line. */
-type ShortcutTarget = ConsoleOperationId | "line";
-const SHORTCUT_TARGETS: readonly ShortcutTarget[] = [...OPERATION_IDS, "line"];
+type ShortcutTarget = ConsoleQueryId | "line";
+const SHORTCUT_TARGETS: readonly ShortcutTarget[] = [...OPERATION_IDS, ...HOSTING_OPERATION_IDS, "line"];
 
 type Entry = {
   id: number;
   kind: "query" | "help" | "help-git" | "message";
   input: string;
-  operationId?: ConsoleOperationId;
+  operationId?: ConsoleQueryId;
   /** The Git line a typed command or a line shortcut plans on every run. */
   line?: string;
   /** A line shortcut's saved tier, which no later run may exceed. */
@@ -76,7 +78,6 @@ type BlockState = "running" | "success" | "failed" | "truncated" | "note";
 const TRANSCRIPT_LIMIT = 40;
 /** Coloured runs (each an element) the whole transcript may hold; see the screen's element budget. */
 const TRANSCRIPT_TONE_BUDGET = 400;
-const SCROLLBAR_ACTIVE_CLASS = "auto-hide-scrollbar--pointer-active";
 const SCROLLBAR_IDLE_MS = 1200;
 /** The theme's own colours, as a terminal's welcome shows its eight ANSI ones. */
 const WELCOME_PALETTE = ["accent", "danger", "warning", "string", "type", "keyword", "number", "property"] as const;
@@ -91,7 +92,8 @@ function shortcutLabel(shortcut: ConsoleShortcut, t: Translations): string {
 }
 
 function outputLabel(id: ShortcutTarget, t: Translations): string {
-  const labels: Record<ShortcutTarget, string> = {
+  if (id !== "line" && isHostingId(id)) return t.consoleHostingLabels[id];
+  const labels: Record<Exclude<ShortcutTarget, (typeof HOSTING_OPERATION_IDS)[number]>, string> = {
     status: t.consoleStatus, diff: t.consoleDiff, staged: t.consoleStaged, log: t.consoleLog, graph: t.consoleGraph,
     last: t.consoleLast, branches: t.consoleBranches, tags: t.consoleTags, remotes: t.consoleRemotes,
     stashes: t.consoleStashes, authors: t.consoleAuthors, line: t.consoleShortcutLineOption,
@@ -103,7 +105,7 @@ function outputLabel(id: ShortcutTarget, t: Translations): string {
 function refusalText(plan: ConsolePlan, t: Translations): string {
   const refusal = plan.refusal;
   if (!refusal) return t.consoleRequestFailed;
-  if (refusal.reason === "tier_not_allowed") return t.consoleTierNotAllowed(refusal.subject ?? "", plan.tier ?? "never", plan.advancedMode);
+  if (refusal.reason === "tier_not_allowed") return t.consoleTierNotAllowed(refusal.subject ?? "", plan.tier ?? "never");
   return t.consoleRefusal(refusal.reason, refusal.subject);
 }
 
@@ -111,9 +113,11 @@ function refusalText(plan: ConsolePlan, t: Translations): string {
 type LineVerdict = { tier: ConsoleTier } | { error: string };
 
 function ShortcutsManager({
-  shortcuts, onChange, onClose, validateLine,
+  shortcuts, host, onChange, onClose, validateLine,
 }: {
   shortcuts: ConsoleShortcut[];
+  /** The project's provider, so hosting queries show the CLI that answers. */
+  host: HostKind | null;
   onChange: (next: ConsoleShortcut[]) => void;
   onClose: () => void;
   validateLine: (line: string) => Promise<LineVerdict>;
@@ -151,7 +155,7 @@ function ShortcutsManager({
       persist(shortcuts.map((shortcut) => shortcut.name === editing ? { ...shortcut, name: candidate } : shortcut));
       return;
     }
-    if (shortcuts.length >= 24) {
+    if (shortcuts.length >= SHORTCUT_LIMIT) {
       setError(t.consoleShortcutLimit);
       return;
     }
@@ -204,7 +208,7 @@ function ShortcutsManager({
         <span className="console-shortcuts__arrow" aria-hidden="true">→</span>
         <QueryPicker value={target} onChange={(next) => { setTarget(next); setError(""); }} disabled={editing !== null} label={t.consoleShortcutTarget}
           previous={t.consoleQueryPrevious} next={t.consoleQueryNext} />
-        {target !== "line" && <code className="console-shortcuts__command console-shortcuts__command--preview">{QUERY_COMMANDS[target]}</code>}
+        {target !== "line" && <code className="console-shortcuts__command console-shortcuts__command--preview">{queryCommand(target, host)}</code>}
         {target === "line" && (
           <label className="console-shortcuts__field console-shortcuts__field--line">
             <span className="visually-hidden">{t.consoleShortcutLine}</span>
@@ -224,7 +228,7 @@ function ShortcutsManager({
               <span className="console-shortcuts__name">{shortcut.name}</span>
               <span className="console-shortcuts__target">{shortcutLabel(shortcut, t)}</span>
             </span>
-            <code className="console-shortcuts__command" title={shortcutCommand(shortcut)}>{shortcutCommand(shortcut)}</code>
+            <code className="console-shortcuts__command" title={shortcutCommand(shortcut, host)}>{shortcutCommand(shortcut, host)}</code>
             <span className="console-shortcuts__actions">
               <button type="button" className="console-shortcuts__action" onClick={() => startRename(shortcut)}>{t.consoleShortcutRename}</button>
               <button type="button" className="console-shortcuts__action console-shortcuts__action--remove" onClick={() => persist(shortcuts.filter((item) => item.name !== shortcut.name))} aria-label={`${t.consoleShortcutRemove}: ${shortcut.name}`} title={t.consoleShortcutRemove}><X aria-hidden="true" /></button>
@@ -305,41 +309,8 @@ function Output({ text, segments }: { text: string; segments: OutputSegment[] | 
   );
 }
 
-const MASCOT_LINES = mascotLines();
-const MASCOT_RAIN = mascotRain();
-
-function mascotRunClass(run: MascotRun): string | undefined {
-  const names = [run.tone ? `console-art__tone${run.tone}` : "", run.solid ? "console-art__solid" : ""].filter(Boolean);
-  return names.length ? names.join(" ") : undefined;
-}
-
-/**
- * The ASCII mascot, with hex digits raining behind it (CSS only; none under
- * reduced motion). Memoised: it takes no props, and the welcome re-renders on
- * every keystroke in the prompt, which would rebuild a few hundred spans.
- */
-const MascotArt = memo(function MascotArt(): React.JSX.Element {
-  return (
-    <div className="console-art" aria-hidden="true" style={{ "--console-art-rows": MASCOT_LINES.length } as React.CSSProperties}>
-      <div className="console-art__rain">
-        {MASCOT_RAIN.map((drop) => (
-          <span key={drop.column} className="console-art__drop" style={{ "--column": drop.column, "--duration": `${drop.duration}s`, "--delay": `${drop.delay}s` } as React.CSSProperties}>
-            {drop.glyphs.slice(0, -1)}<b className="console-art__drop-head">{drop.glyphs.slice(-1)}</b>
-          </span>
-        ))}
-      </div>
-      <pre className="console-art__mascot">
-        {MASCOT_LINES.map((runs, y) => <Fragment key={y}>
-          {runs.map((run, x) => {
-            const className = mascotRunClass(run);
-            return className ? <span key={x} className={className}>{run.text}</span> : run.text;
-          })}
-          {"\n"}
-        </Fragment>)}
-      </pre>
-    </div>
-  );
-});
+/** A welcome value not known yet, or not readable: kept as a row so nothing shifts. */
+const WELCOME_UNKNOWN = <span className="console-welcome__unknown">—</span>;
 
 type WelcomeRow = [icon: React.JSX.Element, key: string, value: React.ReactNode] | null;
 
@@ -372,7 +343,7 @@ function PromptContext({ projectName, branch, on }: { projectName: string; branc
   return (
     <div className="console-context" aria-hidden="true">
       <span className="console-context__project">{projectName}</span>
-      {branch && <> <span className="console-context__on">{on}</span> <span className="console-context__line"><GitBranch />{branch}</span></>}
+      {branch && <> <span className="console-context__on">{on}</span> <span className="console-context__branch"><GitBranch />{branch}</span></>}
     </div>
   );
 }
@@ -380,7 +351,22 @@ function PromptContext({ projectName, branch, on }: { projectName: string; branc
 /** The answers that run a change; anything else, an empty line included, cancels. */
 const YES = /^(s|si|sí|y|yes)$/i;
 
-export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", advancedMode = false, confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings }: {
+/** The app search as Console shows it: the composition root owns the query,
+ * the selection and the results; this field owns the focus and the keyboard
+ * while the screen is active, and is the panel's anchor. */
+export type ConsoleCommandPalette = {
+  isOpen: boolean;
+  query: string;
+  selectedOptionId?: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  /** The keycap the field prints, spelled by the composition root. */
+  shortcut: string;
+  onOpen: () => void;
+  onQueryChange: (query: string) => void;
+  onKeyDown: React.KeyboardEventHandler<HTMLInputElement>;
+};
+
+export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, gitVersion = null, projectStatus = null, preferences = DEFAULT_CONSOLE_PREFERENCES, theme = "system", confirmChanges = true, runHooks = true, onRepositoryChanged, onOpenSettings, commandPalette }: {
   projectPath: string;
   projectName: string;
   branch: string | null;
@@ -391,9 +377,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   preferences?: ConsolePreferences;
   /** The theme preference, named in the welcome. */
   theme?: ThemePreference;
-  /** Rust's advanced-mode setting, shown in the status line and welcome. */
-  advancedMode?: boolean;
-  /** Rust's change-confirmation setting; off with advanced mode on is root. */
+  /** Rust's change-confirmation setting, shown in the status line and welcome. */
   confirmChanges?: boolean;
   /** The Settings switch for the project's hooks, passed with every plan. */
   runHooks?: boolean;
@@ -401,10 +385,36 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   onRepositoryChanged?: () => void;
   /** Opens Settings at the Console section: the `settings` word and the gear. */
   onOpenSettings?: () => void;
+  /** The app search: the status line's field, and the palette's anchor. */
+  commandPalette?: ConsoleCommandPalette;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const lifecycle = useScreenLifecycle();
   const [shortcuts, setShortcuts] = useState(() => readShortcuts());
+  /**
+   * The project's provider, for the welcome and the hosting shortcuts. Read
+   * once per project session, after first paint: the screen is kept per
+   * session, so showing it again never reads it again. A hosting shortcut's
+   * answer brings a fresh one.
+   */
+  const [host, setHost] = useState<ConsoleHost | null>(null);
+  useEffect(() => {
+    setHost(null);
+    if (!sessionEpoch) return;
+    let current = true;
+    const read = (): void => {
+      consolePort.readHost({ projectId: projectPath, sessionEpoch })
+        .then((value) => { if (current) setHost(value); })
+        .catch(() => undefined);
+    };
+    const idle = "requestIdleCallback" in window;
+    const handle = idle ? window.requestIdleCallback(read, { timeout: 2000 }) : window.setTimeout(read, 500);
+    return () => {
+      current = false;
+      if (idle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, [projectPath, sessionEpoch]);
   const [managerOpen, setManagerOpen] = useState(false);
   const [input, setInput] = useState("");
   const [caret, setCaret] = useState<number | null>(0);
@@ -416,8 +426,6 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const [menuDismissed, setMenuDismissed] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
-  const mode = consoleModeOf({ advancedMode, confirmChanges });
-  const modeLabel = { "read-only": t.consoleReadOnly, advanced: t.consoleAdvancedMode, root: t.consoleRootMode }[mode];
   /** The change plan the prompt is answering, if any. */
   const [pending, setPending] = useState<{ id: number; planId: string } | null>(null);
   const nextId = useRef(0);
@@ -436,13 +444,13 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
   const scrollbarTimer = useRef<number | undefined>(undefined);
   const scrollbarActivity = useMemo(() => {
     const wake = (element: HTMLElement): void => {
-      element.classList.add(SCROLLBAR_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(element, true);
       window.clearTimeout(scrollbarTimer.current);
-      scrollbarTimer.current = window.setTimeout(() => element.classList.remove(SCROLLBAR_ACTIVE_CLASS), SCROLLBAR_IDLE_MS);
+      scrollbarTimer.current = window.setTimeout(() => setAutoHideScrollbarActive(element, false), SCROLLBAR_IDLE_MS);
     };
     const sleep = (element: HTMLElement): void => {
       window.clearTimeout(scrollbarTimer.current);
-      element.classList.remove(SCROLLBAR_ACTIVE_CLASS);
+      setAutoHideScrollbarActive(element, false);
     };
     return {
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => { if (event.pointerType !== "touch") wake(event.currentTarget); },
@@ -532,7 +540,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
     else managerButtonRef.current?.focus();
   };
 
-  const runQuery = async (label: string, operationId: ConsoleOperationId): Promise<void> => {
+  const runQuery = async (label: string, operationId: ConsoleQueryId): Promise<void> => {
     if (running || lifecycle !== "active") return;
     const id = ++nextId.current;
     const request = ++currentRequest.current;
@@ -540,6 +548,22 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
     setRunning(true);
     const started = performance.now();
     try {
+      if (isHostingId(operationId)) {
+        const result = await consolePort.runHosting({ projectId: projectPath, sessionEpoch, operationId });
+        if (request !== currentRequest.current) return;
+        setHost(result.host);
+        const durationMs = performance.now() - started;
+        const note = result.unavailable ? t.consoleHostingUnavailable(result.unavailable, result.host) : undefined;
+        const command = result.command ?? undefined;
+        // Signed out, gh or glab still answered, so its own words stay with
+        // the hint; otherwise nothing ran and the reason is the whole answer.
+        const ran = result.unavailable === null || result.unavailable === "signed_out";
+        const { stdout, stderr, exitCode, success, truncated } = result;
+        patchEntry(id, ran
+          ? { command, result: { command: command ?? "", stdout, stderr, exitCode, success, truncated }, failure: note, running: false, durationMs }
+          : { command, error: note, running: false, durationMs });
+        return;
+      }
       const result = await consolePort.run({ projectId: projectPath, sessionEpoch, operationId });
       if (request !== currentRequest.current) return;
       const durationMs = performance.now() - started;
@@ -736,6 +760,10 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
         if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === "l") { event.preventDefault(); clearTranscript(); }
       }}>
         <h1 className="visually-hidden">{t.consoleTitle}</h1>
+        <div className="console-panel__body">
+        {preferences.welcome && entries.length > 0 && <div className="console-watermark" data-scheme={theme === "system" ? undefined : themeById(theme).scheme}>
+          <ConsoleMascot active={lifecycle === "active"} watermark />
+        </div>}
         <div ref={transcriptRef} className="console-panel__transcript auto-hide-scrollbar" {...scrollbarActivity} onMouseUp={(event) => {
           // A terminal takes typing wherever it is clicked, unless text is being selected.
           const target = event.target as HTMLElement;
@@ -745,27 +773,31 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             {entries.length === 0 && (
               <div className="console-welcome">
                 {preferences.welcome && <div className="console-welcome__fetch">
-                  <MascotArt />
+                  <ConsoleMascot active={lifecycle === "active"} />
                   <div className="console-welcome__info">
                     <WelcomeSection title={t.consoleWelcomeProjectSection} tone="project" rows={[
                       [<Folder key="i" />, t.consoleWelcomeProject, projectName],
-                      branch ? [<GitBranch key="i" />, t.consoleWelcomeLine, branch] : null,
-                      projectStatus?.changes === 0 ? [<Diff key="i" />, t.consoleWelcomeChanges, t.consoleStatusSaved] : null,
-                      projectStatus && projectStatus.changes !== null && projectStatus.changes > 0 ? [<Diff key="i" />, t.consoleWelcomeChanges, <>
-                        {t.consoleStatusUnsaved(projectStatus.changes)}
-                        {projectStatus.linesAdded > 0 && <span className="console-welcome__added"> +{projectStatus.linesAdded}</span>}
-                        {projectStatus.linesRemoved > 0 && <span className="console-welcome__removed"> −{projectStatus.linesRemoved}</span>}
-                      </>] : null,
-                      projectStatus && projectStatus.unpublished !== null ? [<CloudUpload key="i" />, t.consoleWelcomePublish, <>
+                      branch ? [<GitBranch key="i" />, t.consoleWelcomeBranch, branch] : null,
+                      // Rows that wait on a reading are always drawn, with a dash
+                      // while it is unknown, so the summary keeps its height and
+                      // nothing under it moves when a reading comes or goes.
+                      [<Diff key="i" />, t.consoleWelcomeChanges, projectStatus?.changes == null ? WELCOME_UNKNOWN
+                        : projectStatus.changes === 0 ? t.consoleStatusSaved : <>
+                          {t.consoleStatusUnsaved(projectStatus.changes)}
+                          {projectStatus.linesAdded > 0 && <span className="console-welcome__added"> +{projectStatus.linesAdded}</span>}
+                          {projectStatus.linesRemoved > 0 && <span className="console-welcome__removed"> −{projectStatus.linesRemoved}</span>}
+                        </>],
+                      [<CloudUpload key="i" />, t.consoleWelcomePublish, projectStatus?.unpublished == null ? WELCOME_UNKNOWN : <>
                         {projectStatus.unpublished > 0 ? t.consoleWelcomeUnpublished(projectStatus.unpublished) : t.consoleWelcomeUpToDate}
                         {projectStatus.incoming ? <span className="console-welcome__incoming"> · {t.consoleStatusIncoming(projectStatus.incoming)}</span> : null}
-                      </>] : null,
+                      </>],
                     ]} />
                     <WelcomeSection title={t.consoleWelcomeEnvironmentSection} tone="environment" rows={[
-                      [<SquareTerminal key="i" />, "gitodile", `v${__APP_VERSION__}`],
+                      [<SquareTerminal key="i" />, "gitodile", __APP_VERSION__],
                       gitVersion ? [<GitCommitHorizontal key="i" />, t.consoleWelcomeGit, gitVersion] : null,
                       [<Palette key="i" />, t.consoleWelcomeTheme, activeThemeName(theme)],
-                      [<Eye key="i" />, t.consoleWelcomeMode, mode === "read-only" ? modeLabel : <span className={`console-welcome__mode console-welcome__mode--${mode}`}>{modeLabel}</span>],
+                      [<Server key="i" />, t.consoleWelcomeProvider, host ? t.consoleProvider(host) : WELCOME_UNKNOWN],
+                      [<ShieldCheck key="i" />, t.consoleWelcomeConfirm, confirmChanges ? t.consoleWelcomeConfirmOn : <span className="console-welcome__unconfirmed">{t.consoleWelcomeConfirmOff}</span>],
                     ]} />
                     <span className="console-welcome__palette" aria-hidden="true">{WELCOME_PALETTE.map((tone) => <span key={tone} className={`console-welcome__dot console-welcome__dot--${tone}`} />)}</span>
                   </div>
@@ -823,7 +855,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                             <tr key={group.operationId}>
                               <td>{group.names.map((name) => <code key={name}>{name}</code>)}</td>
                               <td>{outputLabel(group.operationId, t)}</td>
-                              <td className="console-help__line">{QUERY_COMMANDS[group.operationId]}</td>
+                              <td className="console-help__line">{queryCommand(group.operationId, host?.kind ?? null)}</td>
                             </tr>
                           ))}
                           {shortcuts.filter(isLineShortcut).map((shortcut) => (
@@ -844,7 +876,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                         <tbody>{GIT_READ_COMMANDS.map((command) => (
                           <tr key={command}><td><code>git {command}</code></td><td>{t.consoleGitCommands[command]}</td></tr>
                         ))}</tbody>
-                        <tfoot><tr><td colSpan={2}>{advancedMode ? t.consoleHelpGitAdvanced : t.consoleHelpGitFooter}</td></tr></tfoot>
+                        <tfoot><tr><td colSpan={2}>{t.consoleHelpGitFooter}</td></tr></tfoot>
                       </table>
                     )}
                     {entry.message && <pre className="console-block__text console-block__message">{entry.message}</pre>}
@@ -873,6 +905,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
               <span className="console-prompt__line">
                 <input ref={inputRef} role="combobox" aria-autocomplete="both" aria-expanded={menuOpen} aria-controls={menuOpen ? menuId : undefined}
                   aria-activedescendant={menuOpen ? `${menuId}-${activeIndex}` : undefined}
+                  data-screen-focus
                   value={input} onChange={(event) => { editInput(event.target.value); setCaret(event.target.selectionStart); setHistoryIndex(null); }}
                   onKeyDown={onPromptKeyDown} onSelect={(event) => trackCaret(event.currentTarget)}
                   autoComplete="off" autoCapitalize="off" spellCheck={false} maxLength={MAX_LINE_LENGTH} disabled={running} />
@@ -896,6 +929,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             )}
           </form>
         </div>
+        </div>
         <p className="visually-hidden" role="status" aria-live={lifecycle === "active" ? "polite" : "off"}>
           {latest?.running ? t.consoleRunning
             : latest?.awaiting ? `${t.consoleAwaitingAnswer} ${t.consoleConfirmQuestion}`
@@ -903,22 +937,73 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
             : latest?.result ? (latest.result.success ? t.consoleDone : t.consoleFailed(latest.result.exitCode))
             : latest?.refusal ?? latest?.message ?? ""}
         </p>
-        {managerOpen && <ShortcutsManager shortcuts={shortcuts} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
+        {managerOpen && <ShortcutsManager shortcuts={shortcuts} host={host?.kind ?? null} onChange={setShortcuts} onClose={closeManager} validateLine={validateLine} />}
         <footer className="console-statusline" aria-label={t.consoleStatusLine}>
-          <span className={`console-statusline__state console-statusline__state--${mode}`}><span className="console-statusline__dot" aria-hidden="true" />{modeLabel}</span>
-          <span className="console-statusline__hint">{t.consoleHint}</span>
-          {projectStatus?.changes === 0 && <span>{t.consoleStatusSaved}</span>}
-          {projectStatus && projectStatus.changes !== null && projectStatus.changes > 0 && (
-            <span>
-              {t.consoleStatusUnsaved(projectStatus.changes)}
-              {projectStatus.linesAdded > 0 && <span className="console-statusline__added"> +{projectStatus.linesAdded}</span>}
-              {projectStatus.linesRemoved > 0 && <span className="console-statusline__removed"> −{projectStatus.linesRemoved}</span>}
+          {/* The chip and the first half of the prompt's keys lead the line;
+              the search holds the middle, and the rest of the keys with the
+              actions sit at the right. Splitting the hint around the field is
+              what keeps it whole at the window's edge. */}
+          <div className="console-statusline__lead">
+            {/* One compact state chip: the glyph carries the setting and the
+                short word names it, while the full sentence stays for hover and
+                the screen reader. The project facts live in the welcome; the
+                line leaves its middle to the search. */}
+            <span
+              className={`console-statusline__state console-statusline__state--${confirmChanges ? "confirm" : "unconfirmed"}`}
+              title={confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}
+            >
+              {confirmChanges ? <ShieldCheck aria-hidden="true" /> : <ShieldOff aria-hidden="true" />}
+              <span aria-hidden="true">{confirmChanges ? t.consoleStatusConfirmShort : t.consoleStatusNoConfirmShort}</span>
+              <span className="visually-hidden">{confirmChanges ? t.consoleStatusConfirm : t.consoleStatusNoConfirm}</span>
             </span>
+            <span className="console-statusline__hint">{t.consoleHintComplete}</span>
+          </div>
+          {/* The app search, in the terminal's own type: the strip is hidden
+              here, so this field is the palette's owner on this screen. It
+              sits in the middle track, centred like the strip's. */}
+          {commandPalette && (
+            <div className="console-statusline__search-slot">
+              <div className={`console-statusline__search${commandPalette.isOpen ? " console-statusline__search--open" : ""}`}>
+                <Search aria-hidden="true" />
+                <input
+                  ref={commandPalette.inputRef}
+                  className="console-statusline__search-input"
+                  type="text"
+                  role="combobox"
+                  aria-expanded={commandPalette.isOpen}
+                  aria-controls={commandPalette.isOpen ? "palette-list" : undefined}
+                  aria-activedescendant={commandPalette.isOpen ? commandPalette.selectedOptionId : undefined}
+                  aria-autocomplete="list"
+                  aria-label={t.consoleSearchLabel}
+                  placeholder={t.consoleSearch}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={commandPalette.query}
+                  onChange={(event) => commandPalette.onQueryChange(event.target.value)}
+                  onFocus={commandPalette.onOpen}
+                  onClick={commandPalette.onOpen}
+                  onKeyDown={(event) => {
+                    // Ctrl+L clears the transcript for the prompt; a search
+                    // field is not the place that gesture belongs.
+                    if (event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === "l") {
+                      event.stopPropagation();
+                    }
+                    // Escape leaves the search and gives the keyboard back to
+                    // the prompt, so the next command is typed without the mouse.
+                    const returnsToPrompt = event.key === "Escape" && commandPalette.isOpen;
+                    commandPalette.onKeyDown(event);
+                    if (returnsToPrompt) inputRef.current?.focus({ preventScroll: true });
+                  }}
+                />
+                <kbd className="console-statusline__search-kbd" aria-hidden="true">{commandPalette.shortcut}</kbd>
+              </div>
+            </div>
           )}
-          {projectStatus?.unpublished ? <span>{t.consoleStatusUnpublished(projectStatus.unpublished)}</span> : null}
-          {projectStatus?.incoming ? <span className="console-statusline__incoming">{t.consoleStatusIncoming(projectStatus.incoming)}</span> : null}
-          {onOpenSettings && <button type="button" className="console-statusline__button" aria-label={t.consoleOpenSettings} title={t.consoleOpenSettings} onClick={onOpenSettings}><Settings aria-hidden="true" /></button>}
-          <button ref={managerButtonRef} type="button" className="console-statusline__button" aria-expanded={managerOpen} aria-label={t.consoleShortcuts} title={t.consoleShortcuts} onClick={() => (managerOpen ? closeManager() : openManager("button"))}><Keyboard aria-hidden="true" /></button>
+          <div className="console-statusline__actions">
+            <span className="console-statusline__hint">{t.consoleHintNavigate}</span>
+            {onOpenSettings && <button type="button" className="console-statusline__button" aria-label={t.consoleOpenSettings} title={t.consoleOpenSettings} onClick={onOpenSettings}><Settings aria-hidden="true" /></button>}
+            <button ref={managerButtonRef} type="button" className="console-statusline__button" aria-expanded={managerOpen} aria-label={t.consoleShortcuts} title={t.consoleShortcuts} onClick={() => (managerOpen ? closeManager() : openManager("button"))}><Keyboard aria-hidden="true" /></button>
+          </div>
         </footer>
       </section>
     </div>

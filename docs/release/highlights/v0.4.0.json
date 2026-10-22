@@ -1,0 +1,36 @@
+{
+  "version": "0.4.0",
+  "date": "2026-10-22",
+  "highlights": [
+    {
+      "id": "hostingAccounts",
+      "icon": "folder-open",
+      "en": "Connect GitHub, GitLab and Bitbucket accounts, including company GitHub and GitLab servers, browse their projects and choose which account clones, gets changes and publishes each project.",
+      "es": "Conecta cuentas de GitHub, GitLab y Bitbucket, incluidos servidores de empresa de GitHub y GitLab, explora sus proyectos y elige qué cuenta clona, trae cambios y publica en cada proyecto."
+    },
+    {
+      "id": "homeAndNewLook",
+      "icon": "sparkles",
+      "en": "Home finds and opens your projects or starts a clone from a pasted address, with a project switcher in the status bar, a calmer interface, monochrome official themes and a new crocodile and app icon.",
+      "es": "Inicio busca y abre tus proyectos o prepara una clonación al pegar una dirección, con un selector de proyectos en la barra de estado, una interfaz más tranquila, temas oficiales monocromos y un cocodrilo e icono nuevos."
+    },
+    {
+      "id": "getWithoutFriction",
+      "icon": "cloud-download",
+      "en": "Overview predicts whether incoming changes overlap your work; one confirmation gets and combines non-overlapping changes with your unpublished versions and can publish too, keeping a recovery point first.",
+      "es": "Resumen anticipa si los cambios entrantes chocan con tu trabajo; una confirmación trae y combina los que no chocan con tus versiones sin publicar y también puede publicar, guardando antes un punto de recuperación."
+    },
+    {
+      "id": "branchesAndHistory",
+      "icon": "git-branch",
+      "en": "Branches have their familiar name, group finished work for cleanup in one confirmed step with recovery points, and History shows local and published versions in foldable blocks with lanes for one branch or all of them.",
+      "es": "Ramas usa el nombre habitual y agrupa el trabajo terminado para limpiarlo con una confirmación y puntos de recuperación; Historial muestra versiones locales y publicadas en bloques plegables y carriles de una o todas las ramas."
+    },
+    {
+      "id": "consoleAndTools",
+      "icon": "terminal",
+      "en": "Console runs supported Git changes with confirmation by default and adds GitHub and GitLab shortcuts for requests, issues and CI; Settings shows Git's location and configuration and helps install or update gh and glab.",
+      "es": "Consola permite cambios de Git con confirmación por defecto y añade atajos de GitHub y GitLab para solicitudes, incidencias y CI; Ajustes muestra la ubicación y configuración de Git y ayuda a instalar o actualizar gh y glab."
+    }
+  ]
+}

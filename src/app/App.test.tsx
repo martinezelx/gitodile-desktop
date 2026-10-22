@@ -7,7 +7,6 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { LanguageProvider } from "../i18n";
 import { App } from "./App";
 import { TitlebarMenu } from "./TitlebarMenu";
-import { ProjectPath } from "../features/overview";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type {
@@ -72,6 +71,7 @@ const cachedTeamSync: TeamSyncStatus = {
   warnings: [],
   nextActions: ["checkAgain"],
   stateToken: "cached-sync",
+  forecast: null,
 };
 
 const freshBehindTeamSync: TeamSyncStatus = {
@@ -80,14 +80,31 @@ const freshBehindTeamSync: TeamSyncStatus = {
   remoteCommit: "2222222222222222222222222222222222222222",
   behind: 1,
   knowledge: "fresh",
-  checkedAt: 1,
+  // Now, not long ago: Get project changes asks the remote again in the
+  // background when this session's last check is older than a minute.
+  checkedAt: Date.now(),
   nextActions: ["reviewAndGet"],
   stateToken: "fresh-behind",
+  forecast: {
+    outcome: "clear",
+    integration: "fastForward",
+    remoteCommit: "2222222222222222222222222222222222222222",
+    incomingCount: 1,
+    localCount: 0,
+    incomingFileCount: 1,
+    authors: ["Team"],
+    authorCount: 1,
+    carriedUnsavedCount: 0,
+    combinedUnsaved: [],
+    combinedUnsavedCount: 0,
+    overlaps: [],
+    overlapCount: 0,
+    blocker: null,
+  },
 };
 
-/** Ahead *and* behind. GitOdile's update is fast-forward-only, and Rust offers
- * no "review and get" next action for this state, so nothing should be
- * recorded about it. */
+/** Ahead *and* behind, with no forecast: nothing says what getting would do,
+ * so nothing should be recorded about it. */
 const divergedTeamSync: TeamSyncStatus = {
   ...cachedTeamSync,
   state: "diverged",
@@ -112,6 +129,7 @@ const getTeamPlan: GetTeamChangesPlan = {
   localCommit: "1111111111111111111111111111111111111111",
   remoteCommit: "2222222222222222222222222222222222222222",
   incomingCount: 1,
+  integration: "fastForward",
   incomingVersions: [{
     commit: "2222222222222222222222222222222222222222",
     shortCommit: "2222222",
@@ -119,31 +137,24 @@ const getTeamPlan: GetTeamChangesPlan = {
     description: null,
     committedAt: "2026-08-16T10:00:00Z",
     author: "Team",
+    fileCount: 1,
   }],
   versionsTruncated: false,
+  localCount: 0,
+  localVersions: [],
   fileImpact: {
     totalCount: 1,
     counts: { added: 1, modified: 0, deleted: 0, renamed: 0, binary: 0 },
     files: [{ path: "team.txt", originalPath: null, category: "added", binary: false }],
     isTruncated: false,
   },
-  consequences: [],
-  risks: [],
-  steps: [],
-  verification: "verified",
+  forecast: freshBehindTeamSync.forecast!,
+  mergeMessage: null,
   recovery: {
     reference: "refs/gitodile/recovery/v1/get-team-changes/worktree-a/1",
     explanation: "protected",
     retention: "newest 20",
     retentionLimit: 20,
-  },
-  guarantees: {
-    fastForwardOnly: true,
-    noMerge: true,
-    noRebase: true,
-    noStash: true,
-    noForce: true,
-    noAutomaticConflictResolution: true,
   },
 };
 
@@ -154,10 +165,12 @@ const getTeamResult: GetTeamChangesResult = {
   branch: "main",
   target: getTeamPlan.target,
   trackingRef: getTeamPlan.trackingRef,
+  integration: "fastForward",
   previousCommit: getTeamPlan.localCommit,
   resultingCommit: getTeamPlan.remoteCommit,
   observedHead: getTeamPlan.remoteCommit,
   receivedCount: 1,
+  combinedUnsavedCount: 0,
   recovery: {
     schemaVersion: 1,
     recoveryId: "1",
@@ -179,17 +192,18 @@ const getTeamResult: GetTeamChangesResult = {
   inspectionInstructions: null,
 };
 
-const versionLines = {
+const branches = {
   branch: "main",
   headState: "branch" as const,
   currentCommit: "abc123",
-  lines: [
+  branches: [
     {
       name: "main",
       tip: { commit: "abc123", shortCommit: "abc123a", subject: "first", committedAt: "2026-07-01T00:00:00Z" },
       isActive: true,
       upstream: null,
       isRetainedElsewhere: false,
+      isFinished: false,
       uniqueCommitCount: null,
       worktreePath: null,
     },
@@ -199,6 +213,7 @@ const versionLines = {
       isActive: false,
       upstream: null,
       isRetainedElsewhere: true,
+      isFinished: true,
       uniqueCommitCount: 1,
       worktreePath: null,
     },
@@ -240,6 +255,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+/** The theme toggle lives in the rail's foot (task 189); the title bar's copy
+ * is hidden by CSS while the rail shows, which jsdom does not apply. */
+function railButton(name: string): HTMLElement {
+  const foot = document.querySelector<HTMLElement>(".sidebar-foot");
+  if (!foot) throw new Error("The rail's foot is not rendered");
+  return within(foot).getByRole("button", { name });
+}
+
 describe("TitlebarMenu", () => {
   function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
     const props: React.ComponentProps<typeof TitlebarMenu> = {
@@ -274,7 +297,7 @@ describe("TitlebarMenu", () => {
 
     await user.click(trigger);
     const items = screen.getAllByRole("menuitem");
-    expect(items[0]).toHaveTextContent("Projects");
+    expect(items[0]).toHaveTextContent("Home");
     expect(items[0]).toHaveFocus();
 
     await user.keyboard("{End}");
@@ -326,7 +349,7 @@ describe("TitlebarMenu", () => {
     renderMenu({ onCloneProject });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Clone remote project" }));
+    await user.click(screen.getByRole("menuitem", { name: "Clone remote project…" }));
 
     expect(onCloneProject).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
@@ -338,20 +361,20 @@ describe("TitlebarMenu", () => {
     renderMenu({ onCreateProject });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Create local project" }));
+    await user.click(screen.getByRole("menuitem", { name: "Create local project…" }));
 
     expect(onCreateProject).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("lists both help surfaces, with the changelog beside About", async () => {
+  it("groups the app's own entries, with the changelog first and About last", async () => {
     const user = userEvent.setup();
     const onOpenChangelog = vi.fn();
     renderMenu({ onOpenChangelog });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
     const names = screen.getAllByRole("menuitem").map((item) => item.textContent);
-    expect(names.slice(-2)).toEqual(["What's new", "About"]);
+    expect(names.slice(-5)).toEqual(["What's new", "Check for updates", "About GitOdile", "Report an issue", "Reload window"]);
 
     await user.click(screen.getByRole("menuitem", { name: "What's new" }));
     expect(onOpenChangelog).toHaveBeenCalledOnce();
@@ -377,26 +400,6 @@ describe("TitlebarMenu", () => {
     expect(reload).toHaveAttribute("aria-disabled", "true");
     await user.click(reload);
     expect(screen.getByRole("menu")).toBeInTheDocument();
-  });
-});
-
-describe("ProjectPath", () => {
-  it("reports clipboard permission failures through the caller's error surface", async () => {
-    const user = userEvent.setup();
-    const onCopyError = vi.fn();
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
-    });
-
-    render(
-      <LanguageProvider>
-        <ProjectPath path="C:\\project" onCopyError={onCopyError} />
-      </LanguageProvider>,
-    );
-    await user.click(screen.getByRole("button", { name: "Copy project path" }));
-
-    expect(onCopyError).toHaveBeenCalledOnce();
   });
 });
 
@@ -463,7 +466,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -481,14 +484,14 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
     });
 
     await userEvent.keyboard("{Control>}k{/Control}");
-    const palette = screen.getByRole("dialog", { name: "Command palette" });
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
     expect(within(palette).getByText("Check local changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check remote project changes")).toBeInTheDocument();
     expect(within(palette).getByText("Check for updates")).toBeInTheDocument();
@@ -496,19 +499,20 @@ describe("App project restoration", () => {
     expect(screen.getByRole("dialog", { name: "Updates" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
-    // The version tag is the changelog's entry point; About is in the menu.
-    await userEvent.click(
-      within(statusBar).getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__}` }),
-    );
+    // The strip carries no version: the release notes open from the overflow
+    // menu now, where the update check sits beside them.
+    expect(within(statusBar).queryByRole("button", { name: /What's new/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "What's new" }));
     const changelog = screen.getByRole("dialog", { name: "What's new" });
-    expect(within(changelog).getByRole("heading", { name: `v${__APP_VERSION__}` })).toBeInTheDocument();
+    expect(within(changelog).getByRole("heading", { name: __APP_VERSION__ })).toBeInTheDocument();
     expect(within(changelog).getByText("Your version")).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     // The titlebar carries no mark, so About opens from the overflow menu.
     expect(screen.queryByRole("button", { name: "About" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "More actions" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "About" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "About GitOdile" }));
     expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
   });
 
@@ -530,7 +534,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "plan_get_team_changes") return Promise.resolve(getTeamPlan);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
@@ -573,7 +577,7 @@ describe("App project restoration", () => {
       fireEvent.click(within(panel).getByRole("button", { name: "Review and get" }));
       expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
       await settle(50);
-      expect(screen.getByRole("dialog", { name: "Get project changes" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Get 1 version from origin" })).toBeInTheDocument();
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
@@ -587,7 +591,7 @@ describe("App project restoration", () => {
         if (command === "list_unpublished_versions") {
           return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
         }
-        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "get_branches") return Promise.resolve(branches);
         if (command === "watch_repository") return Promise.resolve(true);
         if (command === "unwatch_repository") return Promise.resolve();
         return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -603,9 +607,9 @@ describe("App project restoration", () => {
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
-      // A diverged upstream is behind too, but the update is fast-forward-only
-      // and would refuse. Nothing is recorded rather than handing someone a
-      // button that declines.
+      // A diverged upstream with no forecast: nothing says what getting would
+      // do, so nothing is recorded rather than handing someone a button that
+      // declines.
       mockedInvoke.mockImplementation((command) => {
         if (command === "check_team_changes") return Promise.resolve(divergedTeamSync);
         if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
@@ -613,7 +617,7 @@ describe("App project restoration", () => {
         if (command === "list_unpublished_versions") {
           return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
         }
-        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "get_branches") return Promise.resolve(branches);
         if (command === "watch_repository") return Promise.resolve(true);
         if (command === "unwatch_repository") return Promise.resolve();
         return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -646,7 +650,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -669,7 +673,7 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
@@ -744,16 +748,19 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
 
-    // The welcome copy is the only page heading now: the shell no longer also
-    // titles this screen "Overview" above it.
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("No project open");
+    // The greeting is the only page heading: the shell no longer also titles
+    // this screen "Overview" above it. Without a Git name it greets nobody in
+    // particular rather than an empty name.
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/^Good (morning|afternoon|evening)$/);
     expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
 
+    // The launcher field is where the cursor lands.
+    expect(screen.getByRole("textbox", { name: "Find a project, or paste a path or URL" })).toHaveFocus();
+
     // The mascot greets here, not in the titlebar, and stays decorative.
-    const welcomeMascot = document.querySelector(".empty-state--welcome .gitodile-mascot");
+    const welcomeMascot = document.querySelector(".home-launcher .gitodile-mascot");
     expect(welcomeMascot).toHaveAttribute("aria-hidden", "true");
-    expect(welcomeMascot).toHaveClass("gitodile-mascot--commits", "gitodile-mascot--enter", "welcome-mascot");
-    expect(welcomeMascot?.querySelectorAll(".gitodile-mascot__commits circle")).toHaveLength(6);
+    expect(welcomeMascot).toHaveClass("gitodile-mascot--body", "gitodile-mascot--blink", "gitodile-mascot--enter", "home-launcher__mascot");
     expect(document.querySelector(".window-titlebar .gitodile-mascot")).toBeNull();
 
     // Each hint has to stay a *description*: folded into the name instead, it
@@ -791,7 +798,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -829,11 +836,90 @@ describe("App project restoration", () => {
     );
     expect(mockedOpenFolderDialog).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(screen.queryByRole("heading", { name: "No project open" })).not.toBeInTheDocument(),
+      expect(screen.queryByRole("heading", { level: 1, name: /^Good / })).not.toBeInTheDocument(),
     );
   });
 
-  it("keeps a favourite recent above newer ones, sharing the switcher's own store", async () => {
+  it("fills in Home's accounts once the launch check lands, instead of showing none", async () => {
+    localStorage.setItem(
+      "gitodile-recent-projects",
+      JSON.stringify({ version: 1, entries: [{ path: restoredProject.path, name: restoredProject.name }] }),
+    );
+    const providers = [{ id: "github", host: "github.com", kind: "github", builtIn: true }];
+    const account = { id: "github:martinezelx", provider: "github", host: "github.com", login: "martinezelx", avatarDataUrl: null };
+    let reads = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.55.0.windows.3" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "Luis", email: "luis@example.com" });
+      if (command === "get_account_catalog") {
+        reads += 1;
+        // First read: the launch check is scheduled and the saved connection
+        // is not verified yet. Second: the check has landed.
+        return Promise.resolve(
+          reads === 1
+            ? { providers, accounts: [{ ...account, available: false }], busy: true }
+            : { providers, accounts: [{ ...account, available: true }], busy: false },
+        );
+      }
+      return Promise.resolve(undefined);
+    });
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    const status = await screen.findByRole("group", { name: "This computer" });
+    // Unknown, not "none": no premature invitation to connect an account.
+    expect(within(status).queryByRole("button", { name: "Connect an account" })).not.toBeInTheDocument();
+
+    // The tab row holds a place while the check runs, then the tab lands in it.
+    const tabs = screen.getByRole("group", { name: "Show" });
+    expect(await within(tabs).findByRole("button", { name: "GitHub" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(tabs.querySelector(".home-launcher__tab--placeholder")).toBeNull();
+    expect(reads).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps a place for each provider whose saved connection is still being checked", async () => {
+    localStorage.setItem(
+      "gitodile-recent-projects",
+      JSON.stringify({ version: 1, entries: [{ path: restoredProject.path, name: restoredProject.name }] }),
+    );
+    const providers = [
+      { id: "github", host: "github.com", kind: "github", builtIn: true },
+      { id: "gitlab", host: "gitlab.com", kind: "gitlab", builtIn: true },
+    ];
+    const github = { id: "github:martinezelx", provider: "github", host: "github.com", login: "martinezelx", avatarDataUrl: null };
+    const gitlab = { id: "gitlab:token.martinezelx", provider: "gitlab", host: "gitlab.com", login: "martinezelx", avatarDataUrl: null };
+    let reads = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.55.0" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "Luis", email: "luis@example.com" });
+      if (command === "get_account_catalog") {
+        reads += 1;
+        // GitHub's check lands first; GitLab's a read later.
+        return Promise.resolve(
+          reads === 1
+            ? { providers, accounts: [{ ...github, available: true }, { ...gitlab, available: false }], busy: true }
+            : { providers, accounts: [{ ...github, available: true }, { ...gitlab, available: true }], busy: false },
+        );
+      }
+      return Promise.resolve(undefined);
+    });
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    const tabs = await screen.findByRole("group", { name: "Show" });
+    expect(await within(tabs).findByRole("button", { name: "GitHub" })).toBeInTheDocument();
+    if (reads === 1) expect(tabs.querySelectorAll(".home-launcher__tab--placeholder")).toHaveLength(1);
+    expect(await within(tabs).findByRole("button", { name: "GitLab" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(tabs.querySelector(".home-launcher__tab--placeholder")).toBeNull();
+  });
+
+  it("lists favourite recents in their own tab, sharing the switcher's own store", async () => {
     localStorage.setItem(
       "gitodile-recent-projects",
       JSON.stringify({
@@ -858,12 +944,11 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
 
-    // Newest first to begin with.
-    const listedBefore = screen
-      .getAllByRole("listitem")
-      .map((item) => item.textContent ?? "")
-      .filter((text) => text.includes(restoredProject.name) || text.includes(secondProject.name));
-    expect(listedBefore[0]).toContain(secondProject.name);
+    // Newest first: the newest project leads as Continue, the next is listed.
+    expect(screen.getByRole("button", { name: secondProject.name })).toHaveClass("home-launcher__continue");
+    // No Favorites tab until there is a favourite. (Other tabs, such as a
+    // connected account's, may already be there.)
+    expect(screen.queryByRole("button", { name: "Favorites" })).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: `Add ${restoredProject.name} to favorites` }),
@@ -878,21 +963,14 @@ describe("App project restoration", () => {
     });
     expect(star).toHaveAttribute("aria-pressed", "true");
 
-    const listedAfter = screen
-      .getAllByRole("listitem")
-      .map((item) => item.textContent ?? "")
-      .filter((text) => text.includes(restoredProject.name) || text.includes(secondProject.name));
-    expect(listedAfter[0]).toContain(restoredProject.name);
-
-    // With a favourite to filter by, the heading offers to show only those;
-    // pressed, the other project leaves the list, and it comes back when the
-    // filter is released. A view, not a setting: nothing is stored.
-    const filter = screen.getByRole("button", { name: "Show favorite projects only" });
-    await user.click(filter);
-    expect(filter).toHaveAttribute("aria-pressed", "true");
+    // With a favourite, the launcher offers a Favorites tab beside Recent;
+    // there only favourites are listed. A view, not a setting: nothing is stored.
+    const tabs = screen.getByRole("group", { name: "Show" });
+    await user.click(within(tabs).getByRole("button", { name: "Favorites" }));
+    expect(within(tabs).getByRole("button", { name: "Favorites" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: secondProject.name })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: restoredProject.name })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Show all recent projects" }));
+    await user.click(within(tabs).getByRole("button", { name: "Recent" }));
     expect(screen.getByRole("button", { name: secondProject.name })).toBeInTheDocument();
   });
 
@@ -909,7 +987,7 @@ describe("App project restoration", () => {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -930,7 +1008,7 @@ describe("App project restoration", () => {
       expect(JSON.parse(localStorage.getItem("gitodile-recent-projects") ?? "{}")).toEqual({
         version: 1,
         entries: [
-          { path: secondProject.path, name: secondProject.name },
+          { path: secondProject.path, name: secondProject.name, openedAt: expect.any(Number) },
           { path: restoredProject.path, name: restoredProject.name },
         ],
       }),
@@ -1024,7 +1102,7 @@ describe("App project restoration", () => {
     const login = screen.getByRole("button", { name: "Sign in — coming soon" });
     expect(login).toHaveAttribute("aria-disabled", "true");
     expect(login).toHaveAttribute("data-tooltip", "Sign in — coming soon");
-    expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     await user.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Settings" });
@@ -1033,7 +1111,7 @@ describe("App project restoration", () => {
     // before it could reach the user as a fallback frame.
     expect(within(dialog).getByRole("tablist", { name: "Settings sections" })).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "Startup" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "No project open" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     // Focus lands on the section rail, not on Close: Enter right after opening
     // should not shut the dialog the user just asked for.
     await waitFor(() => expect(within(dialog).getByRole("tab", { name: "General" })).toHaveFocus());
@@ -1069,7 +1147,7 @@ describe("App project restoration", () => {
 
     // …but never on top of another dialog: two focus traps would compete.
     await user.keyboard("{Control>}k{/Control}");
-    expect(screen.getByRole("dialog", { name: "Command palette" })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
     await user.keyboard("{Control>},{/Control}");
     expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
     await user.keyboard("{Escape}");
@@ -1079,7 +1157,7 @@ describe("App project restoration", () => {
     await user.type(screen.getByRole("combobox"), "Settings: Git");
     await user.keyboard("{Enter}");
     expect(
-      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: /Git/ }),
+      within(screen.getByRole("dialog", { name: "Settings" })).getByRole("tab", { name: "Git" }),
     ).toHaveAttribute("aria-selected", "true");
 
     await user.keyboard("{Escape}");
@@ -1135,8 +1213,8 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       if (command === "read_team_sync_status") {
         return Promise.resolve(cachedTeamSync);
@@ -1194,9 +1272,9 @@ describe("App project restoration", () => {
       </LanguageProvider>,
     );
 
-    // Titlebar toggle and Settings reach the same animation: the toggle's own
+    // The rail's toggle and Settings reach the same animation: the toggle's own
     // origin-anchored sweep was withdrawn, and "system" never had an origin.
-    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await user.click(railButton("Switch to dark theme"));
     await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
     const dialog = screen.getByRole("dialog", { name: "Settings" });
     await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
@@ -1237,15 +1315,15 @@ describe("App project restoration", () => {
     await waitFor(() =>
       expect(document.documentElement.dataset.theme).toBe("catppuccin-mocha"),
     );
-    await user.click(screen.getByRole("button", { name: "Use system theme" }));
+    await user.click(railButton("Use system theme"));
     // "Match device" keeps no attribute, so the media query follows the device.
     await waitFor(() => expect(document.documentElement.dataset.theme).toBeUndefined());
 
     // With the device selected, the toggle flips the official pair. jsdom's
     // prefers-color-scheme is light, so the first flip is to the official dark.
-    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await user.click(railButton("Switch to dark theme"));
     expect(document.documentElement.dataset.theme).toBe("gitodile-dark");
-    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
+    await user.click(railButton("Switch to light theme"));
     expect(document.documentElement.dataset.theme).toBe("gitodile-light");
   });
 
@@ -1285,10 +1363,10 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
+      if (command === "get_branches") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
-        return Promise.resolve(versionLines);
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1309,6 +1387,10 @@ describe("App project restoration", () => {
       order: [restoredProject.path],
       activeId: restoredProject.path,
     });
+    // Overview is already the destination: while revalidation runs it stays a
+    // placeholder in its own shape rather than flashing the launcher.
+    expect(document.querySelector(".empty-state--welcome")).toBeNull();
+    expect(screen.getByText("Opening project…").closest('[role="status"]')).toHaveAttribute("aria-busy", "true");
 
     resolveOpen?.(restoredProject);
     expect(
@@ -1358,10 +1440,10 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
+      if (command === "get_branches") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
-        return Promise.resolve(versionLines);
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1384,9 +1466,9 @@ describe("App project restoration", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+      screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }),
     );
-    await userEvent.click(screen.getByRole("button", { name: secondProject.name }));
+    await userEvent.click(screen.getByRole("button", { name: `Switch to ${secondProject.name}` }));
 
     await waitFor(() =>
       expect(
@@ -1447,8 +1529,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1470,11 +1552,11 @@ describe("App project restoration", () => {
     await userEvent.click(
       within(statusBar).getByRole("button", { name: "Check remote project changes" }),
     );
-    // The band's Publish tile is where the answer lands now.
-    // The status bar says the same words, so the band is found by its hint class.
+    // Overview's next-step card is where the answer lands now. The status bar
+    // says the same words, so the card is found by its title's class.
     expect(
-      (await screen.findAllByText("1 newer version available")).some((node) =>
-        node.classList.contains("journey-step__hint"),
+      (await screen.findAllByText(/^1 new version (on|available)/)).some((node) =>
+        node.classList.contains("next-step__title"),
       ),
     ).toBe(true);
     expect(
@@ -1483,19 +1565,18 @@ describe("App project restoration", () => {
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "open_repository"),
     ).toHaveLength(repositoryOpensBeforeRemoteCheck);
-    await userEvent.click(await screen.findByRole("button", { name: "Review and get" }));
+    // Overview's card and the status bar both offer the get; this takes the
+    // status bar's, the one every screen carries.
+    await userEvent.click(await within(statusBar).findByRole("button", { name: "Get 1 version" }));
     // The confirmation opens behind an async plan call, which under a loaded
     // parallel run needs more than the one-second default (task 072).
     const confirm = await screen.findByRole(
       "button",
-      { name: "Get these versions" },
+      { name: "Get" },
       { timeout: 3000 },
     );
-    // The rail keeps switching and closing behind one trigger, so blocking
-    // the switcher blocks both.
-    expect(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
-    ).toHaveAttribute("aria-disabled", "true");
+    // The status bar's project popup disables switching and closing while
+    // the plan is open (ProjectSwitcher.test.tsx covers the rows).
 
     const readsBefore = mockedInvoke.mock.calls.filter(
       ([command]) => command === "read_working_tree_status",
@@ -1542,7 +1623,7 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "plan_save_version") {
         return Promise.resolve({
           operationKind: "history-mutation",
@@ -1568,8 +1649,8 @@ describe("App project restoration", () => {
     );
     await screen.findByRole("heading", { name: restoredProject.name });
 
-    // The band's active tile is the action.
-    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    // The band's active tile is the action, once both sides have been read.
+    await userEvent.click(await screen.findByRole("button", { name: "Save version" }));
 
     // The dialog opens here, and Overview stays the screen: nothing was
     // navigated, and the planner was asked to save everything.
@@ -1580,6 +1661,66 @@ describe("App project restoration", () => {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
       selectedPaths: null,
+    });
+  });
+
+  it("restores a discard from Overview, and stays there when nothing was restored", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+    const record = {
+      recoveryId: "discard-1", createdAtMs: Date.now() - 60_000, fileCount: 1, selectedPath: null,
+      previewPaths: ["gone.txt"], stateToken: "token-1", availability: "restorable" as const,
+      restoresPreparedState: true,
+    };
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "list_discard_recoveries") return Promise.resolve([record]);
+      if (command === "get_discard_recovery") return Promise.resolve(record);
+      if (command === "restore_discarded_changes") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+    await screen.findByRole("heading", { name: restoredProject.name });
+    await screen.findByText("Discarded changes", undefined, { timeout: 5000 });
+
+    // The picker opens over Overview; closing it without restoring leaves
+    // Overview where it was.
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
+    const picker = await screen.findByRole("dialog", { name: "Restore discarded changes" });
+    expect(await within(picker).findByText("gone.txt")).toBeInTheDocument();
+    await userEvent.click(within(picker).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Restore discarded changes" })).toBeNull());
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
+
+    // A restore moves on to Changes, which says what came back.
+    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
+    const again = await screen.findByRole("dialog", { name: "Restore discarded changes" });
+    await within(again).findByText("gone.txt");
+    await userEvent.click(within(again).getByRole("button", { name: "Restore" }));
+    expect(await screen.findByRole("heading", { name: "Changes" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText("1 file restored.", undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("restore_discarded_changes", {
+      path: restoredProject.path,
+      sessionEpoch: restoredProject.sessionEpoch,
+      recoveryId: "discard-1",
+      stateToken: "token-1",
     });
   });
 
@@ -1609,8 +1750,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1663,8 +1804,14 @@ describe("App project restoration", () => {
     // The tabs never leave the screen, not even while History's chunk loads.
     expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
     // The history port is not mocked here, so the panel lands in its error
-    // state — still inside the tab's slot, still under the same tabs.
-    await waitFor(() => expect(document.querySelector(".history-screen")).not.toBeNull(), { timeout: 5000 });
+    // state — still inside the tab's slot, still under the same tabs. That
+    // state answers the project-activation read, which is deferred to idle (a
+    // one-second timer under jsdom) and can still be ahead of the test here.
+    // Waiting for the panel alone let the tab clicks below race it: the read's
+    // loading and error renders rebuild the timeline header, so a click that
+    // straddled them landed on a detached tab and did nothing.
+    expect(await screen.findByRole("heading", { name: "Couldn't read history" }, { timeout: 5000 })).toBeInTheDocument();
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "read_history_page")).toHaveLength(1);
     expect(document.querySelector(".history-screen")?.closest(".workbench__view")).not.toHaveAttribute("hidden");
     expect(document.querySelector(".changes-view")?.closest(".workbench__view")).toHaveAttribute("hidden");
     expect(screen.queryByRole("heading", { name: "Changes" })).toBeNull();
@@ -1675,18 +1822,53 @@ describe("App project restoration", () => {
     expect(await screen.findByRole("heading", { name: "Changes" })).toBeInTheDocument();
 
     await waitFor(() =>
-      expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1),
+      expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_branches")).toHaveLength(1),
     );
-    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
-    expect(await screen.findByRole("heading", { name: "Lines" })).toBeInTheDocument();
+    await userEvent.click(within(nav).getByRole("button", { name: "Branches" }));
+    expect(await screen.findByRole("heading", { name: "Branches" })).toBeInTheDocument();
     await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
-    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Branches" }));
 
     // Screen navigation consumes the cached snapshot. Freshness comes from
     // project activation and repository-watch invalidation, not from arrival.
-    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1);
-    // Three lazy chunks are fetched cold here — both Work tabs and Lines.
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_branches")).toHaveLength(1);
+    // Three lazy chunks are fetched cold here — both Work tabs and Branches.
   }, 15000);
+
+  it("closing the active project goes Home without moving into another open project", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-confirm-close-project", "false");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path, secondProject.path], activeId: restoredProject.path }),
+    );
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") {
+        return Promise.resolve(invokedPath(args) === secondProject.path ? secondProject : restoredProject);
+      }
+      if (command === "close_project_session") return Promise.resolve();
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }));
+    await user.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
+
+    // Home, with no project active: the other one is still open, but the
+    // reader picks it rather than being moved into it.
+    expect(await screen.findByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: secondProject.name })).toBeNull();
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBeNull();
+  });
 
   it("rejects an old branch response after the same project is closed and reopened", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
@@ -1697,10 +1879,10 @@ describe("App project restoration", () => {
     );
     mockedOpenFolderDialog.mockResolvedValue(restoredProject.path);
 
-    const staleVersionLines = {
-      ...versionLines,
-      lines: [
-        ...versionLines.lines,
+    const staleBranches = {
+      ...branches,
+      branches: [
+        ...branches.branches,
         {
           name: "stale/old-session",
           tip: {
@@ -1711,17 +1893,18 @@ describe("App project restoration", () => {
           },
           isActive: false,
           upstream: null,
-          isRetainedElsewhere: true,
+          isRetainedElsewhere: false,
+          isFinished: false,
           uniqueCommitCount: 1,
           worktreePath: null,
         },
       ],
       totalCount: 3,
     };
-    const freshVersionLines = {
-      ...versionLines,
-      lines: [
-        ...versionLines.lines,
+    const freshBranches = {
+      ...branches,
+      branches: [
+        ...branches.branches,
         {
           name: "fresh/reopened-session",
           tip: {
@@ -1732,16 +1915,17 @@ describe("App project restoration", () => {
           },
           isActive: false,
           upstream: null,
-          isRetainedElsewhere: true,
+          isRetainedElsewhere: false,
+          isFinished: false,
           uniqueCommitCount: 1,
           worktreePath: null,
         },
       ],
       totalCount: 3,
     };
-    let resolveOldRequest: ((snapshot: typeof staleVersionLines) => void) | undefined;
-    let resolveNewRequest: ((snapshot: typeof freshVersionLines) => void) | undefined;
-    let versionLinesCallCount = 0;
+    let resolveOldRequest: ((snapshot: typeof staleBranches) => void) | undefined;
+    let resolveNewRequest: ((snapshot: typeof freshBranches) => void) | undefined;
+    let branchesCallCount = 0;
     let openCallCount = 0;
 
     mockedInvoke.mockImplementation((command) => {
@@ -1770,13 +1954,13 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        versionLinesCallCount += 1;
-        return versionLinesCallCount === 1
-          ? new Promise<typeof staleVersionLines>((resolve) => {
+      if (command === "get_branches") {
+        branchesCallCount += 1;
+        return branchesCallCount === 1
+          ? new Promise<typeof staleBranches>((resolve) => {
               resolveOldRequest = resolve;
             })
-          : new Promise<typeof freshVersionLines>((resolve) => {
+          : new Promise<typeof freshBranches>((resolve) => {
               resolveNewRequest = resolve;
             });
       }
@@ -1793,13 +1977,13 @@ describe("App project restoration", () => {
     await waitFor(
       () =>
         expect(
-          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_branches"),
         ).toHaveLength(1),
       { timeout: 3000 },
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: `${restoredProject.name} — switch project` }),
+      screen.getByRole("button", { name: new RegExp(`^${restoredProject.name} — switch project`) }),
     );
     await userEvent.click(screen.getByRole("button", { name: `Close ${restoredProject.name}` }));
     await waitFor(() =>
@@ -1813,25 +1997,27 @@ describe("App project restoration", () => {
     await waitFor(
       () =>
         expect(
-          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_branches"),
         ).toHaveLength(2),
       { timeout: 3000 },
     );
 
-    resolveOldRequest?.(staleVersionLines);
+    resolveOldRequest?.(staleBranches);
     await userEvent.click(
       within(screen.getByRole("navigation", { name: "Project navigation" })).getByRole("button", {
-        name: "Lines",
+        name: "Branches",
       }),
     );
-    expect(screen.queryByText("stale/old-session")).toBeNull();
+    // By title: Branches quiets a name's prefix in a span of its own, and the
+    // full name is the row's title.
+    expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
 
-    resolveNewRequest?.(freshVersionLines);
-    expect(await screen.findAllByText("fresh/reopened-session")).not.toHaveLength(0);
-    expect(screen.queryAllByText("stale/old-session")).toHaveLength(0);
+    resolveNewRequest?.(freshBranches);
+    expect(await screen.findAllByTitle("fresh/reopened-session")).not.toHaveLength(0);
+    expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
   });
 
-  it("reopens Overview's version-line menu from cache, with no spinner", async () => {
+  it("reopens the status bar's branch menu from cache, with no spinner", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
       "gitodile-projects",
@@ -1860,8 +2046,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1873,10 +2059,9 @@ describe("App project restoration", () => {
     );
 
     await screen.findByRole("heading", { name: restoredProject.name });
-    const trigger = within(screen.getByRole("group", { name: "Current version line" })).getByRole(
-      "button",
-      { name: "Change version line (main)" },
-    );
+    // The branch is switched from the status bar; Overview's header names
+    // where the project lives instead.
+    const trigger = screen.getByRole("button", { name: "Change branch (main)" });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("button", { name: "feature/spike" })).toBeInTheDocument();
@@ -1886,6 +2071,56 @@ describe("App project restoration", () => {
     // blank itself to a spinner while it waited (task 019).
     await userEvent.click(trigger);
     expect(screen.getByRole("button", { name: "feature/spike" })).toBeInTheDocument();
+  });
+
+  it("names where the project lives in Overview's header once the project is active", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem(
+      "gitodile-projects",
+      JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }),
+    );
+
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") {
+        return Promise.resolve({ state: "available", version: "2.50.0" });
+      }
+      if (command === "open_repository") {
+        return Promise.resolve(restoredProject);
+      }
+      if (command === "read_working_tree_status") {
+        return Promise.resolve(cleanStatus);
+      }
+      if (command === "list_unpublished_versions") {
+        return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      }
+      if (command === "watch_repository") {
+        // Live working-tree updates (task 020). Answered so the watch
+        // lifecycle stays a background no-op in these tests; the listener
+        // itself is inert outside Tauri.
+        return Promise.resolve(true);
+      }
+      if (command === "unwatch_repository") {
+        return Promise.resolve();
+      }
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
+      }
+      if (command === "read_remote_home") {
+        return Promise.resolve({ remote: "origin", provider: "github", label: "acme/app", hasWebPage: true });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+
+    render(
+      <LanguageProvider>
+        <App />
+      </LanguageProvider>,
+    );
+
+    await screen.findByRole("heading", { name: restoredProject.name });
+    // Read on activation, not only after a config change: it must not stay
+    // a loading shape.
+    expect(await screen.findByRole("button", { name: "Open acme/app on GitHub" })).toBeInTheDocument();
   });
 
   it("replaces Overview's switch dialog instead of stacking a second one on top", async () => {
@@ -1914,12 +2149,12 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
-      if (command === "plan_switch_version_line") {
+      if (command === "plan_switch_branch") {
         // Blocked by unsaved work: this is the state that offers the two
-        // hand-offs ("Save version" / "New line with these changes"),
+        // hand-offs ("Save version" / "New branch with these changes"),
         // and both used to leave this dialog mounted behind whatever they
         // opened next.
         return Promise.reject({
@@ -1940,12 +2175,12 @@ describe("App project restoration", () => {
     await screen.findByRole("heading", { name: restoredProject.name });
     await userEvent.click(within(screen.getByRole("contentinfo", { name: "Project status" })).getByRole(
       "button",
-      { name: "Change version line (main)" },
+      { name: "Change branch (main)" },
     ));
     await userEvent.click(await screen.findByRole("button", { name: "feature/spike" }));
 
-    await userEvent.click(await screen.findByRole("radio", { name: /Take them to a new line/ }));
-    await userEvent.click(screen.getByRole("button", { name: "New line with these changes" }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Take them to a new branch/ }));
+    await userEvent.click(screen.getByRole("button", { name: "New branch with these changes" }));
 
     // Exactly one dialog: the create dialog replaced the switch dialog
     // rather than rendering on top of it. Both are owned by App state, so
@@ -1957,7 +2192,7 @@ describe("App project restoration", () => {
     expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
   });
 
-  it("visits Projects with a project open, preserves its status through Back and Forward, and filters recents", async () => {
+  it("visits Home with a project open, preserves its status through Back and Forward, and filters recents", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem("gitodile-projects", JSON.stringify({
       version: 1, order: [restoredProject.path], activeId: restoredProject.path,
@@ -1978,7 +2213,7 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -1988,43 +2223,49 @@ describe("App project restoration", () => {
     await screen.findByRole("heading", { name: restoredProject.name });
 
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Projects" }));
-    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Home" }));
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
     expect(within(screen.getByRole("navigation", { name: "Project navigation" })).queryByRole("button", { current: "page" })).toBeNull();
     expect(screen.getByRole("button", { name: secondProject.name })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: restoredProject.name })).not.toBeInTheDocument();
+    // The open project stays in Home's list and says so (task 184).
+    const openRow = screen.getByRole("button", { name: restoredProject.name });
+    expect(within(openRow).getByText("Open now")).toBeInTheDocument();
+    expect(openRow.closest(".home-launcher__item")).toHaveClass("home-launcher__item--active");
+    // Home ends in its own status line (ADR 0032): no project strip, and the
+    // palette deploys from the field in that branch instead.
+    expect(screen.queryByRole("contentinfo", { name: "Project status" })).toBeNull();
+    expect(within(screen.getByRole("group", { name: "This computer" })).getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
+
+    await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    // Back on the project, the strip is the sheet's foot again, its status kept.
     const statusBar = screen.getByRole("contentinfo", { name: "Project status" });
     expect(within(statusBar).getByText(restoredProject.name)).toBeInTheDocument();
     expect(within(statusBar).getByText("main")).toBeInTheDocument();
     expect(within(statusBar).getByText("Everything is saved")).toBeInTheDocument();
     expect(await within(statusBar).findByText("Up to date")).toBeInTheDocument();
     await user.click(within(statusBar).getByRole("button", { name: "Check remote project changes" }));
-    expect(await within(statusBar).findByText("1 newer version available")).toBeInTheDocument();
+    expect(await within(statusBar).findByRole("button", { name: "Get 1 version" })).toBeInTheDocument();
     expect(mockedInvoke).toHaveBeenCalledWith("check_team_changes", {
       path: restoredProject.path,
       sessionEpoch: restoredProject.sessionEpoch,
     });
-    expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
-
+    await user.click(screen.getAllByRole("button", { name: "Go forward" })[0]);
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+    expect(document.querySelector(".home-launcher .gitodile-mascot")).toHaveClass("gitodile-mascot--blink");
+    expect(document.querySelector(".home-launcher .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
+    // The project is still open and active on Home: Back returns to it.
     await user.click(screen.getAllByRole("button", { name: "Go back" })[0]);
     expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: "Go forward" })[0]);
-    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
-    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).toHaveClass("gitodile-mascot--commits");
-    expect(document.querySelector(".empty-state--welcome .gitodile-mascot")).not.toHaveClass("gitodile-mascot--enter");
-    await user.click(screen.getByRole("button", { name: "Open projects" }));
-    const switcher = screen.getByRole("dialog", { name: "Open projects" });
-    expect(within(switcher).getByRole("button", { name: restoredProject.name })).not.toHaveAttribute("aria-current");
-    await user.click(within(switcher).getByRole("button", { name: restoredProject.name }));
-    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Projects" }));
+    await user.click(screen.getByRole("menuitem", { name: "Home" }));
     await user.click(screen.getAllByRole("button", { name: "Work" })[0]);
-    expect(screen.queryByRole("heading", { name: "What would you like to open?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: /^Good / })).not.toBeInTheDocument();
     expect(within(screen.getByRole("contentinfo", { name: "Project status" })).getByText(restoredProject.name)).toBeInTheDocument();
   });
 
-  it("offers Projects from the palette while a project is open", async () => {
+  it("offers Home from the palette while a project is open", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem("gitodile-projects", JSON.stringify({
       version: 1, order: [restoredProject.path], activeId: restoredProject.path,
@@ -2035,7 +2276,7 @@ describe("App project restoration", () => {
       if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.resolve(undefined);
@@ -2043,15 +2284,156 @@ describe("App project restoration", () => {
     const user = userEvent.setup();
     render(<LanguageProvider><App /></LanguageProvider>);
     await screen.findByRole("heading", { name: restoredProject.name });
-    await user.click(screen.getByRole("button", { name: "Open command palette" }));
-    const palette = screen.getByRole("dialog", { name: "Command palette" });
-    expect(within(palette).getAllByRole("option")[0]).toHaveTextContent("Go to Projects");
-    expect(within(palette).getByText("Go to Projects")).toBeInTheDocument();
-    await user.click(within(palette).getByText("Go to Projects"));
-    expect(screen.getByRole("heading", { name: "What would you like to open?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Open command palette" }));
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
+    expect(within(palette).getAllByRole("option")[0]).toHaveTextContent("Go to Home");
+    expect(within(palette).getByText("Go to Home")).toBeInTheDocument();
+    await user.click(within(palette).getByText("Go to Home"));
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
   });
 
-  it("keeps a project open when a recent project fails to open from Proyectos", async () => {
+  it("runs the search from the field: filtering, Enter, and an idle field after Escape", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+
+    await user.click(field);
+    expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    // Escape stays on the screen, so the results fold back into the field.
+    expect(screen.getByRole("listbox", { name: "Command palette" }).parentElement).toHaveClass("palette-panel--closing");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
+    );
+    // The field keeps the focus after Escape, so Enter must not run the first
+    // command the cleared query leaves behind (it would open Home).
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("heading", { name: restoredProject.name })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: /^Good / })).toBeNull();
+
+    await user.click(field);
+    await user.type(field, "home");
+    const palette = screen.getByRole("listbox", { name: "Command palette" });
+    // The strip's search keeps the app's raised card, not the Console pane.
+    expect(palette.parentElement).not.toHaveClass("palette-panel--console");
+    const options = within(palette).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Go to Home");
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("heading", { level: 1, name: /^Good / })).toBeInTheDocument();
+    // A destination changes the screen, so the results go at once rather than
+    // folding back while Home draws.
+    expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument();
+  });
+
+  it("hands the palette to the Console's own field, keys included", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "read_project_technology") return Promise.resolve({ technology: null });
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      if (command === "get_console_settings") return Promise.resolve({ confirmChanges: true });
+      if (command === "read_console_host") return Promise.reject(new Error("no host"));
+      return Promise.resolve(undefined);
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    const nav = screen.getByRole("navigation", { name: "Project navigation" });
+    await user.click(within(nav).getByRole("button", { name: "Console" }));
+
+    // Console replaces the strip; its status line owns the search now.
+    const field = await screen.findByRole("combobox", { name: "Open command palette" }, { timeout: 5000 });
+    expect(screen.queryByRole("contentinfo", { name: "Project status" })).toBeNull();
+
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    const consolePalette = await screen.findByRole("listbox", { name: "Command palette" });
+    expect(consolePalette).toBeInTheDocument();
+    // The Console's field opens the results as a terminal pane.
+    expect(consolePalette.parentElement).toHaveClass("palette-panel--console");
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Command palette" })).not.toBeInTheDocument(),
+    );
+    // The keyboard goes back to the Console prompt, so the next command can be
+    // typed at once; Ctrl+K reaches the search again.
+    const prompt = screen.getByRole("combobox", { name: "Console command" });
+    expect(prompt).toHaveFocus();
+    // Choosing Console itself also hands the keyboard to the prompt, even
+    // though the search field lives inside the same screen.
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    await user.type(field, "go to console");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(prompt).toHaveFocus());
+    // And a destination on another screen takes the focus too.
+    await user.keyboard("{Control>}k{/Control}");
+    expect(field).toHaveFocus();
+    await user.type(field, "overview");
+    const options = within(screen.getByRole("listbox", { name: "Command palette" })).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Go to Overview");
+    await user.keyboard("{Enter}");
+    const overviewHeading = await screen.findByRole("heading", { name: restoredProject.name });
+    await waitFor(() => expect(overviewHeading).toHaveFocus());
+  });
+
+  it("moves the focus to the screen a palette destination opens", async () => {
+    localStorage.setItem("gitodile-reopen-last-project", "true");
+    localStorage.setItem("gitodile-projects", JSON.stringify({
+      version: 1, order: [restoredProject.path], activeId: restoredProject.path,
+    }));
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "open_repository") return Promise.resolve(restoredProject);
+      if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
+      if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
+      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "watch_repository") return Promise.resolve(true);
+      if (command === "unwatch_repository") return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await screen.findByRole("heading", { name: restoredProject.name });
+
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    await user.click(field);
+    await user.type(field, "work");
+    await user.keyboard("{Enter}");
+
+    // The search no longer keeps the keyboard: the screen's active tab does.
+    const tab = await screen.findByRole("tab", { name: "Changes" }, { timeout: 5000 });
+    await waitFor(() => expect(tab).toHaveFocus(), { timeout: 5000 });
+  });
+
+  it("keeps a project open when a recent project fails to open from Inicio", async () => {
     localStorage.setItem("gitodile-language", "es");
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem("gitodile-projects", JSON.stringify({
@@ -2073,7 +2455,7 @@ describe("App project restoration", () => {
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -2082,13 +2464,13 @@ describe("App project restoration", () => {
     render(<LanguageProvider><App /></LanguageProvider>);
     await screen.findByRole("heading", { name: restoredProject.name });
     await user.click(screen.getByRole("button", { name: "Más acciones" }));
-    await user.click(screen.getByRole("menuitem", { name: "Proyectos" }));
-    expect(screen.getByRole("heading", { name: "¿Qué te gustaría abrir?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Inicio" }));
+    expect(screen.getByRole("heading", { level: 1, name: /^Buen/ })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: secondProject.name }));
     expect(screen.getByRole("button", { name: "Abriendo…" })).toBeDisabled();
     rejectRecent({ code: "repository_not_found", message: "Folder moved.", remediation: null });
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "¿Qué te gustaría abrir?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: /^Buen/ })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
   });
 });

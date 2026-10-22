@@ -69,7 +69,7 @@ describe("previewFromWorkingTree", () => {
     expect(files[0]).toEqual({ path: "f0.txt", originalPath: null, category: "new" });
   });
 
-  it("knows a first version from an unborn line", () => {
+  it("knows a first version from an unborn branch", () => {
     expect(ask(tree(), "unborn")?.isFirstVersion).toBe(true);
   });
 

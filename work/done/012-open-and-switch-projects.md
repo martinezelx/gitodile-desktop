@@ -220,7 +220,7 @@ feature.
 
 - Task 010 for binding save operations to sessions.
 - Task 011 for binding remote operations and uncertain outcomes to sessions.
-- Task 016 (created after this task) adds version-line discovery, plans, and
+- Task 016 (created after this task) adds branch discovery, plans, and
   mutations that must also be bound to the originating project session — apply
   the same per-session isolation to its snapshots, plans, dialogs, and
   operation state.

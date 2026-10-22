@@ -2,8 +2,10 @@ import type {
   GitDefaultBranch,
   GitDiagnostics,
   GitIdentity,
+  GitInstallationDetails,
   GitInstallationResult,
   GitLineEndings,
+  GitLocationTarget,
   GitUpdateLaunchResult,
   GitUpdateStatus,
   LineEndingChoice,
@@ -11,7 +13,7 @@ import type {
 
 /** Settings is the app-level feature whose native calls are global rather than
  * repository-scoped: almost none of these take a project path or session epoch,
- * because they inspect and change the machine's Git installation, not an open
+ * because they inspect and change the machine's Git/GitHub CLI installation, not an open
  * repository. That is why they carry no state token and no invalidation.
  *
  * `readLineEndings` is the one exception, and only because the question it
@@ -21,7 +23,16 @@ import type {
  * the open project when there is one and validates like any other repository
  * read; writing stays global. */
 export interface SettingsPort {
+  readGhDiagnostics(): Promise<GitDiagnostics>;
+  checkGhUpdate(): Promise<GitUpdateStatus>;
+  installGh(): Promise<GitInstallationResult>;
+  updateGh(): Promise<GitUpdateLaunchResult>;
   readDiagnostics(): Promise<GitDiagnostics>;
+  /** Several Git processes, so it is read when the reader opens the Git
+   * section's technical details, never because the section became visible. */
+  readInstallationDetails(): Promise<GitInstallationDetails>;
+  /** Shows Git or one of its configuration files in the file manager. */
+  revealGitLocation(target: GitLocationTarget): Promise<void>;
   checkUpdate(): Promise<GitUpdateStatus>;
   installGit(): Promise<GitInstallationResult>;
   updateGit(): Promise<GitUpdateLaunchResult>;
@@ -38,7 +49,7 @@ export interface SettingsPort {
    * crosses the OS boundary like `openGuidance` does, and it answers `null`
    * outside the desktop shell rather than throwing. */
   readPlatform(): string | null;
-  /** Opening the platform's Git download page is the guidance path when an
+  /** Opening an official Git or GitHub CLI download page is the guidance path when an
    * installer cannot be launched. It crosses the OS boundary, so it belongs to
    * the port rather than to the panel. */
   openGuidance(url: string): Promise<void>;

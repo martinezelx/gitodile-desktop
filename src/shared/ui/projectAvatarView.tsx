@@ -14,7 +14,7 @@ export type ProjectAvatarProps = {
   id: string;
   /** The project's display name, for the initials fallback. */
   name: string;
-  /** The per-surface avatar class (`.sidebar-project__avatar`, …), which owns
+  /** The per-surface avatar class (`.status-bar__avatar`, …), which owns
    * the box size, radius and the brand ring. */
   className: string;
   /** The project's own choice — an emoji, or `PROJECT_ICON_INITIALS` to force

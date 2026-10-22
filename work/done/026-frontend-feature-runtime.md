@@ -52,7 +52,7 @@ hidden work or repository reads caused by visiting a screen.
 
 # Out of scope
 
-- Moving Version lines or other feature data lifecycles; task 027 is the pilot.
+- Moving Branches or other feature data lifecycles; task 027 is the pilot.
 - Fetching merely because a screen became active.
 - Introducing a general frontend framework inside GitOdile.
 - Splitting CSS or translations; task 030 owns that work.
@@ -104,7 +104,7 @@ Tasks 023 and 025.
   preserves selected identity, and the lifecycle-aware selector disconnects
   while hidden before synchronizing from the current snapshot on activation.
 - Added the dependency-neutral `ScreenModule` contract and feature-owned
-  descriptors for Overview, Changes and Version lines. The registry now
+  descriptors for Overview, Changes and Branches. The registry now
   derives navigation, palette metadata, project guards, idle preloads,
   keep-alive slots, accessibility state and profiling from those descriptors.
   The lazy component and primary preload share the same cached loader promise.
@@ -122,11 +122,11 @@ Tasks 023 and 025.
   static entry-to-file-icons path. Its seeded fixture proves the diagnostic
   identifies the owning feature. The new-screen workflow is documented in
   `docs/architecture/frontend-feature-guide.md`.
-- Kept task 027 out of scope: Version lines has only gained its descriptor; its
+- Kept task 027 out of scope: Branches has only gained its descriptor; its
   data lifecycle remains on the existing compatibility implementation.
 - Production build comparison against task 023: entry `366.33 kB` raw /
   `106.73 kB` gzip (baseline `362.39/105.24`, below `378/110` warning and
-  `397/116` failure); Changes `59.38 kB` raw (below `69`); Version lines plus
+  `397/116` failure); Changes `59.38 kB` raw (below `69`); Branches plus
   its dialog `30.74 kB` raw (below `36`); file icons `255.22 kB` raw (below
   `268`) and absent from the static entry graph. Bootstrap renders before the
   existing two-animation-frame native-window reveal; speculative work remains

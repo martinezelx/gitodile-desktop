@@ -5,6 +5,8 @@ import type { CloneProgressPhase } from "./domain";
 import type { ClonePort } from "./port";
 
 export const clonePort: ClonePort = {
+  checkSource: (source, accountId, requestId) => invoke("check_clone_source", { source, accountId, requestId }),
+  cancelSourceCheck: (requestId) => invoke("cancel_clone_source_check", { requestId }),
   async chooseParent(initialParent) {
     const selected = await open({
       directory: true,
@@ -13,9 +15,9 @@ export const clonePort: ClonePort = {
     });
     return typeof selected === "string" ? selected : null;
   },
-  plan: ({ source, destinationParent, destinationName }) =>
-    invoke("plan_clone", { source, destinationParent, destinationName }),
-  execute: ({ source, destinationParent, destinationName }, plan, onProgress) => {
+  plan: ({ source, destinationParent, destinationName, accountId }) =>
+    invoke("plan_clone", { source, destinationParent, destinationName, accountId }),
+  execute: ({ source, destinationParent, destinationName, accountId }, plan, onProgress) => {
     const channel = new Channel<CloneProgressPhase>();
     channel.onmessage = onProgress;
     return invoke("clone_repository", {
@@ -24,6 +26,7 @@ export const clonePort: ClonePort = {
       destinationName,
       operationId: plan.operationId,
       stateToken: plan.stateToken,
+      accountId,
       onProgress: channel,
     });
   },

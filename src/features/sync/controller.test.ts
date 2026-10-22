@@ -28,10 +28,12 @@ const status = (knowledge: "cached" | "fresh", ahead = 0): TeamSyncStatus => ({
   warnings: [],
   nextActions: ahead ? ["publishChanges"] : ["checkAgain"],
   stateToken: `token-${ahead}`,
+  forecast: null,
 });
 
 const readPort = (implementation: Pick<SyncPort, "readLocal" | "check">): SyncPort => ({
   ...implementation,
+  stopTracking: async () => { throw new Error("not used"); },
   planGet: async () => { throw new Error("not used"); },
   get: async () => { throw new Error("not used"); },
 });
@@ -135,6 +137,27 @@ describe("sync controller", () => {
     expect(state.isStale).toBe(true);
   });
 
+  it("rejects the check Get project changes waits on when the remote cannot be asked", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: project("epoch-1") });
+    let fail = true;
+    const controller = createSyncController(readPort({
+      readLocal: async () => status("cached"),
+      check: async () => {
+        if (fail) throw new Error("offline");
+        return status("fresh");
+      },
+    }));
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    await expect(controller.checkBeforeGet(runtime, query, () => "Could not connect"))
+      .rejects.toThrow("Could not connect");
+    // The failure is recorded like any other check.
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.error).toBe("Could not connect");
+    fail = false;
+    await expect(controller.checkBeforeGet(runtime, query, () => "Could not connect"))
+      .resolves.toMatchObject({ state: "upToDate", knowledge: "fresh" });
+  });
+
   it("rejects a late response after close and reopen of the same path", async () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("old") });
@@ -155,6 +178,75 @@ describe("sync controller", () => {
     await oldRequest;
     expect(runtime.getSnapshot().byId["/repo"].epoch).toBe("new");
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.ahead).toBe(2);
+  });
+
+  it("keeps a gone remote branch across local reads of the same kept ref", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: project("epoch-1") });
+    const gone: TeamSyncStatus = { ...status("fresh"), state: "upstreamGone", nextActions: ["checkAgain"] };
+    let local = status("cached");
+    const controller = createSyncController(readPort({
+      readLocal: async () => local,
+      check: async () => gone,
+    }));
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    await controller.check(runtime, query, () => "failed");
+
+    // The kept tracking ref still reads as up to date locally.
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upstreamGone");
+
+    // A new saved version moves the branch, not the evidence about its remote.
+    local = { ...status("cached", 1), localCommit: "new" };
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status).toMatchObject({
+      state: "upstreamGone",
+      localCommit: "new",
+    });
+
+    // Another branch has no such evidence...
+    local = { ...status("cached"), localBranch: "other" };
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upToDate");
+
+    // ...and coming back to the gone branch does not make it "up to date".
+    local = status("cached");
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upstreamGone");
+
+    // A tracking ref that moved is new evidence.
+    local = { ...status("cached"), remoteCommit: "moved" };
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upToDate");
+  });
+
+  it("stops carrying a gone remote branch once a publish recreates it", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: project("epoch-1") });
+    const gone: TeamSyncStatus = { ...status("fresh"), state: "upstreamGone", nextActions: ["checkAgain"] };
+    const controller = createSyncController(readPort({
+      readLocal: async () => status("cached"),
+      check: async () => gone,
+    }));
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    await controller.check(runtime, query, () => "failed");
+
+    controller.publishedTo(query, "main");
+    await controller.refreshLocal(runtime, query, () => "failed");
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upToDate");
+  });
+
+  it("commits the branch's new status after it stops tracking its remote", async () => {
+    const runtime = createProjectRuntime(initialProjectSessionsState);
+    runtime.dispatch({ type: "open", project: project("epoch-1") });
+    const untracked: TeamSyncStatus = { ...status("cached"), state: "noUpstream", upstreamRemote: null };
+    const controller = createSyncController({
+      ...readPort({ readLocal: async () => status("cached"), check: async () => status("fresh") }),
+      stopTracking: async () => untracked,
+    });
+    const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
+    await controller.stopTracking(runtime, query);
+    expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("noUpstream");
   });
 
   it("marks a fresh result stale when a mutation supersedes it", async () => {

@@ -63,11 +63,11 @@ but must not trivialize errors or destructive operations.
 - Durable product strategy: `docs/PRODUCT_STRATEGY.md`.
 - Interaction and visual direction: `DESIGN.md`.
 - Architecture and safety rules: `docs/ARCHITECTURE.md` and `AGENTS.md`.
-- Existing product mark: the v4 sunglasses mascot with its commit-graph crest,
-  `src/assets/gitodile-mascot.svg`, and the amber-tiled application icon,
-  `src/assets/brand/gitodile-icon.svg` (ADR 0018).
+- Existing product mark: the flat v5 mascot, `src/assets/gitodile-mascot.svg`,
+  and the application icon, the mascot on a white tile,
+  `src/assets/brand/gitodile-icon.svg` (ADR 0031).
 - Existing Overview, Changes, save-version, publish, project-session, watcher,
-  and version-line implementations and tests under `src/` and
+  and branch implementations and tests under `src/` and
   `src-tauri/src/`.
 - No testimonials, customer claims, usage benchmarks, or commercial proof are
   available and future work must not fabricate them.

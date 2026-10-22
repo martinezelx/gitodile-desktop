@@ -103,6 +103,15 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
     minify: process.env.TAURI_ENV_DEBUG ? false : "oxc",
     sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // Keep third-party runtime code out of the growing eager app shell.
+          // Match both Windows and POSIX paths, including pnpm's nested layout.
+          groups: [{ name: "vendor", test: /[\\/]node_modules[\\/]/ }],
+        },
+      },
+    },
   },
   test: {
     // Only the dialog/component tests touch the DOM; the pure-logic tests

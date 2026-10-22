@@ -25,6 +25,7 @@ describe("status controller", () => {
     const controller = createStatusController({
       readWorkingTree: async () => status(1),
       readPendingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
+      readIncomingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
     });
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     await controller.refresh(runtime, query, () => "error");
@@ -43,6 +44,7 @@ describe("status controller", () => {
     const controller = createStatusController({
       readWorkingTree,
       readPendingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
+      readIncomingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
     }, () => 123);
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     const first = controller.refresh(runtime, query, () => "error");
@@ -62,6 +64,7 @@ describe("status controller", () => {
         ? new Promise((resolve) => { resolveOld = resolve; })
         : Promise.resolve(status(2)),
       readPendingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
+      readIncomingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
     });
     const oldQuery = { projectId: "/repo", sessionEpoch: "old" };
     const oldRequest = controller.refresh(runtime, oldQuery, () => "error");
@@ -85,6 +88,7 @@ describe("status controller", () => {
         ? new Promise((resolve) => { resolveOld = resolve; })
         : Promise.resolve(status(2)),
       readPendingVersions: async () => ({ totalCount: workingRead, versions: [], isTruncated: false }),
+      readIncomingVersions: async () => ({ totalCount: 0, versions: [], isTruncated: false }),
     });
     const query = { projectId: "/repo", sessionEpoch: "epoch-1" };
     const oldRequest = controller.refresh(runtime, query, () => "error");

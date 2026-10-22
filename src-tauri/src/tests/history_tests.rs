@@ -899,7 +899,7 @@ fn tagged_only_keeps_the_versions_a_tag_points_at() {
         None,
     )
     .unwrap();
-    // Lightweight and annotated alike; the tip carries only its line, so it
+    // Lightweight and annotated alike; the tip carries only its branch, so it
     // is not a tagged version however decorated it is.
     assert_eq!(subjects(&tagged), vec!["version 2", "version 1"]);
     assert!(tagged.versions.iter().all(|version| version
@@ -972,7 +972,7 @@ fn git(path: &str, args: &[&str]) {
 
 /// `main` with two versions, `feature/one` with a third on top of the first,
 /// and `feature/two` with a fourth. `HEAD` stays on `main`.
-fn repository_with_three_lines(label: &str) -> String {
+fn repository_with_three_branches(label: &str) -> String {
     let path = unique_temp_dir(label);
     git_init(&path);
     write_file(&path, "file.txt", "one\n");
@@ -995,8 +995,8 @@ fn repository_with_three_lines(label: &str) -> String {
 }
 
 #[test]
-fn history_scoped_to_a_named_line_reads_that_line_without_checking_it_out() {
-    let path = repository_with_three_lines("history-scope-named");
+fn history_scoped_to_a_named_branch_reads_that_branch_without_checking_it_out() {
+    let path = repository_with_three_branches("history-scope-named");
     let before_head = head(&path);
 
     let current = read_history_page(path.clone(), None, Some(50), None, None).unwrap();
@@ -1007,7 +1007,7 @@ fn history_scoped_to_a_named_line_reads_that_line_without_checking_it_out() {
         None,
         Some(50),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
@@ -1015,43 +1015,43 @@ fn history_scoped_to_a_named_line_reads_that_line_without_checking_it_out() {
     assert_eq!(
         subjects(&scoped),
         vec!["third on feature one", "first"],
-        "a named line is read from its own tip"
+        "a named branch is read from its own tip"
     );
-    // `branch` stays HEAD's own line whatever the scope is: the timeline uses
-    // it to mark which decoration is the line being stood on.
+    // `branch` stays HEAD's own branch whatever the scope is: the timeline uses
+    // it to mark which decoration is the branch being stood on.
     assert_eq!(scoped.branch.as_deref(), Some("main"));
     assert_eq!(
         scoped.scope,
-        HistoryScope::Line {
+        HistoryScope::Branch {
             name: "feature/one".into()
         }
     );
     assert_eq!(
         head(&path),
         before_head,
-        "reading a line checks nothing out"
+        "reading a branch checks nothing out"
     );
 
     let _ = fs::remove_dir_all(path);
 }
 
 #[test]
-fn history_scoped_to_all_lines_deduplicates_the_union_of_local_tips() {
-    let path = repository_with_three_lines("history-scope-all");
+fn history_scoped_to_all_branches_deduplicates_the_union_of_local_tips() {
+    let path = repository_with_three_branches("history-scope-all");
 
     let all = read_history_page(
         path.clone(),
         None,
         Some(50),
         None,
-        Some(HistoryScope::AllLines),
+        Some(HistoryScope::AllBranches),
     )
     .unwrap();
     let listed = subjects(&all);
     assert_eq!(
         listed.len(),
         4,
-        "every version once, however many lines reach it: {listed:?}"
+        "every version once, however many branches reach it: {listed:?}"
     );
     for subject in [
         "second on main",
@@ -1061,10 +1061,10 @@ fn history_scoped_to_all_lines_deduplicates_the_union_of_local_tips() {
     ] {
         assert!(listed.contains(&subject.to_string()), "missing {subject}");
     }
-    // "first" is reachable from all three lines and appears exactly once.
+    // "first" is reachable from all three branches and appears exactly once.
     assert_eq!(listed.iter().filter(|value| *value == "first").count(), 1);
-    // No single upstream can answer publication for a union of lines, so it
-    // says unknown rather than measuring every line against one boundary.
+    // No single upstream can answer publication for a union of branches, so it
+    // says unknown rather than measuring every branch against one boundary.
     assert!(all.upstream.is_none());
     assert!(all
         .versions
@@ -1074,21 +1074,168 @@ fn history_scoped_to_all_lines_deduplicates_the_union_of_local_tips() {
     let _ = fs::remove_dir_all(path);
 }
 
+/// "All branches" has no single upstream, so each version is measured against
+/// every remote-tracking branch: published when any of them holds it, local
+/// otherwise — the same verdict the branch's own scope gives.
 #[test]
-fn history_refuses_a_line_this_project_does_not_have() {
-    let path = repository_with_three_lines("history-scope-missing");
+fn all_branches_classifies_publication_against_every_remote_branch() {
+    let source = unique_temp_dir("history-all-remotes-source");
+    git_init(&source);
+    write_file(&source, "file.txt", "published\n");
+    commit_all(&source, "published version");
+
+    let clone = unique_temp_dir("history-all-remotes-clone");
+    let file_url = if cfg!(windows) {
+        format!("file:///{}", source.replace('\\', "/"))
+    } else {
+        format!("file://{source}")
+    };
+    assert!(git_command(&clone)
+        .args(["clone", "-q", &file_url, "."])
+        .status()
+        .unwrap()
+        .success());
+    assert!(git_command(&clone)
+        .args(["switch", "-q", "-c", "feature/local"])
+        .status()
+        .unwrap()
+        .success());
+    write_file(&clone, "file.txt", "only here\n");
+    commit_all(&clone, "local on a branch with no remote");
+
+    let all = read_history_page(
+        clone.clone(),
+        None,
+        Some(50),
+        None,
+        Some(HistoryScope::AllBranches),
+    )
+    .unwrap();
+    assert!(all.upstream.is_none());
+    let publication = |subject: &str| {
+        all.versions
+            .iter()
+            .find(|version| version.subject == subject)
+            .map(|version| version.publication)
+    };
+    assert_eq!(
+        publication("local on a branch with no remote"),
+        Some(PublicationState::LocalOnly)
+    );
+    assert_eq!(
+        publication("published version"),
+        Some(PublicationState::Published)
+    );
+
+    let local = all.versions[0].clone();
+    let detail = read_saved_version_detail(
+        clone.clone(),
+        all.snapshot_token.clone(),
+        local.commit.clone(),
+    )
+    .unwrap();
+    assert_eq!(detail.version.publication, PublicationState::LocalOnly);
+
+    // Publishing moves a remote-tracking branch without moving a local tip: the
+    // snapshot is a new one, so nothing cached under the old token answers.
+    assert!(git_command(&clone)
+        .args(["push", "-q", "origin", "feature/local"])
+        .status()
+        .unwrap()
+        .success());
+    let published = read_history_page(
+        clone.clone(),
+        None,
+        Some(50),
+        None,
+        Some(HistoryScope::AllBranches),
+    )
+    .unwrap();
+    assert_ne!(published.snapshot_token, all.snapshot_token);
+    assert!(published
+        .versions
+        .iter()
+        .all(|version| version.publication == PublicationState::Published));
+
+    let _ = fs::remove_dir_all(source);
+    let _ = fs::remove_dir_all(clone);
+}
+
+/// A filtered page is classified per commit, and Git lists every unpublished
+/// version reachable from it, not only the page's own. That list was once
+/// capped at the page's size, so a filter over more unpublished work than a
+/// page holds failed instead of answering.
+#[test]
+fn a_filtered_page_classifies_more_unpublished_work_than_it_holds() {
+    let source = unique_temp_dir("history-many-unpublished-source");
+    git_init(&source);
+    write_file(
+        &source,
+        "file.txt",
+        "published
+",
+    );
+    commit_all(&source, "published version");
+
+    let clone = unique_temp_dir("history-many-unpublished-clone");
+    let file_url = if cfg!(windows) {
+        format!("file:///{}", source.replace('\\', "/"))
+    } else {
+        format!("file://{source}")
+    };
+    assert!(git_command(&clone)
+        .args(["clone", "-q", &file_url, "."])
+        .status()
+        .unwrap()
+        .success());
+    for index in 0..140 {
+        write_file(
+            &clone,
+            "file.txt",
+            &format!(
+                "local {index}
+"
+            ),
+        );
+        commit_all(&clone, &format!("local {index}"));
+    }
+
+    let page = read_history_page(
+        clone.clone(),
+        None,
+        Some(5),
+        Some(HistoryFilters {
+            author: Some("GitOdile Test".to_string()),
+            ..filters()
+        }),
+        None,
+    )
+    .unwrap();
+    assert_eq!(page.versions.len(), 5);
+    assert!(page
+        .versions
+        .iter()
+        .all(|version| version.publication == PublicationState::LocalOnly));
+
+    let _ = fs::remove_dir_all(source);
+    let _ = fs::remove_dir_all(clone);
+}
+
+#[test]
+fn history_refuses_a_branch_this_project_does_not_have() {
+    let path = repository_with_three_branches("history-scope-missing");
 
     let error = read_history_page(
         path.clone(),
         None,
         Some(50),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/gone".to_string(),
         }),
     )
     .unwrap_err();
-    assert_eq!(error.code, AppErrorCode::VersionLineMissing);
+    assert_eq!(error.code, AppErrorCode::BranchMissing);
 
     // A name that is not a ref name at all is refused as a selection rather
     // than handed to Git as a revision.
@@ -1097,7 +1244,7 @@ fn history_refuses_a_line_this_project_does_not_have() {
         None,
         Some(50),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "--all".to_string(),
         }),
     )
@@ -1108,8 +1255,8 @@ fn history_refuses_a_line_this_project_does_not_have() {
 }
 
 #[test]
-fn history_filters_still_run_in_git_under_a_named_and_an_all_lines_scope() {
-    let path = repository_with_three_lines("history-scope-filters");
+fn history_filters_still_run_in_git_under_a_named_and_an_all_branches_scope() {
+    let path = repository_with_three_branches("history-scope-filters");
 
     let named = read_history_page(
         path.clone(),
@@ -1119,7 +1266,7 @@ fn history_filters_still_run_in_git_under_a_named_and_an_all_lines_scope() {
             path: Some("feature.txt".to_string()),
             ..Default::default()
         }),
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
@@ -1134,7 +1281,7 @@ fn history_filters_still_run_in_git_under_a_named_and_an_all_lines_scope() {
             path: Some("other.txt".to_string()),
             ..Default::default()
         }),
-        Some(HistoryScope::AllLines),
+        Some(HistoryScope::AllBranches),
     )
     .unwrap();
     assert_eq!(subjects(&all), vec!["fourth on feature two"]);
@@ -1143,22 +1290,22 @@ fn history_filters_still_run_in_git_under_a_named_and_an_all_lines_scope() {
 }
 
 #[test]
-fn a_page_cursor_is_stale_once_the_line_it_was_taken_from_moves() {
-    let path = repository_with_three_lines("history-scope-stale");
+fn a_page_cursor_is_stale_once_the_branch_it_was_taken_from_moves() {
+    let path = repository_with_three_branches("history-scope-stale");
 
     let first = read_history_page(
         path.clone(),
         None,
         Some(1),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
     .unwrap();
     let cursor = first.next_cursor.expect("more versions to page through");
 
-    // The scoped line moves while HEAD stands still — which the old
+    // The scoped branch moves while HEAD stands still — which the old
     // HEAD-only token could not see.
     git(&path, &["switch", "-q", "feature/one"]);
     write_file(&path, "feature.txt", "a\nb\n");
@@ -1170,14 +1317,14 @@ fn a_page_cursor_is_stale_once_the_line_it_was_taken_from_moves() {
         Some(cursor.clone()),
         Some(1),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
     .unwrap_err();
     assert_eq!(error.code, AppErrorCode::StaleHistoryCursor);
 
-    // And a deleted line is a missing line rather than a page silently
+    // And a deleted branch is a missing branch rather than a page silently
     // answered from HEAD.
     git(&path, &["branch", "-q", "-D", "feature/one"]);
     let after_delete = read_history_page(
@@ -1185,26 +1332,26 @@ fn a_page_cursor_is_stale_once_the_line_it_was_taken_from_moves() {
         Some(cursor),
         Some(1),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
     .unwrap_err();
-    assert_eq!(after_delete.code, AppErrorCode::VersionLineMissing);
+    assert_eq!(after_delete.code, AppErrorCode::BranchMissing);
 
     let _ = fs::remove_dir_all(path);
 }
 
 #[test]
 fn a_cursor_taken_under_one_scope_is_not_accepted_under_another() {
-    let path = repository_with_three_lines("history-scope-cursor-swap");
+    let path = repository_with_three_branches("history-scope-cursor-swap");
 
     let all = read_history_page(
         path.clone(),
         None,
         Some(1),
         None,
-        Some(HistoryScope::AllLines),
+        Some(HistoryScope::AllBranches),
     )
     .unwrap();
     let cursor = all.next_cursor.expect("more versions to page through");
@@ -1217,7 +1364,7 @@ fn a_cursor_taken_under_one_scope_is_not_accepted_under_another() {
 
 #[test]
 fn paging_under_a_scope_walks_that_scope_and_nothing_else() {
-    let path = repository_with_three_lines("history-scope-paging");
+    let path = repository_with_three_branches("history-scope-paging");
 
     let mut seen = Vec::new();
     let mut cursor = None;
@@ -1227,7 +1374,7 @@ fn paging_under_a_scope_walks_that_scope_and_nothing_else() {
             cursor,
             Some(1),
             None,
-            Some(HistoryScope::Line {
+            Some(HistoryScope::Branch {
                 name: "feature/two".to_string(),
             }),
         )
@@ -1245,14 +1392,14 @@ fn paging_under_a_scope_walks_that_scope_and_nothing_else() {
 
 #[test]
 fn a_saved_version_detail_reads_under_the_scope_its_token_names() {
-    let path = repository_with_three_lines("history-scope-detail");
+    let path = repository_with_three_branches("history-scope-detail");
 
     let scoped = read_history_page(
         path.clone(),
         None,
         Some(50),
         None,
-        Some(HistoryScope::Line {
+        Some(HistoryScope::Branch {
             name: "feature/one".to_string(),
         }),
     )
@@ -1263,7 +1410,7 @@ fn a_saved_version_detail_reads_under_the_scope_its_token_names() {
             .expect("a version listed under this scope has a detail");
     assert_eq!(detail.version.subject, "third on feature one");
 
-    // The same commit is not reachable from `main`, so the current-line token
+    // The same commit is not reachable from `main`, so the current-branch token
     // must refuse it rather than answer for a history it is not in.
     let current = read_history_page(path.clone(), None, Some(50), None, None).unwrap();
     let error = read_saved_version_detail(path.clone(), current.snapshot_token, tip).unwrap_err();

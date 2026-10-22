@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   Bug,
+  CircleFadingArrowUp,
   CloudDownload,
   FolderOpen,
   GitBranch,
@@ -19,6 +20,7 @@ import {
  * test holds the two lists equal so neither can grow without the other. */
 export const HIGHLIGHT_ICONS = [
   "bug",
+  "circle-fading-arrow-up",
   "cloud-download",
   "folder-open",
   "git-branch",
@@ -48,6 +50,7 @@ export type ReleaseHighlightLine = Readonly<{
  * nothing. */
 const HIGHLIGHT_ICON_COMPONENTS: Record<HighlightIcon, React.ComponentType<{ "aria-hidden": true }>> = {
   bug: Bug,
+  "circle-fading-arrow-up": CircleFadingArrowUp,
   "cloud-download": CloudDownload,
   "folder-open": FolderOpen,
   "git-branch": GitBranch,

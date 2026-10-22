@@ -11,7 +11,7 @@ import { PUBLISH_AFTER_SAVE_STORAGE_KEY, type SaveVersionPlan, type SaveVersionR
 export type SaveVersionFlowState =
   | { status: "idle" }
   /** `plan` is the previous answer, kept on screen while a fresh one is
-   * fetched, so a line that re-plans on every selection change does not
+   * fetched, so a branch that re-plans on every selection change does not
    * blink; `null` on the first ask. */
   | { status: "planning"; plan: SaveVersionPlan | null }
   | { status: "blocked"; error: unknown }
@@ -24,7 +24,7 @@ export type SaveVersionPhase = "planning" | "executing" | "error" | "success";
 
 /** The one save flow, in whichever frame shows it.
  *
- * `SaveVersionDialog` (Overview, Lines) and Changes' `QuickCommitBox` are the
+ * `SaveVersionDialog` (Overview, Branches) and Changes' `QuickCommitBox` are the
  * same form asked in two shapes — a modal over a screen with nowhere to type,
  * and a box docked under the files it saves. The plan, the save, the failure
  * classification and the "also publish" preference are one implementation

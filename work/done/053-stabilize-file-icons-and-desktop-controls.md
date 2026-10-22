@@ -61,7 +61,7 @@ busy, or forbidden drop targets.
   images.
 - [x] The Changes view picker can override shared popup alignment regardless of
   later feature styles.
-- [x] A test fails if `.app-menu` returns to the Version Lines stylesheet.
+- [x] A test fails if `.app-menu` returns to the Branches stylesheet.
 - [x] The temporary `//test` marker is removed from the Rust policy test.
 - [x] The desktop cursor convention is confirmed, applied consistently, and
   documented in `DESIGN.md`.

@@ -16,7 +16,7 @@ export type ContextMenuAnchor = { x: number; y: number; focusTarget: HTMLElement
  *
  * ADR 0003's two-consumer bar, passed twice over: the Changes file list and its
  * diff had this written once between them, History borrowed the whole component
- * to get it, and the version-lines list needed the same behaviour with entirely
+ * to get it, and the branches list needed the same behaviour with entirely
  * different items. What is shared is the *mechanics*; the items never were, so
  * they stay with the feature that owns them and arrive as children.
  *

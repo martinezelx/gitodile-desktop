@@ -16,7 +16,7 @@ completed: 2026-09-26
 
 Closed on 2026-09-26 without adopting a refinement of this mark. The user
 replaced the mark with a new full-colour sunglasses mascot in
-[task 131](../active/131-mascot-app-icon.md), which carries the small-size
+[task 131](../done/131-mascot-app-icon.md), which carries the small-size
 work this task was about (a head-only variant for 32px and below). The
 unchecked criteria below were not met and no longer apply.
 

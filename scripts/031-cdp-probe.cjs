@@ -48,8 +48,8 @@ let browser;
     return !text.includes("Reading the difference") && !text.includes("Loading");
   }, null, { timeout: 30000 });
   const firstChangesReadyMs = Date.now() - coldChangesStarted;
-  await clickAndPaint("Version lines");
-  await page.waitForSelector(".version-lines-view", { timeout: 10000 });
+  await clickAndPaint("Branches");
+  await page.waitForSelector(".branches-view", { timeout: 10000 });
   await clickAndPaint("Overview");
   await page.waitForTimeout(2500);
 
@@ -66,12 +66,12 @@ let browser;
   const transitions = [];
   for (let cycle = 0; cycle < 20; cycle += 1) {
     transitions.push({ from: "overview", to: "changes", ms: await clickAndPaint("Changes") });
-    transitions.push({ from: "changes", to: "version-lines", ms: await clickAndPaint("Version lines") });
-    transitions.push({ from: "version-lines", to: "overview", ms: await clickAndPaint("Overview") });
+    transitions.push({ from: "changes", to: "branches", ms: await clickAndPaint("Branches") });
+    transitions.push({ from: "branches", to: "overview", ms: await clickAndPaint("Overview") });
   }
 
   const byTransition = Object.fromEntries(
-    ["overview->changes", "changes->version-lines", "version-lines->overview"].map((key) => {
+    ["overview->changes", "changes->branches", "branches->overview"].map((key) => {
       const values = transitions.filter((entry) => `${entry.from}->${entry.to}` === key).map((entry) => entry.ms);
       return [key, { p50: percentile(values, 50), p95: percentile(values, 95), max: Math.max(...values) }];
     }),
@@ -79,7 +79,7 @@ let browser;
   const all = transitions.map((entry) => entry.ms);
   const gitProcessesAfterWarmNavigation = countGitProcesses();
   const screenMetrics = {};
-  for (const label of ["Overview", "Changes", "Version lines"]) {
+  for (const label of ["Overview", "Changes", "Branches"]) {
     await clickAndPaint(label);
     screenMetrics[label] = await page.evaluate(() => ({
       descendants: document.querySelectorAll(".screen-slot:not([hidden]) *").length,

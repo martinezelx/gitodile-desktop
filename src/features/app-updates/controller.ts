@@ -1,13 +1,19 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { registerInstallParticipant } from "../../runtime/install";
-import type { StartupUpdateConfirmation, UpdateState } from "./domain";
+import { isReducedMotionRequested } from "../../shared/ui";
+import { isDevelopmentBuild, type StartupUpdateConfirmation, type UpdateState } from "./domain";
 import { installReadyUpdate } from "./install";
 import type { AppUpdatesPort } from "./port";
 
 const STARTUP_SETTLE_MS = 5_000;
 export const AUTOMATIC_CHECK_CADENCE_MS = 24 * 60 * 60 * 1_000;
 const ACTIVE_STATE_POLL_MS = 150;
+/** How long a check the user asked for stays visibly "checking" at least. A
+ * build that cannot check (a development build) answers in a few
+ * milliseconds, and a result that replaces the press at once reads as a
+ * failure rather than a check. Reduced motion skips the hold. */
+export const MANUAL_CHECK_MINIMUM_MS = 800;
 const disposalTokens = new WeakMap<AppUpdatesController, object>();
 
 type Timer = ReturnType<typeof globalThis.setTimeout>;
@@ -36,6 +42,8 @@ export function createAppUpdatesController(
   options: Readonly<{
     automaticEnabled?: boolean;
     startupSettleMs?: number;
+    /** Overrides `MANUAL_CHECK_MINIMUM_MS`; 0 publishes results at once. */
+    manualCheckMinimumMs?: number;
     now?: () => number;
     /** Told the settled state of every background check — the one the user
      * did not ask for and is not watching. Manual checks report to whoever
@@ -47,6 +55,7 @@ export function createAppUpdatesController(
   const listeners = new Set<() => void>();
   const now = options.now ?? Date.now;
   const settleMs = options.startupSettleMs ?? STARTUP_SETTLE_MS;
+  const manualCheckMinimumMs = options.manualCheckMinimumMs ?? MANUAL_CHECK_MINIMUM_MS;
   let snapshot: AppUpdatesSnapshot = {
     state: { kind: "idle" },
     startupConfirmation: { kind: "none" },
@@ -78,12 +87,29 @@ export function createAppUpdatesController(
   const isActive = (state: UpdateState): boolean =>
     ["checking", "downloading", "verifying"].includes(state.kind);
 
+  /** Publishes a settled state no earlier than `holdUntil`, so a manual check
+   * stays visible for its minimum. The work itself is never delayed: native
+   * has already finished it, only the verdict waits to be shown. */
+  const publishSettled = (state: UpdateState, holdUntil: number | null): Promise<UpdateState> => {
+    const remaining = holdUntil === null ? 0 : holdUntil - now();
+    if (remaining <= 0 || disposed) {
+      publish({ state });
+      return Promise.resolve(state);
+    }
+    return new Promise((resolve) => {
+      globalThis.setTimeout(() => {
+        publish({ state });
+        resolve(state);
+      }, remaining);
+    });
+  };
+
   /** Commands start native work and return its first snapshot immediately.
    * Polling only mirrors that native owner; it does not infer transitions or
    * manufacture a renderer lifecycle. */
-  const waitForSettled = (initial: UpdateState): Promise<UpdateState> => {
+  const waitForSettled = (initial: UpdateState, holdUntil: number | null = null): Promise<UpdateState> => {
+    if (!isActive(initial) || disposed) return publishSettled(initial, holdUntil);
     publish({ state: initial });
-    if (!isActive(initial) || disposed) return Promise.resolve(initial);
     return new Promise((resolve) => {
       const poll = (): void => {
         if (disposed) {
@@ -93,9 +119,12 @@ export function createAppUpdatesController(
         clearPoll();
         pollTimer = globalThis.setTimeout(() => {
           void port.readState().then((state) => {
-            publish({ state });
-            if (isActive(state) && !disposed) poll();
-            else resolve(state);
+            if (isActive(state) && !disposed) {
+              publish({ state });
+              poll();
+            } else {
+              void publishSettled(state, holdUntil).then(resolve);
+            }
           }).catch(() => poll());
         }, ACTIVE_STATE_POLL_MS);
       };
@@ -125,8 +154,17 @@ export function createAppUpdatesController(
 
   const check = (source: "manual" | "background" = "manual"): Promise<UpdateState> => {
     if (sharedCheck) return sharedCheck;
-    if (sharedDownload || sharedInstall) return Promise.resolve(snapshot.state);
-    sharedCheck = port.check(source).then(({ state }) => waitForSettled(state)).catch(() => {
+    if (sharedDownload || sharedInstall || isDevelopmentBuild(snapshot.state)) return Promise.resolve(snapshot.state);
+    /* A check the user pressed shows "checking" at once, before native
+       answers, and keeps it for the minimum. The placeholder has no operation
+       id, so there is nothing to cancel until native names one. */
+    const holdUntil = source === "manual" && manualCheckMinimumMs > 0 && !isReducedMotionRequested()
+      ? now() + manualCheckMinimumMs
+      : null;
+    if (holdUntil !== null && snapshot.state.kind !== "checking") {
+      publish({ state: { kind: "checking", operationId: "", source } });
+    }
+    sharedCheck = port.check(source).then(({ state }) => waitForSettled(state, holdUntil)).catch(() => {
       const state: UpdateState = {
         kind: "failed",
         error: { code: "internal", stage: "check", retryable: true },
@@ -212,7 +250,7 @@ export function createAppUpdatesController(
       return sharedDownload;
     },
     cancel() {
-      const operationId = snapshot.state.kind === "checking" ? snapshot.state.operationId : null;
+      const operationId = snapshot.state.kind === "checking" && snapshot.state.operationId !== "" ? snapshot.state.operationId : null;
       if (operationId === null && snapshot.state.kind !== "downloading") return Promise.resolve(snapshot.state);
       // Download operation identity is intentionally native-owned. Read the
       // latest state: native returns its exact id in the action that began the
@@ -240,7 +278,7 @@ export function createAppUpdatesController(
                 code: "install_blocked",
                 stage: "admission",
                 retryable: true,
-                safeDetail: result.label,
+                ...(result.label !== null ? { blocker: result.label } : {}),
               },
             };
         publish({ state });

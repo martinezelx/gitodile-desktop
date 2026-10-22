@@ -3,7 +3,7 @@
 .save-version-success { display: grid; gap: var(--space-2); }
 .save-version-success > p { margin: 0; }
 .save-version-success-details {
-  margin: 0; padding: 10px 12px; border-radius: var(--radius-surface); background: var(--surface-hover);
+  margin: 0; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-card);
   color: var(--text-primary-color); font-size: var(--text-body); white-space: pre-wrap; word-break: break-word;
 }
 
@@ -14,7 +14,7 @@
 }
 .save-version-detail__heading { margin: 8px 0 4px; font-size: var(--text-label); color: var(--text-secondary-color); }
 .save-version-detail__body {
-  margin: 0; padding: 10px; border-radius: var(--radius-surface); background: var(--surface-hover);
+  margin: 0; padding: 10px var(--space-3); border-radius: var(--radius-item); background: var(--surface-code); font-family: var(--font-mono);
   color: var(--text-secondary-color); font-size: var(--text-label); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto;
 }
 .save-version-description textarea {
@@ -29,8 +29,9 @@
 .save-version-title__error { color: var(--status-danger); font-size: var(--text-label); }
 
 /* The summary: the count is the headline and the breakdown reads after it as
-   text, one voice rather than three kinds of mark. The categories keep their
-   colours as ink, the way the status chips do. */
+   text, one voice rather than three kinds of mark. Like Overview's "What
+   you'll save", the totals stay in the secondary ink: the dialog does not
+   open on a red number. The file list below keeps the kinds' colours. */
 .save-version-summary { display: grid; gap: var(--space-1); }
 .save-version-summary__head {
   display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); row-gap: 2px;
@@ -43,17 +44,13 @@
 }
 .save-version-breakdown__item { white-space: nowrap; }
 .save-version-breakdown__item + .save-version-breakdown__item::before { content: "·"; margin-inline: 6px; color: var(--text-secondary-color); }
-.save-version-breakdown__item--new { color: var(--status-success); }
-.save-version-breakdown__item--deleted { color: var(--status-danger); }
-.save-version-breakdown__item--renamed { color: var(--status-renamed); }
-.save-version-breakdown__item--conflicted { color: var(--status-warning); }
 .save-version-summary__toggle {
   display: inline-flex; align-items: center; gap: 4px; margin-inline-start: auto; font-size: var(--text-label);
 }
 .save-version-summary__toggle svg { width: 14px; height: 14px; transition: transform var(--duration-fast); }
 .save-version-summary__toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 
-/* The line a version lands on: quieter than the count, and it gives way
+/* The branch a version lands on: quieter than the count, and it gives way
    (ellipsis) rather than push anything when the name runs long. */
 .save-version-branch {
   display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0;
@@ -65,7 +62,7 @@
 /* Dense, so a solid surface (DESIGN.md: dense areas are never translucent). */
 .save-version-files {
   max-height: 176px; overflow-y: auto; margin-top: var(--space-1); padding: 6px 12px;
-  border-radius: var(--radius-surface); background: var(--surface-hover);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-card);
 }
 .save-version-files > ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .save-version-files li { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-size: var(--text-label); }

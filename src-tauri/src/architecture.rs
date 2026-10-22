@@ -68,11 +68,15 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "application",
         "app_updates",
         "changes",
+        "credentials",
         "desktop",
         "diagnostics",
         "git",
         "git_command",
+        "github_auth",
+        "github_access",
         "history",
+        "hosting",
         "index",
         "ipc",
         "operation",
@@ -83,7 +87,7 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
         "save_version",
         "status",
         "tooling",
-        "version_lines",
+        "branches",
         "watch",
     ] {
         assert!(
@@ -108,10 +112,14 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
 
     for (owner, entry) in [
         ("repository", "repository.rs"),
+        ("github_auth", "github_auth.rs"),
+        ("github_access", "github_access.rs"),
+        ("credentials", "credentials.rs"),
+        ("hosting", "hosting.rs"),
         ("status", "status.rs"),
         ("changes", "changes.rs"),
         ("history", "history.rs"),
-        ("version_lines", "version_lines.rs"),
+        ("branches", "branches.rs"),
         ("save_version", "save_version.rs"),
         ("publish", "publish.rs"),
         ("recovery", "recovery/mod.rs"),
@@ -159,10 +167,10 @@ fn rust_module_boundaries_keep_composition_and_domains_separate() {
 
     let root_source = fs::read_to_string(source_dir.join("lib.rs")).expect("read lib.rs");
     for legacy_marker in [
-        "fn parse_version_line_refs",
-        "fn plan_create_version_line",
-        "fn switch_version_line",
-        "fn delete_version_line",
+        "fn parse_branch_refs",
+        "fn plan_create_branch",
+        "fn switch_branch",
+        "fn delete_branch",
         "pub(crate) fn open_repository",
         "pub(crate) fn parse_status_records",
         "pub(crate) fn read_working_tree_status",

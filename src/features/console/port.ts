@@ -1,4 +1,4 @@
-import type { ConsoleOperationId } from "./domain";
+import type { ConsoleHostingId, ConsoleOperationId } from "./domain";
 
 export type ConsoleQueryResult = {
   operationId: ConsoleOperationId;
@@ -26,9 +26,9 @@ export type ConsoleEffect = "reads_only" | "changes_project" | "changes_history"
 /** One statement of what a change plan will do, read from the repository. */
 export type PlanFact =
   | { kind: "stages"; files: string[]; total: number }
-  | { kind: "commits"; line: string | null; files: number | null }
+  | { kind: "commits"; branch: string | null; files: number | null }
   | { kind: "switches"; target: string; create: boolean }
-  | { kind: "creates_line"; name: string }
+  | { kind: "creates_branch"; name: string }
   | { kind: "creates_tag"; name: string }
   | { kind: "sets_aside"; files: number }
   | { kind: "applies_set_aside"; stash: string }
@@ -36,7 +36,7 @@ export type PlanFact =
   | { kind: "copies_version"; version: string }
   | { kind: "fetches"; remote: string | null }
   | { kind: "pulls"; remote: string | null }
-  | { kind: "publishes"; remote: string | null; line: string | null; versions: number | null }
+  | { kind: "publishes"; remote: string | null; branch: string | null; versions: number | null }
   | { kind: "asks_remote"; remote: string | null }
   | { kind: "skips_hooks"; typed: boolean };
 
@@ -51,8 +51,6 @@ export type ConsolePlan = {
   shape: OutputShape;
   facts: PlanFact[];
   refusal: { reason: ConsoleRefusalReason; subject: string | null } | null;
-  /** The mode Rust planned under, which decides what a refusal suggests. */
-  advancedMode: boolean;
 };
 
 /** Rust's reading of why a change failed; the output is still shown as is. */
@@ -69,10 +67,42 @@ export type ConsoleRunResult = {
   failure: ConsoleRunFailure | null;
 };
 
+/** Where the project's remote lives, as Rust read it from the project. */
+export type HostKind = "github" | "gitlab" | "bitbucket" | "git" | "local" | "unclear";
+
+export type ConsoleHost = {
+  kind: HostKind;
+  /** The server's `host[:port]`, when there is a remote to read it from. */
+  host: string | null;
+  /** A GitHub Enterprise Server or GitLab Self-Managed server. */
+  companyServer: boolean;
+  remote: string | null;
+};
+
+/** Why a hosting shortcut gave no answer of its own. */
+export type HostingUnavailable = "not_supported" | "cli_missing" | "signed_out";
+
+export type ConsoleHostingResult = {
+  operationId: ConsoleHostingId;
+  /** The command as typed; null when none could run. */
+  command: string | null;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  success: boolean;
+  truncated: boolean;
+  host: ConsoleHost;
+  unavailable: HostingUnavailable | null;
+};
+
 type Session = { projectId: string; sessionEpoch: string };
 
 export interface ConsolePort {
   run(request: Session & { operationId: ConsoleOperationId }): Promise<ConsoleQueryResult>;
+  /** Runs one fixed gh/glab query; Rust picks the CLI from the project's remote. */
+  runHosting(request: Session & { operationId: ConsoleHostingId }): Promise<ConsoleHostingResult>;
+  /** The project's provider, read from its own remotes without the network. */
+  readHost(request: Session): Promise<ConsoleHost>;
   /**
    * Sends the typed line to Rust, which alone parses and classifies it.
    * `runHooks` is the Settings switch the guided flows pass the same way.
@@ -82,11 +112,9 @@ export interface ConsolePort {
   /** Runs a change plan with the person's answer, which Rust checks too. */
   runChange(request: Session & { planId: string; answer: string }): Promise<ConsoleRunResult>;
   getSettings(): Promise<ConsoleModes>;
-  /** Turning it on needs `confirmed`: the person accepted the dialog. */
-  setAdvancedMode(request: { enabled: boolean; confirmed: boolean }): Promise<ConsoleModes>;
-  /** Turning confirmations off needs `confirmed`, as above. */
+  /** Turning confirmations off needs `confirmed`: the person accepted the dialog. */
   setConfirmChanges(request: { enabled: boolean; confirmed: boolean }): Promise<ConsoleModes>;
 }
 
-/** The console's two settings, which Rust holds and checks on every plan. */
-export type ConsoleModes = { advancedMode: boolean; confirmChanges: boolean };
+/** The console's setting, which Rust holds and checks on every plan. */
+export type ConsoleModes = { confirmChanges: boolean };

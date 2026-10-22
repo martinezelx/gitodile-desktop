@@ -6,12 +6,16 @@ export interface OverviewTranslations {
   overviewUnbornReady: string;
   overviewDetachedReady: string;
   overviewOpenAnotherProject: string;
-  overviewCurrentVersionLine: string;
-  /** The caption over the line name in the header's selector. */
-  overviewVersionLineLabel: string;
-  overviewSpecificSavedVersion: string;
-  overviewNoSavedVersions: string;
-  overviewVersionLineDescription: string;
+  overviewHomeLoading: string;
+  overviewHomeLocal: string;
+  overviewHomeLocalHint: string;
+  /** Opens `label` on `service` ("GitHub", or "the web" for another server). */
+  overviewHomeOpen: (label: string, service: string) => string;
+  overviewHomeRemote: (remote: string) => string;
+  overviewHomeWeb: string;
+  overviewHomeOpenFailedTitle: string;
+  overviewHomeOpenFailedMessage: string;
+  overviewBranchDescription: string;
   overviewDetachedDescription: string;
   overviewUnbornDescription: string;
   overviewProjectType: string;
@@ -25,60 +29,134 @@ export interface OverviewTranslations {
   /** The header's project icon is a button into project settings' icon
    * section. */
   overviewChangeProjectIcon: string;
-  overviewCopyPath: string;
-  overviewPathCopied: string;
-  overviewCopyPathFailedTitle: string;
-  overviewCopyPathFailedMessage: string;
+  /** The header's folder button, and what it says when the file manager will
+   * not open. */
+  overviewOpenFolder: string;
+  overviewOpenFolderFailedTitle: string;
+  overviewOpenFolderFailedMessage: string;
   overviewOpeningTitle: string;
   overviewOpeningDescription: string;
   overviewOpenFailedTitle: string;
   overviewReviewChanges: string;
   overviewSaveVersion: string;
   overviewCheckLocalAgain: string;
-  /** The changed-files card: its title, and the line under it saying what
-   * the files are counted from. */
-  overviewChangedFilesTitle: string;
-  overviewChangedFilesSince: string;
-  /** Under the clean card's tick: what the card will hold once there is
-   * something to hold. */
-  overviewChangedFilesCleanTip: string;
-  overviewChangesPreviewLabel: string;
   overviewChangesPreviewOpenFile: (path: string) => string;
-  /** The band across the top: change, save, publish. One label per step,
-   * one value and one hint per state, and the sentence under the band. */
-  overviewJourneyTitle: string;
-  overviewJourneyChanges: string;
-  overviewJourneySave: string;
-  overviewJourneyPublish: string;
-  overviewJourneyNextStep: string;
-  overviewJourneyNoChanges: string;
-  overviewJourneyNothingChanged: string;
   overviewJourneyResolve: string;
-  overviewJourneySaveWaiting: string;
-  overviewJourneySaveWaitingHint: string;
-  overviewJourneySaveBlocked: string;
-  overviewJourneySaveBlockedHint: string;
-  overviewJourneySaveDoneHint: string;
-  /** The Save tile's hint once saved, when the last saved version's time is
-   * known — the one thing that tile can add that the others do not say. */
-  overviewJourneyLastSaved: (relative: string) => string;
-  overviewJourneySaveActive: string;
-  overviewJourneyCheckHint: string;
   overviewJourneyReadyToPublish: (count: number) => string;
-  overviewJourneyNewerAvailable: (count: number) => string;
-  /** Before the remote line on the Publish tile: "to origin · main". */
-  overviewJourneyPublishTo: string;
-  overviewJourneyNoRemote: string;
-  overviewJourneyNoRemoteHint: string;
   overviewJourneyNoUpstream: string;
   overviewJourneyNoteSave: string;
   overviewJourneyNoteAhead: string;
-  overviewJourneyNoteNoRemote: string;
-  overviewJourneyNoteAllDone: string;
   overviewJourneyNoteIdle: string;
   overviewPublishAll: (count: number) => string;
+  /** The next-step card: the words over its title, by what the card asks. */
+  /** The card's three-segment progress, read out: "2 of 3 steps done". */
+  overviewNextConflictsTitle: (count: number) => string;
+  overviewNextConflictsHint: string;
+  overviewNextSaveTitle: (count: number) => string;
+  /** "Publish 2 versions to origin"; without a remote name, "Publish 2 versions". */
+  overviewNextPublishTitle: (count: number, remote: string | null) => string;
+  overviewNextUpToDateTitle: string;
+  overviewNextUpToDateHint: (remote: string | null) => string;
+  /** The timeline's first node: the working tree, before any saved version. */
+  overviewNowLabel: string;
+  overviewNowClean: string;
+  overviewNowConflicts: (count: number) => string;
+  /** The group of versions that have not left this computer. */
+  overviewTimelineLocalGroup: string;
+  /** The mark above the newest version the remote has: "Published on". */
+  overviewTimelinePublished: string;
+  /** The row above "now" for versions waiting on the remote. */
+  overviewTimelineIncoming: (count: number) => string;
+  overviewTimelineGet: string;
+  /** Under the last version drawn when older ones exist; History has them. */
+  overviewTimelineEndMore: (count: number) => string;
+  /** Under the last version of a shallow copy, whose older history was not downloaded. */
+  overviewTimelineEndShallow: string;
+  /** Under the branch's first version. */
+  overviewTimelineEndStart: string;
+  /** The side column: what the next step will move, and where you can go
+   * back to. */
+  overviewDetailSaveTitle: string;
+  overviewDetailPublishTitle: string;
+  overviewDetailReview: string;
+  overviewDetailInHistory: string;
+  overviewDetailFiles: (count: number) => string;
+  /** When not every unpublished version's files are known: "9+ files". */
+  overviewDetailFilesAtLeast: (count: number) => string;
+  overviewDetailInNextVersion: string;
+  overviewDetailInVersions: (count: number) => string;
+  overviewDetailMore: (count: number) => string;
+  overviewDetailLines: (added: number, removed: number) => string;
+  /** The column's closing line, the consequence in one line that fits the
+   * column in every language: where the work stays, or who will see it. */
+  /** When the remote branch has another name than the project's branch. */
+  overviewDetailLoading: string;
+  overviewDetailFilesError: string;
+  overviewDetailVersionsError: string;
+  overviewSafetyDiscarded: string;
+  /** A listed copy's line: its file count, then a few of its file names. */
+  overviewSafetyDiscardedHint: (count: number, names: string) => string;
+  /** Several restorable copies: how many (the badge on the icon, read out
+   * for assistive technology), and when the newest was made. */
+  /** The card's other cases: the first save, versions waiting on the remote,
+   * both sides moved, a check that failed, no remote, an older version. */
+  overviewNextFirstSaveTitle: string;
+  overviewNextFirstSaveHint: (count: number) => string;
+  overviewNextBehindTitle: (count: number, remote: string | null) => string;
+  overviewNextDivergedTitle: (count: number) => string;
+  overviewNextDivergedHint: (remote: string | null) => string;
+  overviewNextFromHint: (from: string, files: number) => string;
+  overviewNextDivergedBoth: (incoming: number, local: number, remote: string | null) => string;
+  overviewNextGetCount: (count: number) => string;
+  overviewNextGetAndCombine: string;
+  overviewNextGetAndPublish: string;
+  overviewNextSeeOverlap: string;
+  overviewNextSeeWhy: string;
+  overviewNextOverlapTitle: (remote: string | null) => string;
+  overviewNextOverlapHint: (path: string, more: number) => string;
+  overviewNextNoteClear: string;
+  overviewNextNoteCanCombine: string;
+  overviewNextNoteOverlap: string;
+  overviewNextNoteIncomingClear: (count: number, remote: string | null) => string;
+  overviewNextNoteIncomingCombined: (count: number, remote: string | null, file: string, fileCount: number) => string;
+  overviewNextUnavailableTitle: (remote: string | null) => string;
+  overviewNextUnavailableHint: string;
+  overviewNextNoRemoteTitle: string;
+  overviewNextNoRemoteHint: string;
+  overviewNextDetachedTitle: string;
+  overviewNextDetachedHint: string;
+  overviewNextConnectRemote: string;
+  overviewNextOpenBranches: string;
+  overviewNextGoneTitle: (branch: string | null, remote: string | null) => string;
+  overviewNextGoneHint: (remote: string | null) => string;
+  overviewNextSwitchTo: (branch: string) => string;
+  overviewNextPublishAgain: string;
+  overviewNextStopTracking: string;
+  overviewNextPublishBranch: string;
+  /** The timeline's boundary for a branch whose remote branch was deleted. */
+  overviewTimelineWasPublished: string;
+  /** The neutral pill for what comes after this step: "Then: 3 new versions
+   * on origin", "Then: publish 2 versions". */
+  overviewNextThen: string;
+  overviewNextThenGet: (count: number) => string;
+  overviewNextThenOn: (remote: string) => string;
+  overviewNextThenPublish: (count: number) => string;
+  /** While saving is the step: publish what is about to be saved, with the
+   * `count` versions already waiting ("publish it along with 4 more"). */
+  overviewNextThenPublishWith: (count: number) => string;
+  /** The side column's other details. */
+  overviewDetailResolveTitle: string;
+  overviewDetailResolveSum: string;
+  overviewDetailBringTitle: string;
+  overviewDetailVersions: (count: number) => string;
+  overviewDetailFrom: (remote: string) => string;
+  overviewDetailVersionsLoading: string;
+  overviewDiscardRestore: string;
+  overviewDiscardRestoreCopy: (when: string, count: number) => string;
+  /** The remote's name in the timeline when it has none. */
+  overviewTimelineRemote: string;
+  overviewFactsCheck: string;
   overviewHistoryTitle: string;
-  overviewHistoryDescription: string;
   overviewHistoryViewAll: string;
   overviewHistoryLoading: string;
   overviewHistoryErrorTitle: string;
@@ -93,9 +171,9 @@ export interface OverviewTranslations {
   overviewHistoryLocalOnly: string;
   /** A version saved under the user's own Git identity. */
   overviewHistoryYou: string;
-  /** The badge on the version the project stands on, in place of the line's
+  /** The badge on the version the project stands on, in place of the branch's
    * name, which the header already says. */
-  overviewHistoryCurrentLine: string;
+  overviewHistoryCurrentBranch: string;
   overviewHistoryPublicationUnknown: string;
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
@@ -106,29 +184,8 @@ export interface OverviewTranslations {
   overviewPublishUpTo: string;
   overviewPublishUpToHint: string;
   overviewCloseProject: string;
-  overviewEmptyTitle: string;
-  overviewHomeTitle: string;
-  overviewEmptyDescription: string;
   overviewOpening: string;
   overviewOpenProject: string;
-  overviewCloneRemoteProject: string;
-  overviewCreateLocalProject: string;
-  /** One line under each welcome action, answering "which of these three is
-   * mine?" — the labels alone don't separate opening a folder that is already
-   * a project from creating or downloading one. */
-  overviewCreateLocalProjectHint: string;
-  overviewOpenProjectHint: string;
-  overviewCloneRemoteProjectHint: string;
-  /** Discovery line for the window's drag-and-drop: the gesture works, and
-   * nothing on screen said so. */
-  overviewDropFolderHint: string;
-  overviewRecentProjectsTitle: string;
-  /** The star beside the recents heading: the same view filter the version
-   * line quick switch has, in the recents' own words. */
-  overviewRecentFavouritesOnly: string;
-  overviewRecentFavouritesOnlyOff: string;
-  overviewForgetRecentProject: (name: string) => string;
-  overviewForgetRecentProjectShort: string;
   overviewOpenDialogTitle: string;
   overviewCouldntOpenFolder: string;
 }
@@ -141,69 +198,147 @@ const en: OverviewTranslations = {
   overviewUnbornReady: "Your new project is ready",
   overviewDetachedReady: "A specific saved version is open",
   overviewOpenAnotherProject: "Open another project",
-  overviewCurrentVersionLine: "Current version line",
-  overviewVersionLineLabel: "Version line",
-  overviewSpecificSavedVersion: "Specific saved version",
-  overviewNoSavedVersions: "No saved versions yet",
-  overviewVersionLineDescription: "New work goes on this line.",
+  overviewHomeLoading: "Reading where this project lives…",
+  overviewHomeLocal: "Only on this computer",
+  overviewHomeLocalHint: "No remote yet: connect one in the project's settings to publish it.",
+  overviewHomeOpen: (label, service) => `Open ${label} on ${service}`,
+  overviewHomeRemote: (remote) => `Remote “${remote}”`,
+  overviewHomeWeb: "the web",
+  overviewHomeOpenFailedTitle: "Couldn't open the page",
+  overviewHomeOpenFailedMessage: "Open the project's page from your browser.",
+  overviewBranchDescription: "New work goes on this branch.",
   overviewDetachedDescription: "You're looking at a specific point in history.",
   overviewUnbornDescription: "Your first saved version starts this project's history.",
   overviewProjectType: "Project type",
   overviewRepositoryTypeDescription: "A standard project in this folder.",
-  overviewWorktreeTypeDescription: "A linked workspace with its own files and version line.",
+  overviewWorktreeTypeDescription: "A linked workspace with its own files and branch.",
   overviewTechnicalDetails: "Technical details",
   overviewResolvedRoot: "Project root",
   overviewSelectedFolder: "Folder you selected",
   overviewGitDirectory: "Git directory",
   overviewCommonGitDirectory: "Shared Git directory",
   overviewChangeProjectIcon: "Change project icon",
-  overviewCopyPath: "Copy project path",
-  overviewPathCopied: "Path copied",
-  overviewCopyPathFailedTitle: "Couldn't copy the path",
-  overviewCopyPathFailedMessage: "Select the path and copy it by hand.",
+  overviewOpenFolder: "Open project folder",
+  overviewOpenFolderFailedTitle: "Couldn't open the folder",
+  overviewOpenFolderFailedMessage: "Copy the path and open it from your file manager.",
   overviewOpeningTitle: "Opening project…",
   overviewOpeningDescription: "Checking the selected folder.",
   overviewOpenFailedTitle: "Couldn't open that project",
   overviewReviewChanges: "Review changes",
   overviewSaveVersion: "Save version",
   overviewCheckLocalAgain: "Check local changes again",
-  overviewChangedFilesTitle: "Changed files",
-  overviewChangedFilesSince: "Since your last saved version.",
-  overviewChangedFilesCleanTip: "Files you edit, add or delete show up here, ready to review before you save a version.",
-  overviewChangesPreviewLabel: "Changed files",
   overviewChangesPreviewOpenFile: (path) => `Review ${path}`,
-  overviewJourneyTitle: "Where your work is",
-  overviewJourneyChanges: "Changes",
-  overviewJourneySave: "Save",
-  overviewJourneyPublish: "Publish",
-  overviewJourneyNextStep: "next step",
-  overviewJourneyNoChanges: "Nothing to save",
-  overviewJourneyNothingChanged: "Edit a file and it shows up here.",
   overviewJourneyResolve: "Resolve overlaps",
-  overviewJourneySaveWaiting: "Waiting for the check",
-  overviewJourneySaveWaitingHint: "You can save once your files are checked.",
-  overviewJourneySaveBlocked: "Resolve the overlaps first",
-  overviewJourneySaveBlockedHint: "Files with overlapping changes can't be saved yet.",
-  overviewJourneySaveDoneHint: "Every change is in a saved version.",
-  overviewJourneyLastSaved: (relative) => `Last saved ${relative}`,
-  overviewJourneySaveActive: "Keep your work safe",
-  overviewJourneyCheckHint: "Check the remote for the latest changes.",
   overviewJourneyReadyToPublish: (count) =>
     count === 1 ? "1 version ready to publish" : `${count} versions ready to publish`,
-  overviewJourneyNewerAvailable: (count) =>
-    count === 1 ? "1 newer version available" : `${count} newer versions available`,
-  overviewJourneyPublishTo: "to",
-  overviewJourneyNoRemote: "No remote yet",
-  overviewJourneyNoRemoteHint: "Add one in project settings to share your work.",
   overviewJourneyNoUpstream: "No publish destination yet",
   overviewJourneyNoteSave: "Saving keeps a point to come back to, and nothing leaves this computer until you publish.",
   overviewJourneyNoteAhead: "Your saved versions are only on this computer until you publish them.",
-  overviewJourneyNoteNoRemote: "Everything is saved on this computer, so add a remote whenever you want to share it.",
-  overviewJourneyNoteAllDone: "Everything is saved and published.",
   overviewJourneyNoteIdle: "Checking your project…",
   overviewPublishAll: (count) => (count === 1 ? "Publish all" : `Publish all ${count}`),
+  overviewNextConflictsTitle: (count) =>
+    count === 1 ? "1 file has overlapping changes" : `${count} files have overlapping changes`,
+  overviewNextConflictsHint: "Choose what stays in each part. Nothing is saved until you finish.",
+  overviewNextSaveTitle: (count) => (count === 1 ? "Save your change" : `Save your ${count} changes`),
+  overviewNextPublishTitle: (count, remote) => {
+    const what = count === 1 ? "1 version" : `${count} versions`;
+    return remote ? `Publish ${what} to ${remote}` : `Publish ${what}`;
+  },
+  overviewNextUpToDateTitle: "Saved and published",
+  overviewNextUpToDateHint: (remote) =>
+    remote ? `${remote} has the same work as this computer.` : "Everything is saved and published.",
+  overviewNowLabel: "Now",
+  overviewNowClean: "Nothing unsaved",
+  overviewNowConflicts: (count) =>
+    count === 1 ? "1 file with overlapping changes" : `${count} files with overlapping changes`,
+  overviewTimelineLocalGroup: "On this computer",
+  overviewTimelinePublished: "Published",
+  overviewTimelineIncoming: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
+  overviewTimelineGet: "Get",
+  overviewTimelineEndMore: (count) =>
+    count === 1 ? "Latest version · older ones are in History" : `Latest ${count} versions · older ones are in History`,
+  overviewTimelineEndShallow: "Older versions were not downloaded to this computer",
+  overviewTimelineEndStart: "Where the project began",
+  overviewDetailSaveTitle: "What you'll save",
+  overviewDetailPublishTitle: "What you'll publish",
+  overviewDetailReview: "Review",
+  overviewDetailInHistory: "History",
+  overviewDetailFiles: (count) => (count === 1 ? "1 file" : `${count} files`),
+  overviewDetailFilesAtLeast: (count) => `${count}+ files`,
+  overviewDetailInNextVersion: "in your next version",
+  overviewDetailInVersions: (count) => (count === 1 ? "in 1 version" : `in ${count} versions`),
+  overviewDetailMore: (count) => `and ${count} more`,
+  overviewDetailLines: (added, removed) => `${added} lines added, ${removed} removed`,
+  overviewDetailLoading: "Reading the files…",
+  overviewDetailFilesError: "Couldn't read the files in these versions.",
+  overviewDetailVersionsError: "Couldn't read the versions waiting. Review them to see what changes.",
+  overviewSafetyDiscarded: "Discarded changes",
+  overviewSafetyDiscardedHint: (count, names) => `${count === 1 ? "1 file" : `${count} files`} · ${names}`,
+  overviewNextFirstSaveTitle: "Save your first version",
+  overviewNextFirstSaveHint: (count) =>
+    count === 1
+      ? "It will be the first point you can go back to. 1 file is waiting."
+      : `It will be the first point you can go back to. ${count} files are waiting.`,
+  overviewNextBehindTitle: (count, remote) => {
+    const what = count === 1 ? "1 new version" : `${count} new versions`;
+    return remote ? `${what} on ${remote}` : `${what} available`;
+  },
+  overviewNextDivergedTitle: (count) =>
+    count === 1 ? "Get 1 new version before publishing" : `Get ${count} new versions before publishing`,
+  overviewNextDivergedHint: (remote) =>
+    `${remote ?? "The remote"} moved on while you saved. Get them first, then publish yours.`,
+  overviewNextFromHint: (from, files) =>
+    `${from ? `${from} · ` : ""}${files} ${files === 1 ? "file" : "files"}.`,
+  overviewNextDivergedBoth: (incoming, local, remote) =>
+    `${remote ?? "The remote"} has ${incoming === 1 ? "1 new version" : `${incoming} new versions`} and you have ${local} unpublished`,
+  overviewNextGetCount: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
+  overviewNextGetAndCombine: "Get and combine",
+  overviewNextGetAndPublish: "Get and publish",
+  overviewNextSeeOverlap: "See what overlaps",
+  overviewNextSeeWhy: "See why",
+  overviewNextOverlapTitle: (remote) => `Your changes and ${remote ?? "the remote"}'s overlap`,
+  overviewNextOverlapHint: (path, more) =>
+    `${path} changes the same lines on both sides${more > 0 ? ` (and ${more} more)` : ""}. They can't be combined in GitOdile yet.`,
+  overviewNextNoteClear: "Nothing of yours overlaps.",
+  overviewNextNoteCanCombine: "They don't overlap: they can be combined.",
+  overviewNextNoteOverlap: "Nothing comes in until they stop overlapping.",
+  overviewNextNoteIncomingClear: (count, remote) =>
+    `${count === 1 ? "1 new version" : `${count} new versions`} on ${remote ?? "the remote"} ${count === 1 ? "doesn't" : "don't"} touch your files.`,
+  overviewNextNoteIncomingCombined: (count, remote, file, fileCount) =>
+    `${count === 1 ? "1 new version" : `${count} new versions`} on ${remote ?? "the remote"} also ${count === 1 ? "changes" : "change"} ${fileCount === 1 ? file : `${fileCount} of your files`}, on other lines: your edits stay on top.`,
+  overviewNextUnavailableTitle: (remote) => (remote ? `Couldn't check ${remote}` : "Couldn't check the remote"),
+  overviewNextUnavailableHint: "Your work is saved. Check your connection or account and try again.",
+  overviewNextNoRemoteTitle: "Saved on this computer",
+  overviewNextNoRemoteHint: "Connect a remote to keep a copy elsewhere and share it.",
+  overviewNextDetachedTitle: "You're looking at an older version",
+  overviewNextDetachedHint: "You can look around and try things. To keep saving, go back to a branch.",
+  overviewNextConnectRemote: "Connect a remote",
+  overviewNextOpenBranches: "Choose a branch",
+  overviewNextGoneTitle: (branch, remote) =>
+    `${branch ? `“${branch}”` : "This branch"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
+  overviewNextGoneHint: (remote) =>
+    `Someone deleted it on ${remote ? `“${remote}”` : "the remote"}, usually after merging its pull request. Your saved versions are still on this computer.`,
+  overviewNextSwitchTo: (branch) => `Switch to ${branch}`,
+  overviewNextPublishAgain: "Publish again…",
+  overviewNextStopTracking: "Stop following the remote",
+  overviewNextPublishBranch: "Publish this branch…",
+  overviewTimelineWasPublished: "Was published",
+  overviewNextThen: "Then:",
+  overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
+  overviewNextThenOn: (remote) => `on ${remote}`,
+  overviewNextThenPublish: (count) => (count === 1 ? "publish 1 version" : `publish ${count} versions`),
+  overviewNextThenPublishWith: (count) => (count === 0 ? "publish it" : `publish it along with ${count} more`),
+  overviewDetailResolveTitle: "What you'll decide",
+  overviewDetailResolveSum: "with overlapping parts",
+  overviewDetailBringTitle: "What you'll get",
+  overviewDetailVersions: (count) => (count === 1 ? "1 version" : `${count} versions`),
+  overviewDetailFrom: (remote) => `from ${remote}`,
+  overviewDetailVersionsLoading: "Reading the versions…",
+  overviewDiscardRestore: "Restore",
+  overviewDiscardRestoreCopy: (when, count) => `Restore the copy from ${when}, ${count === 1 ? "1 file" : `${count} files`}`,
+  overviewTimelineRemote: "Remote",
+  overviewFactsCheck: "Check",
   overviewHistoryTitle: "Recent history",
-  overviewHistoryDescription: "Your latest saved versions, newest first.",
   overviewHistoryViewAll: "View all",
   overviewHistoryLoading: "Loading recent history…",
   overviewHistoryErrorTitle: "Recent history is unavailable",
@@ -217,7 +352,7 @@ const en: OverviewTranslations = {
   overviewHistoryPublished: "Published",
   overviewHistoryLocalOnly: "Not published",
   overviewHistoryYou: "You",
-  overviewHistoryCurrentLine: "current",
+  overviewHistoryCurrentBranch: "current",
   overviewHistoryPublicationUnknown: "Publish status unknown",
   overviewHistoryOpenVersion: (title) => `Open “${title}” in History`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
@@ -226,22 +361,8 @@ const en: OverviewTranslations = {
   overviewPublishUpTo: "Publish up to here",
   overviewPublishUpToHint: "Publishes this version and all older ones.",
   overviewCloseProject: "Close project",
-  overviewEmptyTitle: "No project open",
-  overviewHomeTitle: "What would you like to open?",
-  overviewEmptyDescription: "Choose how to start. Everything stays on this computer until you publish.",
   overviewOpening: "Opening…",
   overviewOpenProject: "Open a project",
-  overviewCloneRemoteProject: "Clone a remote project",
-  overviewCreateLocalProject: "Create a local project",
-  overviewCreateLocalProjectHint: "A new or existing folder",
-  overviewOpenProjectHint: "A folder that uses Git",
-  overviewCloneRemoteProjectHint: "Download from a server",
-  overviewDropFolderHint: "Or drag a project folder onto this window.",
-  overviewRecentProjectsTitle: "Recent projects",
-  overviewRecentFavouritesOnly: "Show favorite projects only",
-  overviewRecentFavouritesOnlyOff: "Show all recent projects",
-  overviewForgetRecentProject: (name) => `Remove ${name} from recent projects`,
-  overviewForgetRecentProjectShort: "Remove from recent projects",
   overviewOpenDialogTitle: "Open a Git project",
   overviewCouldntOpenFolder: "Couldn't open that folder.",
 };
@@ -254,69 +375,148 @@ const es: OverviewTranslations = {
   overviewUnbornReady: "Tu proyecto nuevo está listo",
   overviewDetachedReady: "Tienes abierta una versión guardada concreta",
   overviewOpenAnotherProject: "Abrir otro proyecto",
-  overviewCurrentVersionLine: "Línea de versión actual",
-  overviewVersionLineLabel: "Línea de versión",
-  overviewSpecificSavedVersion: "Versión guardada concreta",
-  overviewNoSavedVersions: "Aún no hay versiones guardadas",
-  overviewVersionLineDescription: "El trabajo nuevo va a esta línea.",
+  overviewHomeLoading: "Viendo dónde vive este proyecto…",
+  overviewHomeLocal: "Solo en este ordenador",
+  overviewHomeLocalHint: "Aún no tiene remoto: conecta uno en los ajustes del proyecto para publicarlo.",
+  overviewHomeOpen: (label, service) => `Abrir ${label} en ${service}`,
+  overviewHomeRemote: (remote) => `Remoto «${remote}»`,
+  overviewHomeWeb: "la web",
+  overviewHomeOpenFailedTitle: "No se pudo abrir la página",
+  overviewHomeOpenFailedMessage: "Abre la página del proyecto desde tu navegador.",
+  overviewBranchDescription: "El trabajo nuevo va a esta rama.",
   overviewDetachedDescription: "Estás viendo un punto concreto del historial.",
   overviewUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
   overviewProjectType: "Tipo de proyecto",
   overviewRepositoryTypeDescription: "Un proyecto normal en esta carpeta.",
-  overviewWorktreeTypeDescription: "Un espacio de trabajo vinculado, con sus propios archivos y línea de versión.",
+  overviewWorktreeTypeDescription: "Un espacio de trabajo vinculado, con sus propios archivos y rama.",
   overviewTechnicalDetails: "Detalles técnicos",
   overviewResolvedRoot: "Raíz del proyecto",
   overviewSelectedFolder: "Carpeta que elegiste",
   overviewGitDirectory: "Directorio de Git",
   overviewCommonGitDirectory: "Directorio de Git compartido",
   overviewChangeProjectIcon: "Cambiar el icono del proyecto",
-  overviewCopyPath: "Copiar la ruta del proyecto",
-  overviewPathCopied: "Ruta copiada",
-  overviewCopyPathFailedTitle: "No se pudo copiar la ruta",
-  overviewCopyPathFailedMessage: "Selecciona la ruta y cópiala a mano.",
+  overviewOpenFolder: "Abrir la carpeta del proyecto",
+  overviewOpenFolderFailedTitle: "No se pudo abrir la carpeta",
+  overviewOpenFolderFailedMessage: "Copia la ruta y ábrela desde tu explorador de archivos.",
   overviewOpeningTitle: "Abriendo el proyecto…",
   overviewOpeningDescription: "Comprobando la carpeta elegida.",
   overviewOpenFailedTitle: "No se pudo abrir ese proyecto",
   overviewReviewChanges: "Revisar cambios",
   overviewSaveVersion: "Guardar versión",
   overviewCheckLocalAgain: "Volver a comprobar los cambios locales",
-  overviewChangedFilesTitle: "Archivos modificados",
-  overviewChangedFilesSince: "Desde tu última versión guardada.",
-  overviewChangedFilesCleanTip: "Los archivos que edites, añadas o borres aparecerán aquí, listos para revisar antes de guardar una versión.",
-  overviewChangesPreviewLabel: "Archivos modificados",
   overviewChangesPreviewOpenFile: (path) => `Revisar ${path}`,
-  overviewJourneyTitle: "Dónde está tu trabajo",
-  overviewJourneyChanges: "Cambios",
-  overviewJourneySave: "Guardar",
-  overviewJourneyPublish: "Publicar",
-  overviewJourneyNextStep: "siguiente paso",
-  overviewJourneyNoChanges: "Nada que guardar",
-  overviewJourneyNothingChanged: "Edita un archivo y aparecerá aquí.",
   overviewJourneyResolve: "Resolver solapamientos",
-  overviewJourneySaveWaiting: "Esperando la comprobación",
-  overviewJourneySaveWaitingHint: "Podrás guardar cuando se revisen tus archivos.",
-  overviewJourneySaveBlocked: "Resuelve antes los solapamientos",
-  overviewJourneySaveBlockedHint: "Los archivos con cambios superpuestos aún no se pueden guardar.",
-  overviewJourneySaveDoneHint: "Todos los cambios están en una versión guardada.",
-  overviewJourneyLastSaved: (relative) => `Guardada por última vez ${relative}`,
-  overviewJourneySaveActive: "Pon tu trabajo a salvo",
-  overviewJourneyCheckHint: "Comprueba el remoto para ver lo último.",
   overviewJourneyReadyToPublish: (count) =>
     count === 1 ? "1 versión lista para publicar" : `${count} versiones listas para publicar`,
-  overviewJourneyNewerAvailable: (count) =>
-    count === 1 ? "1 versión nueva disponible" : `${count} versiones nuevas disponibles`,
-  overviewJourneyPublishTo: "a",
-  overviewJourneyNoRemote: "Aún sin remoto",
-  overviewJourneyNoRemoteHint: "Añade uno en los ajustes del proyecto para compartir tu trabajo.",
   overviewJourneyNoUpstream: "Aún sin destino de publicación",
   overviewJourneyNoteSave: "Guardar crea un punto al que volver y nada sale de este ordenador hasta que publiques.",
   overviewJourneyNoteAhead: "Tus versiones guardadas solo están en este ordenador hasta que las publiques.",
-  overviewJourneyNoteNoRemote: "Todo está guardado en este ordenador, así que añade un remoto cuando quieras compartirlo.",
-  overviewJourneyNoteAllDone: "Todo está guardado y publicado.",
   overviewJourneyNoteIdle: "Revisando tu proyecto…",
   overviewPublishAll: (count) => (count === 1 ? "Publicar todo" : `Publicar las ${count}`),
+  overviewNextConflictsTitle: (count) =>
+    count === 1 ? "1 archivo tiene cambios superpuestos" : `${count} archivos tienen cambios superpuestos`,
+  overviewNextConflictsHint: "Elige qué se queda en cada parte. No se guarda nada hasta que termines.",
+  overviewNextSaveTitle: (count) => (count === 1 ? "Guarda tu cambio" : `Guarda tus ${count} cambios`),
+  overviewNextPublishTitle: (count, remote) => {
+    const what = count === 1 ? "1 versión" : `${count} versiones`;
+    return remote ? `Publica ${what} en ${remote}` : `Publica ${what}`;
+  },
+  overviewNextUpToDateTitle: "Guardado y publicado",
+  overviewNextUpToDateHint: (remote) =>
+    remote ? `${remote} tiene el mismo trabajo que este ordenador.` : "Todo está guardado y publicado.",
+  overviewNowLabel: "Ahora",
+  overviewNowClean: "Nada sin guardar",
+  overviewNowConflicts: (count) =>
+    count === 1 ? "1 archivo con cambios superpuestos" : `${count} archivos con cambios superpuestos`,
+  overviewTimelineLocalGroup: "En este ordenador",
+  overviewTimelinePublished: "Publicado",
+  overviewTimelineIncoming: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
+  overviewTimelineGet: "Traer",
+  overviewTimelineEndMore: (count) =>
+    count === 1 ? "Última versión · las anteriores están en Historial" : `Últimas ${count} versiones · las anteriores están en Historial`,
+  overviewTimelineEndShallow: "Las versiones anteriores no se descargaron en este ordenador",
+  overviewTimelineEndStart: "Aquí empezó el proyecto",
+  overviewDetailSaveTitle: "Lo que vas a guardar",
+  overviewDetailPublishTitle: "Lo que vas a publicar",
+  overviewDetailReview: "Revisar",
+  overviewDetailInHistory: "Historial",
+  overviewDetailFiles: (count) => (count === 1 ? "1 archivo" : `${count} archivos`),
+  overviewDetailFilesAtLeast: (count) => `${count}+ archivos`,
+  overviewDetailInNextVersion: "en tu próxima versión",
+  overviewDetailInVersions: (count) => (count === 1 ? "en 1 versión" : `en ${count} versiones`),
+  overviewDetailMore: (count) => `y ${count} más`,
+  overviewDetailLines: (added, removed) => `${added} líneas añadidas, ${removed} quitadas`,
+  overviewDetailLoading: "Leyendo los archivos…",
+  overviewDetailFilesError: "No se pudieron leer los archivos de estas versiones.",
+  overviewDetailVersionsError: "No se pudieron leer las versiones que esperan. Revísalas para ver qué cambia.",
+  overviewSafetyDiscarded: "Cambios descartados",
+  overviewSafetyDiscardedHint: (count, names) => `${count === 1 ? "1 archivo" : `${count} archivos`} · ${names}`,
+  overviewNextFirstSaveTitle: "Guarda tu primera versión",
+  overviewNextFirstSaveHint: (count) =>
+    count === 1
+      ? "Será el primer punto al que podrás volver. 1 archivo espera."
+      : `Será el primer punto al que podrás volver. ${count} archivos esperan.`,
+  overviewNextBehindTitle: (count, remote) => {
+    const what = count === 1 ? "1 versión nueva" : `${count} versiones nuevas`;
+    return remote ? `${what} en ${remote}` : `${what} disponibles`;
+  },
+  overviewNextDivergedTitle: (count) =>
+    count === 1 ? "Trae 1 versión nueva antes de publicar" : `Trae ${count} versiones nuevas antes de publicar`,
+  overviewNextDivergedHint: (remote) =>
+    `${remote ?? "El remoto"} ha avanzado mientras guardabas. Tráelas primero; luego podrás publicar las tuyas.`,
+  overviewNextFromHint: (from, files) =>
+    `${from ? `${from} · ` : ""}${files} ${files === 1 ? "archivo" : "archivos"}.`,
+  overviewNextDivergedBoth: (incoming, local, remote) =>
+    `${remote ?? "El remoto"} tiene ${incoming === 1 ? "1 versión nueva" : `${incoming} versiones nuevas`} y tú ${local} sin publicar`,
+  overviewNextGetCount: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
+  overviewNextGetAndCombine: "Traer y combinar",
+  overviewNextGetAndPublish: "Traer y publicar",
+  overviewNextSeeOverlap: "Ver qué se pisa",
+  overviewNextSeeWhy: "Ver por qué",
+  overviewNextOverlapTitle: (remote) => `Tus cambios y los de ${remote ?? "el remoto"} se pisan`,
+  overviewNextOverlapHint: (path, more) =>
+    `${path} cambia las mismas líneas en los dos lados${more > 0 ? ` (y ${more} más)` : ""}. Aún no se pueden combinar desde GitOdile.`,
+  overviewNextNoteClear: "No choca con nada tuyo.",
+  overviewNextNoteCanCombine: "No se pisan: se pueden combinar.",
+  overviewNextNoteOverlap: "No se trae nada hasta que dejen de pisarse.",
+  overviewNextNoteIncomingClear: (count, remote) =>
+    `${count === 1 ? "Hay 1 versión nueva" : `Hay ${count} versiones nuevas`} en ${remote ?? "el remoto"} que no ${count === 1 ? "toca" : "tocan"} tus archivos.`,
+  overviewNextNoteIncomingCombined: (count, remote, file, fileCount) =>
+    `${count === 1 ? "1 versión nueva" : `${count} versiones nuevas`} en ${remote ?? "el remoto"} también ${count === 1 ? "cambia" : "cambian"} ${fileCount === 1 ? file : `${fileCount} de tus archivos`}, en otras líneas: tus cambios se quedan encima.`,
+  overviewNextUnavailableTitle: (remote) => (remote ? `No se pudo comprobar ${remote}` : "No se pudo comprobar el remoto"),
+  overviewNextUnavailableHint: "Tu trabajo está guardado. Revisa la conexión o la cuenta y vuelve a intentarlo.",
+  overviewNextNoRemoteTitle: "Guardado en este ordenador",
+  overviewNextNoRemoteHint: "Conecta un remoto para tener una copia fuera y poder compartirlo.",
+  overviewNextDetachedTitle: "Estás viendo una versión antigua",
+  overviewNextDetachedHint: "Puedes mirar y probar. Para seguir guardando, vuelve a una rama.",
+  overviewNextConnectRemote: "Conectar un remoto",
+  overviewNextOpenBranches: "Elegir una rama",
+  overviewNextGoneTitle: (branch, remote) =>
+    `${branch ? `«${branch}»` : "Esta rama"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
+  overviewNextGoneHint: (remote) =>
+    `Alguien la borró en ${remote ? `«${remote}»` : "el remoto"}, normalmente al fusionar su PR. Tus versiones siguen en este ordenador.`,
+  overviewNextSwitchTo: (branch) => `Cambiar a ${branch}`,
+  overviewNextPublishAgain: "Volver a publicar…",
+  overviewNextStopTracking: "Dejar de seguir el remoto",
+  overviewNextPublishBranch: "Publicar esta rama…",
+  overviewTimelineWasPublished: "Estuvo publicado",
+  overviewNextThen: "Después:",
+  overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
+  overviewNextThenOn: (remote) => `en ${remote}`,
+  overviewNextThenPublish: (count) => (count === 1 ? "publicar 1 versión" : `publicar ${count} versiones`),
+  overviewNextThenPublishWith: (count) =>
+    count === 0 ? "publicarla" : count === 1 ? "publicarla junto a otra" : `publicarla junto a otras ${count}`,
+  overviewDetailResolveTitle: "Lo que vas a decidir",
+  overviewDetailResolveSum: "con partes superpuestas",
+  overviewDetailBringTitle: "Lo que vas a traer",
+  overviewDetailVersions: (count) => (count === 1 ? "1 versión" : `${count} versiones`),
+  overviewDetailFrom: (remote) => `de ${remote}`,
+  overviewDetailVersionsLoading: "Leyendo las versiones…",
+  overviewDiscardRestore: "Recuperar",
+  overviewDiscardRestoreCopy: (when, count) => `Recuperar la copia de ${when}, ${count === 1 ? "1 archivo" : `${count} archivos`}`,
+  overviewTimelineRemote: "Remoto",
+  overviewFactsCheck: "Comprobar",
   overviewHistoryTitle: "Historial reciente",
-  overviewHistoryDescription: "Tus últimas versiones guardadas, de la más reciente a la más antigua.",
   overviewHistoryViewAll: "Ver todo",
   overviewHistoryLoading: "Cargando el historial reciente…",
   overviewHistoryErrorTitle: "El historial reciente no está disponible",
@@ -330,7 +530,7 @@ const es: OverviewTranslations = {
   overviewHistoryPublished: "Publicada",
   overviewHistoryLocalOnly: "Sin publicar",
   overviewHistoryYou: "Tú",
-  overviewHistoryCurrentLine: "actual",
+  overviewHistoryCurrentBranch: "actual",
   overviewHistoryPublicationUnknown: "Publicación desconocida",
   overviewHistoryOpenVersion: (title) => `Abrir «${title}» en Historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",
@@ -339,22 +539,8 @@ const es: OverviewTranslations = {
   overviewPublishUpTo: "Publicar hasta aquí",
   overviewPublishUpToHint: "Publica esta versión y todas las anteriores.",
   overviewCloseProject: "Cerrar proyecto",
-  overviewEmptyTitle: "Ningún proyecto abierto",
-  overviewHomeTitle: "¿Qué te gustaría abrir?",
-  overviewEmptyDescription: "Elige cómo empezar. Todo se queda en este ordenador hasta que publiques.",
   overviewOpening: "Abriendo…",
   overviewOpenProject: "Abrir un proyecto",
-  overviewCloneRemoteProject: "Clonar un proyecto remoto",
-  overviewCreateLocalProject: "Crear un proyecto local",
-  overviewCreateLocalProjectHint: "Carpeta nueva o tuya",
-  overviewOpenProjectHint: "Una carpeta con Git",
-  overviewCloneRemoteProjectHint: "Desde un servidor",
-  overviewDropFolderHint: "O arrastra la carpeta de un proyecto a esta ventana.",
-  overviewRecentProjectsTitle: "Proyectos recientes",
-  overviewRecentFavouritesOnly: "Ver solo proyectos favoritos",
-  overviewRecentFavouritesOnlyOff: "Ver todos los proyectos recientes",
-  overviewForgetRecentProject: (name) => `Quitar ${name} de proyectos recientes`,
-  overviewForgetRecentProjectShort: "Quitar de proyectos recientes",
   overviewOpenDialogTitle: "Abrir un proyecto de Git",
   overviewCouldntOpenFolder: "No se pudo abrir esa carpeta.",
 };

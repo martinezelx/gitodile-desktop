@@ -5,8 +5,8 @@ import { useLanguage, type Translations } from "../../i18n";
 import type { HistoryDecoration, SavedVersionSummary } from "./domain";
 
 /* A commit carries every ref that points *at* it, which is not the same
-   question as "which line is this commit on" — Git cannot answer that one
-   cheaply, and a commit reachable from five lines belongs to all of them. So a
+   question as "which branch is this commit on" — Git cannot answer that one
+   cheaply, and a commit reachable from five branches belongs to all of them. So a
    row is badged only when a ref genuinely lands on it, and the rest of the
    timeline keeps the author and the time it already had.
 
@@ -14,13 +14,13 @@ import type { HistoryDecoration, SavedVersionSummary } from "./domain";
    already lists the full set.
 
    A tag comes first. It is the one fact on the row that cannot be inferred by
-   looking: a line's name is already implied by standing on it, and a line moves
+   looking: a branch's name is already implied by standing on it, and a branch moves
    with every saved version, while a tag is permanent and marks something
    someone chose to mark. A remote tracking ref comes last — it almost always
-   sits on the same commit as the local line it tracks and repeats that name
+   sits on the same commit as the local branch it tracks and repeats that name
    with a prefix. `head` is not ranked at all: its name is the literal string
-   "HEAD", which names no line; it is read separately, as the signal that the
-   line beside it is the one currently checked out. */
+   "HEAD", which names no branch; it is read separately, as the signal that the
+   branch beside it is the one currently checked out. */
 const BADGE_RANK = { tag: 0, localBranch: 1, remoteBranch: 2 } as const;
 
 type BadgeKind = keyof typeof BADGE_RANK;
@@ -29,9 +29,9 @@ function isBadgeable(decoration: HistoryDecoration): decoration is HistoryDecora
   return decoration.kind !== "head";
 }
 
-/** Whether this reference is the line the working tree is currently on — not
-    merely a line that happens to share a commit with it. */
-function isCheckedOutLine(
+/** Whether this reference is the branch the working tree is currently on — not
+    merely a branch that happens to share a commit with it. */
+function isCheckedOutBranch(
   decoration: HistoryDecoration,
   version: SavedVersionSummary,
   currentBranch: string | null,
@@ -43,7 +43,7 @@ function isCheckedOutLine(
 
 /** The one reference a dense row has space for, or `null` if none points here.
 
-    Between two lines of the same kind the checked-out one wins. Several lines
+    Between two branches of the same kind the checked-out one wins. Several branches
     can point at one commit — this repository's own tip carries `main` and the
     branch it was merged from — and picking alphabetically would name whichever
     sorts first rather than the one the user is standing on. It is a tie-break
@@ -55,18 +55,18 @@ export function primaryDecoration(version: SavedVersionSummary, currentBranch: s
     if (!isBadgeable(decoration)) continue;
     if (!best) { best = decoration; continue; }
     const byKind = BADGE_RANK[decoration.kind] - BADGE_RANK[best.kind];
-    if (byKind < 0 || (byKind === 0 && isCheckedOutLine(decoration, version, currentBranch))) best = decoration;
+    if (byKind < 0 || (byKind === 0 && isCheckedOutBranch(decoration, version, currentBranch))) best = decoration;
   }
   return best;
 }
 
-/** The local version line this row names, or `null` if it names none.
+/** The local branch this row names, or `null` if it names none.
  *
- * The badge and the row's actions have to agree about which line a row is
+ * The badge and the row's actions have to agree about which branch a row is
  * about, so both ask this. It is still "a ref that points at this commit" and
- * never "the line this commit is on": a tag may outrank the line in the badge,
- * and the line is still the one the actions act on. */
-export function localLineFor(
+ * never "the branch this commit is on": a tag may outrank the branch in the badge,
+ * and the branch is still the one the actions act on. */
+export function localBranchFor(
   version: SavedVersionSummary,
   currentBranch: string | null,
 ): HistoryDecoration | null {
@@ -83,7 +83,7 @@ export function localLineFor(
     `aria-label`, which replaces their whole subtree, so the badge stays silent
     unless the row folds this into its own name. */
 export function decorationLabel(decoration: HistoryDecoration, t: Translations): string {
-  return decoration.kind === "tag" ? t.historyRefTagLabel(decoration.name) : t.historyRefLineLabel(decoration.name);
+  return decoration.kind === "tag" ? t.historyRefTagLabel(decoration.name) : t.historyRefBranchLabel(decoration.name);
 }
 
 /** The separator between two facts on a metadata line.
@@ -98,8 +98,8 @@ export function HistoryMetaDot(): React.JSX.Element {
 
 export function HistoryRefBadge({ version, currentBranch, currentLabel }: {
   version: SavedVersionSummary; currentBranch: string | null;
-  /** Shown in place of the checked-out line's name, where the screen already
-   * names that line elsewhere — Overview's header, the status bar beside
+  /** Shown in place of the checked-out branch's name, where the screen already
+   * names that branch elsewhere — Overview's header, the status bar beside
    * History. The name stays in the title, and in the row's own label. */
   currentLabel?: string;
 }): React.JSX.Element | null {
@@ -107,11 +107,11 @@ export function HistoryRefBadge({ version, currentBranch, currentLabel }: {
   const decoration = primaryDecoration(version, currentBranch);
   if (!decoration) return null;
   const isTag = decoration.kind === "tag";
-  // The accent is for the line being stood on, not merely for a line that
-  // happens to share a commit with it. A sibling line on the same tip, a
-  // detached HEAD with no line at all, and a tag that outranked the line it
+  // The accent is for the branch being stood on, not merely for a branch that
+  // happens to share a commit with it. A sibling branch on the same tip, a
+  // detached HEAD with no branch at all, and a tag that outranked the branch it
   // shares a commit with all get the ordinary treatment.
-  const isCurrent = isCheckedOutLine(decoration, version, currentBranch);
+  const isCurrent = isCheckedOutBranch(decoration, version, currentBranch);
   return (
     <>
       {/* Carried by the badge rather than by its host, so a row can never
@@ -119,14 +119,14 @@ export function HistoryRefBadge({ version, currentBranch, currentLabel }: {
       <HistoryMetaDot />
       <span
         className={
-          `history-ref-badge history-ref-badge--${isTag ? "tag" : "line"}` +
+          `history-ref-badge history-ref-badge--${isTag ? "tag" : "branch"}` +
           (isCurrent ? " history-ref-badge--current" : "")
         }
         title={`${decorationLabel(decoration, t)} — ${decoration.fullRef}`}
       >
         {isTag ? <Tag aria-hidden="true" /> : <GitBranch aria-hidden="true" />}
         {/* A bare text node would be an anonymous flex item, which `ellipsis`
-            cannot address; a long line name has to truncate, not clip. */}
+            cannot address; a long branch name has to truncate, not clip. */}
         <span className="history-ref-badge__name">{isCurrent && currentLabel ? currentLabel : decoration.name}</span>
       </span>
     </>

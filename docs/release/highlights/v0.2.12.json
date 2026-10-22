@@ -10,7 +10,7 @@
     },
     {
       "id": "updateNotesAndDate",
-      "icon": "cloud-download",
+      "icon": "circle-fading-arrow-up",
       "en": "The update dialog now shows release notes with their paragraphs and bullets, and the date a version was actually published.",
       "es": "El diálogo de actualización muestra ahora las notas con sus párrafos y viñetas, y la fecha en la que la versión se publicó de verdad."
     },

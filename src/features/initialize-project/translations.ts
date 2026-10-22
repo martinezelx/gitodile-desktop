@@ -31,7 +31,6 @@ export interface InitializeProjectTranslations {
   initializeRemoteUrlPlaceholder: string;
   initializeReviewRemoteAction: string;
   initializeFirstVersionEffect: string;
-  initializeRemoteLaterEffect: string;
   initializeSafetyBody: string;
   initializeConfirmAction: string;
   initializeProgressTitle: string;
@@ -45,7 +44,7 @@ export interface InitializeProjectTranslations {
   initializeCleaningUp: string;
   initializeOpeningTitle: string;
   initializeSavingTitle: string;
-  initializeCreatedDescription: string;
+  initializeCreatedDescription: (name: string) => string;
   initializeFirstSaveFailedTitle: string;
   initializeFirstSaveFailedDescription: string;
   initializeOpenFailedTitle: string;
@@ -72,9 +71,10 @@ export interface InitializeProjectTranslations {
   initializeAdvancedLabel: string;
   initializeNewFact: (path: string) => string;
   initializeExistingFact: string;
-  initializeCreatingTitle: (name: string) => string;
+  /** Titles fit one line, so the project's name is in the body. */
+  initializeCreatingTitle: string;
   initializeStep: (step: "folder" | "project" | "opening") => string;
-  initializeReadyTitle: (name: string) => string;
+  initializeReadyTitle: string;
   initializeConnectRemoteAction: string;
   initializeRemoteDialogTitle: string;
   initializeRemoteAddressLabel: string;
@@ -99,7 +99,7 @@ const en: InitializeProjectTranslations = {
   initializeExistingLabel: "Folder",
   initializeExistingPlaceholder: "Choose a folder that doesn't use Git yet",
   initializeChooseExisting: "Choose folder",
-  initializeBranchLabel: "Main version line",
+  initializeBranchLabel: "Main branch",
   initializeBranchHelp: "Git calls it the initial branch, and “main” is the usual choice.",
   initializeReadmeLabel: "Add a README.md",
   initializeReadmeHelp: "A small starter file that describes the project.",
@@ -115,7 +115,6 @@ const en: InitializeProjectTranslations = {
   initializeRemoteUrlPlaceholder: "https://host.example/team/project.git",
   initializeReviewRemoteAction: "Review remote connection",
   initializeFirstVersionEffect: "Then saves every file as the first version.",
-  initializeRemoteLaterEffect: "Then you'll review the remote name and address before anything is configured.",
   initializeSafetyBody: "No existing file is deleted or replaced.",
   initializeConfirmAction: "Create project",
   initializeProgressTitle: "Creating the project",
@@ -136,7 +135,7 @@ const en: InitializeProjectTranslations = {
   initializeCleaningUp: "Cleaning up…",
   initializeOpeningTitle: "Opening the project",
   initializeSavingTitle: "Saving the first version",
-  initializeCreatedDescription: "It's open, and you can start working.",
+  initializeCreatedDescription: (name) => `“${name}” is open, and you can start working.`,
   initializeFirstSaveFailedTitle: "The project is ready, but the first version wasn't saved",
   initializeFirstSaveFailedDescription: "Nothing was lost, and the project is open with its files shown as unsaved changes.",
   initializeOpenFailedTitle: "The project was created but couldn't be opened",
@@ -167,9 +166,9 @@ const en: InitializeProjectTranslations = {
   initializeAdvancedLabel: "More options",
   initializeNewFact: (path) => `Creates “${path}” and gets it ready to save versions.`,
   initializeExistingFact: "Gets the folder ready to save versions without touching your files.",
-  initializeCreatingTitle: (name) => `Creating “${name}”…`,
+  initializeCreatingTitle: "Creating the project…",
   initializeStep: (step) => ({ folder: "Creating the folder", project: "Setting up the project", opening: "Opening it" })[step],
-  initializeReadyTitle: (name) => `“${name}” is ready`,
+  initializeReadyTitle: "Project created",
   initializeConnectRemoteAction: "Connect a remote project",
   initializeRemoteDialogTitle: "Connect a remote project",
   initializeRemoteAddressLabel: "Address",
@@ -194,7 +193,7 @@ const es: InitializeProjectTranslations = {
   initializeExistingLabel: "Carpeta",
   initializeExistingPlaceholder: "Elige una carpeta que aún no use Git",
   initializeChooseExisting: "Elegir carpeta",
-  initializeBranchLabel: "Línea de versión principal",
+  initializeBranchLabel: "Rama principal",
   initializeBranchHelp: "Git la llama rama inicial y «main» es lo habitual.",
   initializeReadmeLabel: "Añadir un README.md",
   initializeReadmeHelp: "Un pequeño archivo inicial que describe el proyecto.",
@@ -210,7 +209,6 @@ const es: InitializeProjectTranslations = {
   initializeRemoteUrlPlaceholder: "https://host.example/equipo/proyecto.git",
   initializeReviewRemoteAction: "Revisar conexión remota",
   initializeFirstVersionEffect: "Después guarda todos los archivos como primera versión.",
-  initializeRemoteLaterEffect: "Después revisarás el nombre y la dirección del remoto antes de configurar nada.",
   initializeSafetyBody: "No se borra ni se reemplaza ningún archivo que ya estuviera.",
   initializeConfirmAction: "Crear proyecto",
   initializeProgressTitle: "Creando el proyecto",
@@ -231,7 +229,7 @@ const es: InitializeProjectTranslations = {
   initializeCleaningUp: "Limpiando…",
   initializeOpeningTitle: "Abriendo el proyecto",
   initializeSavingTitle: "Guardando la primera versión",
-  initializeCreatedDescription: "Ya está abierto y puedes empezar a trabajar.",
+  initializeCreatedDescription: (name) => `«${name}» ya está abierto y puedes empezar a trabajar.`,
   initializeFirstSaveFailedTitle: "El proyecto está listo, pero no se guardó la primera versión",
   initializeFirstSaveFailedDescription: "No se ha perdido nada y el proyecto está abierto con sus archivos como cambios sin guardar.",
   initializeOpenFailedTitle: "El proyecto se creó, pero no se pudo abrir",
@@ -262,9 +260,9 @@ const es: InitializeProjectTranslations = {
   initializeAdvancedLabel: "Más opciones",
   initializeNewFact: (path) => `Crea «${path}» y la prepara para guardar versiones.`,
   initializeExistingFact: "Prepara la carpeta para guardar versiones sin tocar tus archivos.",
-  initializeCreatingTitle: (name) => `Creando «${name}»…`,
+  initializeCreatingTitle: "Creando el proyecto…",
   initializeStep: (step) => ({ folder: "Creando la carpeta", project: "Preparando el proyecto", opening: "Abriéndolo" })[step],
-  initializeReadyTitle: (name) => `«${name}» está listo`,
+  initializeReadyTitle: "Proyecto creado",
   initializeConnectRemoteAction: "Conectar con un proyecto remoto",
   initializeRemoteDialogTitle: "Conectar con un proyecto remoto",
   initializeRemoteAddressLabel: "Dirección",

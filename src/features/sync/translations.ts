@@ -22,8 +22,6 @@ export interface SyncTranslations {
   syncUnknownTitle: string;
   syncUnknownMessage: string;
   syncUnavailableTitle: string;
-  syncCachedNote: string;
-  syncStaleNote: string;
   syncLastChecked: (value: string) => string;
   syncCheck: string;
   syncChecking: string;
@@ -31,8 +29,8 @@ export interface SyncTranslations {
   syncPublish: string;
   syncReviewAndGet: string;
   syncComingSoon: string;
-  syncCurrentLine: string;
-  syncTeamLine: string;
+  syncCurrentBranch: string;
+  syncTeamBranch: string;
   syncRelationshipLabel: (local: string, team: string) => string;
   syncTechnicalDetails: string;
   syncRemote: string;
@@ -44,37 +42,76 @@ export interface SyncTranslations {
   syncBehindCount: string;
   syncNotAvailable: string;
   getTeamDialogTitle: string;
-  getTeamDialogDescription: string;
-  getTeamProgressLabel: string;
-  getTeamPhaseTeam: string;
-  getTeamPhaseRecovery: string;
-  getTeamPhaseUpdating: string;
-  getTeamIncomingVersions: (count: number) => string;
-  getTeamVersionsTruncated: (shown: number, total: number) => string;
-  getTeamAffectedFiles: (count: number) => string;
-  getTeamFilesTruncated: (shown: number, total: number) => string;
-  getTeamBinaryFile: string;
-  getTeamFileCategory: { added: string; modified: string; deleted: string; renamed: string };
-  getTeamOperationKind: string;
-  getTeamRecoveryReference: string;
-  getTeamStateToken: string;
-  getTeamTechnicalGuarantees: string;
-  getTeamBlockedTitle: string;
-  getTeamDivergedTitle: string;
-  getTeamDivergedNoRetry: string;
-  getTeamSaveFirstTitle: string;
-  getTeamSaveFirstBody: string;
-  getTeamDirtyBody: string;
-  getTeamSaveVersion: string;
-  getTeamLineCatchesUp: (branch: string) => string;
+  getTeamTitleFastForward: (count: number, remote: string) => string;
+  /** One line: what combining does to the reader's versions is a fact below. */
+  getTeamTitleMerge: (count: number) => string;
+  getTeamTitlePublish: (localCount: number, remote: string) => string;
+  getTeamFrom: (authors: string[], authorCount: number) => string;
+  getTeamFileCount: (count: number) => string;
+  getTeamBeforePublish: (count: number, from: string) => string;
+  getTeamNothingOverlaps: string;
+  getTeamCarried: (count: number) => string;
+  getTeamCombined: (files: string[], count: number) => string;
+  getTeamMergeFact: (localCount: number) => string;
+  getTeamPublishFact: (localCount: number, remote: string) => string;
   getTeamRecoveryFirst: string;
+  getTeamWhatComesIn: string;
+  getTeamVersionMeta: (author: string, when: string, files: number) => string;
+  getTeamVersionsTruncated: (shown: number, total: number) => string;
+  getTeamCheckingRemote: (remote: string) => string;
+  getTeamRemoteMoved: string;
+  getTeamConfirmFastForward: string;
+  getTeamConfirmMerge: string;
+  getTeamConfirmPublish: string;
+  getTeamAlsoPublish: string;
+  getTeamProgressLabel: string;
+  getTeamPhase: {
+    checkingLocalSafety: string;
+    combiningVersions: string;
+    creatingRecovery: string;
+    updatingFilesAndHistory: string;
+    verifying: string;
+    publishing: string;
+  };
+  getTeamWorking: string;
+  getTeamOverlapTitle: (remote: string) => string;
+  getTeamOverlapBody: string;
+  getTeamOverlapSide: { saved: string; unsaved: string };
+  getTeamOverlapMore: (count: number) => string;
+  getTeamSafeNothingChanged: string;
+  getTeamUntrackedTitle: string;
+  getTeamUntrackedBody: (path: string, remote: string) => string;
+  getTeamPreparedTitle: string;
+  getTeamPreparedBody: (path: string, remote: string) => string;
+  getTeamCarryFailedBody: string;
+  getTeamGitTooOldTitle: string;
+  getTeamGitTooOldBody: string;
+  getTeamOperationTitle: string;
+  getTeamOperationBody: string;
+  getTeamShowInFolder: string;
+  getTeamSaveVersion: string;
+  getTeamBlockedTitle: string;
   getTeamSuccessToast: (count: number) => string;
-  getTeamConfirm: string;
+  /** Get project changes found nothing newer, here or on the remote. */
+  getTeamUpToDateToast: string;
+  /** The remote could not be asked, and no reason came back with it. */
+  getTeamUncheckedBody: string;
+  /** What is still known when the remote could not be asked. */
+  getTeamUncheckedLocal: string;
+  getTeamMergedToast: (count: number) => string;
+  getTeamPublishedToast: (received: number, published: number, remote: string) => string;
+  getTeamPublishFailed: string;
+  getTeamRetryPublish: string;
   getTeamReviewUpdatedPlan: string;
   getTeamTryAgain: string;
   getTeamUncertainTitle: string;
   getTeamUncertainInstructions: string;
   getTeamObservedHead: string;
+  getTeamRecoveryReference: string;
+  getTeamUnsavedCopy: string;
+  getTeamMergeMessage: string;
+  getTeamIntegration: string;
+  getTeamIntegrationKind: { fastForward: string; merge: string };
 }
 
 const en: SyncTranslations = {
@@ -89,20 +126,18 @@ const en: SyncTranslations = {
   syncBehindTitle: (count) => `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
   syncBehindMessage: "Review what will change before getting them.",
   syncDivergedTitle: "Both sides have changed",
-  syncDivergedMessage: "Your line and the remote have different work, and nothing is combined automatically.",
+  syncDivergedMessage: "Your branch and the remote have different work, and nothing is combined automatically.",
   syncNoRemoteTitle: "No remote yet",
   syncNoRemoteMessage: "Add a remote to check for project changes.",
   syncNoUpstreamTitle: "Choose a publish destination first",
-  syncNoUpstreamMessage: "Publish this line to connect it to the remote.",
-  syncDetachedTitle: "Switch to a version line to check",
+  syncNoUpstreamMessage: "Publish this branch to connect it to the remote.",
+  syncDetachedTitle: "Switch to a branch to check",
   syncDetachedMessage: "A specific saved version has nothing to compare on the remote.",
   syncUnbornTitle: "Save a version before checking",
   syncUnbornMessage: "There's no saved version to compare yet.",
   syncUnknownTitle: "Comparison unavailable",
   syncUnknownMessage: "Couldn't compare with the remote branch.",
   syncUnavailableTitle: "Couldn't check project changes",
-  syncCachedNote: "Not checked this session · showing the last known state.",
-  syncStaleNote: "This may be out of date.",
   syncLastChecked: (value) => `Checked ${value}.`,
   syncCheck: "Check for project changes",
   syncChecking: "Checking…",
@@ -110,9 +145,9 @@ const en: SyncTranslations = {
   syncPublish: "Publish changes",
   syncReviewAndGet: "Review and get",
   syncComingSoon: "Coming soon",
-  syncCurrentLine: "Current line",
-  syncTeamLine: "Remote line",
-  syncRelationshipLabel: (local, team) => `Current line ${local}; remote line ${team}.`,
+  syncCurrentBranch: "Current branch",
+  syncTeamBranch: "Remote branch",
+  syncRelationshipLabel: (local, team) => `Current branch ${local}; remote branch ${team}.`,
   syncTechnicalDetails: "Technical details",
   syncRemote: "Remote",
   syncDestination: "Destination branch",
@@ -123,37 +158,93 @@ const en: SyncTranslations = {
   syncBehindCount: "Newer on the remote",
   syncNotAvailable: "Not available",
   getTeamDialogTitle: "Get project changes",
-  getTeamDialogDescription: "Here's what's coming in from your team.",
-  getTeamProgressLabel: "Getting project changes",
-  getTeamPhaseTeam: "Checking the remote",
-  getTeamPhaseRecovery: "Saving a recovery point",
-  getTeamPhaseUpdating: "Updating your files",
-  getTeamIncomingVersions: (count) => `${count} incoming ${count === 1 ? "version" : "versions"}`,
+  getTeamTitleFastForward: (count, remote) =>
+    `Get ${count === 1 ? "1 version" : `${count} versions`} from ${remote}`,
+  getTeamTitleMerge: (count) =>
+    `Get and combine ${count === 1 ? "1 version" : `${count} versions`}`,
+  getTeamTitlePublish: (localCount, remote) =>
+    `Publish ${localCount === 1 ? "1 version" : `${localCount} versions`} to ${remote}`,
+  getTeamFrom: (authors, authorCount) => {
+    if (authors.length === 0) return "";
+    const more = authorCount - authors.length;
+    if (more > 0) return `From ${authors.join(", ")} and ${more} more`;
+    if (authors.length === 1) return `From ${authors[0]}`;
+    return `From ${authors.slice(0, -1).join(", ")} and ${authors[authors.length - 1]}`;
+  },
+  getTeamFileCount: (count) => `${count} ${count === 1 ? "file" : "files"}`,
+  getTeamBeforePublish: (count, from) =>
+    `First ${count === 1 ? "1 version comes" : `${count} versions come`} in${from ? ` ${from.charAt(0).toLowerCase()}${from.slice(1)}` : ""}.`,
+  getTeamNothingOverlaps: "Nothing of yours overlaps.",
+  getTeamCarried: (count) =>
+    count === 1 ? "Your unsaved file stays as it is." : `Your ${count} unsaved files stay as they are.`,
+  getTeamCombined: (files, count) => {
+    const named = count === 1 ? files[0] : `${count} files`;
+    return `Your unsaved edits to ${named} stay unsaved, on top of the incoming ones.`;
+  },
+  getTeamMergeFact: (localCount) =>
+    `A merge version joins both branches. ${localCount === 1 ? "Your version isn't" : `Your ${localCount} versions aren't`} published yet, so nobody else is affected.`,
+  getTeamPublishFact: (localCount, remote) =>
+    `Then ${localCount === 1 ? "your version" : `your ${localCount} versions`} and the merge version are published to ${remote}.`,
+  getTeamRecoveryFirst: "A recovery point is saved first.",
+  getTeamWhatComesIn: "What comes in",
+  getTeamVersionMeta: (author, when, files) =>
+    [author, when, files > 0 ? `${files} ${files === 1 ? "file" : "files"}` : ""].filter(Boolean).join(" · "),
   getTeamVersionsTruncated: (shown, total) => `Showing ${shown} of ${total} incoming versions.`,
-  getTeamAffectedFiles: (count) => `${count} affected ${count === 1 ? "file" : "files"}`,
-  getTeamFilesTruncated: (shown, total) => `Showing ${shown} of ${total} affected files.`,
-  getTeamBinaryFile: "Binary",
-  getTeamFileCategory: { added: "Added", modified: "Modified", deleted: "Deleted", renamed: "Renamed" },
-  getTeamOperationKind: "Operation",
-  getTeamRecoveryReference: "Recovery point",
-  getTeamStateToken: "State token",
-  getTeamTechnicalGuarantees: "No pull, merge, rebase, reset, checkout, stash, force update or automatic conflict resolution is used.",
-  getTeamBlockedTitle: "The update stopped safely",
-  getTeamDivergedTitle: "Both sides changed",
-  getTeamDivergedNoRetry: "You and your team both have new versions. Combine them in another Git tool.",
-  getTeamSaveFirstTitle: "Save your changes",
-  getTeamSaveFirstBody: "You changed files that are also coming in.",
-  getTeamDirtyBody: "You have unsaved changes.",
+  getTeamCheckingRemote: (remote) => `Checking ${remote} for anything newer…`,
+  getTeamRemoteMoved: "Something changed while this was open. This is the updated summary.",
+  getTeamConfirmFastForward: "Get",
+  getTeamConfirmMerge: "Get and combine",
+  getTeamConfirmPublish: "Get and publish",
+  getTeamAlsoPublish: "Get, combine and publish",
+  getTeamProgressLabel: "Getting project changes",
+  getTeamPhase: {
+    checkingLocalSafety: "Checking your files…",
+    combiningVersions: "Creating the merge version…",
+    creatingRecovery: "Saving a recovery point…",
+    updatingFilesAndHistory: "Updating your files…",
+    verifying: "Checking the result…",
+    publishing: "Publishing…",
+  },
+  getTeamWorking: "Getting…",
+  getTeamOverlapTitle: (remote) => `Your changes and ${remote}'s overlap`,
+  getTeamOverlapBody: "You both changed the same lines in these files. They can't be combined in GitOdile yet, so nothing comes in.",
+  getTeamOverlapSide: { saved: "your saved version", unsaved: "your unsaved changes" },
+  getTeamOverlapMore: (count) => `And ${count} more.`,
+  getTeamSafeNothingChanged: "Your work is safe and nothing was changed.",
+  getTeamUntrackedTitle: "A file of yours would be overwritten",
+  getTeamUntrackedBody: (path, remote) =>
+    `${remote} adds ${path}, and you have a new file there that isn't saved. Move it or save it, then get the changes.`,
+  getTeamPreparedTitle: "Save your changes first",
+  getTeamPreparedBody: (path, remote) =>
+    `${path} is prepared to save and also changes on ${remote}. Save it, then get the changes.`,
+  getTeamCarryFailedBody: "Git can't carry your unsaved changes across this update. Save them, then get the changes.",
+  getTeamGitTooOldTitle: "Update Git to combine versions",
+  getTeamGitTooOldBody: "This version of Git can't work out a combination safely. Update Git in Settings, then try again.",
+  getTeamOperationTitle: "Finish the Git operation in progress",
+  getTeamOperationBody: "Another Git operation is in progress in this project. Finish or abort it, then get the changes.",
+  getTeamShowInFolder: "Show in folder",
   getTeamSaveVersion: "Save version",
-  getTeamLineCatchesUp: (branch) => `Your “${branch}” line catches up, and nothing is merged or rewritten.`,
-  getTeamRecoveryFirst: "A recovery point is saved first, and your unsaved changes aren't touched.",
+  getTeamBlockedTitle: "The update stopped safely",
+  getTeamUpToDateToast: "Everything is up to date. There are no newer versions to bring in.",
+  getTeamUncheckedBody: "The remote didn't answer. Check your connection and try again.",
+  getTeamUncheckedLocal: "As far as this computer knows, there are no newer versions to bring in.",
   getTeamSuccessToast: (count) => `Project up to date. ${count === 1 ? "1 version came in." : `${count} versions came in.`}`,
-  getTeamConfirm: "Get these versions",
+  getTeamMergedToast: (count) =>
+    `Combined. ${count === 1 ? "1 version came in" : `${count} versions came in`} and a merge version joins ${count === 1 ? "it" : "them"} with yours.`,
+  getTeamPublishedToast: (received, published, remote) =>
+    `Up to date and published: ${received} came in, ${published} went out to ${remote}.`,
+  getTeamPublishFailed: "Your project is up to date, but publishing failed.",
+  getTeamRetryPublish: "Try publishing again",
   getTeamReviewUpdatedPlan: "Review again",
   getTeamTryAgain: "Try again",
   getTeamUncertainTitle: "Result not confirmed",
   getTeamUncertainInstructions: "Check your files before going on. Your previous version is safe.",
   getTeamObservedHead: "Current HEAD",
+  getTeamRecoveryReference: "Recovery point",
+  getTeamUnsavedCopy: "Copy of your unsaved changes",
+  getTeamMergeMessage: "Merge message",
+  getTeamIntegration: "Update",
+  getTeamIntegrationKind: { fastForward: "Fast-forward", merge: "Merge" },
 };
 
 const es: SyncTranslations = {
@@ -168,20 +259,18 @@ const es: SyncTranslations = {
   syncBehindTitle: (count) => `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
   syncBehindMessage: "Revisa qué cambiará antes de traerlas.",
   syncDivergedTitle: "Ambos lados han cambiado",
-  syncDivergedMessage: "Tu línea y el remoto tienen trabajo distinto y no se combina nada automáticamente.",
+  syncDivergedMessage: "Tu rama y el remoto tienen trabajo distinto y no se combina nada automáticamente.",
   syncNoRemoteTitle: "Aún sin remoto",
   syncNoRemoteMessage: "Añade un remoto para comprobar cambios del proyecto.",
   syncNoUpstreamTitle: "Elige antes un destino de publicación",
-  syncNoUpstreamMessage: "Publica esta línea para conectarla con el remoto.",
-  syncDetachedTitle: "Cambia a una línea de versión para comprobar",
+  syncNoUpstreamMessage: "Publica esta rama para conectarla con el remoto.",
+  syncDetachedTitle: "Cambia a una rama para comprobar",
   syncDetachedMessage: "Una versión guardada concreta no tiene nada con qué compararse en el remoto.",
   syncUnbornTitle: "Guarda una versión antes de comprobar",
   syncUnbornMessage: "Aún no hay ninguna versión guardada que comparar.",
   syncUnknownTitle: "Comparación no disponible",
   syncUnknownMessage: "No se pudo comparar con la rama remota.",
   syncUnavailableTitle: "No se pudieron comprobar los cambios del proyecto",
-  syncCachedNote: "Sin comprobar en esta sesión · se muestra el último estado conocido.",
-  syncStaleNote: "Puede estar desactualizado.",
   syncLastChecked: (value) => `Comprobado ${value}.`,
   syncCheck: "Comprobar cambios del proyecto",
   syncChecking: "Comprobando…",
@@ -189,9 +278,9 @@ const es: SyncTranslations = {
   syncPublish: "Publicar cambios",
   syncReviewAndGet: "Revisar y traer",
   syncComingSoon: "Próximamente",
-  syncCurrentLine: "Línea actual",
-  syncTeamLine: "Línea remota",
-  syncRelationshipLabel: (local, team) => `Línea actual ${local}; línea remota ${team}.`,
+  syncCurrentBranch: "Rama actual",
+  syncTeamBranch: "Rama remota",
+  syncRelationshipLabel: (local, team) => `Rama actual ${local}; rama remota ${team}.`,
   syncTechnicalDetails: "Detalles técnicos",
   syncRemote: "Remoto",
   syncDestination: "Rama de destino",
@@ -202,37 +291,93 @@ const es: SyncTranslations = {
   syncBehindCount: "Nuevas en el remoto",
   syncNotAvailable: "No disponible",
   getTeamDialogTitle: "Traer cambios del proyecto",
-  getTeamDialogDescription: "Esto es lo que llega de tu equipo.",
-  getTeamProgressLabel: "Trayendo cambios del proyecto",
-  getTeamPhaseTeam: "Comprobando el remoto",
-  getTeamPhaseRecovery: "Guardando un punto de recuperación",
-  getTeamPhaseUpdating: "Actualizando tus archivos",
-  getTeamIncomingVersions: (count) => `${count} ${count === 1 ? "versión entrante" : "versiones entrantes"}`,
+  getTeamTitleFastForward: (count, remote) =>
+    `Traer ${count === 1 ? "1 versión" : `${count} versiones`} de ${remote}`,
+  getTeamTitleMerge: (count) =>
+    `Traer y combinar ${count === 1 ? "1 versión" : `${count} versiones`}`,
+  getTeamTitlePublish: (localCount, remote) =>
+    `Publicar ${localCount === 1 ? "1 versión" : `${localCount} versiones`} en ${remote}`,
+  getTeamFrom: (authors, authorCount) => {
+    if (authors.length === 0) return "";
+    const more = authorCount - authors.length;
+    if (more > 0) return `De ${authors.join(", ")} y ${more} más`;
+    if (authors.length === 1) return `De ${authors[0]}`;
+    return `De ${authors.slice(0, -1).join(", ")} y ${authors[authors.length - 1]}`;
+  },
+  getTeamFileCount: (count) => `${count} ${count === 1 ? "archivo" : "archivos"}`,
+  getTeamBeforePublish: (count, from) =>
+    `Antes ${count === 1 ? "llega 1 versión" : `llegan ${count} versiones`}${from ? ` ${from.charAt(0).toLowerCase()}${from.slice(1)}` : ""}.`,
+  getTeamNothingOverlaps: "No choca con nada tuyo.",
+  getTeamCarried: (count) =>
+    count === 1 ? "Tu archivo sin guardar se queda como está." : `Tus ${count} archivos sin guardar se quedan como están.`,
+  getTeamCombined: (files, count) => {
+    const named = count === 1 ? files[0] : `${count} archivos`;
+    return `Tus cambios sin guardar en ${named} siguen sin guardar, encima de los que llegan.`;
+  },
+  getTeamMergeFact: (localCount) =>
+    `Una versión de unión junta las dos ramas. ${localCount === 1 ? "Tu versión aún no está publicada" : `Tus ${localCount} versiones aún no están publicadas`}, así que nadie más se ve afectado.`,
+  getTeamPublishFact: (localCount, remote) =>
+    `Después ${localCount === 1 ? "tu versión" : `tus ${localCount} versiones`} y la versión de unión se publican en ${remote}.`,
+  getTeamRecoveryFirst: "Antes se guarda un punto de recuperación.",
+  getTeamWhatComesIn: "Qué llega",
+  getTeamVersionMeta: (author, when, files) =>
+    [author, when, files > 0 ? `${files} ${files === 1 ? "archivo" : "archivos"}` : ""].filter(Boolean).join(" · "),
   getTeamVersionsTruncated: (shown, total) => `Se muestran ${shown} de ${total} versiones entrantes.`,
-  getTeamAffectedFiles: (count) => `${count} ${count === 1 ? "archivo afectado" : "archivos afectados"}`,
-  getTeamFilesTruncated: (shown, total) => `Se muestran ${shown} de ${total} archivos afectados.`,
-  getTeamBinaryFile: "Binario",
-  getTeamFileCategory: { added: "Añadido", modified: "Modificado", deleted: "Eliminado", renamed: "Renombrado" },
-  getTeamOperationKind: "Operación",
-  getTeamRecoveryReference: "Punto de recuperación",
-  getTeamStateToken: "Token de estado",
-  getTeamTechnicalGuarantees: "No se usa pull, merge, rebase, reset, checkout, stash, actualización forzada ni resolución automática de conflictos.",
-  getTeamBlockedTitle: "La actualización se detuvo de forma segura",
-  getTeamDivergedTitle: "Ambos lados cambiaron",
-  getTeamDivergedNoRetry: "Tu equipo y tú tenéis versiones nuevas. Únelas con otra herramienta de Git.",
-  getTeamSaveFirstTitle: "Guarda tus cambios",
-  getTeamSaveFirstBody: "Has cambiado archivos que también llegan.",
-  getTeamDirtyBody: "Tienes cambios sin guardar.",
+  getTeamCheckingRemote: (remote) => `Comprobando si hay algo más nuevo en ${remote}…`,
+  getTeamRemoteMoved: "Algo ha cambiado mientras mirabas. Este es el resumen actualizado.",
+  getTeamConfirmFastForward: "Traer",
+  getTeamConfirmMerge: "Traer y combinar",
+  getTeamConfirmPublish: "Traer y publicar",
+  getTeamAlsoPublish: "Traer, combinar y publicar",
+  getTeamProgressLabel: "Trayendo cambios del proyecto",
+  getTeamPhase: {
+    checkingLocalSafety: "Comprobando tus archivos…",
+    combiningVersions: "Creando la versión de unión…",
+    creatingRecovery: "Guardando un punto de recuperación…",
+    updatingFilesAndHistory: "Actualizando tus archivos…",
+    verifying: "Comprobando el resultado…",
+    publishing: "Publicando…",
+  },
+  getTeamWorking: "Trayendo…",
+  getTeamOverlapTitle: (remote) => `Tus cambios y los de ${remote} se pisan`,
+  getTeamOverlapBody: "Tocáis las mismas líneas en estos archivos. Todavía no se pueden combinar desde GitOdile, así que no se trae nada.",
+  getTeamOverlapSide: { saved: "tu versión guardada", unsaved: "tus cambios sin guardar" },
+  getTeamOverlapMore: (count) => `Y ${count} más.`,
+  getTeamSafeNothingChanged: "Tu trabajo está a salvo y no se ha tocado nada.",
+  getTeamUntrackedTitle: "Un archivo tuyo se sobrescribiría",
+  getTeamUntrackedBody: (path, remote) =>
+    `${remote} añade ${path} y tú tienes ahí un archivo nuevo sin guardar. Muévelo o guárdalo y luego trae los cambios.`,
+  getTeamPreparedTitle: "Guarda tus cambios primero",
+  getTeamPreparedBody: (path, remote) =>
+    `${path} está preparado para guardar y también cambia en ${remote}. Guárdalo y luego trae los cambios.`,
+  getTeamCarryFailedBody: "Git no puede llevar tus cambios sin guardar a través de esta actualización. Guárdalos y luego trae los cambios.",
+  getTeamGitTooOldTitle: "Actualiza Git para combinar versiones",
+  getTeamGitTooOldBody: "Esta versión de Git no puede calcular una combinación de forma segura. Actualiza Git en Ajustes y vuelve a intentarlo.",
+  getTeamOperationTitle: "Termina la operación de Git en curso",
+  getTeamOperationBody: "Hay otra operación de Git en curso en este proyecto. Termínala o cancélala y luego trae los cambios.",
+  getTeamShowInFolder: "Mostrar en carpeta",
   getTeamSaveVersion: "Guardar versión",
-  getTeamLineCatchesUp: (branch) => `Tu línea «${branch}» se pone al día y no se mezcla ni se reescribe nada.`,
-  getTeamRecoveryFirst: "Antes se guarda un punto de recuperación y tus cambios sin guardar no se tocan.",
+  getTeamBlockedTitle: "La actualización se detuvo de forma segura",
+  getTeamUpToDateToast: "Todo al día. No hay versiones nuevas que traer.",
+  getTeamUncheckedBody: "El remoto no ha respondido. Comprueba la conexión e inténtalo de nuevo.",
+  getTeamUncheckedLocal: "Por lo que sabe este ordenador, no hay versiones nuevas que traer.",
   getTeamSuccessToast: (count) => `Proyecto al día. ${count === 1 ? "Ha llegado 1 versión." : `Han llegado ${count} versiones.`}`,
-  getTeamConfirm: "Traer estas versiones",
+  getTeamMergedToast: (count) =>
+    `Combinado. ${count === 1 ? "Ha llegado 1 versión" : `Han llegado ${count} versiones`} y una versión de unión ${count === 1 ? "la junta" : "las junta"} con las tuyas.`,
+  getTeamPublishedToast: (received, published, remote) =>
+    `Al día y publicado: han llegado ${received} y han salido ${published} hacia ${remote}.`,
+  getTeamPublishFailed: "Tu proyecto está al día, pero no se pudo publicar.",
+  getTeamRetryPublish: "Volver a publicar",
   getTeamReviewUpdatedPlan: "Revisar de nuevo",
   getTeamTryAgain: "Reintentar",
   getTeamUncertainTitle: "Resultado sin confirmar",
   getTeamUncertainInstructions: "Revisa tus archivos antes de seguir. Tu versión anterior está a salvo.",
   getTeamObservedHead: "HEAD actual",
+  getTeamRecoveryReference: "Punto de recuperación",
+  getTeamUnsavedCopy: "Copia de tus cambios sin guardar",
+  getTeamMergeMessage: "Mensaje de la unión",
+  getTeamIntegration: "Actualización",
+  getTeamIntegrationKind: { fastForward: "Avance rápido", merge: "Unión" },
 };
 
 export const syncTranslations = { en, es } as const;

@@ -31,6 +31,7 @@ export interface SharedTranslations {
   errorInitializeCleanupUnavailable: string;
   errorOffline: string;
   errorCertificateFailed: string;
+  errorUnsupportedServer: string;
   errorHostKeyFailed: string;
   errorRemoteNotFound: string;
   errorDiskFull: string;
@@ -54,7 +55,7 @@ export interface SharedTranslations {
   errorInvalidTitle: string;
   errorStalePreview: string;
   errorStaleHistoryCursor: string;
-  errorVersionLineMissing: string;
+  errorBranchMissing: string;
   errorHookRejected: string;
   errorSigningFailed: string;
   errorIndexUnavailable: string;
@@ -71,6 +72,8 @@ export interface SharedTranslations {
   errorStaleGetTeamChangesPlan: string;
   errorInvalidRefName: string;
   errorAuthenticationFailed: string;
+  errorSecureStorageUnavailable: string;
+  errorProviderRateLimited: string;
   errorNetworkTimeout: string;
   errorOperationCancelled: string;
   errorInvalidRemoteConfiguration: string;
@@ -84,17 +87,17 @@ export interface SharedTranslations {
   errorPublishUncertain: string;
   errorGetTeamChangesUncertain: string;
   errorGitVersionTooOld: string;
-  errorVersionLineNameTaken: string;
-  errorVersionLineNameCollides: string;
-  errorVersionLineCheckedOutElsewhere: string;
-  errorVersionLineIsActive: string;
-  errorVersionLineIsDefault: string;
-  errorVersionLineUniqueWork: string;
-  errorVersionLineSwitchObstructed: string;
-  errorStaleVersionLinePlan: string;
+  errorBranchNameTaken: string;
+  errorBranchNameCollides: string;
+  errorBranchCheckedOutElsewhere: string;
+  errorBranchIsActive: string;
+  errorBranchIsDefault: string;
+  errorBranchUniqueWork: string;
+  errorBranchNotFinished: string;
+  errorBranchSwitchObstructed: string;
+  errorStaleBranchPlan: string;
   errorDirtyWorkingTree: string;
   errorIncomingTrackedChangeCollision: string;
-  errorIncomingPathCollision: string;
   errorRefLocked: string;
   errorNothingToDiscard: string;
   errorStaleDiscardPlan: string;
@@ -145,7 +148,7 @@ const en: SharedTranslations = {
   errorLinkedWorktree: "That folder is already a linked Git workspace. Open it as a project instead.",
   errorNestedRepository: "That folder is inside another Git project, or contains one. Choose another folder.",
   errorInitializationInspectionIncomplete: "GitOdile couldn't check this folder completely. Check its size and permissions, then retry.",
-  errorInvalidInitialBranch: "Enter a valid version line name, like main.",
+  errorInvalidInitialBranch: "Enter a valid branch name, like main.",
   errorReadmeAlreadyExists: "That folder already has a README. Turn off Add a README to keep it.",
   errorStaleInitializePlan: "The folder or setup changed. Review it again.",
   errorInitializeFailed: "Git couldn't set up this project, but your files weren't touched.",
@@ -153,7 +156,8 @@ const en: SharedTranslations = {
   errorInitializeCleanupRequired: "Setup stopped, and a leftover temporary file still needs cleaning up.",
   errorInitializeCleanupUnavailable: "GitOdile didn't create that leftover file, so it won't remove it.",
   errorOffline: "Couldn't reach the server. Check your connection, VPN, proxy and the address.",
-  errorCertificateFailed: "Git couldn't verify the server's certificate. Check your proxy and system certificates.",
+  errorCertificateFailed: "The server's certificate couldn't be verified. Check your proxy and the certificates installed on this computer.",
+  errorUnsupportedServer: "This address doesn't answer as a supported server of that product, or the server is too old. Check the address and the product you chose.",
   errorHostKeyFailed: "SSH couldn't verify the server. Check it with your SSH tools, then retry.",
   errorRemoteNotFound: "The remote project wasn't found. Check the address and your access.",
   errorDiskFull: "Not enough disk space to finish. Free some space and retry.",
@@ -170,14 +174,14 @@ const en: SharedTranslations = {
   errorPathEncodingUnsupported: "A file name in this project can't be read safely. Rename it, then refresh.",
   errorNothingToSave: "There's nothing to save yet.",
   errorUnresolvedConflicts: "Some files have overlapping changes. Resolve them before saving.",
-  errorDetachedHead: "This project isn't on a version line. Switch to one before saving.",
+  errorDetachedHead: "This project isn't on a branch. Switch to one before saving.",
   errorGitOperationInProgress: "Another Git operation is in progress here. Finish or cancel it, then retry.",
   errorMissingIdentity: "Add your name and email in Settings before saving.",
   errorEmptyTitle: "Give the version a short name.",
   errorInvalidTitle: "Keep the version name on one line.",
   errorStalePreview: "The project changed since the preview. Review it again.",
   errorStaleHistoryCursor: "History changed while loading, so it was reloaded from the newest version.",
-  errorVersionLineMissing: "That version line no longer exists, so History is back on the current line.",
+  errorBranchMissing: "That branch no longer exists, so History is back on the current branch.",
   errorHookRejected: "A Git hook rejected this version. Check its output, then retry.",
   errorSigningFailed: "Git couldn't sign this version. Check your signing setup (GPG or SSH key).",
   errorIndexUnavailable: "Couldn't prepare the changes to save. Check disk space and permissions.",
@@ -185,39 +189,41 @@ const en: SharedTranslations = {
   errorInvalidSelection: "Choose at least one file to save.",
   errorNoRemoteConfigured: "This project has no remote yet. Add one in project settings.",
   errorRemoteSelectionRequired: "This project has several remotes. Choose where to publish.",
-  errorUnbornBranchNoVersion: "This version line has no saved versions yet. Save one first.",
+  errorUnbornBranchNoVersion: "This branch has no saved versions yet. Save one first.",
   errorNothingToPublish: "Everything is already published.",
   errorNothingToGet: "There are no newer versions to bring in.",
   errorBehindRemote: "The remote has newer versions. Get project changes first.",
-  errorDivergedHistories: "This line and the remote have both changed. Get project changes first.",
+  errorDivergedHistories: "This branch and the remote have both changed. Get project changes first.",
   errorStalePublishPlan: "The project or the remote changed since the preview. Try publishing again.",
   errorStaleGetTeamChangesPlan: "The project or the remote changed since the preview. Review it again.",
-  errorInvalidRefName: "That version line name isn't valid in Git.",
+  errorInvalidRefName: "That branch name isn't valid in Git.",
   errorAuthenticationFailed: "Couldn't sign in to the remote. Check your Git credentials.",
+  errorSecureStorageUnavailable: "The system's secure credential store is unavailable. Unlock it and try again. The token is never saved as plain text.",
+  errorProviderRateLimited: "GitHub has temporarily limited requests. Wait before trying again.",
   errorNetworkTimeout: "The remote took too long to answer. Check your connection and retry.",
   errorOperationCancelled: "The check was cancelled. Try again whenever you're ready.",
-  errorInvalidRemoteConfiguration: "This line's remote setup is incomplete. Fix its tracking branch in Git.",
+  errorInvalidRemoteConfiguration: "This branch's remote setup is incomplete. Fix its tracking branch in Git.",
   errorInvalidRemoteUrl: "Enter a full HTTPS, SSH, Git or file address.",
   errorRemoteNameExists: "A remote with that name already exists, so nothing was changed.",
   errorStaleConnectRemotePlan: "The project, name or address changed. Review the connection again.",
   errorRemoteConnectFailed: "Git couldn't add this remote, and nothing was sent over the network.",
   errorRemoteConnectUncertain: "Git changed the remote setup, but GitOdile couldn't confirm the result. Check .git/config before retrying.",
-  errorRemoteRefMissing: "The branch this line tracks no longer exists on the remote.",
+  errorRemoteRefMissing: "The tracked branch no longer exists on the remote.",
   errorRemoteRejected: "The remote rejected this publish. Check its rules for this branch.",
   errorPublishUncertain: "The connection dropped while publishing. Refresh to see whether it went through.",
   errorGetTeamChangesUncertain: "Couldn't confirm the final state. Keep the recovery point and check the project before continuing.",
-  errorGitVersionTooOld: "Your Git is too old to switch version lines safely. Update to Git 2.23 or newer.",
-  errorVersionLineNameTaken: "A version line with that name already exists.",
-  errorVersionLineNameCollides: "That name differs from an existing line only in capitals, which clashes on some systems.",
-  errorVersionLineCheckedOutElsewhere: "That version line is open in another workspace.",
-  errorVersionLineIsActive: "You can't delete the line you're on. Switch to another one first.",
-  errorVersionLineIsDefault: "This is the project's main line, so GitOdile keeps it.",
-  errorVersionLineUniqueWork: "This line has saved work that exists nowhere else yet.",
-  errorVersionLineSwitchObstructed: "Unsaved changes are in the way of this switch. Save or discard them, then retry.",
-  errorStaleVersionLinePlan: "The project changed since the preview. Refresh and retry.",
-  errorDirtyWorkingTree: "You have unsaved changes. Save a version, or start a new line with them.",
+  errorGitVersionTooOld: "Your Git is too old to switch branches safely. Update to Git 2.23 or newer.",
+  errorBranchNameTaken: "A branch with that name already exists.",
+  errorBranchNameCollides: "That name differs from an existing branch only in capitals, which clashes on some systems.",
+  errorBranchCheckedOutElsewhere: "That branch is open in another workspace.",
+  errorBranchIsActive: "You can't delete the branch you're on. Switch to another one first.",
+  errorBranchIsDefault: "This is the project's main branch, so GitOdile keeps it.",
+  errorBranchUniqueWork: "This branch has saved work that exists nowhere else yet.",
+  errorBranchNotFinished: "This branch isn't finished: its work isn't on the main branch yet.",
+  errorBranchSwitchObstructed: "Unsaved changes are in the way of this switch. Save or discard them, then retry.",
+  errorStaleBranchPlan: "The project changed since the preview. Refresh and retry.",
+  errorDirtyWorkingTree: "You have unsaved changes. Save a version, or start a new branch with them.",
   errorIncomingTrackedChangeCollision: "Some of your unsaved changes touch files in the update. Save or discard them, then review again.",
-  errorIncomingPathCollision: "A local file would be overwritten by the update. Move it, then review again.",
   errorRefLocked: "Git couldn't update right now, maybe because another Git program is using this project.",
   errorNothingToDiscard: "There's nothing to discard. Refresh Changes.",
   errorStaleDiscardPlan: "The files changed since the preview. Review it again.",
@@ -268,7 +274,7 @@ const es: SharedTranslations = {
   errorLinkedWorktree: "Esa carpeta ya es un espacio de trabajo vinculado de Git. Ábrela como proyecto.",
   errorNestedRepository: "Esa carpeta está dentro de otro proyecto de Git o contiene uno. Elige otra carpeta.",
   errorInitializationInspectionIncomplete: "GitOdile no pudo revisar la carpeta por completo. Comprueba su tamaño y permisos y reintenta.",
-  errorInvalidInitialBranch: "Escribe un nombre de línea de versión válido, como main.",
+  errorInvalidInitialBranch: "Escribe un nombre de rama válido, como main.",
   errorReadmeAlreadyExists: "Esa carpeta ya tiene un README. Desactiva Añadir README para conservarlo.",
   errorStaleInitializePlan: "La carpeta o la configuración han cambiado. Revísalas de nuevo.",
   errorInitializeFailed: "Git no pudo preparar este proyecto, pero tus archivos no se han tocado.",
@@ -276,7 +282,8 @@ const es: SharedTranslations = {
   errorInitializeCleanupRequired: "La configuración se detuvo y aún queda un archivo temporal por limpiar.",
   errorInitializeCleanupUnavailable: "GitOdile no creó ese archivo, así que no lo eliminará.",
   errorOffline: "No se pudo contactar con el servidor. Revisa la conexión, la VPN, el proxy y la dirección.",
-  errorCertificateFailed: "Git no pudo verificar el certificado del servidor. Revisa el proxy y los certificados del sistema.",
+  errorCertificateFailed: "No se pudo verificar el certificado del servidor. Revisa el proxy y los certificados instalados en este equipo.",
+  errorUnsupportedServer: "Esta dirección no responde como un servidor compatible de ese producto, o el servidor es demasiado antiguo. Revisa la dirección y el producto elegido.",
   errorHostKeyFailed: "SSH no pudo verificar el servidor. Compruébalo con tus herramientas SSH y reintenta.",
   errorRemoteNotFound: "No se encontró el proyecto remoto. Revisa la dirección y tus permisos de acceso.",
   errorDiskFull: "No hay espacio suficiente en el disco. Libera espacio y reintenta.",
@@ -293,14 +300,14 @@ const es: SharedTranslations = {
   errorPathEncodingUnsupported: "Un nombre de archivo del proyecto no se puede leer con seguridad. Renómbralo y actualiza.",
   errorNothingToSave: "Todavía no hay nada que guardar.",
   errorUnresolvedConflicts: "Algunos archivos tienen cambios superpuestos. Resuélvelos antes de guardar.",
-  errorDetachedHead: "Este proyecto no está en una línea de versión. Cambia a una antes de guardar.",
+  errorDetachedHead: "Este proyecto no está en una rama. Cambia a una antes de guardar.",
   errorGitOperationInProgress: "Hay otra operación de Git en curso. Termínala o cancélala y reintenta.",
   errorMissingIdentity: "Añade tu nombre y correo en Ajustes antes de guardar.",
   errorEmptyTitle: "Ponle un nombre corto a la versión.",
   errorInvalidTitle: "Escribe el nombre de la versión en una sola línea.",
   errorStalePreview: "El proyecto ha cambiado desde la vista previa. Revísala de nuevo.",
   errorStaleHistoryCursor: "El historial cambió mientras se cargaba, así que se ha recargado desde la versión más reciente.",
-  errorVersionLineMissing: "Esa línea de versión ya no existe, así que el historial vuelve a la línea actual.",
+  errorBranchMissing: "Esa rama ya no existe, así que el historial vuelve a la rama actual.",
   errorHookRejected: "Un hook de Git rechazó esta versión. Revisa su salida y reintenta.",
   errorSigningFailed: "Git no pudo firmar esta versión. Revisa tu configuración de firma (GPG o clave SSH).",
   errorIndexUnavailable: "No se pudieron preparar los cambios para guardar. Revisa el espacio en disco y los permisos.",
@@ -308,39 +315,41 @@ const es: SharedTranslations = {
   errorInvalidSelection: "Elige al menos un archivo para guardar.",
   errorNoRemoteConfigured: "Este proyecto aún no tiene remoto. Añade uno en los ajustes del proyecto.",
   errorRemoteSelectionRequired: "Este proyecto tiene varios remotos. Elige dónde publicar.",
-  errorUnbornBranchNoVersion: "Esta línea de versión aún no tiene versiones guardadas. Guarda una primero.",
+  errorUnbornBranchNoVersion: "Esta rama aún no tiene versiones guardadas. Guarda una primero.",
   errorNothingToPublish: "Ya está todo publicado.",
   errorNothingToGet: "No hay versiones nuevas que traer.",
   errorBehindRemote: "El remoto tiene versiones más recientes. Trae primero los cambios del proyecto.",
-  errorDivergedHistories: "Esta línea y el remoto han cambiado los dos. Trae primero los cambios del proyecto.",
+  errorDivergedHistories: "Esta rama y el remoto han cambiado los dos. Trae primero los cambios del proyecto.",
   errorStalePublishPlan: "El proyecto o el remoto han cambiado desde la vista previa. Vuelve a publicar.",
   errorStaleGetTeamChangesPlan: "El proyecto o el remoto han cambiado desde la vista previa. Revísala de nuevo.",
-  errorInvalidRefName: "Ese nombre de línea de versión no es válido en Git.",
+  errorInvalidRefName: "Ese nombre de rama no es válido en Git.",
   errorAuthenticationFailed: "No se pudo iniciar sesión en el remoto. Revisa tus credenciales de Git.",
+  errorSecureStorageUnavailable: "El almacén seguro del sistema no está disponible. Desbloquéalo e inténtalo de nuevo. El token nunca se guarda como texto plano.",
+  errorProviderRateLimited: "GitHub ha limitado temporalmente las solicitudes. Espera antes de volver a intentarlo.",
   errorNetworkTimeout: "El remoto tardó demasiado en responder. Revisa la conexión y reintenta.",
   errorOperationCancelled: "Se canceló la comprobación. Reinténtalo cuando quieras.",
-  errorInvalidRemoteConfiguration: "La configuración remota de esta línea está incompleta. Corrige su rama de seguimiento en Git.",
+  errorInvalidRemoteConfiguration: "La configuración remota de esta rama está incompleta. Corrige su rama de seguimiento en Git.",
   errorInvalidRemoteUrl: "Escribe una dirección HTTPS, SSH, Git o file completa.",
   errorRemoteNameExists: "Ya existe un remoto con ese nombre, así que no se ha cambiado nada.",
   errorStaleConnectRemotePlan: "El proyecto, el nombre o la dirección han cambiado. Revisa la conexión de nuevo.",
   errorRemoteConnectFailed: "Git no pudo añadir este remoto y no se envió nada por la red.",
   errorRemoteConnectUncertain: "Git cambió la configuración remota, pero GitOdile no pudo confirmar el resultado. Revisa .git/config antes de reintentar.",
-  errorRemoteRefMissing: "La rama que sigue esta línea ya no existe en el remoto.",
+  errorRemoteRefMissing: "La rama de seguimiento ya no existe en el remoto.",
   errorRemoteRejected: "El remoto rechazó la publicación. Revisa sus reglas para esta rama.",
   errorPublishUncertain: "Se perdió la conexión al publicar. Actualiza para ver si llegó a publicarse.",
   errorGetTeamChangesUncertain: "No se pudo confirmar el estado final. Conserva el punto de recuperación y revisa el proyecto antes de seguir.",
-  errorGitVersionTooOld: "Tu Git es demasiado antiguo para cambiar de línea con seguridad. Actualízalo a Git 2.23 o posterior.",
-  errorVersionLineNameTaken: "Ya existe una línea de versión con ese nombre.",
-  errorVersionLineNameCollides: "Ese nombre solo cambia en mayúsculas respecto a una línea existente, y eso choca en algunos sistemas.",
-  errorVersionLineCheckedOutElsewhere: "Esa línea de versión está abierta en otro espacio de trabajo.",
-  errorVersionLineIsActive: "No puedes eliminar la línea en la que estás. Cambia antes a otra.",
-  errorVersionLineIsDefault: "Es la línea principal del proyecto, así que GitOdile la conserva.",
-  errorVersionLineUniqueWork: "Esta línea tiene trabajo guardado que todavía no está en ningún otro sitio.",
-  errorVersionLineSwitchObstructed: "Hay cambios sin guardar que impiden el cambio de línea. Guárdalos o descártalos y reintenta.",
-  errorStaleVersionLinePlan: "El proyecto ha cambiado desde la vista previa. Actualiza y reintenta.",
-  errorDirtyWorkingTree: "Tienes cambios sin guardar. Guarda una versión o empieza una línea nueva con ellos.",
+  errorGitVersionTooOld: "Tu Git es demasiado antiguo para cambiar de rama con seguridad. Actualízalo a Git 2.23 o posterior.",
+  errorBranchNameTaken: "Ya existe una rama con ese nombre.",
+  errorBranchNameCollides: "Ese nombre solo cambia en mayúsculas respecto a una rama existente, y eso choca en algunos sistemas.",
+  errorBranchCheckedOutElsewhere: "Esa rama está abierta en otro espacio de trabajo.",
+  errorBranchIsActive: "No puedes eliminar la rama en la que estás. Cambia antes a otra.",
+  errorBranchIsDefault: "Es la rama principal del proyecto, así que GitOdile la conserva.",
+  errorBranchUniqueWork: "Esta rama tiene trabajo guardado que todavía no está en ningún otro sitio.",
+  errorBranchNotFinished: "Esta rama no está terminada: su trabajo aún no está en la rama principal.",
+  errorBranchSwitchObstructed: "Hay cambios sin guardar que impiden el cambio de rama. Guárdalos o descártalos y reintenta.",
+  errorStaleBranchPlan: "El proyecto ha cambiado desde la vista previa. Actualiza y reintenta.",
+  errorDirtyWorkingTree: "Tienes cambios sin guardar. Guarda una versión o empieza una rama nueva con ellos.",
   errorIncomingTrackedChangeCollision: "Algunos de tus cambios sin guardar tocan archivos de la actualización. Guárdalos o descártalos y vuelve a revisar.",
-  errorIncomingPathCollision: "La actualización sobrescribiría un archivo local. Muévelo y vuelve a revisar.",
   errorRefLocked: "Git no pudo actualizar ahora mismo, quizá porque otro programa de Git está usando el proyecto.",
   errorNothingToDiscard: "No hay nada que descartar. Actualiza Cambios.",
   errorStaleDiscardPlan: "Los archivos han cambiado desde la vista previa. Revísala de nuevo.",

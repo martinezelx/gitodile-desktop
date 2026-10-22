@@ -1,10 +1,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import React from "react";
 
 import { LanguageProvider } from "../i18n";
 import type { WorkingTreeStatus } from "../features/status";
-import type { VersionLinesSnapshot } from "../features/version-lines";
+import type { BranchesSnapshot } from "../features/branches";
 import {
   EMPTY_TEAM_SYNC_STATE,
   type TeamSyncState,
@@ -24,13 +25,13 @@ const dirtyTree: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: "origin/main", ahead: 0, behind: 0 },
 };
 
-const versionLines: VersionLinesSnapshot = {
-  branch: "feature/a-very-long-version-line-name",
+const branches: BranchesSnapshot = {
+  branch: "feature/a-very-long-branch-name",
   headState: "branch",
   currentCommit: "1111111111111111111111111111111111111111",
-  lines: [
+  branches: [
     {
-      name: "feature/a-very-long-version-line-name",
+      name: "feature/a-very-long-branch-name",
       tip: {
         commit: "1111111111111111111111111111111111111111",
         shortCommit: "1111111",
@@ -38,8 +39,9 @@ const versionLines: VersionLinesSnapshot = {
         committedAt: "2026-08-28T10:00:00Z",
       },
       isActive: true,
-      upstream: "origin/feature/a-very-long-version-line-name",
+      upstream: "origin/feature/a-very-long-branch-name",
       isRetainedElsewhere: true,
+      isFinished: true,
       uniqueCommitCount: null,
       worktreePath: null,
       upstreamAhead: 0,
@@ -58,6 +60,7 @@ const versionLines: VersionLinesSnapshot = {
       isActive: false,
       upstream: null,
       isRetainedElsewhere: false,
+      isFinished: false,
       uniqueCommitCount: 1,
       worktreePath: null,
       upstreamAhead: null,
@@ -87,20 +90,60 @@ function syncStatus(state: TeamSyncState = "upToDate"): TeamSyncStatus {
     warnings: [],
     nextActions: ["checkAgain"],
     stateToken: `status-${state}`,
+    forecast: null,
+  };
+}
+
+/** The strip's search wiring, in one place so a test overrides one field. */
+function paletteProps(overrides: Partial<StatusBarProps["commandPalette"]> = {}): StatusBarProps["commandPalette"] {
+  return {
+    isOpen: false,
+    query: "",
+    inputRef: React.createRef<HTMLInputElement>(),
+    keyShortcuts: "Control+K",
+    onOpen: vi.fn(),
+    onQueryChange: vi.fn(),
+    onKeyDown: vi.fn(),
+    ...overrides,
+  };
+}
+
+/** The project popup's wiring: two open projects, the first active. */
+function projectSwitchProps(overrides: Partial<StatusBarProps["projectSwitch"]> = {}): StatusBarProps["projectSwitch"] {
+  return {
+    entries: [
+      { id: "/repo", name: "gitodile", path: "/repo", contextLabel: null, branch: "main", hasError: false, hasOperationInProgress: false, hasUnsavedChanges: false, isFavourite: false },
+      { id: "/other", name: "landing", path: "/other", contextLabel: null, branch: "main", hasError: false, hasOperationInProgress: false, hasUnsavedChanges: false, isFavourite: false },
+    ],
+    recent: [],
+    activeId: "/repo",
+    canSwitch: true,
+    isOpening: false,
+    onActivate: vi.fn(),
+    onOpenRecent: vi.fn(),
+    onClose: vi.fn(),
+    onOpenAnother: vi.fn(),
+    onCreate: vi.fn(),
+    onClone: vi.fn(),
+    onToggleFavourite: vi.fn(),
+    onOpenProjectSettings: vi.fn(),
+    onOpenFolder: vi.fn(),
+    onOpenHome: vi.fn(),
+    ...overrides,
   };
 }
 
 function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof render> {
   const props = {
-    project: { name: "gitodile", branch: "feature/a-very-long-version-line-name", headState: "branch" },
+    project: { name: "gitodile", branch: "feature/a-very-long-branch-name", headState: "branch" },
     workingTree: dirtyTree,
     workingTreeError: null,
     isCheckingChanges: false,
-    versionLines,
-    isLoadingVersionLines: false,
+    branches,
+    isLoadingBranches: false,
     teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() },
-    onSwitchVersionLine: vi.fn(),
-    versionLineCreate: {
+    onSwitchBranch: vi.fn(),
+    branchCreate: {
       projectPath: "/repo",
       sessionEpoch: "epoch-1",
       onOperationStart: vi.fn(() => true),
@@ -108,11 +151,13 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
       onOperationPhaseChange: vi.fn(),
       onCreated: vi.fn(),
     },
-    onSeeAllVersionLines: vi.fn(),
+    onSeeAllBranches: vi.fn(),
     onCheckTeamChanges: vi.fn(),
-    onOpenProjectSettings: vi.fn(),
+    projectSwitch: projectSwitchProps(),
     onPublish: vi.fn(),
-    onOpenChangelog: vi.fn(),
+    onGetChanges: vi.fn(),
+    onGetAndPublish: vi.fn(),
+    commandPalette: paletteProps(),
     ...overrides,
   } as StatusBarProps;
   return render(<LanguageProvider><StatusBar {...props} /></LanguageProvider>);
@@ -125,109 +170,246 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("StatusBar", () => {
-  it("renders honest no-project state and opens the changelog", async () => {
-    const onOpenChangelog = vi.fn();
+  it("renders honest no-project state and keeps the field", () => {
     renderBar({
       project: null,
       workingTree: null,
       teamSync: EMPTY_TEAM_SYNC_STATE,
-      onOpenChangelog,
+      projectSwitch: projectSwitchProps({ entries: [], activeId: null }),
     });
 
-    expect(screen.getByText("No project open")).toBeInTheDocument();
-    const release = screen.getByRole("button", { name: `What's new in GitOdile v${__APP_VERSION__}` });
-    expect(release).toHaveTextContent(`v${__APP_VERSION__}`);
-    await userEvent.click(release);
-    expect(onOpenChangelog).toHaveBeenCalledOnce();
+    // The project segment stays: with nothing open it is the way to open one.
+    expect(screen.getByRole("button", { name: "No project open" })).toHaveClass("status-bar__project");
+    // The field is global: it works with no project at all.
+    expect(screen.getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Check remote project changes" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Settings for/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Up to date")).not.toBeInTheDocument();
+    // With nothing to describe there is no remote block.
+    expect(document.querySelector(".status-bar__block--remote")).toBeNull();
   });
 
-  it("opens the active project's settings between its name and version line", async () => {
+  it("is the app's search: the caller owns the query and the field reports typing", async () => {
+    const onQueryChange = vi.fn();
+    const onOpen = vi.fn();
+    renderBar({ commandPalette: paletteProps({ query: "main", onQueryChange, onOpen }) });
+
+    const field = screen.getByRole("combobox", { name: "Open command palette" });
+    expect(field).toHaveValue("main");
+    expect(field).toHaveAttribute("placeholder", "Search or do something…");
+    expect(field.className).toContain("status-bar__search-input");
+
+    await userEvent.type(field, "x");
+    expect(onOpen).toHaveBeenCalled();
+    expect(onQueryChange).toHaveBeenCalled();
+  });
+
+  it("sets the project and its branch side by side, and the remote as one phrase", () => {
+    const { container } = renderBar();
+
+    const blocks = container.querySelectorAll(".status-bar__block");
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toHaveClass("status-bar__block--where");
+    expect(blocks[1]).toHaveClass("status-bar__block--remote");
+    // Two segments of one shape and no mark between them (task 189): the
+    // project's trigger, then the branch's.
+    expect(container.querySelector(".status-bar__path")).toBeNull();
+    const where = Array.from(blocks[0].children);
+    expect(where[0]).toHaveClass("status-bar__project");
+    expect(where[1]).toHaveClass("branches-quick-switch");
+    // The strip no longer carries the app version: its release notes live in
+    // the menu and the notification centre now.
+    expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  it("puts the field between where you are and the remote", () => {
+    renderBar();
+    const footer = screen.getByRole("contentinfo");
+    const children = Array.from(footer.children);
+
+    expect(children[0]).toHaveClass("status-bar__block--where");
+    expect(children[1]).toHaveClass("status-bar__search-slot");
+    expect(children[2]).toHaveClass("status-bar__block--remote");
+    expect(footer.querySelector(".status-bar__sync")).not.toBeNull();
+    // The remote's two segments — the fact and the check — side by side.
+    const remote = footer.querySelector(".status-bar__block--remote");
+    expect(remote?.querySelectorAll(".status-bar__seg")).toHaveLength(2);
+    expect(remote?.querySelector(".status-bar__seg + .status-bar__refresh")).not.toBeNull();
+  });
+
+  it("opens the project popup from its name, and acts on the active project from its head", async () => {
     const onOpenProjectSettings = vi.fn();
     const onPrefetchProjectSettings = vi.fn();
-    renderBar({ onOpenProjectSettings, onPrefetchProjectSettings });
+    renderBar({ projectSwitch: projectSwitchProps({ onOpenProjectSettings, onPrefetchProjectSettings }) });
 
-    const button = screen.getByRole("button", { name: "Settings for gitodile" });
-    expect(button).toHaveAttribute("data-tooltip", "Project settings");
-    expect(button.previousElementSibling).toHaveClass("status-bar__project");
-    expect(button.nextElementSibling).toHaveClass("version-lines-quick-switch");
-    await userEvent.hover(button);
-    button.focus();
-    expect(onPrefetchProjectSettings).toHaveBeenCalled();
-    await userEvent.click(button);
-    expect(onOpenProjectSettings).toHaveBeenCalledOnce();
+    const trigger = screen.getByRole("button", { name: "gitodile — switch project" });
+    expect(trigger).toHaveTextContent("gitodile");
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    await userEvent.hover(trigger);
+    expect(onPrefetchProjectSettings).toHaveBeenCalledWith("/repo");
+    await userEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    const popup = screen.getByRole("dialog", { name: "Open projects" });
+    expect(popup).toHaveTextContent("landing");
+    await userEvent.click(screen.getByRole("button", { name: "Settings for gitodile" }));
+    expect(onOpenProjectSettings).toHaveBeenCalledWith("/repo");
+    expect(screen.queryByRole("dialog", { name: "Open projects" })).not.toBeInTheDocument();
   });
 
-  it("shows real line, working-tree, remote, freshness, and refresh state", async () => {
-    const onCheckTeamChanges = vi.fn();
-    const onSwitchVersionLine = vi.fn();
-    renderBar({ onCheckTeamChanges, onSwitchVersionLine });
+  it("marks the active project's own state, never another project's", () => {
+    const base = projectSwitchProps();
+    const { rerender } = renderBar({
+      projectSwitch: { ...base, entries: [base.entries[0], { ...base.entries[1], hasUnsavedChanges: true }] },
+    });
+    // Another project's unsaved work stays on its popup row.
+    expect(document.querySelector(".status-bar__mark")).toBeNull();
 
-    expect(screen.getByText("feature/a-very-long-version-line-name")).toBeInTheDocument();
-    // The working tree is the switcher's own mark: a count riding the icon,
-    // with the sentence kept for the tooltip and the screen reader, and the
-    // added/removed line totals as a quieter second fact beside it.
-    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
-    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 12 lines added, 3 lines removed");
-    expect(changes?.querySelector(".status-bar__changes-count")).toHaveTextContent("4");
-    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+12");
-    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−3");
-    // The remote fact is one word; how it is known lives in its tooltip.
+    rerender(
+      <LanguageProvider>
+        <StatusBar
+          project={{ name: "gitodile", branch: "main", headState: "branch" }}
+          workingTree={dirtyTree}
+          workingTreeError={null}
+          isCheckingChanges={false}
+          branches={branches}
+          isLoadingBranches={false}
+          teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() }}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
+          onCheckTeamChanges={vi.fn()}
+          projectSwitch={{ ...base, activeStatus: { kind: "resolve", description: "The last operation didn't finish" } }}
+          onPublish={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
+          commandPalette={paletteProps()}
+        />
+      </LanguageProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "gitodile — switch project · The last operation didn't finish" });
+    expect(trigger.querySelector(".status-bar__mark--resolve svg")).not.toBeNull();
+    expect(trigger).toHaveAttribute("data-tooltip", "gitodile · The last operation didn't finish");
+  });
+
+  it("shows real branch, working-tree, remote, freshness, and refresh state", async () => {
+    const onCheckTeamChanges = vi.fn();
+    const onSwitchBranch = vi.fn();
+    renderBar({ onCheckTeamChanges, onSwitchBranch });
+
+    expect(screen.getByText("feature/a-very-long-branch-name")).toBeInTheDocument();
+    // Unsaved work is a dot after the branch's name; the sentence is the
+    // trigger's tooltip and the screen reader's.
+    const trigger = screen.getByRole("button", {
+      name: "Change branch (feature/a-very-long-branch-name)",
+    });
+    expect(trigger.querySelector(".branch-selector__marker--unsaved")).not.toBeNull();
+    expect(trigger).toHaveAttribute("title", "feature/a-very-long-branch-name · 4 unsaved changes");
+    expect(screen.getByText("4 unsaved changes")).toHaveClass("visually-hidden");
+    // "Up to date" is said by the cloud and its age; the word stays for the
+    // screen reader, and how it is known lives in the tooltip.
     const sync = screen.getByText("Up to date").closest(".status-bar__sync");
+    expect(screen.getByText("Up to date")).toHaveClass("visually-hidden");
     expect(sync).toHaveClass("status-bar__sync--success");
-    expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/Checked .*3 min/));
+    expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/^Up to date · Checked .*3 min/));
 
     await userEvent.click(screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     }));
     await userEvent.click(screen.getByRole("button", { name: "feature/other" }));
-    expect(onSwitchVersionLine).toHaveBeenCalledWith("feature/other");
+    expect(onSwitchBranch).toHaveBeenCalledWith("feature/other");
 
     await userEvent.click(screen.getByRole("button", { name: "Check remote project changes" }));
     expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
-  it("hides the line totals when they are unknown or nothing moved", () => {
-    const { unmount } = renderBar({ workingTree: { ...dirtyTree, lineTotals: null } });
-    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
+  it("draws no dot on a clean tree and never the line totals", () => {
+    const { unmount } = renderBar({ workingTree: { ...dirtyTree, isClean: true, lineTotals: null } });
+    expect(document.querySelector(".branch-selector__marker")).toBeNull();
+    expect(screen.getByText("Everything is saved")).toHaveClass("visually-hidden");
     unmount();
 
-    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 0, removed: 0 } } });
-    expect(document.querySelector(".status-bar__diff-stats")).toBeNull();
-  });
-
-  it("names only the side of the line totals that moved", () => {
-    renderBar({ workingTree: { ...dirtyTree, lineTotals: { added: 5, removed: 0 } } });
-    const changes = screen.getByText(/4 unsaved changes/).closest(".status-bar__changes");
-    expect(changes).toHaveAttribute("data-tooltip", "4 unsaved changes · 5 lines added");
-    expect(changes?.querySelector(".status-bar__diff-stat--added")).toHaveTextContent("+5");
-    expect(changes?.querySelector(".status-bar__diff-stat--removed")).toHaveTextContent("−0");
+    renderBar();
+    expect(screen.queryByText("+12")).toBeNull();
+    expect(screen.queryByText("−3")).toBeNull();
   });
 
   it.each([
-    ["ahead", "2 versions to publish"],
-    ["behind", "3 newer versions available"],
-    ["diverged", "Both sides changed"],
+    ["ahead", "Publish 2 versions"],
+    ["behind", "Get 3 versions"],
+    ["diverged", "Get and publish"],
     ["noRemote", "No remote connected"],
-    ["noUpstream", "No publish destination"],
     ["unborn", "Save a version to compare"],
-    ["detached", "Switch lines to compare"],
-    ["unknown", "Sync status unavailable"],
+    ["detached", "Switch branches to compare"],
+    ["upstreamGone", "No longer on the remote"],
   ] satisfies Array<[TeamSyncState, string]>) ("maps %s without falling back to an optimistic state", (state, label) => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) } });
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it("opens publish from the cloud when saved versions are ready to send", async () => {
-    const onPublish = vi.fn();
-    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead") }, onPublish });
+  it.each([
+    ["ahead", "Publish 2 versions", "onPublish", "publish"],
+    ["behind", "Get 3 versions", "onGetChanges", "get"],
+    ["diverged", "Get and publish", "onGetAndPublish", "getAndPublish"],
+    // A branch with no destination gets one by publishing.
+    ["noUpstream", "Publish this branch", "onPublish", "publish"],
+  ] as const)("turns the cloud into the %s sync action", async (state, name, handler, kind) => {
+    const handlers = { onPublish: vi.fn(), onGetChanges: vi.fn(), onGetAndPublish: vi.fn() };
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) }, ...handlers });
 
-    const cloud = screen.getByRole("button", { name: "Publish 2 versions" });
-    expect(cloud).toHaveAttribute("data-tooltip", expect.stringMatching(/^Publish 2 versions · Checked /));
+    const cloud = screen.getByRole("button", { name });
+    expect(cloud).toHaveClass(`status-bar__sync-action--${kind}`);
+    expect(cloud).toHaveAttribute("data-tooltip", expect.stringMatching(new RegExp(`^${name} · Checked `)));
     await userEvent.click(cloud);
-    expect(onPublish).toHaveBeenCalledOnce();
+    expect(handlers[handler]).toHaveBeenCalledOnce();
+    for (const [other, fn] of Object.entries(handlers)) {
+      if (other !== handler) expect(fn).not.toHaveBeenCalled();
+    }
+    // The refresh beside it stays the explicit check, inside the remote's own
+    // block rather than a loose glyph.
+    const check = screen.getByRole("button", { name: "Check remote project changes" });
+    expect(check).toBeEnabled();
+    expect(check.closest(".status-bar__block--remote")).toBe(cloud.closest(".status-bar__block--remote"));
+  });
+
+  it("keeps the last known words on the fact while a check runs", () => {
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isCheckingRemote: true } });
+    const held = screen.getByText("Publish 2 versions").closest(".status-bar__sync");
+    expect(held).toHaveClass("status-bar__sync--held");
+    expect(held?.tagName).toBe("SPAN");
+    expect(held?.closest(".status-bar__block--remote")).not.toBeNull();
+    // The sentence stays for the screen reader; one spinner, not two.
+    expect(held).toHaveTextContent("Checking the remote…");
+    const check = screen.getByRole("button", { name: "Checking the remote…" });
+    expect(check).toBeDisabled();
+    expect(check.querySelector(".icon--spinning")).toBeNull();
+  });
+
+  it("keeps a fact and an action in the same block", () => {
+    const { unmount } = renderBar();
+    expect(screen.getByText("Up to date").closest(".status-bar__block--remote")).not.toBeNull();
+    unmount();
+
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead") } });
+    expect(
+      screen.getByRole("button", { name: "Publish 2 versions" }).closest(".status-bar__block--remote"),
+    ).not.toBeNull();
+  });
+
+  it("asks to check again when the reader's own change overtook the answer", () => {
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("upToDate"), isStale: true } });
+
+    const stale = screen.getByText("Check again").closest(".status-bar__sync");
+    expect(stale).toHaveClass("status-bar__sync--warning");
+    // The state it doubts, and how old it is, are the tooltip's; the action the
+    // reader can take is the word itself, so it is not restated after it.
+    expect(stale).toHaveAttribute("data-tooltip", expect.stringMatching(/^Up to date · Checked /));
+    expect(stale).toHaveAccessibleName("Up to date · Check remote project changes");
+  });
+
+  it("says how fresh an up-to-date answer is without hovering", () => {
+    renderBar();
+    expect(screen.getByRole("button", { name: "Check remote project changes" }))
+      .toHaveTextContent(/3 min/);
   });
 
   it("keeps the cloud a plain fact when there is nothing to publish or the answer is doubted", () => {
@@ -235,9 +417,37 @@ describe("StatusBar", () => {
     expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
     unmount();
 
-    // A stale answer may still say "ahead", but it is not a state to act from.
-    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isStale: true } });
+    // A stale or failed answer may still say "ahead" or "behind", but it is
+    // not a state to act from.
+    const stale = renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("ahead"), isStale: true } });
     expect(screen.queryByRole("button", { name: /^Publish / })).toBeNull();
+    stale.unmount();
+
+    renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus("behind"), error: "offline" } });
+    expect(screen.queryByRole("button", { name: /^Get / })).toBeNull();
+  });
+
+  it("gives both blocks the same press, with no fill held at rest", async () => {
+    const onCheckTeamChanges = vi.fn();
+    renderBar({ onCheckTeamChanges });
+
+    const footer = screen.getByRole("contentinfo");
+    const blocks = footer.querySelectorAll(".status-bar__block");
+    // Two segments each, all of them pressable, so hovering the two halves of
+    // the strip does the same thing.
+    for (const block of blocks) {
+      expect(block.querySelectorAll("button")).toHaveLength(2);
+    }
+    // Neither block holds a fill: the fill is what hovering or pressing a
+    // segment looks like, and nothing on the strip wears it at rest.
+    expect(footer.querySelector(".status-bar__block--action")).toBeNull();
+
+    // The state segment is a press of its own: it says the relation and asks
+    // for the check, named so it is never mistaken for a label.
+    const state = screen.getByRole("button", { name: "Up to date · Check remote project changes" });
+    expect(state).toHaveClass("status-bar__sync");
+    await userEvent.click(state);
+    expect(onCheckTeamChanges).toHaveBeenCalledOnce();
   });
 
   it("distinguishes loading, failed, cached, and stale knowledge", () => {
@@ -246,6 +456,7 @@ describe("StatusBar", () => {
       teamSync: { ...EMPTY_TEAM_SYNC_STATE, isLoading: true, isCheckingRemote: true },
     });
     expect(screen.getByText("Checking changes…")).toBeInTheDocument();
+    expect(document.querySelector(".branch-selector__icon.icon--spinning")).not.toBeNull();
     expect(screen.getByText("Checking the remote…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
 
@@ -257,15 +468,17 @@ describe("StatusBar", () => {
           workingTree={dirtyTree}
           workingTreeError={null}
           isCheckingChanges={false}
-          versionLines={versionLines}
-          isLoadingVersionLines={false}
+          branches={branches}
+          isLoadingBranches={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: cached }}
-          onSwitchVersionLine={vi.fn()}
-          onSeeAllVersionLines={vi.fn()}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenProjectSettings={vi.fn()}
+          projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
-          onOpenChangelog={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
+          commandPalette={paletteProps()}
         />
       </LanguageProvider>,
     );
@@ -281,21 +494,24 @@ describe("StatusBar", () => {
           workingTree={dirtyTree}
           workingTreeError="status failed"
           isCheckingChanges={false}
-          versionLines={versionLines}
-          isLoadingVersionLines={false}
+          branches={branches}
+          isLoadingBranches={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(), isStale: true }}
-          onSwitchVersionLine={vi.fn()}
-          onSeeAllVersionLines={vi.fn()}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
           onCheckTeamChanges={vi.fn()}
-          onOpenProjectSettings={vi.fn()}
+          projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
-          onOpenChangelog={vi.fn()}
+          onGetChanges={vi.fn()}
+          onGetAndPublish={vi.fn()}
+          commandPalette={paletteProps()}
         />
       </LanguageProvider>,
     );
-    expect(screen.getByText("Changes unavailable").closest(".status-bar__changes")).toHaveClass("status-bar__changes--error");
+    expect(screen.getByText("Changes unavailable")).toBeInTheDocument();
+    expect(document.querySelector(".branch-selector__marker--error")).not.toBeNull();
     // Doubt takes the word; the last known state moves to the tooltip.
-    const stale = screen.getByText("May be out of date").closest(".status-bar__sync");
+    const stale = screen.getByText("Check again").closest(".status-bar__sync");
     expect(stale).toHaveClass("status-bar__sync--warning");
     expect(stale).toHaveAttribute("data-tooltip", expect.stringContaining("Up to date"));
   });
@@ -311,10 +527,10 @@ describe("StatusBar", () => {
     );
   });
 
-  it("disables a remote check when the project is outside a version line", () => {
+  it("disables a remote check when the project is outside a branch", () => {
     renderBar({ project: { name: "gitodile", branch: null, headState: "detached" } });
     expect(screen.getByText("Specific saved version")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Change version line/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Change branch/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeDisabled();
   });
 });
@@ -327,7 +543,7 @@ describe("formatRelativeCheckTime", () => {
     expect(formatRelativeCheckTime(now - 2 * 24 * 60 * 60_000, now, "es", "ahora mismo")).toMatch(/hace 2 d/);
   });
 
-  it("states the working context — project, then line — and keeps the strip's height", () => {
+  it("states the working context — project, then branch — and keeps the strip's height", () => {
     const { container } = renderBar();
 
     // The two facts are the sentence: no words in front of them. The
@@ -338,51 +554,51 @@ describe("formatRelativeCheckTime", () => {
     expect(project).not.toBeNull();
     // The custom tooltip carries the full name, the same way every other item
     // reveals what it had to truncate.
-    expect(project).toHaveAttribute("data-tooltip", "Project: gitodile");
+    expect(project).toHaveAttribute("data-tooltip", "gitodile");
     expect(
-      screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
+      screen.getByRole("button", { name: "Change branch (feature/a-very-long-branch-name)" }),
     ).toBeInTheDocument();
     expect(container.querySelector(".status-bar")).not.toBeNull();
   });
 
-  it("puts creating a line and managing them on one row, and hands each to its own flow", async () => {
-    const onSeeAllVersionLines = vi.fn();
-    renderBar({ onSeeAllVersionLines });
+  it("puts creating a branch and managing them on one row, and hands each to its own flow", async () => {
+    const onSeeAllBranches = vi.fn();
+    renderBar({ onSeeAllBranches });
 
     const trigger = screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     });
     await userEvent.click(trigger);
-    const dialog = screen.getByRole("dialog", { name: "Switch version line" });
-    const footer = dialog.querySelector(".version-lines-quick-switch__footer");
-    const newLine = screen.getByRole("button", { name: "New line" });
-    const manage = screen.getByRole("button", { name: "Manage lines" });
+    const dialog = screen.getByRole("dialog", { name: "Switch branch" });
+    const footer = dialog.querySelector(".branches-quick-switch__footer");
+    const newBranch = screen.getByRole("button", { name: "New branch" });
+    const manage = screen.getByRole("button", { name: "Manage branches" });
 
     // One row, both actions in it, in reading order.
     expect(footer).not.toBeNull();
-    expect(footer).toContainElement(newLine);
+    expect(footer).toContainElement(newBranch);
     expect(footer).toContainElement(manage);
-    expect(newLine.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(newBranch.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // A new line is named right in the popup, the composer taking the
+    // A new branch is named right in the popup, the composer taking the
     // footer's place; cancelling puts the footer back.
-    await userEvent.click(newLine);
-    expect(screen.getByRole("textbox", { name: "New line name" })).toBeInTheDocument();
-    expect(dialog.querySelector(".version-lines-quick-switch__footer")).toBeNull();
+    await userEvent.click(newBranch);
+    expect(screen.getByRole("textbox", { name: "New branch name" })).toBeInTheDocument();
+    expect(dialog.querySelector(".branches-quick-switch__footer")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
-    expect(onSeeAllVersionLines).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Manage branches" }));
+    expect(onSeeAllBranches).toHaveBeenCalledOnce();
   });
 
   it("closes the quick switch on Escape and gives focus back to the strip", async () => {
     renderBar();
     const trigger = screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     });
 
     await userEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Switch branch" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

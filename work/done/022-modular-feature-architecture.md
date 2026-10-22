@@ -110,7 +110,7 @@ stable concept; `shared/` must not become a miscellaneous directory.
 | 024 | Done 2026-08-08 | Rust application boundary, repository access coordinator and bounded Git execution | 023 |
 | 025 | Done 2026-08-09 | Contract-tested IPC, session epochs and typed watcher invalidation protocol | 024 |
 | 026 | Done 2026-08-09 | Frontend feature runtime, screen-module contract and dependency guardrails | 023, 025 |
-| 027 | Done 2026-08-09 | Version lines migrated as the reference vertical slice | 024–026 |
+| 027 | Done 2026-08-09 | Branches migrated as the reference vertical slice | 024–026 |
 | 028 | Done 2026-08-09 | Repository/status/changes/diff reads migrated | 027 |
 | 029 | Done 2026-08-09 | Save and publish mutation flows migrated without weakening safety | 027, 028 |
 | 030 | Done 2026-08-09 | Feature-owned CSS and translations; deliberately outside the History critical path | 026–029 |
@@ -169,7 +169,7 @@ green at every task/commit boundary.
 - [x] All functional screens inherit navigation, palette, lazy/preload,
       project guard, keep-alive, lifecycle, accessibility and profiling from
       one typed registration path.
-- [x] Version lines proves the complete vertical slice and request lifecycle;
+- [x] Branches proves the complete vertical slice and request lifecycle;
       History can be implemented without adding responsibilities to a
       composition root.
 - [x] Existing behavior and safety tests remain intact.
@@ -192,7 +192,7 @@ green at every task/commit boundary.
 - The migration is a strangler sequence, never a big-bang rewrite.
 - Rust enforcement is authoritative; frontend coordination is UX, not a safety
   boundary.
-- Version lines is the migration pilot and History is the first greenfield
+- Branches is the migration pilot and History is the first greenfield
   consumer after epic completion.
 - CSS/i18n migration is separate from the critical architecture path.
 - External research contributes principles only and must be license-auditable.
@@ -241,10 +241,9 @@ until idle; screen arrival does not start whole-tree diff reads. Automated
 dependency-direction and cycle checks, a seeded forbidden-edge fixture and the
 new-screen guide make the contract enforceable.
 
-Task 027 completed the first full read-and-mutation vertical slice. Version
-lines now owns its domain types, typed port and Tauri adapter, epoch-keyed
+Task 027 completed the first full read-and-mutation vertical slice. Branches now owns its domain types, typed port and Tauri adapter, epoch-keyed
 bounded snapshot controller, hidden-screen lifecycle and UI under
-`src/features/version-lines/`; navigation performs no feature read. Rust
+`src/features/branches/`; navigation performs no feature read. Rust
 parser/planner/workflow code and 31 focused tests moved from `lib.rs` to the
 domain module while task 024's authorization/coordinator and task 025's IPC
 contract remain intact. Automated architecture checks protect both sides.
@@ -267,7 +266,7 @@ was the final consumer of the temporary root read compatibility re-exports.
 
 Task 029 moved Save version and Publish changes UI/orchestration into owned
 frontend features and their planners/workflows into Rust domain modules. Every
-save, publish and version-line planner/executor now requires a Rust-validated
+save, publish and branch planner/executor now requires a Rust-validated
 session epoch; the legacy mutation compatibility inventory is empty, while
 immutable state tokens still reject repository drift. Successful mutations
 supersede older reads and coalesce follow-up invalidation once; publish commits
