@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from "react";
-import { Check, CircleAlert, LoaderCircle, X } from "lucide-react";
+import { Check, CircleAlert, Info, LoaderCircle, X } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { localizeAppError } from "../../shared/i18n";
@@ -202,13 +202,17 @@ export function BranchRenameStrip({
             />
           </span>
         </h2>
-        {/* One branch, whichever of three things is true: why Git would refuse
-            the name, why it did, or what renaming does and does not touch.
-            The slot takes the byline's place with one fade; what is in it
-            changes as the name is typed without fading again. */}
-        <div className="branches-rename__note-slot">
+      </div>
+      {/* One line, as the strip at rest: whichever of three things is true —
+          why Git would refuse the name, why it did, or what renaming does and
+          does not touch — stands where the avatar and the time stood, so
+          entering a rename swaps what each side says and moves nothing. It
+          used to be a second line under the field, which lifted the name a few
+          pixels off its row. The sentence is on the tooltip, since a long one
+          is cut; a narrow strip keeps only the glyph. */}
+      <div className="branches-rename__note-slot">
         {nameIssue ? (
-          <p id={noteId} className="field-error branches-rename__note" aria-live="polite">
+          <p id={noteId} className="field-error branches-rename__note" aria-live="polite" data-tooltip={t.branchesNameIssue(nameIssue)}>
             <CircleAlert aria-hidden="true" />
             <span>{t.branchesNameIssue(nameIssue)}</span>
           </p>
@@ -224,10 +228,10 @@ export function BranchRenameStrip({
           </p>
         ) : (
           <p id={noteId} className="branches-detail__meta branches-rename__note" data-tooltip={noteTooltip}>
+            <Info aria-hidden="true" />
             <span>{note}</span>
           </p>
         )}
-        </div>
       </div>
       {/* Two circles where Switch, Rename and Delete were: the strip's own
           icon actions, so nothing changes size, and confirming is a glyph in

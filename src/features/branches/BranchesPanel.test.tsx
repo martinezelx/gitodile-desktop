@@ -783,9 +783,13 @@ describe("BranchesPanel", () => {
     expect([(field as HTMLInputElement).selectionStart, (field as HTMLInputElement).selectionEnd]).toEqual([8, 17]);
     // Cancel and Rename are the strip's two circles, nothing filled.
     expect(within(detail).getByRole("button", { name: "Cancel" })).toHaveClass("branches-detail__icon-action");
-    expect(
-      within(detail).getByText("Only the name changes"),
-    ).toBeInTheDocument();
+    // One line, as at rest: the note stands after the name, where the avatar
+    // and the time were, not under it.
+    const note = within(detail).getByText("Only the name changes").closest(".branches-rename__note");
+    const strip = detail.querySelector(".branches-detail__strip--editing");
+    expect(note?.parentElement?.parentElement).toBe(strip);
+    expect(strip?.querySelector(".branches-detail__identity .branches-rename__note")).toBeNull();
+    expect(note).toHaveAttribute("data-tooltip", expect.stringContaining("Only the name changes"));
     // Unchanged, there is nothing to rename.
     expect(within(detail).getByRole("button", { name: "Rename" })).toBeDisabled();
 

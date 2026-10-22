@@ -570,7 +570,8 @@ input.branches-quick-create__name { font-family: var(--font-mono); }
    radius: on a box only a line of text tall, a rounded fill bent the line into
    a curve that ran under the letters and hid them. The box reaches 6px past
    the text on each side and gives that back as margin, so the letters do not
-   move. The byline fades into the note, the actions into two circles. */
+   move. The avatar and the time fade into the note, the actions into two
+   circles, and the strip keeps its one line. */
 .branches-rename__name {
   position: relative;
   min-width: 0;
@@ -604,13 +605,22 @@ input.branches-rename__field[aria-invalid="true"] { box-shadow: 0 1.5px 0 var(--
 /* While the rename runs the field only stops taking typing; the spinner in the
    check's place is what says it is working. */
 input.branches-rename__field[aria-busy="true"] { cursor: progress; }
-/* One line like the byline it stands in for; the whole sentence is on its
-   tooltip. */
-.branches-rename__note-slot { min-width: 0; display: grid; }
-.branches-rename__note { min-width: 0; white-space: nowrap; overflow: hidden; }
+/* Where the avatar and the time stand at rest, one line like them; the whole
+   sentence is on its tooltip. Capped, so a long Git error never leaves the
+   field too narrow to type in. The strip is its container: a narrow one keeps
+   the glyph and gives the words to the tooltip and the screen reader. */
+.branches-detail__strip--editing { container: branch-strip / inline-size; }
+.branches-rename__note-slot { flex: 0 1 auto; min-width: 0; max-width: 46%; display: grid; justify-items: end; }
+.branches-rename__note { max-width: 100%; min-width: 0; gap: 6px; white-space: nowrap; overflow: hidden; }
 .branches-rename__note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .branches-rename__note.field-error { font-size: var(--text-label); line-height: var(--leading-snug); }
-.branches-rename__note.field-error svg { width: 13px; height: 13px; }
+.branches-rename__note svg { flex: 0 0 auto; width: 13px; height: 13px; }
+@container branch-strip (max-width: 480px) {
+  .branches-rename__note > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+}
 .branches-detail__strip--editing .branches-rename__note-slot,
 .branches-detail__strip--editing .branches-rename__actions,
 .branches-detail__strip--settling .branches-detail__byline,

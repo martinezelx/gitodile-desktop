@@ -1559,10 +1559,15 @@ be refused). No fill and no radius: a rounded fill on a box one line tall bent
 the line into a curve under the letters that hid them. It arrives with the part after the last `/` selected — `updater-ui`
 in `feat/updater-ui` — since that is what a rename usually changes. It used to
 swap for a mono pill, a different typeface a step to the right, which read as
-a jump rather than an edit. The byline fades into what renaming does and does
-not touch ("Only the name changes — it still tracks `origin/…`", the whole
-sentence on its tooltip), or into why Git would refuse the name, said before
-the press by the composer's own mirror of Git's rules; and Switch, Rename and
+a jump rather than an edit. The strip stays one line: the avatar and the time
+at its trailing end fade into what renaming does and does not touch ("Only
+the name changes — it still tracks `origin/…`", after an info glyph), into why
+Git would refuse the name, said before the press by the composer's own mirror
+of Git's rules, or into why it did, both in the danger tone after an alert
+glyph. Each is cut to a capped width so the field keeps room to type, with the
+whole sentence on its tooltip; a strip narrower than 480px keeps only the
+glyph. The note used to be a second line under the field, which lifted the
+name off its row the moment it became editable. Switch, Rename and
 Delete fade into two of the strip's own circles, Cancel and Rename — the check
 in the accent, never a second filled button beside the list's Create. Enter
 renames and Escape gives the name back with the same fade, out and then in.
