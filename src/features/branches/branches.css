@@ -648,7 +648,9 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
 @keyframes branches-rename-lit {
   from { color: var(--accent-primary); }
 }
-.branches-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* After the facts, a hairline: what the strip says, then what it does — the
+   rule History's version strip draws before its own circles. */
+.branches-detail__actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 .branches-detail__actions .secondary-button { white-space: nowrap; }
 .branches-detail__actions .secondary-button svg { width: 14px; height: 14px; flex-shrink: 0; }
 
@@ -1092,7 +1094,7 @@ input.branches-rename__field[aria-busy="true"] { cursor: progress; }
    to be level with, and three actions and a long name no longer share a row. */
 @media (max-width: 700px) {
   .branches-detail__strip { height: auto; min-height: var(--strip-height); flex-wrap: wrap; padding-block: var(--space-2); }
-  .branches-detail__actions { width: 100%; justify-content: flex-end; }
+  .branches-detail__actions { width: 100%; justify-content: flex-end; padding-left: 0; border-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
