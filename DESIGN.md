@@ -1182,9 +1182,8 @@ quiet (`.author-avatar` in `shared/ui`, keyed on the email so two people
 with the same initials still read apart, the full name on its tooltip). The
 user's own versions wear a person glyph on the neutral tint instead of their
 initials — "you" is the one author never told apart by colour — with "You
-(name)" on the tooltip; the detail strip says "You" with the name on hover,
-as Overview's Recent history does, and names the branch stood on "current",
-since the status bar already names the branch. Then
+(name)" on the tooltip; the detail strip wears the same avatar at its own
+size. Then
 come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
 the states the row could not say at all. The glyphs are Branches': where you are
@@ -3246,8 +3245,8 @@ current branch's, so the common case keeps its rows one strip down. It stays out
 filter chips because it is not a filter: clearing the filters must not change
 the branch. Loading, failed and "no saved versions yet" keep the timeline panel
 and its tabs, with the state block in the detail panel. The
-card is a single surface: the version strip carries the subject and its facts
-(author, time, short commit, publication, file count) at `--strip-height`; its
+card is a single surface: the version strip carries the subject at
+`--strip-height`; its
 trailing `Details` opens the story (the full message, what the diff is compared
 against, and the commit's facts) without displacing the diff; and `⋮ More`
 carries the version's actions. There are no tabs: the file list and the diff
@@ -3258,13 +3257,16 @@ its own pane so that toolbar keeps a whole row's width at any window size.
 Renaming and deleting a branch stay on the Branches screen rather than being
 duplicated in every menu. The version strip is a fixed `--strip-height`,
 not a minimum: the timeline panel's header beside it is exactly that, and a
-strip that grew with its two lines sat its rule ~20px below the tabs'. It
-carries no avatar — a 24px circle beside the name it abbreviated said who
-saved it twice. Its second line is the author in full, the reference that
-points here, and, for a version that has not left the machine, the timeline
-row's laptop glyph with its tooltip. Published draws nothing, as on the row,
-and neither does an unknown answer, because a strip must not say "no idea";
-`Details` states both in words. The
+strip that grew with its two lines sat its rule ~20px below the tabs'. It is
+one line, as Branches' strip is, and the subject has it: at the trailing end
+come only the timeline row's own shorthand — the laptop glyph with its
+tooltip for a version that has not left the machine, the author avatar ("You"
+for the user's own, the name on its tooltip) and when, said relatively with
+the exact date on hover. Published draws nothing, as on the row, and neither
+does an unknown answer, because a strip must not say "no idea"; `Details`
+states both in words. A second line used to spell the author out and name the
+branch pointing here, "current" for the one stood on: the status bar already
+says where the project is, and `Details` lists every reference. The
 open file's category in
 the diff header is the same glyph with the word beside it rather than a
 pill: a third shape for one fact the row and the band already draw alike.

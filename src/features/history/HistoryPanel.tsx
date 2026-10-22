@@ -15,7 +15,7 @@ import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
 import type { HistoryDecoration, HistoryFileChange, HistoryState, PublicationState, SavedVersionDetail, SavedVersionSummary } from "./domain";
 import { formatHistoryDate } from "./formatHistoryDate";
-import { HistoryMetaDot, HistoryRefBadge, localBranchFor } from "./HistoryRefBadge";
+import { localBranchFor } from "./HistoryRefBadge";
 import { isSelfAuthor } from "./author";
 import {
   LANE_TINTS,
@@ -785,8 +785,9 @@ function ChangedFiles({ rows, inFolders, selectedPath, formats, onSelect, onTogg
 const NO_COLLAPSED_FOLDERS: ReadonlySet<string> = new Set();
 const filePath = (file: HistoryFileChange): string => file.path;
 
-function HistoryDetailStrip({ detail, currentBranch, selfEmail, actions, detailsOpen, onToggleDetails }: {
+function HistoryDetailStrip({ detail, formats, currentBranch, selfEmail, actions, detailsOpen, onToggleDetails }: {
   detail: SavedVersionDetail;
+  formats: LocaleFormats;
   /** `HEAD`'s own branch, so a branch action can say where the project already is. */
   currentBranch: string | null;
   /** The user's own Git email: their versions say "You", the name on hover. */
@@ -798,6 +799,9 @@ function HistoryDetailStrip({ detail, currentBranch, selfEmail, actions, details
   const { t } = useLanguage();
   const version = detail.version;
   const title = versionTitle(version, t);
+  const isSelf = isSelfAuthor(version.author, selfEmail);
+  // When, as the timeline row says it: relative, the exact date on hover.
+  const date = formatHistoryDate(version.authoredAt, formats);
   const [menu, setMenu] = useState<{ anchor: ContextMenuAnchor } | null>(null);
   const closeMenu = (restoreFocus: boolean): void => {
     setMenu((open) => {
@@ -814,33 +818,28 @@ function HistoryDetailStrip({ detail, currentBranch, selfEmail, actions, details
   const hasMenu = Boolean(actions.onViewBranch || actions.onSwitchBranch || actions.onCreateBranchFromVersion);
   return (
     <header className="history-detail__strip">
-      <div className="history-detail__strip-identity">
-        <h2 id="history-detail-title" className="history-detail__strip-title" title={title}><VersionTitleText version={version} title={title} /></h2>
-        {/* Only what has to survive next to the subject at any width: who saved
-            it. The time, the hash, the publication state and the file count all
-            move behind `Details`, where there is room to read them. */}
-        <p className="history-detail__strip-facts">
-          {isSelfAuthor(version.author, selfEmail)
-            ? <strong title={version.author?.name}>{t.historyAuthorYou}</strong>
-            : <strong>{version.author?.name || t.historyAuthorUnknown}</strong>}
-          {/* The branch being stood on is "current": the status bar under this
-              screen already names it ("Working on …"). */}
-          <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.historyRefCurrent} />
-          {/* Whether this has left the machine, at a glance: the glyph the
-              timeline row wears, explained on its tooltip and named to a
-              screen reader here, where it is not folded into a row's
-              description. Published draws nothing, as on the row, and so
-              does an unknown answer (no upstream) — a strip must not say "no
-              idea"; `Details` states both in full. */}
-          {version.publication === "local-only" && (
-            <>
-              <HistoryMetaDot />
-              <StateGlyph tone="local" icon={<LocalOnlyIcon />} tooltip={t.historyGlyphLocalOnly} />
-              <span className="visually-hidden">{t.historyLocalOnly}</span>
-            </>
-          )}
-        </p>
-      </div>
+      {/* One line, and the subject has it. What else the strip says is the
+          timeline row's own shorthand at the trailing end: whether it has left
+          the machine, who saved it and when. The branches pointing here, the
+          hash and the file count are behind `Details`; the branch being stood
+          on is in the status bar under this screen. */}
+      <h2 id="history-detail-title" className="history-detail__strip-title" title={title}><VersionTitleText version={version} title={title} /></h2>
+      <p className="history-detail__strip-facts">
+        {/* The glyph the timeline row wears, explained on its tooltip and
+            named to a screen reader here, where it is not folded into a row's
+            description. Published draws nothing, as on the row, and so does
+            an unknown answer (no upstream) — a strip must not say "no idea";
+            `Details` states both in full. */}
+        {version.publication === "local-only" && (
+          <>
+            <StateGlyph tone="local" icon={<LocalOnlyIcon />} tooltip={t.historyGlyphLocalOnly} />
+            <span className="visually-hidden">{t.historyLocalOnly}</span>
+          </>
+        )}
+        <VersionAuthorAvatar version={version} isSelf={isSelf} t={t} size="strip" />
+        <span className="visually-hidden">{isSelf ? t.historyAuthorYou : version.author?.name || t.historyAuthorUnknown}</span>
+        {date && <span className="history-detail__strip-date" title={t.historyVersionDate(date.absolute)}>{date.relative}</span>}
+      </p>
       <div className="history-detail__strip-trailing">
         <button className="history-details-toggle" type="button" aria-expanded={detailsOpen} aria-label={t.historyDetails} data-tooltip={t.historyDetails} onClick={onToggleDetails}>
           <ChevronRight aria-hidden="true" className="history-details-toggle__caret" />
@@ -1621,6 +1620,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
     <div className="history-detail__card">
       <HistoryDetailStrip
         detail={detail}
+        formats={formats}
         currentBranch={state.snapshot?.branch ?? null}
         selfEmail={selfEmail}
         actions={actions}

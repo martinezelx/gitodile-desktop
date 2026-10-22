@@ -392,13 +392,13 @@ describe("HistoryPanel", () => {
     // The row is the subject, the author and the time — no reference badge.
     expect(selectedRow.querySelector(".history-ref-badge")).toBeNull();
     const detailRegion = screen.getByRole("region", { name: selected.subject });
-    // The strip is the subject, the author in full and the reference that
-    // points here — no avatar, and a published version wears no glyph; the
-    // hash moves behind Details, closed by default, where the publication is
-    // stated in full.
-    expect(within(detailRegion).getByText(selected.author!.name)).toBeInTheDocument();
-    expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toHaveTextContent("v2.0");
-    expect(detailRegion.querySelector(".history-detail__strip .author-avatar")).toBeNull();
+    // The strip is one line: the subject, then the author's avatar and when.
+    // The references pointing here, the hash and the publication are behind
+    // Details, closed by default; a published version wears no glyph.
+    const stripFacts = detailRegion.querySelector(".history-detail__strip-facts");
+    expect(stripFacts?.querySelector(".author-avatar")).toHaveAttribute("data-tooltip", selected.author!.name);
+    expect(stripFacts?.querySelector(".history-detail__strip-date")).not.toBeNull();
+    expect(detailRegion.querySelector(".history-detail__strip .history-ref-badge")).toBeNull();
     expect(detailRegion.querySelector(".history-detail__strip .state-glyph")).toBeNull();
     expect(within(detailRegion).queryByText(selected.commit)).not.toBeInTheDocument();
     fireEvent.click(within(detailRegion).getByRole("button", { name: "Details" }));
@@ -520,12 +520,14 @@ describe("HistoryPanel", () => {
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
     expect(container.querySelector(".history-row")).toHaveAttribute("aria-description", expect.stringContaining("You (Ada Lovelace)"));
 
+    // The strip says it with the same avatar, the name on its tooltip, and
+    // names no branch: the status bar already says where the project is.
     const strip = container.querySelector(".history-detail__strip-facts");
-    expect(within(strip as HTMLElement).getByText("You")).toHaveAttribute("title", "Ada Lovelace");
-    // The branch the project stands on is "current"; its name is on the title.
-    const badge = strip?.querySelector(".history-ref-badge");
-    expect(badge).toHaveTextContent("current");
-    expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
+    const stripAvatar = strip?.querySelector(".author-avatar");
+    expect(stripAvatar).toHaveClass("author-avatar--self", "author-avatar--strip");
+    expect(stripAvatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
+    expect(within(strip as HTMLElement).getByText("You")).toHaveClass("visually-hidden");
+    expect(container.querySelector(".history-detail__strip .history-ref-badge")).toBeNull();
   });
 
   describe("days and lanes", () => {

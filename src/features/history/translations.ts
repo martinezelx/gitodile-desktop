@@ -116,7 +116,6 @@ export interface HistoryTranslations {
   historyAuthorYouNamed: (name: string) => string;
   /** The branch badge on the version the project stands on, in place of the
    * branch's name, which the screen already says. */
-  historyRefCurrent: string;
   historyPublished: string;
   historyLocalOnly: string;
   historyCurrentLabel: string;
@@ -288,7 +287,6 @@ const en: HistoryTranslations = {
   historyAuthorUnknown: "Unknown author",
   historyAuthorYou: "You",
   historyAuthorYouNamed: (name) => `You (${name})`,
-  historyRefCurrent: "current",
   historyPublished: "Published",
   historyLocalOnly: "Saved locally",
   historyCurrentLabel: "Where you are",
@@ -463,7 +461,6 @@ const es: HistoryTranslations = {
   historyAuthorUnknown: "Autor desconocido",
   historyAuthorYou: "Tú",
   historyAuthorYouNamed: (name) => `Tú (${name})`,
-  historyRefCurrent: "actual",
   historyPublished: "Publicada",
   historyLocalOnly: "Guardada en local",
   historyCurrentLabel: "Aquí estás",

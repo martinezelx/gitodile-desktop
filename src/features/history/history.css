@@ -656,24 +656,18 @@
   padding: 0 var(--space-4) 0 var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
-/* Two lines, the way the Changes list panel heads its own column: the subject
-   gets a line to itself, and the author sits under it — one tone quieter, so
-   the name the row exists to show is never crowded by who saved it. Both lines
-   truncate, and the strip keeps its single height. */
-.history-detail__strip-identity { min-width: 0; flex: 1 1 auto; display: grid; align-content: center; gap: 2px; overflow: hidden; }
+/* One line: the subject takes what the strip has, and truncates first. */
 .history-detail__strip-title {
-  min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  min-width: 0; flex: 1 1 auto; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   font-size: var(--text-lead); font-weight: var(--weight-strong); line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
 }
+/* Whether it left the machine, who saved it and when, at the trailing end —
+   the timeline row's shorthand, never truncated: the subject gives way. */
 .history-detail__strip-facts {
-  min-width: 0; display: flex; align-items: center; gap: var(--space-1); margin: 0; overflow: hidden; white-space: nowrap;
+  flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-2); margin: 0; white-space: nowrap;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug);
 }
-/* The name gives way first; the reference beside it is a capsule and holds its
-   own width. */
-.history-detail__strip-facts strong { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
-.history-detail__strip-facts code { color: inherit; font-size: var(--text-caption); }
 .history-detail__strip-trailing { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; padding-left: var(--space-3); border-left: 1px solid var(--border-divider); }
 /* Two glyph-only controls, the strip's own shape: circles at the control tier,
    as every other icon control in the app is, each named to a screen reader and
