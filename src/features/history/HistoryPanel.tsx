@@ -459,8 +459,8 @@ function LocalGroupHead({ count, expanded, onToggle, onPublish, t, drawing }: { 
   );
 }
 
-const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersions, selectedCommit, publishedTo, remoteGone, scrollOffset, entryRevision, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
-  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; remoteGone: boolean; scrollOffset: number; entryRevision: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryBranchActions;
+const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersions, selectedCommit, publishedTo, remoteGone, scrollOffset, isLoading, hasMore, isLoadingMore, hasMoreError, clientTruncated, formats, currentBranch, selfEmail, search, filters, scope, authorSuggestions, pathSuggestions, canFilterPublication, actions, onSearch, onFilters, onScope, onSelect, onLoadMore, onScrollOffset, onOpenDetail }: {
+  versions: SavedVersionSummary[]; selectedCommit: string | null; publishedTo: string | null; remoteGone: boolean; scrollOffset: number; isLoading: boolean; hasMore: boolean; isLoadingMore: boolean; hasMoreError: boolean; clientTruncated: boolean; formats: LocaleFormats; currentBranch: string | null; selfEmail: string | null; search: string; filters: HistoryFilters; scope: HistoryScope; authorSuggestions: string[]; pathSuggestions: string[]; canFilterPublication: boolean; actions: HistoryBranchActions;
   onSearch: (value: string) => void; onFilters: (filters: HistoryFilters) => void; onScope: (scope: HistoryScope) => void; onSelect: (commit: string) => void; onLoadMore: () => void; onScrollOffset: (offset: number) => void; onOpenDetail: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
@@ -478,7 +478,6 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const restoredRef = useRef(false);
-  const lastEntryRevision = useRef(entryRevision);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filtered = countActiveFilters(filters) > 0;
   const searchQuery = search.trim().toLocaleLowerCase();
@@ -599,18 +598,12 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
   const lastIndex = rows.at(-1)?.index ?? -1;
 
   useLayoutEffect(() => {
-    // Restore a retained offset once, but honour an explicit return to the
-    // start too: selecting the first version must not leave it above the pane.
-    const entered = lastEntryRevision.current !== entryRevision;
-    lastEntryRevision.current = entryRevision;
-    if (entered) {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      setFoldedBlocks({ local: false, published: false });
-    }
-    if (!scrollRef.current || (!entered && ((restoredRef.current && scrollOffset !== 0) || search || filtered))) return;
-    scrollRef.current.scrollTop = entered ? 0 : scrollOffset;
+    // Restore once after mounting. Retained screens already hold the user's
+    // live position, including scrolls not yet saved by the debounce below.
+    if (restoredRef.current || !scrollRef.current || search || filtered) return;
+    scrollRef.current.scrollTop = scrollOffset;
     restoredRef.current = true;
-  }, [entryRevision, filtered, scrollOffset, search]);
+  }, [filtered, scrollOffset, search]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -1548,7 +1541,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   const { collapsed: collapsedFolders, toggle: toggleFolder, reveal: revealFile } = useCollapsedFolders();
   useEffect(() => {
     if (state.selectedFilePath) revealFile(state.selectedFilePath);
-  }, [revealFile, state.entryRevision, state.selectedFilePath]);
+  }, [revealFile, state.selectedFilePath]);
 
   if (state.detail.isLoading) return <section className="history-detail history-detail--loading" aria-labelledby={selectedVersion ? "history-detail-title" : undefined} aria-busy="true">{selectedVersion && <div className="history-detail__loading-title"><h2 id="history-detail-title">{versionTitle(selectedVersion, t)}</h2></div>}<DetailPlaceholder label={t.historyDetailLoading} /></section>;
   if (state.detail.error) return <section className="history-detail history-detail--state" role="alert"><CircleAlert /><h2>{t.historyDetailError}</h2><button className="secondary-button" type="button" onClick={onRetryDetail}>{t.historyRetry}</button></section>;
@@ -1865,7 +1858,7 @@ export function HistoryPanel({ tabs, controller, query, state, watcherState, act
     isState: false,
     isBusy: state.isLoading,
     isNarrowDetail: showNarrowDetail,
-    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} remoteGone={upstreamGoneBranch !== null && (state.scope.kind === "branch" ? state.scope.name : state.snapshot?.branch) === upstreamGoneBranch} scrollOffset={state.scrollOffset} entryRevision={state.entryRevision} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
+    timeline: <HistoryTimeline key={showNarrowDetail ? "detail-open" : "timeline-open"} versions={visibleVersions} selectedCommit={state.selectedCommit} publishedTo={state.snapshot?.upstream ? `${state.snapshot.upstream.remote}/${state.snapshot.upstream.destinationBranch}` : null} remoteGone={upstreamGoneBranch !== null && (state.scope.kind === "branch" ? state.scope.name : state.snapshot?.branch) === upstreamGoneBranch} scrollOffset={state.scrollOffset} isLoading={state.isLoading} hasMore={state.snapshot?.hasMore ?? false} isLoadingMore={state.isLoadingMore} hasMoreError={state.moreError !== null} clientTruncated={state.clientTruncated} formats={formats} currentBranch={state.snapshot?.branch ?? null} selfEmail={selfEmail} search={search} filters={state.filters} scope={state.scope} authorSuggestions={authorSuggestions} pathSuggestions={pathSuggestions} canFilterPublication={canFilterPublication} actions={actions} onSearch={setSearch} onFilters={applyFilters} onScope={applyScope} onSelect={selectVersion} onLoadMore={loadMore} onScrollOffset={saveScrollOffset} onOpenDetail={openNarrowDetail} />,
     detail: <HistoryDetail state={state} formats={formats} selfEmail={selfEmail} actions={actions} onSelectFile={selectFile} onRetryDetail={retryDetail} onRetryDiff={retryDiff} onBack={closeNarrowDetail} readImagePreview={readImagePreview} sourceKey={`${query.projectId}\0${query.sessionEpoch}\0${selectedCommit ?? ""}`} />,
   });
 }

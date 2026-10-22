@@ -1289,11 +1289,12 @@ Folders are the default when no valid preference is saved, including when
 storage is unavailable. An explicitly saved flat-list choice stays respected.
 Initial file selection, and the fallback when a selected file disappears,
 follow the selected layout's display order: the first file under the first
-folder in tree view, or the first listed file in flat view. An explicit generic
-entry from the command palette, rail or tab starts at the first file and, in
-History, the first version in the current timeline, with its scroll at the
-start. Links to a particular file or saved version still open that target;
-refresh and Back/Forward preserve a valid explicit selection. History chooses
+folder in tree view, or the first listed file in flat view. Navigation from
+the command palette, rail or tabs preserves the user's valid selection and
+position, including the selected branch, History version, files, scroll and
+folded folders. The first item is the fallback only when there is no valid
+selection. Links to a particular file or saved version still open that target;
+refresh and Back/Forward also preserve a valid explicit selection. History chooses
 the right file before reading its diff, including cached version detail.
 The switch is a single icon after the rule in the list's search pill — the
 part of the pill that acts on the list rather than on what is typed — beside

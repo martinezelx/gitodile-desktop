@@ -66,7 +66,7 @@ export function HistorySummarySection({
   /** Whether a version that is still only on this computer may be offered
    * "publish up to here" — the same gate as the next-step card's Publish. */
   canPublish?: boolean;
-  onOpenHistory: (commit?: string) => void;
+  onOpenHistory: () => void;
   /** Publishes this version and every older one under it, through the
    * previewed publish flow. Only offered on rows the inventory says are not
    * yet published, and only when `canPublish`. */
@@ -136,7 +136,7 @@ export function HistorySummarySection({
 
   const openVersion = (commit: string): void => {
     controller.selectVersion(query, commit);
-    onOpenHistory(commit);
+    onOpenHistory();
   };
 
   const renderRow = (version: SavedVersionSummary): React.JSX.Element => {
@@ -238,7 +238,7 @@ export function HistorySummarySection({
           <button
             className={`overview-history__all${pointsOn ? " overview-history__all--lead attention-breathe" : ""}`}
             type="button"
-            onClick={() => onOpenHistory()}
+            onClick={onOpenHistory}
           >
             {t.overviewHistoryViewAll}
             <ChevronRight aria-hidden="true" />

@@ -71,7 +71,6 @@ function emptyState(query: HistoryQuery): HistoryState {
     detail: EMPTY_DETAIL,
     fileDiff: EMPTY_DIFF,
     scrollOffset: 0,
-    entryRevision: 0,
     generation: 0,
   };
 }
@@ -541,27 +540,6 @@ export function createHistoryController(port: HistoryPort) {
     },
     loadMore,
     selectVersion,
-    /** An explicit generic navigation starts at the newest displayed version
-     * and its first file; refresh and targeted links keep their selection. */
-    selectFirstVersion(query: HistoryQuery): void {
-      const entry = entryFor(query);
-      publish(entry, { ...entry.state, scrollOffset: 0, selectionRemoved: false, entryRevision: entry.state.entryRevision + 1 });
-      const first = entry.state.versions[0]?.commit;
-      if (!first) return;
-      if (entry.state.selectedCommit !== first) {
-        selectVersion(query, first);
-        return;
-      }
-      const selectedFilePath = resolveSelectedPath(entry.state.detail.detail?.files ?? [], null, readFileListView());
-      const keepsDiff = selectedFilePath === entry.state.selectedFilePath;
-      if (keepsDiff) return;
-      publish(entry, {
-        ...entry.state,
-        selectedFilePath,
-        fileDiff: keepsDiff ? entry.state.fileDiff : EMPTY_DIFF,
-      });
-      if (!keepsDiff && selectedFilePath) void loadFileDiff(query, entry, entry.state.generation, first, selectedFilePath);
-    },
     selectFile(query: HistoryQuery, filePath: string): void {
       const entry = entryFor(query);
       const commit = entry.state.selectedCommit;

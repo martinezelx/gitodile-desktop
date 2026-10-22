@@ -21,7 +21,7 @@ function emptyPage(token: string): HistoryPage {
 afterEach(cleanup);
 
 describe("HistoryScreen lifecycle", () => {
-  it("does not apply a delayed version link after a newer generic entry", async () => {
+  it("does not apply a delayed version link after its scope was superseded", async () => {
     let finishScope!: () => void;
     const pendingScope = new Promise<void>((resolve) => { finishScope = resolve; });
     const controller = createHistoryController({
@@ -34,7 +34,7 @@ describe("HistoryScreen lifecycle", () => {
       <HistoryScreen tabs={TABS} controller={controller} projectPath="/repo" sessionEpoch="epoch-1"
         watcherState="watching" scopeBranchIntent="feature/foo" selectCommitIntent="old-target" onOpenSettings={() => {}} />
     </ScreenLifecycleProvider></LanguageProvider>);
-    act(() => controller.selectFirstVersion(query));
+    act(() => controller.supersede(query));
     await act(async () => { finishScope(); await pendingScope; });
     expect(selectVersion).not.toHaveBeenCalled();
   });

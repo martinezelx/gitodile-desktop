@@ -15,7 +15,8 @@ parent:
 # Goal
 
 Show available content immediately when navigating, retain useful motion and
-start Changes/History at their first item in the displayed file layout.
+preserve the user's place in Work, defaulting to the first item when no valid
+selection exists.
 
 # Approved scope
 
@@ -38,9 +39,11 @@ The temporary task 196 was folded here before committing; its ID stays reserved.
   flat-list choices and the existing shared preference and toggle.
 - Resolve initial/missing file selections in the selected layout's order,
   rather than Git's payload order, including cached History detail.
-- Generic palette, rail and tab entry selects the first file and first History
-  version; particular file/version links keep their target. Refresh,
-  Back/Forward and project restoration retain their existing selection semantics.
+- Updated user clarification: palette, rail and tab entry preserve an existing
+  valid branch/version/file selection and the user's scroll/folds. The first
+  file/version is the fallback only when no valid selection exists. Particular
+  file/version links keep their target. Refresh, Back/Forward and project
+  restoration retain their existing selection semantics.
 - Review the final implementation for bugs, regressions and justified improvements.
 
 # Acceptance criteria
@@ -50,8 +53,8 @@ The temporary task 196 was folded here before committing; its ID stays reserved.
 - [x] Console only reveals the drawing when commands/clearing relocate it.
 - [x] Both file lists default to trees and preserve a stored flat-list choice.
 - [x] Initial file selection follows the layout before reading its diff.
-- [x] Generic navigation resets the version/file and retained timeline scroll;
-      targeted links keep their target and valid refresh selections survive.
+- [x] Generic navigation preserves the user's selection, scroll and folds;
+      initial/missing selections fall back to the first item in display order.
 - [x] Final code review and regression checks are recorded below.
 - [x] The aggregate `pnpm run check` passes; platform validation is reported honestly.
 
@@ -77,22 +80,24 @@ motion. Home's prompt implementation/timing is unchanged.
 The shared file-layout reader accepts an explicit `list` and otherwise returns
 `tree`, including unavailable storage. A shared selection policy preserves a
 valid explicit path or chooses the first path in the layout. History applies
-it to fresh/cached detail before a diff read. Navigation resets generic entry
-without restarting the History page; explicit version/file links bypass it.
-Overview passes the targeted commit through its navigation callback. Branch
-scope intents choose their first version after the scoped page lands.
+it to fresh/cached detail before a diff read. Navigation preserves existing
+state without restarting the History page. Explicit version/file links set the
+requested selection before opening the destination. Branch scope changes keep
+a valid choice and validate unreachable selections through the existing detail
+read; opening the same scope does not reset it.
 
-The review found two timing problems: an in-flight page could restore a
-selection captured before navigation, and a retained scroll could remain below
-the first version if its debounced offset had not been saved yet. Page arrivals
-now honour the current selection. Explicit entry has a revision so retained
-timelines reset even from an unchanged saved offset, cancel a pending scroll
-save and unfold their version blocks. A superseded branch/version intent
-cannot reapply its target after a newer scope or generic entry. Selected file
+Page arrivals honour the current selection instead of a choice captured before
+the read started. The initial implementation reset generic navigation, based on
+the earlier first-item request; the user then clarified that an existing choice
+must survive navigation. Removed the root's selection resets and the associated
+first-version/revision machinery. A retained timeline holds its live DOM scroll,
+including before the debounced value is saved, and keeps folded version blocks.
+A superseded branch/version intent cannot reapply its target after a newer
+scope. Selected file
 changes reveal their containing folders; Changes' initial/fallback selection
 uses matching files while preserving a valid explicit selection across filters.
 
-# Validation
+# Validation before the selection-preservation clarification
 
 - Regression coverage includes Console command/clear/revisit/reduced-motion
   behavior, tree defaults and persisted flat-list choices, folder inclusion and
@@ -133,3 +138,24 @@ uses matching files while preserving a valid explicit selection across filters.
   cross-platform validation.
 - After recording the final result, documentation and diff whitespace were
   checked again before committing.
+
+# Selection-preservation follow-up validation
+
+- The full-app regression now checks the clarified policy: first file/version
+  on initial entry, then retained selected version/file, timeline DOM and scroll,
+  Changes folder folds, palette/rail/tab navigation and a selected non-active
+  branch after leaving and returning. Explicit version links still override
+  the retained choice. History-page and branch-inventory reads remain at one.
+- Targeted navigation regression: passed. Related History/Changes/Overview
+  regressions: 6 files / 209 tests passed. The additional Changes regression
+  passed: a new snapshot preserves the chosen file while it exists, then falls
+  back to the first tree file when that file disappears.
+- TypeScript, documentation metadata/links and diff whitespace passed during
+  iteration. No further native Computer Use was performed after the user's
+  earlier Escape stop; these follow-up flows were exercised by automated tests.
+- Final aggregate `pnpm run check` after this correction: passed (exit 0),
+  using `CARGO_TARGET_DIR=src-tauri/target/check-195`. All 148 frontend files /
+  1,606 tests, build, docs/release/icon/architecture checks, TypeScript, Rust
+  formatting, Clippy, 623 Rust library tests and 1 integration test passed;
+  1 existing Rust library test was ignored. The existing chunk-size warning
+  remains. Documentation and whitespace were checked again after this record.

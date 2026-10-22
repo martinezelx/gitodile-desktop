@@ -1725,7 +1725,7 @@ describe("App project restoration", () => {
     });
   });
 
-  it("starts generic palette, rail and tab entries at the first file/version while preserving targeted links", async () => {
+  it("defaults to the first file/version and preserves user context across palette, rail and tab navigation", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem("gitodile-projects", JSON.stringify({ version: 1, order: [restoredProject.path], activeId: restoredProject.path }));
     const files = ["README.md", "src/z.ts", "src/a.ts"].map((path) => ({ path, originalPath: null, category: "changed" as const }));
@@ -1762,7 +1762,12 @@ describe("App project restoration", () => {
         kind: "binary", path: request?.filePath, originalPath: null, change: "changed",
       });
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_branches") return Promise.resolve(branches);
+      if (command === "get_branches") return Promise.resolve({
+        ...branches, branches: branches.branches.map((branch) => ({ ...branch, isFinished: false })),
+      });
+      if (command === "get_branch_history") return Promise.resolve({
+        name: (args as { name: string }).name, totalCount: 0, versions: [], hasMore: false, unpublished: null, route: null,
+      });
       return Promise.resolve(undefined);
     });
     const user = userEvent.setup();
@@ -1775,31 +1780,60 @@ describe("App project restoration", () => {
     const firstFile = async (): Promise<void> => {
       await waitFor(() => expect(screen.getByRole("button", { name: /^src\/a\.ts/ })).toHaveAttribute("aria-current", "true"), { timeout: 5000 });
     };
+    const selectedRootFile = (): void => {
+      expect(screen.getByRole("button", { name: /^README\.md/ })).toHaveAttribute("aria-current", "true");
+    };
     await go("Go to Changes");
     await firstFile();
     await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    const changesFolder = screen.getByRole("button", { name: "src folder, 2 files" });
+    await user.click(changesFolder);
     await go("Go to Changes");
-    await firstFile();
+    selectedRootFile();
+    expect(changesFolder).toHaveAttribute("aria-expanded", "false");
     await go("Go to History");
     await firstFile();
     await user.click(screen.getByRole("treeitem", { name: /Older version/ }));
     await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    timeline.scrollTop = 800;
+    fireEvent.scroll(timeline);
     await go("Go to History");
-    await waitFor(() => expect(screen.getByRole("treeitem", { name: /Newest version/ })).toHaveAttribute("aria-selected", "true"));
-    await firstFile();
-    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    expect(screen.getByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
+    selectedRootFile();
+    expect(timeline.scrollTop).toBe(800);
     const nav = screen.getByRole("navigation", { name: "Project navigation" });
     await user.click(within(nav).getByRole("button", { name: "Overview" }));
     await user.click(within(nav).getByRole("button", { name: "Work" }));
-    await firstFile();
-    await user.click(screen.getByRole("button", { name: /^README\.md/ }));
+    selectedRootFile();
+    expect(screen.getByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tree", { name: "Saved versions timeline" })).toBe(timeline);
+    expect(timeline.scrollTop).toBe(800);
     await user.click(screen.getByRole("tab", { name: "Changes" }));
+    selectedRootFile();
+    expect(changesFolder).toHaveAttribute("aria-expanded", "false");
     await user.click(screen.getByRole("tab", { name: "History" }));
+    selectedRootFile();
+    expect(screen.getByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
+    expect(timeline.scrollTop).toBe(800);
+    // A targeted link still overrides the retained older version.
+    await user.click(within(nav).getByRole("button", { name: "Overview" }));
+    await user.click(await screen.findByRole("button", { name: /Open “Newest version” in History/ }));
+    expect(await screen.findByRole("treeitem", { name: /Newest version/ })).toHaveAttribute("aria-selected", "true");
     await firstFile();
     await user.click(within(nav).getByRole("button", { name: "Overview" }));
     await user.click(await screen.findByRole("button", { name: /Open “Older version” in History/ }));
     expect(await screen.findByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
+    await user.click(within(nav).getByRole("button", { name: "Branches" }));
+    const selectedBranch = await screen.findByRole("treeitem", { name: /feature\/spike/ });
+    await user.click(selectedBranch);
+    expect(selectedBranch).toHaveAttribute("aria-selected", "true");
+    await user.click(within(nav).getByRole("button", { name: "Overview" }));
+    await user.click(within(nav).getByRole("button", { name: "Branches" }));
+    expect(screen.getByRole("treeitem", { name: /feature\/spike/ })).toBe(selectedBranch);
+    expect(selectedBranch).toHaveAttribute("aria-selected", "true");
     expect(mockedInvoke.mock.calls.filter(([command]) => command === "read_history_page")).toHaveLength(1);
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_branches")).toHaveLength(1);
     // This exercises two lazy panels and several full app navigations under
     // the parallel suite; the normal 5s budget is for a single interaction.
   }, 20_000);

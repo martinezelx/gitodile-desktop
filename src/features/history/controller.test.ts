@@ -83,7 +83,7 @@ function port(overrides: Partial<HistoryPort> = {}): HistoryPort {
 }
 
 describe("HistoryController", () => {
-  it("keeps navigation's first-version choice when an earlier refresh completes", async () => {
+  it("keeps the user's latest version choice when an earlier refresh completes", async () => {
     const pending = deferred<HistoryPage>();
     const readPage = vi.fn(async () => page([version(1), version(0)]));
     const controller = createHistoryController(port({ readPage }));
@@ -92,7 +92,7 @@ describe("HistoryController", () => {
     await vi.waitFor(() => expect(controller.getSnapshot(query).detail.detail?.version.commit).toBe(version(0).commit));
     readPage.mockImplementationOnce(() => pending.promise);
     const refresh = controller.refresh(query);
-    controller.selectFirstVersion(query);
+    controller.selectVersion(query, version(1).commit);
     pending.resolve(page([version(1), version(0)]));
     await refresh;
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
@@ -131,12 +131,11 @@ describe("HistoryController", () => {
 
       controller.selectVersion(query, version(0).commit);
       controller.setScrollOffset(query, 900);
-      const reads = readDetail.mock.calls.length;
-      controller.selectFirstVersion(query);
-      expect(controller.getSnapshot(query)).toMatchObject({ selectedCommit: version(1).commit, selectedFilePath: first, scrollOffset: 0 });
       controller.selectFile(query, "src/z.ts");
-      controller.selectFirstVersion(query);
-      expect(controller.getSnapshot(query).selectedFilePath).toBe(first);
+      await vi.waitFor(() => expect(controller.getSnapshot(query).fileDiff.diff?.path).toBe("src/z.ts"));
+      const reads = readDetail.mock.calls.length;
+      await controller.refresh(query);
+      expect(controller.getSnapshot(query)).toMatchObject({ selectedCommit: version(0).commit, selectedFilePath: "src/z.ts", scrollOffset: 900 });
       expect(readDetail).toHaveBeenCalledTimes(reads);
     } finally {
       localStorage.removeItem("gitodile-file-list-view");

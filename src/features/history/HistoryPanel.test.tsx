@@ -92,7 +92,6 @@ function state(count: number, overrides: Partial<HistoryState> = {}): HistorySta
     detail: { detail: null, isLoading: false, error: null },
     fileDiff: { diff: null, isLoading: false, error: null },
     scrollOffset: 0,
-    entryRevision: 0,
     generation: 1,
     ...overrides,
   };
@@ -149,24 +148,24 @@ function versionOnBranch(index: number, name: string): SavedVersionSummary {
 afterEach(cleanup);
 
 describe("HistoryPanel", () => {
-  it("resets a scroll that has not yet been saved on explicit entry, including a filtered timeline", () => {
+  it("preserves an unsaved scroll when a filtered timeline rerenders", () => {
     const historyController = controller();
-    const panel = (entryRevision: number) => (
+    const panel = () => (
       <LanguageProvider>
         <HistoryPanel tabs={TABS} controller={historyController} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
-          state={state(3, { scrollOffset: 0, entryRevision, filters: { ...NO_HISTORY_FILTERS, noMerges: true } })}
+          state={state(3, { scrollOffset: 0, filters: { ...NO_HISTORY_FILTERS, noMerges: true } })}
           watcherState="watching" onOpenSettings={() => {}} error={null} />
       </LanguageProvider>
     );
-    const { rerender } = render(panel(0));
+    const { rerender } = render(panel());
     const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
     timeline.scrollTop = 800;
     fireEvent.scroll(timeline);
-    rerender(panel(1));
-    expect(timeline.scrollTop).toBe(0);
+    rerender(panel());
+    expect(timeline.scrollTop).toBe(800);
   });
 
-  it("returns the retained timeline to the top when navigation resets its offset", () => {
+  it("restores a mounted timeline once and preserves its live position on later renders", () => {
     const historyController = controller();
     const panel = (scrollOffset: number) => (
       <LanguageProvider>
@@ -178,7 +177,7 @@ describe("HistoryPanel", () => {
     const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
     expect(timeline.scrollTop).toBe(800);
     rerender(panel(0));
-    expect(timeline.scrollTop).toBe(0);
+    expect(timeline.scrollTop).toBe(800);
   });
 
   it("shows the native branch inventory limit warning without hiding history", () => {
@@ -469,7 +468,7 @@ describe("HistoryPanel", () => {
       expect(screen.queryByRole("button", { name: /src\/app\/App\.tsx/ })).not.toBeInTheDocument();
       rerender(<LanguageProvider><HistoryPanel tabs={TABS} controller={historyController}
         query={{ projectId: "/repo", sessionEpoch: "epoch-1" }} watcherState="watching" error={null} onOpenSettings={() => {}}
-        state={state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/app/App.tsx", entryRevision: 1 })}
+        state={state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/app/App.tsx" })}
       /></LanguageProvider>);
       expect(folder).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByRole("button", { name: /src\/app\/App\.tsx/ })).toHaveAttribute("aria-current", "true");

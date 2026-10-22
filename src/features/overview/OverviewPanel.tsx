@@ -251,7 +251,7 @@ export function OverviewPanel({
   /** Opens the restore picker over the Overview, from the side column's
    * discarded-changes card, on the given copy when one is. */
   onRestoreDiscarded: (recoveryId?: string) => void;
-  onOpenHistory: (commit?: string) => void;
+  onOpenHistory: () => void;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const query = useMemo(
@@ -284,7 +284,7 @@ export function OverviewPanel({
       reviewChanges: () => onReviewChanges(),
       resolve: () => onReviewChanges(),
       publish: onPublish,
-      openHistory: () => onOpenHistory(),
+      openHistory: onOpenHistory,
       getChanges: onReviewAndGetTeamChanges,
       checkRemote: checkTeamChanges,
       checkLocal: onCheckLocalChanges,
@@ -374,7 +374,7 @@ export function OverviewPanel({
             onReviewChanges={onReviewChanges}
             onResolve={() => onReviewChanges()}
             onGetChanges={onReviewAndGetTeamChanges}
-            onOpenHistory={() => onOpenHistory()}
+            onOpenHistory={onOpenHistory}
             onRestoreDiscarded={onRestoreDiscarded}
           />
         </div>

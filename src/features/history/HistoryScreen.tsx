@@ -71,9 +71,8 @@ export function HistoryScreen({
     const requested = controller.getSnapshot(query);
     void scoped.then(() => {
       const current = controller.getSnapshot(query);
-      if (current.generation !== requested.generation || current.entryRevision !== requested.entryRevision) return;
+      if (current.generation !== requested.generation) return;
       if (commit) controller.selectVersion(query, commit);
-      else controller.selectFirstVersion(query);
     });
     if (scopeBranchIntent) onScopeBranchIntentHandled?.();
     if (commit) onSelectCommitIntentHandled?.();

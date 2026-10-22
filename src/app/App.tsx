@@ -528,20 +528,7 @@ export function App(): React.JSX.Element {
   const [recentProjects, setRecentProjects] = useState<readonly RecentProject[]>(readRecentProjects);
   const [hasCompletedSessionRestore, setHasCompletedSessionRestore] = useState(false);
 
-  const prepareWorkbenchEntry = (tab: WorkbenchTab): void => {
-    if (!activeSession) return;
-    if (tab === "history") {
-      historyController.selectFirstVersion({ projectId: activeSession.id, sessionEpoch: activeSession.epoch });
-    } else {
-      dispatchSessions({
-        type: "setChangesSelection", id: activeSession.id,
-        selection: { ...activeSession.changesSelection, selectedPath: null },
-      });
-    }
-  };
-
-  const navigateToView = (next: View, preserveWorkbenchSelection = false): void => {
-    if (next === "workbench" && !preserveWorkbenchSelection) prepareWorkbenchEntry(activeSession?.workbenchTab ?? "changes");
+  const navigateToView = (next: View): void => {
     if (next === view) {
       return;
     }
@@ -564,12 +551,11 @@ export function App(): React.JSX.Element {
   /** Work on a given tab. The tab is the session's state rather than a view
    * of its own (task 126): setting it is not a navigation step, so Back from
    * here returns to the previous *screen*, whatever tab it was left on. */
-  const openWorkbench = (tab: WorkbenchTab, preserveSelection = false): void => {
-    if (!preserveSelection) prepareWorkbenchEntry(tab);
+  const openWorkbench = (tab: WorkbenchTab): void => {
     if (sessionsState.activeId) {
       dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab });
     }
-    navigateToView("workbench", true);
+    navigateToView("workbench");
   };
 
   const goBack = (): void => {
@@ -2880,7 +2866,7 @@ export function App(): React.JSX.Element {
                         },
                       });
                     }
-                    openWorkbench("changes", Boolean(path));
+                    openWorkbench("changes");
                   }}
                   onOpenProject={() => void handleOpenProject()}
                   onCreateProject={() => setInitializeDialogRequest({ mode: "new-folder" })}
@@ -2940,7 +2926,7 @@ export function App(): React.JSX.Element {
                       });
                     }
                   }}
-                  onOpenHistory={(commit) => openWorkbench("history", Boolean(commit))}
+                  onOpenHistory={() => openWorkbench("history")}
                 />
               ),
               // Project-only screens are absent, not disabled, when no
@@ -3043,7 +3029,7 @@ export function App(): React.JSX.Element {
                           onOpenHistory={(name, commit) => {
                             setHistoryScopeBranchIntent(name);
                             setHistorySelectCommitIntent(commit ?? null);
-                            openWorkbench("history", Boolean(commit));
+                            openWorkbench("history");
                           }}
                           // As the status bar: with no remote there is nowhere to publish to.
                           onPublish={activeSession?.teamSync.status?.state === "noRemote" ? undefined : () => openPublishDialog()}

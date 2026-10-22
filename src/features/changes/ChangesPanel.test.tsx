@@ -148,6 +148,25 @@ describe("ChangesPanel folder view", () => {
     );
   }
 
+  it("keeps a valid selection across snapshots and falls back to the first tree file only when it disappears", async () => {
+    const panel = (tree: WorkingTreeStatus) => (
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null}
+          isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>
+    );
+    const { rerender } = render(panel(nested));
+    const first = () => screen.getByRole("button", { name: /^src\/features\/history\/panel\.css/ });
+    expect(first()).toHaveAttribute("aria-current", "true");
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    rerender(panel({ ...nested, entries: [...nested.entries] }));
+    expect(screen.getByRole("button", { name: /^README\.md/ })).toHaveAttribute("aria-current", "true");
+    rerender(panel({
+      ...workingTree, entries: nested.entries.filter((entry) => entry.path !== "README.md"),
+    }));
+    expect(first()).toHaveAttribute("aria-current", "true");
+  });
+
   it("groups the files in compacted folders, folds them, and includes or leaves out a folder at once", async () => {
     renderNested();
     expect(screen.getByRole("button", { name: /^src\/features\/history\/panel\.css/ })).toHaveAttribute("aria-current", "true");
