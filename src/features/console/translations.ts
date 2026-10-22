@@ -10,7 +10,7 @@ export interface ConsoleTranslations {
   consoleHintNavigate: string;
   consoleEmpty: string;
   consoleWelcomeProject: string;
-  consoleWelcomeLine: string;
+  consoleWelcomeBranch: string;
   consoleWelcomeGit: string;
   consoleWelcomeConfirm: string;
   consoleWelcomeConfirmOn: string;
@@ -140,7 +140,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consolePromptLabel: "Console command", consolePromptOn: "on",
     consoleHintComplete: "Tab completes · Enter runs", consoleHintNavigate: "↑↓ history · Ctrl+L clears",
     consoleEmpty: "Type help to see the shortcuts, or a Git command such as git log --oneline.",
-    consoleWelcomeProject: "project", consoleWelcomeLine: "line", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
+    consoleWelcomeProject: "project", consoleWelcomeBranch: "branch", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirm",
     consoleWelcomeConfirmOn: "before each change", consoleWelcomeConfirmOff: "off",
     consoleWelcomeProvider: "provider",
     consoleProvider: (host) => {
@@ -166,7 +166,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       short: "Compact project status", stat: "Unstaged changes per file", today: "Versions saved today",
       week: "Versions saved this week", unpublished: "Saved versions not yet published",
       incoming: "Newer changes already fetched", moves: "Recent moves of HEAD",
-      "all-lines": "All version lines, local and remote", size: "How much the project stores",
+      "all-branches": "All branches, local and remote", size: "How much the project stores",
     }, consoleHelpActions: "Also: help git lists the Git commands you can type, clear empties the view, shortcuts edits the names, settings opens the console settings.",
     consoleControlHelp: "List the shortcuts", consoleControlClear: "Clear the view", consoleControlShortcuts: "Edit shortcut names",
     consoleControlSettings: "Open the console settings", consoleOpenSettings: "Console settings",
@@ -200,14 +200,14 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleGitCommands: {
       status: "Project status", log: "Saved versions, newest first", show: "A saved version, or a file in it",
       diff: "Changes between versions or files", blame: "Who last changed each line", grep: "Search the project's files",
-      branch: "Version lines", tag: "Tags", reflog: "Where HEAD and the lines have been",
+      branch: "Branches", tag: "Tags", reflog: "Where HEAD and the branches have been",
       "stash list": "Changes set aside", "stash show": "What a set-aside change holds",
       remote: "Remote copies and their addresses", "ls-files": "Files Git tracks", "ls-tree": "Files in a saved version",
       "cat-file": "A stored object, as Git keeps it", "rev-parse": "The ID a name points to", describe: "A version named from its nearest tag",
       shortlog: "Saved versions by author", "count-objects": "How much the project stores",
-      whatchanged: "Saved versions with the files they changed", "name-rev": "A version named from a nearby line or tag",
-      "merge-base": "Where two lines parted", "for-each-ref": "Lines and tags, in a format you choose",
-      "show-ref": "Lines and tags with their IDs", version: "The Git version",
+      whatchanged: "Saved versions with the files they changed", "name-rev": "A version named from a nearby branch or tag",
+      "merge-base": "Where two branches parted", "for-each-ref": "Branches and tags, in a format you choose",
+      "show-ref": "Branches and tags with their IDs", version: "The Git version",
     },
     consoleRefusal: (reason, subject) => {
       const word = subject ?? "";
@@ -255,17 +255,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       const remote = (name: string | null) => (name ? `“${name}”` : "the remote copy");
       switch (fact.kind) {
         case "stages": return fact.total === 0 ? "Nothing new to stage." : `Stages ${files(fact.total)}: ${fact.files.join(", ")}${fact.total > fact.files.length ? ", …" : ""}`;
-        case "commits": return `Saves a new version${fact.files === null ? " of the files you named" : ` with ${files(fact.files)} ready to save`}${fact.line ? ` on the line “${fact.line}”` : ""}.`;
-        case "switches": return fact.create ? `Creates the line “${fact.target}” and switches to it.` : `Switches to “${fact.target}”. Git stops if your changes would be overwritten.`;
-        case "creates_line": return `Creates the line “${fact.name}”.`;
+        case "commits": return `Saves a new version${fact.files === null ? " of the files you named" : ` with ${files(fact.files)} ready to save`}${fact.branch ? ` on the branch “${fact.branch}”` : ""}.`;
+        case "switches": return fact.create ? `Creates the branch “${fact.target}” and switches to it.` : `Switches to “${fact.target}”. Git stops if your changes would be overwritten.`;
+        case "creates_branch": return `Creates the branch “${fact.name}”.`;
         case "creates_tag": return `Creates the tag “${fact.name}”.`;
         case "sets_aside": return `Sets aside ${files(fact.files)} with changes.`;
         case "applies_set_aside": return `Brings back ${fact.stash} and keeps it in the list.`;
         case "reverts": return `Saves a new version that undoes ${fact.version}, with Git's own message.`;
-        case "copies_version": return `Copies ${fact.version} onto the current line as a new version.`;
+        case "copies_version": return `Copies ${fact.version} onto the current branch as a new version.`;
         case "fetches": return `Gets new project changes from ${remote(fact.remote)} without changing your files.`;
         case "pulls": return `Gets new project changes from ${remote(fact.remote)} and brings them in only if nothing needs combining.`;
-        case "publishes": return `Publishes ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "saved version" : "saved versions"} of `}${fact.line ? `“${fact.line}”` : "the current line"} to ${remote(fact.remote)}.`;
+        case "publishes": return `Publishes ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "saved version" : "saved versions"} of `}${fact.branch ? `“${fact.branch}”` : "the current branch"} to ${remote(fact.remote)}.`;
         case "asks_remote": return `Asks ${remote(fact.remote)} what it has; nothing changes.`;
         case "skips_hooks": return fact.typed ? "The project's hooks won't run, as the command asks." : "The project's hooks won't run: they are turned off in Settings.";
       }
@@ -275,14 +275,14 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       signing_failed: "Git couldn't sign it. Check your commit-signing setup.",
       authentication_failed: "Git couldn't sign in to the remote copy. Check your saved credentials for it; the console never asks for them.",
       remote_rejected: "The remote copy refused the change under its own rules.",
-      not_fast_forward: "The remote copy has changes you don't have yet. Get them first; the console never forces or combines lines.",
+      not_fast_forward: "The remote copy has changes you don't have yet. Get them first; the console never forces or combines branches.",
     },
     consoleStatus: "Project status", consoleDiff: "Unstaged changes", consoleLog: "Recent versions", consoleBranches: "Local branches",
     consoleStaged: "Changes ready to save", consoleGraph: "Version graph", consoleLast: "Latest saved version", consoleTags: "Tags",
     consoleRemotes: "Remote copies", consoleStashes: "Changes set aside", consoleAuthors: "Authors",
     consoleHostingLabels: {
       prs: "Open pull or merge requests", "my-prs": "Your pull or merge requests", issues: "Open issues",
-      runs: "Recent CI runs", checks: "Checks on this line", repo: "The project on its hosting service",
+      runs: "Recent CI runs", checks: "Checks on this branch", repo: "The project on its hosting service",
     },
     consoleHostingUnavailable: (reason, host) => {
       const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
@@ -292,7 +292,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       switch (host.kind) {
         case "bitbucket": return "Bitbucket has no official command-line tool, so these shortcuts work only for GitHub and GitLab projects.";
         case "local": return "This project has no remote yet, so there is no hosting service to ask.";
-        case "unclear": return "This project has several remotes and none is clearly its own. Publish the current line, or name one of them origin, so the console knows which to ask.";
+        case "unclear": return "This project has several remotes and none is clearly its own. Publish the current branch, or name one of them origin, so the console knows which to ask.";
         default: return "This project's remote isn't on GitHub or GitLab, so there is no hosting tool to ask.";
       }
     },
@@ -302,7 +302,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consolePromptLabel: "Comando de consola", consolePromptOn: "en",
     consoleHintComplete: "Tab completa · Intro ejecuta", consoleHintNavigate: "↑↓ historial · Ctrl+L limpia",
     consoleEmpty: "Escribe help para ver los atajos, o un comando Git como git log --oneline.",
-    consoleWelcomeProject: "proyecto", consoleWelcomeLine: "línea", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
+    consoleWelcomeProject: "proyecto", consoleWelcomeBranch: "rama", consoleWelcomeGit: "git", consoleWelcomeConfirm: "confirmar",
     consoleWelcomeConfirmOn: "antes de cada cambio", consoleWelcomeConfirmOff: "desactivada",
     consoleWelcomeProvider: "proveedor",
     consoleProvider: (host) => {
@@ -328,7 +328,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       short: "Estado del proyecto compacto", stat: "Cambios sin preparar por archivo", today: "Versiones guardadas hoy",
       week: "Versiones guardadas esta semana", unpublished: "Versiones guardadas sin publicar",
       incoming: "Cambios nuevos ya obtenidos", moves: "Últimos movimientos de HEAD",
-      "all-lines": "Todas las líneas, locales y remotas", size: "Cuánto almacena el proyecto",
+      "all-branches": "Todas las ramas, locales y remotas", size: "Cuánto almacena el proyecto",
     }, consoleHelpActions: "Además: help git lista los comandos Git que puedes escribir, clear vacía la vista, shortcuts edita los nombres y settings abre los ajustes de la consola.",
     consoleControlHelp: "Ver los atajos", consoleControlClear: "Limpiar la vista", consoleControlShortcuts: "Editar los nombres",
     consoleControlSettings: "Abrir los ajustes de la consola", consoleOpenSettings: "Ajustes de la consola",
@@ -362,14 +362,14 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
     consoleGitCommands: {
       status: "Estado del proyecto", log: "Versiones guardadas, de la más reciente", show: "Una versión guardada, o un archivo en ella",
       diff: "Cambios entre versiones o archivos", blame: "Quién cambió por última vez cada línea", grep: "Buscar en los archivos del proyecto",
-      branch: "Líneas de versiones", tag: "Etiquetas", reflog: "Por dónde han pasado HEAD y las líneas",
+      branch: "Ramas", tag: "Etiquetas", reflog: "Por dónde han pasado HEAD y las ramas",
       "stash list": "Cambios apartados", "stash show": "Qué contiene un cambio apartado",
       remote: "Copias remotas y sus direcciones", "ls-files": "Archivos que Git sigue", "ls-tree": "Archivos de una versión guardada",
       "cat-file": "Un objeto guardado, tal como lo guarda Git", "rev-parse": "El identificador al que apunta un nombre", describe: "Una versión nombrada por su etiqueta más cercana",
       shortlog: "Versiones guardadas por autor", "count-objects": "Cuánto almacena el proyecto",
-      whatchanged: "Versiones guardadas con los archivos que cambiaron", "name-rev": "Una versión nombrada por una línea o etiqueta cercana",
-      "merge-base": "Dónde se separaron dos líneas", "for-each-ref": "Líneas y etiquetas, con el formato que elijas",
-      "show-ref": "Líneas y etiquetas con sus identificadores", version: "La versión de Git",
+      whatchanged: "Versiones guardadas con los archivos que cambiaron", "name-rev": "Una versión nombrada por una rama o etiqueta cercana",
+      "merge-base": "Dónde se separaron dos ramas", "for-each-ref": "Ramas y etiquetas, con el formato que elijas",
+      "show-ref": "Ramas y etiquetas con sus identificadores", version: "La versión de Git",
     },
     consoleRefusal: (reason, subject) => {
       const word = subject ?? "";
@@ -417,17 +417,17 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       const remote = (name: string | null) => (name ? `«${name}»` : "la copia remota");
       switch (fact.kind) {
         case "stages": return fact.total === 0 ? "No hay nada nuevo que preparar." : `Prepara ${files(fact.total)}: ${fact.files.join(", ")}${fact.total > fact.files.length ? ", …" : ""}`;
-        case "commits": return `Guarda una versión nueva${fact.files === null ? " de los archivos que has indicado" : ` con ${files(fact.files)} listos para guardar`}${fact.line ? ` en la línea «${fact.line}»` : ""}.`;
-        case "switches": return fact.create ? `Crea la línea «${fact.target}» y cambia a ella.` : `Cambia a «${fact.target}». Git se detiene si tus cambios se sobrescribirían.`;
-        case "creates_line": return `Crea la línea «${fact.name}».`;
+        case "commits": return `Guarda una versión nueva${fact.files === null ? " de los archivos que has indicado" : ` con ${files(fact.files)} listos para guardar`}${fact.branch ? ` en la rama «${fact.branch}»` : ""}.`;
+        case "switches": return fact.create ? `Crea la rama «${fact.target}» y cambia a ella.` : `Cambia a «${fact.target}». Git se detiene si tus cambios se sobrescribirían.`;
+        case "creates_branch": return `Crea la rama «${fact.name}».`;
         case "creates_tag": return `Crea la etiqueta «${fact.name}».`;
         case "sets_aside": return `Aparta ${files(fact.files)} con cambios.`;
         case "applies_set_aside": return `Recupera ${fact.stash} y lo mantiene en la lista.`;
         case "reverts": return `Guarda una versión nueva que deshace ${fact.version}, con el mensaje de Git.`;
-        case "copies_version": return `Copia ${fact.version} en la línea actual como una versión nueva.`;
+        case "copies_version": return `Copia ${fact.version} en la rama actual como una versión nueva.`;
         case "fetches": return `Obtiene los cambios nuevos de ${remote(fact.remote)} sin tocar tus archivos.`;
         case "pulls": return `Obtiene los cambios nuevos de ${remote(fact.remote)} y los incorpora solo si no hay nada que combinar.`;
-        case "publishes": return `Publica ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "versión guardada" : "versiones guardadas"} de `}${fact.line ? `«${fact.line}»` : "la línea actual"} en ${remote(fact.remote)}.`;
+        case "publishes": return `Publica ${fact.versions === null ? "" : `${fact.versions} ${fact.versions === 1 ? "versión guardada" : "versiones guardadas"} de `}${fact.branch ? `«${fact.branch}»` : "la rama actual"} en ${remote(fact.remote)}.`;
         case "asks_remote": return `Pregunta a ${remote(fact.remote)} qué tiene; no cambia nada.`;
         case "skips_hooks": return fact.typed ? "Los hooks del proyecto no se ejecutarán, como pide el comando." : "Los hooks del proyecto no se ejecutarán: están desactivados en Ajustes.";
       }
@@ -437,14 +437,14 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       signing_failed: "Git no pudo firmarlo. Revisa tu configuración de firma.",
       authentication_failed: "Git no pudo iniciar sesión en la copia remota. Revisa tus credenciales guardadas; la consola nunca las pide.",
       remote_rejected: "La copia remota rechazó el cambio según sus propias reglas.",
-      not_fast_forward: "La copia remota tiene cambios que aún no tienes. Obtenlos primero; la consola nunca fuerza ni combina líneas.",
+      not_fast_forward: "La copia remota tiene cambios que aún no tienes. Obtenlos primero; la consola nunca fuerza ni combina ramas.",
     },
     consoleStatus: "Estado del proyecto", consoleDiff: "Cambios sin preparar", consoleLog: "Versiones recientes", consoleBranches: "Ramas locales",
     consoleStaged: "Cambios listos para guardar", consoleGraph: "Grafo de versiones", consoleLast: "Última versión guardada", consoleTags: "Etiquetas",
     consoleRemotes: "Copias remotas", consoleStashes: "Cambios apartados", consoleAuthors: "Autores",
     consoleHostingLabels: {
       prs: "Solicitudes de cambios abiertas", "my-prs": "Tus solicitudes de cambios", issues: "Incidencias abiertas",
-      runs: "Ejecuciones recientes de CI", checks: "Comprobaciones de esta línea", repo: "El proyecto en su servicio de alojamiento",
+      runs: "Ejecuciones recientes de CI", checks: "Comprobaciones de esta rama", repo: "El proyecto en su servicio de alojamiento",
     },
     consoleHostingUnavailable: (reason, host) => {
       const cli = host.kind === "gitlab" ? "GitLab CLI (glab)" : "GitHub CLI (gh)";
@@ -454,7 +454,7 @@ export const consoleTranslations: { en: ConsoleTranslations; es: ConsoleTranslat
       switch (host.kind) {
         case "bitbucket": return "Bitbucket no tiene una herramienta oficial de línea de comandos, así que estos atajos solo funcionan con proyectos de GitHub y GitLab.";
         case "local": return "Este proyecto aún no tiene remoto, así que no hay ningún servicio de alojamiento al que preguntar.";
-        case "unclear": return "Este proyecto tiene varios remotos y ninguno es claramente el suyo. Publica la línea actual, o llama origin a uno de ellos, para que la consola sepa a cuál preguntar.";
+        case "unclear": return "Este proyecto tiene varios remotos y ninguno es claramente el suyo. Publica la rama actual, o llama origin a uno de ellos, para que la consola sepa a cuál preguntar.";
         default: return "El remoto de este proyecto no está en GitHub ni en GitLab, así que no hay ninguna herramienta de alojamiento a la que preguntar.";
       }
     },

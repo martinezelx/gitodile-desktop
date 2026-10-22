@@ -89,7 +89,7 @@ task.
 - `src/app/App.tsx`
 - `src/app/RailNav.tsx`
 - `src/app/project-switcher/ProjectSwitcher.tsx`
-- `src/features/version-lines/VersionLineQuickSwitch.tsx`
+- `src/features/branches/BranchQuickSwitch.tsx`
 
 # Dependencies
 
@@ -193,7 +193,7 @@ evidence. Re-measured at 1280x900, where the button is `display: grid`, 36px
 wide and genuinely focusable, it holds.
 
 **Not verified live:** `ProjectSwitcher.tsx:409` (the switcher's search field)
-and `VersionLineQuickSwitch.tsx:72`. Both need an open project, and opening one
+and `BranchQuickSwitch.tsx:72`. Both need an open project, and opening one
 goes through Tauri IPC that a plain browser has no backend for. They take the
 same hook through the same code path as the four above and are covered by the
 same fix, but that is reasoning, not a measurement — check them the next time

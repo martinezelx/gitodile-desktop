@@ -105,7 +105,7 @@ difference makes equivalent cards look unrelated.
 # Implementation notes
 
 - `OverviewPanel` now renders the shared icon-only refresh beside the current
-  version-line controls. Its busy state combines the local working-tree read
+  branch controls. Its busy state combines the local working-tree read
   and the explicit remote team check.
 - `main.tsx` starts the coordinated local refresh and remote check together.
   The existing successful-fetch invalidation still runs afterward, so cached
@@ -137,7 +137,7 @@ The full History screen continues to own technical identifiers and publication
 status.
 
 Team changes replaces its Overview-only technical disclosure with a compact,
-plain-language relationship between the current version line and its team
+plain-language relationship between the current branch and its team
 destination. Exact branch/destination names remain visible because they answer
 where the comparison applies; commit hashes, tracking references, and raw
 ahead/behind fields are omitted because the human-readable status above
@@ -157,7 +157,7 @@ The read plan now also avoids the redundant second full repository refresh:
 
 - repository identity and working-tree facts run once, in parallel with the
   explicit remote check;
-- history, version lines, and cached sync facts run once after those two reads,
+- history, branches, and cached sync facts run once after those two reads,
   against the final remote-tracking state;
 - the explicit Overview path therefore performs one `open_repository` and one
   `read_working_tree_status`, where the previous fresh-remote path could
@@ -168,7 +168,7 @@ renders existing snapshots immediately and does not fetch merely because the
 screen became visible. The optimization applies only to the user-requested
 Refresh action.
 
-The Current line / Team line relationship now uses a fixed compact desktop
+The Current branch / Team branch relationship now uses a fixed compact desktop
 grid (132px + arrow + 168px) instead of flexible `1fr` columns. The pair stays
 together and anchored while the window resizes; below 440px it deliberately
 returns to equal fluid columns so long localized or branch text can truncate
@@ -203,6 +203,6 @@ be reliably resized to that exact width through the available automation.
 
 The follow-up pass was also inspected in the maximized Tauri window. The
 accessibility tree confirmed author/time-only Recent history rows, the shorter
-View all label, and the current-line/team-line relationship. Focused tests now
+View all label, and the current-branch/team-branch relationship. Focused tests now
 cover the History and Team icon spinners while cached content remains visible;
 the full gate above was rerun with the updated total of 428 frontend tests.

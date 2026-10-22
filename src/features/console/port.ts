@@ -26,9 +26,9 @@ export type ConsoleEffect = "reads_only" | "changes_project" | "changes_history"
 /** One statement of what a change plan will do, read from the repository. */
 export type PlanFact =
   | { kind: "stages"; files: string[]; total: number }
-  | { kind: "commits"; line: string | null; files: number | null }
+  | { kind: "commits"; branch: string | null; files: number | null }
   | { kind: "switches"; target: string; create: boolean }
-  | { kind: "creates_line"; name: string }
+  | { kind: "creates_branch"; name: string }
   | { kind: "creates_tag"; name: string }
   | { kind: "sets_aside"; files: number }
   | { kind: "applies_set_aside"; stash: string }
@@ -36,7 +36,7 @@ export type PlanFact =
   | { kind: "copies_version"; version: string }
   | { kind: "fetches"; remote: string | null }
   | { kind: "pulls"; remote: string | null }
-  | { kind: "publishes"; remote: string | null; line: string | null; versions: number | null }
+  | { kind: "publishes"; remote: string | null; branch: string | null; versions: number | null }
   | { kind: "asks_remote"; remote: string | null }
   | { kind: "skips_hooks"; typed: boolean };
 

@@ -26,7 +26,7 @@ export type TeamSyncState =
   | "ahead"
   | "behind"
   | "diverged"
-  /** The line tracks a remote branch that no longer exists: a check found it
+  /** The branch tracks a remote branch that no longer exists: a check found it
    * missing on the remote, or the tracking ref is gone too (Git's `[gone]`). */
   | "upstreamGone";
 
@@ -53,7 +53,7 @@ export type TeamSyncStatus = {
   warnings: SyncWarning[];
   nextActions: SyncNextAction[];
   stateToken: string;
-  /** What getting would do; present only while the line is behind or
+  /** What getting would do; present only while the branch is behind or
    * diverged and the prediction could be made. */
   forecast: IncomingForecast | null;
 };
@@ -65,7 +65,7 @@ export type GetTeamChangesPhase =
   | "updatingFilesAndHistory"
   | "verifying";
 
-/** How the line reaches the remote: it simply advances, or both sides have
+/** How the branch reaches the remote: it simply advances, or both sides have
  * saved versions and a merge version joins them. */
 export type IntegrationKind = "fastForward" | "merge";
 
@@ -105,7 +105,7 @@ export type IncomingForecast = {
   authorCount: number;
   /** Unsaved tracked files the update leaves exactly as they are. */
   carriedUnsavedCount: number;
-  /** Unsaved files that also change on the remote, on other lines. */
+  /** Unsaved files that also change on the remote, on other branches. */
   combinedUnsaved: string[];
   combinedUnsavedCount: number;
   overlaps: ForecastOverlap[];
@@ -266,14 +266,14 @@ export function teamSyncFactsEqual(
   );
 }
 
-/** What a check found about one line: its remote branch was gone while this
+/** What a check found about one branch: its remote branch was gone while this
  * tracking ref still held this commit. */
 export type UpstreamGoneEvidence = {
   trackingRef: string | null;
   remoteCommit: string | null;
 };
 
-/** The evidence a fresh `upstreamGone` status leaves for its line. */
+/** The evidence a fresh `upstreamGone` status leaves for its branch. */
 export function upstreamGoneEvidenceOf(status: TeamSyncStatus): UpstreamGoneEvidence | null {
   return status.state === "upstreamGone" && status.knowledge === "fresh"
     ? { trackingRef: status.trackingRef, remoteCommit: status.remoteCommit }
@@ -283,11 +283,11 @@ export function upstreamGoneEvidenceOf(status: TeamSyncStatus): UpstreamGoneEvid
 const COMPARED_STATES: ReadonlySet<TeamSyncState> = new Set(["upToDate", "ahead", "behind", "diverged"]);
 
 /**
- * A local read of a line a check found gone.
+ * A local read of a branch a check found gone.
  *
  * A local read compares against the tracking ref, and GitOdile never prunes:
  * the ref of a branch the remote deleted is still there and still reads as
- * "up to date". While that ref holds the commit the check saw, the line is
+ * "up to date". While that ref holds the commit the check saw, the branch is
  * still gone; a ref that moved or vanished is new evidence and wins.
  */
 export function applyUpstreamGoneEvidence(

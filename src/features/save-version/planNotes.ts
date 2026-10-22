@@ -3,7 +3,7 @@ import type { SaveVersionPreview } from "./domain";
 
 /** What a plan says beyond its counts, and only when it applies: files the
  * selection leaves behind, changes already prepared in Git's index, a first
- * version, a save with no line to land on (a detached `HEAD`, which is exactly
+ * version, a save with no branch to land on (a detached `HEAD`, which is exactly
  * what the reader needs told before they make the commit rather than after).
  *
  * One list for both frames — the dialog prints every line, the quick box the
@@ -22,7 +22,7 @@ export function getSaveVersionNotes(
   if (plan.remainingFiles > 0 && !countStated) notes.push(t.saveVersionRemainingNote(plan.remainingFiles));
   if (plan.hasPreparedChanges) notes.push(t.saveVersionPreparedNote);
   if (plan.isFirstVersion) {
-    notes.push(plan.branch ? t.saveVersionFirstVersionOnLineNote(plan.branch) : t.saveVersionFirstVersionNote);
+    notes.push(plan.branch ? t.saveVersionFirstVersionOnBranchNote(plan.branch) : t.saveVersionFirstVersionNote);
   }
   if (!plan.branch) notes.push(t.saveVersionNoDestinationNote);
   return notes;

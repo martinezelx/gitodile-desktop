@@ -282,15 +282,15 @@ describe("PublishDialog", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("says a first publish creates the line, and names it in the plan rather than the title", async () => {
+  it("says a first publish creates the branch, and names it in the plan rather than the title", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({ willCreateUpstream: true }));
     renderDialog();
 
-    expect(await screen.findByRole("heading", { name: "Publish a new line" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Publish a new branch" })).toBeInTheDocument();
     expect(screen.getByText(/to “main” on “origin”/)).toBeInTheDocument();
   });
 
-  it("warns before recreating a line the remote deleted and says so on the button", async () => {
+  it("warns before recreating a branch the remote deleted and says so on the button", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({
       recreatesDeletedBranch: true,
       target: { remote: "origin", destinationBranch: "feature/login" },
@@ -298,13 +298,13 @@ describe("PublishDialog", () => {
     }));
     renderDialog();
 
-    expect(await screen.findByRole("heading", { name: "Publish the line again" })).toBeInTheDocument();
-    expect(screen.getByText("This line was deleted on “origin”.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Publish the branch again" })).toBeInTheDocument();
+    expect(screen.getByText("This branch was deleted on “origin”.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Recreate and publish" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Publish changes" })).toBeNull();
   });
 
-  it("says a recreated line brings no new versions when the remote has them all", async () => {
+  it("says a recreated branch brings no new versions when the remote has them all", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({
       recreatesDeletedBranch: true,
       commitCount: 0,
@@ -318,7 +318,7 @@ describe("PublishDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("says a new line brings no new versions when the remote has them all", async () => {
+  it("says a new branch brings no new versions when the remote has them all", async () => {
     mockedInvoke.mockResolvedValueOnce(plan({
       willCreateUpstream: true,
       commitCount: 0,

@@ -186,8 +186,8 @@ Default simple-mode wording:
 | commit changes | save version |
 | push | publish changes |
 | fetch/pull | get project changes |
-| branch | separate workspace / version line |
-| checkout/switch | switch workspace |
+| branch | branch / rama |
+| checkout/switch | switch branch / cambiar de rama |
 | merge conflict | overlapping changes |
 | clean working tree | everything is saved |
 | ahead of remote | saved locally, not published |
@@ -195,6 +195,10 @@ Default simple-mode wording:
 | stash | set changes aside |
 
 This table is guidance, not a rigid translation layer. Use exact Git terminology in advanced views and educational explanations.
+
+Use branch/branches and rama/ramas in simple mode too. Do not introduce
+version-line or workspace synonyms for a branch; a linked workspace is a
+different concept. See [ADR 0035](docs/adr/0035-use-branches-as-the-product-vocabulary.md).
 
 ## Safety rules for Git operations
 

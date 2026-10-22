@@ -78,11 +78,11 @@ function deterministicBlock(error: unknown): boolean {
   ].includes(error.code);
 }
 
-/** What the dialog says when the line's remote branch is gone: the same
+/** What the dialog says when the branch's remote branch is gone: the same
  * error a plan without a tracking ref returns, so it reads and closes alike. */
 const UPSTREAM_GONE: AppError = {
   code: "remote_ref_missing",
-  message: "The branch this line tracks no longer exists on the remote.",
+  message: "The branch this branch tracks no longer exists on the remote.",
   remediation: null,
 };
 
@@ -126,7 +126,7 @@ export function GetTeamChangesDialog({
    * in place if something newer arrived. It rejects when the remote could not
    * be asked, so silence is never read as "nothing new". */
   refreshRemote?: (() => Promise<TeamSyncStatus | null>) | null;
-  /** The last check found the line's remote branch deleted. The kept tracking
+  /** The last check found the branch's remote branch deleted. The kept tracking
    * ref still names versions, but there is nothing on the remote to get. */
   upstreamGone?: boolean;
   onClose: () => void;

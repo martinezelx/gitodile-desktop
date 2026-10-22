@@ -39,7 +39,7 @@ export interface AppTranslations {
   shortcutsPreviousProject: string;
   shortcutsCloseDialogs: string;
   shortcutsSaveVersion: string;
-  shortcutsRenameLine: string;
+  shortcutsRenameBranch: string;
   shortcutsGroupProjects: string;
   shortcutsGroupEditing: string;
   shortcutsGroupInterface: string;
@@ -57,8 +57,8 @@ export interface AppTranslations {
   navHome: string;
   navWork: string;
   navWorkTitle: string;
-  navVersionLines: string;
-  navVersionLinesTitle: string;
+  navBranches: string;
+  navBranchesTitle: string;
   navConsole: string;
   navConsoleTitle: string;
   navRecovery: string;
@@ -86,16 +86,16 @@ export interface AppTranslations {
   paletteGroupApp: string;
   commandGoOverview: string;
   commandGoHome: string;
-  commandGoVersionLines: string;
+  commandGoBranches: string;
   commandGoConsole: string;
   commandGoWork: string;
   commandGoChanges: string;
   commandGoHistory: string;
-  commandNewVersionLine: string;
+  commandNewBranch: string;
   commandCheckLocalChanges: string;
   commandCheckRemoteChanges: string;
   commandRefreshHistory: string;
-  commandRefreshVersionLines: string;
+  commandRefreshBranches: string;
   commandCheckAppUpdates: string;
   commandGoSettings: string;
   commandGoSettingsSection: (section: string) => string;
@@ -154,8 +154,8 @@ export interface AppTranslations {
   statusBarAriaLabel: string;
   statusBarNoProject: string;
   statusBarDetached: string;
-  statusBarUnbornLine: string;
-  statusBarVersionLineUnavailable: string;
+  statusBarUnbornBranch: string;
+  statusBarBranchUnavailable: string;
   statusBarCheckingChanges: string;
   statusBarChangesUnavailable: string;
   statusBarChangesNotChecked: string;
@@ -182,7 +182,7 @@ export interface AppTranslations {
   statusBarLastChecked: (relative: string) => string;
   statusBarCheckNow: string;
   statusBarPublishAction: (count: number) => string;
-  statusBarPublishLineAction: string;
+  statusBarPublishBranchAction: string;
   statusBarGetAction: (count: number) => string;
   statusBarGetAndPublishAction: string;
   statusBarSearch: string;
@@ -217,7 +217,7 @@ export interface AppTranslations {
   aboutCopy: string;
   aboutCopied: string;
   /* The one short thing About says when the release model reports the running
-     build as current. A word, not a sentence: it sits on the version line. */
+     build as current. A word, not a sentence: it sits on the branch. */
   aboutUpToDate: string;
   /* The same slot when the build cannot answer at all: a development build
      configures no update feed. Short, and about the check rather than the whole
@@ -279,7 +279,7 @@ const en: AppTranslations = {
   shortcutsPreviousProject: "Previous project",
   shortcutsCloseDialogs: "Close dialogs and menus",
   shortcutsSaveVersion: "Save a version",
-  shortcutsRenameLine: "Rename a version line",
+  shortcutsRenameBranch: "Rename a branch",
   shortcutsGroupProjects: "Projects",
   shortcutsGroupEditing: "Editing",
   shortcutsGroupInterface: "Interface",
@@ -297,8 +297,8 @@ const en: AppTranslations = {
   navHome: "Home",
   navWork: "Work",
   navWorkTitle: "Work — open a project first",
-  navVersionLines: "Lines",
-  navVersionLinesTitle: "Lines — open a project first",
+  navBranches: "Branches",
+  navBranchesTitle: "Branches — open a project first",
   navConsole: "Console",
   navConsoleTitle: "Console — open a project first",
   navRecovery: "Recovery",
@@ -322,16 +322,16 @@ const en: AppTranslations = {
   paletteGroupApp: "App",
   commandGoOverview: "Go to Overview",
   commandGoHome: "Go to Home",
-  commandGoVersionLines: "Go to Lines",
+  commandGoBranches: "Go to Branches",
   commandGoConsole: "Go to Console",
   commandGoWork: "Go to Work",
   commandGoChanges: "Go to Changes",
   commandGoHistory: "Go to History",
-  commandNewVersionLine: "New version line",
+  commandNewBranch: "New branch",
   commandCheckLocalChanges: "Check local changes",
   commandCheckRemoteChanges: "Check remote project changes",
   commandRefreshHistory: "Refresh history",
-  commandRefreshVersionLines: "Refresh version lines",
+  commandRefreshBranches: "Refresh branches",
   commandCheckAppUpdates: "Check for updates",
   commandGoSettings: "Go to Settings",
   commandGoSettingsSection: (section) => `Settings: ${section}`,
@@ -392,8 +392,8 @@ const en: AppTranslations = {
   statusBarAriaLabel: "Project status",
   statusBarNoProject: "No project open",
   statusBarDetached: "Specific saved version",
-  statusBarUnbornLine: "New version line",
-  statusBarVersionLineUnavailable: "Version line unavailable",
+  statusBarUnbornBranch: "New branch",
+  statusBarBranchUnavailable: "Branch unavailable",
   statusBarCheckingChanges: "Checking changes…",
   statusBarChangesUnavailable: "Changes unavailable",
   statusBarChangesNotChecked: "Changes not checked",
@@ -406,7 +406,7 @@ const en: AppTranslations = {
   statusBarNoRemote: "No remote connected",
   statusBarNoUpstream: "No publish destination",
   statusBarSyncUnborn: "Save a version to compare",
-  statusBarSyncDetached: "Switch lines to compare",
+  statusBarSyncDetached: "Switch branches to compare",
   statusBarUpstreamGone: "No longer on the remote",
   stopTrackingFailedTitle: "Couldn't stop following the remote",
   statusBarTeamNotChecked: "Remote not checked",
@@ -420,7 +420,7 @@ const en: AppTranslations = {
   statusBarLastChecked: (relative) => `Checked ${relative}`,
   statusBarCheckNow: "Check remote project changes",
   statusBarPublishAction: (count) => (count === 1 ? "Publish 1 version" : `Publish ${count} versions`),
-  statusBarPublishLineAction: "Publish this line",
+  statusBarPublishBranchAction: "Publish this branch",
   statusBarGetAction: (count) => (count === 1 ? "Get 1 version" : `Get ${count} versions`),
   statusBarGetAndPublishAction: "Get and publish",
   statusBarSearch: "Search or do something…",
@@ -505,7 +505,7 @@ const es: AppTranslations = {
   shortcutsPreviousProject: "Proyecto anterior",
   shortcutsCloseDialogs: "Cerrar diálogos y menús",
   shortcutsSaveVersion: "Guardar una versión",
-  shortcutsRenameLine: "Renombrar una línea de versión",
+  shortcutsRenameBranch: "Renombrar una rama",
   shortcutsGroupProjects: "Proyectos",
   shortcutsGroupEditing: "Edición",
   shortcutsGroupInterface: "Interfaz",
@@ -523,8 +523,8 @@ const es: AppTranslations = {
   navHome: "Inicio",
   navWork: "Trabajo",
   navWorkTitle: "Trabajo — abre antes un proyecto",
-  navVersionLines: "Líneas",
-  navVersionLinesTitle: "Líneas — abre antes un proyecto",
+  navBranches: "Ramas",
+  navBranchesTitle: "Ramas — abre antes un proyecto",
   navConsole: "Consola",
   navConsoleTitle: "Consola — abre antes un proyecto",
   navRecovery: "Rescate",
@@ -548,16 +548,16 @@ const es: AppTranslations = {
   paletteGroupApp: "App",
   commandGoOverview: "Ir a Resumen",
   commandGoHome: "Ir a Inicio",
-  commandGoVersionLines: "Ir a Líneas",
+  commandGoBranches: "Ir a Ramas",
   commandGoConsole: "Ir a Consola",
   commandGoWork: "Ir a Trabajo",
   commandGoChanges: "Ir a Cambios",
   commandGoHistory: "Ir a Historial",
-  commandNewVersionLine: "Nueva línea de versión",
+  commandNewBranch: "Nueva rama",
   commandCheckLocalChanges: "Comprobar cambios locales",
   commandCheckRemoteChanges: "Comprobar cambios del proyecto remoto",
   commandRefreshHistory: "Actualizar historial",
-  commandRefreshVersionLines: "Actualizar líneas de versión",
+  commandRefreshBranches: "Actualizar ramas",
   commandCheckAppUpdates: "Buscar actualizaciones",
   commandGoSettings: "Ir a Ajustes",
   commandGoSettingsSection: (section) => `Ajustes: ${section}`,
@@ -618,8 +618,8 @@ const es: AppTranslations = {
   statusBarAriaLabel: "Estado del proyecto",
   statusBarNoProject: "Ningún proyecto abierto",
   statusBarDetached: "Versión guardada concreta",
-  statusBarUnbornLine: "Línea de versión nueva",
-  statusBarVersionLineUnavailable: "Línea de versión no disponible",
+  statusBarUnbornBranch: "Rama nueva",
+  statusBarBranchUnavailable: "Rama no disponible",
   statusBarCheckingChanges: "Comprobando cambios…",
   statusBarChangesUnavailable: "Cambios no disponibles",
   statusBarChangesNotChecked: "Cambios sin comprobar",
@@ -632,7 +632,7 @@ const es: AppTranslations = {
   statusBarNoRemote: "Sin remoto conectado",
   statusBarNoUpstream: "Sin destino de publicación",
   statusBarSyncUnborn: "Guarda una versión para comparar",
-  statusBarSyncDetached: "Cambia de línea para comparar",
+  statusBarSyncDetached: "Cambia de rama para comparar",
   statusBarUpstreamGone: "Ya no está en el remoto",
   stopTrackingFailedTitle: "No se pudo dejar de seguir el remoto",
   statusBarTeamNotChecked: "Remoto sin comprobar",
@@ -646,7 +646,7 @@ const es: AppTranslations = {
   statusBarLastChecked: (relative) => `Comprobado ${relative}`,
   statusBarCheckNow: "Comprobar cambios del proyecto remoto",
   statusBarPublishAction: (count) => (count === 1 ? "Publicar 1 versión" : `Publicar ${count} versiones`),
-  statusBarPublishLineAction: "Publicar esta línea",
+  statusBarPublishBranchAction: "Publicar esta rama",
   statusBarGetAction: (count) => (count === 1 ? "Traer 1 versión" : `Traer ${count} versiones`),
   statusBarGetAndPublishAction: "Traer y publicar",
   statusBarSearch: "Buscar o hacer algo…",

@@ -25,14 +25,14 @@ supersession, deferral during unsettled operations — must stay identical.
 
 # Context
 
-`createRepositoryReadCoordinator(repository, status, versionLines)` in
+`createRepositoryReadCoordinator(repository, status, branches)` in
 `src/features/repository/readCoordinator.ts` takes one positional controller per
 dependent feature, and `refreshAll` and `refreshAfterMutation` call each by name:
 
 ```ts
-void versionLines.refresh({ projectId: path, sessionEpoch: epoch });
+void branches.refresh({ projectId: path, sessionEpoch: epoch });
 ...
-versionLines.supersede(query);
+branches.supersede(query);
 ```
 
 Task 031's greenfield proof built a History-shaped screen and found this is the
@@ -46,7 +46,7 @@ seam in the architecture that gets worse with each addition, which makes it the
 right thing to fix before History, Recovery and conflicts each add a line.
 
 The refactor has a real trap. `refreshAll` is ordered on purpose: it reopens the
-repository and dispatches identity first, then refreshes version lines, then
+repository and dispatches identity first, then refreshes branches, then
 awaits status. A naive subscriber list that fans out concurrently would change
 which snapshot wins a race. Whatever replaces it must preserve ordering and the
 await points, or prove with a test that the new order is equivalent.
@@ -59,7 +59,7 @@ but it must stay a list of subscribers, not a framework.
 
 - Introduce a narrow invalidation-subscriber contract — enough for `refresh` and
   `supersede` against a project/epoch query, and nothing more.
-- Let the composition root register the status, version-lines and any future
+- Let the composition root register the status, branches and any future
   feature controllers as subscribers.
 - Preserve `refreshAll`'s ordering guarantees and its identity-first dispatch.
 - Keep the existing mutation-supersession, watcher-deferral and
@@ -82,7 +82,7 @@ but it must stay a list of subscribers, not a framework.
       `features/repository`.
 - [x] `refreshAll` ordering and await points are preserved, with a test that
       catches reordering.
-- [x] Existing repository, status and version-lines controller tests pass
+- [x] Existing repository, status and branches controller tests pass
       unchanged.
 - [x] Watcher burst deferral, mutation supersession and session-close cleanup
       behave identically.
@@ -122,13 +122,13 @@ refresh or supersede out" as the task asked: the status subscriber closes over
 the project runtime and the error mapper, so neither leaks into the type. It
 also removed `mapError` from five coordinator signatures.
 
-`readCoordinator.ts` no longer imports `../status` or `../version-lines`.
+`readCoordinator.ts` no longer imports `../status` or `../branches`.
 
 ## Two fields that used to be invisible
 
 The old code encoded both distinctions as syntax rather than data:
 
-- **`blocking`** was a single `void` keyword. `versionLines.refresh(...)` was
+- **`blocking`** was a single `void` keyword. `branches.refresh(...)` was
   fire-and-forget while `status.refresh(...)` was awaited, and nothing said so.
 - **`refreshOn`** was the `refreshAll` / `refreshStatus` split at the call site.
   It is now a property of the subscriber, and `refreshStatus` was renamed
@@ -138,7 +138,7 @@ The old code encoded both distinctions as syntax rather than data:
 
 `notify` runs two passes: start non-blocking subscribers, then await blocking
 ones in registration order. That reproduces the previous sequence exactly —
-identity dispatched first, version lines started, status awaited — rather than
+identity dispatched first, branches started, status awaited — rather than
 relying on registration order to imply it.
 
 The ordering test was verified by breaking the code, not by reading it.
@@ -150,7 +150,7 @@ concurrent fan-out.
 ## A related seam left alone, deliberately
 
 `features/repository/cacheWarming.ts` still takes `ChangesController` and
-`VersionLinesController` as named options, so a feature wanting speculative
+`BranchesController` as named options, so a feature wanting speculative
 warming on project activation does still edit `features/repository`. That is a
 different mechanism from invalidation fan-out and the task scoped itself to the
 latter; no consumer is asking for it yet. Recorded in the feature guide §9 so it

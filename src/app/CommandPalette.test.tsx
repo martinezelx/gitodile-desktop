@@ -193,14 +193,14 @@ describe("CommandPalette commands", () => {
   });
 
   it("returns the matches in the drawn, grouped order, so the selection runs the row it highlights", () => {
-    // Lines files its own "New version line" under Project right after the Go
+    // Branches files its own "New branch" under Project right after the Go
     // entries; drawn grouped, it comes after them — and Enter must agree.
     const mixed = [
       { id: "go-overview", label: "Go to Overview", group: "Go", icon: null, action: vi.fn() },
-      { id: "new-version-line", label: "New version line", group: "Project", icon: null, action: vi.fn() },
+      { id: "new-branch", label: "New branch", group: "Project", icon: null, action: vi.fn() },
       { id: "go-console", label: "Go to Console", group: "Go", icon: null, action: vi.fn() },
     ];
-    expect(filterAppCommands(mixed, "").map((command) => command.id)).toEqual(["go-overview", "go-console", "new-version-line"]);
+    expect(filterAppCommands(mixed, "").map((command) => command.id)).toEqual(["go-overview", "go-console", "new-branch"]);
   });
 
   it("groups consecutive commands under their section, once each", () => {
@@ -235,7 +235,7 @@ describe("CommandPalette commands", () => {
 
   it("gives every destination a glyph of its own", () => {
     const t = { paletteGroupGo: "Go" } as Parameters<typeof paletteMeta>[1];
-    const destinations = ["home", "overview", "workbench", "changes", "history", "version-lines", "console", "recovery"];
+    const destinations = ["home", "overview", "workbench", "changes", "history", "branches", "console", "recovery"];
     const glyphs = destinations.map((destination) => (paletteMeta(`go-${destination}`, t).icon as React.ReactElement).type);
 
     expect(new Set(glyphs).size).toBe(destinations.length);

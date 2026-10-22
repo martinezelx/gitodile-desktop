@@ -7,8 +7,8 @@
 
 ## Context
 
-Get project changes (task 014, widened by task 074) only advanced a line that
-was strictly behind its remote. Everything else stopped: a line with its own
+Get project changes (task 014, widened by task 074) only advanced a branch that
+was strictly behind its remote. Everything else stopped: a branch with its own
 unpublished versions was sent to "another Git tool", Publish answered "get the
 changes first", and an unsaved edit to any file the remote also changed
 blocked the update even when the edits were on different lines. Overlap was
@@ -23,7 +23,7 @@ does not exist yet, so a real overlap must still be refused, but named.
 ## Decision
 
 1. **Forecast locally, before anything is pressed.** Every team-sync read of
-   a line that is behind or diverged carries an `IncomingForecast`: clear,
+   a branch that is behind or diverged carries an `IncomingForecast`: clear,
    overlap or blocked, the overlapping paths with whether the local side is
    saved or unsaved, the incoming authors and file count, and how many
    unsaved files are carried or combined. It is computed with
@@ -78,7 +78,7 @@ does not exist yet, so a real overlap must still be refused, but named.
 - Overview can say before any click whether getting is direct, needs a merge
   version, or overlaps — and never offers a button that will refuse.
 - The common update needs one confirmation and no network wait to open.
-- History gains merge versions for diverged lines, as Git itself would make;
+- History gains merge versions for diverged branches, as Git itself would make;
   nothing is rewritten and unpublished versions keep their identity.
 - `merge-tree --write-tree --merge-base` needs Git 2.40. With an older Git the
   forecast reports `gitTooOld` for anything beyond a fast-forward without

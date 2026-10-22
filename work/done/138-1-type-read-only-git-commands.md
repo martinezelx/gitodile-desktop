@@ -135,8 +135,8 @@ Task 134.
   Git process per command. 138-2 adds the fingerprint together with the first
   tier that enforces it.
 - `checkout <name>` is classified Destructive, because without a lookup it may
-  restore a file as easily as switch line. 138-2 should resolve the name at
-  plan time so switching a line is a Local change.
+  restore a file as easily as switch branch. 138-2 should resolve the name at
+  plan time so switching a branch is a Local change.
 - `git` alone and `help git` list the Read commands; `git` is a reserved
   shortcut name. The renderer's list of Read commands exists only for help and
   completion, and a Rust test keeps it equal to the classifier's.

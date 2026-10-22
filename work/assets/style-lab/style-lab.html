@@ -410,9 +410,9 @@ button { font: inherit; color: inherit; }
 /* resumen */
 .ov-head { min-height: 40px; display: flex; align-items: center; gap: 8px 12px; padding: 0 4px; }
 .ov-slash { color: var(--border-control); font-size: 22px; line-height: 1; }
-.ov-line { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--L-r-item); color: var(--text-secondary-color); font-size: 15px; font-weight: 600; }
-.ov-line svg { width: 14px; height: 14px; }
-.ov-line .v { color: var(--text-primary-color); }
+.ov-branch { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--L-r-item); color: var(--text-secondary-color); font-size: 15px; font-weight: 600; }
+.ov-branch svg { width: 14px; height: 14px; }
+.ov-branch .v { color: var(--text-primary-color); }
 .next { display: flex; align-items: center; gap: 12px 16px; padding: 16px 24px; }
 .next .glyph { background: var(--L-fx-glyph); color: var(--accent-primary); }
 .next-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
@@ -461,7 +461,7 @@ button { font: inherit; color: inherit; }
 .bar2 { flex: 1; height: 3px; display: flex; overflow: hidden; border-radius: var(--L-r-pill); background: var(--border-subtle); }
 .bar2 i:first-child { background: var(--diff-added); } .bar2 i:last-child { background: var(--diff-removed); }
 
-/* detalle de historial / líneas */
+/* detalle de historial / ramas */
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .fact .big { font-size: 17px; }
 .split2 { flex: 1; min-height: 0; display: grid; grid-template-columns: 230px minmax(0, 1fr); }
@@ -796,14 +796,14 @@ button { font: inherit; color: inherit; }
     <article class="dc"><h3>Anatomía</h3><dl>
       <dt>Marco</dt><dd>Barra de título y riel sobre <code>--surface-app</code>, sin superficie propia, igual que hoy.</dd>
       <dt>Hoja</dt><dd>Una por pantalla: <code>--surface-panel</code>, <code>--border-subtle</code>, <code>--shadow-sm</code>, <code>--radius-surface</code>. Pegada a la barra de título y al riel; 10 px de marco a la derecha y abajo.</dd>
-      <dt>Interior</dt><dd>Paneles a sangre, separados por 1 px de <code>--border-subtle</code>. Las tarjetas internas (hechos de Líneas, secciones del Historial) siguen con <code>--surface-card</code>.</dd>
+      <dt>Interior</dt><dd>Paneles a sangre, separados por 1 px de <code>--border-subtle</code>. Las tarjetas internas (hechos de Ramas, secciones del Historial) siguen con <code>--surface-card</code>.</dd>
       <dt>Pie</dt><dd>La barra de estado se queda con sus tres columnas, pero sin tarjeta: es el pie de la hoja, sobre una línea fina.</dd>
       <dt>Encima</dt><dd>Diálogos, Ajustes, menús y paleta: sin cambios, <code>--surface-raised</code> y <code>--shadow-lg</code>.</dd>
     </dl></article>
     <article class="dc"><h3>Pantalla a pantalla</h3><dl>
       <dt>Resumen</dt><dd>Tres bandas de una página: cabecera, siguiente paso y cuerpo. El historial y la columna lateral se separan con una línea vertical.</dd>
       <dt>Trabajo e Historial</dt><dd>Lista y diff a sangre. Las franjas siguen a la misma altura, porque no se toca <code>--strip-height</code>.</dd>
-      <dt>Líneas</dt><dd>Igual que Trabajo; las tarjetas de hechos del detalle siguen siendo tarjetas internas.</dd>
+      <dt>Ramas</dt><dd>Igual que Trabajo; las tarjetas de hechos del detalle siguen siendo tarjetas internas.</dd>
       <dt>Inicio</dt><dd>La caja del lanzador se dibuja con borde y sin sombra: es un objeto en la hoja, no algo que flota.</dd>
       <dt>Consola</dt><dd>La hoja entera es la consola; su línea de estado propia queda dentro.</dd>
     </dl></article>
@@ -900,7 +900,7 @@ function titlebar() {
     '<span class="wcs"><span class="wc">' + ic("minus") + '</span><span class="wc">' + ic("square") + '</span><span class="wc">' + ic("x") + '</span></span></div>';
 }
 function rail(on) {
-  var d = [["ov", "layoutDashboard", "Resumen"], ["work", "layers", "Trabajo"], ["lines", "gitBranch", "Líneas"], ["con", "squareTerminal", "Consola"], ["rec", "lifeBuoy", "Rescate"], ["more", "ellipsis", "Más"]];
+  var d = [["ov", "layoutDashboard", "Resumen"], ["work", "layers", "Trabajo"], ["branches", "gitBranch", "Ramas"], ["con", "squareTerminal", "Consola"], ["rec", "lifeBuoy", "Rescate"], ["more", "ellipsis", "Más"]];
   var h = '<div class="rail">';
   d.forEach(function (x) { h += '<span class="ri' + (x[0] === on ? " on" : "") + (x[0] === "rec" ? " dis" : "") + '"><span class="ri-i">' + ic(x[1]) + '</span>' + x[2] + '</span>'; });
   h += '<span class="rail-sp"></span><span class="tray"><span class="chip">mp</span><span class="rb">' + ic("plus") + '</span>' +
@@ -995,7 +995,7 @@ function tlRow(sub, meta, node) {
 }
 function scOverview() {
   var head = '<header class="br ov-head"><span class="chip sm">mp</span><span class="h2" style="font-size:17px">mi-portfolio</span><span class="ov-slash">/</span>' +
-    '<span class="ov-line">' + ic("gitBranch") + '<span class="v">nueva-portada</span>' + ic("chevronDown") + '</span><span class="sp"></span><span class="ib">' + ic("folderOpen") + '</span><span class="ib">' + ic("settings") + '</span></header>';
+    '<span class="ov-branch">' + ic("gitBranch") + '<span class="v">nueva-portada</span>' + ic("chevronDown") + '</span><span class="sp"></span><span class="ib">' + ic("folderOpen") + '</span><span class="ib">' + ic("settings") + '</span></header>';
   var next = '<section class="cd fx next"><span class="glyph lg">' + ic("save") + '</span><div class="next-copy"><p class="kick">Siguiente paso <span class="prog"><i class="cur"></i><i></i><i></i></span></p>' +
     '<p class="next-title">Guarda tus 6 cambios como una versión</p><p class="mut" style="margin:0">Así tendrás un punto al que volver. Seguirá solo en este ordenador hasta que publiques.</p>' +
     '<span class="then"><span class="glyph">' + ic("cloudUpload") + '</span>Después: <b>Publicar 3 versiones</b></span></div>' +
@@ -1017,27 +1017,27 @@ function scOverview() {
 function lrow(name, meta, sel, icon, aside) {
   return '<div class="row tall vrow' + (sel ? " sel" : "") + '" style="grid-template-columns:16px minmax(0,1fr) auto"><span class="mut">' + ic(icon || "gitBranch") + '</span><span class="ttl"><span class="nm mono" style="font-size:12.5px">' + name + '</span><span class="mut cap ell">' + meta + '</span></span>' + (aside || "") + '</div>';
 }
-function scLines() {
-  var left = '<section class="cd pnl"><div class="strip"><span class="h2">Líneas de versión</span><span class="sp"></span><span class="btn sm">' + ic("plus") + 'Nueva</span></div>' +
-    '<div class="strip in nob" style="padding:0 8px"><span class="fld" style="flex:1">' + ic("search") + 'Buscar líneas</span></div><div class="lst">' +
+function scBranches() {
+  var left = '<section class="cd pnl"><div class="strip"><span class="h2">Ramas</span><span class="sp"></span><span class="btn sm">' + ic("plus") + 'Nueva</span></div>' +
+    '<div class="strip in nob" style="padding:0 8px"><span class="fld" style="flex:1">' + ic("search") + 'Buscar ramas</span></div><div class="lst">' +
     '<p class="kick grp">Actual</p>' + lrow("nueva-portada", "Tú · hace 40 min", 0, "gitBranch", '<span class="bdg warn">2 por publicar</span>') +
     '<p class="kick grp">Publicadas</p>' + lrow("main", "Ana Ruiz · ayer", 0, "gitBranch", '<span class="bdg">Principal</span>') + lrow("arreglo-menu", "Ana Ruiz · hace 2 días", 1, "gitBranch", '<span class="mut" style="color:var(--status-warning)">' + ic("star") + '</span>') +
     lrow("cambio-tipografia", "Tú · hace 3 semanas") + '<p class="kick grp">Solo en este ordenador</p>' + lrow("prueba-colores", "Tú · hace 5 días", 0, "laptop") + '</div></section>';
   var vers = ["Ajusta el menú en tabletas|Ana Ruiz · hace 2 días", "Cierra el menú al tocar fuera|Ana Ruiz · hace 3 días", "Añade el botón de menú en móvil|Tú · hace 4 días"].map(function (s) { var p = s.split("|"); return tlRow(p[0], p[1].replace(" · ", "<i></i>"), ""); }).join("");
   var right = '<section class="cd pnl"><div class="pad gr" style="gap:16px;padding:20px 24px"><div class="fl" style="gap:12px"><span class="glyph lg acc">' + ic("gitBranch") + '</span><div class="gr" style="gap:4px"><span class="h1 mono" style="font-family:var(--L-mono);text-transform:none">arreglo-menu</span><span class="fl"><span class="bdg info">' + ic("cloud") + 'Publicada en origin</span><span class="mut lbl">Nació de main el 10 oct</span></span></div>' +
-    '<span class="sp"></span><span class="btn">' + ic("gitCompare") + 'Comparar</span><span class="btn pri">' + ic("arrowRight") + 'Cambiar a esta línea</span></div>' +
+    '<span class="sp"></span><span class="btn">' + ic("gitCompare") + 'Comparar</span><span class="btn pri">' + ic("arrowRight") + 'Cambiar a esta rama</span></div>' +
     '<div class="facts"><div class="inner fact gr" style="gap:2px"><span class="kick">Última versión</span><span class="big">hace 2 días</span><span class="mut lbl">Ana Ruiz</span></div>' +
     '<div class="inner fact gr" style="gap:2px"><span class="kick">Respecto a main</span><span class="big">3 nuevas</span><span class="mut lbl">y 1 que aún no tiene</span></div>' +
     '<div class="inner fact gr" style="gap:2px"><span class="kick">Archivos tocados</span><span class="big">7</span><span class="mut lbl">2 carpetas</span></div></div>' +
-    '<div class="gr" style="gap:4px"><span class="h2">Versiones de esta línea</span><div class="tl-list" style="margin-left:-6px">' + vers + '</div></div>' +
-    '<p class="note" style="margin:0">' + ic("info") + 'Cambiar de línea no pierde nada: tus 6 cambios sin guardar se apartan en nueva-portada y vuelven cuando regreses.</p></div></section>';
-  return { rail: "lines", ws: '<div class="root ly wb">' + left + right + '</div>' };
+    '<div class="gr" style="gap:4px"><span class="h2">Versiones de esta rama</span><div class="tl-list" style="margin-left:-6px">' + vers + '</div></div>' +
+    '<p class="note" style="margin:0">' + ic("info") + 'Cambiar de rama no pierde nada: tus 6 cambios sin guardar se apartan en nueva-portada y vuelven cuando regreses.</p></div></section>';
+  return { rail: "branches", ws: '<div class="root ly wb">' + left + right + '</div>' };
 }
 function scHome() {
   var act = function (i, t, h) { return '<div class="cd act"><span class="glyph lg acc">' + ic(i) + '</span><span class="gr" style="gap:2px"><span class="h3" style="font-size:14px">' + t + '</span><span class="mut lbl">' + h + '</span></span></div>'; };
-  var rp = function (c, ini, name, path, line, aside, star) {
+  var rp = function (c, ini, name, path, branch, aside, star) {
     return '<div class="row tall" style="gap:12px;padding-inline:12px"><span class="chip sm ' + c + '">' + ini + '</span><span class="gr" style="gap:0;flex:1"><span class="nm">' + name + '</span><span class="mut cap ell">' + path + '</span></span>' +
-      '<span class="fl mut lbl" style="width:150px">' + ic("gitBranch", ' style="width:13px;height:13px"') + '<span class="ell mono">' + line + '</span></span>' + aside + '<span style="color:' + (star ? "var(--status-warning)" : "var(--border-control)") + '">' + ic("star") + '</span></div>';
+      '<span class="fl mut lbl" style="width:150px">' + ic("gitBranch", ' style="width:13px;height:13px"') + '<span class="ell mono">' + branch + '</span></span>' + aside + '<span style="color:' + (star ? "var(--status-warning)" : "var(--border-control)") + '">' + ic("star") + '</span></div>';
   };
   var rec = '<section class="cd pnl"><div class="strip"><span class="h2">Recientes</span><span class="sp"></span><span class="fld" style="width:240px">' + ic("search") + 'Buscar proyectos</span></div><div class="lst" style="padding:6px">' +
     rp("", "mp", "mi-portfolio", "~/Proyectos/mi-portfolio", "nueva-portada", '<span class="bdg warn" style="width:110px;justify-content:center">6 sin guardar</span>', 1) +
@@ -1099,7 +1099,7 @@ var SCREENS = [
   { id: "changes", name: "Trabajo · Cambios", icon: "fileDiff", fn: scChanges, note: "<b>Estado:</b> 6 cambios sin guardar (3 editados, 3 nuevos), 5 marcados para guardar; el diff muestra <b>Testimonios.tsx</b>, archivo nuevo, en modo Unificado." },
   { id: "history", name: "Trabajo · Historial", icon: "history", fn: scHistory, note: "<b>Estado:</b> 2 versiones solo en este ordenador y 4 publicadas; seleccionada «Ajusta el espaciado de la portada», con el diff de <b>hero.css</b> (editado)." },
   { id: "overview", name: "Resumen", icon: "layoutDashboard", fn: scOverview, note: "<b>Estado:</b> 6 cambios sin guardar y 2 versiones sin publicar. El siguiente paso es guardar (1 de 3), la escena es la pequeña y el detalle son los archivos." },
-  { id: "lines", name: "Líneas de versión", icon: "gitBranch", fn: scLines, note: "<b>Estado:</b> cinco líneas; estás en <b>nueva-portada</b> con 2 versiones por publicar y miras el detalle de <b>arreglo-menu</b>, publicada y marcada con estrella." },
+  { id: "branches", name: "Ramas", icon: "gitBranch", fn: scBranches, note: "<b>Estado:</b> cinco ramas; estás en <b>nueva-portada</b> con 2 versiones por publicar y miras el detalle de <b>arreglo-menu</b>, publicada y marcada con estrella." },
   { id: "home", name: "Inicio", icon: "folderOpen", fn: scHome, note: "<b>Estado:</b> tarde, con un proyecto abierto; cinco recientes, dos favoritos, uno con cambios sin guardar." },
   { id: "settings", name: "Ajustes", icon: "settings", fn: scSettings, note: "<b>Estado:</b> sección Apariencia: tema según el dispositivo, paleta GitOdile y cuatro ajustes en filas separadas solo por aire." },
   { id: "project", name: "Ajustes del proyecto", icon: "folderGit2", fn: scProject, note: "<b>Estado:</b> sección General de <b>mi-portfolio</b>: nombre e icono, el remoto origin con su cuenta y los hooks encendidos." },
@@ -1130,7 +1130,7 @@ var FAMS = [["chosen", "Elegido"], ["base", "Receta y material"], ["seam", "Cost
 var STYLES = [
   { id: "card", fam: "base", name: "Friendly Card", insp: "GitKraken · Tower", v: "actual", r: [3, 3, 3, 3],
     intent: "Panel opaco con borde sutil y sombra pequeña a 18 px en todas las pantallas. Solo sube la elevación de la tarjeta a la que hay que mirar.",
-    pros: ["Es la receta de DESIGN.md: una sola para Resumen, Trabajo, Líneas y la barra de estado.", "El diff y las listas quedan siempre sobre superficies opacas.", "Las sombras están definidas por tema, así que claro y oscuro pesan igual."],
+    pros: ["Es la receta de DESIGN.md: una sola para Resumen, Trabajo, Ramas y la barra de estado.", "El diff y las listas quedan siempre sobre superficies opacas.", "Las sombras están definidas por tema, así que claro y oscuro pesan igual."],
     cons: ["En claro, borde y sombra a la vez pesan algo en pantallas con muchos paneles.", "Muchas tarjetas del mismo peso aplanan la jerarquía del Resumen."], why: "Punto de partida: nada que reescribir." },
   { id: "border", fam: "base", name: "Solo borde", insp: "Linear", v: "adr", r: [3, 3, 3, 1],
     intent: "Quita la sombra y deja el filo. Radios más contenidos y botones de esquina recta, como en Linear.",
@@ -1151,7 +1151,7 @@ var STYLES = [
 
   { id: "fused", fam: "seam", name: "Pieza fundida", insp: "GitHub Desktop", v: "adr", r: [2, 1, 3, 1],
     intent: "Todos los paneles de la pantalla forman una sola pieza con hairlines entre ellos, dentro de un único marco redondeado.",
-    pros: ["En Trabajo, Historial y Líneas se ve muy compacto y ordenado.", "Las dos franjas emparejadas quedan alineadas por construcción."],
+    pros: ["En Trabajo, Historial y Ramas se ve muy compacto y ordenado.", "Las dos franjas emparejadas quedan alineadas por construcción."],
     cons: ["En Inicio y Resumen convierte tarjetas independientes en celdas de una tabla: parece otra app.", "La tarjeta del siguiente paso pierde su elevación.", "Cambia la idea de que cada bloque es un objeto."], why: "Sustituye la receta de tarjeta y § Layout." },
   { id: "bleed", fam: "seam", name: "A sangre", insp: "VS Code · Sublime Merge", v: "adr", r: [3, 2, 3, 1],
     intent: "Sin márgenes ni radios: los paneles llegan a los bordes de la ventana, divididos por líneas finas, y la barra de estado es una franja.",
@@ -1159,7 +1159,7 @@ var STYLES = [
     cons: ["Es la estética de herramienta experta que el producto quiere evitar.", "Inicio y Ajustes quedan como formularios sin aire.", "Pierde la cápsula y el radio por rol."], why: "Reescribe § Shape, § Layout y la barra de estado." },
   { id: "sheet", fam: "chosen", name: "Hoja en marco", insp: "Arc · Dia", v: "chosen", r: [3, 3, 3, 1],
     intent: "El chrome sigue siendo el plano de hoy (--surface-app, sin tinte) y cada pantalla es una sola hoja opaca encima, con la receta de tarjeta aplicada una vez. Dentro, los paneles se tocan sobre hairlines.",
-    pros: ["Un solo material en las 9 pantallas: siempre una hoja, sea Trabajo, Inicio o Consola.", "La receta no se inventa: borde sutil, --shadow-sm y radio de superficie, pero en un objeto en vez de en diez.", "Los paneles de Trabajo, Historial y Líneas ganan 16 px y sus franjas siguen emparejadas.", "Lo que flota (diálogos, Ajustes, menús) se distingue mejor de lo que reposa."],
+    pros: ["Un solo material en las 9 pantallas: siempre una hoja, sea Trabajo, Inicio o Consola.", "La receta no se inventa: borde sutil, --shadow-sm y radio de superficie, pero en un objeto en vez de en diez.", "Los paneles de Trabajo, Historial y Ramas ganan 16 px y sus franjas siguen emparejadas.", "Lo que flota (diálogos, Ajustes, menús) se distingue mejor de lo que reposa."],
     cons: ["El siguiente paso del Resumen pierde la elevación con la que hoy marca su foco.", "La barra de estado deja de ser una tarjeta y pasa a ser el pie de la hoja.", "Sin hueco entre tarjetas, el Inicio y el Resumen se leen como una página, no como un tablero."], why: "Sustituye la receta en reposo de § Visual character y cambia la barra de estado de § Layout. Requiere ADR." },
   { id: "tonal", fam: "seam", name: "Separación por tono", insp: "Raycast · Zed", v: "adr", r: [3, 3, 2, 2],
     intent: "Ni bordes ni sombras: los paneles se distinguen del fondo y las franjas de los paneles por pequeños saltos de tono.",
@@ -1171,7 +1171,7 @@ var STYLES = [
     cons: ["En Trabajo los huecos grandes quitan sitio al diff.", "Radio 26 no es ninguno de los niveles por rol."], why: "Nuevo radio y nuevo hueco: § Shape y § Size." },
   { id: "dense", fam: "seam", name: "Denso", insp: "Fork · Sublime Merge", v: "adr", r: [3, 3, 3, 1],
     intent: "Todo un 20 % más compacto: radios de 6–8 px, controles rectangulares de 28 px y barra de estado de 32 px.",
-    pros: ["Cabe mucho más en Historial y Líneas.", "Gusta al público secundario: desarrolladores con experiencia."],
+    pros: ["Cabe mucho más en Historial y Ramas.", "Gusta al público secundario: desarrolladores con experiencia."],
     cons: ["Controles de 28 px quedan por debajo de los 32 px del nivel pequeño.", "Pierde la cápsula; la app se vuelve más fría."], why: "Toca § Size y § Shape. La densidad sola (sin radios) sí sería adoptable." },
 
   { id: "glass", fam: "school", name: "Cristal", insp: "macOS Big Sur · glassmorfismo", v: "explore", r: [2, 2, 1, 1],

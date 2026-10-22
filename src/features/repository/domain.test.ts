@@ -20,11 +20,11 @@ describe("getRepositoryOverviewState", () => {
       isUnborn: false,
       isWorktree: false,
       wasOpenedFromNestedFolder: false,
-      versionLine: "main",
+      branch: "main",
       projectTypeKey: "overviewLocalProject",
       projectTypeDescriptionKey: "overviewRepositoryTypeDescription",
       headlineKey: "overviewProjectReady",
-      versionDescriptionKey: "overviewVersionLineDescription",
+      versionDescriptionKey: "overviewBranchDescription",
     });
   });
 
@@ -44,7 +44,7 @@ describe("getRepositoryOverviewState", () => {
     });
   });
 
-  it("does not present detached HEAD as a version line", () => {
+  it("does not present detached HEAD as a branch", () => {
     expect(
       getRepositoryOverviewState({
         ...baseProject,
@@ -53,13 +53,13 @@ describe("getRepositoryOverviewState", () => {
       }),
     ).toMatchObject({
       isDetached: true,
-      versionLine: null,
+      branch: null,
       headlineKey: "overviewDetachedReady",
       versionDescriptionKey: "overviewDetachedDescription",
     });
   });
 
-  it("retains the unborn version line while marking that it has no saved versions", () => {
+  it("retains the unborn branch while marking that it has no saved versions", () => {
     expect(
       getRepositoryOverviewState({
         ...baseProject,
@@ -67,7 +67,7 @@ describe("getRepositoryOverviewState", () => {
       }),
     ).toMatchObject({
       isUnborn: true,
-      versionLine: "main",
+      branch: "main",
       headlineKey: "overviewUnbornReady",
       versionDescriptionKey: "overviewUnbornDescription",
     });

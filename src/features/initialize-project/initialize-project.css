@@ -110,7 +110,7 @@
   .initialize-dialog__mode input { appearance: auto; }
 }
 
-/* What most people never change — the main line's name, a README, a remote —
+/* What most people never change — the main branch's name, a README, a remote —
    folded under one line, so the form is the three things that matter. */
 .initialize-dialog__advanced > summary {
   width: fit-content;

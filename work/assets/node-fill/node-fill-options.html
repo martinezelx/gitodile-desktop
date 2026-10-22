@@ -601,8 +601,8 @@ code {
 .avatar { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--text-secondary-color) 16%, var(--surface-panel)); color: var(--text-secondary-color); font-size: 7px; font-weight: var(--weight-title); }
 
 /* --------------------------------------------------------------- Line rows */
-.version-lines-recent { display: grid; align-content: start; margin: 0; padding: 0; list-style: none; }
-.version-lines-recent li {
+.branches-recent { display: grid; align-content: start; margin: 0; padding: 0; list-style: none; }
+.branches-recent li {
   position: relative;
   min-height: 29px;
   display: flex;
@@ -611,7 +611,7 @@ code {
   color: var(--text-secondary-color);
   font-size: 10px;
 }
-.version-lines-recent li::before {
+.branches-recent li::before {
   content: "";
   position: absolute;
   top: 0;
@@ -620,9 +620,9 @@ code {
   width: 1px;
   background: var(--border-divider);
 }
-.version-lines-recent li[data-first]::before { top: 50%; }
-.version-lines-recent li[data-last]::before { bottom: 50%; }
-.version-lines-recent__open {
+.branches-recent li[data-first]::before { top: 50%; }
+.branches-recent li[data-last]::before { bottom: 50%; }
+.branches-recent__open {
   min-width: 0;
   flex: 1;
   min-height: 29px;
@@ -635,8 +635,8 @@ code {
   font-size: 10px;
   text-align: left;
 }
-.version-lines-recent__open:hover { background: var(--surface-hover); }
-.version-lines-recent__node {
+.branches-recent__open:hover { background: var(--surface-hover); }
+.branches-recent__node {
   position: relative;
   z-index: 1;
   width: 12px; height: 12px;
@@ -646,18 +646,18 @@ code {
   background: var(--surface-panel);
   box-shadow: 0 0 0 3px var(--surface-panel);
 }
-.version-lines-recent__row--local-only .version-lines-recent__node {
+.branches-recent__row--local-only .branches-recent__node {
   border-color: var(--node-fill);
   background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
 }
-.version-lines-recent__row--published .version-lines-recent__node { border-color: var(--node-fill); background: var(--node-fill); }
-.version-lines-recent__open:hover .version-lines-recent__node {
+.branches-recent__row--published .branches-recent__node { border-color: var(--node-fill); background: var(--node-fill); }
+.branches-recent__open:hover .branches-recent__node {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5.5px color-mix(in srgb, var(--accent-primary) 26%, transparent);
 }
-.version-lines-recent__subject { overflow: hidden; flex: 1; color: var(--text-primary-color); font-weight: var(--weight-strong); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.version-lines-recent code { flex: 0 0 auto; padding: 1px 5px; border: 1px solid var(--border-divider); border-radius: 5px; background: var(--surface-code); font-size: 8px; opacity: 0.75; }
-.version-lines-recent__date { flex: 0 0 auto; font-size: 8px; }
+.branches-recent__subject { overflow: hidden; flex: 1; color: var(--text-primary-color); font-weight: var(--weight-strong); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.branches-recent code { flex: 0 0 auto; padding: 1px 5px; border: 1px solid var(--border-divider); border-radius: 5px; background: var(--surface-code); font-size: 8px; opacity: 0.75; }
+.branches-recent__date { flex: 0 0 auto; font-size: 8px; }
 
 /* ---------------------------------------------------------- tone cards */
 .tone-grid {
@@ -775,11 +775,11 @@ code {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 @media (forced-colors: active) {
-  .changes-file-row__node, .overview-history__node, .history-row__node, .version-lines-recent__node, .sample-node { border-color: ButtonText; }
+  .changes-file-row__node, .overview-history__node, .history-row__node, .branches-recent__node, .sample-node { border-color: ButtonText; }
   .changes-file-row__pick input:checked + .changes-file-row__node,
   .history-row--published .history-row__node,
   .overview-history__item--published .overview-history__node,
-  .version-lines-recent__row--published .version-lines-recent__node,
+  .branches-recent__row--published .branches-recent__node,
   .sample-node--filled { background: Highlight; }
 }
 </style>
@@ -791,7 +791,7 @@ code {
     <div class="page-head__copy">
       <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>Nodos de versión · Tono</p>
       <h1>El negro justo.</h1>
-      <p class="lede">Los nodos llenos —incluido en Changes, publicado en Overview, History y Lines— usan hoy <strong>la tinta primaria</strong>. En claro quedan a 17,5:1 sobre el panel, mientras el verde de la fila abierta apenas llega a 5,4:1. El problema no es que el punto no se lea: es que se lee demasiado. Esta prueba baja el relleno sin tocar la forma, el aro ni el acento.</p>
+      <p class="lede">Los nodos llenos —incluido en Changes, publicado en Overview, History y Branches— usan hoy <strong>la tinta primaria</strong>. En claro quedan a 17,5:1 sobre el panel, mientras el verde de la fila abierta apenas llega a 5,4:1. El problema no es que el punto no se lea: es que se lee demasiado. Esta prueba baja el relleno sin tocar la forma, el aro ni el acento.</p>
       <div class="meta-row">
         <span class="meta-chip"><b>5</b> tonos</span>
         <span class="meta-chip"><b>4</b> listas</span>
@@ -976,40 +976,40 @@ code {
               </div>
             </section>
 
-            <section class="pane" aria-label="Lines">
-              <div class="pane-head">Lines <span>recientes</span></div>
+            <section class="pane" aria-label="Branches">
+              <div class="pane-head">Branches <span>recientes</span></div>
               <div class="pane-body">
-                <ul class="version-lines-recent">
-                  <li class="version-lines-recent__row version-lines-recent__row--published" data-first>
-                    <span class="version-lines-recent__open">
-                      <span class="version-lines-recent__node"></span>
-                      <span class="version-lines-recent__subject">Fix the empty state</span>
+                <ul class="branches-recent">
+                  <li class="branches-recent__row branches-recent__row--published" data-first>
+                    <span class="branches-recent__open">
+                      <span class="branches-recent__node"></span>
+                      <span class="branches-recent__subject">Fix the empty state</span>
                       <code>abc1234</code>
-                      <span class="version-lines-recent__date">2h</span>
+                      <span class="branches-recent__date">2h</span>
                     </span>
                   </li>
-                  <li class="version-lines-recent__row version-lines-recent__row--local-only">
-                    <span class="version-lines-recent__open">
-                      <span class="version-lines-recent__node"></span>
-                      <span class="version-lines-recent__subject">Polish the node tone</span>
+                  <li class="branches-recent__row branches-recent__row--local-only">
+                    <span class="branches-recent__open">
+                      <span class="branches-recent__node"></span>
+                      <span class="branches-recent__subject">Polish the node tone</span>
                       <code>def5678</code>
-                      <span class="version-lines-recent__date">yesterday</span>
+                      <span class="branches-recent__date">yesterday</span>
                     </span>
                   </li>
-                  <li class="version-lines-recent__row version-lines-recent__row--published">
-                    <span class="version-lines-recent__open">
-                      <span class="version-lines-recent__node"></span>
-                      <span class="version-lines-recent__subject">Merge main</span>
+                  <li class="branches-recent__row branches-recent__row--published">
+                    <span class="branches-recent__open">
+                      <span class="branches-recent__node"></span>
+                      <span class="branches-recent__subject">Merge main</span>
                       <code>9012abc</code>
-                      <span class="version-lines-recent__date">2d</span>
+                      <span class="branches-recent__date">2d</span>
                     </span>
                   </li>
-                  <li class="version-lines-recent__row" data-last>
-                    <span class="version-lines-recent__open">
-                      <span class="version-lines-recent__node"></span>
-                      <span class="version-lines-recent__subject">Old local work</span>
+                  <li class="branches-recent__row" data-last>
+                    <span class="branches-recent__open">
+                      <span class="branches-recent__node"></span>
+                      <span class="branches-recent__subject">Old local work</span>
                       <code>3456def</code>
-                      <span class="version-lines-recent__date">—</span>
+                      <span class="branches-recent__date">—</span>
                     </span>
                   </li>
                 </ul>
@@ -1112,7 +1112,7 @@ code {
             <li><b>Acento:</b> la fila abierta en Changes y la versión seleccionada en History siguen en verde; su acento no se mezcla.</li>
             <li><b>Aro desconocido:</b> sigue en la mezcla de texto secundario; el tono nuevo solo afecta a lo lleno.</li>
             <li><b>Oscuro:</b> la misma mezcla que en claro; la casilla de la muestra permite comparar con la tinta primaria anterior.</li>
-            <li><b>Dibujos:</b> los puntos decorativos de Overview y la ruta de Lines no son nodos de versión y quedan fuera.</li>
+            <li><b>Dibujos:</b> los puntos decorativos de Overview y la ruta de Branches no son nodos de versión y quedan fuera.</li>
           </ul>
         </div>
       </div>
@@ -1127,7 +1127,7 @@ code {
           <li><b>Changes:</b> relleno del checked y del indeterminate; el acento de la fila abierta no cambia.</li>
           <li><b>History:</b> <code>--local</code> y <code>--published</code>; los estados <code>--selected</code> siguen en acento.</li>
           <li><b>Overview:</b> <code>--local</code> y <code>--published</code>; el hover sigue en acento.</li>
-          <li><b>Lines:</b> <code>--local-only</code> y <code>--published</code>; el hover sigue en acento.</li>
+          <li><b>Branches:</b> <code>--local-only</code> y <code>--published</code>; el hover sigue en acento.</li>
         </ul>
         <p style="margin-top: 12px;">El contraste del relleno se mide en cada tema contra <code>--surface-panel</code>, con un mínimo de 3:1 para el control no textual; el 65% deja 5,4:1 en el tema claro oficial y 7,6:1 en el oscuro. Los temas comunitarios heredan la mezcla y pasan el mismo contrato.</p>
       </div>

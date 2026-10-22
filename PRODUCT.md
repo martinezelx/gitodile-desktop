@@ -67,7 +67,7 @@ but must not trivialize errors or destructive operations.
   and the application icon, the mascot on a white tile,
   `src/assets/brand/gitodile-icon.svg` (ADR 0031).
 - Existing Overview, Changes, save-version, publish, project-session, watcher,
-  and version-line implementations and tests under `src/` and
+  and branch implementations and tests under `src/` and
   `src-tauri/src/`.
 - No testimonials, customer claims, usage benchmarks, or commercial proof are
   available and future work must not fabricate them.

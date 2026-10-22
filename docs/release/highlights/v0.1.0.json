@@ -23,14 +23,14 @@
     {
       "id": "truthfulStatus",
       "icon": "list-checks",
-      "en": "See your current version line, unsaved work, and when project changes were last checked from every screen.",
-      "es": "Consulta la línea de versión actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla."
+      "en": "See your current branch, unsaved work, and when project changes were last checked from every screen.",
+      "es": "Consulta la rama actual, el trabajo sin guardar y cuándo se comprobaron por última vez los cambios del proyecto desde cualquier pantalla."
     },
     {
-      "id": "safeLineSwitching",
+      "id": "safeBranchSwitching",
       "icon": "git-branch",
-      "en": "Switch version lines from the status bar with the same preview and unsaved-work safeguards.",
-      "es": "Cambia de línea desde la barra de estado con la misma previsualización y protección del trabajo sin guardar."
+      "en": "Switch branches from the status bar with the same preview and unsaved-work safeguards.",
+      "es": "Cambia de rama desde la barra de estado con la misma previsualización y protección del trabajo sin guardar."
     }
   ]
 }

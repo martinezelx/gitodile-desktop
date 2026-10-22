@@ -59,7 +59,7 @@ external child exits.
 Added the neutral renderer draft/install registries. Save Version and quick-save
 messages use bounded synchronous browser persistence keyed by project and are
 restored without a mounted owner. Existing settings, remote, ignore,
-clone/create and version-line editors register actionable blockers; remote URLs
+clone/create and branch editors register actionable blockers; remote URLs
 are intentionally not persisted. Automatic remote checks and speculative cache
 warmers suspend and resume through the renderer participant contract.
 

@@ -81,6 +81,6 @@ colour for meaning).
   `-dark`, this ADR's first form). Built and tried, then dropped: two official
   pairs doubled the palettes to test and kept the louder one as the default.
 - **Fully greyscale, states included.** Rejected: a failed check, a removed
-  line or an overlap in grey hides a consequence (`AGENTS.md`).
+  branch or an overlap in grey hides a consequence (`AGENTS.md`).
 - **Keep the mascot green.** Rejected for now: a single green mark in an ink
   window reads as a stray accent, and the ink one matches the app icon.

@@ -31,7 +31,7 @@ the chrome that asked for it.
 # Context
 
 Task 176 made the strip a card. The work that led into this task rebuilt it as
-two equal blocks — `project │ line` and `remote │ check` — around a field that
+two equal blocks — `project │ branch` and `remote │ check` — around a field that
 opens the command palette, and dropped the app's version tag. What followed:
 
 - The remote block filled **permanently** while a current relation called for a
@@ -81,7 +81,7 @@ opens the command palette, and dropped the app's version tag. What followed:
 
 - The list follows the chosen row with the arrows and on a query change.
 - A `go-*` command hands the focus to the active screen's own target: Home's
-  launcher, Console's prompt, the Work tab, or the Overview and Lines headings.
+  launcher, Console's prompt, the Work tab, or the Overview and Branches headings.
 - Docs and tests.
 
 # Out of scope
@@ -136,7 +136,7 @@ opens the command palette, and dropped the app's version tag. What followed:
 - `src/features/workbench/WorkbenchTabs.tsx`
 - `src/features/home/HomeLauncher.tsx`
 - `src/features/overview/OverviewPanel.tsx`
-- `src/features/version-lines/VersionLinesPanel.tsx`
+- `src/features/branches/BranchesPanel.tsx`
 - `src/features/sync/translations.ts`
 - `DESIGN.md`, `work/assets/status-bar-review/`
 
@@ -224,7 +224,7 @@ None.
 - `App.tsx`: `paletteFocusPending` + `paletteFocusTick`, armed by `go-*`
   commands; an effect on the tick and view focuses the active screen's
   `[data-screen-focus]` after the commit; an open modal keeps its focus.
-- Targets: Home input, Console prompt, active Work tab, Overview h1, Lines main
+- Targets: Home input, Console prompt, active Work tab, Overview h1, Branches main
   and error h1s (`tabIndex={-1}`); `base.css` gives a focused heading the same
   ring controls use.
 

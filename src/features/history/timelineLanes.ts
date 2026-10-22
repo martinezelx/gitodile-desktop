@@ -4,13 +4,13 @@ import type { SavedVersionSummary } from "./domain";
  * topological order. Nothing here asks Git anything: `parents` and the order
  * are already in every page. */
 
-/** The most lanes the column ever makes room for. A history with more lines
+/** The most lanes the column ever makes room for. A history with more branches
  * alive at once draws the extra ones on the last lane rather than widening
  * the column past the subjects it exists to show. */
 export const MAX_LANES = 5;
 
 /** What a lane is waiting for: the version it runs down to, and the tint it
- * has worn since it began. Tint 0 is the trunk — the line being read. */
+ * has worn since it began. Tint 0 is the trunk — the branch being read. */
 export type LaneSlot = { commit: string; tint: number } | null;
 
 export type LaneRow = {
@@ -24,33 +24,33 @@ export type LaneRow = {
   edges: Array<{ lane: number; tint: number }>;
 };
 
-/** What a lane stands for, for the reader pointing at it: the line's name when
+/** What a lane stands for, for the reader pointing at it: the branch's name when
  * a reference or the merge that brought it in says it, and whether its
- * versions are in another line. */
-export type LaneLine = {
+ * versions are in another branch. */
+export type LaneBranch = {
   name: string | null;
-  /** The newest merge that took this line into another, the first met in the
-   * page's order: which lane, and how many of this line's versions came after
-   * it — saved since, and not in the other line yet. */
+  /** The newest merge that took this branch into another, the first met in the
+   * page's order: which lane, and how many of this branch's versions came after
+   * it — saved since, and not in the other branch yet. */
   lastMerge: { into: number; after: number } | null;
-  /** This line's versions, newest first, to count what came after a merge. */
+  /** This branch's versions, newest first, to count what came after a merge. */
   commits: string[];
 };
 
-export type LaneLayout = { rows: Map<string, LaneRow>; width: number; lines: Map<number, LaneLine> };
+export type LaneLayout = { rows: Map<string, LaneRow>; width: number; branches: Map<number, LaneBranch> };
 
 const MERGED_NAME = [/^Merge (?:remote-tracking )?branch '([^']+)'/, /^Merge pull request #\d+ from [^/\s]+\/(\S+)/, /^Merge (?:remote-tracking )?branch "([^"]+)"/];
-/** The line a merge's subject says it brought in, as Git and the hosts word it. */
-function mergedLineName(subject: string): string | null {
+/** The branch a merge's subject says it brought in, as Git and the hosts word it. */
+function mergedBranchName(subject: string): string | null {
   for (const pattern of MERGED_NAME) {
     const name = pattern.exec(subject)?.[1];
     if (name) return name.replace(/^origin\//, "");
   }
   return null;
 }
-/** The line a version's own references name: a local line first, then a
+/** The branch a version's own references name: a local branch first, then a
  * remote one without its remote. */
-function referencedLineName(version: SavedVersionSummary): string | null {
+function referencedBranchName(version: SavedVersionSummary): string | null {
   const local = version.decorations.find((decoration) => decoration.kind === "localBranch");
   if (local) return local.name;
   const remote = version.decorations.find((decoration) => decoration.kind === "remoteBranch");
@@ -60,9 +60,9 @@ function referencedLineName(version: SavedVersionSummary): string | null {
 /** How many tints a lane can take besides the trunk's, before they repeat. */
 export const LANE_TINTS = 8;
 
-/** The versions a single line's own history walks: the tip, then each first
+/** The versions a single branch's own history walks: the tip, then each first
  * parent, as far as the loaded pages reach. A merge's other parents are what
- * the merge brought in, not the line's own steps. */
+ * the merge brought in, not the branch's own steps. */
 export function firstParentChain(versions: readonly SavedVersionSummary[]): Set<string> {
   const byCommit = new Map(versions.map((version) => [version.commit, version]));
   const chain = new Set<string>();
@@ -73,7 +73,7 @@ export function firstParentChain(versions: readonly SavedVersionSummary[]): Set<
 }
 
 /** What a merge on the chain brought in: everything reachable from its other
- * parents — merges inside the merged line included — until the chain, and
+ * parents — merges inside the merged branch included — until the chain, and
  * nothing an earlier merge already claimed. Only loaded versions are named,
  * so on a partly loaded history the count can grow with the next page. */
 export function mergedBy(
@@ -96,7 +96,7 @@ export function mergedBy(
 
 export type Detour = { merge: string; versions: string[]; open: boolean };
 
-/** A single line read straight: the chain, plus what the merges the reader
+/** A single branch read straight: the chain, plus what the merges the reader
  * opened brought in. Order is the page's, so an opened detour sits where Git
  * put it. A merge with nothing loaded to show keeps no detour, and a version
  * no merge on the chain accounts for stays in view: nothing is hidden that
@@ -137,14 +137,14 @@ export function layoutLanes(versions: readonly SavedVersionSummary[]): LaneLayou
   const present = new Set(versions.map((version) => version.commit));
   const lanes: LaneSlot[] = [];
   const rows = new Map<string, LaneRow>();
-  const lines = new Map<number, LaneLine>();
-  const lineOf = (tint: number): LaneLine => {
-    let line = lines.get(tint);
-    if (!line) lines.set(tint, (line = { name: null, lastMerge: null, commits: [] }));
-    return line;
+  const branches = new Map<number, LaneBranch>();
+  const branchOf = (tint: number): LaneBranch => {
+    let branch = branches.get(tint);
+    if (!branch) branches.set(tint, (branch = { name: null, lastMerge: null, commits: [] }));
+    return branch;
   };
   let nextTint = 1;
-  /* The version each line's last merge took, to count what it saved after. */
+  /* The version each branch's last merge took, to count what it saved after. */
   const mergedParents = new Map<number, string>();
   let width = 0;
   const freeLane = (): number => {
@@ -159,9 +159,9 @@ export function layoutLanes(versions: readonly SavedVersionSummary[]): LaneLayou
       lanes[lane] = { commit: version.commit, tint: index === 0 ? 0 : nextTint++ };
     }
     const tint = lanes[lane]!.tint;
-    const line = lineOf(tint);
-    line.commits.push(version.commit);
-    line.name ??= referencedLineName(version);
+    const branch = branchOf(tint);
+    branch.commits.push(version.commit);
+    branch.name ??= referencedBranchName(version);
     // A tip starts at its own node: nothing runs into it from above.
     const lanesIn = lanes.slice();
     if (isTip) lanesIn[lane] = null;
@@ -177,11 +177,11 @@ export function layoutLanes(versions: readonly SavedVersionSummary[]): LaneLayou
       if (target < 0) {
         target = freeLane();
         lanes[target] = { commit: parent, tint: nextTint++ };
-        lineOf(lanes[target]!.tint).name ??= mergedLineName(version.subject);
+        branchOf(lanes[target]!.tint).name ??= mergedBranchName(version.subject);
       }
       // The first merge met is the newest: it is the one that says what the
-      // other line has of this one now.
-      const merged = lineOf(lanes[target]!.tint);
+      // other branch has of this one now.
+      const merged = branchOf(lanes[target]!.tint);
       if (lanes[target]!.tint !== tint && !merged.lastMerge) {
         merged.lastMerge = { into: tint, after: 0 };
         mergedParents.set(lanes[target]!.tint, parent);
@@ -194,9 +194,9 @@ export function layoutLanes(versions: readonly SavedVersionSummary[]): LaneLayou
     rows.set(version.commit, { lane, tint, lanesIn, lanesOut, edges });
   });
   for (const [tint, parent] of mergedParents) {
-    const line = lines.get(tint);
+    const branch = branches.get(tint);
     // Only loaded versions are counted, as everywhere on this timeline.
-    if (line?.lastMerge) line.lastMerge.after = Math.max(0, line.commits.indexOf(parent));
+    if (branch?.lastMerge) branch.lastMerge.after = Math.max(0, branch.commits.indexOf(parent));
   }
-  return { rows, width: Math.min(width, MAX_LANES), lines };
+  return { rows, width: Math.min(width, MAX_LANES), branches };
 }

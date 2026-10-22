@@ -35,7 +35,7 @@ with different consequences and recovery.
 # Scope
 
 - Offer **Undo this saved version** only for the current tip when publication
-  evidence proves it is local-only. Move the version line back one commit while
+  evidence proves it is local-only. Move the branch back one commit while
   retaining that commit in recovery and returning its changes to the working
   tree/index without discarding bytes.
 - Offer **Reverse the changes from this version** for a selected reachable

@@ -45,7 +45,7 @@ What the artifact found:
 - The panel's top corners were 18px and the field's bottom corners 14px; the
   field's halo rose above the seam and doubled the panel's; the panel's
   `--shadow-lg` was cut flat at the seam; Work and Changes shared `FileDiff`,
-  and Overview fell back to `GitBranch`, the glyph of Lines.
+  and Overview fell back to `GitBranch`, the glyph of Branches.
 
 # Scope
 
@@ -79,7 +79,7 @@ What the artifact found:
 - [x] The fused panel unfolds from the seam and folds back, at the pace of
       the app's menus, its rows coming with it.
 - [x] No doubled halo and no cut shadow at the seam.
-- [x] Overview, Work, Changes and Lines each wear a distinct glyph.
+- [x] Overview, Work, Changes and Branches each wear a distinct glyph.
 - [x] The chosen row's `↵` is a key.
 - [x] System reduced motion fades without movement.
 - [x] Tests cover the field state and the glyphs.

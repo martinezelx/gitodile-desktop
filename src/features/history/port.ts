@@ -7,27 +7,27 @@ export type HistoryQuery = { projectId: string; sessionEpoch: string };
  *
  * Deliberately not a `HistoryFilters` field. The scope chooses the graph and a
  * filter narrows it, and the two are cleared by different gestures: clearing
- * every filter must not quietly walk the reader back to the current line.
+ * every filter must not quietly walk the reader back to the current branch.
  *
- * `line` means "the history reachable from that line's tip", never "the commits
- * that belong to that line". A commit reachable from five lines belongs to all
+ * `branch` means "the history reachable from that branch's tip", never "the commits
+ * that belong to that branch". A commit reachable from five branches belongs to all
  * of them, so nothing downstream may stamp the chosen name onto a row. */
 export type HistoryScope =
-  | { kind: "currentLine" }
-  | { kind: "line"; name: string }
-  | { kind: "allLines" };
+  | { kind: "currentBranch" }
+  | { kind: "branch"; name: string }
+  | { kind: "allBranches" };
 
-export const CURRENT_LINE_SCOPE: HistoryScope = { kind: "currentLine" };
-export const ALL_LINES_SCOPE: HistoryScope = { kind: "allLines" };
+export const CURRENT_BRANCH_SCOPE: HistoryScope = { kind: "currentBranch" };
+export const ALL_BRANCHES_SCOPE: HistoryScope = { kind: "allBranches" };
 
 export function sameHistoryScope(left: HistoryScope, right: HistoryScope): boolean {
   if (left.kind !== right.kind) return false;
-  return left.kind !== "line" || left.name === (right as { name: string }).name;
+  return left.kind !== "branch" || left.name === (right as { name: string }).name;
 }
 
-/** The line a scope names, or `null` when it names none. */
-export function scopeLineName(scope: HistoryScope): string | null {
-  return scope.kind === "line" ? scope.name : null;
+/** The branch a scope names, or `null` when it names none. */
+export function scopeBranchName(scope: HistoryScope): string | null {
+  return scope.kind === "branch" ? scope.name : null;
 }
 
 /** What the timeline has been narrowed to.

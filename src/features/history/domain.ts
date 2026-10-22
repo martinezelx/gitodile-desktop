@@ -15,7 +15,7 @@ export type HistoryWarningCode =
   | "messagesTruncated"
   | "unreadableMetadata"
   | "upstreamUnavailable"
-  | "linesTruncated";
+  | "branchesTruncated";
 
 export type SavedVersionSummary = {
   commit: string;
@@ -48,8 +48,8 @@ export type HistoryPage = {
   snapshotToken: string;
   /** The scope this page was actually read at. */
   scope: HistoryScope;
-  /** `HEAD`'s own line, whatever the scope is — the timeline uses it to mark
-   * which decoration is the line being stood on. */
+  /** `HEAD`'s own branch, whatever the scope is — the timeline uses it to mark
+   * which decoration is the branch being stood on. */
   branch: string | null;
   headState: HeadState;
   headCommit: string | null;

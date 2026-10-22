@@ -346,6 +346,13 @@ fn run_bounded(
     policy: ExecutionPolicy,
     cancellation: Option<&CancellationToken>,
 ) -> Result<BoundedOutput, ProgramFailure> {
+    // An already-cancelled operation must not start Git or its descendants.
+    // On Windows they can outlive the parent and keep its output pipes open.
+    if policy.cancellation == CancellationPolicy::KillProcess
+        && cancellation.is_some_and(CancellationToken::is_cancelled)
+    {
+        return Err(ProgramFailure::Cancelled);
+    }
     process
         .stdin(if input.is_some() {
             Stdio::piped()
@@ -560,6 +567,27 @@ mod tests {
         let error = result.unwrap_err();
         assert_eq!(error.code, AppErrorCode::OperationCancelled);
         assert!(error.message.contains("cancelled"));
+    }
+
+    #[test]
+    fn pre_cancelled_work_never_attempts_to_spawn_but_respects_non_cancellable_policy() {
+        let missing = std::env::temp_dir().join(format!(
+            "gitodile-missing-cancellation-fixture-{}",
+            std::process::id()
+        ));
+        assert!(!missing.exists());
+        let token = CancellationToken::default();
+        token.cancel();
+        let mut policy = ExecutionPolicy::repository_read("cancel_before_spawn_test");
+        assert!(matches!(
+            run_program(Command::new(&missing), policy, Some(&token)),
+            Err(ProgramFailure::Cancelled)
+        ));
+        policy.cancellation = CancellationPolicy::NotSupported;
+        assert!(matches!(
+            run_program(Command::new(&missing), policy, Some(&token)),
+            Err(ProgramFailure::Start(error)) if error.kind() == ErrorKind::NotFound
+        ));
     }
 
     #[test]

@@ -30,7 +30,7 @@ check of the remote was old, the dialog keeps loading until the remote has
 answered, so it never says "nothing" and then turns into a plan. When the
 remote cannot be reached, the dialog says that and offers to try again rather
 than claiming the project is up to date. On Changes, a settled or
-unpublished-only line offers "Check for project changes" — the same read-only
+unpublished-only branch offers "Check for project changes" — the same read-only
 check as Overview and the status bar — instead of a get that can only find
 nothing.
 

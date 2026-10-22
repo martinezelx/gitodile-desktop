@@ -870,7 +870,7 @@ describe("Settings panel option groups", () => {
   });
 });
 
-describe("Settings panel default version line", () => {
+describe("Settings panel default branch", () => {
   it("reads the stored name and selects the matching suggestion", async () => {
     const port = createPort({ getDefaultBranch: vi.fn(async () => ({ name: "master" })) });
     renderPanel(port, { initialSection: "git" });
@@ -888,7 +888,7 @@ describe("Settings panel default version line", () => {
     renderPanel(port, { initialSection: "git" });
 
     // An empty group reads as unfinished. `main` is what GitOdile will
-    // actually name the first version line, so that is what is shown.
+    // actually name the first branch, so that is what is shown.
     expect(await screen.findByRole("radio", { name: "main" })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -909,7 +909,7 @@ describe("Settings panel default version line", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: "main" }));
     await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledWith("main"));
-    expect(await screen.findByText("Default version line saved.")).toBeInTheDocument();
+    expect(await screen.findByText("Default branch saved.")).toBeInTheDocument();
   });
 
   it("writes once when a typed draft is abandoned for a suggestion", async () => {
@@ -918,7 +918,7 @@ describe("Settings panel default version line", () => {
     await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("radio", { name: "Other" }));
-    await userEvent.type(screen.getByLabelText("Version line name"), "trunk");
+    await userEvent.type(screen.getByLabelText("Branch name"), "trunk");
 
     // Blur fires before click. Committing the draft from the field's own
     // `onBlur` raced this button, and whichever write landed last won.
@@ -944,7 +944,7 @@ describe("Settings panel default version line", () => {
     await waitFor(() => expect(port.getDefaultBranch).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("radio", { name: "Other" }));
-    const field = screen.getByLabelText("Version line name");
+    const field = screen.getByLabelText("Branch name");
     await userEvent.type(field, "trunk");
     await userEvent.tab();
     await waitFor(() => expect(port.setDefaultBranch).toHaveBeenCalledWith("trunk"));
@@ -954,7 +954,7 @@ describe("Settings panel default version line", () => {
     await userEvent.tab();
     // Git's own message, localized here rather than invented by the panel.
     expect(
-      await screen.findByText("Enter a valid version line name, like main."),
+      await screen.findByText("Enter a valid branch name, like main."),
     ).toBeInTheDocument();
   });
 });

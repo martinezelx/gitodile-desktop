@@ -54,7 +54,7 @@ describe("versionsWithDetours", () => {
     expect(detourHolding(folded.detours, "r3")).toBeNull();
   });
 
-  it("folds merges inside a merged line with it, and keeps what no merge accounts for", () => {
+  it("folds merges inside a merged branch with it, and keeps what no merge accounts for", () => {
     const nested = [v("r1", ["r2", "q1"]), v("q1", ["q2", "z1"]), v("z1", ["q2"]), v("q2", ["r2"]), v("r2"), v("stray")];
     const folded = versionsWithDetours(nested, new Set());
     expect(folded.detours.get("r1")!.versions.sort()).toEqual(["q1", "q2", "z1"]);
@@ -106,7 +106,7 @@ describe("layoutLanes", () => {
   });
 });
 
-describe("layoutLanes lines", () => {
+describe("layoutLanes branches", () => {
   const named = (commit: string, parents: string[], subject: string, branch?: string): SavedVersionSummary => ({
     ...v(commit, parents),
     subject,
@@ -119,11 +119,11 @@ describe("layoutLanes lines", () => {
       named("q1", ["r2"], "work"),
       named("r2", [], "base"),
     ]);
-    expect(layout.lines.get(0)?.name).toBe("release");
-    expect(layout.lines.get(1)?.name).toBe("feature/quick");
+    expect(layout.branches.get(0)?.name).toBe("release");
+    expect(layout.branches.get(1)?.name).toBe("feature/quick");
   });
 
-  it("says whether all of a line went into another, or how many versions came after", () => {
+  it("says whether all of a branch went into another, or how many versions came after", () => {
     /* main saves m1 after release merged m2 into itself. */
     const layout = layoutLanes([
       named("m1", ["m2"], "after", "main"),
@@ -132,8 +132,8 @@ describe("layoutLanes lines", () => {
       named("r2", ["base"], "release work"),
       named("base", [], "base"),
     ]);
-    const main = [...layout.lines.values()].find((line) => line.name === "main")!;
-    const release = [...layout.lines.entries()].find(([, line]) => line.name === "release")!;
+    const main = [...layout.branches.values()].find((branch) => branch.name === "main")!;
+    const release = [...layout.branches.entries()].find(([, branch]) => branch.name === "release")!;
     expect(main.lastMerge).toEqual({ into: release[0], after: 1 });
     expect(release[1].lastMerge).toBeNull();
   });

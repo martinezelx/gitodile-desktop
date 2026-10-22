@@ -342,7 +342,7 @@ fn validate_initial_branch(name: &str) -> Result<String, AppError> {
     if name.is_empty() || name.chars().any(char::is_control) {
         return Err(initialize_error(
             AppErrorCode::InvalidInitialBranch,
-            "Enter a valid initial version-line name.",
+            "Enter a valid initial branch name.",
             "Use a Git branch name such as main.",
         ));
     }
@@ -353,7 +353,7 @@ fn validate_initial_branch(name: &str) -> Result<String, AppError> {
     if !output.status.success() {
         return Err(initialize_error(
             AppErrorCode::InvalidInitialBranch,
-            "That initial version-line name isn't valid in Git.",
+            "That initial branch name isn't valid in Git.",
             "Choose a name such as main without spaces or Git reference punctuation.",
         ));
     }
@@ -720,7 +720,7 @@ fn verify_initialized(path: &Path, branch: &str) -> Result<(), AppError> {
     {
         return Err(initialize_error(
             AppErrorCode::InitializeVerificationFailed,
-            "The initialized project identity or unborn version line doesn't match the preview.",
+            "The initialized project identity or unborn branch doesn't match the preview.",
             "Inspect the folder before another Git operation.",
         ));
     }
@@ -816,7 +816,7 @@ pub(crate) fn initialize_project(
             return Err(cleanup_failure(
                 initialize_error(
                     AppErrorCode::InitializeFailed,
-                    "Git initialized the folder but could not select the requested initial version line.",
+                    "Git initialized the folder but could not select the requested initial branch.",
                     "The project remains recoverable. Inspect its Git metadata before retrying.",
                 ),
                 &validated,

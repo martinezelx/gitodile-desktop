@@ -118,7 +118,7 @@
      lived on one screen and made it read as shouting next to every other. */
   --weight-normal: 400;  /* body copy and metadata */
   --weight-medium: 500;  /* a value that must not be mistaken for a name */
-  --weight-strong: 600;  /* the name of a thing: a file, a line, a row's subject */
+  --weight-strong: 600;  /* the name of a thing: a file, a branch, a row's subject */
   --weight-heading: 650; /* a heading, and the label of a selected control */
   --weight-title: 700;   /* a screen title, a primary action, an avatar's initials */
 
@@ -161,7 +161,7 @@
      ink (ADR 0033). Theme colour tokens (Layer 3) live in
      `styles/themes.css`; the contract is DESIGN.md § Theming and ADR 0012. */
   /* The fill of a card sitting *inside* a panel: a section of the History
-     overview, a fact card on the version-lines detail. A step off the panel it
+     overview, a fact card on the branches detail. A step off the panel it
      rests on rather than a colour of its own, so it holds in every theme
      without a second value — the mix resolves against whichever
      `--surface-raised`/`--surface-panel` the active theme has set. Written
@@ -169,7 +169,7 @@
      time is a recipe that drifts. */
   --surface-card: color-mix(in srgb, var(--surface-raised) 48%, var(--surface-panel));
   /* The fill of a version node's filled and half states — the included file in
-     Changes, a published version in Overview, History and the Lines recent
+     Changes, a published version in Overview, History and the Branches recent
      list. 65% of the primary ink over the panel: a soft charcoal in light and a
      soft stone in dark, the same recipe in both schemes. The accent stays for
      the selected/active node, and the neutral fill still measures 5.4:1 on the

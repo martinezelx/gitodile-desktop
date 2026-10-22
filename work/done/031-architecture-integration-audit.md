@@ -247,7 +247,7 @@ files, 196 Rust tests, `cargo fmt --check` and `clippy -D warnings` clean.
 
 Chunks stay inside task-023 budgets, from `pnpm run build`: entry 375.59 kB raw
 / 107.94 kB gzip (warning at 378 kB raw), Changes 60.84 kB (warning at 69 kB),
-version-lines 31.23 kB combined (warning at 36 kB), `fileIcons` 255.22 kB and
+branches 31.23 kB combined (warning at 36 kB), `fileIcons` 255.22 kB and
 still deferred with no static entry path. The entry chunk sits 2.4 kB under its
 warning threshold; making the Settings panel lazy is the obvious next headroom
 and was left out of this audit because the overlay's focus trap interacts with

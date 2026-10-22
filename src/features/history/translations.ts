@@ -49,7 +49,7 @@ export interface HistoryTranslations {
   historyLaneAnother: string;
   historyLaneTrunk: string;
   historyBoundaryPublished: string;
-  /** The boundary of a line whose remote branch was deleted. */
+  /** The boundary of a branch whose remote branch was deleted. */
   historyLocalGroupPublish: string;
   historyBoundaryHint: (remote: string | null) => string;
   historyBoundaryGoneHint: (remote: string | null) => string;
@@ -60,18 +60,18 @@ export interface HistoryTranslations {
   historyMatchMessage: string;
   historyMatchLabel: (where: string) => string;
   historyScopeLabel: string;
-  historyScopeAllLines: string;
-  historyScopeLineChip: (name: string) => string;
-  historyScopeLineHint: (name: string) => string;
-  historyScopeLineLabel: string;
-  historyScopeLinePlaceholder: string;
+  historyScopeAllBranches: string;
+  historyScopeBranchChip: (name: string) => string;
+  historyScopeBranchHint: (name: string) => string;
+  historyScopeBranchLabel: string;
+  historyScopeBranchPlaceholder: string;
   historyScopeSearchPlaceholder: string;
-  historyScopeNoLines: string;
+  historyScopeNoBranches: string;
   historyScopeClear: string;
-  historyScopeShowCurrentLine: string;
+  historyScopeShowCurrentBranch: string;
   historyScopeShowAll: string;
   historyScopeShowOne: string;
-  historyLinesTruncated: string;
+  historyBranchesTruncated: string;
   historyVersionActions: string;
   historyMore: string;
   historyDetails: string;
@@ -80,10 +80,10 @@ export interface HistoryTranslations {
   historyPublicationLabel: string;
   historyFilesLabel: string;
   historyVersionActionsLabel: string;
-  historyLineActions: (name: string) => string;
-  historyViewLine: (name: string) => string;
-  historySwitchToLine: (name: string) => string;
-  historyCreateLineFromVersion: string;
+  historyBranchActions: (name: string) => string;
+  historyViewBranch: (name: string) => string;
+  historySwitchToBranch: (name: string) => string;
+  historyCreateBranchFromVersion: string;
   historyNoMatches: string;
   historyLoadedCount: (count: number) => string;
   historyFilteredCount: (shown: number, loaded: number) => string;
@@ -114,8 +114,8 @@ export interface HistoryTranslations {
    * tooltip that still gives the name it stands for. */
   historyAuthorYou: string;
   historyAuthorYouNamed: (name: string) => string;
-  /** The line badge on the version the project stands on, in place of the
-   * line's name, which the screen already says. */
+  /** The branch badge on the version the project stands on, in place of the
+   * branch's name, which the screen already says. */
   historyRefCurrent: string;
   historyPublished: string;
   historyLocalOnly: string;
@@ -142,7 +142,7 @@ export interface HistoryTranslations {
   historyDeletedFiles: string;
   historyContributorCount: (count: number) => string;
   historyParentCount: (count: number) => string;
-  historyRefLineLabel: (name: string) => string;
+  historyRefBranchLabel: (name: string) => string;
   historyRefTagLabel: (name: string) => string;
   historyReadMore: string;
   historyReadLess: string;
@@ -179,7 +179,7 @@ export interface HistoryTranslations {
 }
 
 const en: HistoryTranslations = {
-  historyDescription: "Saved versions on the current line, newest first.",
+  historyDescription: "Saved versions on the current branch, newest first.",
   historyRefresh: "Refresh",
   historyRefreshing: "Refreshing history…",
   historyLoading: "Reading saved versions…",
@@ -221,35 +221,35 @@ const en: HistoryTranslations = {
   historyFilterTaggedOnly: "Only tagged versions",
   historyLocalGroup: "On this computer",
   historyBlockLabel: (name, count) => `${name}, ${count === 1 ? "1 version" : `${count} versions`}`,
-  historyLaneUnnamed: "Unnamed line",
+  historyLaneUnnamed: "Unnamed branch",
   historyLaneMerged: (into) => `All its versions are in ${into}`,
   historyLaneMissing: (count, into) => (count === 1 ? `1 version not in ${into} yet` : `${count} versions not in ${into} yet`),
-  historyLaneNotMerged: "Not in any other line yet",
-  historyLaneAnother: "another line",
-  historyLaneTrunk: "The line you're viewing",
+  historyLaneNotMerged: "Not in any other branch yet",
+  historyLaneAnother: "another branch",
+  historyLaneTrunk: "The branch you're viewing",
   historyBoundaryPublished: "Published",
   historyLocalGroupPublish: "Publish",
   historyBoundaryPublishHint: "Publish them — you'll see what's sent first",
   historyMatchAuthor: "author",
   historyMatchCommit: "code",
-  historyMatchRef: "tag or line",
+  historyMatchRef: "tag or branch",
   historyMatchMessage: "message",
   historyMatchLabel: (where) => `Matches its ${where}`,
   historyBoundaryHint: (remote) => `Versions above are only on this computer; versions below are already ${remote ? `on ${remote}` : "published"}`,
   historyBoundaryGoneHint: (remote) => `Versions above are only on this computer; versions below were published${remote ? ` on ${remote}, a branch that has since been deleted` : ""}`,
-  historyScopeLabel: "Version line",
-  historyScopeAllLines: "All lines",
-  historyScopeLineChip: (name) => `Line: ${name}`,
-  historyScopeLineHint: (name) => `Saved versions on “${name}”. Your project stays where it is.`,
-  historyScopeLineLabel: "A specific line",
-  historyScopeLinePlaceholder: "Choose a line…",
-  historyScopeSearchPlaceholder: "Search version lines…",
-  historyScopeNoLines: "No version line matches that.",
-  historyScopeClear: "Back to the current line",
-  historyScopeShowCurrentLine: "Show the current line",
-  historyScopeShowAll: "Show all lines",
-  historyScopeShowOne: "Show only this line",
-  historyLinesTruncated: "Some version lines aren't included: this project has more than History can read at once.",
+  historyScopeLabel: "Branch",
+  historyScopeAllBranches: "All branches",
+  historyScopeBranchChip: (name) => `Branch: ${name}`,
+  historyScopeBranchHint: (name) => `Saved versions on “${name}”. Your project stays where it is.`,
+  historyScopeBranchLabel: "A specific branch",
+  historyScopeBranchPlaceholder: "Choose a branch…",
+  historyScopeSearchPlaceholder: "Search branches…",
+  historyScopeNoBranches: "No branch matches that.",
+  historyScopeClear: "Back to the current branch",
+  historyScopeShowCurrentBranch: "Show the current branch",
+  historyScopeShowAll: "Show all branches",
+  historyScopeShowOne: "Show only this branch",
+  historyBranchesTruncated: "Some branches aren't included: this project has more than History can read at once.",
   historyVersionActions: "Actions",
   historyMore: "More",
   historyDetails: "Details",
@@ -258,10 +258,10 @@ const en: HistoryTranslations = {
   historyPublicationLabel: "Publication",
   historyFilesLabel: "Files",
   historyVersionActionsLabel: "What this saved version can do",
-  historyLineActions: (name) => `What the version line ${name} can do`,
-  historyViewLine: (name) => `View “${name}” in Lines`,
-  historySwitchToLine: (name) => `Switch to “${name}”`,
-  historyCreateLineFromVersion: "New version line from here",
+  historyBranchActions: (name) => `What the branch ${name} can do`,
+  historyViewBranch: (name) => `View “${name}” in Branches`,
+  historySwitchToBranch: (name) => `Switch to “${name}”`,
+  historyCreateBranchFromVersion: "New branch from here",
   historyNoMatches: "No saved versions match these filters.",
   historyLoadedCount: (count) => `${count} saved ${count === 1 ? "version" : "versions"} loaded`,
   historyFilteredCount: (shown, loaded) => `Showing ${shown} of ${loaded} loaded ${loaded === 1 ? "version" : "versions"}`,
@@ -274,11 +274,11 @@ const en: HistoryTranslations = {
   historyClientLimit: (count) => `Showing up to ${count} versions this session. Refresh to start from the newest again.`,
   historyShallowTitle: "Partial history",
   historyShallowDescription: "This project was downloaded with limited history, so older versions may be missing.",
-  historyDetachedTitle: "Viewing a version outside a line",
-  historyDetachedDescription: "History starts from the selected version, and without a line, publish status can't be shown.",
+  historyDetachedTitle: "Viewing a version outside a branch",
+  historyDetachedDescription: "History starts from the selected version, and without a branch, publish status can't be shown.",
   historyUnknownUpstreamTitle: "Publish status unknown",
-  historyUnknownUpstreamDescription: "This line doesn't track a remote branch, so GitOdile can't tell what's published.",
-  historyUnreadableMetadata: "Some tag or line names couldn't be read and were left out.",
+  historyUnknownUpstreamDescription: "This branch doesn't track a remote branch, so GitOdile can't tell what's published.",
+  historyUnreadableMetadata: "Some tag or branch names couldn't be read and were left out.",
   historyTruncatedMetadata: "Some long messages or lists were shortened to keep History fast.",
   historySelectionRemoved: "The selected version is no longer available, so the newest one is selected.",
   historyNoDescription: "Untitled saved version",
@@ -292,10 +292,10 @@ const en: HistoryTranslations = {
   historyPublished: "Published",
   historyLocalOnly: "Saved locally",
   historyCurrentLabel: "Where you are",
-  historyMergeLabel: "Joins two lines",
+  historyMergeLabel: "Joins two branches",
   historyGlyphCurrent: "Where you are — your files are at this version",
   historyGlyphLocalOnly: "Saved locally — not published yet, so it's only on this computer",
-  historyGlyphMerge: "Joins two version lines into one",
+  historyGlyphMerge: "Joins two branches into one",
   historyDetourShow: (count) =>
     count === 1 ? "Show the version this merge brought in" : `Show the ${count} versions this merge brought in`,
   historyDetourHide: (count) =>
@@ -317,7 +317,7 @@ const en: HistoryTranslations = {
   historyDeletedFiles: "Deleted",
   historyContributorCount: (count) => `${count} ${count === 1 ? "contributor" : "contributors"}`,
   historyParentCount: (count) => `${count} parent ${count === 1 ? "commit" : "commits"}`,
-  historyRefLineLabel: (name) => `Version line ${name}`,
+  historyRefBranchLabel: (name) => `Branch ${name}`,
   historyRefTagLabel: (name) => `Tag ${name}`,
   historyReadMore: "Read more",
   historyReadLess: "Read less",
@@ -354,7 +354,7 @@ const en: HistoryTranslations = {
 };
 
 const es: HistoryTranslations = {
-  historyDescription: "Versiones guardadas en la línea actual, de la más reciente a la más antigua.",
+  historyDescription: "Versiones guardadas en la rama actual, de la más reciente a la más antigua.",
   historyRefresh: "Actualizar",
   historyRefreshing: "Actualizando historial…",
   historyLoading: "Leyendo versiones guardadas…",
@@ -396,35 +396,35 @@ const es: HistoryTranslations = {
   historyFilterTaggedOnly: "Solo versiones con etiqueta",
   historyLocalGroup: "En este ordenador",
   historyBlockLabel: (name, count) => `${name}, ${count === 1 ? "1 versión" : `${count} versiones`}`,
-  historyLaneUnnamed: "Línea sin nombre",
+  historyLaneUnnamed: "Rama sin nombre",
   historyLaneMerged: (into) => `Todas sus versiones ya están en ${into}`,
   historyLaneMissing: (count, into) => (count === 1 ? `Le falta 1 versión por llegar a ${into}` : `Le faltan ${count} versiones por llegar a ${into}`),
-  historyLaneNotMerged: "No se ha unido a ninguna otra línea",
-  historyLaneAnother: "otra línea",
-  historyLaneTrunk: "Es la línea que estás viendo",
+  historyLaneNotMerged: "No se ha unido a ninguna otra rama",
+  historyLaneAnother: "otra rama",
+  historyLaneTrunk: "Es la rama que estás viendo",
   historyBoundaryPublished: "Publicado",
   historyLocalGroupPublish: "Publicar",
   historyBoundaryPublishHint: "Publicarlas: antes verás qué se envía",
   historyMatchAuthor: "autor",
   historyMatchCommit: "código",
-  historyMatchRef: "etiqueta o línea",
+  historyMatchRef: "etiqueta o rama",
   historyMatchMessage: "mensaje",
   historyMatchLabel: (where) => `Coincide en: ${where}`,
   historyBoundaryHint: (remote) => `Las versiones de arriba solo están en este ordenador; las de abajo ya están ${remote ? `en ${remote}` : "publicadas"}`,
   historyBoundaryGoneHint: (remote) => `Las versiones de arriba solo están en este ordenador; las de abajo se publicaron${remote ? ` en ${remote}, una rama que ya se ha borrado` : ""}`,
-  historyScopeLabel: "Línea de versión",
-  historyScopeAllLines: "Todas las líneas",
-  historyScopeLineChip: (name) => `Línea: ${name}`,
-  historyScopeLineHint: (name) => `Versiones guardadas en «${name}». Tu proyecto se queda donde está.`,
-  historyScopeLineLabel: "Una línea concreta",
-  historyScopeLinePlaceholder: "Elige una línea…",
-  historyScopeSearchPlaceholder: "Buscar líneas de versión…",
-  historyScopeNoLines: "Ninguna línea de versión coincide.",
-  historyScopeClear: "Volver a la línea actual",
-  historyScopeShowCurrentLine: "Ver la línea actual",
-  historyScopeShowAll: "Mostrar todas las líneas",
-  historyScopeShowOne: "Mostrar solo esta línea",
-  historyLinesTruncated: "Faltan algunas líneas de versión: el proyecto tiene más de las que el historial puede leer a la vez.",
+  historyScopeLabel: "Rama",
+  historyScopeAllBranches: "Todas las ramas",
+  historyScopeBranchChip: (name) => `Rama: ${name}`,
+  historyScopeBranchHint: (name) => `Versiones guardadas en «${name}». Tu proyecto se queda donde está.`,
+  historyScopeBranchLabel: "Una rama concreta",
+  historyScopeBranchPlaceholder: "Elige una rama…",
+  historyScopeSearchPlaceholder: "Buscar ramas…",
+  historyScopeNoBranches: "Ninguna rama coincide.",
+  historyScopeClear: "Volver a la rama actual",
+  historyScopeShowCurrentBranch: "Ver la rama actual",
+  historyScopeShowAll: "Mostrar todas las ramas",
+  historyScopeShowOne: "Mostrar solo esta rama",
+  historyBranchesTruncated: "Faltan algunas ramas: el proyecto tiene más de las que el historial puede leer a la vez.",
   historyVersionActions: "Acciones",
   historyMore: "Más",
   historyDetails: "Detalles",
@@ -433,10 +433,10 @@ const es: HistoryTranslations = {
   historyPublicationLabel: "Publicación",
   historyFilesLabel: "Archivos",
   historyVersionActionsLabel: "Qué se puede hacer con esta versión guardada",
-  historyLineActions: (name) => `Qué se puede hacer con la línea de versión ${name}`,
-  historyViewLine: (name) => `Ver «${name}» en Líneas`,
-  historySwitchToLine: (name) => `Cambiar a «${name}»`,
-  historyCreateLineFromVersion: "Nueva línea de versión desde aquí",
+  historyBranchActions: (name) => `Qué se puede hacer con la rama ${name}`,
+  historyViewBranch: (name) => `Ver «${name}» en Ramas`,
+  historySwitchToBranch: (name) => `Cambiar a «${name}»`,
+  historyCreateBranchFromVersion: "Nueva rama desde aquí",
   historyNoMatches: "Ninguna versión guardada coincide con estos filtros.",
   historyLoadedCount: (count) => `${count} ${count === 1 ? "versión guardada cargada" : "versiones guardadas cargadas"}`,
   historyFilteredCount: (shown, loaded) => `Se muestran ${shown} de ${loaded} ${loaded === 1 ? "versión cargada" : "versiones cargadas"}`,
@@ -449,11 +449,11 @@ const es: HistoryTranslations = {
   historyClientLimit: (count) => `Se muestran hasta ${count} versiones en esta sesión. Actualiza para volver a empezar por la más reciente.`,
   historyShallowTitle: "Historial parcial",
   historyShallowDescription: "Este proyecto se descargó con historial limitado, así que pueden faltar versiones antiguas.",
-  historyDetachedTitle: "Viendo una versión fuera de una línea",
-  historyDetachedDescription: "El historial parte de la versión seleccionada y, sin línea, no se puede mostrar qué está publicado.",
+  historyDetachedTitle: "Viendo una versión fuera de una rama",
+  historyDetachedDescription: "El historial parte de la versión seleccionada y, sin rama, no se puede mostrar qué está publicado.",
   historyUnknownUpstreamTitle: "Estado de publicación desconocido",
-  historyUnknownUpstreamDescription: "Esta línea no sigue ninguna rama remota, así que GitOdile no puede saber qué está publicado.",
-  historyUnreadableMetadata: "Algunos nombres de etiquetas o líneas no se pudieron leer y se omitieron.",
+  historyUnknownUpstreamDescription: "Esta rama no sigue ninguna rama remota, así que GitOdile no puede saber qué está publicado.",
+  historyUnreadableMetadata: "Algunos nombres de etiquetas o ramas no se pudieron leer y se omitieron.",
   historyTruncatedMetadata: "Algunos mensajes o listas largos se acortaron para que el historial vaya fluido.",
   historySelectionRemoved: "La versión seleccionada ya no está disponible, así que se ha seleccionado la más reciente.",
   historyNoDescription: "Versión guardada sin título",
@@ -467,10 +467,10 @@ const es: HistoryTranslations = {
   historyPublished: "Publicada",
   historyLocalOnly: "Guardada en local",
   historyCurrentLabel: "Aquí estás",
-  historyMergeLabel: "Une dos líneas",
+  historyMergeLabel: "Une dos ramas",
   historyGlyphCurrent: "Aquí estás: tus archivos están en esta versión",
   historyGlyphLocalOnly: "Guardada en local: aún no se ha publicado, así que solo está en este ordenador",
-  historyGlyphMerge: "Une dos líneas de versión en una",
+  historyGlyphMerge: "Une dos ramas en una",
   historyDetourShow: (count) =>
     count === 1 ? "Mostrar la versión que trajo esta unión" : `Mostrar las ${count} versiones que trajo esta unión`,
   historyDetourHide: (count) =>
@@ -492,7 +492,7 @@ const es: HistoryTranslations = {
   historyDeletedFiles: "Eliminados",
   historyContributorCount: (count) => `${count} ${count === 1 ? "colaborador" : "colaboradores"}`,
   historyParentCount: (count) => `${count} ${count === 1 ? "commit padre" : "commits padre"}`,
-  historyRefLineLabel: (name) => `Línea de versión ${name}`,
+  historyRefBranchLabel: (name) => `Rama ${name}`,
   historyRefTagLabel: (name) => `Etiqueta ${name}`,
   historyReadMore: "Leer más",
   historyReadLess: "Leer menos",

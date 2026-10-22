@@ -1,5 +1,11 @@
 # Task 023 architecture and performance baseline
 
+Measurements below describe the historical snapshot; branch terminology and
+identifier spelling have been normalized without changing the recorded numbers.
+For the current implementation paths, see
+[ADR 0035](../adr/0035-use-branches-as-the-product-vocabulary.md) and
+[the current architecture](../ARCHITECTURE.md).
+
 This document fixes the comparison point and protocol for epic 022. It is not
 a claim that every number is a product SLA. Warning budgets require
 investigation; failure budgets block the child task until the regression is
@@ -79,8 +85,8 @@ Tauri debug environment. Vite transformed 1,881 modules.
 | `index` CSS | 94.10 kB | 14.77 kB | global styles |
 | `fileIcons` | 255.22 kB | 86.20 kB | deferred shared icon set |
 | `changes` | 59.86 kB | 17.14 kB | Changes screen excluding shared icons/runtime |
-| `versionLinesPanel` | 16.16 kB | 4.32 kB | Version lines screen |
-| `versionLinesDialog` | 14.59 kB | 3.02 kB | branch dialogs |
+| `branchesPanel` | 16.16 kB | 4.32 kB | Branches screen |
+| `branchesDialog` | 14.59 kB | 3.02 kB | branch dialogs |
 | `publishDialog` | 10.04 kB | 2.68 kB | publish dialog |
 | `pendingVersions` | 6.38 kB | 2.02 kB | pending versions |
 | `popupMenu` | 1.83 kB | 0.82 kB | shared lazy helper |
@@ -90,7 +96,7 @@ The emitted static-import graph is the important relationship:
 
 ```text
 index --static--> jsx-runtime
-index --dynamic--> Changes/Version lines/dialog chunks and fileIcons
+index --dynamic--> Changes/Branches/dialog chunks and fileIcons
 changes --static--> fileIcons, index, jsx-runtime, popupMenu
 pendingVersions/publishDialog --static--> changes and fileIcons
 fileIcons --static--> jsx-runtime
@@ -123,7 +129,7 @@ The current order, confirmed from code and a desktop launch, is:
 
 Counts for an ordinary restored branch are 0 Git processes before the first
 content frame, 6 for `open_repository`, 1 for the working-tree status, 2 to
-establish the watcher, and 5 for the modern-Git four-branch Version-lines
+establish the watcher, and 5 for the modern-Git four-branch Branches
 inventory. The latter work is idle-deferred and asynchronous; it is not a
 single startup burst before paint.
 
@@ -216,7 +222,7 @@ native batch.
 ## Warmed screen-switch and DOM baseline
 
 The fixture visited every implemented screen first. The measurement then ran
-20 cycles of Overview -> Changes -> Version lines -> Overview and waited two
+20 cycles of Overview -> Changes -> Branches -> Overview and waited two
 animation frames after each click. Sixty samples were collected:
 
 | Metric | Result |
@@ -226,7 +232,7 @@ animation frames after each click. Sixty samples were collected:
 | min / max | 25.2 / 48.4 ms |
 
 Per-transition medians were 33.0 ms Overview -> Changes, 32.0 ms Changes ->
-Version lines and 32.6 ms Version lines -> Overview. No spinner appeared and
+Branches and 32.6 ms Branches -> Overview. No spinner appeared and
 all three screen slots remained mounted.
 
 Visible descendant counts after all screens were visited:
@@ -235,7 +241,7 @@ Visible descendant counts after all screens were visited:
 | --- | ---: | ---: | ---: |
 | Overview | 218 | 0 | 3 / 2 |
 | Changes | 340 | 4 | 3 / 2 |
-| Version lines | 73 | 0 | 3 / 2 |
+| Branches | 73 | 0 | 3 / 2 |
 
 This fixture does not prove large-list bounds. The budgets below therefore
 include explicit rendered-row caps; task 031 used a 5,000-change fixture on
@@ -257,7 +263,7 @@ requires macOS and Linux to use this protocol during release hardening:
 1. Build `pnpm run tauri build -- --no-bundle` (or the current equivalent)
    from a clean checkout with the profiler and remote debugging disabled.
 2. Launch the produced executable directly with no dev server.
-3. Open the standard fixture, visit Overview, Changes and Version lines, wait
+3. Open the standard fixture, visit Overview, Changes and Branches, wait
    10 seconds after the last repository/process activity, then sample five
    times at one-second intervals.
 4. Sum the root application and its WebView children. Windows records working
@@ -279,7 +285,7 @@ new ADR deliberately changes the budget.
 | Entry JS raw (`pnpm run build`) | 360.36 kB | > 378 kB | > 397 kB |
 | Entry JS gzip | 104.60 kB | > 110 kB | > 116 kB |
 | Changes own chunk raw | 59.86 kB | > 69 kB | > 78 kB |
-| Version-lines panel + dialog raw | 30.75 kB | > 36 kB | > 42 kB |
+| Branches panel + dialog raw | 30.75 kB | > 36 kB | > 42 kB |
 | `fileIcons` raw | 255.22 kB | > 268 kB | > 281 kB |
 | Static entry path to `fileIcons` | none | none | any path |
 | Warm switch p50, two-rAF | 32.4 ms | > 40 ms | > 50 ms |
@@ -293,7 +299,7 @@ new ADR deliberately changes the budget.
 | `read_working_tree_diffs` Git processes | 4 with tracked changes (corrected) | > 4 | > 5 |
 | First Changes mount Git processes, tracked selection | 5 | > 5 | > 7 |
 | Warmed Changes revisit Git processes | 0 | none | > 0 |
-| Modern-Git Version-lines inventory, four branches | 5 | > 5 | > 7 |
+| Modern-Git Branches inventory, four branches | 5 | > 5 | > 7 |
 | Settled idle Git processes after watcher quiet period | 0 | none | any repeating process |
 
 Memory had no comparable release baseline when this table was written. Task 031
@@ -334,7 +340,7 @@ fixture:
 | `read_working_tree_status` | fail > 1 | 1 | pass |
 | `read_working_tree_diffs` | see correction above | 4 | pass against the corrected number |
 | `read_file_diff`, tracked selection | documented 3-process path | 3 | pass |
-| `get_version_lines`, single branch | warn > 5 | 5 | pass |
+| `get_branches`, single branch | warn > 5 | 5 | pass |
 
 The large fixture's `overview -> changes` p95 of 44.3 ms exceeds the Changes
 screen's own `warmSwitchWarningMs: 40` while staying under its 50 ms failure

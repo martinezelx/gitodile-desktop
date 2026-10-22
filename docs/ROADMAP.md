@@ -13,7 +13,7 @@ ordinary lifecycle of a project without falling back to the terminal:
 1. open an existing project, clone a remote project, or create a local project;
 2. understand and inspect current changes;
 3. save all or selected files as a version and review saved history;
-4. create, switch, publish, integrate, and remove version lines safely;
+4. create, switch, publish, integrate, and remove branches safely;
 5. check for, get, and publish project changes, including a diverged history;
 6. resolve overlaps without silent data loss;
 7. set unfinished work aside and restore it later;
@@ -36,8 +36,8 @@ Already delivered:
 - save all or selected files with hooks, signing, and index protection;
 - discard files or all unsaved work with persistent recovery and Undo;
 - discover remotes, check/fetch, fast-forward safely, and publish;
-- list, create, switch, and safely delete local version lines;
-- browse bounded current-line saved-version history and inspect typed commit
+- list, create, switch, and safely delete local branches;
+- browse bounded current-branch saved-version history and inspect typed commit
   diffs without changing the project;
 - configure Git identity, line endings, themes, language, watching, and
   confirmations;
@@ -89,7 +89,7 @@ references and therefore do not change when priorities move.
 | Q05 | 037-5 | Complete or abort a merge |
 | Q06 | 037-6 | Handle non-text and structural conflicts |
 | Q07 | 037-7 | Audit the conflict workflow |
-| Q08 | 065-4 | Integrate local lines and diverged project changes |
+| Q08 | 065-4 | Integrate local branches and diverged project changes |
 | Q09 | 065-5 | Make recovery records visible/actionable |
 | Q10 | 065-6 | Undo or reverse a saved version |
 | Q11 | 064-1 | Discover and inspect saved sets |
@@ -142,7 +142,7 @@ and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
    folder and existing non-repository flows, explicit README/first-save choices,
    exact cleanup ownership, and a separate provider-neutral remote preview.
 - **015 (completed 2026-08-24): History timeline.** Bounded, snapshot-aware,
-  read-only current-line history and first-parent/root commit details using the
+  read-only current-branch history and first-parent/root commit details using the
   established typed diff renderer, with a recent-history summary in Overview.
 
 Exit condition: a first-time user can acquire or create a project, make and
@@ -154,7 +154,7 @@ save a change, and verify the result in History.
    truth/recovery through editing, completion/abort, accessibility, and audit.
    It first supports an externally started merge so its safety model can be
    proven independently.
-- **Q08 / 065-4: Integrate version lines and diverged project changes.** Add previewed
+- **Q08 / 065-4: Integrate branches and diverged project changes.** Add previewed
    local-branch merge. Clean, non-fast-forward team integration shipped in
    task 161 (ADR 0030); overlaps still enter task 037's established session
    contract.

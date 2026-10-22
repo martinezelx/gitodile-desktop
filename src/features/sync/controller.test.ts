@@ -196,7 +196,7 @@ describe("sync controller", () => {
     await controller.refreshLocal(runtime, query, () => "failed");
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upstreamGone");
 
-    // A new saved version moves the line, not the evidence about its remote.
+    // A new saved version moves the branch, not the evidence about its remote.
     local = { ...status("cached", 1), localCommit: "new" };
     await controller.refreshLocal(runtime, query, () => "failed");
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status).toMatchObject({
@@ -204,12 +204,12 @@ describe("sync controller", () => {
       localCommit: "new",
     });
 
-    // Another line has no such evidence...
+    // Another branch has no such evidence...
     local = { ...status("cached"), localBranch: "other" };
     await controller.refreshLocal(runtime, query, () => "failed");
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upToDate");
 
-    // ...and coming back to the gone line does not make it "up to date".
+    // ...and coming back to the gone branch does not make it "up to date".
     local = status("cached");
     await controller.refreshLocal(runtime, query, () => "failed");
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upstreamGone");
@@ -236,7 +236,7 @@ describe("sync controller", () => {
     expect(runtime.getSnapshot().byId["/repo"].teamSync.status?.state).toBe("upToDate");
   });
 
-  it("commits the line's new status after it stops tracking its remote", async () => {
+  it("commits the branch's new status after it stops tracking its remote", async () => {
     const runtime = createProjectRuntime(initialProjectSessionsState);
     runtime.dispatch({ type: "open", project: project("epoch-1") });
     const untracked: TeamSyncStatus = { ...status("cached"), state: "noUpstream", upstreamRemote: null };

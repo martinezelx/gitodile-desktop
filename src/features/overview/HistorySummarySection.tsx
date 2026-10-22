@@ -41,7 +41,7 @@ function versionTitle(version: SavedVersionSummary, fallback: string): string {
  * Overview's living history: one timeline that tells where all of the work
  * is. Its first node is "now" — the files not saved yet, passed in as `now` —
  * then the versions still only on this computer, grouped under one label,
- * then a mark where the remote's copy of the line begins, then what is
+ * then a mark where the remote's copy of the branch begins, then what is
  * published. The grouping is what the old band of three tiles said in
  * numbers, drawn in the shape of the History screen instead.
  */
@@ -82,7 +82,7 @@ export function HistorySummarySection({
   /** With no remote, every version is only on this computer: the group says
    * so in the unsaved colour rather than the accent's "ready". */
   hasNoRemote?: boolean;
-  /** The line's remote branch was deleted: the versions under the boundary
+  /** The branch's remote branch was deleted: the versions under the boundary
    * reached the remote once, but the branch that held them is gone. */
   remoteBranchGone?: boolean;
 }): React.JSX.Element {
@@ -126,7 +126,7 @@ export function HistorySummarySection({
   const error = state.error ? localizeAppError(state.error, t, t.overviewHistoryError) : null;
 
   // Grouped by where each version lives, not by where it falls in date order:
-  // once a merge version joins the remote's line to this one (task 161), a
+  // once a merge version joins the remote's branch to this one (task 161), a
   // version that came in from the remote can be older than some still only
   // here, and would otherwise cut the local group short and drag the rest of
   // it under "Published".
@@ -146,7 +146,7 @@ export function HistorySummarySection({
     const author = isSelf ? t.overviewHistoryYou : fullAuthor;
     const date = formatHistoryDate(version.authoredAt, formats);
     // The row's `aria-label` replaces its subtree, so the badge only reaches
-    // assistive tech by being folded into the label. The current line's own
+    // assistive tech by being folded into the label. The current branch's own
     // copy on the remote is not badged: the mark above it already says where
     // the remote's copy begins.
     const primary = primaryDecoration(version, currentBranch);
@@ -173,7 +173,7 @@ export function HistorySummarySection({
             <span className="overview-history__subject" title={title}>{title}</span>
             <span className="overview-history__meta">
               <span className="overview-history__author" title={fullAuthor}>{author}</span>
-              {decoration && <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.overviewHistoryCurrentLine} />}
+              {decoration && <HistoryRefBadge version={version} currentBranch={currentBranch} currentLabel={t.overviewHistoryCurrentBranch} />}
               {date && <><HistoryMetaDot /><span className="overview-history__date" title={date.absolute}>{date.relative}</span></>}
             </span>
           </span>
@@ -234,7 +234,7 @@ export function HistorySummarySection({
           )}
         </h2>
         {state.snapshot && state.versions.length > 0 && (
-          // Scrolled to the end of a line that goes on, the way to the rest
+          // Scrolled to the end of a branch that goes on, the way to the rest
           // takes the accent and breathes once; scrolling back up quiets it.
           <button
             className={`overview-history__all${pointsOn ? " overview-history__all--lead attention-breathe" : ""}`}
@@ -311,7 +311,7 @@ export function HistorySummarySection({
                 {upstream && shared.length > 0 && (
                   <li className="overview-timeline__mark">
                     {/* Where the remote's copy begins: the same chip, its
-                        remote and line in the tooltip. */}
+                        remote and branch in the tooltip. */}
                     <TimelineChip
                       kind="published"
                       label={remoteBranchGone ? t.overviewTimelineWasPublished : t.overviewTimelinePublished}

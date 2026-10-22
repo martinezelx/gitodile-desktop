@@ -122,12 +122,12 @@ Task 024.
   or validates the current one, every path-scoped IPC adapter accepts the
   additive `sessionEpoch`, and `close_project_session` invalidates the epoch
   and watcher before frontend teardown. `stale_session` is a stable structured
-  error. The frontend reducer, status/version-line responses, operations,
+  error. The frontend reducer, status/branch responses, operations,
   watcher sequence state and diff stores are incarnation-scoped, so reopening
   one canonical path cannot accept the previous incarnation's work.
 - Missing epochs remain temporarily accepted only as a strangler bridge. The
   checked contract names `pendingVersions.tsx`, `publishDialog.tsx`,
-  `saveVersionDialog.tsx` and `versionLinesDialog.tsx`; tasks 026-028 remove
+  `saveVersionDialog.tsx` and `branchesDialog.tsx`; tasks 026-028 remove
   the remaining read consumers and task 029 removes the mutation allowance.
   Stale supplied epochs are rejected now. Initial `open_repository` calls are
   intentionally epoch-free because they create the incarnation.
@@ -158,7 +158,7 @@ Task 024.
   shared IPC snapshot, close/reopen reducer rejection and typed watcher epoch/
   sequence rejection.
 - `pnpm run build` — pass, 1,882 modules. Entry 362.39 kB raw / 105.24 kB
-  gzip, Changes 60.02 kB, Version-lines panel+dialog 30.75 kB and deferred
+  gzip, Changes 60.02 kB, Branches panel+dialog 30.75 kB and deferred
   `fileIcons` 255.22 kB. Every value remains below task-023 warning budgets;
   the icon set remains deferred.
 - `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — pass.

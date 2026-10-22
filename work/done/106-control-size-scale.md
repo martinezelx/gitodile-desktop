@@ -21,7 +21,7 @@ of five different heights decided independently by five features.
 # User outcome
 
 The action pair at the bottom of a dialog, the `Save selected` in Changes, the
-`New version line` in Version lines and the `Review changes` / `Save version`
+`New branch` in Branches and the `Review changes` / `Save version`
 pair in Overview all read as the same control. Today they do not: the Overview
 pair is the only one anybody sized on purpose, and everything else is between
 5px and 6px taller with a label two and a half points larger.
@@ -39,12 +39,12 @@ The measurements below were taken against the running dev server on Windows
 | Overview `Save version` / `Review changes` | 38.0 | 13.5px |
 | Changes `Save selected (2)` | 38.0 | 16px |
 | `.changes-danger-button` | 39.2 | 16px |
-| Version lines `New version line` | 43.2 | 16px |
+| Branches `New branch` | 43.2 | 16px |
 | `.dialog-actions` (Save version, Publish, Discard, message dialog…) | 43.2 | 16px |
 | Clone / Initialize / Get team / Team changes | 44.0 | 16px |
 | Clone / Initialize path picker | 42.0 | 16px |
 | `.ghost-button` | 29.6 | 13px |
-| Version-line row actions | 32.0 | 13px |
+| Branches row actions | 32.0 | 13px |
 
 The cause is structural rather than careless. `.primary-button` /
 `.secondary-button` in `shared/ui/primitives.css` declare padding and radius and
@@ -82,7 +82,7 @@ coarse pointers rather than offered as a choice.
 - Bring `.ghost-button`, `.changes-danger-button` and `.text-field input` onto
   the same scale.
 - Delete the per-feature size overrides this makes redundant, in Changes,
-  Overview, Clone, Initialize project, Sync and Version lines.
+  Overview, Clone, Initialize project, Sync and Branches.
 - Point the `pointer: coarse` block at `--control-height-lg` instead of a literal.
 - Document the scale in `DESIGN.md` beside § Shape, and add a guard to
   `architecture/styleComposition.test.ts` that fails the build on a control
@@ -107,7 +107,7 @@ coarse pointers rather than offered as a choice.
 - [x] `.primary-button` and `.secondary-button` declare their own height and
       `font-size`; neither depends on the browser's default font size.
 - [x] Every labelled button reported as oversized measures 38px in the running
-      app: Changes `Save selected`, Version lines `New version line`, the
+      app: Changes `Save selected`, Branches `New branch`, the
       `.dialog-actions` pairs, and the Clone / Initialize / Get team /
       Team changes actions.
 - [x] The Overview hero pair is unchanged at 38px / 13.5px.
@@ -126,7 +126,7 @@ coarse pointers rather than offered as a choice.
 - `src/features/clone/clone.css`
 - `src/features/initialize-project/initialize-project.css`
 - `src/features/sync/sync.css`
-- `src/features/version-lines/version-lines.css`
+- `src/features/branches/branches.css`
 - `src/architecture/styleComposition.test.ts`
 - `DESIGN.md`
 
@@ -145,7 +145,7 @@ None.
   get to be bigger than the same action on a screen; that difference is what
   produced the drift in the first place.
 - **`sm` (32px) is kept as a real tier** because three places already sit near
-  it (ghost buttons, version-line row actions, the diff footer). Naming it stops
+  it (ghost buttons, branch row actions, the diff footer). Naming it stops
   the next 30px button from being invented. `.ghost-button` grows 29.6 -> 32 as
   part of this; that is a deliberate 2.4px change, not a side effect.
 - **The primitive takes `display: inline-flex` and a gap.** Roughly a dozen
@@ -170,22 +170,22 @@ a button that already had an icon, and those rules are gone rather than trimmed.
 of spilling out of it.
 
 `.primary-button--sm` / `.secondary-button--sm` is the row-scale modifier. It is
-live code, not a spare part — the version-line row actions in
-`VersionLinesPanel.tsx` carry it, which replaced three local numbers in
-`version-lines.css` with one class.
+live code, not a spare part — the branch row actions in
+`BranchesPanel.tsx` carry it, which replaced three local numbers in
+`branches.css` with one class.
 
 **Overrides removed.** Changes (header cluster height, the save button's
 flex boilerplate, the notice buttons', the discard dialog's), Overview
 (`.project-hero__action` is down to `white-space: nowrap`), Clone and
 Initialize project (both the 44px actions and the 42px path picker), Sync
-(both 44px blocks), Version lines (header, banner, row actions).
+(both 44px blocks), Branches (header, banner, row actions).
 
 **Literals converted to tokens** where they already agreed with the scale:
 the Changes overflow circle, `.refresh-icon-button`, the Overview summary
 card's selector / create circle / settings circle, the quick-switch create
 circle, and every `44px` in a `pointer: coarse` block.
 
-**One trap worth recording.** `.version-lines-quick-switch__create` is a
+**One trap worth recording.** `.branches-quick-switch__create` is a
 `.secondary-button` that declares `width: 32px; height: 32px` to be a circle. A
 `min-height` outranks a `height`, so the primitive's new `min-height` silently
 made it 32 wide and 38 tall. It now declares `min-height` as well. Any other
@@ -220,11 +220,11 @@ catches this whole form, which the button-rule guard could not see. The
 
 **Found in the review pass, and fixed.** `.changes-view-picker__trigger` asks
 for `padding: 0 var(--space-4)`, and that block padding had never applied: the
-trigger also wears `.version-line-selector`, `features/version-lines` loads
+trigger also wears `.branch-selector`, `features/branches` loads
 after `features/changes`, and at equal specificity the selector's `padding: 6px`
 won. Invisible while the control was 34px tall — the label had 2px to spare —
 and exactly flush at the 32px row tier, which is what surfaced it. The rule is
-now doubled up as `.changes-view-picker__trigger.version-line-selector`, and
+now doubled up as `.changes-view-picker__trigger.branch-selector`, and
 the label went from 0px of slack to 12px. A pre-existing bug rather than one
 this task introduced, but this task is what made it matter.
 
@@ -238,7 +238,7 @@ computed-value time and the view picker fell to `height: auto`, collapsing from
 32px to 17px beside a 32px search box.
 
 The mid-task verification gave a false pass: the harness measured the picker at
-32px because `.version-line-selector`'s stray `padding: 6px` happened to add up
+32px because `.branch-selector`'s stray `padding: 6px` happened to add up
 to exactly that, and the later cascade fix removed the padding that was hiding
 it. Measuring a number without checking *which rule produced it* is what let
 that through.
@@ -255,7 +255,7 @@ with no fallback. Verified against the real toolbar markup: both controls 32px,
 identical top and bottom edges.
 
 **Follow-ups, deliberately not taken here:** `.pending-versions__publish-button`
-(34px), `.overview-history__all` (36px) and `.version-lines-filter__clear`
+(34px), `.overview-history__all` (36px) and `.branches-filter__clear`
 (36px) are bespoke inline controls that still carry their own heights; the
 segmented control sits off the scale at ~34.6px. `.changes-danger-button`
 now reads the tokens but is not a primitive, so the button guard cannot see it;
@@ -273,13 +273,13 @@ Measured in the running dev server (Windows, Segoe UI), before -> after:
 | --- | --- | --- |
 | Overview `Save version` | 38.0 / 13.5px | 38.0 / 13.5px (unchanged) |
 | Changes `Save selected (2)` | 38.0 / 16px, 159.5 wide | 38.0 / 13.5px, 140.2 wide |
-| Version lines `New version line` | 43.2 / 16px | 38.0 / 13.5px |
+| Branches `New branch` | 43.2 / 16px | 38.0 / 13.5px |
 | `.dialog-actions` primary | 43.2 / 16px | 38.0 / 13.5px |
 | Clone / Initialize / Get team / Team changes | 44.0 / 16px | 38.0 / 13.5px |
 | Clone path picker (input / button) | 38.6 / 42.0 | 38.0 / 38.0 |
 | `.changes-danger-button` | 39.2 / 16px | 38.0 / 13.5px |
 | `.ghost-button` | 29.6 / 13px | 32.0 / 13px |
-| Version-line row action | 32.0 / 13px | 32.0 / 13px (now via `--sm`) |
+| Branches row action | 32.0 / 13px | 32.0 / 13px (now via `--sm`) |
 | History diff footer (documented exception) | 30.0 / 10px | 30.0 / 10px |
 
 The Clone dialog was also measured in the real app rather than on a harness

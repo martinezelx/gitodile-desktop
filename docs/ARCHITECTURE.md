@@ -141,9 +141,8 @@ between screens, and a deep link from another screen sets the tab and then
 navigates.
 
 The complete implementation recipe is in the
-[`frontend feature guide`](architecture/frontend-feature-guide.md). Version
-lines remains a concrete
-[`reference slice`](architecture/version-lines-reference-slice.md).
+[`frontend feature guide`](architecture/frontend-feature-guide.md). Branches remains a concrete
+[`reference slice`](architecture/branches-reference-slice.md).
 
 ### Project state and freshness
 
@@ -260,13 +259,13 @@ src-tauri/src/
   recovery/               # two recovery owners that share only a clock
     mod.rs
     discard.rs            # working-tree discard snapshots and safe restore
-    history.rs            # pre-rewrite version-line tips as hidden refs
+    history.rs            # pre-rewrite branch tips as hidden refs
   save_version.rs
   publish.rs
   sync/                   # remotes, upstreams, fetch and relation knowledge
     mod.rs                # remote config and the team-sync read model
     get_team_changes.rs   # the one destructive workflow, with its safety checks
-  version_lines.rs        # product domains
+  branches.rs        # product domains
   test_support.rs         # shared hermetic Git-repository test fixtures
   tests/<domain>_tests.rs # cross-module integration tests grouped by owner
 ```
@@ -339,7 +338,7 @@ Local creation is a separate acquisition workflow owned by `initialize.rs` and
 `features/initialize-project`. Its eager dialog has typed ports and an
 attempt-generation controller; only the composition root passes a verified
 result into the existing open/session lifecycle. A plan canonicalizes the
-parent or existing folder, validates the project and initial version-line
+parent or existing folder, validates the project and initial branch
 names, rejects case/alias collisions, enclosing or descendant repositories,
 linked worktrees and existing `.git` metadata, and snapshots the exact path and
 README state. Execution repeats that inspection immediately before mutation.
@@ -385,6 +384,9 @@ Diagnostics redact URL credentials, queries, and fragments.
 On Windows the runner also passes `-c core.longpaths=true` to each Git process
 so valid project roots remain usable without writing to the user's Git config.
 
+The runner rejects an already-cancelled token before spawning when the policy
+allows cancellation, so cancelled work cannot launch Git or its descendants.
+Policies that disallow cancellation retain their existing execution behavior.
 Equivalent reads may cancel an older process token. Mutations never
 automatically cancel one another because interruption can leave an uncertain
 outcome. Windows requests descendant cleanup before killing/reaping the tracked
@@ -434,7 +436,7 @@ change refreshes the project through the guided flows' post-mutation path.
 History and Destructive plans stay refused until task 139.
 
 `console/hosting.rs` owns the project's provider and its gh/glab shortcuts
-(task 148-12). `read_console_host` reads the remote the current line publishes
+(task 148-12). `read_console_host` reads the remote the current branch publishes
 to (else `origin`, else the only one) through `sync::project_remotes`, and
 classifies its host as GitHub, GitLab or Bitbucket, a company server registered
 in `credentials`, another Git server, local-only or unclear; nothing reaches the
@@ -526,7 +528,7 @@ localized UI. It keeps at most four session caches, 5,000 loaded rows, 24
 details, 64 diffs, and 20 MiB of estimated detail/diff data. Project activation
 warms the first page without making screen visibility a fetch signal. Shared
 repository invalidations refresh it after save, publish, get-team-changes,
-version-line changes, watcher events, and explicit repository refresh; project
+branch changes, watcher events, and explicit repository refresh; project
 close evicts the epoch so late results cannot cross incarnations.
 
 ## Mutation model
@@ -554,25 +556,25 @@ same `sync.rs` remote, redaction, fetch, and ancestry implementation. Project
 activation, screen visibility, watchers, and cache warming never call the
 network command.
 
-A line whose remote branch no longer exists reads as `upstreamGone`, an answer
+A branch whose remote branch no longer exists reads as `upstreamGone`, an answer
 rather than an error: a check whose exact-refspec fetch reports the ref
 missing returns it, and so does a local read whose tracking ref is gone (Git's
 `[gone]`). Fetches pass `--no-prune`, so GitOdile never deletes the kept
 tracking ref; a local read cannot tell that ref from a live one, so the
 frontend sync controller keeps a fresh `upstreamGone` across local reads of
-the same line and kept ref until a check or a publish replaces it. Publishing
-such a line plans `recreatesDeletedBranch` and asks before recreating it; a
+the same branch and kept ref until a check or a publish replaces it. Publishing
+such a branch plans `recreatesDeletedBranch` and asks before recreating it; a
 destination with no remote branch counts the versions no branch of that remote
 holds (the gone ref excluded), never the whole history. `stop_tracking_remote`
-unsets only the current line's `branch.<name>.remote` and `.merge`.
+unsets only the current branch's `branch.<name>.remote` and `.merge`.
 
 Get-team-changes extends that single sync domain
 ([ADR 0030](adr/0030-forecast-and-combine-project-changes.md)). One local
 analysis serves three callers: the `forecast` every team-sync read carries for
-a line that is behind or diverged, the plan, and the execution that
+a branch that is behind or diverged, the plan, and the execution that
 revalidates it. The analysis never changes files, the index or refs. It
-predicts a combination with `git merge-tree --write-tree` (diverged lines) or
-takes the remote tree (behind lines), lists every path that changes towards
+predicts a combination with `git merge-tree --write-tree` (diverged branches) or
+takes the remote tree (behind branches), lists every path that changes towards
 that tree, and compares local work with all of them; only what crosses IPC is
 capped (25 versions, 100 files, 20 forecast paths, with exact totals).
 Untracked and ignored paths are compared by complete path components, and a
@@ -596,7 +598,7 @@ it applies exactly the reviewed remote commit, and a moved tracking ref or
 changed local state makes the plan stale, which the dialog answers by
 re-planning in place.
 
-Execution builds a merge version first when the line diverged: `commit-tree`
+Execution builds a merge version first when the branch diverged: `commit-tree`
 from the predicted tree with the previous tip and the reviewed remote commit
 as parents, after the project's `pre-merge-commit`, `prepare-commit-msg` and
 `commit-msg` hooks run through `git hook run` against a temporary index of the
@@ -627,22 +629,23 @@ same record and removed with it. The newest 20 complete records are retained per
 common repository across linked worktrees, and incomplete or unsupported
 evidence is never guessed at or deleted.
 
-Deleting a version line whose work reached the main line only as copies
+Deleting a branch whose work reached the main branch only as copies
 (squash or rebase, found by `git patch-id --stable`) uses the same protocol
-under its own operation — `refs/gitodile/recovery/v1/delete-version-line/`,
-its own manifest folder and its own limit of 20 — before the line is removed
-([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md)).
-Cleaning up several lines at once (`plan_clean_up_version_lines` /
-`clean_up_version_lines`) keeps one record per deleted line under
-`refs/gitodile/recovery/v1/clean-up-version-lines/`, with its own limit of 50,
-which is also the most lines one clean-up deletes; each line is rechecked
+under its own operation — `refs/gitodile/recovery/v1/delete-branch/`,
+its own manifest folder and its own limit of 20 — before the branch is removed
+([ADR 0016](adr/0016-keep-a-recovery-point-when-deleting-a-copied-branch.md)).
+Cleaning up several branches at once (`plan_clean_up_branches` /
+`clean_up_branches`) keeps one record per deleted branch under
+`refs/gitodile/recovery/v1/clean-up-branches/`, with its own limit of 50,
+which is also the most branches one clean-up deletes; each branch is rechecked
 against the single delete's rules, and against being finished
-(`finished_lines`: its work is on the main line and was its own), right before
+(`finished_branches`: its work is on the main branch and was its own), right before
 it goes, and one that no longer qualifies is skipped and reported while the
 rest continue
-([ADR 0034](adr/0034-one-recovery-point-per-line-in-a-clean-up.md)).
+([ADR 0034](adr/0034-one-recovery-point-per-branch-in-a-clean-up.md)).
 `recovery::HistoryRecoveryOperation` names the operations and their limits;
-the protocol is one.
+the protocol is one. See [ADR 0035](adr/0035-use-branches-as-the-product-vocabulary.md)
+for the accepted break with older delete/clean-up namespaces.
 
 Discard follows the same plan/revalidate/execute/verify boundary and creates a
 persistent record under the selected worktree's Git metadata before mutation.

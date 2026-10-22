@@ -206,7 +206,7 @@ fn list_unpublished_versions_separates_an_existing_title_and_multiline_descripti
 }
 
 #[test]
-fn list_incoming_versions_names_what_the_tracking_ref_has_and_the_line_does_not() {
+fn list_incoming_versions_names_what_the_tracking_ref_has_and_the_branch_does_not() {
     let (repo, _remote, branch) = published_repo_and_remote("incoming-list");
 
     assert!(list_incoming_versions(repo.clone())
@@ -220,7 +220,7 @@ fn list_incoming_versions_names_what_the_tracking_ref_has_and_the_line_does_not(
     write_file(&repo, "c.txt", "third\n");
     git_add_all(&repo);
     git_commit(&repo, "third");
-    // The tracking ref moves on the way a fetch would move it, and the line
+    // The tracking ref moves on the way a fetch would move it, and the branch
     // stays where it was: two versions are waiting to be received.
     let tracking = format!("refs/remotes/origin/{branch}");
     for args in [

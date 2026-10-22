@@ -1,6 +1,6 @@
 ---
 id: 155
-title: Tighter project switcher with version lines and a scrolling list
+title: Tighter project switcher with branches and a scrolling list
 status: done
 priority: normal
 type: improvement
@@ -20,7 +20,7 @@ Make the rail's project switcher compact, scannable and sized to what it holds.
 
 # User outcome
 
-Opening the switcher shows the open project first, each project's version line
+Opening the switcher shows the open project first, each project's branch
 under its name, and no strip of idle icons. The panel grows with the number of
 projects and scrolls inside itself once there are more than about six.
 

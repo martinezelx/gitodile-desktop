@@ -76,7 +76,7 @@ export type SaveVersionPreview = Pick<
  * - no cached status, or a clean one (the plan answers "nothing to save");
  * - a partial selection, whose counts are the selection's, not the tree's;
  * - overlapping changes, which block the plan;
- * - a `HEAD` that isn't on a version line (detached) or whose line is unnamed. */
+ * - a `HEAD` that isn't on a branch (detached) or whose branch is unnamed. */
 export function previewFromWorkingTree({
   workingTree,
   headState,

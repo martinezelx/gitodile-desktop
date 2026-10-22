@@ -36,7 +36,7 @@ failure. This task is provider-neutral and does not create a hosted repository.
   entry points.
 - Support creating one new named folder under a chosen parent and initializing
   an existing non-repository folder without modifying its current files.
-- Let the user choose the initial version-line name and optionally add a README;
+- Let the user choose the initial branch name and optionally add a README;
   show identity requirements before any initial saved version is created.
 - Detect nested repositories, linked worktrees, existing `.git` files/folders,
   case/alias collisions, non-empty destinations, permissions, and races in Rust.
@@ -110,7 +110,7 @@ failure. This task is provider-neutral and does not create a hosted repository.
 named child under a parent, or an existing ordinary folder. It canonicalizes
 the existing path/parent, applies Windows reserved-name and cross-platform name
 rules, checks casing collisions by enumerating the parent, validates the initial
-line through `git check-ref-format --branch`, and records README existence,
+branch through `git check-ref-format --branch`, and records README existence,
 identity readiness, nested-repository inspection, and the exact filesystem
 snapshot in an opaque state token. The bounded descendant scan does not follow
 symlinks and fails closed if it cannot complete. An enclosing repository,
@@ -146,7 +146,7 @@ the stored fetch/push URL. It never fetches, changes an existing remote, sets an
 upstream, or changes unrelated configuration.
 
 The resulting repository opens through the normal project/session lifecycle.
-An unborn line shows the established first-save guidance; after an explicit
+An unborn branch shows the established first-save guidance; after an explicit
 first save, normal invalidation refreshes the snapshot. A connected remote is
 immediately discoverable by the existing check/publish surfaces, while publish
 remains unavailable until a saved version exists.
@@ -156,7 +156,7 @@ remains unavailable until a saved version exists.
 Hermetic Rust coverage uses temporary repositories and contains nine
 cross-module initialization journeys plus module-level validation cases. It
 covers new and existing folders, spaces and Unicode, a long Windows-safe path,
-custom initial lines and unborn HEAD, byte-identical pre-existing files,
+custom initial branches and unborn HEAD, byte-identical pre-existing files,
 explicit README and real first commit, missing identity, rejecting hooks,
 signing failure, `.git` files/directories, enclosing and descendant repositories,
 linked worktrees, case collisions, between-plan-and-execute races, stale plans,

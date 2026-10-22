@@ -198,7 +198,7 @@
   background: transparent;
 }
 .auto-hide-scrollbar::-webkit-scrollbar-corner { background: transparent; }
-/* A state a list row flags as a glyph instead of a text chip — Lines' and
+/* A state a list row flags as a glyph instead of a text chip — Branches' and
    History's rows speak one vocabulary: 14px, the caption's weight for a count
    beside it, and colour only where the state is good, needs a look, or is
    where the project stands. The unremarkable state draws no glyph at all. */
@@ -275,7 +275,7 @@
 }
 /* A timeline's "On this computer" and "Published" (TimelineChip): one chip
    on the rail, its glyph where the nodes are, no count and no rule. Overview
-   draws it at the label size; Lines, denser, at the caption size. */
+   draws it at the label size; Branches, denser, at the caption size. */
 .timeline-chip {
   position: relative; z-index: 1; flex: 0 0 auto;
   display: inline-flex; align-items: center; gap: 6px;
@@ -722,7 +722,7 @@
    still override it: the cascade order in `styles.css` puts shared primitives
    ahead of every feature, so a rule like
    `.changes-actions-menu__popup { left: 0 }` wins on equal specificity. When
-   this block lived in `features/version-lines/version-lines.css` it loaded
+   this block lived in `features/branches/branches.css` it loaded
    *after* `features/changes/changes.css`, so `.app-menu`'s `right: 0` beat
    the Changes override and dropped that menu leftwards, overlapping the file
    list beside it. Default alignment stays `right: 0` — most triggers in this
@@ -1081,7 +1081,7 @@
  * a different list through the same control in the same slot — ADR 0003's bar
  * for a primitive — so the vocabulary lost its feature name and moved here.
  * What stayed behind is what only History has: the completion fields, the
- * version-line picker and the two ends of a date range.
+ * branch picker and the two ends of a date range.
  * ------------------------------------------------------------------------- */
 .filter-control { display: inline-flex; }
 /* One trigger for every filter, and it never grows. Filters used to be menus
@@ -1556,7 +1556,7 @@
 
 /* ---- Docked composer ----
    The compose box docked at the foot of a list — Changes' save box and
-   Lines' new-line box (DESIGN.md, Changes), the two consumers ADR 0003 asks
+   Branches' new-branch box (DESIGN.md, Changes), the two consumers ADR 0003 asks
    for, and the CSS half of `useDockedComposerFocus`. A section of the panel
    rather than a card floating on it: a hairline over it, the panel's own
    background, the way GitHub Desktop and Fork dock their commit box.
@@ -1632,7 +1632,7 @@
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
 .docked-composer__line svg { width: 12px; height: 12px; flex: 0 0 auto; }
-/* A version line named in the plan line, in the status bar's own mono. */
+/* A branch named in the plan line, in the status bar's own mono. */
 .docked-composer__mono {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-primary-color); font-family: var(--font-mono);
@@ -1824,7 +1824,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 }
 
 /* The destructive action's one colour (DESIGN.md § Dialogs): anything that
-   removes work — discard, delete a line, delete a stored copy — is red,
+   removes work — discard, delete a branch, delete a stored copy — is red,
    whichever screen asks. */
 .danger-button {
   min-height: var(--control-height-md);

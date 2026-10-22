@@ -16,8 +16,8 @@ export interface SaveVersionTranslations {
   saveVersionRemainingNote: (remaining: number) => string;
   saveVersionPreparedNote: string;
   saveVersionFirstVersionNote: string;
-  saveVersionFirstVersionOnLineNote: (branch: string) => string;
-  /** The dialog's summary headline; the line they land on is a chip beside it. */
+  saveVersionFirstVersionOnBranchNote: (branch: string) => string;
+  /** The dialog's summary headline; the branch they land on is a chip beside it. */
   saveVersionFilesCount: (total: number) => string;
   saveVersionShowFiles: string;
   saveVersionHideFiles: string;
@@ -65,7 +65,7 @@ const en: SaveVersionTranslations = {
     remaining === 1 ? "1 other file stays unsaved." : `${remaining} other files stay unsaved.`,
   saveVersionPreparedNote: "Some changes were prepared earlier with another Git tool, and they'll be saved too.",
   saveVersionFirstVersionNote: "This will be the project's first saved version.",
-  saveVersionFirstVersionOnLineNote: (branch) => `This will be the first saved version on ${branch}.`,
+  saveVersionFirstVersionOnBranchNote: (branch) => `This will be the first saved version on ${branch}.`,
   saveVersionFilesCount: (total) => (total === 1 ? "1 file" : `${total} files`),
   saveVersionShowFiles: "Show files",
   saveVersionHideFiles: "Hide files",
@@ -74,7 +74,7 @@ const en: SaveVersionTranslations = {
   saveVersionMoreFiles: (count) => (count === 1 ? "And 1 more — Changes lists every file." : `And ${count} more — Changes lists every file.`),
   saveVersionAddDetails: "Add details",
   saveVersionShortcutHint: (mod) => `${mod}+Enter`,
-  saveVersionNoDestinationNote: "You're not on a version line. Create one so this version is easy to find.",
+  saveVersionNoDestinationNote: "You're not on a branch. Create one so this version is easy to find.",
   saveVersionLocalOnlyNote: "Only on this computer until you publish.",
   saveVersionPublishNextNote: "You'll review it before anything is published.",
   saveVersionConfirm: "Save",
@@ -113,7 +113,7 @@ const es: SaveVersionTranslations = {
       : `Otros ${remaining} archivos se quedan sin guardar.`,
   saveVersionPreparedNote: "Algunos cambios se prepararon antes con otra herramienta de Git y también se guardarán.",
   saveVersionFirstVersionNote: "Será la primera versión guardada del proyecto.",
-  saveVersionFirstVersionOnLineNote: (branch) => `Será la primera versión guardada en ${branch}.`,
+  saveVersionFirstVersionOnBranchNote: (branch) => `Será la primera versión guardada en ${branch}.`,
   saveVersionFilesCount: (total) => (total === 1 ? "1 archivo" : `${total} archivos`),
   saveVersionShowFiles: "Ver archivos",
   saveVersionHideFiles: "Ocultar archivos",
@@ -122,7 +122,7 @@ const es: SaveVersionTranslations = {
   saveVersionMoreFiles: (count) => (count === 1 ? "Y 1 más: Cambios los muestra todos." : `Y ${count} más: Cambios los muestra todos.`),
   saveVersionAddDetails: "Añadir detalles",
   saveVersionShortcutHint: (mod) => `${mod}+Intro`,
-  saveVersionNoDestinationNote: "No estás en ninguna línea de versión. Crea una para no perder de vista esta versión.",
+  saveVersionNoDestinationNote: "No estás en ninguna rama. Crea una para no perder de vista esta versión.",
   saveVersionLocalOnlyNote: "Solo en este ordenador hasta que publiques.",
   saveVersionPublishNextNote: "Lo revisarás antes de que se publique nada.",
   saveVersionConfirm: "Guardar",

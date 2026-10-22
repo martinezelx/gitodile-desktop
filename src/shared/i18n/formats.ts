@@ -75,7 +75,7 @@ export function formatDate(date: Date, formats: LocaleFormats, style: DateStyle 
  * between, and it is the language that decides how it is worded.
  *
  * ADR 0003's two-consumer bar: History's timeline had this to itself until the
- * version-lines detail needed the same "last updated" phrasing for the same
+ * branches detail needed the same "last updated" phrasing for the same
  * kind of fact. `formatHistoryDate` now delegates here rather than keeping a
  * second unit ladder that could drift from this one. */
 export function formatRelativeTime(date: Date, formats: LocaleFormats, now = Date.now()): string {

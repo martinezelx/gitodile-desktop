@@ -343,7 +343,7 @@ function PromptContext({ projectName, branch, on }: { projectName: string; branc
   return (
     <div className="console-context" aria-hidden="true">
       <span className="console-context__project">{projectName}</span>
-      {branch && <> <span className="console-context__on">{on}</span> <span className="console-context__line"><GitBranch />{branch}</span></>}
+      {branch && <> <span className="console-context__on">{on}</span> <span className="console-context__branch"><GitBranch />{branch}</span></>}
     </div>
   );
 }
@@ -777,7 +777,7 @@ export function ConsoleScreen({ projectPath, projectName, branch, sessionEpoch, 
                   <div className="console-welcome__info">
                     <WelcomeSection title={t.consoleWelcomeProjectSection} tone="project" rows={[
                       [<Folder key="i" />, t.consoleWelcomeProject, projectName],
-                      branch ? [<GitBranch key="i" />, t.consoleWelcomeLine, branch] : null,
+                      branch ? [<GitBranch key="i" />, t.consoleWelcomeBranch, branch] : null,
                       // Rows that wait on a reading are always drawn, with a dash
                       // while it is unknown, so the summary keeps its height and
                       // nothing under it moves when a reading comes or goes.

@@ -72,7 +72,7 @@ a reviewed proposal, and safely open its branch in the local project.
 - [Screen registry](../../src/app/screens.tsx)
 - [Shared accounts](../../src/features/accounts/index.ts)
 - [Native sync owner](../../src-tauri/src/sync/mod.rs)
-- [Version lines](../../src/features/version-lines/index.ts)
+- [Branches](../../src/features/branches/index.ts)
 
 # Dependencies
 

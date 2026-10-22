@@ -5,7 +5,7 @@ import React from "react";
 
 import { LanguageProvider } from "../i18n";
 import type { WorkingTreeStatus } from "../features/status";
-import type { VersionLinesSnapshot } from "../features/version-lines";
+import type { BranchesSnapshot } from "../features/branches";
 import {
   EMPTY_TEAM_SYNC_STATE,
   type TeamSyncState,
@@ -25,13 +25,13 @@ const dirtyTree: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: "origin/main", ahead: 0, behind: 0 },
 };
 
-const versionLines: VersionLinesSnapshot = {
-  branch: "feature/a-very-long-version-line-name",
+const branches: BranchesSnapshot = {
+  branch: "feature/a-very-long-branch-name",
   headState: "branch",
   currentCommit: "1111111111111111111111111111111111111111",
-  lines: [
+  branches: [
     {
-      name: "feature/a-very-long-version-line-name",
+      name: "feature/a-very-long-branch-name",
       tip: {
         commit: "1111111111111111111111111111111111111111",
         shortCommit: "1111111",
@@ -39,7 +39,7 @@ const versionLines: VersionLinesSnapshot = {
         committedAt: "2026-08-28T10:00:00Z",
       },
       isActive: true,
-      upstream: "origin/feature/a-very-long-version-line-name",
+      upstream: "origin/feature/a-very-long-branch-name",
       isRetainedElsewhere: true,
       isFinished: true,
       uniqueCommitCount: null,
@@ -135,15 +135,15 @@ function projectSwitchProps(overrides: Partial<StatusBarProps["projectSwitch"]> 
 
 function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof render> {
   const props = {
-    project: { name: "gitodile", branch: "feature/a-very-long-version-line-name", headState: "branch" },
+    project: { name: "gitodile", branch: "feature/a-very-long-branch-name", headState: "branch" },
     workingTree: dirtyTree,
     workingTreeError: null,
     isCheckingChanges: false,
-    versionLines,
-    isLoadingVersionLines: false,
+    branches,
+    isLoadingBranches: false,
     teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() },
-    onSwitchVersionLine: vi.fn(),
-    versionLineCreate: {
+    onSwitchBranch: vi.fn(),
+    branchCreate: {
       projectPath: "/repo",
       sessionEpoch: "epoch-1",
       onOperationStart: vi.fn(() => true),
@@ -151,7 +151,7 @@ function renderBar(overrides: Partial<StatusBarProps> = {}): ReturnType<typeof r
       onOperationPhaseChange: vi.fn(),
       onCreated: vi.fn(),
     },
-    onSeeAllVersionLines: vi.fn(),
+    onSeeAllBranches: vi.fn(),
     onCheckTeamChanges: vi.fn(),
     projectSwitch: projectSwitchProps(),
     onPublish: vi.fn(),
@@ -204,7 +204,7 @@ describe("StatusBar", () => {
     expect(onQueryChange).toHaveBeenCalled();
   });
 
-  it("sets the project and its line side by side, and the remote as one phrase", () => {
+  it("sets the project and its branch side by side, and the remote as one phrase", () => {
     const { container } = renderBar();
 
     const blocks = container.querySelectorAll(".status-bar__block");
@@ -212,11 +212,11 @@ describe("StatusBar", () => {
     expect(blocks[0]).toHaveClass("status-bar__block--where");
     expect(blocks[1]).toHaveClass("status-bar__block--remote");
     // Two segments of one shape and no mark between them (task 189): the
-    // project's trigger, then the line's.
+    // project's trigger, then the branch's.
     expect(container.querySelector(".status-bar__path")).toBeNull();
     const where = Array.from(blocks[0].children);
     expect(where[0]).toHaveClass("status-bar__project");
-    expect(where[1]).toHaveClass("version-lines-quick-switch");
+    expect(where[1]).toHaveClass("branches-quick-switch");
     // The strip no longer carries the app version: its release notes live in
     // the menu and the notification centre now.
     expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
@@ -272,11 +272,11 @@ describe("StatusBar", () => {
           workingTree={dirtyTree}
           workingTreeError={null}
           isCheckingChanges={false}
-          versionLines={versionLines}
-          isLoadingVersionLines={false}
+          branches={branches}
+          isLoadingBranches={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus() }}
-          onSwitchVersionLine={vi.fn()}
-          onSeeAllVersionLines={vi.fn()}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           projectSwitch={{ ...base, activeStatus: { kind: "resolve", description: "The last operation didn't finish" } }}
           onPublish={vi.fn()}
@@ -291,19 +291,19 @@ describe("StatusBar", () => {
     expect(trigger).toHaveAttribute("data-tooltip", "gitodile · The last operation didn't finish");
   });
 
-  it("shows real line, working-tree, remote, freshness, and refresh state", async () => {
+  it("shows real branch, working-tree, remote, freshness, and refresh state", async () => {
     const onCheckTeamChanges = vi.fn();
-    const onSwitchVersionLine = vi.fn();
-    renderBar({ onCheckTeamChanges, onSwitchVersionLine });
+    const onSwitchBranch = vi.fn();
+    renderBar({ onCheckTeamChanges, onSwitchBranch });
 
-    expect(screen.getByText("feature/a-very-long-version-line-name")).toBeInTheDocument();
-    // Unsaved work is a dot after the line's name; the sentence is the
+    expect(screen.getByText("feature/a-very-long-branch-name")).toBeInTheDocument();
+    // Unsaved work is a dot after the branch's name; the sentence is the
     // trigger's tooltip and the screen reader's.
     const trigger = screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     });
-    expect(trigger.querySelector(".version-line-selector__marker--unsaved")).not.toBeNull();
-    expect(trigger).toHaveAttribute("title", "feature/a-very-long-version-line-name · 4 unsaved changes");
+    expect(trigger.querySelector(".branch-selector__marker--unsaved")).not.toBeNull();
+    expect(trigger).toHaveAttribute("title", "feature/a-very-long-branch-name · 4 unsaved changes");
     expect(screen.getByText("4 unsaved changes")).toHaveClass("visually-hidden");
     // "Up to date" is said by the cloud and its age; the word stays for the
     // screen reader, and how it is known lives in the tooltip.
@@ -313,10 +313,10 @@ describe("StatusBar", () => {
     expect(sync).toHaveAttribute("data-tooltip", expect.stringMatching(/^Up to date · Checked .*3 min/));
 
     await userEvent.click(screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     }));
     await userEvent.click(screen.getByRole("button", { name: "feature/other" }));
-    expect(onSwitchVersionLine).toHaveBeenCalledWith("feature/other");
+    expect(onSwitchBranch).toHaveBeenCalledWith("feature/other");
 
     await userEvent.click(screen.getByRole("button", { name: "Check remote project changes" }));
     expect(onCheckTeamChanges).toHaveBeenCalledOnce();
@@ -324,7 +324,7 @@ describe("StatusBar", () => {
 
   it("draws no dot on a clean tree and never the line totals", () => {
     const { unmount } = renderBar({ workingTree: { ...dirtyTree, isClean: true, lineTotals: null } });
-    expect(document.querySelector(".version-line-selector__marker")).toBeNull();
+    expect(document.querySelector(".branch-selector__marker")).toBeNull();
     expect(screen.getByText("Everything is saved")).toHaveClass("visually-hidden");
     unmount();
 
@@ -339,7 +339,7 @@ describe("StatusBar", () => {
     ["diverged", "Get and publish"],
     ["noRemote", "No remote connected"],
     ["unborn", "Save a version to compare"],
-    ["detached", "Switch lines to compare"],
+    ["detached", "Switch branches to compare"],
     ["upstreamGone", "No longer on the remote"],
   ] satisfies Array<[TeamSyncState, string]>) ("maps %s without falling back to an optimistic state", (state, label) => {
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) } });
@@ -350,8 +350,8 @@ describe("StatusBar", () => {
     ["ahead", "Publish 2 versions", "onPublish", "publish"],
     ["behind", "Get 3 versions", "onGetChanges", "get"],
     ["diverged", "Get and publish", "onGetAndPublish", "getAndPublish"],
-    // A line with no destination gets one by publishing.
-    ["noUpstream", "Publish this line", "onPublish", "publish"],
+    // A branch with no destination gets one by publishing.
+    ["noUpstream", "Publish this branch", "onPublish", "publish"],
   ] as const)("turns the cloud into the %s sync action", async (state, name, handler, kind) => {
     const handlers = { onPublish: vi.fn(), onGetChanges: vi.fn(), onGetAndPublish: vi.fn() };
     renderBar({ teamSync: { ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(state) }, ...handlers });
@@ -456,7 +456,7 @@ describe("StatusBar", () => {
       teamSync: { ...EMPTY_TEAM_SYNC_STATE, isLoading: true, isCheckingRemote: true },
     });
     expect(screen.getByText("Checking changes…")).toBeInTheDocument();
-    expect(document.querySelector(".version-line-selector__icon.icon--spinning")).not.toBeNull();
+    expect(document.querySelector(".branch-selector__icon.icon--spinning")).not.toBeNull();
     expect(screen.getByText("Checking the remote…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Checking the remote…" })).toBeDisabled();
 
@@ -468,11 +468,11 @@ describe("StatusBar", () => {
           workingTree={dirtyTree}
           workingTreeError={null}
           isCheckingChanges={false}
-          versionLines={versionLines}
-          isLoadingVersionLines={false}
+          branches={branches}
+          isLoadingBranches={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: cached }}
-          onSwitchVersionLine={vi.fn()}
-          onSeeAllVersionLines={vi.fn()}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
@@ -494,11 +494,11 @@ describe("StatusBar", () => {
           workingTree={dirtyTree}
           workingTreeError="status failed"
           isCheckingChanges={false}
-          versionLines={versionLines}
-          isLoadingVersionLines={false}
+          branches={branches}
+          isLoadingBranches={false}
           teamSync={{ ...EMPTY_TEAM_SYNC_STATE, status: syncStatus(), isStale: true }}
-          onSwitchVersionLine={vi.fn()}
-          onSeeAllVersionLines={vi.fn()}
+          onSwitchBranch={vi.fn()}
+          onSeeAllBranches={vi.fn()}
           onCheckTeamChanges={vi.fn()}
           projectSwitch={projectSwitchProps()}
           onPublish={vi.fn()}
@@ -509,7 +509,7 @@ describe("StatusBar", () => {
       </LanguageProvider>,
     );
     expect(screen.getByText("Changes unavailable")).toBeInTheDocument();
-    expect(document.querySelector(".version-line-selector__marker--error")).not.toBeNull();
+    expect(document.querySelector(".branch-selector__marker--error")).not.toBeNull();
     // Doubt takes the word; the last known state moves to the tooltip.
     const stale = screen.getByText("Check again").closest(".status-bar__sync");
     expect(stale).toHaveClass("status-bar__sync--warning");
@@ -527,10 +527,10 @@ describe("StatusBar", () => {
     );
   });
 
-  it("disables a remote check when the project is outside a version line", () => {
+  it("disables a remote check when the project is outside a branch", () => {
     renderBar({ project: { name: "gitodile", branch: null, headState: "detached" } });
     expect(screen.getByText("Specific saved version")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Change version line/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Change branch/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check remote project changes" })).toBeDisabled();
   });
 });
@@ -543,7 +543,7 @@ describe("formatRelativeCheckTime", () => {
     expect(formatRelativeCheckTime(now - 2 * 24 * 60 * 60_000, now, "es", "ahora mismo")).toMatch(/hace 2 d/);
   });
 
-  it("states the working context — project, then line — and keeps the strip's height", () => {
+  it("states the working context — project, then branch — and keeps the strip's height", () => {
     const { container } = renderBar();
 
     // The two facts are the sentence: no words in front of them. The
@@ -556,49 +556,49 @@ describe("formatRelativeCheckTime", () => {
     // reveals what it had to truncate.
     expect(project).toHaveAttribute("data-tooltip", "gitodile");
     expect(
-      screen.getByRole("button", { name: "Change version line (feature/a-very-long-version-line-name)" }),
+      screen.getByRole("button", { name: "Change branch (feature/a-very-long-branch-name)" }),
     ).toBeInTheDocument();
     expect(container.querySelector(".status-bar")).not.toBeNull();
   });
 
-  it("puts creating a line and managing them on one row, and hands each to its own flow", async () => {
-    const onSeeAllVersionLines = vi.fn();
-    renderBar({ onSeeAllVersionLines });
+  it("puts creating a branch and managing them on one row, and hands each to its own flow", async () => {
+    const onSeeAllBranches = vi.fn();
+    renderBar({ onSeeAllBranches });
 
     const trigger = screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     });
     await userEvent.click(trigger);
-    const dialog = screen.getByRole("dialog", { name: "Switch version line" });
-    const footer = dialog.querySelector(".version-lines-quick-switch__footer");
-    const newLine = screen.getByRole("button", { name: "New line" });
-    const manage = screen.getByRole("button", { name: "Manage lines" });
+    const dialog = screen.getByRole("dialog", { name: "Switch branch" });
+    const footer = dialog.querySelector(".branches-quick-switch__footer");
+    const newBranch = screen.getByRole("button", { name: "New branch" });
+    const manage = screen.getByRole("button", { name: "Manage branches" });
 
     // One row, both actions in it, in reading order.
     expect(footer).not.toBeNull();
-    expect(footer).toContainElement(newLine);
+    expect(footer).toContainElement(newBranch);
     expect(footer).toContainElement(manage);
-    expect(newLine.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(newBranch.compareDocumentPosition(manage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // A new line is named right in the popup, the composer taking the
+    // A new branch is named right in the popup, the composer taking the
     // footer's place; cancelling puts the footer back.
-    await userEvent.click(newLine);
-    expect(screen.getByRole("textbox", { name: "New line name" })).toBeInTheDocument();
-    expect(dialog.querySelector(".version-lines-quick-switch__footer")).toBeNull();
+    await userEvent.click(newBranch);
+    expect(screen.getByRole("textbox", { name: "New branch name" })).toBeInTheDocument();
+    expect(dialog.querySelector(".branches-quick-switch__footer")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Manage lines" }));
-    expect(onSeeAllVersionLines).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Manage branches" }));
+    expect(onSeeAllBranches).toHaveBeenCalledOnce();
   });
 
   it("closes the quick switch on Escape and gives focus back to the strip", async () => {
     renderBar();
     const trigger = screen.getByRole("button", {
-      name: "Change version line (feature/a-very-long-version-line-name)",
+      name: "Change branch (feature/a-very-long-branch-name)",
     });
 
     await userEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "Switch version line" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Switch branch" })).toBeInTheDocument();
     await userEvent.keyboard("{Escape}");
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

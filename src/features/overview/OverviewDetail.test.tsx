@@ -180,7 +180,7 @@ describe("OverviewDetail", () => {
     expect(screen.getByRole("heading", { name: "What you'll publish" })).toBeInTheDocument();
     expect(screen.getByText("2 files")).toBeInTheDocument();
     expect(screen.getByText("in 1 version")).toBeInTheDocument();
-    expect(screen.queryByText("Seen by anyone on this line.")).toBeNull();
+    expect(screen.queryByText("Seen by anyone on this branch.")).toBeNull();
   });
 
   it("scrolls what you'll publish too while the screen fits, and points to History at the end", async () => {

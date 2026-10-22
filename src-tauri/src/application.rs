@@ -268,18 +268,18 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("read_saved_version_file_diff"),
     ExecutionPolicy::repository_write("plan_publish", OperationClass::LocalMutation),
     ExecutionPolicy::repository_write("publish", OperationClass::RemoteMutation),
-    read("get_version_lines"),
-    read("get_version_line_history"),
-    read("plan_create_version_line"),
-    ExecutionPolicy::repository_write("create_version_line", OperationClass::LocalMutation),
-    read("plan_switch_version_line"),
-    ExecutionPolicy::repository_write("switch_version_line", OperationClass::LocalMutation),
-    read("plan_delete_version_line"),
-    ExecutionPolicy::repository_write("delete_version_line", OperationClass::Destructive),
-    read("plan_clean_up_version_lines"),
-    ExecutionPolicy::repository_write("clean_up_version_lines", OperationClass::Destructive),
-    read("plan_rename_version_line"),
-    ExecutionPolicy::repository_write("rename_version_line", OperationClass::LocalMutation),
+    read("get_branches"),
+    read("get_branch_history"),
+    read("plan_create_branch"),
+    ExecutionPolicy::repository_write("create_branch", OperationClass::LocalMutation),
+    read("plan_switch_branch"),
+    ExecutionPolicy::repository_write("switch_branch", OperationClass::LocalMutation),
+    read("plan_delete_branch"),
+    ExecutionPolicy::repository_write("delete_branch", OperationClass::Destructive),
+    read("plan_clean_up_branches"),
+    ExecutionPolicy::repository_write("clean_up_branches", OperationClass::Destructive),
+    read("plan_rename_branch"),
+    ExecutionPolicy::repository_write("rename_branch", OperationClass::LocalMutation),
     read("watch_repository"),
     no_process_with_class("unwatch_repository", OperationClass::LocalMutation),
     no_process_with_class("close_project_session", OperationClass::LocalMutation),
@@ -722,8 +722,8 @@ pub(crate) fn authorize_repository(
 /// A read that supersedes only an earlier read of the same `subject`, not
 /// every read of the command. A newer read of a command is normally a newer
 /// copy of the same question — the status, the inventory — and cancels the
-/// one still out. Some reads ask a different question each time: one line's
-/// history is not superseded by the next line's, and a read started ahead of a
+/// one still out. Some reads ask a different question each time: one branch's
+/// history is not superseded by the next branch's, and a read started ahead of a
 /// press must not cancel the read the screen is waiting on.
 pub(crate) fn authorize_repository_read_of(
     path: &str,
@@ -969,18 +969,18 @@ mod tests {
         "read_saved_version_file_diff",
         "plan_publish",
         "publish",
-        "get_version_lines",
-        "get_version_line_history",
-        "plan_create_version_line",
-        "create_version_line",
-        "plan_switch_version_line",
-        "switch_version_line",
-        "plan_delete_version_line",
-        "delete_version_line",
-        "plan_clean_up_version_lines",
-        "clean_up_version_lines",
-        "plan_rename_version_line",
-        "rename_version_line",
+        "get_branches",
+        "get_branch_history",
+        "plan_create_branch",
+        "create_branch",
+        "plan_switch_branch",
+        "switch_branch",
+        "plan_delete_branch",
+        "delete_branch",
+        "plan_clean_up_branches",
+        "clean_up_branches",
+        "plan_rename_branch",
+        "rename_branch",
         "watch_repository",
         "unwatch_repository",
         "close_project_session",
@@ -1010,10 +1010,10 @@ mod tests {
             "check_team_changes",
             "get_team_changes",
             "publish",
-            "create_version_line",
-            "switch_version_line",
-            "delete_version_line",
-            "clean_up_version_lines",
+            "create_branch",
+            "switch_branch",
+            "delete_branch",
+            "clean_up_branches",
             "discard_changes",
             "restore_discarded_changes",
         ] {
@@ -1101,8 +1101,7 @@ mod tests {
         let first_path = path_text.clone();
         let first = thread::spawn(move || {
             let (_context, _access) =
-                authorize_repository_read_of(&first_path, "get_version_line_history", "main")
-                    .unwrap();
+                authorize_repository_read_of(&first_path, "get_branch_history", "main").unwrap();
             let token = current_cancellation().unwrap();
             ready_tx.send(token.clone()).unwrap();
             finish_rx.recv().unwrap();
@@ -1110,15 +1109,14 @@ mod tests {
         });
         let first_token = ready_rx.recv().unwrap();
         {
-            // Another line's history leaves the first read alone…
+            // Another branch's history leaves the first read alone…
             let (_context, _access) =
-                authorize_repository_read_of(&path_text, "get_version_line_history", "feature")
-                    .unwrap();
+                authorize_repository_read_of(&path_text, "get_branch_history", "feature").unwrap();
             assert!(!first_token.is_cancelled());
         }
-        // …and a newer read of the same line still supersedes it.
+        // …and a newer read of the same branch still supersedes it.
         let (_context, _access) =
-            authorize_repository_read_of(&path_text, "get_version_line_history", "main").unwrap();
+            authorize_repository_read_of(&path_text, "get_branch_history", "main").unwrap();
         assert!(first_token.is_cancelled());
         finish_tx.send(()).unwrap();
         assert!(first.join().unwrap());

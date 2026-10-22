@@ -7,6 +7,7 @@ mod application;
 #[cfg(test)]
 mod architecture;
 mod bitbucket_access;
+mod branches;
 mod changes;
 mod cli_auth;
 mod clone;
@@ -42,7 +43,6 @@ mod status;
 mod sync;
 mod technology;
 mod tooling;
-mod version_lines;
 mod watch;
 
 #[cfg(test)]
@@ -253,18 +253,18 @@ pub fn run() {
             ipc::read_saved_version_file_diff,
             ipc::plan_publish,
             ipc::publish,
-            ipc::get_version_lines,
-            ipc::get_version_line_history,
-            ipc::plan_create_version_line,
-            ipc::create_version_line,
-            ipc::plan_switch_version_line,
-            ipc::switch_version_line,
-            ipc::plan_delete_version_line,
-            ipc::delete_version_line,
-            ipc::plan_clean_up_version_lines,
-            ipc::clean_up_version_lines,
-            ipc::plan_rename_version_line,
-            ipc::rename_version_line,
+            ipc::get_branches,
+            ipc::get_branch_history,
+            ipc::plan_create_branch,
+            ipc::create_branch,
+            ipc::plan_switch_branch,
+            ipc::switch_branch,
+            ipc::plan_delete_branch,
+            ipc::delete_branch,
+            ipc::plan_clean_up_branches,
+            ipc::clean_up_branches,
+            ipc::plan_rename_branch,
+            ipc::rename_branch,
             ipc::watch_repository,
             ipc::unwatch_repository,
             ipc::close_project_session

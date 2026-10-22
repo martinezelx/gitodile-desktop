@@ -192,11 +192,11 @@ const getTeamResult: GetTeamChangesResult = {
   inspectionInstructions: null,
 };
 
-const versionLines = {
+const branches = {
   branch: "main",
   headState: "branch" as const,
   currentCommit: "abc123",
-  lines: [
+  branches: [
     {
       name: "main",
       tip: { commit: "abc123", shortCommit: "abc123a", subject: "first", committedAt: "2026-07-01T00:00:00Z" },
@@ -466,7 +466,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -534,7 +534,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "plan_get_team_changes") return Promise.resolve(getTeamPlan);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
@@ -591,7 +591,7 @@ describe("App project restoration", () => {
         if (command === "list_unpublished_versions") {
           return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
         }
-        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "get_branches") return Promise.resolve(branches);
         if (command === "watch_repository") return Promise.resolve(true);
         if (command === "unwatch_repository") return Promise.resolve();
         return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -617,7 +617,7 @@ describe("App project restoration", () => {
         if (command === "list_unpublished_versions") {
           return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
         }
-        if (command === "get_version_lines") return Promise.resolve(versionLines);
+        if (command === "get_branches") return Promise.resolve(branches);
         if (command === "watch_repository") return Promise.resolve(true);
         if (command === "unwatch_repository") return Promise.resolve();
         return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -650,7 +650,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -798,7 +798,7 @@ describe("App project restoration", () => {
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -987,7 +987,7 @@ describe("App project restoration", () => {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -1213,8 +1213,8 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") {
         return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       if (command === "read_team_sync_status") {
         return Promise.resolve(cachedTeamSync);
@@ -1363,10 +1363,10 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
+      if (command === "get_branches") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
-        return Promise.resolve(versionLines);
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1440,10 +1440,10 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
+      if (command === "get_branches") {
         // The idle-time branch-inventory prefetch (task 019). Answered here
         // so it stays a background no-op rather than an unexpected command.
-        return Promise.resolve(versionLines);
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1529,8 +1529,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1623,7 +1623,7 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "plan_save_version") {
         return Promise.resolve({
           operationKind: "history-mutation",
@@ -1684,7 +1684,7 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "list_discard_recoveries") return Promise.resolve([record]);
       if (command === "get_discard_recovery") return Promise.resolve(record);
       if (command === "restore_discarded_changes") return Promise.resolve();
@@ -1750,8 +1750,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -1822,17 +1822,17 @@ describe("App project restoration", () => {
     expect(await screen.findByRole("heading", { name: "Changes" })).toBeInTheDocument();
 
     await waitFor(() =>
-      expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1),
+      expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_branches")).toHaveLength(1),
     );
-    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
-    expect(await screen.findByRole("heading", { name: "Lines" })).toBeInTheDocument();
+    await userEvent.click(within(nav).getByRole("button", { name: "Branches" }));
+    expect(await screen.findByRole("heading", { name: "Branches" })).toBeInTheDocument();
     await userEvent.click(within(nav).getByRole("button", { name: "Overview" }));
-    await userEvent.click(within(nav).getByRole("button", { name: "Lines" }));
+    await userEvent.click(within(nav).getByRole("button", { name: "Branches" }));
 
     // Screen navigation consumes the cached snapshot. Freshness comes from
     // project activation and repository-watch invalidation, not from arrival.
-    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines")).toHaveLength(1);
-    // Three lazy chunks are fetched cold here — both Work tabs and Lines.
+    expect(mockedInvoke.mock.calls.filter(([command]) => command === "get_branches")).toHaveLength(1);
+    // Three lazy chunks are fetched cold here — both Work tabs and Branches.
   }, 15000);
 
   it("closing the active project goes Home without moving into another open project", async () => {
@@ -1851,7 +1851,7 @@ describe("App project restoration", () => {
       if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.resolve(undefined);
@@ -1879,10 +1879,10 @@ describe("App project restoration", () => {
     );
     mockedOpenFolderDialog.mockResolvedValue(restoredProject.path);
 
-    const staleVersionLines = {
-      ...versionLines,
-      lines: [
-        ...versionLines.lines,
+    const staleBranches = {
+      ...branches,
+      branches: [
+        ...branches.branches,
         {
           name: "stale/old-session",
           tip: {
@@ -1901,10 +1901,10 @@ describe("App project restoration", () => {
       ],
       totalCount: 3,
     };
-    const freshVersionLines = {
-      ...versionLines,
-      lines: [
-        ...versionLines.lines,
+    const freshBranches = {
+      ...branches,
+      branches: [
+        ...branches.branches,
         {
           name: "fresh/reopened-session",
           tip: {
@@ -1923,9 +1923,9 @@ describe("App project restoration", () => {
       ],
       totalCount: 3,
     };
-    let resolveOldRequest: ((snapshot: typeof staleVersionLines) => void) | undefined;
-    let resolveNewRequest: ((snapshot: typeof freshVersionLines) => void) | undefined;
-    let versionLinesCallCount = 0;
+    let resolveOldRequest: ((snapshot: typeof staleBranches) => void) | undefined;
+    let resolveNewRequest: ((snapshot: typeof freshBranches) => void) | undefined;
+    let branchesCallCount = 0;
     let openCallCount = 0;
 
     mockedInvoke.mockImplementation((command) => {
@@ -1954,13 +1954,13 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        versionLinesCallCount += 1;
-        return versionLinesCallCount === 1
-          ? new Promise<typeof staleVersionLines>((resolve) => {
+      if (command === "get_branches") {
+        branchesCallCount += 1;
+        return branchesCallCount === 1
+          ? new Promise<typeof staleBranches>((resolve) => {
               resolveOldRequest = resolve;
             })
-          : new Promise<typeof freshVersionLines>((resolve) => {
+          : new Promise<typeof freshBranches>((resolve) => {
               resolveNewRequest = resolve;
             });
       }
@@ -1977,7 +1977,7 @@ describe("App project restoration", () => {
     await waitFor(
       () =>
         expect(
-          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_branches"),
         ).toHaveLength(1),
       { timeout: 3000 },
     );
@@ -1997,27 +1997,27 @@ describe("App project restoration", () => {
     await waitFor(
       () =>
         expect(
-          mockedInvoke.mock.calls.filter(([command]) => command === "get_version_lines"),
+          mockedInvoke.mock.calls.filter(([command]) => command === "get_branches"),
         ).toHaveLength(2),
       { timeout: 3000 },
     );
 
-    resolveOldRequest?.(staleVersionLines);
+    resolveOldRequest?.(staleBranches);
     await userEvent.click(
       within(screen.getByRole("navigation", { name: "Project navigation" })).getByRole("button", {
-        name: "Lines",
+        name: "Branches",
       }),
     );
-    // By title: Lines quiets a name's prefix in a span of its own, and the
+    // By title: Branches quiets a name's prefix in a span of its own, and the
     // full name is the row's title.
     expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
 
-    resolveNewRequest?.(freshVersionLines);
+    resolveNewRequest?.(freshBranches);
     expect(await screen.findAllByTitle("fresh/reopened-session")).not.toHaveLength(0);
     expect(screen.queryAllByTitle("stale/old-session")).toHaveLength(0);
   });
 
-  it("reopens the status bar's version-line menu from cache, with no spinner", async () => {
+  it("reopens the status bar's branch menu from cache, with no spinner", async () => {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
       "gitodile-projects",
@@ -2046,8 +2046,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
@@ -2059,9 +2059,9 @@ describe("App project restoration", () => {
     );
 
     await screen.findByRole("heading", { name: restoredProject.name });
-    // The line is switched from the status bar; Overview's header names
+    // The branch is switched from the status bar; Overview's header names
     // where the project lives instead.
-    const trigger = screen.getByRole("button", { name: "Change version line (main)" });
+    const trigger = screen.getByRole("button", { name: "Change branch (main)" });
 
     await userEvent.click(trigger);
     expect(await screen.findByRole("button", { name: "feature/spike" })).toBeInTheDocument();
@@ -2102,8 +2102,8 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
       if (command === "read_remote_home") {
         return Promise.resolve({ remote: "origin", provider: "github", label: "acme/app", hasWebPage: true });
@@ -2149,12 +2149,12 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") {
         return Promise.resolve();
       }
-      if (command === "get_version_lines") {
-        return Promise.resolve(versionLines);
+      if (command === "get_branches") {
+        return Promise.resolve(branches);
       }
-      if (command === "plan_switch_version_line") {
+      if (command === "plan_switch_branch") {
         // Blocked by unsaved work: this is the state that offers the two
-        // hand-offs ("Save version" / "New line with these changes"),
+        // hand-offs ("Save version" / "New branch with these changes"),
         // and both used to leave this dialog mounted behind whatever they
         // opened next.
         return Promise.reject({
@@ -2175,12 +2175,12 @@ describe("App project restoration", () => {
     await screen.findByRole("heading", { name: restoredProject.name });
     await userEvent.click(within(screen.getByRole("contentinfo", { name: "Project status" })).getByRole(
       "button",
-      { name: "Change version line (main)" },
+      { name: "Change branch (main)" },
     ));
     await userEvent.click(await screen.findByRole("button", { name: "feature/spike" }));
 
-    await userEvent.click(await screen.findByRole("radio", { name: /Take them to a new line/ }));
-    await userEvent.click(screen.getByRole("button", { name: "New line with these changes" }));
+    await userEvent.click(await screen.findByRole("radio", { name: /Take them to a new branch/ }));
+    await userEvent.click(screen.getByRole("button", { name: "New branch with these changes" }));
 
     // Exactly one dialog: the create dialog replaced the switch dialog
     // rather than rendering on top of it. Both are owned by App state, so
@@ -2213,7 +2213,7 @@ describe("App project restoration", () => {
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
       if (command === "check_team_changes") return Promise.resolve(freshBehindTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -2232,7 +2232,7 @@ describe("App project restoration", () => {
     expect(within(openRow).getByText("Open now")).toBeInTheDocument();
     expect(openRow.closest(".home-launcher__item")).toHaveClass("home-launcher__item--active");
     // Home ends in its own status line (ADR 0032): no project strip, and the
-    // palette deploys from the field in that line instead.
+    // palette deploys from the field in that branch instead.
     expect(screen.queryByRole("contentinfo", { name: "Project status" })).toBeNull();
     expect(within(screen.getByRole("group", { name: "This computer" })).getByRole("combobox", { name: "Open command palette" })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("gitodile-projects") ?? "{}").activeId).toBe(restoredProject.path);
@@ -2276,7 +2276,7 @@ describe("App project restoration", () => {
       if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.resolve(undefined);
@@ -2303,7 +2303,7 @@ describe("App project restoration", () => {
       if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.resolve(undefined);
@@ -2353,7 +2353,7 @@ describe("App project restoration", () => {
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "read_project_technology") return Promise.resolve({ technology: null });
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       if (command === "get_console_settings") return Promise.resolve({ confirmChanges: true });
@@ -2414,7 +2414,7 @@ describe("App project restoration", () => {
       if (command === "open_repository") return Promise.resolve(restoredProject);
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -2455,7 +2455,7 @@ describe("App project restoration", () => {
       if (command === "read_working_tree_status") return Promise.resolve(cleanStatus);
       if (command === "list_unpublished_versions") return Promise.resolve({ totalCount: 0, versions: [], isTruncated: false });
       if (command === "read_team_sync_status") return Promise.resolve(cachedTeamSync);
-      if (command === "get_version_lines") return Promise.resolve(versionLines);
+      if (command === "get_branches") return Promise.resolve(branches);
       if (command === "watch_repository") return Promise.resolve(true);
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));

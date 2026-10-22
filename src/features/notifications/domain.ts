@@ -18,9 +18,9 @@ export type NotificationDetails =
    * mapped to a user-facing sentence by the caller's error mapper, like every
    * other error surface in the app. */
   | { kind: "remoteCheckFailed"; reason: string | null }
-  /** An automatic check found the line's remote branch deleted. The line and
+  /** An automatic check found the branch's remote branch deleted. The branch and
    * remote are what make a second check's same answer "the same news". */
-  | { kind: "upstreamGone"; line: string | null; remote: string | null }
+  | { kind: "upstreamGone"; branch: string | null; remote: string | null }
   | { kind: "changesPublished"; versionCount: number; destination: string | null }
   /** The startup check found a newer version of the app itself. Always
    * app-wide (`projectId: null`); the version is what tells "the same
@@ -106,7 +106,7 @@ export function notificationDetailsEqual(
     case "remoteCheckFailed":
       return right.kind === "remoteCheckFailed" && left.reason === right.reason;
     case "upstreamGone":
-      return right.kind === "upstreamGone" && left.line === right.line && left.remote === right.remote;
+      return right.kind === "upstreamGone" && left.branch === right.branch && left.remote === right.remote;
     case "changesPublished":
       return (
         right.kind === "changesPublished" &&

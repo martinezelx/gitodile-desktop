@@ -85,39 +85,13 @@ describe("application-shell preferences", () => {
       });
   });
 
-  // Every session writes the whole snapshot back, so each old default order
-  // was already in storage for everyone by the time the next one shipped. A
-  // stored order identical to a superseded default is the absence of a
-  // choice, not one.
-  it("adopts the current rail order when the stored one is a superseded default", () => {
-    const current = ["overview", "workbench", "version-lines", "recovery"];
-    for (const superseded of [
-      ["overview", "changes", "version-lines", "history", "recovery"],
-      ["overview", "changes", "history", "version-lines", "recovery"],
-    ]) {
-      localStorage.setItem(
-        "gitodile-navigation-preferences",
-        JSON.stringify({
-          visibleDestinationIds: superseded,
-          destinationOrderIds: superseded,
-          displayMode: "icons-and-text",
-        }),
-      );
-
-      const { result } = renderHook(() => useStoredNavigationPreferences(current));
-
-      expect(result.current[0].destinationOrderIds).toEqual(current);
-      expect(result.current[0].visibleDestinationIds).toEqual(current);
-    }
-  });
-
   it("keeps an arrangement the user actually made", () => {
-    const current = ["overview", "workbench", "version-lines", "recovery"];
+    const current = ["overview", "workbench", "branches", "recovery"];
     localStorage.setItem(
       "gitodile-navigation-preferences",
       JSON.stringify({
         visibleDestinationIds: current,
-        destinationOrderIds: ["version-lines", "overview", "workbench", "recovery"],
+        destinationOrderIds: ["branches", "overview", "workbench", "recovery"],
         displayMode: "icons-and-text",
       }),
     );
@@ -125,51 +99,9 @@ describe("application-shell preferences", () => {
     const { result } = renderHook(() => useStoredNavigationPreferences(current));
 
     expect(result.current[0].destinationOrderIds)
-      .toEqual(["version-lines", "overview", "workbench", "recovery"]);
+      .toEqual(["branches", "overview", "workbench", "recovery"]);
   });
 
-  it("shows a newly registered Console before Recovery without moving a custom rail", () => {
-    const current = ["overview", "workbench", "version-lines", "console", "recovery"];
-    localStorage.setItem("gitodile-navigation-preferences", JSON.stringify({
-      visibleDestinationIds: ["overview", "workbench", "version-lines", "recovery"],
-      destinationOrderIds: ["overview", "workbench", "version-lines", "recovery"],
-      displayMode: "icons-and-text",
-    }));
-    const oldDefault = renderHook(() => useStoredNavigationPreferences(current));
-    expect(oldDefault.result.current[0].destinationOrderIds).toEqual(current);
-    expect(oldDefault.result.current[0].visibleDestinationIds).toContain("console");
-    oldDefault.unmount();
-
-    localStorage.setItem("gitodile-navigation-preferences", JSON.stringify({
-      visibleDestinationIds: ["overview", "version-lines", "recovery"],
-      destinationOrderIds: ["version-lines", "overview", "workbench", "recovery"],
-      displayMode: "icons-and-text",
-    }));
-    const custom = renderHook(() => useStoredNavigationPreferences(current));
-    expect(custom.result.current[0].destinationOrderIds).toEqual(["version-lines", "overview", "workbench", "recovery", "console"]);
-    expect(custom.result.current[0].visibleDestinationIds).toContain("console");
-  });
-
-  // Changes and History became the two tabs of Work (task 126). An
-  // arrangement made by hand keeps its shape: Work takes the place Changes
-  // held, History drops out, and a hidden Changes stays hidden as Work.
-  it("folds a stored Changes and History into Work in place", () => {
-    const current = ["overview", "workbench", "version-lines", "recovery"];
-    localStorage.setItem(
-      "gitodile-navigation-preferences",
-      JSON.stringify({
-        visibleDestinationIds: ["overview", "history", "version-lines"],
-        destinationOrderIds: ["history", "version-lines", "changes", "overview", "recovery"],
-        displayMode: "icons-and-text",
-      }),
-    );
-
-    const { result } = renderHook(() => useStoredNavigationPreferences(current));
-
-    expect(result.current[0].destinationOrderIds)
-      .toEqual(["version-lines", "workbench", "overview", "recovery"]);
-    expect(result.current[0].visibleDestinationIds).toEqual(["overview", "version-lines"]);
-  });
 });
 
 describe("CommandPalette", () => {

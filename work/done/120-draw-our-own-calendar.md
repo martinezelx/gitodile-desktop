@@ -113,7 +113,7 @@ Caught by writing the test for the month boundary, and kept by it.
 document-level Escape, and this field is opened from inside panels that do the
 same, so one press would close both. Escape is handled in the React tree and
 stopped there, which makes the innermost surface the one that closes — the same
-rule the version-line picker follows two groups above it.
+rule the branch picker follows two groups above it.
 
 **A step outside `min`/`max` is pulled back into it, never refused.** The first
 cut had `move` return when the target day fell outside the range, which is right

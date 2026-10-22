@@ -569,8 +569,8 @@
 }
 
 /* The foot of the list panel: the save composer, and nothing else. The box
-   itself is `.docked-composer` in primitives.css — shared with Lines'
-   new-line box — which draws the hairline and the padding; what is left
+   itself is `.docked-composer` in primitives.css — shared with Branches'
+   new-branch box — which draws the hairline and the padding; what is left
    here is what only the save box holds. The discard/restore `⋯` heads the
    list in the search strip, so nothing destructive lives in here. */
 .changes-file-list__foot { flex: 0 0 auto; }
@@ -777,15 +777,15 @@
    the body by `usePortalFlyout`, so nothing absolute is laid out against this
    wrapper the way the old in-flow `.app-menu` was. */
 .changes-view-picker { display: inline-flex; }
-/* Doubled up on `.version-line-selector` on purpose. The trigger wears that
-   class too, and `features/version-lines` loads *after* this file, so at equal
+/* Doubled up on `.branch-selector` on purpose. The trigger wears that
+   class too, and `features/branches` loads *after* this file, so at equal
    specificity its `padding: 6px var(--space-4)` was quietly beating the `0`
    below — the block padding this rule asks for has never actually applied. It
    went unnoticed while the control was 34px tall and the label had 2px to
    spare; at the shared 32px row tier the text fills the content box exactly,
    which is what surfaced it. The fixed height is what centres the label here,
    so the block padding has to be the 0 this rule always meant. */
-.changes-view-picker__trigger.version-line-selector {
+.changes-view-picker__trigger.branch-selector {
   /* The fallback is load-bearing, not decoration. `DiffViewSelector` is shared,
      and `--changes-toolbar-control-height` is scoped to `.changes-layout` —
      which the History diff toolbar is not inside, so that host has to declare
@@ -807,8 +807,8 @@
    SVG itself, because the same icon is reused inside the menu where a
    different rule sizes it. The 15px the shared token sets therefore has to
    reach the SVG inside the wrapper. */
-.changes-view-picker__trigger .version-line-selector__icon { display: inline-flex; }
-.changes-view-picker__trigger .version-line-selector__icon svg { width: 100%; height: 100%; }
+.changes-view-picker__trigger .branch-selector__icon { display: inline-flex; }
+.changes-view-picker__trigger .branch-selector__icon svg { width: 100%; height: 100%; }
 .changes-diff__body {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; margin-bottom: var(--space-2);
   background: var(--surface-code);

@@ -438,7 +438,7 @@ pub(crate) fn record_command(
 
 /// The environment block is assembled in the webview and crosses the boundary
 /// as free text, so it is bounded here like every other command input rather
-/// than trusted for being ours. Five version lines are two hundred characters;
+/// than trusted for being ours. Five version rows are two hundred characters;
 /// anything approaching this cap is a defect on the other side, and truncating
 /// keeps the report readable instead of failing the review outright.
 pub(crate) fn render_report(log: &DiagnosticsLog, environment: String) -> String {

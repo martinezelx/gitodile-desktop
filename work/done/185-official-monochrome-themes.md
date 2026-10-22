@@ -84,7 +84,7 @@ danger/removed and warning, ink for information.
   setup steps) in success green; Create project and the publish dialog in
   the local lime (`Dialog` tone `local`).
 - "Only on this computer" as one shared piece (`shared/ui/localOnly.tsx`) in
-  Overview, History and Lines, in the local tone; a published version's pill
+  Overview, History and Branches, in the local tone; a published version's pill
   takes the remote's blue so the two read apart.
 - DESIGN.md § Theming: the official table, the mascot rule, the accent prose.
 
@@ -103,8 +103,8 @@ danger/removed and warning, ink for information.
 - [x] The origin cloud, "Only on this computer" and the scene carry the
       remote's blue and the local green, adapted per scheme, and so do the
       dialogs' header glyphs; "only on this computer" is shared by Overview,
-      History and Lines.
-- [x] Checked in the running app on Overview, Work (with a diff), Lines,
+      History and Branches.
+- [x] Checked in the running app on Overview, Work (with a diff), Branches,
       History, Home and Settings, in both themes.
 
 Checked by the owner in the running app (`tauri dev`) during the work, and

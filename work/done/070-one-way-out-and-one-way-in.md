@@ -66,7 +66,7 @@ titlebar already folded them into a menu.
   a hero deserves its options laid out.
 - The titlebar menu, which already groups the same three actions.
 - Any change to what the three actions do, or to the dialogs' own steps.
-- Migrating the other dialogs (`SaveVersionDialog`, `VersionLinesDialog`) off
+- Migrating the other dialogs (`SaveVersionDialog`, `BranchesDialog`) off
   their `required` attributes. The primitive is built for them; adopting it is
   their own change.
 

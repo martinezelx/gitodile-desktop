@@ -83,7 +83,7 @@ same continuous center-aligned connector in History and Overview.
   documentation and architecture checks, 431 frontend tests, production build,
   Rust formatting and Clippy, and 297 Rust tests.
 - A later aggregate rerun encountered Vitest worker-start timeouts in unrelated
-  Changes, app-shell, context-menu, theme, project-session, version-line, and
+  Changes, app-shell, context-menu, theme, project-session, branch, and
   clone tests after the runner stalled for approximately 49 minutes. No
   assertion related to History or Overview failed; the focused suites remained
   green.

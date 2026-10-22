@@ -44,7 +44,7 @@ fricción" artifact) found:
 
 - Planning and execution each ran their own `fetch`, so every update waited on
   the network twice and the dialog opened on a spinner.
-- A diverged line was a dead end: Overview offered **Review and get**, the
+- A diverged branch was a dead end: Overview offered **Review and get**, the
   dialog answered "Combine them in another Git tool", and Publish answered "Get
   project changes first".
 - Overlap was decided per path: a local edit to line 4 and a team edit to line
@@ -57,10 +57,10 @@ fricción" artifact) found:
 - The dialog was large: three steps, two unrelated lists, two sentences and
   eight technical fields for a yes/no decision.
 
-[Task 065-4](../active/release-1.0/065-4-integrate-version-lines.md) already decided
-that 1.0 combines lines with a merge and never rebases. This task takes over
+[Task 065-4](../active/release-1.0/065-4-integrate-branches.md) already decided
+that 1.0 combines branches with a merge and never rebases. This task takes over
 the clean, configured-upstream half of that work; 065-4 keeps "bring in changes
-from another version line" and the hand-off of a real overlap into task 037.
+from another branch" and the hand-off of a real overlap into task 037.
 
 # Scope
 
@@ -81,7 +81,7 @@ Phase 1 — fast and clear, no new Git operation:
 Phase 2 — predict and combine:
 
 - `TeamSyncStatus.forecast`: after every local read and check of a behind or
-  diverged line, predict the update with `git merge-tree --write-tree` (no
+  diverged branch, predict the update with `git merge-tree --write-tree` (no
   files, index or refs touched) and report clear / overlap / blocked, the
   overlapping paths with whether the local side is saved or unsaved, the
   incoming authors, file count and how many unsaved files are carried or
@@ -89,7 +89,7 @@ Phase 2 — predict and combine:
 - Overview card: "N new versions on origin" with Get N, "origin has N new and
   you have M unpublished" with Get and combine, or "Your changes and origin's
   overlap" with the files and no way through.
-- Combine a diverged, non-overlapping line with a merge version
+- Combine a diverged, non-overlapping branch with a merge version
   (`Merge remote-tracking branch 'origin/main'`), created with
   `commit-tree` from the predicted tree after the project's `pre-merge-commit`,
   `prepare-commit-msg` and `commit-msg` hooks (unless hooks are off in
@@ -112,7 +112,7 @@ Phase 3 — same file, different lines:
 
 # Out of scope
 
-- Resolving real overlaps (task 037) and bringing in another version line
+- Resolving real overlaps (task 037) and bringing in another branch
   (065-4).
 - Rebase, squash, force push, auto-stash or automatic publish without a
   confirmation.
@@ -126,9 +126,9 @@ Phase 3 — same file, different lines:
       re-plans in the dialog instead of failing or applying something unseen.
 - [x] Local work is compared with every incoming path, however many there are.
 - [x] `TeamSyncStatus.forecast` predicts clear, overlap and blocked outcomes for
-      behind and diverged lines, with bounded paths and totals, without changing
+      behind and diverged branches, with bounded paths and totals, without changing
       files, index or refs.
-- [x] A diverged line without overlaps is combined with a merge version whose
+- [x] A diverged branch without overlaps is combined with a merge version whose
       parents are the previous local tip and the reviewed remote commit, after a
       verified recovery point, running merge hooks unless they are turned off
       and honouring commit signing; hook, identity and signing failures leave
@@ -183,7 +183,7 @@ Phase 3 — same file, different lines:
 - `plan_get_team_changes` is a repository read now (it never fetches); its
   `read-tree --dry-run` proof runs against a copy of the index so it can't
   collide with a status refresh holding `index.lock`.
-- The forecast is part of every team-sync read of a behind or diverged line,
+- The forecast is part of every team-sync read of a behind or diverged branch,
   and an idle `sync-forecast` read subscriber refreshes it after file saves
   while versions are waiting, since unsaved edits change it.
 
@@ -202,7 +202,7 @@ Rust (`src-tauri/src/sync/get_team_changes.rs`, rewritten):
   Exit 129 from `merge-tree` is reported as `gitTooOld`.
 - `forecast_incoming` is the read model's one door into the module;
   `sync/mod.rs` attaches it to `TeamSyncStatus.forecast` for behind/diverged
-  lines, and `ReviewAndGet` is now also a next action for diverged lines.
+  branches, and `ReviewAndGet` is now also a next action for diverged branches.
 - Execution: revalidate (token binds trees and the combination), build the
   merge version (`git hook run` for `pre-merge-commit`, `prepare-commit-msg`,
   `commit-msg` with `GIT_INDEX_FILE` = merge tree, message cleaned like Git's
@@ -235,7 +235,7 @@ Frontend:
 - `App.tsx`: Get intent state, `isRemoteCheckRecent`-gated background check,
   `recordPublished` shared by the publish dialog and Get and publish, diverged
   Publish routed through Get, the publish → get hand-over, notifications for
-  diverged lines with a forecast, and the `sync-forecast` read subscriber.
+  diverged branches with a forecast, and the `sync-forecast` read subscriber.
 - `PublishDialog`: `onGetFirst` turns `behind_remote` / `diverged_histories`
   into "Get and publish".
 

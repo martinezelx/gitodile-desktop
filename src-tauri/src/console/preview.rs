@@ -27,7 +27,7 @@ fn read(path: &str, args: &[&str]) -> Result<Read, AppError> {
 }
 
 /// The state a change plan describes: where HEAD is and what it points at,
-/// every ref (lines, tags, remote-tracking refs, the set-aside stack), and
+/// every ref (branches, tags, remote-tracking refs, the set-aside stack), and
 /// the index and working tree as `status` reports them. A plan whose
 /// repository no longer matches is stale.
 pub(super) fn fingerprint(path: &str) -> Result<String, AppError> {
@@ -48,9 +48,9 @@ pub(super) fn fingerprint(path: &str) -> Result<String, AppError> {
     Ok(format!("{:016x}", hasher.finish()))
 }
 
-/// Whether `checkout <name>` would switch to a line: an existing local line,
-/// or a single remote line Git would create a local one from.
-pub(super) fn names_a_line(path: &str, name: &str) -> Result<bool, AppError> {
+/// Whether `checkout <name>` would switch to a branch: an existing local branch,
+/// or a single remote branch Git would create a local one from.
+pub(super) fn names_a_branch(path: &str, name: &str) -> Result<bool, AppError> {
     let local = format!("refs/heads/{name}");
     if read(path, &["show-ref", "--verify", "--quiet", &local])?.ok {
         return Ok(true);
@@ -60,7 +60,7 @@ pub(super) fn names_a_line(path: &str, name: &str) -> Result<bool, AppError> {
     Ok(found.stdout.lines().count() == 1)
 }
 
-fn current_line(path: &str) -> Result<Option<String>, AppError> {
+fn current_branch(path: &str) -> Result<Option<String>, AppError> {
     let head = read(path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
     Ok(head
         .ok
@@ -68,7 +68,7 @@ fn current_line(path: &str) -> Result<Option<String>, AppError> {
         .filter(|line| !line.is_empty()))
 }
 
-/// The upstream of the current line as (remote, line), when it has one.
+/// The upstream of the current branch as (remote, branch), when it has one.
 fn upstream(path: &str) -> Result<Option<(String, String)>, AppError> {
     let upstream = read(
         path,
@@ -86,7 +86,7 @@ fn upstream(path: &str) -> Result<Option<(String, String)>, AppError> {
         .stdout
         .trim()
         .split_once('/')
-        .map(|(remote, line)| (remote.to_string(), line.to_string())))
+        .map(|(remote, branch)| (remote.to_string(), branch.to_string())))
 }
 
 fn count_nul_separated(text: &str) -> usize {
@@ -148,7 +148,7 @@ pub(super) fn facts(
                 Some(names.len())
             };
             vec![PlanFact::Commits {
-                line: current_line(path)?,
+                branch: current_branch(path)?,
                 files,
             }]
         }
@@ -156,7 +156,7 @@ pub(super) fn facts(
             target: target.clone(),
             create: *create,
         }],
-        Intent::CreateLine(name) => vec![PlanFact::CreatesLine { name: name.clone() }],
+        Intent::CreateBranch(name) => vec![PlanFact::CreatesBranch { name: name.clone() }],
         Intent::CreateTag(name) => vec![PlanFact::CreatesTag { name: name.clone() }],
         Intent::SetAside => {
             let changed = read(
@@ -190,29 +190,29 @@ pub(super) fn facts(
         }],
         Intent::Push {
             remote,
-            line,
+            branch,
             plain,
         } => {
             if *plain {
                 match upstream(path)? {
-                    Some((remote, line)) => {
+                    Some((remote, branch)) => {
                         let ahead = read(path, &["rev-list", "--count", "@{upstream}..HEAD"])?;
                         vec![PlanFact::Publishes {
                             remote: Some(remote),
-                            line: Some(line),
+                            branch: Some(branch),
                             versions: ahead.stdout.trim().parse().ok(),
                         }]
                     }
                     None => vec![PlanFact::Publishes {
                         remote: None,
-                        line: current_line(path)?,
+                        branch: current_branch(path)?,
                         versions: None,
                     }],
                 }
             } else {
                 vec![PlanFact::Publishes {
                     remote: remote.clone(),
-                    line: line.clone(),
+                    branch: branch.clone(),
                     versions: None,
                 }]
             }

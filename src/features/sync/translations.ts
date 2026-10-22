@@ -29,8 +29,8 @@ export interface SyncTranslations {
   syncPublish: string;
   syncReviewAndGet: string;
   syncComingSoon: string;
-  syncCurrentLine: string;
-  syncTeamLine: string;
+  syncCurrentBranch: string;
+  syncTeamBranch: string;
   syncRelationshipLabel: (local: string, team: string) => string;
   syncTechnicalDetails: string;
   syncRemote: string;
@@ -126,12 +126,12 @@ const en: SyncTranslations = {
   syncBehindTitle: (count) => `${count} newer ${count === 1 ? "version is" : "versions are"} available`,
   syncBehindMessage: "Review what will change before getting them.",
   syncDivergedTitle: "Both sides have changed",
-  syncDivergedMessage: "Your line and the remote have different work, and nothing is combined automatically.",
+  syncDivergedMessage: "Your branch and the remote have different work, and nothing is combined automatically.",
   syncNoRemoteTitle: "No remote yet",
   syncNoRemoteMessage: "Add a remote to check for project changes.",
   syncNoUpstreamTitle: "Choose a publish destination first",
-  syncNoUpstreamMessage: "Publish this line to connect it to the remote.",
-  syncDetachedTitle: "Switch to a version line to check",
+  syncNoUpstreamMessage: "Publish this branch to connect it to the remote.",
+  syncDetachedTitle: "Switch to a branch to check",
   syncDetachedMessage: "A specific saved version has nothing to compare on the remote.",
   syncUnbornTitle: "Save a version before checking",
   syncUnbornMessage: "There's no saved version to compare yet.",
@@ -145,9 +145,9 @@ const en: SyncTranslations = {
   syncPublish: "Publish changes",
   syncReviewAndGet: "Review and get",
   syncComingSoon: "Coming soon",
-  syncCurrentLine: "Current line",
-  syncTeamLine: "Remote line",
-  syncRelationshipLabel: (local, team) => `Current line ${local}; remote line ${team}.`,
+  syncCurrentBranch: "Current branch",
+  syncTeamBranch: "Remote branch",
+  syncRelationshipLabel: (local, team) => `Current branch ${local}; remote branch ${team}.`,
   syncTechnicalDetails: "Technical details",
   syncRemote: "Remote",
   syncDestination: "Destination branch",
@@ -182,7 +182,7 @@ const en: SyncTranslations = {
     return `Your unsaved edits to ${named} stay unsaved, on top of the incoming ones.`;
   },
   getTeamMergeFact: (localCount) =>
-    `A merge version joins both lines. ${localCount === 1 ? "Your version isn't" : `Your ${localCount} versions aren't`} published yet, so nobody else is affected.`,
+    `A merge version joins both branches. ${localCount === 1 ? "Your version isn't" : `Your ${localCount} versions aren't`} published yet, so nobody else is affected.`,
   getTeamPublishFact: (localCount, remote) =>
     `Then ${localCount === 1 ? "your version" : `your ${localCount} versions`} and the merge version are published to ${remote}.`,
   getTeamRecoveryFirst: "A recovery point is saved first.",
@@ -259,12 +259,12 @@ const es: SyncTranslations = {
   syncBehindTitle: (count) => `Hay ${count} ${count === 1 ? "versión nueva" : "versiones nuevas"}`,
   syncBehindMessage: "Revisa qué cambiará antes de traerlas.",
   syncDivergedTitle: "Ambos lados han cambiado",
-  syncDivergedMessage: "Tu línea y el remoto tienen trabajo distinto y no se combina nada automáticamente.",
+  syncDivergedMessage: "Tu rama y el remoto tienen trabajo distinto y no se combina nada automáticamente.",
   syncNoRemoteTitle: "Aún sin remoto",
   syncNoRemoteMessage: "Añade un remoto para comprobar cambios del proyecto.",
   syncNoUpstreamTitle: "Elige antes un destino de publicación",
-  syncNoUpstreamMessage: "Publica esta línea para conectarla con el remoto.",
-  syncDetachedTitle: "Cambia a una línea de versión para comprobar",
+  syncNoUpstreamMessage: "Publica esta rama para conectarla con el remoto.",
+  syncDetachedTitle: "Cambia a una rama para comprobar",
   syncDetachedMessage: "Una versión guardada concreta no tiene nada con qué compararse en el remoto.",
   syncUnbornTitle: "Guarda una versión antes de comprobar",
   syncUnbornMessage: "Aún no hay ninguna versión guardada que comparar.",
@@ -278,9 +278,9 @@ const es: SyncTranslations = {
   syncPublish: "Publicar cambios",
   syncReviewAndGet: "Revisar y traer",
   syncComingSoon: "Próximamente",
-  syncCurrentLine: "Línea actual",
-  syncTeamLine: "Línea remota",
-  syncRelationshipLabel: (local, team) => `Línea actual ${local}; línea remota ${team}.`,
+  syncCurrentBranch: "Rama actual",
+  syncTeamBranch: "Rama remota",
+  syncRelationshipLabel: (local, team) => `Rama actual ${local}; rama remota ${team}.`,
   syncTechnicalDetails: "Detalles técnicos",
   syncRemote: "Remoto",
   syncDestination: "Rama de destino",
@@ -315,7 +315,7 @@ const es: SyncTranslations = {
     return `Tus cambios sin guardar en ${named} siguen sin guardar, encima de los que llegan.`;
   },
   getTeamMergeFact: (localCount) =>
-    `Una versión de unión junta las dos líneas. ${localCount === 1 ? "Tu versión aún no está publicada" : `Tus ${localCount} versiones aún no están publicadas`}, así que nadie más se ve afectado.`,
+    `Una versión de unión junta las dos ramas. ${localCount === 1 ? "Tu versión aún no está publicada" : `Tus ${localCount} versiones aún no están publicadas`}, así que nadie más se ve afectado.`,
   getTeamPublishFact: (localCount, remote) =>
     `Después ${localCount === 1 ? "tu versión" : `tus ${localCount} versiones`} y la versión de unión se publican en ${remote}.`,
   getTeamRecoveryFirst: "Antes se guarda un punto de recuperación.",

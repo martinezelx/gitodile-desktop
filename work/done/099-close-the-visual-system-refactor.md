@@ -36,7 +36,7 @@ tiles and action-row icon buttons, and capsules for labelled single-line
 controls. Tasks 080, 081, and 083 documented that direction and added useful
 CSS guards, but their visual validation could not cover every populated Tauri
 surface. Tasks 084–098 then added or substantially changed the status bar,
-quick version-line switchers, changelog, welcome launcher, recent projects,
+quick branch switchers, changelog, welcome launcher, recent projects,
 message dialogs, application Settings, and per-project Settings.
 
 This is a bounded closure pass over the current product, not a new redesign.
@@ -56,7 +56,7 @@ icon actions and controls attached to a host.
   treatments rather than treating token usage alone as proof of consistency.
 - Review the titlebar, navigation rail and jump menu, project switcher and add
   menu, status bar and quick switcher, command palette, Overview, Changes,
-  Lines, History, Settings, per-project Settings, welcome/recents launcher,
+  Branches, History, Settings, per-project Settings, welcome/recents launcher,
   Changelog/About, and every save/publish/sync/clone/create/discard/close
   dialog that can currently be opened.
 - Exercise representative populated, empty, loading, success, warning, error,
@@ -114,7 +114,7 @@ icon actions and controls attached to a host.
       forced colors, 1024px minimum window width, constrained window height,
       200% zoom, and coarse-pointer sizing where applicable.
 - [x] Empty, populated, loading, success, warning, error, disabled, long-label,
-      long-path, overflow, detached-line, and not-yet-saved states receive
+      long-path, overflow, detached-branch, and not-yet-saved states receive
       representative coverage without clipping, accidental wrapping in
       capsules, obscured focus, or unreachable actions.
 - [x] Reusable defects found during the audit have focused regression tests or
@@ -177,11 +177,11 @@ searches alone.
 
 | Family | Runtime evidence and representative states |
 | --- | --- |
-| Shell | Native Windows titlebar, expanded/collapsed navigation, More flyout, project switcher/add menu, status bar and upward-opening quick line switcher; narrow 1022 x 614 and maximized layouts |
-| Primary screens | Overview, Changes, Lines and History with the repository-backed populated fixture; loading, long file/ref names, scrolling and selection states |
+| Shell | Native Windows titlebar, expanded/collapsed navigation, More flyout, project switcher/add menu, status bar and upward-opening quick branch switcher; narrow 1022 x 614 and maximized layouts |
+| Primary screens | Overview, Changes, Branches and History with the repository-backed populated fixture; loading, long file/ref names, scrolling and selection states |
 | Global/application surfaces | Empty welcome/recents launcher, command palette keyboard navigation, About, shortcuts, changelog and all six application Settings sections |
 | Project surfaces | Remote, ignored files and identity project Settings in loading and populated states |
-| Mutations and safety | Save-version validation, publish preview and divergent error, get-team-changes preview, discard preview, create/switch/delete line dialogs, close-project confirmation, clone and create-local-project dialogs |
+| Mutations and safety | Save-version validation, publish preview and divergent error, get-team-changes preview, discard preview, create/switch/delete branch dialogs, close-project confirmation, clone and create-local-project dialogs |
 | Repository exceptions | Unborn project, detached HEAD, ahead, behind, divergent, clean, dirty, invalid-folder error and long-content fixtures |
 | Accessibility/variants | Light/dark, English/Spanish, keyboard-only palette, forced colors active, reduced motion, 200% OS text scale, disabled/busy/error/success/warning states |
 
@@ -199,7 +199,7 @@ evidence rather than a physical pointer device.
 - Made menu and popover insets concentric, removed a one-sided footer divider,
   and aligned compact footer/menu actions to the shared 44 px target floor.
 - Extended comfortable pointer targets across the titlebar, navigation,
-  project switcher, settings, history, changes and version-line surfaces.
+  project switcher, settings, history, changes and branch surfaces.
 - Removed the generic `nav` styling escape hatch, the sidebar layout
   transition, and non-semantic pointer cursors; the save-version disclosure is
   the sole intentional link-like cursor exception.

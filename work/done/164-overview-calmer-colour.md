@@ -61,10 +61,10 @@ artifact "Overview color audit". The user chose the recommendation: option A
   pass).
 - History's published/unpublished boundary takes Overview's mark (option C in
   the audit's section 12): a neutral cloud on the rail, "Published on origin",
-  the rule, and "☁ Publish N" at its end on the current line ("N not
+  the rule, and "☁ Publish N" at its end on the current branch ("N not
   published" elsewhere). Overview's own rail mark goes from the success green
   to the secondary ink, so the two timelines draw one mark and the publish
-  cloud beside it is the line's only green.
+  cloud beside it is the branch's only green.
 - "Publish up to here" on a local node becomes the status bar's sync pill in
   a circle: control surface and hairline, only the cloud in the accent. It
   fades in without growing or breathing, and the half-filled node beneath it
@@ -190,8 +190,8 @@ direction.
   "Publish up to here" hover, History's boundary, the selected half-filled
   node) and they approved the final result.
 - Final review of the whole diff before committing found and fixed:
-  - History's boundary compared the upstream with the line stood on rather
-    than the scoped line (`publishedOnLabel`), now covered by a test;
+  - History's boundary compared the upstream with the branch stood on rather
+    than the scoped branch (`publishedOnLabel`), now covered by a test;
   - the remote's name could not ellipsize inside an inline-flex box;
   - forced-colours mode kept the nodes' gradients in theme colours; they now
     use system colours, and the local group no longer draws an edge there;

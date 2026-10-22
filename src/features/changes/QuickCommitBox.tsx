@@ -263,7 +263,7 @@ export function QuickCommitBox({
       }}
     >
       {/* What the press will do, over the field it is about: the count
-          first, then the line it lands on in the status bar's own mono. Once
+          first, then the branch it lands on in the status bar's own mono. Once
           saved, the same slot says what was saved and offers the step after
           it. Kept one line tall while the plan loads, so the field under it
           does not jump when the answer arrives. */}

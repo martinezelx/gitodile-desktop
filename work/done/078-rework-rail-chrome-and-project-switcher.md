@@ -100,8 +100,8 @@ at any width), so a narrower column could only have broken them mid-syllable.
 Renaming them was the way down. Treat a new long destination name as a width
 decision.
 
-**Destination names are one word; prose keeps the full term.** "Lines" shows
-version lines and the prose still says "version line" — an abbreviation, not a
+**Destination names are one word; prose keeps the full term.** "Branches" shows
+branches and the prose still says "branch" — an abbreviation, not a
 second vocabulary. "Branches" was rejected for the opposite reason: it would
 have made the user learn that two words mean one thing.
 

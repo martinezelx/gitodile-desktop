@@ -7,7 +7,7 @@
 <!--
   Artilugio de revisión para la barra de estado de GitOdile (post-rework de la
   tarea 176). Tokens copiados de src/styles/themes.css y src/styles/tokens.css;
-  medidas y reglas de src/app/app-shell.css y src/features/version-lines/version-lines.css;
+  medidas y reglas de src/app/app-shell.css y src/features/branches/branches.css;
   textos de src/app/translations.ts (HEAD eee3860, v0.3.1). Iconos: los mismos
   lucide que usa la app.
 -->
@@ -345,25 +345,25 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 28px 72px; }
 .status-bar__project > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-strong); }
 .status-bar__project:hover { background: var(--surface-hover); }
 .status-bar__separator { flex-shrink: 0; padding: 0 1px; color: var(--text-secondary-color); user-select: none; }
-.status-bar .version-lines-quick-switch { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 280px; }
-.status-bar .version-line-selector {
+.status-bar .branches-quick-switch { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 280px; }
+.status-bar .branch-selector {
   width: 100%; height: 28px; min-width: 0; padding: 0 6px; gap: 5px;
   display: inline-flex; align-items: center; border: 0; border-radius: var(--radius-pill);
   background: transparent; color: var(--text-primary-color); font: inherit; cursor: pointer;
   transition: background var(--duration-fast);
 }
-.status-bar .version-line-selector:hover { background: var(--surface-hover); }
-.status-bar .version-line-selector__icon { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar .version-line-selector__value {
+.status-bar .branch-selector:hover { background: var(--surface-hover); }
+.status-bar .branch-selector__icon { width: 14px; height: 14px; flex-shrink: 0; }
+.status-bar .branch-selector__value {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: inherit; font-size: var(--text-body); font-weight: var(--weight-strong);
 }
-.status-bar .version-line-selector__chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
-.status-bar .version-line-selector__marker {
+.status-bar .branch-selector__chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
+.status-bar .branch-selector__marker {
   width: 7px; height: 7px; flex-shrink: 0; border-radius: var(--radius-round);
   background: var(--status-warning);
 }
-.status-bar .version-line-selector__marker--error { background: var(--status-danger); }
+.status-bar .branch-selector__marker--error { background: var(--status-danger); }
 .status-bar__sync { color: var(--text-secondary-color); }
 .status-bar__sync--warning { color: var(--status-warning); }
 .status-bar__sync-action {
@@ -928,7 +928,7 @@ button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px
   <p>
     Medidas, tokens y textos copiados de <code>src/styles/tokens.css</code>,
     <code>src/styles/themes.css</code>, <code>src/app/app-shell.css</code>,
-    <code>src/features/version-lines/version-lines.css</code> y
+    <code>src/features/branches/branches.css</code> y
     <code>src/app/translations.ts</code> (HEAD <code>eee3860</code>, v0.3.1). Los iconos son los
     mismos lucide que usa la app (14 px en la barra, 16–21 px en el resto del shell).
   </p>
@@ -1025,7 +1025,7 @@ function remoteModel(kind) {
     case "diverged":
       return { shape: "action", mark: "cloudSync", words: "Traer y publicar", tooltip: "Traer y publicar · Comprobado hace 3 min" };
     case "noUpstream":
-      return { shape: "action", mark: "cloudUpload", words: "Publicar esta línea", tooltip: "Publicar esta línea · Sin destino de publicación" };
+      return { shape: "action", mark: "cloudUpload", words: "Publicar esta rama", tooltip: "Publicar esta rama · Sin destino de publicación" };
     case "checking":
       return { shape: "held", mark: "loader", words: "Publicar 3 versiones", tooltip: "Comprobando el remoto…" };
     case "error":
@@ -1071,16 +1071,16 @@ const projectButton =
   '<button class="status-bar__project" type="button" data-tooltip="Proyecto: gitodile · Ajustes del proyecto">' +
   I.folderGit2 + "<span>gitodile</span></button>";
 
-function lineSelector(tree) {
+function branchSelector(tree) {
   const face = tree.spinner
     ? '<span class="icon--spinning">' + I.loader + "</span>"
-    : withClass(I.gitBranch, "version-line-selector__icon") +
-      '<span class="version-line-selector__value">main</span>' +
-      (tree.dot ? '<span class="version-line-selector__marker' + (tree.dot === "error" ? " version-line-selector__marker--error" : "") + '"></span>' : "");
+    : withClass(I.gitBranch, "branch-selector__icon") +
+      '<span class="branch-selector__value">main</span>' +
+      (tree.dot ? '<span class="branch-selector__marker' + (tree.dot === "error" ? " branch-selector__marker--error" : "") + '"></span>' : "");
   return (
-    '<div class="version-lines-quick-switch version-lines-quick-switch--status">' +
-    '<button class="version-line-selector" type="button" data-tooltip="main · ' + tree.label + '">' +
-    face + withClass(I.chevronUp, "version-line-selector__chevron") +
+    '<div class="branches-quick-switch branches-quick-switch--status">' +
+    '<button class="branch-selector" type="button" data-tooltip="main · ' + tree.label + '">' +
+    face + withClass(I.chevronUp, "branch-selector__chevron") +
     "</button></div>"
   );
 }
@@ -1117,7 +1117,7 @@ function renderCurrent(annotated) {
   return (
     '<div class="status-bar__group status-bar__group--project">' +
     '<span class="status-bar__cluster status-bar__working"' + (annotated ? ' style="position:relative"' : "") + ">" +
-    projectButton + separator + lineSelector(m.tree) +
+    projectButton + separator + branchSelector(m.tree) +
     (annotated ? '<span class="pin pin--gap">2</span>' : "") +
     '<span class="visually-hidden">' + m.tree.label + "</span>" +
     "</span>" +
@@ -1154,7 +1154,7 @@ function renderAlt1() {
   }
   return (
     '<div class="status-bar__group status-bar__group--project">' +
-    '<span class="status-bar__cluster status-bar__working">' + projectButton + separator + lineSelector(m.tree) + "</span>" +
+    '<span class="status-bar__cluster status-bar__working">' + projectButton + separator + branchSelector(m.tree) + "</span>" +
     '<span class="status-bar__cluster">' + sync +
     '<button class="sb-iconbtn" type="button" data-tooltip="Comprobar cambios del proyecto remoto">' + I.rotateCw + "</button></span>" +
     "</div>" +
@@ -1168,12 +1168,12 @@ function renderAlt2() {
   const lineFace = m.tree.spinner
     ? '<span class="icon--spinning">' + I.loader + "</span>"
     : I.gitBranch;
-  const dot = m.tree.dot ? '<span class="version-line-selector__marker' + (m.tree.dot === "error" ? " version-line-selector__marker--error" : "") + '"></span>' : "";
+  const dot = m.tree.dot ? '<span class="branch-selector__marker' + (m.tree.dot === "error" ? " branch-selector__marker--error" : "") + '"></span>' : "";
   const leftCapsule =
     '<span class="sb-capsule">' +
     '<button class="sb-seg" type="button" data-tooltip="Proyecto: gitodile · Ajustes del proyecto">' + I.folderGit2 + "<span>gitodile</span></button>" +
     '<span class="sb-seg-divider"></span>' +
-    '<button class="sb-seg" type="button" data-tooltip="main · ' + m.tree.label + '">' + lineFace + "<span>main</span>" + dot + withClass(I.chevronUp, "version-line-selector__chevron") + "</button>" +
+    '<button class="sb-seg" type="button" data-tooltip="main · ' + m.tree.label + '">' + lineFace + "<span>main</span>" + dot + withClass(I.chevronUp, "branch-selector__chevron") + "</button>" +
     "</span>";
 
   let syncHalf;
@@ -1236,7 +1236,7 @@ function renderAlt3() {
   }
   return (
     '<div class="status-bar__group status-bar__group--project">' +
-    '<span class="status-bar__cluster status-bar__working">' + projectButton + separator + lineSelector(m.tree) + "</span>" +
+    '<span class="status-bar__cluster status-bar__working">' + projectButton + separator + branchSelector(m.tree) + "</span>" +
     '<span class="status-bar__cluster">' + sync +
     '<button class="sb-iconbtn" type="button" data-tooltip="Comprobar cambios del proyecto remoto">' + I.rotateCw + "</button></span>" +
     "</div>" +
@@ -1289,7 +1289,7 @@ function windowMarkup(variant, annotated) {
     railItem("house", "Inicio", true) +
     railItem("fileDiff", "Cambios", false) +
     railItem("history", "Historial", false) +
-    railItem("gitBranch", "Líneas", false) +
+    railItem("gitBranch", "Ramas", false) +
     '<span class="rail-spacer"></span>' +
     '<span class="rail-avatar" title="gitodile">gi</span>' +
     '<button class="rail-round" type="button" data-tooltip="Ajustes">' + I.settings + "</button>" +

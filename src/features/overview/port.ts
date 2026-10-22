@@ -1,7 +1,7 @@
 /** The open project a call is scoped to. */
 export type OverviewProjectQuery = { path: string; sessionEpoch: string };
 
-/** Where the project lives, as Rust read it from the remote its line
+/** Where the project lives, as Rust read it from the remote its branch
  * publishes to (else `origin`, else the first one). The configured address
  * never crosses IPC; only what the header names. */
 export type RemoteHome = {

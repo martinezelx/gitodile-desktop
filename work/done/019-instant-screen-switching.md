@@ -13,7 +13,7 @@ completed: 2026-08-01
 # Goal
 
 Once a project is open, moving between its screens (Overview, Changes,
-Version lines) renders from already-known state instead of showing a loading
+Branches) renders from already-known state instead of showing a loading
 state and re-reading the repository. Paying to load a project the first time
 it becomes active stays acceptable; paying again on every navigation does not.
 
@@ -35,8 +35,8 @@ Task 012 already lifted the per-project repository facts into
 `lastView`), and `navigateToView` performs no fetch. Overview is therefore
 already instant. Three separate causes remain:
 
-1. **Version lines has no cache at all.** `VersionLinesPanel` starts in
-   `{ status: "loading" }` and calls `get_version_lines` from a mount effect.
+1. **Branches has no cache at all.** `BranchesPanel` starts in
+   `{ status: "loading" }` and calls `get_branches` from a mount effect.
    The panel unmounts when the view changes, so every entry is a full spinner
    plus a fresh Git read.
 2. **The Changes diff cache dies with the component.** `DiffStore` lives in a
@@ -45,13 +45,13 @@ already instant. Three separate causes remain:
    batch warm-up, so returning re-runs all of it. The working-tree *list*
    itself is already instant (it comes from the session).
 3. **Two lazy chunks are never prefetched.** Task 018 added an idle-time
-   `prefetchLazyPanels`, but `versionLinesPanel` and `versionLinesDialog`
+   `prefetchLazyPanels`, but `branchesPanel` and `branchesDialog`
    (added later, in task 016) were never added to it, so the first navigation
-   to Version lines pays a chunk fetch and shows `ViewLoadingFallback`.
-4. **Overview's version-line menu reads branches on every open.** Reported by
+   to Branches pays a chunk fetch and shows `ViewLoadingFallback`.
+4. **Overview's branch menu reads branches on every open.** Reported by
    the user after the first three were fixed.
-   `OverviewVersionLineQuickActions` blanked itself to a spinner and ran its
-   own `get_version_lines` each time the dropdown opened — the same data the
+   `OverviewBranchQuickActions` blanked itself to a spinner and ran its
+   own `get_branches` each time the dropdown opened — the same data the
    session now caches. Folded into this task because it is the same cache and
    the same fix, not a new problem.
 
@@ -61,8 +61,8 @@ gain extra Git reads.
 
 # Scope
 
-- Move the version-lines snapshot into `ProjectSession`, guarded by its own
-  generation counter, and make `VersionLinesPanel` a controlled component that
+- Move the branches snapshot into `ProjectSession`, guarded by its own
+  generation counter, and make `BranchesPanel` a controlled component that
   renders the cached snapshot immediately and revalidates in the background
   (stale-while-revalidate). The spinner appears only when there is nothing
   cached to show.
@@ -72,7 +72,7 @@ gain extra Git reads.
   snapshot resets the store) unchanged.
 - Seed the panel's initial diff state from that cache so a warm return paints
   the diff on the first frame, with no intermediate empty state.
-- Prefetch the version-lines snapshot for the active project during idle time,
+- Prefetch the branches snapshot for the active project during idle time,
   and add the two missing chunks to task 018's existing idle prefetch.
 - Point Overview's quick-switch menu at the same cached snapshot, revalidating
   in the background when it opens.
@@ -98,7 +98,7 @@ gain extra Git reads.
 
 # Acceptance criteria
 
-- [x] Returning to Version lines within the same project renders the previous
+- [x] Returning to Branches within the same project renders the previous
       snapshot with no loading spinner, while a background refresh runs.
 - [x] A failed background refresh keeps the last known snapshot visible and
       says it is stale, rather than replacing it with an error screen. An
@@ -109,26 +109,26 @@ gain extra Git reads.
 - [x] A new working-tree snapshot still resets the diff cache.
 - [x] Closing a project drops its cached diffs.
 - [x] No Git command runs before first paint, and startup restore issues no
-      version-lines reads; the prefetch is idle-time only and gated on restore
+      branches reads; the prefetch is idle-time only and gated on restore
       having finished.
-- [x] Tests cover: the new reducer actions, the version-lines panel's cached/
+- [x] Tests cover: the new reducer actions, the branches panel's cached/
       stale/error rendering, and a Changes unmount→remount that does not
       refetch.
-- [x] Reopening Overview's version-line menu shows the branches immediately,
+- [x] Reopening Overview's branch menu shows the branches immediately,
       with no spinner, and no read on open beyond a background revalidation.
 - [x] `pnpm run typecheck`, `pnpm run test`, and `pnpm run build` pass.
 
 # Relevant files
 
 - `src/projectSessions.ts`
-- `src/versionLinesPanel.tsx`
+- `src/branchesPanel.tsx`
 - `src/changes.tsx`
 - `src/diffCache.ts` (new)
 - `src/main.tsx`
 
 # Dependencies
 
-Builds on task 012 (per-project sessions), task 016 (version lines), and task
+Builds on task 012 (per-project sessions), task 016 (branches), and task
 018 (launch performance and the idle prefetch it introduced).
 
 # Decisions
@@ -139,7 +139,7 @@ Builds on task 012 (per-project sessions), task 016 (version lines), and task
   revalidates; what changed is that the cached answer is what the user looks
   at while it happens. The freshness guarantee is unchanged — only the
   spinner is gone.
-- **A separate generation counter for version lines.** Reusing
+- **A separate generation counter for branches.** Reusing
   `statusGeneration` would have let a working-tree refresh invalidate an
   unrelated in-flight branch read (and vice versa), silently dropping results.
   The counter follows the existing rule that ownership lives with the caller,
@@ -161,7 +161,7 @@ Builds on task 012 (per-project sessions), task 016 (version lines), and task
   task 018's launch. Nothing here runs before first paint, and startup restore
   issues no branch reads — a project's inventory is read on idle after restore
   finishes, or on arrival at the screen, whichever comes first.
-- **`VersionLinesPanel` became fully controlled rather than keeping a fetch
+- **`BranchesPanel` became fully controlled rather than keeping a fetch
   with an optional cache seed.** Two fetch paths for the same data (the panel
   and the prefetch) would have needed their own dedupe and generation rules.
   As a presentational component it also matches AGENTS.md's "keep domain logic
@@ -183,37 +183,37 @@ Builds on task 012 (per-project sessions), task 016 (version lines), and task
   "is this result still current" check moved from comparing the old ref to
   comparing a `storeRef` — same semantics, including under StrictMode's
   double-invoke.
-- `src/projectSessions.ts`: `ProjectSession` gained `versionLines`,
-  `versionLinesError`, `isLoadingVersionLines`, and `versionLinesGeneration`,
-  with `startVersionLinesLoad` / `applyVersionLines` / `applyVersionLinesError`
+- `src/projectSessions.ts`: `ProjectSession` gained `branches`,
+  `branchesError`, `isLoadingBranches`, and `branchesGeneration`,
+  with `startBranchesLoad` / `applyBranches` / `applyBranchesError`
   mirroring the working-tree actions, including keeping the last known
   snapshot on a failed refresh.
-- `src/versionLinesPanel.tsx`: no longer invokes anything. It renders
+- `src/branchesPanel.tsx`: no longer invokes anything. It renders
   `snapshot`/`error`/`isLoading` props, shows the spinner only with no cached
   snapshot, reuses `t.statusRefreshFailedNote` for the stale case, and hands
   a mutation's returned snapshot back through `onSnapshot`.
-- `src/main.tsx`: added `refreshVersionLines` (generation-guarded and deduped
-  per path via `versionLinesRequestsRef`, so the idle prefetch and a user
-  arriving early share one Git process) and `commitVersionLines` (stores a
+- `src/main.tsx`: added `refreshBranches` (generation-guarded and deduped
+  per path via `branchesRequestsRef`, so the idle prefetch and a user
+  arriving early share one Git process) and `commitBranches` (stores a
   snapshot a mutation already returned, bumping the generation first so an
   older read cannot land on top of it). Two effects drive it: an idle-time
   warm-up for an active project with nothing cached, and a revalidation on
-  arriving at the Version lines screen. `handleVersionLineChanged` now also
+  arriving at the Branches screen. `handleBranchChanged` now also
   refreshes the inventory, because Overview's quick switch/create reach the
   same commands from outside that screen. `scheduleIdleTask` was extracted
   from the existing module-level prefetch and now serves both; the prefetch
-  list gained `versionLinesPanel` and `versionLinesDialog`, which task 016
+  list gained `branchesPanel` and `branchesDialog`, which task 016
   never added. `performCloseSession` calls `releaseDiffCache`; the generation
   counters intentionally survive a close, since resetting one mid-flight
   would let a stale response be accepted by a reopened session.
-- `src/main.tsx` (Overview dropdown): `OverviewVersionLineQuickActions` no
+- `src/main.tsx` (Overview dropdown): `OverviewBranchQuickActions` no
   longer invokes anything. It takes `snapshot`/`isLoadingSnapshot` and derives
   the same bounded, worktree-filtered list of six from the session cache, and
   fires `onOpened` on each open so `App` can revalidate behind it. The spinner
   now needs both "no snapshot" and "still loading", so a failed first read
   falls through to the empty-state text instead of spinning forever, which
-  the old `setLines([])`-on-error path handled and a naive port would have
-  lost. `OverviewPanel` gained `versionLines` / `isLoadingVersionLines` /
+  the old `setBranches([])`-on-error path handled and a naive port would have
+  lost. `OverviewPanel` gained `branches` / `isLoadingBranches` /
   `onQuickSwitchOpened` to pass it through.
 - Follow-up not done here: `ChangesSelectionState.excludedPaths` exists in the
   session type but is still always empty, since the panel keeps that state
@@ -298,12 +298,12 @@ drives and some container mounts do not deliver events at all.
 
 - `pnpm run typecheck` (`tsc -b --pretty false`) — pass.
 - `pnpm run test` (`vitest run`) — pass, 136 tests in 15 files (up from 128:
-  3 new version-lines panel cases, 3 new reducer cases, 1 new Changes remount
+  3 new branches panel cases, 3 new reducer cases, 1 new Changes remount
   case, 1 new Overview dropdown case; several existing cases rewritten in
   place, none removed).
 - `pnpm run build` (`tsc -b && vite build`) — pass. Chunking intact: entry
-  335.61 kB (gzip 97.15), `changes` 301.88 kB, `versionLinesPanel` 7.74 kB,
-  `versionLinesDialog` 11.90 kB. The `changes` chunk keeping its full size is
+  335.61 kB (gzip 97.15), `changes` 301.88 kB, `branchesPanel` 7.74 kB,
+  `branchesDialog` 11.90 kB. The `changes` chunk keeping its full size is
   the evidence that `diffCache.ts` did not drag it into the entry chunk. No
   clean before/after entry-size comparison was possible in this session, since
   the working tree also carries task 016's uncommitted work.

@@ -315,9 +315,9 @@ describe("projectSessionsReducer", () => {
 
     // A local mutation writes repository state itself; refreshing underneath
     // it would show a half-finished tree or move the ground under a plan being
-    // confirmed. Version-line operations use the same coordination contract
+    // confirmed. Branch operations use the same coordination contract
     // as save and publish.
-    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "version-line" });
+    state = projectSessionsReducer(state, { type: "startOperation", id: "/a", kind: "branch" });
     expect(shouldRefreshOnWatchEvent(state.byId["/a"])).toBe(false);
     for (const phase of ["executing", "verifying", "uncertain"] as const) {
       state = projectSessionsReducer(state, { type: "setOperationPhase", id: "/a", phase });
@@ -396,7 +396,7 @@ describe("projectSessionsReducer", () => {
     state = projectSessionsReducer(state, {
       type: "startOperation",
       id: "/worktree-a",
-      kind: "version-line",
+      kind: "branch",
     });
 
     expect(getMutationBlocker(state, "/worktree-b")?.id).toBe("/worktree-a");

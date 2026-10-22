@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import type { ChangesController } from "../changes";
 import type { HistoryController } from "../history";
-import type { VersionLinesController } from "../version-lines";
+import type { BranchesController } from "../branches";
 import type { SyncController, SyncErrorMapper } from "../sync";
 import type { ProjectRuntime } from "../../runtime/project/runtime";
 import type { ProjectSession } from "../../runtime/project/sessions";
@@ -14,7 +14,7 @@ type ProjectCacheWarmingOptions = {
   session: ProjectSession | null;
   changesController: ChangesController;
   historyController: HistoryController;
-  versionLinesController: VersionLinesController;
+  branchesController: BranchesController;
   syncController: SyncController;
   mapSyncError: SyncErrorMapper;
 };
@@ -31,7 +31,7 @@ export function useProjectCacheWarming({
   session,
   changesController,
   historyController,
-  versionLinesController,
+  branchesController,
   syncController,
   mapSyncError,
 }: ProjectCacheWarmingOptions): void {
@@ -50,12 +50,12 @@ export function useProjectCacheWarming({
     if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {
       return undefined;
     }
-    return versionLinesController.scheduleWarm(
+    return branchesController.scheduleWarm(
       runtime,
       { projectId: projectPath, sessionEpoch: session.epoch },
       "project-activation",
     );
-  }, [hasCompletedSessionRestore, projectPath, runtime, session?.epoch, versionLinesController]);
+  }, [hasCompletedSessionRestore, projectPath, runtime, session?.epoch, branchesController]);
 
   useEffect(() => {
     if (!hasCompletedSessionRestore || !projectPath || !session?.epoch) {

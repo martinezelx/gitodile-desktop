@@ -12,7 +12,7 @@ Every project screen spread its content over three to five cards, each
 wearing the resting-card recipe: `--surface-panel`, `--border-subtle`,
 `--shadow-sm` at `--radius-surface`, 16px apart, on the flat plane of the
 titlebar and the rail. The recipe itself was right, but repeating it made
-each screen a different board. Overview had five cards, Work and Lines two
+each screen a different board. Overview had five cards, Work and Branches two
 panes and a status-bar card, and moving between them changed how many
 objects the window held and where their edges were. The 16px gaps between
 panes were also width the diff and the lists never got.
@@ -45,7 +45,7 @@ casts a shadow — and the points below are their detail.
    read as leaning on two edges; an even 8px read as a misalignment. Ten
    placements were compared (`work/assets/style-lab/frame-lab.html`).
 3. **Inside the sheet, regions, not cards.** Overview, Work (Changes and
-   History) and Lines lose the card recipe on their panels. Panels sit edge to
+   History) and Branches lose the card recipe on their panels. Panels sit edge to
    edge and meet on a 1px `--border-subtle` hairline. Overview reads as three
    bands: header, next step and body. Cards *inside* a panel keep
    `--surface-card` as before.
@@ -87,11 +87,11 @@ casts a shadow — and the points below are their detail.
   take that field's width instead of the palette's 480px.
 - DESIGN.md § Visual character, § Layout concept (rail and status bar) and
   § Elevation change. The feature sheets for Overview, Changes, History and
-  Lines drop the card recipe from their panels.
+  Branches drop the card recipe from their panels.
 - In themes where the panel and the window are close (Tokyo Night:
   `#1a1b26` on `#16161e`), the sheet's border carries the edge. It is the
   same border the cards had there.
-- In-screen notices (Changes, History, Lines, the automatic-updates and
+- In-screen notices (Changes, History, Branches, the automatic-updates and
   restore notices) had drifted across three fills — the raised surface of
   what floats, the panel the sheet itself is, and none. They are cards inside
   a region now: `--surface-card` with the subtle border. The narrow window's
@@ -106,7 +106,7 @@ casts a shadow — and the points below are their detail.
 - **Keep Friendly Card.** Rejected for the reason in the context: the recipe
   is right, but its repetition makes every screen a different board.
 - **Fused pieces (GitHub Desktop).** Panels joined with hairlines inside one
-  frame per screen. Close to this decision on Work and Lines, but on Home and
+  frame per screen. Close to this decision on Work and Branches, but on Home and
   Overview it turns independent cards into table cells.
 - **Edge to edge (VS Code, Sublime Merge).** Most room for the diff, but it
   gives up the capsule and radius-by-role system and reads as an expert tool.

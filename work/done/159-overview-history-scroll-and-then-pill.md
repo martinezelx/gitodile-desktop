@@ -58,7 +58,7 @@ in several versions. With nothing pending the pill was not drawn at all.
   ones are in History", "Where the project began" (a closing dot on the rail),
   or, for a shallow copy, "Older versions were not downloaded to this
   computer".
-- Scrolled to the end of a line that goes on, the header's "View all" takes the
+- Scrolled to the end of a branch that goes on, the header's "View all" takes the
   accent's light fill and breathes once (`.attention-breathe`); scrolling back
   up quiets it.
 - The next-step card, while saving is the step: "Then: publish it along with

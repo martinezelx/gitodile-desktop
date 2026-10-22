@@ -18,7 +18,7 @@ queue:
 
 The filled and half-filled version nodes use one derived fill: 65% of the
 primary ink mixed into the panel. It applies in light and dark, so Changes,
-Overview, History and Lines all read with the same softer charcoal instead of
+Overview, History and Branches all read with the same softer charcoal instead of
 a near-black or near-white disc.
 
 # User outcome
@@ -53,7 +53,7 @@ moves to the derived token.
   - History's `--local` and `--published` node;
   - Overview's `--local` and `--published` node, including the publishable
     row's hover half moon;
-  - Lines' recent `--local-only` and `--published` node.
+  - Branches' recent `--local-only` and `--published` node.
 - Leave the selected/active accent rules, the secondary ring for an unknown
   state, the forced-colors fallbacks and the hover halos untouched.
 - Update the node comments and `DESIGN.md` from "primary ink" to the node fill,
@@ -63,7 +63,7 @@ moves to the derived token.
 
 # Out of scope
 
-- The decorative scene dot in Overview and the route dots in Lines; they are
+- The decorative scene dot in Overview and the route dots in Branches; they are
   drawings, not version nodes.
 - The Overview incoming/Now dashed rings and the History local-group cloud.
 - Changing shapes, sizes, hover/selection accents or forced-colors mapping.
@@ -89,7 +89,7 @@ moves to the derived token.
 - `src/features/changes/changes.css`
 - `src/features/history/history.css`
 - `src/features/overview/overview.css`
-- `src/features/version-lines/version-lines.css`
+- `src/features/branches/branches.css`
 - `src/architecture/themeContrast.test.ts`
 - `DESIGN.md`
 - `work/assets/node-fill/node-fill-options.html`
@@ -118,7 +118,7 @@ None. The review asset is evidence, not a runtime dependency.
   `color-mix(in srgb, var(--text-primary-color) 65%, var(--surface-panel))`.
   It is derived once, not a per-theme value, and is the same recipe in light
   and dark.
-- `changes.css`, `history.css`, `overview.css`, `version-lines.css`: the
+- `changes.css`, `history.css`, `overview.css`, `branches.css`: the
   filled and half states use `var(--node-fill)` for both border and fill. The
   Overview publishable row's hover half moon uses it too. Selected/active
   accent rules, the unknown ring, the hover halos and the forced-colors
@@ -126,7 +126,7 @@ None. The review asset is evidence, not a runtime dependency.
 - `themeContrast.test.ts`: parses the mix from `tokens.css` and checks it at
   3:1 against `--surface-panel` in every registered theme. The 65% fill passes
   in all 14 themes.
-- `DESIGN.md`: the Overview, History, Lines and Changes node paragraphs now
+- `DESIGN.md`: the Overview, History, Branches and Changes node paragraphs now
   describe the node fill and the 65% recipe instead of the primary ink.
   `work/README.md` advances the next unused ID to 183.
 - `work/assets/node-fill/node-fill-options.html`: the review page now defaults

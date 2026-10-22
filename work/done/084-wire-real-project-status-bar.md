@@ -23,7 +23,7 @@ summary of the active project and make its project-sync refresh control work.
 # User outcome
 
 People can trust the status bar on every screen to identify the current version
-line, summarize unsaved work, show the known relationship with the team, say
+branch, summarize unsaved work, show the known relationship with the team, say
 how fresh that knowledge is, and refresh the remote comparison without leaving
 their current task.
 
@@ -47,7 +47,7 @@ duplicate feature state, or make screen visibility an invalidation trigger.
 - Enable the remote check control and route it through the existing sync
   controller for the active session.
 - Localize compact English and Spanish status copy and relative check times.
-- Keep long line names and narrow windows from displacing the version or the
+- Keep long branch names and narrow windows from displacing the version or the
   refresh action.
 - Add focused component tests and integration coverage for the app wiring.
 
@@ -61,7 +61,7 @@ duplicate feature state, or make screen visibility an invalidation trigger.
 # Acceptance criteria
 
 - [x] No fixed repository sample remains in `StatusBar.tsx`.
-- [x] The active version line and unsaved-change count come from the active
+- [x] The active branch and unsaved-change count come from the active
       session, including detached, unborn, loading, and error states.
 - [x] Team copy distinguishes fresh, cached, stale, checking, failed, and
       not-yet-checked knowledge and covers every `TeamSyncState`.
@@ -98,7 +98,7 @@ sync fact cluster, so it invokes the existing explicit remote check rather than
 the broader Overview refresh. This keeps the action's consequence narrow and
 matches its accessible name.
 
-**Keep the bar informational.** Version line, working-tree state, and team
+**Keep the bar informational.** Branch, working-tree state, and team
 relationship remain text rather than navigation shortcuts. This preserves the
 settled chrome hierarchy and avoids tiny 20–30px pointer targets for primary
 navigation.
@@ -121,11 +121,11 @@ owned by the always-visible bar. Its exact localized date and time remain in a
 title for inspection. The timer is cleaned up on unmount.
 
 The settled visual design was preserved. New flex roles and inner-text
-ellipsis keep a long version-line or relationship from displacing the refresh
+ellipsis keep a long branch or relationship from displacing the refresh
 control or app version. The refresh control gained a visible keyboard focus
-ring, busy labeling, and a disabled state outside a named version line.
+ring, busy labeling, and a disabled state outside a named branch.
 
-`StatusBar.test.tsx` covers no-project, long-line, dirty, loading, unavailable,
+`StatusBar.test.tsx` covers no-project, long-branch, dirty, loading, unavailable,
 cached, stale, Spanish, detached, relative-time, and every `TeamSyncState`.
 `App.test.tsx` proves the controlled data and explicit remote check are wired to
 the active project session.

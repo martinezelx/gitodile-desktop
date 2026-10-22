@@ -71,7 +71,7 @@ src/
     repository/
     status/
     changes/
-    version-lines/
+    branches/
     save-version/
     publish/
     history/
@@ -101,7 +101,7 @@ Ownership for the first migration is:
 | `repository` | repository identity, open/close/switch intent and project metadata | `features/repository/index.ts` |
 | `status` | working-tree snapshot and plain-language status mapping | `features/status/index.ts` |
 | `changes` | changed-file selection, diff cache, diff presentation and bounded lists | `features/changes/index.ts` |
-| `version-lines` | branch inventory and create/switch/delete controllers | `features/version-lines/index.ts` |
+| `branches` | branch inventory and create/switch/delete controllers | `features/branches/index.ts` |
 | `save-version` | save plan/result types and save workflow | `features/save-version/index.ts` |
 | `publish` | remotes, pending versions, publish plan/result and publish workflow | `features/publish/index.ts` |
 | `history`, `recovery`, `conflicts` | their future product workflows | their own `index.ts` |
@@ -150,7 +150,7 @@ src-tauri/src/
     repository/
     status/
     changes/
-    version_lines/
+    branches/
     save_version/
     publish/
     history/
@@ -234,7 +234,7 @@ Keep the child order in epic 022:
 2. 024 creates bounded Rust execution and repository access.
 3. 025 establishes contract-tested IPC, session epochs and watcher events.
 4. 026 creates the frontend runtime and dependency guards.
-5. 027 migrates Version lines as the reference vertical slice.
+5. 027 migrates Branches as the reference vertical slice.
 6. 028 migrates repository, status, changes and diff reads.
 7. 029 migrates save and publish mutations.
 8. 030 moves feature-owned styles and translations.
@@ -306,7 +306,7 @@ intended frontend composition root, and this decision record should say so.
   convention. Overview registers eagerly — it paints before any project is open,
   so a lazy chunk would sit in front of first paint — which is why
   `createEagerScreenContainer` exists alongside the lazy one.
-- **No task owned this.** Tasks 023-030 assigned migrations for version lines,
+- **No task owned this.** Tasks 023-030 assigned migrations for branches,
   reads, mutations, styles and translations. Overview and Settings were never
   assigned to anyone, which is why they survived a nine-task refactor. Future
   epics should enumerate every screen, not every layer.

@@ -91,7 +91,7 @@ only.
       state and per-project history are unchanged by visiting Projects.
 - [x] The heading and the recent list are correct both with and without open
       projects; open projects are not repeated in the recent list.
-- [x] The status bar retains the active project's name, line, working-tree and
+- [x] The status bar retains the active project's name, branch, working-tree and
       remote state, and actions while Projects is visible.
 - [x] Home is registered in `src/app/screens.tsx`; hidden-screen rules
       (no polling or costly effects while hidden) hold.

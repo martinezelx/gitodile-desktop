@@ -64,7 +64,7 @@ aggregate suite and was separately run successfully as described above.
 The check used an isolated Cargo target directory because the running Windows
 application locks its normal executable, and six Vitest workers. The aggregate
 gate exposed a missing error-code fixture entry (corrected) and an existing
-Version Lines hover/selection fixture race; that fixture now shares one pending
+Branches hover/selection fixture race; that fixture now shares one pending
 response instead of overwriting its resolver. A native regression also proves
 cached catalog reads stay responsive during a simulated secure-store prompt.
 

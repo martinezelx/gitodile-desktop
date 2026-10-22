@@ -151,7 +151,7 @@ export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: s
 
 /** Case-insensitive substring match over the whole repository-relative path,
  * so typing either a file name or a folder narrows the list — the same
- * behavior the Version lines screen's search box has. An all-whitespace query
+ * behavior the Branches screen's search box has. An all-whitespace query
  * is treated as no query at all, rather than as a filter nothing matches. */
 export function filterEntriesBySearch(entries: WorkingTreeEntry[], search: string): WorkingTreeEntry[] {
   const query = search.trim().toLowerCase();
@@ -1239,7 +1239,7 @@ export function ChangesPanel({
   onOpenSettings: () => void;
   onSaveCompleted: () => void;
   /** Opens the previewed publish flow: the empty state's primary action when
-   * the line has saved versions the remote does not have yet. */
+   * the branch has saved versions the remote does not have yet. */
   onPublishNow: () => void;
   /** Brings the remote's newer versions in through the same previewed flow
    * Overview's "review and get team changes" uses. */

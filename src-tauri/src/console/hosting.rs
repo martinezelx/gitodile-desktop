@@ -25,7 +25,7 @@ pub(crate) enum HostKind {
     Git,
     /// No remote: the project lives only on this computer.
     Local,
-    /// Several remotes and none the current line publishes to or `origin`.
+    /// Several remotes and none the current branch publishes to or `origin`.
     Unclear,
 }
 
@@ -54,7 +54,7 @@ impl ConsoleHost {
 }
 
 /// The remote a person means by "the project's remote": the one the current
-/// line publishes to, else `origin`, else the only one.
+/// branch publishes to, else `origin`, else the only one.
 fn chosen_remote(remotes: &crate::sync::ProjectRemotes) -> Option<&crate::sync::ProjectRemote> {
     let named = |name: &str| remotes.remotes.iter().find(|remote| remote.name == name);
     remotes

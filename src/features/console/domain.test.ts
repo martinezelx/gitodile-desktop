@@ -54,15 +54,15 @@ describe("console shortcuts", () => {
   });
 
   it("gives names saved before a catalogue grew the new queries, keeping what they removed", () => {
-    const firstFormat = JSON.stringify([{ name: "stat", operationId: "status" }, { name: "look", operationId: "status" }, { name: "graph", operationId: "log" }]);
-    const names = readShortcuts({ getItem: () => firstFormat });
+    const stored = JSON.stringify({ catalogue: ["status", "diff", "log", "branches"], shortcuts: [{ name: "stat", operationId: "status" }, { name: "look", operationId: "status" }, { name: "graph", operationId: "log" }] });
+    const names = readShortcuts({ getItem: () => stored });
     expect(names.slice(0, 3).map((item) => item.name)).toEqual(["stat", "look", "graph"]);
     // "diff" and "branches" were known and removed; "graph" is taken, so the graph query gets no name.
     // Their own "stat" keeps the built-in line of that name out as well.
     expect(names.slice(3).map((item) => item.name)).toEqual([
       "staged", "last", "tags", "remotes", "stashes", "authors",
       "prs", "my-prs", "issues", "runs", "checks", "repo",
-      "short", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size",
+      "short", "today", "week", "unpublished", "incoming", "moves", "all-branches", "size",
     ]);
     const current = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => current })).toEqual([{ name: "look", operationId: "status" }]);
@@ -73,7 +73,7 @@ describe("console shortcuts", () => {
     expect(readShortcuts({ getItem: () => beforeLines }).map((item) => item.name))
       .toEqual([
         "look", "prs", "my-prs", "issues", "runs", "checks", "repo",
-        "short", "stat", "today", "week", "unpublished", "incoming", "moves", "all-lines", "size",
+        "short", "stat", "today", "week", "unpublished", "incoming", "moves", "all-branches", "size",
       ]);
     const removedToday = JSON.stringify({ catalogue: [...SHORTCUT_CATALOGUE], shortcuts: [{ name: "look", operationId: "status" }] });
     expect(readShortcuts({ getItem: () => removedToday })).toEqual([{ name: "look", operationId: "status" }]);

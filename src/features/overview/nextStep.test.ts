@@ -173,7 +173,7 @@ describe("deriveNextStep", () => {
       tone: "calm",
       secondary: ["checkRemote"],
     });
-    expect(next({ teamSync: sync({ state: "detached" }) })).toMatchObject({ kind: "detached", secondary: ["openLines"] });
+    expect(next({ teamSync: sync({ state: "detached" }) })).toMatchObject({ kind: "detached", secondary: ["openBranches"] });
   });
 });
 
@@ -189,7 +189,7 @@ describe("deriveNextStep with a forecast", () => {
     });
   });
 
-  it("combines a diverged line, with publishing beside it when publishing is possible", () => {
+  it("combines a diverged branch, with publishing beside it when publishing is possible", () => {
     expect(next({ pendingVersionsCount: 1, teamSync: diverged() })).toMatchObject({
       kind: "diverged", primary: "getChanges", secondary: ["getAndPublish"], note: { kind: "canCombine" }, then: null,
     });

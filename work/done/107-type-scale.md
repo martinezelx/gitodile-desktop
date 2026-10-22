@@ -117,7 +117,7 @@ nobody in this codebase has ever chosen on purpose.
       user reviewed the running app twice, which is what caught "too bold" and
       "too large". Beyond that, surfaces were verified on harness pages built
       from the real stylesheets and the real markup — History (timeline, detail,
-      overview tab, files), Changes and Version lines headers, Overview hero and
+      overview tab, files), Changes and Branches headers, Overview hero and
       section cards, the settings rows, the notices, the rail, the diff, and
       every fixed-size badge and avatar. Not every dialog was walked
       individually; the dialogs share `.dialog-*` and the primitives, and their
@@ -260,7 +260,7 @@ were left alone.
 **The missing `body` font-size**, the loose end 106 recorded. Four elements were
 silently on the browser's 16px: `.pending-versions__summary`,
 `.project-path__copy` (an icon button, so no visible text),
-`.version-line-card__value` and `.compact-nav__item`. All four are now on
+`.branch-card__value` and `.compact-nav__item`. All four are now on
 `--text-body`.
 
 **Two defects found in the closing review, both real.**

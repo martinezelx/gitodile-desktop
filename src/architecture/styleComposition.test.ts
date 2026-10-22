@@ -21,7 +21,7 @@ const EXPECTED_IMPORTS = [
   "./features/save-version/save-version.css",
   "./features/publish/publish.css",
   "./features/sync/sync.css",
-  "./features/version-lines/version-lines.css",
+  "./features/branches/branches.css",
   "./features/console/console.css",
   "./features/history/history.css",
   "./features/workbench/workbench.css",
@@ -76,12 +76,12 @@ describe("production style composition", () => {
     expect(changes).toContain("background: var(--surface-code)");
     expect(changes).toContain("@media (max-width: 1024px)");
 
-    const versionLines = readSource("features/version-lines/version-lines.css");
-    // Lines pairs the same two panels Changes and History do, off the same two
+    const branches = readSource("features/branches/branches.css");
+    // Branches pairs the same two panels Changes and History do, off the same two
     // tokens and at the same width the other two narrow on.
-    expect(versionLines).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
-    expect(versionLines).toContain("height: var(--strip-height)");
-    expect(versionLines).toContain("@media (max-width: 1024px)");
+    expect(branches).toContain("grid-template-columns: var(--panel-column) minmax(0, 1fr)");
+    expect(branches).toContain("height: var(--strip-height)");
+    expect(branches).toContain("@media (max-width: 1024px)");
 
     const settings = readSource("features/settings/settings.css");
     expect(settings).toContain("@media (max-width: 800px)");
@@ -94,7 +94,7 @@ describe("production style composition", () => {
     const primitiveChrome = readSource("shared/ui/primitives.css");
     expect(primitiveChrome).toContain(".settings-layout {");
     expect(primitiveChrome).toContain(".tool-row__chip");
-    // No screen opens on a page row any more: Changes, History and Lines head
+    // No screen opens on a page row any more: Changes, History and Branches head
     // their list panels instead, so the shared row is gone and must not come
     // back as a private copy either.
     expect(primitiveChrome).not.toContain(".screen-header {");
@@ -133,19 +133,19 @@ describe("production style composition", () => {
     expect(changes).not.toContain(".changes-filter__trigger");
     expect(changes).not.toContain(".changes-filter__capsule");
     expect(changes).not.toContain(".changes-filter-chip");
-    // Lines asks the same question of a third list, and had kept a private
+    // Branches asks the same question of a third list, and had kept a private
     // copy of the whole surface — down to a `Sort by` legend that had never
     // picked up the shared sheet's fix for a legend not being a grid item.
-    expect(versionLines).not.toContain(".version-lines-filter__panel");
-    expect(versionLines).not.toContain(".version-lines-filter__trigger");
-    expect(versionLines).not.toContain(".version-lines-filter__range");
-    expect(versionLines).not.toContain(".version-lines-filter__switch");
+    expect(branches).not.toContain(".branches-filter__panel");
+    expect(branches).not.toContain(".branches-filter__trigger");
+    expect(branches).not.toContain(".branches-filter__range");
+    expect(branches).not.toContain(".branches-filter__switch");
     // What each feature is still allowed to own: the parts of its own panel
-    // that only it has. History's version-line picker, and the one group in
+    // that only it has. History's branch picker, and the one group in
     // Changes that grows with the repository and therefore scrolls.
     expect(history).toContain(".history-scope-picker {");
     expect(changes).toContain(".changes-filter__types {");
-    expect(versionLines).toContain(".version-lines-filter__prefixes {");
+    expect(branches).toContain(".branches-filter__prefixes {");
 
     const appShell = readSource("app/app-shell.css");
     expect(appShell).toContain(".settings-dialog");
@@ -162,7 +162,7 @@ describe("production style composition", () => {
     const primitives = readSource("shared/ui/primitives.css");
     const changes = readSource("features/changes/changes.css");
     const history = readSource("features/history/history.css");
-    const versionLines = readSource("features/version-lines/version-lines.css");
+    const branches = readSource("features/branches/branches.css");
 
     expect(primitives).toContain(".app-menu {");
     // A feature override still has to be able to win on equal specificity —
@@ -170,7 +170,7 @@ describe("production style composition", () => {
     // strip and its items name the list under it: it opens rightward, across
     // the diff, so the files it names stay in view.
     expect(changes).toContain(".changes-actions-menu__popup { right: auto; left: 0;");
-    expect(versionLines).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
+    expect(branches).not.toMatch(/^\s*\.app-menu(?:\s|,|\{)/m);
 
     // The shared view picker is not one, in either of its two hosts. Both put
     // it at the right edge of a panel that clips its own overflow, so both
@@ -278,7 +278,7 @@ describe("production style composition", () => {
       ["features/changes/changes.css", ".changes-file-list"],
       ["features/changes/changes.css", ".changes-diff"],
       ["features/history/history.css", ".history-detail__card"],
-      ["features/version-lines/version-lines.css", ".version-lines-list-panel"],
+      ["features/branches/branches.css", ".branches-list-panel"],
       ["features/overview/overview.css", ".next-step"],
       ["features/overview/overview.css", ".overview-history"],
       ["features/overview/overview.css", ".overview-detail"],
@@ -292,7 +292,7 @@ describe("production style composition", () => {
       ["features/changes/changes.css", ".changes-status-notice"],
       ["features/changes/changes.css", ".changes-notice"],
       ["features/history/history.css", ".history-banner"],
-      ["features/version-lines/version-lines.css", ".version-lines-banner"],
+      ["features/branches/branches.css", ".branches-banner"],
       ["shared/ui/primitives.css", ".automatic-updates-notice"],
       ["shared/ui/primitives.css", ".restore-skipped-notice"],
     ];

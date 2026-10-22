@@ -15,8 +15,8 @@ queue:
 
 # Goal
 
-The status bar's `project · line` block becomes the one place to change
-either: the project name opens a project popup that is the twin of the line
+The status bar's `project · branch` block becomes the one place to change
+either: the project name opens a project popup that is the twin of the branch
 popup, and the project switcher leaves the rail and the compact navigation
 row. The slash between the two segments goes, and they sit as two equal
 segments. The theme toggle moves from the title bar to the foot of the rail,
@@ -37,10 +37,10 @@ Explored with Luis on 2026-10-20 in two artifacts:
 - Interactive comparison of seven options (A–G) and four places for the theme
   toggle: https://claude.ai/artifact/EiuGwjrw5NxwtzC5Tctivp
 
-Option G ("Híbrida") was recommended and accepted: the anatomy of the line
+Option G ("Híbrida") was recommended and accepted: the anatomy of the branch
 popup (option A) with the current project and its actions at the head, and the
 recently closed projects under the open ones. Luis then asked for the same head
-on the line popup.
+on the branch popup.
 
 Queued at the end of the active queue, but taken next by explicit request
 because it belongs to release 0.3.1.
@@ -87,7 +87,7 @@ itself; Console keeps Ctrl/Cmd+Tab and the palette's project commands.
 - [x] Closed recent projects open from the popup.
 - [x] Add project offers open, create and clone; All in Home goes to Home.
 - [x] Switching is disabled while a blocking dialog is open, and says why.
-- [x] No slash between project and line; the two segments align.
+- [x] No slash between project and branch; the two segments align.
 - [x] The rail has no project group; the theme toggle sits above Settings and
       keeps today's three meanings; the title bar shows it only while the
       rail is hidden.
@@ -109,12 +109,12 @@ None.
 
 # Decisions
 
-1. **Option G.** The line popup's anatomy, so both halves of the block are
+1. **Option G.** The branch popup's anatomy, so both halves of the block are
    learnt once; the active project's actions at the head so settings do not
    cost a chevron; recently closed projects so reopening one does not need
    Home.
 2. **No slash.** With both segments wearing a glyph and a chevron, they read
-   as two controls; a slash beside line names that carry their own slashes
+   as two controls; a slash beside branch names that carry their own slashes
    was noise.
 3. **Theme toggle in the rail foot.** The foot holds the app's own controls
    (Settings, Account); the theme is the app's, not the project's. It takes the
@@ -147,11 +147,11 @@ None.
   exception it needed), the compact switcher, `statusBarProjectTooltip`, the
   favourites-only filter strings and `projectSwitcherHomeHint`.
   `projectSwitcherRailTrigger` is now `projectSwitcherTrigger`.
-- The line popup takes the project popup's head (asked for during the task):
-  the current line's glyph, name and latest saved version with "Copy name",
+- The branch popup takes the project popup's head (asked for during the task):
+  the current branch's glyph, name and latest saved version with "Copy name",
   over a hairline. Both popups are 400px tall now; the search still takes
   focus (`usePortalFlyout` with no focus target and a layout effect, as in
-  the project popup). New line and Manage lines stay at the foot, the
+  the project popup). New branch and Manage branches stay at the foot, the
   counterparts of Add project and All in Home.
 - The rail's foot loses its tray (compared in
   https://claude.ai/artifact/5WQM5oZyXAJrQaebbyaJQ9, option B): no
@@ -170,16 +170,16 @@ None.
   uncertain operation, overlapping changes and an unreadable history
   (`resolve`, `CircleAlert`), then a running operation (`busy`, a turning
   ring). Another project's state no longer marks the trigger; `projectSwitcherAttention` is
-  gone. The line's unreadable-tree marker is the alert glyph instead of a red
+  gone. The branch's unreadable-tree marker is the alert glyph instead of a red
   dot. New marks breathe once with `.attention-breathe`.
 - A missing Git name or email was designed as a third mark ("set up", an
   empty ring) and left out at the final review: `get_git_identity` reads only
   the global configuration, and a project can set its own identity in its
   settings, so the mark would have raised a false alarm there. It needs the
   project's effective identity first (follow-up).
-- Final review fixes: the line popup's head finds the current line by name
-  rather than by `isActive`, so a cached snapshot that still marks the line
-  just left cannot put that line's latest version under the new name.
+- Final review fixes: the branch popup's head finds the current branch by name
+  rather than by `isActive`, so a cached snapshot that still marks the branch
+  just left cannot put that branch's latest version under the new name.
 - Console has no status bar: switching projects there is Ctrl/Cmd+Tab or the
   palette's project commands, as before for keyboard users.
 

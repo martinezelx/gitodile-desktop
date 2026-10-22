@@ -40,7 +40,7 @@ pub(crate) struct PublishPlan {
     pub(crate) target: PublishTarget,
     pub(crate) local_branch: String,
     pub(crate) will_create_upstream: bool,
-    /// The line already tracks this destination, but the remote no longer
+    /// The branch already tracks this destination, but the remote no longer
     /// has the branch: publishing creates it again. The dialog asks for that
     /// explicitly rather than presenting it as an ordinary publish.
     pub(crate) recreates_deleted_branch: bool,
@@ -94,7 +94,7 @@ struct ValidatedPublish {
 
 /// Validates and resolves an explicit `upTo` request: it must name a real
 /// commit, that commit must be an ancestor of (or equal to) `HEAD` — GitOdile
-/// never publishes something outside this version line's own history — and it
+/// never publishes something outside this branch's own history — and it
 /// must not already be reachable from the remote's last known position, or
 /// there would be nothing new to send.
 fn resolve_up_to_target(
@@ -121,7 +121,7 @@ fn resolve_up_to_target(
     if !is_ancestor_of_head.status.success() {
         return Err(AppError::new(
             AppErrorCode::InvalidSelection,
-            "That saved version isn't part of this version line anymore.",
+            "That saved version isn't part of this branch anymore.",
         )
         .with_remediation("Refresh and try again."));
     }
@@ -209,14 +209,14 @@ fn validate_and_prepare_publish(
     if head_state == HeadState::Detached {
         return Err(AppError::new(
             AppErrorCode::DetachedHead,
-            "This project isn't on a version line right now.",
+            "This project isn't on a branch right now.",
         )
-        .with_remediation("Switch to a version line before publishing."));
+        .with_remediation("Switch to a branch before publishing."));
     }
     if head_state == HeadState::Unborn {
         return Err(AppError::new(
             AppErrorCode::UnbornBranchNoVersion,
-            "There's no saved version on this version line yet.",
+            "There's no saved version on this branch yet.",
         )
         .with_remediation("Save a version first, then publish it."));
     }
@@ -262,7 +262,7 @@ fn validate_and_prepare_publish(
         if relation.diverged {
             return Err(AppError::new(
                 AppErrorCode::DivergedHistories,
-                "This version line and the remote project have both moved apart.",
+                "This branch and the remote project have both moved apart.",
             )
             .with_remediation("Get the team's changes first, then publish again."));
         }
@@ -301,7 +301,7 @@ fn validate_and_prepare_publish(
         .parse()
         .unwrap_or(0),
         // No remote branch to compare against: count what no branch of the
-        // remote has, not the line's whole history.
+        // remote has, not the branch's whole history.
         None => {
             let revisions =
                 not_on_remote_revisions(&target_sha, &target.remote, &target.destination_branch);
@@ -405,7 +405,7 @@ pub(crate) fn plan_publish(
         )
     } else if validated.remote_sha.is_none() {
         format!(
-            "This publishes this version line to \"{}\" for the first time.",
+            "This publishes this branch to \"{}\" for the first time.",
             validated.target.remote
         )
     } else {
@@ -420,7 +420,7 @@ pub(crate) fn plan_publish(
         validated.target.remote, validated.target.destination_branch
     )];
     if validated.will_create_upstream {
-        steps.push("Set this version line to track the remote branch going forward.".to_string());
+        steps.push("Set this branch to track the remote branch going forward.".to_string());
     }
     if validated.has_unsaved_files {
         steps.push("Leave unsaved files on this computer only.".to_string());
@@ -500,7 +500,7 @@ pub(crate) fn classify_push_failure(porcelain_stdout: &str, stderr: &str) -> App
     }
     AppError::new(
         AppErrorCode::GitCommandFailed,
-        "GitOdile couldn't publish this version line.",
+        "GitOdile couldn't publish this branch.",
     )
     .with_remediation("Check your connection and the remote project, then try again.")
     .with_detail(truncate_detail(stderr))

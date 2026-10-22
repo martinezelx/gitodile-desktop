@@ -26,13 +26,13 @@ export { useModalFocus } from "./modalFocus";
 export { LoadingBar } from "./loadingBar";
 /* ADR 0003's two-consumer bar, passed many times over: every list, sentence
    and form that waits on a first Git read — Overview, Changes, History, the
-   version lines, Publish, project settings — draws its shape with these. */
+   branches, Publish, project settings — draws its shape with these. */
 export { LoadingPlaceholder, TextPlaceholder } from "./loadingPlaceholder";
 export { SearchBox } from "./searchBox";
 export { RefreshIconButton } from "./refreshIconButton";
 export { DialogCloseButton } from "./dialogCloseButton";
 /* DESIGN.md § Dialogs: every action dialog (create, clone, save, publish, get
-   changes, discard, the version-line dialogs, updates, the app's messages and
+   changes, discard, the branch dialogs, updates, the app's messages and
    the issue report) wears this one shell, so sizes, header and actions can't
    drift apart again the way seven widths and four paddings once did.
    `dialogBackdropProps` is the backdrop half of that shell, shared by the
@@ -48,7 +48,7 @@ export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";
 export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./popupMenu";
 /* ADR 0003's two-consumer bar, passed twice: the Changes file list and its
    diff shared one right-click menu, History borrowed the whole component to
-   get its behaviour, and the version-lines list needed the same mechanics for
+   get its behaviour, and the branches list needed the same mechanics for
    entirely different items. The surface is shared; the items never were. */
 export { ContextMenuSurface, contextMenuAnchorFrom, type ContextMenuAnchor } from "./contextMenu";
 /* Admitted with one consumer rather than ADR 0003's two, deliberately and on
@@ -72,7 +72,7 @@ export {
 } from "./filterPanel";
 export { copyTextToClipboard } from "./clipboard";
 /* ADR 0003's two-consumer bar (task 124): the Changes quick commit box and
-   the Lines quick create box both dock a closed-until-used compose box under
+   the Branches quick create box both dock a closed-until-used compose box under
    a scrollable list that is their flex sibling, and both need the same
    scroll-position correction when the box's own size changes. What is
    shared is the correction; the fields either box holds never were. */
@@ -123,7 +123,7 @@ export {
   type HighlightIcon,
   type ReleaseHighlightLine,
 } from "./releaseHighlights";
-/* ADR 0003's two-consumer bar: the Lines rows drew their states as glyphs
+/* ADR 0003's two-consumer bar: the Branches rows drew their states as glyphs
    first, and the History timeline needed the same vocabulary for whether a
    version has left the machine — two glyph recipes for one idea would drift
    the way the old version pills did. The glyphs are shared; which states a row

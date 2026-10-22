@@ -208,7 +208,7 @@ write an independent, substantially smaller design:
 # Out of scope
 
 - Editing code inside GitOdile.
-- Discarding individual hunks or selected lines.
+- Discarding individual hunks or selected branches.
 - Staging/unstaging controls or changing Save selected semantics.
 - A general application context-menu framework beyond the smallest reusable
   opt-in needed by selectable code.

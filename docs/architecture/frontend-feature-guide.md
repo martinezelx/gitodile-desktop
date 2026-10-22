@@ -106,7 +106,7 @@ with an owning-module error.
 
 For the complete read-and-mutation example, including epoch-keyed request
 deduplication, mutation supersession, bounded eviction and the Rust service
-boundary, see [the Version-lines reference slice](version-lines-reference-slice.md).
+boundary, see [the Branches reference slice](branches-reference-slice.md).
 
 For read-only repository state, use the task-028 ownership split: repository
 identity/invalidation coordination, status snapshot equality/generations and

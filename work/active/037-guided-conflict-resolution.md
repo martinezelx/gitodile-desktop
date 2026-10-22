@@ -36,8 +36,8 @@ When Git pauses because two sets of work overlap, the user can:
 
 - see what operation is paused and whether their work is safe;
 - find every affected file and understand the type of conflict;
-- compare the common starting point, the current version line, and the incoming
-  version line using their real names rather than ambiguous `ours`/`theirs`
+- compare the common starting point, the current branch, and the incoming
+  branch using their real names rather than ambiguous `ours`/`theirs`
   labels;
 - accept one side, combine both sides, or edit the final result directly;
 - move between individual conflict regions and files without losing progress;
@@ -54,7 +54,7 @@ Conflict resolution is one of GitOdile's core differentiators: it is where a
 beginner most needs technical truth translated into a safe, guided workflow.
 The current implementation already detects conflicted status entries, orders
 them first in Overview and Changes, displays a conflict-specific diff state,
-detects Git operations in progress, and blocks save/version-line operations
+detects Git operations in progress, and blocks save/branch operations
 while conflicts remain. It does not expose the three index stages, maintain a
 resolution session, edit or stage a result, complete a merge, or abort one.
 
@@ -241,7 +241,7 @@ not mean pretending every byte sequence can be merged as text.
   - combine both, with the resulting order stated before application;
   - edit the result manually;
   - restore the region to its initial unresolved result.
-- Use actual version-line names in visible labels where space allows. Plain
+- Use actual branch names in visible labels where space allows. Plain
   labels must remain stable when a ref is long, absent, or non-UTF-8.
 - Navigate previous/next unresolved region and previous/next unresolved file.
 - Show conflict and file progress textually, not only through color or icons.
@@ -295,7 +295,7 @@ not mean pretending every byte sequence can be merged as text.
 - Enable **Finish integration** only when a fresh backend read proves there are
   no unmerged index entries.
 - Present a final plan containing:
-  - the current and incoming version lines/commits;
+  - the current and incoming branches/commits;
   - resolved file count and bounded change summary;
   - the saved version that will be created;
   - hooks/signing implications;
@@ -448,7 +448,7 @@ but cannot safely resume, reset, finish, or abort the operation.
       an app-started merge result without a permanent sidebar destination.
 - [ ] The resolver is a dedicated, project-scoped workspace; leaving it never
       aborts, stages, discards, or completes anything.
-- [ ] Simple mode uses plain language and real version-line names; advanced
+- [ ] Simple mode uses plain language and real branch names; advanced
       details expose exact Git operation, refs, commits, stages, and commands.
 - [ ] The workspace matches GitOdile's established visual system in light and
       dark themes and supports wide, medium, and narrow desktop layouts.

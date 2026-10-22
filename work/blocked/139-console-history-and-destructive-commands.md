@@ -99,7 +99,7 @@ ADR 0008/0016 hidden-ref protocol and the ADR 0007 discard store.
 # Relevant files
 
 - [ADR 0017](../../docs/adr/0017-console-git-commands-by-permission-tier.md),
-  [ADR 0016](../../docs/adr/0016-keep-a-recovery-point-when-deleting-a-copied-version-line.md),
+  [ADR 0016](../../docs/adr/0016-keep-a-recovery-point-when-deleting-a-copied-branch.md),
   [ADR 0008](../../docs/adr/0008-store-history-recovery-as-versioned-hidden-refs.md),
   [ADR 0007](../../docs/adr/0007-store-discard-recovery-in-worktree-git-metadata.md)
 - `src-tauri/src/recovery/`, `src-tauri/src/index.rs`

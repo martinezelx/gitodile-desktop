@@ -65,7 +65,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   says what goes with it before it does.
 - Receive live, debounced repository updates without exposing raw filesystem
   paths to the frontend, or turn watching off — in which case Changes, History,
-  and Lines disclose that their local snapshot may be out of date and offer a
+  and Branches disclose that their local snapshot may be out of date and offer a
   focused update.
 - Save all or selected changes as a version with a title and description. The
   flow is planned and revalidated in Rust, preserves Git hooks and signing, and
@@ -73,11 +73,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Discover remotes and publish saved versions through a previewed,
   state-token-validated flow that reports uncertain remote outcomes honestly.
 - Check the configured upstream for project changes without moving the current
-  version line or files, manually or on an opt-in 15/30/60-minute cadence, with
+  branch or files, manually or on an opt-in 15/30/60-minute cadence, with
   cached/fresh status and clear next steps.
 - Get project changes with one confirmation. Before anything is pressed,
   Overview predicts locally whether the update is direct, needs a merge
-  version because both sides have new versions, or overlaps local work. Lines
+  version because both sides have new versions, or overlaps local work. Branches
   that don't overlap are advanced or combined with a merge version (running
   the project's merge hooks and honouring commit signing); unsaved edits on
   other lines of an incoming file stay unsaved on top of it; real overlaps are
@@ -85,22 +85,21 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   combined unsaved content) is kept first, and uncertain local outcomes are
   reported without an automatic repair. Publishing when the remote moved on
   gets, combines and publishes in the same confirmation.
-- List, create, switch, rename, and safely delete version lines (local
-  branches), with dirty-worktree checks and recovery references where required.
-  A line is only called safe to delete when another local or remote-tracking
-  reference already holds its saved work; a published line can have its remote
+- List, create, switch, rename, and safely delete local branches, with dirty-worktree checks and recovery references where required.
+  A branch is only called safe to delete when another local or remote-tracking
+  reference already holds its saved work; a published branch can have its remote
   copy removed with it, and the two halves are reported separately. The remote's
-  own default line is never renamed or deleted. The list keeps the current and
-  main lines on top, then lines still in progress and finished lines ready to
-  clean up (their work is on the main line and was their own; a line that is
+  own default branch is never renamed or deleted. The list keeps the current and
+  main branches on top, then branches still in progress and finished branches ready to
+  clean up (their work is on the main branch and was their own; a branch that is
   merely published, or idle, is never offered),
   each grouped by name prefix and foldable, with folds remembered per project.
-  "Clean up N lines…" on the finished lines deletes the ones you choose in one
-  confirmed step, optionally with their published copies, rechecking each line
+  "Clean up N branches…" on the finished branches deletes the ones you choose in one
+  confirmed step, optionally with their published copies, rechecking each branch
   first, keeping a recovery point with each one's name and last version, and
   reporting what was deleted, kept, or is still published.
-- See one version line's recent saved versions, its saved-version count and
-  where it stands against its remote, read on demand for the line you select
+- See one branch's recent saved versions, its saved-version count and
+  where it stands against its remote, read on demand for the branch you select
   rather than for every branch on every refresh.
 - Use a project-scoped Console to type Git commands such as
   `git log --graph --oneline -- src/`, `git show HEAD~2:README.md` or
@@ -127,11 +126,11 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   appears as a small, faint watermark behind the output, revealed by rows.
   Reduced motion keeps the drawing static. The transcript stays in memory for the open project
   session.
-- Browse the active version line as a bounded, read-only saved-version
-  timeline, or every line at once from a toggle beside the filters. Local and
+- Browse the active branch as a bounded, read-only saved-version
+  timeline, or every branch at once from a toggle beside the filters. Local and
   published versions read as two foldable blocks; merges fold what they
   brought in and open it on a thin lane of its own, and pointing at a lane
-  names its line and whether its versions are in another one. Inspect
+  names its branch and whether its versions are in another one. Inspect
   author/date/publication/ref metadata, changed files, and
   root/first-parent/merge diffs through the same typed renderer as Changes.
 - Review a bounded, redacted record of this session's app commands, Git
@@ -153,7 +152,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   lives, with copy and show-in-Explorer/Finder on hover, plus on-demand technical details — its
   architecture, internal folder, configuration files, credential helper, Git
   LFS and editor.
-- Set the default version-line name for new projects (written to Git's own
+- Set the default branch name for new projects (written to Git's own
   `init.defaultBranch`), choose how often project changes are checked
   automatically — from every minute to every day, or never — and decide whether
   GitOdile runs a project's Git hooks when it saves or publishes. Hooks run by
@@ -173,7 +172,7 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Return to Projects from More actions or the command palette while projects stay
   open, use recent closed projects, and go Back to the project screen you left.
 
-Not yet implemented: bringing in another local version line, the recovery
+Not yet implemented: bringing in another local branch, the recovery
 center, guided conflict
 resolution, and setting changes aside. Windows/Linux release qualification also
 remains open. Windows Authenticode and macOS delivery are deliberately deferred
@@ -282,7 +281,7 @@ separate:
   by common Git directory;
 - `repository.rs`, `clone.rs`, `initialize.rs`, `status.rs`, `changes.rs`, `console/`,
   `save_version.rs`, `sync.rs`,
-  `publish.rs`, `recovery.rs`, and `version_lines.rs` own product behavior;
+  `publish.rs`, `recovery.rs`, and `branches.rs` own product behavior;
 - `operation.rs` owns shared mutation classification and bounded/redacted
   diagnostic details;
 - `index.rs` owns collision-safe temporary-index preparation shared by safe
@@ -319,7 +318,7 @@ hardcoded list:
 | notify | `8.2.0` |
 
 GitOdile uses the system Git executable. Git **2.23 or newer** is required for
-version-line switching; diagnostics remain available when Git is missing or
+branch switching; diagnostics remain available when Git is missing or
 unusable.
 
 The GitHub block of Settings → Accounts offers optional **GitHub CLI (`gh`)** diagnostics,

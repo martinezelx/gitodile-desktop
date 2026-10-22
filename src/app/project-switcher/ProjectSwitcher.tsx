@@ -35,7 +35,7 @@ export type ProjectSwitcherEntry = {
   id: string;
   name: string;
   contextLabel: string | null;
-  /** The version line the project is on, or null when it is not on a branch. */
+  /** The branch the project is on, or null when it is not on a branch. */
   branch?: string | null;
   /** Where the project lives on disk: shown under its name at the popup's head
    * and in its actions, and what "Copy path" copies. */
@@ -170,21 +170,21 @@ function RowIndicators({ entry }: { entry: ProjectSwitcherEntry }): React.JSX.El
   );
 }
 
-/** The folder a project sits in, for a row that has no line to show. */
+/** The folder a project sits in, for a row that has no branch to show. */
 function parentFolder(path: string): string {
   const parts = path.replaceAll("\\", "/").replace(/\/+$/, "").split("/");
   return parts.length > 1 ? parts.slice(0, -1).join("/") : path;
 }
 
 /**
- * The project half of the status bar's `project · line` block, and the one
- * place to change projects: the twin of the line popup beside it, so both
+ * The project half of the status bar's `project · branch` block, and the one
+ * place to change projects: the twin of the branch popup beside it, so both
  * halves are learnt once (task 189). The popup leads with the active project
  * and the three things done to it — settings, its folder, closing it — then
  * the other open projects and the recently closed ones, and its foot adds a
  * project or goes Home.
  *
- * A project's actions open in place of the list, the way a line's do: the
+ * A project's actions open in place of the list, the way a branch's do: the
  * popup clips its overflow and dismisses on a press outside itself, so a
  * second floating surface anchored to a row would be cut off or would close
  * the control that opened it. Adding a project docks its three ways at the
@@ -226,8 +226,8 @@ export function ProjectQuickSwitch({
     (entry) => !needle || entry.name.toLocaleLowerCase().includes(needle),
   );
   const closed = recent.filter((entry) => !needle || entry.name.toLocaleLowerCase().includes(needle));
-  // The trigger speaks for the active project only, the way the line's marker
-  // speaks for its line: other projects' states stay on their rows.
+  // The trigger speaks for the active project only, the way the branch's marker
+  // speaks for its branch: other projects' states stay on their rows.
   const status = active ? activeStatus : null;
 
   const close = (restoreFocus: boolean): void => {
@@ -237,7 +237,7 @@ export function ProjectQuickSwitch({
     if (restoreFocus) triggerRef.current?.focus();
   };
   const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "below", "none");
-  // The search takes focus on opening, as on the line popup, although the
+  // The search takes focus on opening, as on the branch popup, although the
   // head's buttons come first in the popup: typing a name is what the popup
   // is opened for. Once the popup is visible — a hidden element cannot take
   // focus — and once per opening.
@@ -616,7 +616,7 @@ export function ProjectQuickSwitch({
           <FolderClosed aria-hidden="true" />
         )}
         <span className="status-bar__project-name">{active ? active.name : t.statusBarNoProject}</span>
-        {/* The line's chevron: both popups open upwards from the strip. */}
+        {/* The branch's chevron: both popups open upwards from the strip. */}
         <ChevronUp aria-hidden="true" className="status-bar__chevron" />
       </button>
       {isOpen && createPortal(

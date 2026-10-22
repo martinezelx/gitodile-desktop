@@ -62,7 +62,7 @@ refreshes, linked worktrees or slow remote operations overlap the UI.
 - [x] Direct concurrent IPC mutations against related worktrees serialize or
       fail safely under the Rust coordinator.
 - [x] Stale session epochs and state tokens reject execution before mutation.
-- [x] Every save/publish/version-line mutation requires a Rust-validated epoch;
+- [x] Every save/publish/branch mutation requires a Rust-validated epoch;
       invoking a legacy payload directly cannot bypass that check.
 - [x] Mutation results supersede older discovery reads and invalidate every
       affected feature exactly once.
@@ -110,7 +110,7 @@ linked worktrees, temporary-index isolation and byte-exact restoration,
 selected-file behavior, hook/signing classification, recovery references,
 upstream selection, prompt suppression and structured remote failures.
 
-All ten save, publish and version-line planner/executor commands now require a
+All ten save, publish and branch planner/executor commands now require a
 non-optional `sessionEpoch`. Rust validates it before entering the mutation
 workflow, the shared IPC contract checks the Rust signature and TypeScript
 payload, and the mutation compatibility inventory is empty. Immutable state
@@ -119,7 +119,7 @@ tokens remain a second execution-time check after session authorization.
 Watcher invalidations remain coalesced while a mutation is planning,
 executing, verifying or uncertain and may refresh after success or a known
 error. On success the read coordinator discards deferred watcher work,
-supersedes older status and version-line reads, then performs one coordinated
+supersedes older status and branch reads, then performs one coordinated
 refresh. Publish additionally commits its authoritative remaining-version
 count to the status cache before that refresh. Save deliberately does not
 synthesize working-tree state because hooks may have changed files. Remote
@@ -130,7 +130,7 @@ The migration does not add Git invocations or synchronous renderer work.
 Planning/execution still runs through the bounded async native runner, and
 navigation/read lifecycles are unchanged. The production build remained within
 task 023's warning budgets: the entry chunk was 374.86 kB raw / 109.31 kB gzip,
-Changes 59.47 kB, file icons 255.22 kB and Version lines 31.23 kB combined.
+Changes 59.47 kB, file icons 255.22 kB and Branches 31.23 kB combined.
 
 # Validation
 

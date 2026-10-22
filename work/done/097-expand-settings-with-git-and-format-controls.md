@@ -21,7 +21,7 @@ queue:
 
 Add four user-controllable preferences to the Settings overlay:
 
-1. The **default version-line name** used when GitOdile creates a project,
+1. The **default branch name** used when GitOdile creates a project,
    stored where Git itself reads it (`init.defaultBranch`).
 2. An explicit **"run Git hooks when saving and publishing"** switch.
 3. A **custom cadence** for automatic project-change checks, so the four fixed
@@ -31,7 +31,7 @@ Add four user-controllable preferences to the Settings overlay:
 
 # User outcome
 
-- A user who names their first version line `trunk` (or `master`, or anything
+- A user who names their first branch `trunk` (or `master`, or anything
   else) sets it once instead of retyping it in every new project, and other
   Git tools agree with GitOdile about it.
 - A user whose repository carries slow or noisy hooks can keep them out of the
@@ -69,7 +69,7 @@ AGENTS.md rather than quietly broken.
 
 # Scope
 
-## Default version-line name (Git section)
+## Default branch name (Git section)
 
 - Rust `tooling.rs`: read and write the global `init.defaultBranch`, validated
   with `git check-ref-format --branch` like initialization already validates a
@@ -81,7 +81,7 @@ AGENTS.md rather than quietly broken.
 - `InitializeProjectDialog` seeds its initial-branch field from the preference
   instead of the hardcoded `"main"`.
 - With nothing stored, the control shows `main` selected — the name GitOdile
-  will actually give the first version line — and says it is not written to Git
+  will actually give the first branch — and says it is not written to Git
   yet.
 
 ## Git hooks (Git section)
@@ -108,7 +108,7 @@ AGENTS.md rather than quietly broken.
 - The language provider holds both preferences and exposes the formatters, so
   every surface formats through one place.
 - Existing `Intl` call sites (status bar, changelog, history, overview, sync,
-  version lines) go through it.
+  branches) go through it.
 - The Settings group shows a live sample of the current choice.
 
 # Out of scope
@@ -185,7 +185,7 @@ None.
 
 # Implementation notes
 
-## Default version line
+## Default branch
 
 `tooling.rs` gained `get_default_branch` / `set_default_branch` over the global
 `init.defaultBranch`, registered in `application.rs` (`ReadOnly` / `LocalMutation`)
@@ -241,7 +241,7 @@ and bound `formatDate`/`formatNumber`. Every previous `Intl` call site goes
 through it. Two call-site changes are worth noting:
 
 - `formatHistoryDate` takes `LocaleFormats` instead of a language string, and
-  `HistoryPanel`/`VersionLinesPanel` thread `formats` where they threaded
+  `HistoryPanel`/`BranchesPanel` thread `formats` where they threaded
   `language`. Only the *absolute* date follows the preference; "3 days ago" has
   no separators to choose between.
 - `historyClientLimit` takes the already-formatted count as a string. A
@@ -382,7 +382,7 @@ scratch config and asserts the file is never created.
 - `initialize.rs` has its own `validate_initial_branch` with the same
   leading-dash exposure this task fixed in `tooling.rs`. It was left alone as
   out of scope, but it is worth the same guard.
-- `useStoredFavouriteVersionLines` in the version-lines feature still persists
+- `useStoredFavouriteBranches` in the branches feature still persists
   from an unconditional effect. It stores user data rather than a default, so
   nothing is currently wrong, but it should adopt the same rule.
 
@@ -447,7 +447,7 @@ eyeballed:
 - The cadence field stored 5 for "5 minutes" and 300 for "5 hours"; entering
   2000 hours left the stored value at 300, set `aria-invalid="true"`, and showed
   "Elige un valor entre 1 minuto y 24 horas."
-- Git section renders Installation / Default version line / Project hooks /
+- Git section renders Installation / Default branch / Project hooks /
   Identity, with the hooks switch `aria-checked="false"` and its warning
   present.
 - Format previews at 1280x860: eight equal 352x56 cards, no sample truncated,

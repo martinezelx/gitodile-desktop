@@ -52,13 +52,13 @@ Decided with Luis on 2026-10-20:
 2. **Every dialog leads with its glyph.** One rule, no exceptions: plans,
    forms, confirmations and messages all carry the circular glyph beside the
    title, in the tone of what the dialog handles. Save and Publish take
-   `local`, Discard and Delete line `danger`, Get and Clone `remote`,
+   `local`, Discard and Delete branch `danger`, Get and Clone `remote`,
    Create project `local`, updates and the issue report `app`, plain
-   confirmations (Close project, New line, Switch line) `neutral`.
+   confirmations (Close project, New branch, Switch branch) `neutral`.
 3. **GitOdile itself is violet.** The Update dialog takes `app`; the tone table
    in DESIGN.md moves "Update dialogs" from Remote to App. Notifications use
    glyph tones, matching the dialog each one opens: new versions and published
-   versions `remote`, line gone from the remote and failed check `warning`,
+   versions `remote`, branch gone from the remote and failed check `warning`,
    app update `app`. The `info`/`success`/`warning` notification tones go.
 4. **Bordered lists may keep row hairlines.** DESIGN.md documents the
    exception: a bordered list whose rows are reordered or scanned densely
@@ -77,13 +77,13 @@ Defaults chosen without asking (veto before implementing if any is wrong):
    (secondary-ink border and 7% ink). Create project's mode cards adopt it and
    swap the native radio for the app's own; the repository browser row and
    Clone's source tabs use it or the segmented control.
-7. **Vocabulary icons:** remove `GitBranch` (Create line, Switch line, Switch
-   to this line), `ArrowRight` (Choose destination), `RotateCw`/`Download`
+7. **Vocabulary icons:** remove `GitBranch` (Create branch, Switch branch, Switch
+   to this branch), `ArrowRight` (Choose destination), `RotateCw`/`Download`
    (updates), `GitMerge` on Get's primary (use `ArrowDownToLine`), and
    `Copy`/`Save`/`ExternalLink` in the issue report. Clone counts as "get", so
    `CloudDownload` stays on "Clone project"; Restore is the undo of discard,
    so `RotateCcw` stays and joins the vocabulary list in DESIGN.md.
-8. **New line's confirmation step:** its dismiss button becomes "Back"
+8. **New branch's confirmation step:** its dismiss button becomes "Back"
    ("Atrás"), since it returns to the form rather than closing.
 9. **Console's turn-off confirmation:** size `s` with a shorter title, and no
    second backdrop when it opens over Settings.
@@ -132,14 +132,14 @@ Defaults chosen without asking (veto before implementing if any is wrong):
   inner-card recipe.
 - **Publish:** `local` glyph; a safe fact last; versions separated by space,
   using the shared version node / `LocalOnlyMark` vocabulary where it fits;
-  blocked states as `s` messages; the line's name out of the title.
+  blocked states as `s` messages; the branch's name out of the title.
 - **Get project changes:** two or three facts with the safe one last;
   placeholders instead of the loading bar; a one-line title (detail to the
   subtitle); `Info` glyph on the informative banner; technical details on
   `.app-dialog__details`; `ArrowDownToLine` on the primary.
-- **New line / Switch line / Delete line:** glyphs (decision 2); names out of
+- **New branch / Switch branch / Delete branch:** glyphs (decision 2); names out of
   the titles; loading in final shape; risks and the blocked options as facts;
-  "Back" in New line's confirmation; the block-check on the inner-card recipe.
+  "Back" in New branch's confirmation; the block-check on the inner-card recipe.
 - **Clone:** links underlined; no footer hairline; the picked repository on
   the inner-card recipe; source tabs in the shared selected recipe; no
   `ArrowRight`; the empty-state glyph tile visible on the dialog surface.
@@ -190,7 +190,7 @@ Defaults chosen without asking (veto before implementing if any is wrong):
       the bordered-list exception draws a hairline between rows.
 - [x] No button carries an icon outside the vocabulary (save, publish, get,
       discard, delete, restore; clone as get).
-- [x] Discard, Switch line, Delete line, the issue report and Get open in
+- [x] Discard, Switch branch, Delete branch, the issue report and Get open in
       their final shape with Cancel visible while the plan is read.
 - [x] Save's and Publish's dead ends are `s` messages with a glyph.
 - [x] Every inline text action in a dialog is underlined at rest.
@@ -219,7 +219,7 @@ Defaults chosen without asking (veto before implementing if any is wrong):
 - `src/features/save-version/SaveVersionDialog.tsx`, `save-version.css`
 - `src/features/publish/PublishDialog.tsx`, `publish.css`
 - `src/features/sync/GetTeamChangesDialog.tsx`, `sync.css`
-- `src/features/version-lines/VersionLinesDialog.tsx`
+- `src/features/branches/BranchesDialog.tsx`
 - `src/features/clone/CloneDialog.tsx`, `clone.css`,
   `src/features/repository-browser/repository-browser.css`
 - `src/features/initialize-project/InitializeProjectDialog.tsx`,
@@ -252,28 +252,28 @@ Implemented on 2026-10-20 in the working tree of `release/0.3.1`.
   - Save: `Save` local; its dead ends are `Check` success or `TriangleAlert`
     warning.
   - Publish: `CloudUpload` local; same dead ends as Save.
-  - New line and Switch line: `GitBranch` neutral. Delete line: `Trash2`
+  - New branch and Switch branch: `GitBranch` neutral. Delete branch: `Trash2`
     danger.
   - Updates: `app`.
   - Settings and Project settings: the `Settings` gear, in the shell's circle.
 - **Titles without names.**
-  - "Switch line", with "You'll move to “x”." as the subtitle.
-  - "Delete this line?", with the name as the subtitle.
-  - "Publish a new line" and "Publish the line again".
+  - "Switch branch", with "You'll move to “x”." as the subtitle.
+  - "Delete this branch?", with the name as the subtitle.
+  - "Publish a new branch" and "Publish the branch again".
   - "Get and combine N versions".
   - "Creating the project…", "Project created" (the name moved to the
     description) and "Cloning the project…".
   - Console: "Run without asking?", now size `s`.
 - **Dead ends.** Save's "Everything is saved" / "Can't save yet" and
   Publish's "Everything is published" / "Can't publish yet" are `s` messages.
-- **Final shape while loading.** Discard, Switch line, Delete line, the issue
+- **Final shape while loading.** Discard, Switch branch, Delete branch, the issue
   report and Get open with placeholders, Cancel and the action held back.
   Get's executing phase keeps its `LoadingBar`.
 - **Facts.**
   - Discard's consequences and its kept copy are `DialogFacts`, and the
     `.changes-discard-warnings` list is gone.
-  - Delete-line's options and the switch and squash recovery notes are facts.
-  - New line's risks are facts.
+  - Delete-branch's options and the switch and squash recovery notes are facts.
+  - New branch's risks are facts.
   - Get's safe facts are one line, last.
   - Publish gains a safe fact.
   - Create project drops "Then you'll review the remote…" (and its key).
@@ -297,7 +297,7 @@ Implemented on 2026-10-20 in the working tree of `release/0.3.1`.
   7% ink plus the secondary-ink edge. The Settings rail uses the app rail's
   fill.
 - **Icons removed.**
-  - `GitBranch` from Create line, Switch line and Switch to this line.
+  - `GitBranch` from Create branch, Switch branch and Switch to this branch.
   - `ArrowRight` from Choose destination.
   - `RotateCw` and `Download` from the updater; `ExternalLink` from Manual
     download.
@@ -340,7 +340,7 @@ Implemented on 2026-10-20 in the working tree of `release/0.3.1`.
   - Publish: the plan and "nothing to publish";
   - Get: the merge plan, and loading;
   - Discard: the plan, and loading;
-  - Switch line and Delete line;
+  - Switch branch and Delete branch;
   - the notification panel.
 
   This found and fixed the left-aligned actions in `.app-dialog__foot`.

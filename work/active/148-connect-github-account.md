@@ -307,7 +307,7 @@ one actual-binary/system-Git helper integration test. The disposable Windows
 credential-store roundtrip also passed separately. The gate used an isolated
 Cargo target directory to avoid the running application's Windows file lock,
 with six frontend test workers. Validation also corrected the error-code
-contract fixture and an existing Version Lines hover/selection test race.
+contract fixture and an existing Branches hover/selection test race.
 
 The token alternative was visible in real Windows Settings. Computer Use was
 stopped by the user with Escape while entering the clone flow, so no further UI

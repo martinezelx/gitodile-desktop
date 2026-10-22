@@ -36,8 +36,8 @@ variants; Overview header: eight variants), and the chosen option applied.
 # Scope
 
 - **Status bar separators (option G).** The left block joins the project and
-  its line with a faint slash (`project / line`, `.status-bar__path`), lighter
-  than either name so a line with its own slash keeps the stronger mark. The
+  its branch with a faint slash (`project / branch`, `.status-bar__path`), lighter
+  than either name so a branch with its own slash keeps the stronger mark. The
   remote block has no mark: 4px of air between the fact and the check, told
   apart by their glyphs. The `.status-bar__hair` divider is gone.
 - **Overview header (option A).** Folder and settings follow the project's
@@ -59,7 +59,7 @@ variants; Overview header: eight variants), and the chosen option applied.
 
 # Acceptance criteria
 
-- [x] The status bar shows a slash between project and line and no mark in
+- [x] The status bar shows a slash between project and branch and no mark in
       the remote block, in both themes.
 - [x] Overview's header shows icon, name, folder, settings, then the remote
       chip at the far end; the skeleton keeps that order.

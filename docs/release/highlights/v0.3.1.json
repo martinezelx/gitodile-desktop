@@ -9,16 +9,22 @@
       "es": "Resumen te dice antes de pulsar nada si traer cambios del proyecto choca con tu trabajo; si nada choca, una sola confirmación los trae, los combina con tus versiones sin publicar y también puede publicar."
     },
     {
-      "id": "lineLeftTheRemote",
+      "id": "branchLeftTheRemote",
       "icon": "git-branch",
-      "en": "When a line's branch is deleted on the remote, usually after its pull request is merged, GitOdile says so, offers to switch to the main line, and asks before publishing would create it again.",
-      "es": "Cuando se borra en el remoto la rama de una línea, normalmente al fusionar su PR, GitOdile lo dice, ofrece cambiar a la línea principal y pregunta antes de que publicar la vuelva a crear."
+      "en": "When a branch's remote copy is deleted, usually after its pull request is merged, GitOdile says so, offers to switch to the main branch, and asks before publishing would create it again.",
+      "es": "Cuando se borra la copia remota de una rama, normalmente al fusionar su PR, GitOdile lo dice, ofrece cambiar a la rama principal y pregunta antes de que publicar la vuelva a crear."
     },
     {
       "id": "newMascot",
       "icon": "sparkles",
       "en": "GitOdile has a new look: a simpler, flat crocodile in the app, and a new app icon: the whole crocodile on white, clear even at small sizes.",
       "es": "GitOdile estrena imagen: un cocodrilo más sencillo y plano en la app, y un icono nuevo: el cocodrilo entero sobre blanco, claro incluso a tamaños pequeños."
+    },
+    {
+      "id": "branchesVocabulary",
+      "icon": "git-branch",
+      "en": "Branches are now called Branches throughout GitOdile, matching Git and other tools, with the same safe create, switch, publish and clean-up workflows.",
+      "es": "Las ramas ahora se llaman Ramas en todo GitOdile, igual que en Git y otras herramientas, con los mismos flujos seguros para crear, cambiar, publicar y limpiar."
     }
   ]
 }

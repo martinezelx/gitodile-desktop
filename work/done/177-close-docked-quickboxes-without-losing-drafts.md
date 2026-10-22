@@ -1,6 +1,6 @@
 ---
 id: 177
-title: Close the Changes and Lines quickboxes without losing drafts
+title: Close the Changes and Branches quickboxes without losing drafts
 status: done
 priority: normal
 type: design
@@ -15,8 +15,8 @@ queue:
 
 # Goal
 
-Give the save-version composer in Changes and the create-line composer in
-Lines a small, consistent close button that folds them without losing work.
+Give the save-version composer in Changes and the create-branch composer in
+Branches a small, consistent close button that folds them without losing work.
 
 # User outcome
 
@@ -40,14 +40,14 @@ composers and cleared their drafts; closing should preserve what was typed.
 # Out of scope
 
 - Changing Git operations, the save dialog or the quick-switch popup.
-- Persisting line-name drafts across application restarts.
+- Persisting branch-name drafts across application restarts.
 
 # Acceptance criteria
 
 - [x] Both expanded composers show the same quiet X in their top-right corner.
 - [x] The compact row remains available after closing.
 - [x] X and Escape retain the text and options.
-- [x] Closing is disabled during saving or line creation.
+- [x] Closing is disabled during saving or branch creation.
 - [x] Clicking or tabbing back to the field reopens the composer.
 - [x] Folded header and extra controls are inert and cannot receive focus.
 - [x] Existing scroll anchoring and quick-switch behavior remain covered.
@@ -56,7 +56,7 @@ composers and cleared their drafts; closing should preserve what was typed.
 # Relevant files
 
 - `src/features/changes/QuickCommitBox.tsx` and its tests/translations.
-- `src/features/version-lines/VersionLineQuickCreateBox.tsx` and its
+- `src/features/branches/BranchQuickCreateBox.tsx` and its
   tests/translations.
 - `src/shared/ui/primitives.css`.
 - `DESIGN.md`.
@@ -73,7 +73,7 @@ None.
 - Closing preserves text and choices. Escape follows the same behavior.
 - Focus moves to the composer before folding, so the disappearing button
   does not lose focus and the field does not reopen immediately.
-- The shared line fields accept an optional close callback; the quick-switch
+- The shared branch fields accept an optional close callback; the quick-switch
   frame keeps its own header and behavior.
 
 # Implementation notes
@@ -81,13 +81,13 @@ None.
 - Both close handlers retain the existing busy guards and scroll anchoring.
 - Hidden header and extra content use `inert` to keep keyboard navigation on
   visible controls.
-- Changes retains its existing persisted message draft; Lines retains its
+- Changes retains its existing persisted message draft; Branches retains its
   existing component-local name and options.
 
 # Validation
 
 - Focused Vitest run of `QuickCommitBox.test.tsx`,
-  `VersionLineQuickCreateBox.test.tsx` and `VersionLineQuickSwitch.test.tsx`:
+  `BranchQuickCreateBox.test.tsx` and `BranchQuickSwitch.test.tsx`:
   3 files / 63 tests passed, including a repeat after the focus adjustment.
 - `pnpm run check`: passed in full, including documentation, architecture,
   TypeScript, 143 frontend test files / 1536 tests, production build, Rust
@@ -97,7 +97,7 @@ None.
   development GitOdile was open. Closing it allowed the complete rerun to pass.
 - Windows desktop validation checked both composers, retained drafts,
   reopening, keyboard navigation and light/dark appearance. Temporary test
-  text was removed without saving a version or creating a line. The user
+  text was removed without saving a version or creating a branch. The user
   stopped Computer Use during the final application-reopening check.
 - `git diff --check`: passed.
 - Final review found no actionable defects. A focused repeat including the

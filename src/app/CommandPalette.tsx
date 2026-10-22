@@ -52,7 +52,7 @@ const DESTINATION_ICONS: Record<string, React.ReactNode> = {
   workbench: <Layers aria-hidden="true" />,
   changes: <FileDiff aria-hidden="true" />,
   history: <History aria-hidden="true" />,
-  "version-lines": <GitBranch aria-hidden="true" />,
+  "branches": <GitBranch aria-hidden="true" />,
   console: <SquareTerminal aria-hidden="true" />,
   recovery: <LifeBuoy aria-hidden="true" />,
 };
@@ -87,7 +87,7 @@ export function paletteMeta(id: string, t: Translations): Pick<AppCommand, "grou
       return { group: t.paletteGroupProject, icon: <FolderPlus aria-hidden="true" /> };
     case "close-project":
       return { group: t.paletteGroupProject, icon: <FolderX aria-hidden="true" /> };
-    case "new-version-line":
+    case "new-branch":
       return { group: t.paletteGroupProject, icon: <GitBranchPlus aria-hidden="true" /> };
     case "project-settings":
       return { group: t.paletteGroupProject, icon: <Settings aria-hidden="true" /> };

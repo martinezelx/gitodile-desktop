@@ -53,8 +53,8 @@ describe("translation composition", () => {
     expect(translations.es.navOverview).toBe("Resumen");
     expect(translations.en.workbenchTabChanges).toBe("Changes");
     expect(translations.es.workbenchTabChanges).toBe("Cambios");
-    expect(translations.en.versionLinesTitle).toBe("Lines");
-    expect(translations.es.versionLinesTitle).toBe("Líneas");
+    expect(translations.en.branchesTitle).toBe("Branches");
+    expect(translations.es.branchesTitle).toBe("Ramas");
     expect(translations.en.projectSwitcherTrigger("  ")).toBe(
       "Unnamed project — switch project",
     );

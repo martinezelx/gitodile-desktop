@@ -1,4 +1,4 @@
-//! Getting the remote's saved versions into this version line.
+//! Getting the remote's saved versions into this branch.
 //!
 //! One analysis serves three callers: the forecast every team-sync read carries
 //! (what pressing Get would do), the plan the dialog shows, and the execution
@@ -105,7 +105,7 @@ pub(crate) struct IncomingFileImpact {
     pub(crate) is_truncated: bool,
 }
 
-/// How the version line reaches the remote commit: it simply advances, or
+/// How the branch reaches the remote commit: it simply advances, or
 /// both sides have saved versions and a merge version joins them.
 #[derive(serde::Serialize, Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[serde(rename_all = "camelCase")]
@@ -178,7 +178,7 @@ pub(crate) struct IncomingForecast {
     pub(crate) author_count: u32,
     /// Unsaved tracked files the update leaves exactly as they are.
     pub(crate) carried_unsaved_count: u32,
-    /// Unsaved files that also change on the remote, on other lines: their
+    /// Unsaved files that also change on the remote, on other branches: their
     /// edits are combined with the incoming ones and stay unsaved.
     pub(crate) combined_unsaved: Vec<String>,
     pub(crate) combined_unsaved_count: u32,
@@ -1033,7 +1033,7 @@ fn analyze(
     Ok(analysis)
 }
 
-/// The forecast a team-sync read carries for a line with versions waiting on
+/// The forecast a team-sync read carries for a branch with versions waiting on
 /// its remote. `None` when nothing is waiting, or when the forecast itself
 /// couldn't be computed: the card then falls back to offering a review.
 pub(crate) fn forecast_incoming(
@@ -1119,7 +1119,7 @@ fn get_relation_blocker(state: TeamSyncState) -> AppError {
         ),
         TeamSyncState::Ahead => AppError::new(
             AppErrorCode::NothingToGet,
-            "This version line is no longer behind its remote.",
+            "This branch is no longer behind its remote.",
         )
         .with_remediation("Check the remote again before choosing another action."),
         _ => AppError::new(
@@ -1148,9 +1148,9 @@ fn validate_get_team_changes(
     if head_state == HeadState::Detached {
         return Err(AppError::new(
             AppErrorCode::DetachedHead,
-            "This project isn't on a version line right now.",
+            "This project isn't on a branch right now.",
         )
-        .with_remediation("Switch to a version line before getting project changes."));
+        .with_remediation("Switch to a branch before getting project changes."));
     }
     if head_state == HeadState::Unborn {
         return Err(AppError::new(
@@ -1171,7 +1171,7 @@ fn validate_get_team_changes(
     let target = resolve_upstream(path, &branch, &remotes)?.ok_or_else(|| {
         AppError::new(
             AppErrorCode::InvalidRemoteConfiguration,
-            "This version line has no configured upstream destination.",
+            "This branch has no configured upstream destination.",
         )
     })?;
     // The remote as of the last check. Nothing here contacts the network:
@@ -1212,7 +1212,7 @@ fn validate_get_team_changes(
 fn merge_message(target: &ResolvedUpstream, branch: &str) -> String {
     let source = format!("{}/{}", target.remote, target.destination_branch);
     // Git's own wording, so history reads the same as a merge made anywhere
-    // else; it names the destination only when it isn't the same line.
+    // else; it names the destination only when it isn't the same branch.
     if branch == target.destination_branch {
         format!("Merge remote-tracking branch '{source}'")
     } else {
@@ -1792,7 +1792,7 @@ pub(crate) fn get_team_changes(
             session_epoch,
             &validated,
             recovery,
-            "The files and index may have advanced, but Git could not confirm the active version-line reference."
+            "The files and index may have advanced, but Git could not confirm the active branch reference."
                 .to_string(),
         ));
     }
@@ -1859,7 +1859,7 @@ pub(crate) fn get_team_changes(
         };
         if relation.behind != 0 || relation.ahead != expected_ahead {
             return Err(uncertain(
-                "The resulting version line doesn't contain the reviewed remote version as expected.",
+                "The resulting branch doesn't contain the reviewed remote version as expected.",
             ));
         }
         let mut sync = read_team_sync_status_inner(

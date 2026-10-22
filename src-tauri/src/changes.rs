@@ -653,7 +653,7 @@ pub(crate) fn looks_binary(bytes: &[u8]) -> bool {
 
 /// Splits `text` into per-file sections at each line beginning with
 /// `diff --git `, without needing to parse (and possibly un-quote) the path
-/// on that line. Sections are returned in the same order Git printed them,
+/// on that branch. Sections are returned in the same order Git printed them,
 /// which — for the identical base/flags/pathspec — is also the order
 /// `--name-only -z` reports, so the two can be zipped positionally.
 pub(crate) fn split_diff_sections(text: &str) -> Vec<&str> {
@@ -1485,7 +1485,7 @@ pub(crate) fn read_commit_file_diff(
 // hunk marker announces ("122 unchanged lines") is not in the payload at all.
 // Making that marker expandable therefore needs the file's own text.
 //
-// The working-tree copy is the right source: these lines are unchanged by
+// The working-tree copy is the right source: these branches are unchanged by
 // definition, so both sides of the diff agree on them, and reading the file
 // on disk needs no Git process. A deleted file has no working-tree copy, but
 // a deletion has no unchanged gaps to expand either.
@@ -1521,7 +1521,7 @@ pub(crate) fn read_file_lines(
     validate_repo_relative_path(&file_path)?;
     if start_line == 0 || end_line < start_line {
         return Err(
-            AppError::new(AppErrorCode::PathInvalid, "That line range isn't valid.")
+            AppError::new(AppErrorCode::PathInvalid, "That branch range isn't valid.")
                 .with_remediation("Refresh the changes list and try again."),
         );
     }

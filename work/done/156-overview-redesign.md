@@ -42,7 +42,7 @@ and the window-fitted layout with whole rows and a fading rail.
 # Scope
 
 - **Header** as breadcrumbs: the project's icon (opens its icon settings),
-  name, a slash and the version line's quick switch; folder and settings
+  name, a slash and the branch's quick switch; folder and settings
   buttons at the far end. No path and no technology chip (the path is the
   folder button's tooltip).
 - **Next-step card** (`nextStep.ts`, `NextStepCard.tsx`): one state, one
@@ -51,7 +51,7 @@ and the window-fitted layout with whole rows and a fading rail.
   what comes after so the card never mixes two hues. Every case has its own
   words: first save, save, conflicts, publish, behind, diverged, checking,
   not checked, unavailable (calm, failure on the glyph), no remote (connect),
-  no upstream, detached (open lines), unborn, up to date.
+  no upstream, detached (open branches), unborn, up to date.
 - **Living history** (`HistorySummarySection.tsx`, `OverviewNow.tsx`): the
   versions waiting on the remote with a "Get" action, the one-line "Now"
   row, the group of versions only on this computer, the mark where the

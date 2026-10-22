@@ -24,7 +24,7 @@ import { saveVersionTranslations } from "../features/save-version/translations";
 import { settingsTranslations } from "../features/settings/translations";
 import { statusTranslations } from "../features/status/translations";
 import { syncTranslations } from "../features/sync/translations";
-import { versionLinesTranslations } from "../features/version-lines/translations";
+import { branchesTranslations } from "../features/branches/translations";
 import { workbenchTranslations } from "../features/workbench/translations";
 import {
   DEFAULT_DATE_FORMAT,
@@ -83,7 +83,7 @@ export const translationNamespaces = {
   settings: settingsTranslations,
   projectSettings: projectSettingsTranslations,
   publish: publishTranslations,
-  versionLines: versionLinesTranslations,
+  branches: branchesTranslations,
   workbench: workbenchTranslations,
 } as const;
 
@@ -113,7 +113,7 @@ const en = {
   ...settingsTranslations.en,
   ...projectSettingsTranslations.en,
   ...publishTranslations.en,
-  ...versionLinesTranslations.en,
+  ...branchesTranslations.en,
   ...workbenchTranslations.en,
 };
 
@@ -145,7 +145,7 @@ const es: Translations = {
   ...settingsTranslations.es,
   ...projectSettingsTranslations.es,
   ...publishTranslations.es,
-  ...versionLinesTranslations.es,
+  ...branchesTranslations.es,
   ...workbenchTranslations.es,
 };
 

@@ -177,12 +177,12 @@
 
 /* The prompt as Starship prints it: a context line of coloured text
    ("project on ⎇ line") above a bare ❯, so every command starts at the
-   left edge however long the line's name is. */
+   left edge however long the branch's name is. */
 .console-context { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .console-context__project { color: var(--accent-primary); font-weight: var(--weight-title); }
 .console-context__on { color: var(--text-secondary-color); }
-.console-context__line { color: var(--syntax-keyword); font-weight: var(--weight-title); }
-.console-context__line svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
+.console-context__branch { color: var(--syntax-keyword); font-weight: var(--weight-title); }
+.console-context__branch svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 
 .console-block { position: relative; min-width: 0; }
 .console-block__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 26px; overflow-wrap: anywhere; }

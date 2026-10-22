@@ -106,7 +106,7 @@ This project's own conventions did a lot of the design work:
 **Overview header** (`project-overview__header` in `main.tsx`)
 - Was: project name only (once `ProjectMenu` was removed).
 - Now: name + a branch chip (`GitBranch` icon + `versionValue`, the same
-  string already computed for the version-line spotlight) on the same line,
+  string already computed for the branch spotlight) on the same line,
   then the project path below via the existing `ProjectPath` component, then
   the "opened from a nested folder" note if applicable.
 - Removed the "Project details" section entirely (`.project-facts*` CSS
@@ -150,9 +150,8 @@ This project's own conventions did a lot of the design work:
   track with a 40%-wide segment sweeping across it
   (`loading-bar-sweep`, 1200ms). Used for: the lazy-screen `Suspense`
   fallback, Changes' file-list loading state, the diff's loading state, and
-  Version lines' no-cache loading state.
-- `showLabel` prop controls whether the label renders visibly (diff, version
-  lines — it replaced a state that had a visible message) or stays
+  Branches' no-cache loading state.
+- `showLabel` prop controls whether the label renders visibly (diff, branches — it replaced a state that had a visible message) or stays
   screen-reader-only via `.visually-hidden` (file list, screen switch — it
   replaced a state that had no visible text).
 - `prefers-reduced-motion`: the indicator jumps to `width: 100%` with the
@@ -224,12 +223,12 @@ This project's own conventions did a lot of the design work:
   the loading-bar's sweep geometry (enters/exits exactly at the track edges)
   were each verified against computed styles/animation keyframes in-browser,
   not just eyeballed.
-- Not verified: the Changes file list, the diff view, and Version lines'
+- Not verified: the Changes file list, the diff view, and Branches'
   loading state in a real running project — the sandboxed browser preview
   has no Tauri backend, so screens that need an open repository couldn't be
   exercised end-to-end. Confirmed by the user directly for the tooltip,
   menu, header, and settings-icon changes instead; the virtualizer fix and
-  loading bar in Changes/diff/Version lines still want a real run.
+  loading bar in Changes/diff/Branches still want a real run.
 
 ## Settings dialog follow-up
 
@@ -255,7 +254,7 @@ The visual follow-up implemented the remaining audit recommendations:
   ellipsis, matching the menu's secondary-action role;
 - restored the visible Settings label while the sidebar is expanded, while
   preserving the compact icon-only presentation when collapsed;
-- removed the duplicated current version-line name from the Overview action
+- removed the duplicated current branch name from the Overview action
   surface and reframed it as “Work separately” / “Trabajar por separado”;
 - enlarged the project-path copy control and made it persistently visible on
   touch/non-hover devices;

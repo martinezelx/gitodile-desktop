@@ -27,18 +27,18 @@ function keyOf(query: TeamSyncQuery): string {
 export function createSyncController(port: SyncPort) {
   const generations = new Map<string, number>();
   const inFlight = new Map<string, InFlight>();
-  /** Per session, the lines a check found gone, kept by line so switching
+  /** Per session, the branches a check found gone, kept by branch so switching
    * away and back does not turn a deleted branch into "up to date". A check
-   * of the line, or a publish to it, replaces its entry. */
+   * of the branch, or a publish to it, replaces its entry. */
   const goneEvidence = new Map<string, Map<string, UpstreamGoneEvidence>>();
 
   const recordCheck = (key: string, status: TeamSyncStatus): void => {
     if (!status.localBranch) return;
     const evidence = upstreamGoneEvidenceOf(status);
-    const lines = goneEvidence.get(key) ?? new Map<string, UpstreamGoneEvidence>();
-    if (evidence) lines.set(status.localBranch, evidence);
-    else lines.delete(status.localBranch);
-    goneEvidence.set(key, lines);
+    const branches = goneEvidence.get(key) ?? new Map<string, UpstreamGoneEvidence>();
+    if (evidence) branches.set(status.localBranch, evidence);
+    else branches.delete(status.localBranch);
+    goneEvidence.set(key, branches);
   };
 
   const run = (
@@ -156,13 +156,13 @@ export function createSyncController(port: SyncPort) {
       });
     },
     supersede,
-    /** A publish created the line's remote branch again: what a check said
+    /** A publish created the branch's remote branch again: what a check said
      * about it being gone no longer holds. */
-    publishedTo(query: TeamSyncQuery, line: string): void {
-      goneEvidence.get(keyOf(query))?.delete(line);
+    publishedTo(query: TeamSyncQuery, branch: string): void {
+      goneEvidence.get(keyOf(query))?.delete(branch);
     },
-    /** Forgets the remote branch the current line tracks — the way out the
-     * card offers once that branch is gone. Commits the line's new status (no
+    /** Forgets the remote branch the current branch tracks — the way out the
+     * card offers once that branch is gone. Commits the branch's new status (no
      * upstream) under a fresh generation, so no earlier read can replace it. */
     async stopTracking(runtime: ProjectRuntime, query: TeamSyncQuery): Promise<TeamSyncStatus> {
       const status = await port.stopTracking(query);

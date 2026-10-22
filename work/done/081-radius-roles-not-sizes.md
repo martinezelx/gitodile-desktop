@@ -41,7 +41,7 @@ values but what they were keyed on. The tokens were named by size
 never lined up:
 
 - **Buttons lived in three places at once**: `--radius-md` (`primary-button`,
-  `secondary-button`, `version-line-selector`), `--radius-sm` (~20 more,
+  `secondary-button`, `branch-selector`), `--radius-sm` (~20 more,
   including `ghost-button`, `dialog-close-button` and every titlebar icon
   button), and hand-written `8px`/`9px` in History.
 - **`--radius-md` held four unrelated roles**: buttons, popovers, notices and

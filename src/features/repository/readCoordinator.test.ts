@@ -57,7 +57,7 @@ function coordinatorWith(log: string[]) {
       return project();
     }),
   });
-  const background = recordingSubscriber("version-lines", "shared-change", false, log);
+  const background = recordingSubscriber("branches", "shared-change", false, log);
   const awaited = recordingSubscriber("status", "worktree-change", true, log);
   const coordinator = createRepositoryReadCoordinator(repository, [awaited, background]);
   return { coordinator, runtime, background, awaited };
@@ -84,13 +84,13 @@ describe("repository read coordinator", () => {
 
     expect(dispatched).toEqual(["open"]);
     expect(log.indexOf("dispatch:open")).toBeLessThan(log.indexOf("refresh:status"));
-    expect(log.indexOf("dispatch:open")).toBeLessThan(log.indexOf("refresh:version-lines"));
+    expect(log.indexOf("dispatch:open")).toBeLessThan(log.indexOf("refresh:branches"));
   });
 
   it("starts background reads first and resolves without waiting for them", async () => {
     // The regression this pins: awaiting every subscriber would make a caller's
-    // "the refresh finished" mean "the branch inventory came back too". Version
-    // lines is deliberately left running.
+    // "the refresh finished" mean "the branch inventory came back too". Branch
+    // discovery is deliberately left running.
     const log: string[] = [];
     const { coordinator, runtime, awaited } = coordinatorWith(log);
 
@@ -100,7 +100,7 @@ describe("repository read coordinator", () => {
     });
     await flush();
 
-    expect(log.indexOf("refresh:version-lines")).toBeLessThan(log.indexOf("refresh:status"));
+    expect(log.indexOf("refresh:branches")).toBeLessThan(log.indexOf("refresh:status"));
     expect(settled).toBe(false);
 
     // The background subscriber is never settled; only the blocking one is.
@@ -119,7 +119,7 @@ describe("repository read coordinator", () => {
     await refreshing;
 
     expect(log).toContain("refresh:status");
-    expect(log).not.toContain("refresh:version-lines");
+    expect(log).not.toContain("refresh:branches");
   });
 
   it("refreshes project identity and working-tree facts without starting shared readers", async () => {
@@ -133,7 +133,7 @@ describe("repository read coordinator", () => {
 
     expect(log).toContain("open:repository");
     expect(log).toContain("refresh:status");
-    expect(log).not.toContain("refresh:version-lines");
+    expect(log).not.toContain("refresh:branches");
     background.settle();
   });
 
@@ -147,7 +147,7 @@ describe("repository read coordinator", () => {
     });
     await flush();
 
-    expect(log).toContain("refresh:version-lines");
+    expect(log).toContain("refresh:branches");
     expect(log).not.toContain("refresh:status");
     expect(settled).toBe(false);
 
@@ -166,7 +166,7 @@ describe("repository read coordinator", () => {
     await refreshing;
 
     expect(log.indexOf("supersede:status")).toBeLessThan(log.indexOf("refresh:status"));
-    expect(log.indexOf("supersede:version-lines")).toBeLessThan(log.indexOf("refresh:version-lines"));
+    expect(log.indexOf("supersede:branches")).toBeLessThan(log.indexOf("refresh:branches"));
   });
 
   it("defers a watcher invalidation while a mutation owns the working tree", async () => {

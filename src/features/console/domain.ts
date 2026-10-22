@@ -18,8 +18,6 @@ export type ConsoleProjectStatus = {
 export const OPERATION_IDS = [
   "status", "diff", "staged", "log", "graph", "last", "branches", "tags", "remotes", "stashes", "authors",
 ] as const;
-/** The catalogue the first stored shortcut lists were written against. */
-const FIRST_CATALOGUE: readonly string[] = ["status", "diff", "log", "branches"];
 /** How many names a person may keep, built-in ones included. */
 export const SHORTCUT_LIMIT = 32;
 export type ConsoleOperationId = (typeof OPERATION_IDS)[number];
@@ -119,7 +117,7 @@ const DEFAULT_LINE_SHORTCUTS = [
   { name: "unpublished", line: "git log --oneline @{upstream}..HEAD", tier: "read" },
   { name: "incoming", line: "git log --oneline HEAD..@{upstream}", tier: "read" },
   { name: "moves", line: "git reflog -20", tier: "read" },
-  { name: "all-lines", line: "git branch -a -vv", tier: "read" },
+  { name: "all-branches", line: "git branch -a -vv", tier: "read" },
   { name: "size", line: "git count-objects -vH", tier: "read" },
 ] as const satisfies readonly LineShortcut[];
 export type DefaultLineName = (typeof DEFAULT_LINE_SHORTCUTS)[number]["name"];
@@ -208,10 +206,9 @@ export function readShortcuts(storage?: Pick<Storage, "getItem">): ConsoleShortc
     const raw = (storage ?? localStorage).getItem(CONSOLE_SHORTCUTS_STORAGE_KEY);
     if (raw === null) return [...DEFAULT_SHORTCUTS];
     const parsed: unknown = JSON.parse(raw);
-    // The first format was the bare list; later ones record the catalogue too.
-    const stored = Array.isArray(parsed)
-      ? { catalogue: FIRST_CATALOGUE, shortcuts: parsed }
-      : parsed && typeof parsed === "object" ? parsed as { catalogue?: unknown; shortcuts?: unknown } : null;
+    const stored = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as { catalogue?: unknown; shortcuts?: unknown }
+      : null;
     if (!stored || !Array.isArray(stored.shortcuts) || !Array.isArray(stored.catalogue) || stored.shortcuts.length > SHORTCUT_LIMIT) return [...DEFAULT_SHORTCUTS];
     const shortcuts: ConsoleShortcut[] = [];
     for (const entry of stored.shortcuts as unknown[]) {

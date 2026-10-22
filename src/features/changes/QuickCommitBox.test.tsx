@@ -115,7 +115,7 @@ describe("QuickCommitBox", () => {
     await userEvent.click(screen.getByLabelText("Version name"));
     expect(isExpanded(container)).toBe(true);
     // One plan read, stated in one line over the field: what the press will
-    // save and the line it lands on — the panel header no longer names it.
+    // save and the branch it lands on — the panel header no longer names it.
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("2 files")).toBeInTheDocument();
     expect(screen.getByText("feature/journey")).toBeInTheDocument();

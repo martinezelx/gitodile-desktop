@@ -16,7 +16,7 @@ export type PublishPlan = {
   target: PublishTarget;
   localBranch: string;
   willCreateUpstream: boolean;
-  /** The line already tracks this destination, but the remote deleted the
+  /** The branch already tracks this destination, but the remote deleted the
    * branch: publishing creates it again, and the dialog says so first. */
   recreatesDeletedBranch: boolean;
   commitCount: number;
@@ -49,7 +49,7 @@ export type SavedVersionSummary = {
   title: string;
   description: string | null;
   /** ISO 8601 (`%cI`, git's own strict form) — the same shape and source as
-   * `VersionLineTip.committedAt`. */
+   * `BranchTip.committedAt`. */
   committedAt: string;
   /** `%an` — whatever name Git has configured for the commit's author. Can be
    * empty on a malformed/legacy commit; render nothing rather than a blank

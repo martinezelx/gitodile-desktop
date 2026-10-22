@@ -76,7 +76,7 @@ The visual language uses:
 - fully rounded controls — a capsule for anything on one line, a circle for anything square — over the 18px sheet, dialogs and inner cards and 10px rows, with circles for avatars and glyph tiles. Rounded enough to feel approachable, not so large it reads as a decorative concept app. The tiers are roles, not sizes; see Shape;
 - **opaque panels**, not translucent glass — depth comes from `--shadow-sm/md/lg`, not `backdrop-filter` blur;
 - layered surfaces distinguished by a subtle tone shift and a hairline inside the sheet, and by shadow only for what floats, never by transparency;
-- **one sheet per screen** — the detail of rules 1–3 above. The titlebar and the rail are the frame, a flat plane on `--surface-app`; the content column is a single sheet — `--surface-panel` with `--border-subtle`, at `--radius-surface` — keeping the same 16px of frame (`--space-4`) on all four sides — under the titlebar, beside the rail and to the window's edges — so it floats evenly, and lifted with `--shadow-md` since it is the one object on the plane. The frame takes no tint, gradient or translucency. What the screens lay on the sheet are *regions*, not cards: Overview's header, next step and body are three bands, and the panes of Changes, History and Lines run edge to edge; regions meet on a 1px `--border-subtle` hairline and wear no border, shadow or radius of their own. The status bar is the sheet's foot. A card *inside* a region (a History overview section, a Lines fact card) keeps `--surface-card`. `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar), and only what floats casts a shadow inside the window: `--shadow-lg`. A screen does not pick another material for itself, because a different edge reads as a different app the moment the reader switches screens. Console and Home have no sheet: Console is a terminal across the workspace, and Home's launcher is the one object on its screen, so it floats on the plane with its own lift (`--surface-raised`, `--shadow-md`) rather than sitting on a sheet round a single card. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item. The hairline divides *regions*, never rows. The one exception is a **bordered list whose rows are reordered or scanned densely** — Settings' Navigation and Notifications lists — which may divide its own rows; every other list, in a dialog too (the versions a publish sends, what a get brings, What's new's earlier releases), separates its rows with space;
+- **one sheet per screen** — the detail of rules 1–3 above. The titlebar and the rail are the frame, a flat plane on `--surface-app`; the content column is a single sheet — `--surface-panel` with `--border-subtle`, at `--radius-surface` — keeping the same 16px of frame (`--space-4`) on all four sides — under the titlebar, beside the rail and to the window's edges — so it floats evenly, and lifted with `--shadow-md` since it is the one object on the plane. The frame takes no tint, gradient or translucency. What the screens lay on the sheet are *regions*, not cards: Overview's header, next step and body are three bands, and the panes of Changes, History and Branches run edge to edge; regions meet on a 1px `--border-subtle` hairline and wear no border, shadow or radius of their own. The status bar is the sheet's foot. A card *inside* a region (a History overview section, a Branches fact card) keeps `--surface-card`. `--surface-raised` is for what floats (menus, popovers, dialogs, a badge over an avatar), and only what floats casts a shadow inside the window: `--shadow-lg`. A screen does not pick another material for itself, because a different edge reads as a different app the moment the reader switches screens. Console and Home have no sheet: Console is a terminal across the workspace, and Home's launcher is the one object on its screen, so it floats on the plane with its own lift (`--surface-raised`, `--shadow-md`) rather than sitting on a sheet round a single card. Borders are not divider rules *inside* a list of rows (settings rows, nav groups); separate those with spacing alone, which reads cleaner than a hairline between every item. The hairline divides *regions*, never rows. The one exception is a **bordered list whose rows are reordered or scanned densely** — Settings' Navigation and Notifications lists — which may divide its own rows; every other list, in a dialog too (the versions a publish sends, what a get brings, What's new's earlier releases), separates its rows with space;
 - generous spacing around primary actions;
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
@@ -166,29 +166,29 @@ The main desktop window should broadly support:
    constraint is gone now that they are not, and the shorter name was kept on
    its own merits. **Re-measure before narrowing, and treat
    a new long destination name as a width decision, not just a copy one.**
+   Branches was rechecked on Windows at about 44px in the 48px content
+   column; the renamed destination fits the existing 64px rail.
 
-   Destination names are one word for the same reason. Where the concept needs
-   more, the short name is an *abbreviation* of the full term, never a second
-   vocabulary: the Lines destination shows version lines, and the prose keeps
-   saying "version line" — the same relationship the sync screen already has
-   with "Current line" and "Remote line". A destination named from a different
-   word than its own prose (say "Branches") would make the user learn that two
-   names mean one thing.
+   Destination names are one word. The **Branches / Ramas** destination and
+   its explanations use the same noun: **branch / rama**, including simple
+   mode. The sync comparison uses "Current branch" and "Remote branch".
+   Git's familiar noun connects the app to other tools; the action still
+   explains what changes and how work is protected. See
+   [ADR 0035](docs/adr/0035-use-branches-as-the-product-vocabulary.md).
 
    Navigation Settings may switch to icons only: every caption disappears —
    destinations and utilities alike, since a rail that labels one and not the
    other reads as an accident — and the column keeps its 64px. Narrowing it to
    the 40px icon circle plus padding would move the workspace's edge every
    time the setting changes. The 40px pointer target and accessible name remain.
-   - Overview, Work, Lines, and Recovery keep their order. Work is what has
+   - Overview, Work, Branches, and Recovery keep their order. Work is what has
      changed and what has been saved — one loop, one screen, with Changes and
      History as its two tabs (they were neighbouring screens until task 126,
      and by then shared everything but the rail entry: one strip per panel,
      one list column, one diff toolbar, one find). The destination is "Work"
-     rather than "Workspace" for two reasons: "Workspace" measures ~54px in
-     the rail's type against the 46px the column was derived from, and
-     "workspace" already means a version line in the vocabulary table. Lines
-     follows: switching a version line is a deliberate move between
+     rather than "Workspace": it names the loop of editing and saving, while
+     workspace describes an actual workspace, never a synonym for a branch. Branches
+     follows: switching a branch is a deliberate move between
      pieces of work rather than a step in that loop. Navigation Settings
      controls which stay in the rail; deselected and height-overflowed
      destinations remain reachable in More, in registry order. Recovery stays
@@ -207,7 +207,7 @@ The main desktop window should broadly support:
      foot of every project screen; Home lists every project itself. The rail
      used to carry the active project as a square chip with a searchable
      switcher and a "+" beside it; with the status bar naming the project and
-     its line in one place, the chip only said the same thing twice;
+     its branch in one place, the chip only said the same thing twice;
    - at the foot: the theme toggle, then Settings, then the account button.
      These are the app's own controls, so the theme sits with them rather than
      in the titlebar's navigation: one round button that says the change it
@@ -262,7 +262,7 @@ The main desktop window should broadly support:
    columns — where you are, the field, the remote — so the field sits at the
    strip's centre at any width rather than pushed around by how long the names
    happen to be. It reports what is true of the project right now: which
-   project, its line, unsaved work, and the remote's relation. It reports no
+   project, its branch, unsaved work, and the remote's relation. It reports no
    version of its own: a version is a fact about the app, not about the project
    the reader is working on, and the strip exists to be believed about the
    project. Every fact is a glyph and words with no fill, and the one shape a
@@ -272,35 +272,35 @@ The main desktop window should broadly support:
    The strip is two blocks of the *same object* and a field between them: the
    left block says where you are and the right one says what is happening to
    it. A block is segments of one size, weight and hover, with 4px of air
-   between them and no mark: the left block's project and line each wear a
+   between them and no mark: the left block's project and branch each wear a
    glyph, a name and a chevron, so they read as two controls; the right one is
    a fact and the check that renews it, told apart by their glyphs. Neither
    uses a vertical rule, which read as a terminal's `|` rather than as a
    sentence, and the left one no longer uses the slash that once joined
-   `project / line`: beside line names that carry their own slashes
+   `project / branch`: beside branch names that carry their own slashes
    (`release/0.3.1`) it was one more mark to read (task 189).
 
-   The project's name and the line's name are the left block, with no words in
-   front of them: the project's avatar and name, then the line's glyph and
+   The project's name and the branch's name are the left block, with no words in
+   front of them: the project's avatar and name, then the branch's glyph and
    name, each ending in the chevron of a popup that opens upwards. Both sit in the same sans at
-   the name weight — the line drops the mono it wears elsewhere, since a
+   the name weight — the branch drops the mono it wears elsewhere, since a
    typeface change inside one block split it in two. The name is what keeps the
    strip saying something once the reader has left Overview, and both truncate
    rather than wrap. The project segment is the one place to change projects
-   (task 189): its popup is the line popup's twin — a fixed box with a search,
-   rows of an avatar, the name and its line, a star that waits for the pointer
+   (task 189): its popup is the branch popup's twin — a fixed box with a search,
+   rows of an avatar, the name and its branch, a star that waits for the pointer
    and a chevron that is always there. It leads with the active project, its
    path, and three icon buttons for what is done to it — its settings, its
    folder, closing it — then lists the other open projects (favourites first,
    each with its unsaved, operation or error mark) and the recently closed
    ones, which reopen from there. A row's chevron shows that project's actions
    in place of the list (go to it, settings, show in folder, copy its path,
-   close it), with a way back, the way a line's do; "Add project" docks the
+   close it), with a way back, the way a branch's do; "Add project" docks the
    three ways to add one at the foot in place of the foot, and "All in Home"
    leaves for Home. While a blocking dialog is open, switching, reopening and
    closing are disabled and say why; the active project's settings and folder
    stay available. Each segment's mark speaks for that segment alone: the
-   project's for the active project, the line's for the line — another
+   project's for the active project, the branch's for the branch — another
    project's state stays on its popup row. The project's mark sits at the
    avatar's corner, one at a time and the most urgent first, told apart by
    shape as well as tone so it reads without colour: the popup rows' alert
@@ -316,13 +316,13 @@ The main desktop window should broadly support:
    into another repository on its own. Favourites are stored against the
    canonical worktree root and sort display only, so Ctrl/Cmd+Tab still cycles
    the session order. Unsaved work rides
-   the line it belongs to: a dot after the line's name, the way an editor marks
+   the branch it belongs to: a dot after the branch's name, the way an editor marks
    an unsaved tab, in the warning tone the project popup already gives unsaved
    work; a tree that could not be read takes the alert glyph in the danger
    tone instead, the project mark's shape for something to resolve, so the
    two states differ in shape and not only in colour. Either breathes once
    when it arrives;
-   while the tree is being read the line glyph turns into the spinner. How many
+   while the tree is being read the branch glyph turns into the spinner. How many
    files and how many lines is not the strip's to say: the sentence ("28 unsaved
    changes") is the trigger's tooltip and the screen reader's, and Overview's
    band and Changes give the numbers in full. The strip draws no `+N −N`: the
@@ -339,16 +339,16 @@ The main desktop window should broadly support:
    judgement about the project itself. "Up to
    date" is the calm state and is not restated: its cloud (`CloudCheck`) and
    its age ("3 min ago") say it, with the word kept for the screen reader. A
-   project with no remote is a fact, not a problem, and stays quiet. A line
+   project with no remote is a fact, not a problem, and stays quiet. A branch
    whose remote branch was deleted — usually after its pull request was
    merged — reads "No longer on the remote" in amber, never "Check failed":
-   Overview's card names it and offers switching to the main line, publishing
+   Overview's card names it and offers switching to the main branch, publishing
    again, or no longer following the remote, pressing none of them for the
-   reader; Lines marks the line
+   reader; Branches marks the branch
    "Remote branch deleted"; History says its versions "Was on" the remote
    and Overview's timeline "Was published"; Get project changes stops with nothing to get; and Publish asks
-   before it creates the branch again, with "Recreate and publish". A line
-   with no publish destination yet is offered "Publish this line" — on the
+   before it creates the branch again, with "Recreate and publish". A branch
+   with no publish destination yet is offered "Publish this branch" — on the
    card and as the strip's action — since publishing is how it gets one. The
    fact is never the check: the block's second segment is, visible in every
    state — with a sync action too, where knowing whether the remote moved
@@ -363,7 +363,7 @@ The main desktop window should broadly support:
    spinner — one spinner, the check goes quiet — and "Checking the remote…" is
    the tooltip's and the screen reader's, the visible words only when nothing is
    known yet. The block sits at the right end, opposite where you are, since its
-   state belongs to that line — the way an editor's status bar puts sync beside
+   state belongs to that branch — the way an editor's status bar puts sync beside
    the branch — so the strip reads as two equal halves. A fact that turned into a button under the pointer was tried
    and dropped: nothing showed it could be pressed, touch has no hover, and it
    vanished whenever the sync action took its place.
@@ -377,8 +377,8 @@ The main desktop window should broadly support:
    with the screen's primary action (Overview's "Save version"). Its tooltip
    adds when it was checked. A stale, failed or still-loading answer
    keeps the cloud a plain fact — it is not a state to act from. The
-   branch is also the app's one global version-line control: its dropdown
-   switches, creates — in place, see Lines — and hands off to the Lines
+   branch is also the app's one global branch control: its dropdown
+   switches, creates — in place, see Branches — and hands off to the Branches
    screen. No screen adds a
    second selector to its own header: two controls answering one question in
    one window is how a reader stops trusting either.
@@ -454,7 +454,7 @@ The main desktop window should broadly support:
      field near one — as can happen in a narrow window — cannot push the
      results off screen. Choosing a destination lets the focus go with the
      screen: the field gives it up and the screen's own target takes it —
-     Home's launcher, Console's prompt, the Work tab, or the Overview and Lines
+     Home's launcher, Console's prompt, the Work tab, or the Overview and Branches
      headings — so the keyboard lands where the new screen starts rather than
      in the chrome that asked. It replaced the modal that opened centred at
      `14vh`, a position it inherited from the titlebar button it used to hang
@@ -518,30 +518,30 @@ The main desktop window should broadly support:
      notes, and cannot load markup, links or images. The
      titlebar stays reserved for global actions and window controls; no product
      name is repeated because the window is already the product;
-   - the current version line is the strip's one navigation shortcut. Its
+   - the current branch is the strip's one navigation shortcut. Its
      quiet text treatment gains a hover/expanded fill and opens a compact,
      searchable selector above the strip. It shares search and project-scoped
      favourites with Overview's roomier selector: favourites sort first and
      may be isolated without changing repository or session order. The status
      version keeps fewer rows visible, while the Overview version uses its
      content surface to show more rows. Both show the latest saved-version
-     subject under the line name so the same target has the same information
+     subject under the branch name so the same target has the same information
      hierarchy wherever it opens. Choosing a target still enters the normal
      previewed, state-checked switch flow. The full inventory and management
-     actions stay in Lines. Detached and not-yet-saved states remain static
+     actions stay in Branches. Detached and not-yet-saved states remain static
      facts;
    - the cloud refresh belongs only to the adjacent project-sync fact. It checks
-     remote information without refreshing files, history, or line inventory.
+     remote information without refreshing files, history, or branch inventory.
      Local repository facts normally follow watcher invalidation, so screens do
      not repeat permanent checkers just to appear fresh. A screen exposes a
      manual action only where its ownership is useful: Changes when watching is
      off, unavailable, or a read failed; History inside the equivalent watcher
-     notice or beside a failed snapshot; Lines
+     notice or beside a failed snapshot; Branches
      beside a retained stale snapshot; and Overview beside the specific failed
      local, remote, or history fact. Overview never coordinates an omnibus
      refresh across unrelated local and network reads;
    - watcher notices precede the screen title, use the same visible “Update
-     now” action in Changes, History, and Lines, and link directly to General settings
+     now” action in Changes, History, and Branches, and link directly to General settings
      to restore automatic updates. Their accessible names may retain the exact
      data scope while their visible recovery wording stays consistent. Both
      actions use the same quiet control treatment; a manual update keeps the
@@ -660,7 +660,7 @@ The main desktop window should broadly support:
      before an `owner/name` it read as one long path.
      The icon is the identity chip the rail shows for the project and opens
      its icon picker. The chip is hairline-edged and unfilled at rest. Where
-     it lives is the remote the line publishes
+     it lives is the remote the branch publishes
      to (else `origin`, else the first): the service's mark (GitHub, GitLab,
      Bitbucket, a cloud for any other server) and the remote's `owner/name`
      in mono, in the secondary ink, opening the page in the browser when one
@@ -669,8 +669,8 @@ The main desktop window should broadly support:
      opens it; the renderer names the remote, never an address. With no
      remote it reads "Only on this computer" beside a laptop. Until it is
      read its shape holds the place, so it never claims a remote is missing.
-     The line it is on is not here: the status bar names it and switches it,
-     and two switches for one line on one screen was a duplicate. The
+     The branch it is on is not here: the status bar names it and switches it,
+     and two switches for one branch on one screen was a duplicate. The
      technology and the path are properties, not part of the
      address: a row that mixed a 17px name, a 30px pill and 12px text read as
      a mismatch rather than a hierarchy, so both left the row: the path is the
@@ -714,10 +714,10 @@ The main desktop window should broadly support:
      rail, "On this computer", its Publish glyph in the local green (a laptop
      in the unsaved colour when there is no remote at all); then the same
      chip, "Published", its cloud in the remote's blue, marks where the
-     remote's copy of the line begins, then the published versions. The
+     remote's copy of the branch begins, then the published versions. The
      chips' glyphs sit over the rail where the nodes are; they carry no count
      (the rows say how many) and no rule running to the edge, and the
-     remote and its line are the "Published" chip's tooltip.
+     remote and its branch are the "Published" chip's tooltip.
      One rail runs the whole list. "Publish up to here" still appears on an
      unpublished node under the pointer or focus, as the status bar's sync
      pill in a circle: the control surface and a hairline, only the cloud in
@@ -815,7 +815,7 @@ The main desktop window should broadly support:
      The line ends in words, never a second "View all" (the header has it):
      the latest versions shown and that older ones are in History, where the
      project began, or that a shallow copy's older versions were never
-     downloaded. Scrolled to the end of a line that goes on, the header's
+     downloaded. Scrolled to the end of a branch that goes on, the header's
      "View all" takes the hover surface and breathes once (it quiets when
      scrolled back up). The scroll uses the app's auto-hiding scrollbar.
      Scrolling and resizing read nothing from Git. Smaller than
@@ -926,7 +926,7 @@ Colors should be defined semantically rather than by component:
 - `--overlay` (modal/backdrop scrim)
 - `--surface-hover` / `--surface-active` (neutral interactive-state tints, used for any hover/pressed/selected state instead of one-off `rgba(...)` values)
 - `--surface-control` / `--border-control` (the fill and edge of a control that sits *on* a raised card — see Shape below; never use `--surface-panel` for this, it is the same white as `--surface-raised` in light mode and leaves the control with no step of its own)
-- `--surface-card` (the fill of a card sitting *inside* a panel — a section of the History overview, a fact card on the Lines detail. A mix of `--surface-raised` into `--surface-panel`, so it resolves per theme from one definition)
+- `--surface-card` (the fill of a card sitting *inside* a panel — a section of the History overview, a fact card on the Branches detail. A mix of `--surface-raised` into `--surface-panel`, so it resolves per theme from one definition)
 - `--focus-ring` (the visible keyboard focus color, distinct enough against every focusable surface)
 - `--shadow-sm` / `--shadow-md` / `--shadow-lg` (elevation; theme-aware, see below), and `--shadow-up`, `--shadow-lg`'s colour cast upward for a surface that sits on another's top edge
 
@@ -1087,85 +1087,85 @@ second panel 44px of window width before the other. Four values in
 | `--strip-height` | A panel's own strip: the row control in it plus 10px of air above and below. Each panel's header is one |
 | `--strip-height-inner` | A strip *inside* a panel — the History workspace's file and diff panes — one step quieter |
 
-Lines pairs those two panels too, and reads at the same density as the screens
+Branches pairs those two panels too, and reads at the same density as the screens
 either side of it. **Its rows are two lines and one height**: the name alone,
 then — quieter, under it — the states worth flagging as glyphs and when the
-line last moved at the trailing end. The states were
+branch last moved at the trailing end. The states were
 text chips first, and at 272px `Local only · Can't be deleted yet` is most of
 the row; then glyphs on the name's own line, which left a long name
 (`feature/windows-installe…`) half the row. The name is what the list is
 scanned for, so it has the first line to itself, and every row keeps the
 second line — for the date if nothing else — so every row is the same height.
 As glyphs the states cost 14px each, and a row flags only what asks something
-of the reader, each glyph with one meaning: the active line is a ring with its
+of the reader, each glyph with one meaning: the active branch is a ring with its
 centre filled, in the accent, first — filled so it stands apart in a theme
-whose accent is the text's own ink; the main line is a house, quiet (it was a
+whose accent is the text's own ink; the main branch is a house, quiet (it was a
 checked shield, which read as "secure"); local only is a laptop in the local
 green; versions to publish are a cloud going up with their count in the same
 green, and versions to get a cloud coming down with theirs in the remote's
 blue — the app's own verbs, where the ↑2 ↓3 arrows asked a beginner which way
 "up" was; a remote branch that was deleted is a cloud struck through, quiet,
-because after a merged pull request it is what is expected. Whether a line can
+because after a merged pull request it is what is expected. Whether a branch can
 be deleted is not on the row: its block says it, and a success tick on every
-line ready to clean up read as "done", while a warning triangle on every line
+branch ready to clean up read as "done", while a warning triangle on every branch
 in progress called the normal state of work a problem. Up to date with its
 remote draws nothing, as it always did. A glyph has to be learned, so each one explains itself: its
 tooltip is a sentence (`Local only — never published, so it's only on this
 computer`), the row's accessible description reads the states out in words,
 and the filter panel lists the sync glyphs beside their names, which makes it
 the list's legend as well as its filter. `Active` is a word only in the detail
-strip: the active line heads the list and the strip beside it names it, so a
+strip: the active branch heads the list and the strip beside it names it, so a
 chip on the row as well was the same word twice on one line of the screen.
 
-**The list is cut by what can be done with a line, then by its name.** A flat
+**The list is cut by what can be done with a branch, then by its name.** A flat
 list of forty `feature/…`, `fix/…` and `codex/…` names read as one wall, and
 the prefix filter only helped a reader who already knew which prefix to ask
-for. So the active line and the main line head the list without a heading —
+for. So the active branch and the main branch head the list without a heading —
 the two rows looked for first — and the rest falls into two blocks: **In
-progress**, open, and **Ready to clean up**, folded. A line is ready to clean
-up when it is **finished**: its work is on the main line — the local one or
+progress**, open, and **Ready to clean up**, folded. A branch is ready to clean
+up when it is **finished**: its work is on the main branch — the local one or
 the remote's copy — and was its own, which Git shows as a version saved on
 it, a merge that brought it in, or its remote branch deleted after merging.
 Not merely when deleting it would lose nothing: that proof — another ref
-keeps its tip — is also true of a published line in progress (its own remote
-copy keeps it), of a line just created on the main line, and of a line
+keeps its tip — is also true of a published branch in progress (its own remote
+copy keeps it), of a branch just created on the main branch, and of a branch
 another one grew from, and the block once offered all three for cleaning.
-How long a line has gone untouched decides nothing; a week's pause is not a
-finished line. Without a known main line nothing is offered. That block is its
+How long a branch has gone untouched decides nothing; a week's pause is not a
+finished branch. Without a known main branch nothing is offered. That block is its
 count in the heading's capsule and, under the heading in either state, the
 action it is there for: a real button — surface, border, 44px — reading
-"Clean up 9 lines…" with "Finished: their work is on the main line" under it, the
-trash in the text's ink (red is the dialog's last button, where lines are
+"Clean up 9 branches…" with "Finished: their work is on the main branch" under it, the
+trash in the text's ink (red is the dialog's last button, where branches are
 actually deleted). It replaced `Safe to delete` with "Review" in the accent on
 the heading's second line, which in a monochrome theme read as a label, named
 no action and sat away from the count. The heading still only folds; from the
 keyboard, Delete on it opens the dialog too. The dialog, "Delete these
-lines?" in the danger tone with its primary `Delete 9 lines`, lists the block's
-lines as drawn, in the inner-card recipe, each with the include node (all in), its sync glyphs and where its work is
-kept, an "All lines (n of m)" node above them — its half moon when only some are in — the lines Rust left out
+branches?" in the danger tone with its primary `Delete 9 branches`, lists the block's
+branches as drawn, in the inner-card recipe, each with the include node (all in), its sync glyphs and where its work is
+kept, an "All branches (n of m)" node above them — its half moon when only some are in — the branches Rust left out
 folded under a count with each one's reason, and "Also delete the published
 copies" — an `app-checkbox`, since it is an option of the action and not an
 item in it; off by default, unlike the single delete, because it is many
-shared branches at once. It is there whenever the plan has a published line
-and held back, saying "None of the chosen lines is published", while no
-chosen line has one, so ticking lines never makes it come and go and the
+shared branches at once. It is there whenever the plan has a published branch
+and held back, saying "None of the chosen branches is published", while no
+chosen branch has one, so ticking branches never makes it come and go and the
 dialog keeps one size; the facts below it are fixed by the plan for the same
 reason. The recovery
-fact closes the preview: each line's name and last version are kept in a
+fact closes the preview: each branch's name and last version are kept in a
 recovery point first. When none of them can go, it is a block, "Can't delete
 them yet" in the warning tone, with the reasons and `Close`. A clean-up that deleted everything closes with a toast; one
-that kept a line or left a published copy stays on screen as "Clean-up
+that kept a branch or left a published copy stays on screen as "Clean-up
 finished", listing what was not deleted and what is still published, each
-with its reason, until it is closed. Inside each block lines
+with its reason, until it is closed. Inside each block branches
 cluster under their first name segment, a step quieter than the block's
-uppercase label; a prefix only one line has stays loose, first, because a
+uppercase label; a prefix only one branch has stays loose, first, because a
 heading over one row says the same thing twice, and a cluster of more than
 eight starts folded, so one crowded prefix (`dependabot/…`) cannot push the
 rest out of the column. Each row then makes the part
 of its name that tells it apart the loud part: a loose row's prefix is quiet
 (`codex/feature/` before `about-dialog-polish`), and a clustered row drops the
 prefix its heading says and keeps any middle part quiet. Clusters follow their
-first line, so the sort still decides what comes first. "Safe to delete" and
+first branch, so the sort still decides what comes first. "Safe to delete" and
 "Can't be deleted yet" left the filter panel with this: the blocks already
 are that filter. A search or a filter opens every heading, so what it finds
 is never folded away, and clearing it puts the list back as the reader left
@@ -1173,7 +1173,7 @@ it; what the reader folds or opens is kept per project across launches, and a
 block opened near the column's foot scrolls into view without pushing its own
 heading off the top. The list is a tree for assistive technology and the keyboard — arrows walk
 what is drawn, Right opens a heading or steps in, Left folds it or steps out —
-and when the selected line is folded away, Tab lands on the heading above it.
+and when the selected branch is folded away, Tab lands on the heading above it.
 
 **History's timeline rows share that shape and that vocabulary.** The subject
 has the first line; under it, from the start, who saved it as initials on
@@ -1183,20 +1183,20 @@ with the same initials still read apart, the full name on its tooltip). The
 user's own versions wear a person glyph on the neutral tint instead of their
 initials — "you" is the one author never told apart by colour — with "You
 (name)" on the tooltip; the detail strip says "You" with the name on hover,
-as Overview's Recent history does, and names the line stood on "current",
-since the status bar already names the line. Then
+as Overview's Recent history does, and names the branch stood on "current",
+since the status bar already names the branch. Then
 come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
-the states the row could not say at all. The glyphs are Lines': where you are
+the states the row could not say at all. The glyphs are Branches': where you are
 is the ringed dot in the accent, saved locally is the laptop, and a tag and a
 merge wear their Git glyphs — the tag with its name beside it, truncated,
 because which release it marks is the point of a tag; published is the unremarkable state and draws
 nothing. Both lists draw them with the shared `StateGlyph` (`.state-glyph` in
-`primitives.css`), so a glyph cannot look one way on Lines and another on
+`primitives.css`), so a glyph cannot look one way on Branches and another on
 History, and the timeline filter's "Only unpublished" switch wears the same
-laptop, as Lines' filter does, and "Only tagged versions" and "Hide branch
+laptop, as Branches' filter does, and "Only tagged versions" and "Hide branch
 merges" wear theirs, so the panel doubles as the legend. Where the published
-versions begin, a block heading opens them: Overview's and Lines'
+versions begin, a block heading opens them: Overview's and Branches'
 "Published" chip on the rail (`TimelineChip`), its cloud in the remote's
 blue. Where they are published — `origin/main` — and both sides are on its
 tooltip, which also says when that branch has since been deleted; the
@@ -1214,9 +1214,9 @@ published block offers no older versions. They are drawn only together: when
 nothing is waiting to be published, a lone heading over every version would
 say nothing. It used to be a dashed rule with `4 not published` at its end,
 as Overview's timeline once drew it; as two block headings the column reads
-in two blocks, the way Lines does, and "what haven't I published?" is still
+in two blocks, the way Branches does, and "what haven't I published?" is still
 one heading to find rather than a laptop to read off every row. On the
-current line the local head also offers to publish: "☁ Publish" beside its
+current branch the local head also offers to publish: "☁ Publish" beside its
 count opens the publish flow, with its preview, as a pointer shortcut beside
 the toolbar's Publish, the cloud (`CloudUpload`) always in the accent so it
 reads as an action before the pointer finds it; under the pointer the capsule
@@ -1225,16 +1225,16 @@ circle and the status bar's sync action wear, and the words step up to the
 primary ink.
 
 **The rail opens into lanes only where the history branches.** On a single
-line the column is that line's own versions — each first parent from the tip
+branch the column is that branch's own versions — each first parent from the tip
 — and a merge says how many versions it brought in, in a small capsule behind
 a chevron: pressing it (or Right on the row; Left folds it again) opens them
-on a lane of their own that leaves the merge and joins the line where they
-parted. "All lines" draws every line at once; it is one glyph in the search
+on a lane of their own that leaves the merge and joins the branch where they
+parted. "All branches" draws every branch at once; it is one glyph in the search
 box, beside the filters, the way Changes keeps its list/folders toggle — a
-single line with a node while one line is read, a graph of lines (pressed, in
-the accent) while all are — with "Show all lines" / "Show only this line" on
+single line with a node while one branch is read, a graph of lines (pressed, in
+the accent) while all are — with "Show all branches" / "Show only this branch" on
 its tooltip. It lived in the filter panel and was hard to find there; the
-panel keeps only the rarer choice of another line by name, which is the one
+panel keeps only the rarer choice of another branch by name, which is the one
 scope still stated as a chip under the strip. Lanes are drawn thin: 1px
 strokes 11px apart, the first on the rail's own x, curves where lines part
 and meet. The rail and the lanes are one drawing in both scopes: the same
@@ -1242,12 +1242,12 @@ and meet. The rail and the lanes are one drawing in both scopes: the same
 node fill once published) and the same 1px stroke in the trunk's ink, so
 switching scope
 changes what is drawn, never how — a 12px rail node beside 8px lane nodes
-read as two components. The line read is the trunk in the secondary ink and
-every other line takes a brand avatar hue pulled most of the way to the
-divider, so they tell apart without colouring the column. "All lines" has no
+read as two components. The branch read is the trunk in the secondary ink and
+every other branch takes a brand avatar hue pulled most of the way to the
+divider, so they tell apart without colouring the column. "All branches" has no
 single upstream, so each version is measured against every remote-tracking
-line — published once any of them holds it, local otherwise — and its node
-and laptop glyph read as they do on one line. The column mixes lines in Git's
+branch — published once any of them holds it, local otherwise — and its node
+and laptop glyph read as they do on one branch. The column mixes branches in Git's
 order there, so the two blocks are drawn only when every local
 version comes before every published one — the usual case, unpublished work
 on top — and a block never holds a version of the other kind; otherwise the
@@ -1262,10 +1262,10 @@ they split the column more than they helped read it. Pointing at a lane
 names it: an invisible 9px band over each 1px stroke takes the pointer, the
 lane steps up to 2px while the others fall back, the nodes on it take its
 colour, and a card beside the pointer — the app tooltip's dark surface, the
-lane's colour said once by a dot before the name — says the line's name (from
-its reference, or from the merge that brought it in) and one fact: "The line
+lane's colour said once by a dot before the name — says the branch's name (from
+its reference, or from the merge that brought it in) and one fact: "The branch
 you're viewing", "All its versions are in release/0.3.1", "3 versions not in
-main yet" or "Not in any other line yet", from the newest merge and the
+main yet" or "Not in any other branch yet", from the newest merge and the
 versions loaded. A first card with a coloured edge, a version count and a
 dated sentence said too much and read as decoration; the one fact is what the
 reader asks of a lane. Pointing at a row lifts its lane without the card. Every piece of the
@@ -1343,7 +1343,7 @@ with the chip, history and clearing with the Settings and shortcut-editor
 actions at the right. The two halves are hidden rather than clipped when the
 line narrows. The line carries no project facts: unsaved files, versions
 to publish, incoming versions and the Git version belong to the welcome, where
-they have room, and switching lines, publishing and project settings stay one
+they have room, and switching branches, publishing and project settings stay one
 rail click away. The search is a small raised card — the app palette's
 surface, its subtle border and a small radius, with the shortcut spelled at
 its end — and, with the strip gone, it is where Ctrl/Cmd+K lands. The results
@@ -1353,9 +1353,9 @@ names and the dashed rules the shortcut pane uses. Escape gives the keyboard
 back to the prompt so the next command can be typed at once. The prompt takes
 focus whenever the screen is shown. Each query repeats the prompt it ran at, as Starship
 prints one: a context line of coloured text — the project in the accent, "on",
-and the line it was on in the keyword colour — and below it a bare `❯`, the
+and the branch it was on in the keyword colour — and below it a bare `❯`, the
 name typed, then a ✓/✗/! and the elapsed time, so every command starts at the
-left edge however long the line's name is, with copy and run-again appearing on hover or focus. The exact
+left edge however long the branch's name is, with copy and run-again appearing on hover or focus. The exact
 fixed Git command follows in the secondary colour, then the output. Output
 stays inert text; tones only colour runs by the fixed query's known shape and
 fall back to plain text past 400 runs; the whole transcript also shares one
@@ -1376,7 +1376,7 @@ eyes left as holes) and, behind it, a dim rain of hex digits like
 commit hashes, falling in the body's colour and passing behind the silhouette
 (see Motion), beside a summary drawn as Omarchy's fastfetch draws one: two framed groups,
 each titled in its frame and drawn in its own theme colour — "project" in the
-accent (name, line, unsaved changes with added and removed lines, versions to
+accent (name, branch, unsaved changes with added and removed lines, versions to
 publish and newer ones available) and "environment" in the keyword colour
 (GitOdile version, Git version, the theme actually drawn and whether changes
 are confirmed, in violet when they are not) — with a Lucide icon on every row, then a row of round dots in the
@@ -1428,21 +1428,21 @@ the query's name — rather than the platform's select menu; Esc cancels a renam
 returns focus to whatever opened it — the status line's icon or the prompt. No
 second dashboard or persistent transcript is added.
 
-**Lines has no page row either; the list panel's header is the screen's name.**
+**Branches has no page row either; the list panel's header is the screen's name.**
 It follows the Work screen's shape: the list panel opens with a header at
-`--strip-height` — the rail's Lines glyph in the accent and the word in the
+`--strip-height` — the rail's Branches glyph in the accent and the word in the
 tab's title type, the way Work's active tab is set — and its search strip
 steps down to `--strip-height-inner` under it. The row that used to sit over
-both panels held the name, a sentence about what a line is, and "New line";
-with the docked composer under the list starting lines, it was a name the
+both panels held the name, a sentence about what a branch is, and "New branch";
+with the docked composer under the list starting branches, it was a name the
 rail already states, and the panels now start where the screen does.
 
 Its detail panel is one surface divided by rules, not a tray of cards. It
-opens with the line's strip, a fixed `--strip-height` level with the list's
+opens with the branch's strip, a fixed `--strip-height` level with the list's
 header, the way History's version strip is level with its tabs: the name (and
 `Active`) on the first line, who last saved to it and when on the second, one
 tone quieter — when said relatively ("2 minutes ago"), as the list beside it
-says it, with the exact date on its tooltip — and the line's actions at the trailing end — Switch as the one
+says it, with the exact date on its tooltip — and the branch's actions at the trailing end — Switch as the one
 labelled action, a capsule with a hairline and no fill, and Rename and Delete
 as the icon-only circles History's version strip gives Details and More,
 named on their tooltips (Rename's names its F2), Delete's glyph in the danger
@@ -1451,43 +1451,43 @@ list just made lighter; a labelled capsule next to circles reads as the
 primary one without spending the accent, and Switch keeps its word because it
 is what the reader came to do. The upstream is
 not in the strip: the first state under it names it, or says there is none,
-in a sentence about where the line stands, and the strip saying it again was
-the panel repeating itself across a rule. **Where the line left the main line
+in a sentence about where the branch stands, and the strip saying it again was
+the panel repeating itself across a rule. **Where the branch left the main branch
 is drawn, between where it stands and its versions** — a "Route" section,
-the project map's reading in miniature for the one line selected. Time runs
-to the right. The main line is the top lane in the panel's quiet ink, its
-dots the versions it has saved since the two parted; this line leaves it at
+the project map's reading in miniature for the one branch selected. Time runs
+to the right. The main branch is the top lane in the panel's quiet ink, its
+dots the versions it has saved since the two parted; this branch leaves it at
 the version where they parted — a ring, the date under it — and runs along a
 second lane in the accent, one dot per version of its own, the ones not yet
 published hollow on a dotted stretch, and a ring round the end when it is the
-active line. A line that came back by a merge draws the whole excursion: it
+active branch. A branch that came back by a merge draws the whole excursion: it
 leaves at the parting, runs its lane with the versions it saved while away,
-curves back up into the main line at the merge — a filled mark, its date
-under it — and the main line goes on with what it saved after. The main
-line's versions between the parting and the merge sit on their own stretch,
-kept off both ends. A line whose versions were always the main line's own —
+curves back up into the main branch at the merge — a filled mark, its date
+under it — and the main branch goes on with what it saved after. The main
+branch's versions between the parting and the merge sit on their own stretch,
+kept off both ends. A branch whose versions were always the main branch's own —
 fast-forwarded into it, or never saved to — never left it: it is a mark on
 the main lane at its newest version, and the drawing is one lane tall; Git
-keeps no record of an excursion there, and none is invented. **A line merged
+keeps no record of an excursion there, and none is invented. **A branch merged
 by squash or rebase came back as copies**, and is drawn so: the same
 excursion, its way back fainter and landing on a ring rather than a filled
 mark, and the sentence saying what happened — "Its work came back on 18 Sept
-squashed into one version; the 4 original versions are only on this line."
-To Git the line is still away, and the drawing does not pretend otherwise:
-the work is on the main line, the versions on the lane are not. It is found
+squashed into one version; the 4 original versions are only on this branch."
+To Git the branch is still away, and the drawing does not pretend otherwise:
+the work is on the main branch, the versions on the lane are not. It is found
 by comparing changes rather than commits (`git patch-id --stable`): the
-line's whole change since the parting against each of the main line's since
+branch's whole change since the parting against each of the main branch's since
 (squash), or each of its versions' against them (rebase) — read only, for the
-selected line, and given up past a thousand of the main line's versions.
-Such a line can be deleted: the delete dialog says where its work is
+selected branch, and given up past a thousand of the main branch's versions.
+Such a branch can be deleted: the delete dialog says where its work is
 ("already on “main”, combined into one version") and that GitOdile
 keeps a local recovery point with the original versions first, and the toast
-that reports the deletion says the point was kept (ADR 0016). A line whose work is nowhere else is still
+that reports the deletion says the point was kept (ADR 0016). A branch whose work is nowhere else is still
 refused.
 **Every dot is a saved version.** Each lane is drawn from the versions the
 route sends with it, newest eight at most: the dot's tooltip is the version's
 subject, date and short commit, it grows a step under the pointer, and a
-press opens that version in History on the line it belongs to — the route's
+press opens that version in History on the branch it belongs to — the route's
 dots and the list of saved versions under it lead to the same place. The dots
 are for the pointer only; the list is the same answer for the keyboard.
 Past eight, the lane says how many earlier versions it leaves out ("+33")
@@ -1495,46 +1495,46 @@ over its oldest drawn dot, and the sentence under the drawing says the numbers (
 versions of its own. main has 3 new versions since."), which is
 also what a screen reader hears. How many are not published is not in it: the
 state over the route says that ("3 not published"), with Publish beside it on
-the active line, and the drawing shows them hollow; the drawing is hidden from it. It is measured
-against the main line always, the remote's default: "where did it come from"
-is asked of the main line, whichever line is active. The states over it count
-against the same line — "3 versions not on main", "Already on main", for the
-active line too — and while the route is drawn those two states give way to
+the active branch, and the drawing shows them hollow; the drawing is hidden from it. It is measured
+against the main branch always, the remote's default: "where did it come from"
+is asked of the main branch, whichever branch is active. The states over it count
+against the same branch — "3 versions not on main", "Already on main", for the
+active branch too — and while the route is drawn those two states give way to
 it, since its sentence says the same count: a fact is said once. The number
 and the dots are one answer;
-counted against the active line they disagreed whenever the reader stood
-anywhere but main. A project with no main line gets no count rather than a
-count against something else in the same words. The main line itself, a
+counted against the active branch they disagreed whenever the reader stood
+anywhere but main. A project with no main branch gets no count rather than a
+count against something else in the same words. The main branch itself, a
 project with none, and a shallow clone — where the parting Git reports is
 where this machine's history stops — draw nothing rather than a guess. The
-figures come with the selected line's history read — the merge base, the two
-sides' counts and their newest versions, and for a line that is back on the
-main line the first-parent walk that finds the merge — never one read per
-listed line. **It is read fast and waited for in place.** The questions that do
+figures come with the selected branch's history read — the merge base, the two
+sides' counts and their newest versions, and for a branch that is back on the
+main branch the first-parent walk that finds the merge — never one read per
+listed branch. **It is read fast and waited for in place.** The questions that do
 not depend on one another are asked side by side, because on Windows the
 reader waits on process launches more than on the walks. The check for work
 that came back as copies — the slowest part, a patch read of both sides — is
-asked only when the main line saved something since the parting, since
-nothing can have come back otherwise; and what the line changes is one
+asked only when the main branch saved something since the parting, since
+nothing can have come back otherwise; and what the branch changes is one
 `--numstat` for the totals. A row the pointer rests on for a moment starts its
-line's read, so the press usually finds it answered — but only while no other
-line's read is out, so the pointer never competes for Git with the read the
+branch's read, so the press usually finds it answered — but only while no other
+branch's read is out, so the pointer never competes for Git with the read the
 detail is waiting on. A history read is superseded only by a newer read of
-the same line (`authorize_repository_read_of`): before, any line's read
-cancelled the one still out, and resting on a row while the selected line
-loaded left its route waiting for an answer that never came. While the read is out, a line that will have a route keeps the
+the same branch (`authorize_repository_read_of`): before, any branch's read
+cancelled the one still out, and resting on a row while the selected branch
+loaded left its route waiting for an answer that never came. While the read is out, a branch that will have a route keeps the
 section's whole place with the main lane already drawn and named, and a
 text placeholder where the sentence will be — the answer grows into a
 space that was waiting for it rather than pushing the versions down when it
 lands. It arrives with the one motion the drawing has: the line draws itself
 out of the parting, its versions appear along it left to right, the sentence
 settles — about a third of a second, all of it after the answer is in, and
-none of it with reduced motion. **From one line to the next it cross-fades
+none of it with reduced motion. **From one branch to the next it cross-fades
 instead.** Two routes share most of their pixels — the main lane, its name,
 the parting at a fixed place, the general shape — so blinking the section out
 and drawing the next one from nothing made two similar pictures look like two
 unrelated events, and it was most jarring exactly when the read was fast. The
-previous line's drawing is held, quieter, while the next one is read (in
+previous branch's drawing is held, quieter, while the next one is read (in
 place of the empty lane), then laid over the new one and faded out as the new
 one fades in, in 200ms: what the two share stays still and only what differs
 dissolves — the same idea as the window's theme cross-fade. The draw-out is
@@ -1542,9 +1542,9 @@ kept for a route that appears where there was none. Morphing the dots and
 curves from one position to the next was weighed and left: animating a
 path's shape is not supported in the WebKit that GitOdile runs in on macOS,
 and a transition that only works on one platform is not one to design on. It
-is not drawn beside the list: the list's rows are lines ordered by name or
+is not drawn beside the list: the list's rows are branches ordered by name or
 date, not versions, and a lane joining two neighbouring rows would claim a
-kinship the order does not have. **A line is renamed in its strip,
+kinship the order does not have. **A branch is renamed in its strip,
 not in a dialog.** Rename — from the strip, the row's menu, or F2 on the row —
 makes the name itself editable where it stands: the same type, size and
 place, the letters not moving by a pixel, with one straight accent line
@@ -1567,8 +1567,8 @@ changed with the same answer. The strip keeps its height, so nothing on the
 panel moves.
 A rename moves no saved version and no file, and the dialog it replaces was a
 title, that same field and two notes over the screen that already shows the
-line. The lock is taken at the press and released when the answer is in, the
-composer's rule. Under the strip, where the line
+branch. The lock is taken at the press and released when the answer is in, the
+composer's rule. Under the strip, where the branch
 stands — its states without a heading, since each
 says what it is — then the versions, whose label carries "Open in History" at
 its far end: the list is a preview of the sequence History draws in full, so
@@ -1577,18 +1577,18 @@ own. The strip may grow only in a one-column window, where nothing beside it
 has to be level with it. A card inside a card is two borders describing one
 thing.
 
-**A new line is named in the same docked composer Changes saves from.** The
+**A new branch is named in the same docked composer Changes saves from.** The
 box under the list is built and behaves as the save box does (see Changes):
 a section of the panel with a hairline over it; at rest the name field — a
 pill, the name in mono — with its button beside it; open, the same box grown
-upward. Its plan line is where the new line starts — "Create from `main`",
+upward. Its plan line is where the new branch starts — "Create from `main`",
 known locally, so it is there from the first frame — and when the default
-line and the active one stand at different commits the choice between them
+branch and the active one stand at different commits the choice between them
 is made in that line, both by name in the same mono, the default one telling
 what it is on its tooltip and keeping its width while the active one's name
 gives way. On a detached `HEAD` the line explains the one honest starting
 point instead. "Switch to it" is a checkbox in the foot, and the button says
-the consequence — "Create and switch", or "Create line" — named apart from
+the consequence — "Create and switch", or "Create branch" — named apart from
 the dialog's own "Create", since the two can be on screen together. At rest,
 where the button shares the field's row in a column under 300px, it says only
 "Create", so the field's question is not cut; its accessible name is still the
@@ -1596,50 +1596,50 @@ consequence, and opening the box — which is where "Switch to it" appears —
 shows the consequence in words beside the choice that decides it. Created,
 the plan's slot says what was created. What Git would refuse in the name is said under
 the field before the press, in the shared `.field-error` look, by a local
-mirror of Rust's own checks (`checkLineName`: `check-ref-format --branch`
-and the loaded lines, exactly or by letter case) — Rust stays the authority.
+mirror of Rust's own checks (`checkBranchName`: `check-ref-format --branch`
+and the loaded branches, exactly or by letter case) — Rust stays the authority.
 What typing on cannot fix — a space, a forbidden character, a taken name —
 is said as it appears and holds the button; how a half-typed name ends
 (`feature/`, `v1.`) is said only when the reader asks to create, so the box
-never scolds a name for being unfinished. The field asks what the line is for
+never scolds a name for being unfinished. The field asks what the branch is for
 — "What will you work on?", the way the save box asks "What changed?" — and
 while it is empty, the line under it says how a name is written: "Like
 `fix/short-name`", one line in any language, the example truncating rather
 than wrapping and whole on its tooltip — by an example
 in the project's own convention when it has one (the prefix at least two of
-its lines share, `fix/short-name`) and `feature/new-feature` otherwise. The
+its branches share, `fix/short-name`) and `feature/new-feature` otherwise. The
 example used to be the placeholder itself, which told the format and never
 the purpose; it gives way to what Git would refuse once there is a name. Nothing
 in it moves: an example that types and erases itself would be a second
 moving thing on a screen that keeps one. When it folds is the same shared rule
-(`useDockedComposerFocus`). It is the screen's one way to start a line: there
-is no "New line" in a header and no "new line from here" among the active
-line's actions, since both opened a form for what the box already does. The
-dialog with its full plan stays for the palette's "New version line" and the
+(`useDockedComposerFocus`). It is the screen's one way to start a branch: there
+is no "New branch" in a header and no "new branch from here" among the active
+branch's actions, since both opened a form for what the box already does. The
+dialog with its full plan stays for the palette's "New branch" and the
 detached-`HEAD` banner.
 
-**The quick switch makes a line in place too.** In the status bar, "New line" — and a search that names no line, offered as the last
+**The quick switch makes a branch in place too.** In the status bar, "New branch" — and a search that names no branch, offered as the last
 row, "Create “feature/login”" — open the composer's own fields docked at the
 popup's foot, where the footer was, under the list that stays: a title row
-("New line", and an × back to the footer), where the new line starts, the
+("New branch", and an × back to the footer), where the new branch starts, the
 name, "Switch to it", and the button that says the consequence. It docks
 rather than replacing the list because the popup is measured and placed once,
 for the list: a view that replaced it shrank the popup to the composer's
 height and left it hanging — above the status bar, a gap opened between the
 popup and its trigger. Docked, the popup keeps its size and its place and the
-list gives the composer the room, as the Lines list does. Escape folds it back
+list gives the composer the room, as the Branches list does. Escape folds it back
 into the footer and leaves the popup open. It is the same flow (`useLineCreateFlow`) in a second frame, so the
 two cannot explain one create differently. A search row opens this view with
 the name in it rather than creating at once — a search is a question, and
-Enter on it must not make a line by accident. Made, the popup closes: the
-control it hangs from names the new line, which is the confirmation. A
+Enter on it must not make a branch by accident. Made, the popup closes: the
+control it hangs from names the new branch, which is the confirmation. A
 failure stays under the field to retry.
 
 **The quick switch is one popup, in the status bar.** It opens at 400 ×
 400px with nine rows and their controls; Overview's header once hosted a
 second one and no longer does (it names where the project lives). A smaller
 popup left the docked composer no room for the list it docks under. It has the
-project popup's shape (task 189): a head with the line the project is on — its
+project popup's shape (task 189): a head with the branch the project is on — its
 glyph on the active fill, its name, its latest saved version — and "Copy name"
 beside it over a hairline, then the search, the rows and the foot. The search
 still takes focus on opening. The keyboard walks it as one control: Down from the search moves
@@ -1647,23 +1647,23 @@ into the rows, Up and Down walk them, Up from the first returns to the search,
 and Enter in the search chooses the first row it left — only a choice, since
 the switch it starts is previewed like any other.
 
-**The quick switch states a line's actions where the line is.** Each row carries
-an always-visible `⋯` — not a hover-only affordance — that shows that line's
-actions in place of the list: merging it into the current line, rebasing the
-current line onto it, and comparing the two. Each names both ends so the
+**The quick switch states a branch's actions where the branch is.** Each row carries
+an always-visible `⋯` — not a hover-only affordance — that shows that branch's
+actions in place of the list: merging it into the current branch, rebasing the
+current branch onto it, and comparing the two. Each names both ends so the
 direction is never inferred. None is enabled yet — the flows are not built — so
 each is stated, disabled and marked `Soon` rather than hidden. Renaming and
-deleting a line stay on the Lines screen; the row's menu does not duplicate
+deleting a branch stay on the Branches screen; the row's menu does not duplicate
 them. They replace the list inside the popup rather than opening a nested menu,
 because that popup clips its overflow and dismisses on a press outside itself.
 
-**A line's right-click menu groups what other Git clients group.** Going to
-it (Switch); what it can do with the line the project is on — "Merge into
+**A branch's right-click menu groups what other Git clients group.** Going to
+it (Switch); what it can do with the branch the project is on — "Merge into
 “main”", "Rebase “main” onto this", "Compare with “main”", the quick switch's
 own three in its words, each naming both ends — stated, disabled and marked
 `Soon` until their flows exist rather than hidden; renaming it and copying its
 name; and, after a rule, Delete, the one destructive action, last. The three
-are offered only for a line that is not the active one: the active line has
+are offered only for a branch that is not the active one: the active branch has
 nothing to merge into itself. Switch wears the glyph the detail strip's Switch
 does, and compare its own, so no glyph means two things across the screen. The
 rules between groups are `.app-menu__divider`, the one rule every menu in the
@@ -1671,28 +1671,28 @@ app draws — a top border, so it lands on a whole device pixel and weighs the
 same in every menu at any display scale.
 
 **The panel does not scroll; the section that can outgrow it does.** Where a
-line stands is three lines that never grow, and a panel that scrolls as a whole
+branch stands is three lines that never grow, and a panel that scrolls as a whole
 carries them off the top to reach the list underneath — the answer leaving to
 show the question. The body divides its height between the sections instead,
 and the list of versions takes what is left and scrolls inside itself, which
 also keeps the way through to History against the bottom edge where a way out
 belongs.
 
-**Under the route, what the line can do.** "What you can do" states the quick
-switch's actions for the line on screen, in the quick switch's and the row
+**Under the route, what the branch can do.** "What you can do" states the quick
+switch's actions for the branch on screen, in the quick switch's and the row
 menu's own words, each naming both ends: an action is called the same
-wherever it is offered. For another line the other end is the active one:
+wherever it is offered. For another branch the other end is the active one:
 "Merge into “main”", "Rebase “main” onto this", "Compare with “main”". For the
-active line it is the main line the route measures against: "Merge “main”
-into this", "Merge into “main”" (left out once the line came back) and
-"Compare with “main”". Nothing is offered on the main line itself or with no
-line checked out. Each row is a glyph tile, the action, and what it would do
+active branch it is the main branch the route measures against: "Merge “main”
+into this", "Merge into “main”" (left out once the branch came back) and
+"Compare with “main”". Nothing is offered on the main branch itself or with no
+branch checked out. Each row is a glyph tile, the action, and what it would do
 in plain words in one line under it: how many versions it would carry, or, for the comparison,
 the totals since the parting ("448 files changed since it left · +45,972
 −6,996"). None of the flows exists yet, so every row is stated and marked
 `Soon`, as rows rather than disabled buttons. A row that could not run anyway
-says why instead ("Up to date" when the main line hasn't moved). This
-replaced a list of the files the line changes against the main line: a
+says why instead ("Up to date" when the main branch hasn't moved). This
+replaced a list of the files the branch changes against the main branch: a
 preview of the comparison it could not open was a long way to say "Compare".
 
 **Each fact is stated once on a panel, in the place that says it best.** This
@@ -1708,28 +1708,28 @@ where the version stands (half filled while only here, a solid disc in the
 node fill once published, an empty ring when there is no remote copy
 to count against).
 Which versions the remote lacks is asked of Git with the history read
-(`<line>@{upstream}..<line>`), not read off the ahead count by position: a
-line that merged another interleaves the two by date.
-Where the line is ahead of its remote copy, the versions only here sit under
+(`<branch>@{upstream}..<branch>`), not read off the ahead count by position: a
+branch that merged another interleaves the two by date.
+Where the branch is ahead of its remote copy, the versions only here sit under
 an "On this computer" chip on the rail — also when every listed version is
-one of them, on a line further ahead than the list shows — and a
+one of them, on a branch further ahead than the list shows — and a
 "Published" chip marks where the remote's copy begins when it is in view —
 Overview's `TimelineChip` at its compact size, no count and no rule, the
 remote in the "Published" chip's tooltip. While the list scrolls, the chips
 stay at its top as their versions pass, as Overview's do. **One Publish per
-line**, History's quiet capsule with only the cloud in the accent: on the
-active line it rides the "On this computer" head, beside the versions it
-sends, as History's does; only a line with no head — never published, or
+branch**, History's quiet capsule with only the cloud in the accent: on the
+active branch it rides the "On this computer" head, beside the versions it
+sends, as History's does; only a branch with no head — never published, or
 whose remote branch was deleted — carries it on the remote state above
-instead. Two at once had the same button twice on one screen. Another line
-is published from that line.
+instead. Two at once had the same button twice on one screen. Another branch
+is published from that branch.
 No chip repeats it, and a row's code shows under the pointer. The list takes
 the height the actions leave and scrolls inside itself, with no count of the
 versions it leaves out: "Open in History" over it is the way to them, and
 every row opens that version in History — the screen that draws the same
 sequence in full.
 
-**A third screen asking the same question uses the same surface.** Lines
+**A third screen asking the same question uses the same surface.** Branches
 filters a list the way Changes and History do — a trigger with a count, a
 panel, groups of capsules and switches, a footer that clears them — and had a
 private copy of every rule for it. The copy is what a private copy always
@@ -1742,14 +1742,14 @@ repository and therefore scrolls, the way the file-type group in Changes does.
 **A drawing has to say more than its caption does.** The strip opened with a
 rail of dots — one per version the read returned, hollow at the left for the
 ones behind them, `Older versions` and `Newer versions` written under its two
-ends. Every line that had filled the read drew the identical picture, so the
+ends. Every branch that had filled the read drew the identical picture, so the
 only thing the rail could tell you was "there are more than eight", and the
 count standing beside it said that in words. A diagram that needs a legend to
 explain what it is, and then encodes one bit, is decoration with a caption on
 it; the pixels went to who saved the last version and when.
 
 **A state and the sentence explaining it are one line, not two.** Given the
-whole measure of a panel, `Up to date with the remote — Your local line is in
+whole measure of a panel, `Up to date with the remote — Your local branch is in
 sync with origin/…` reads as what it is. Stacked, it spent two lines and a gap
 per state to fill a third of the width, which is how the panel ended up wanting
 two columns it did not need: three short sections beside each other, and a list
@@ -1760,7 +1760,7 @@ The heights are a `calc` off `--control-height-sm` rather than sizes of their
 own, for the same reason a control's height is a token: a strip is the control
 that lives in it plus its air, so it cannot be right at one number and wrong at
 another. There is no screen header above them to measure: Changes, History and
-Lines head their list panels instead (§ Core screens, "the panel is the card"),
+Branches head their list panels instead (§ Core screens, "the panel is the card"),
 and the shared page row they used to open on — `.screen-header` — went with the
 last of them. It had been one rule rather than a copy per screen because two
 hand-written copies had already drifted: the panels beneath started 12px lower
@@ -1924,7 +1924,7 @@ option in a menu or picker is selection, not success, and stays in the ink.
 | Tone | Token | Means | Where |
 |---|---|---|---|
 | Remote | `--tone-remote` = `--status-renamed` | the remote and its copy | the origin cloud, a published version, Clone, Get changes and Connect a remote dialogs, the "new versions" and "published" notifications |
-| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "On this computer" in the timelines of Overview, History and Lines, the Save version, Publish, Restore and Create project dialogs, Get-and-publish |
+| Local | `--tone-local` (theme token; the brand's lime in the official themes, success green in community ones) | saved here, not published | "On this computer" in the timelines of Overview, History and Branches, the Save version, Publish, Restore and Create project dialogs, Get-and-publish |
 | Done | `--status-success` | finished, all in order | every completion tick: "All in order" in the next step, done steps in dialogs and Home's setup, a saved version, a created project, "Everything is saved / published", "up to date" in About |
 | App | `--tone-app` (violet, per scheme) | GitOdile itself | What's new, Keyboard shortcuts, Report a problem, the Update dialog and the "new version of GitOdile" notification |
 
@@ -2174,7 +2174,7 @@ somebody eyeballed.
 | --- | --- |
 | `--weight-normal` (400) | Body copy and metadata |
 | `--weight-medium` (500) | A value that must not be mistaken for a name |
-| `--weight-strong` (600) | The name of a thing: a file, a version line, a row's subject |
+| `--weight-strong` (600) | The name of a thing: a file, a branch, a row's subject |
 | `--weight-heading` (650) | A heading, and the label of a selected control |
 | `--weight-title` (700) | A screen or dialog title, a primary action, an avatar's initials |
 
@@ -2444,7 +2444,7 @@ the hand, so this stays a decision rather than a habit.
 ## Dialogs
 
 Every dialog that asks or tells — create, clone, save, publish, get project
-changes, discard and restore, the version-line dialogs, updates, the app's
+changes, discard and restore, the branch dialogs, updates, the app's
 messages and the issue report — wears one shell: `Dialog` in `shared/ui`
 (`.app-dialog`). About, What's new and the shortcut sheet are documents to
 read rather than questions to answer and keep their identity shell. The shell
@@ -2468,7 +2468,7 @@ window is not veiled twice.
 
 | Size | Width | For |
 |---|---|---|
-| `s` | 440px | A message, an error, a confirmation, a result with a next step: discard, delete a line, switch lines, a new line, close a project, anything that failed |
+| `s` | 440px | A message, an error, a confirmation, a result with a next step: discard, delete a branch, switch branches, a new branch, close a project, anything that failed |
 | `m` | 560px | A short form or a plan: save a version, publish, get project changes, updates, connecting a remote |
 | `l` | 720px | A flow with a review or lists: create a project, clone, the issue report |
 
@@ -2484,9 +2484,9 @@ button always, and nothing else unless the dialog needs it:
   what it handles (§ Glyph tones): Save version, Publish, Restore and Create
   project in `local`; Get project changes, Clone and Connect a remote in
   `remote`; the Update dialog and the issue report in `app`; a confirmation
-  that removes work (discard, delete a line) and an error in `danger`; a
+  that removes work (discard, delete a branch) and an error in `danger`; a
   block in `warning`; a result in `success`; a plain question (close a
-  project, a new line, switch lines) or a cancellation in `neutral`. A rule
+  project, a new branch, switch branches) or a cancellation in `neutral`. A rule
   with exceptions had left Get with a glyph and Publish without one, and the
   two confirmations that delete work as the only ones that did not warn.
   `Dialog` requires `icon` and `tone`, so a new dialog cannot leave it out.
@@ -2510,7 +2510,7 @@ characters; the fix for a long title is a shorter title, not a smaller type
 size or a stacked header. The detail moves to the body: "Can't delete it yet"
 over "“feature/x” has versions that aren't anywhere else", not the name inside
 the title. No title carries a line's or a project's name — "Delete this
-line?", "Switch line", "Publish a new line", "Project created" — since a long
+branch?", "Switch branch", "Publish a new branch", "Project created" — since a long
 name is exactly what breaks the line; the name goes to the subtitle or the
 body.
 
@@ -2811,7 +2811,7 @@ never copy; say what stays safe instead.
 
 **A notice on a screen is one line.** Every in-screen notice or banner —
 History's, Changes' failed read and discard result, the automatic-updates
-warning, Lines' detached and unborn banners, Home's Git notice, the skipped
+warning, Branches' detached and unborn banners, Home's Git notice, the skipped
 restore at startup — reads as one row: its icon, the title in the strong
 weight, then the explanation in the secondary ink on the same line, cut short
 with an ellipsis and the whole of it on the text's tooltip, and any action at
@@ -2867,7 +2867,7 @@ Reuse one visual pattern for all of these across screens rather than each screen
 **A first load draws the shape of what is coming, where it will be.** A list,
 a sentence or a form whose shape is known before Git answers — the Overview's
 changed files and recent history, the Changes file list, the History timeline
-and a version's detail, the version lines and a line's route, project
+and a version's detail, the branches and a branch's route, project
 settings, line endings, the Publish plan — renders its real layout with
 `LoadingPlaceholder`: the same row classes as the loaded content, real
 structure (a timeline's rail and nodes, a panel's own header) drawn as it will
@@ -3075,8 +3075,7 @@ yours overlaps." and "Get 3 versions"), both sides moved without overlapping
 no primary action), something of the person's in the way (warning colour,
 what it is and "See why"), not checked, checking, a check that failed (calm, a red glyph,
 "Your work is saved", "Try again"), no remote ("Saved on this computer",
-"Connect a remote"), no upstream, an older version open ("Choose a version
-line"), unborn, and finally "Saved and published" with no action. Its title
+"Connect a remote"), no upstream, an older version open ("Choose a branch"), unborn, and finally "Saved and published" with no action. Its title
 leads, with no kicker or progress bar above it. The band is washed with 7%
 of its state's tone — amber with unsaved work, the local green ready to
 publish, the remote's blue with newer changes, red when blocked — and the
@@ -3089,7 +3088,7 @@ get flow), *now* (one line with the unsaved count and its kinds as glyph
 counts, leading to Changes), the versions only on this computer grouped under
 an "On this computer" chip with half-filled nodes (its glyph in the unsaved
 ink with no remote), a "Published" chip where the remote's copy begins (the
-remote, and the line when it differs from the one stood on, in its tooltip),
+remote, and the branch when it differs from the one stood on, in its tooltip),
 then published versions, six in all with "View all" in the card's corner. Rows keep "You" for
 the user's own versions and the "current" badge.
 The **side column** is `OverviewDetail`, choosing its detail with
@@ -3128,9 +3127,9 @@ looked like a button and was not one, so it is gone, and the breathing halo
 stays the band's. Focus opens the box upward without changing its shape:
 the plan over the field — `3 of 7 files → main`, the count first and the
 line in the status bar's own type, since the panel header is the tab pair
-and names no line — then the details, only the notes the plan line cannot
-say (a first version, changes already prepared, no line to land on; files
-left behind are the line's to count), any failure, and a foot with "Also
+and names no branch — then the details, only the notes the plan line cannot
+say (a first version, changes already prepared, no branch to land on; files
+left behind are the branch's to count), any failure, and a foot with "Also
 publish" and the button. The plan is Rust's answer and lands a beat after
 the box opens, so its line is held open at its height from the first frame
 and the text arrives with the list's own row entrance (`.row-in`) rather
@@ -3164,7 +3163,7 @@ in flight; a draft or a save keeps it open automatically. An explicit close
 button at the right of the plan line, visible only while expanded, and Escape
 fold it on purpose while preserving the draft and options. The close uses a
 14px X in a small transparent button, secondary ink, the item radius and the
-shared hover/focus treatment; it is disabled while saving or creating a line.
+shared hover/focus treatment; it is disabled while saving or creating a branch.
 Explicit closing moves focus to the composer itself so it neither disappears
 with the button nor immediately reopens the field. Pressing inside the box on something that takes no
 focus — the option's words, a disabled Save, the plan line — is not
@@ -3176,7 +3175,7 @@ click land first and folds after, without the scroll anchoring an open
 gets: folding between the press and its release moved the list under the
 pointer, and the release landed on another row or on none. A keyboard move
 away folds at once, since there is no click to protect. The rule is one hook,
-`useDockedComposerFocus`, shared with the new-line box on Lines, and the
+`useDockedComposerFocus`, shared with the new-branch box on Branches, and the
 layout is one primitive, `.docked-composer` in primitives.css, so the two
 docked boxes cannot drift apart. A request in flight disables the fields,
 which drops focus to the page; when it ends, focus goes back to the field
@@ -3185,7 +3184,7 @@ when they leave it.
 
 The flow underneath is one implementation (`useSaveVersionFlow`) in two
 frames: the box here, the modal dialog on the screens with nowhere to type —
-Overview's active tile, saving before switching a line — and the notes and
+Overview's active tile, saving before switching a branch — and the notes and
 the failure detail come from one place so the two cannot explain a plan or a
 failure differently. The box offers no way into the dialog: it would be the
 same form in a bigger frame, over the list whose checkboxes stay live while
@@ -3238,9 +3237,9 @@ follows the same shape.** Its timeline panel wears the same tab pair as its
 header; its search strip steps down to `--strip-height-inner`; and the scope
 — which history is being read, removable where it is stated — is a chip in a
 state row under the search strip, drawn only while the timeline is not the
-current line's, so the common case keeps its rows one strip down. It stays out of the
+current branch's, so the common case keeps its rows one strip down. It stays out of the
 filter chips because it is not a filter: clearing the filters must not change
-the line. Loading, failed and "no saved versions yet" keep the timeline panel
+the branch. Loading, failed and "no saved versions yet" keep the timeline panel
 and its tabs, with the state block in the detail panel. The
 card is a single surface: the version strip carries the subject and its facts
 (author, time, short commit, publication, file count) at `--strip-height`; its
@@ -3251,7 +3250,7 @@ are always the working surface, and the reading controls — the two step pairs,
 a find that expands from its icon, and the view picker — live in one toolbar
 across the whole card, over both panes, with the file search stepped down into
 its own pane so that toolbar keeps a whole row's width at any window size.
-Renaming and deleting a line stay on the Lines screen rather than being
+Renaming and deleting a branch stay on the Branches screen rather than being
 duplicated in every menu. The version strip is a fixed `--strip-height`,
 not a minimum: the timeline panel's header beside it is exactly that, and a
 strip that grew with its two lines sat its rule ~20px below the tabs'. It
@@ -3269,14 +3268,14 @@ inside the open difference is the same gesture, in the same place, on either
 tab. Which tab is showing is the project's to remember, like its selected
 file: Back and Forward move between screens, as they do in GitHub Desktop,
 and a project left on History comes back to History. A hand-off from another
-screen — the band's tiles, "view on History" from Lines, the palette's "Go to
+screen — the band's tiles, "view on History" from Branches, the palette's "Go to
 Changes" and "Go to History" — opens Work on that tab.
 The "everything is saved" state's circle is the band's done tile, light fill
 and no shadow, since nothing there rests on anything. The shared
 `.app-checkbox` remains the checkbox for option rows — the History filter
 panel, a save's "Also publish" — that same light fill with the tick in the
 accent. A list whose items go into one action does not use it — the Changes
-file list, and the lines a clean-up deletes: its include control is History's
+file list, and the branches a clean-up deletes: its include control is History's
 timeline node at 10px (`InclusionNode` in `shared/ui`). Filled in the node fill means the file is in, an empty
 ring means it is out, and a half moon means only part of a folder is in. The
 accent belongs to the file that is open, as it does on History's selected row;

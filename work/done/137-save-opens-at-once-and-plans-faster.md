@@ -26,7 +26,7 @@ start while Git is still answering. The summary ("3 files on *main*" and the
 breakdown) is filled at once from what the project already knows, or by faint
 placeholders where it will be. Save is held back as "Checking…" until the fresh
 plan confirms or corrects the summary; a block (conflicts, no identity, nothing
-to save, detached line) replaces the form as it does today.
+to save, detached branch) replaces the form as it does today.
 
 # Context
 
@@ -88,7 +88,7 @@ to save, detached line) replaces the form as it does today.
       disabled as "Checking…" until the fresh plan arrives; a different count
       replaces the preview's, and a block replaces the form.
 - [x] Without a usable preview (partial selection, conflicts, clean tree,
-      detached line, no cache), placeholders stand where the summary will be.
+      detached branch, no cache), placeholders stand where the summary will be.
 - [x] Save can never write on a preview: only a confirmed plan's state token is
       sent.
 - [x] What was typed while the plan ran is kept when the plan arrives, and the
@@ -160,7 +160,7 @@ to save, detached line) replaces the form as it does today.
   and project. Its `SaveVersionPreview` is a `Pick` of the plan, so
   `PlanSummary` and `getSaveVersionNotes` take either. It is `null` for a
   partial selection, a clean tree, conflicts, a detached `HEAD` or an unnamed
-  line; the summary then shows `PlanSummaryPlaceholder`.
+  branch; the summary then shows `PlanSummaryPlaceholder`.
 - `validate_and_prepare_save` asks status, operation-in-progress, `HEAD` and
   identity side by side (`in_parallel`, nested) and checks their answers in the
   old order: status, operation, `HEAD`/detached, conflicts, clean, identity.
@@ -183,7 +183,7 @@ to save, detached line) replaces the form as it does today.
   buttons. `saveVersionSummary` became `saveVersionFilesCount`.
 - A second review reworked the summary: the count is the headline and the
   breakdown follows it as text ("12 edited · 1 new", the categories' colours as
-  ink) instead of pills, with the version line on a quieter line of its own
+  ink) instead of pills, with the branch on a quieter line of its own
   (ellipsis, full name on hover). "Show files" unfolds the plan's `files`
   (kind and path, a rename as "old → new") in a solid scrolling panel. The
   details field is folded behind "Add details" and opens unfolded when the

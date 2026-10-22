@@ -34,7 +34,7 @@ function page(versions: SavedVersionSummary[]): HistoryPage {
   return {
     repositoryId: query.projectId,
     snapshotToken: "snapshot-1",
-    scope: { kind: "currentLine" } as const,
+    scope: { kind: "currentBranch" } as const,
     branch: "main",
     headState: "branch",
     headCommit: versions[0]?.commit ?? null,
@@ -126,7 +126,7 @@ describe("HistorySummarySection", () => {
     expect(onOpenHistory).toHaveBeenCalledOnce();
   });
 
-  it("names the line a recent version sits on without turning it into prose", async () => {
+  it("names the branch a recent version sits on without turning it into prose", async () => {
     const tip: SavedVersionSummary = {
       ...version(2),
       decorations: [
@@ -140,12 +140,12 @@ describe("HistorySummarySection", () => {
 
     const rows = container.querySelectorAll<HTMLButtonElement>(".overview-history__row");
     const badge = rows[0].querySelector(".history-ref-badge");
-    // The line being stood on is called "current": the header names it.
+    // The branch being stood on is called "current": the header names it.
     expect(badge).toHaveTextContent("current");
     expect(badge).toHaveAttribute("title", expect.stringContaining("refs/heads/main"));
     expect(badge).toHaveClass("history-ref-badge--current");
     // Version 2 is still only on this computer, and the label says so last.
-    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in History — Version line main — Not published");
+    expect(rows[0].getAttribute("aria-label")).toBe("Open “Saved version 2” in History — Branch main — Not published");
     expect(rows[1].querySelector(".history-ref-badge")).toBeNull();
     expect(rows[1].getAttribute("aria-label")).toBe("Open “Saved version 1” in History");
 
@@ -175,7 +175,7 @@ describe("HistorySummarySection", () => {
     expect(subjects.at(-1)).toBe("From the remote");
   });
 
-  it("leaves the current line's copy on the remote unbadged, keeping other lines' names", async () => {
+  it("leaves the current branch's copy on the remote unbadged, keeping other branches' names", async () => {
     const trackingRef = "refs/remotes/origin/main";
     const upstreamTip: SavedVersionSummary = {
       ...version(1),
@@ -446,7 +446,7 @@ describe("HistorySummarySection", () => {
     expect(scroller?.contains(now ?? null)).toBe(false);
   });
 
-  it("points to View all once the timeline is scrolled to the end of a line that goes on", async () => {
+  it("points to View all once the timeline is scrolled to the end of a branch that goes on", async () => {
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: (media: string) => ({ matches: true, media, addEventListener: vi.fn(), removeEventListener: vi.fn() }),

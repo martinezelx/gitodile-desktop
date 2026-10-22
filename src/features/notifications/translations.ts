@@ -25,7 +25,7 @@ export interface NotificationsTranslations {
   notificationAppUpdateTitle: (version: string) => string;
   notificationAppUpdateDescription: string;
   notificationAppUpdateAction: string;
-  notificationUpstreamGoneTitle: (line: string | null, remote: string | null) => string;
+  notificationUpstreamGoneTitle: (branch: string | null, remote: string | null) => string;
   notificationUpstreamGoneDescription: string;
   notificationUpstreamGoneAction: string;
 }
@@ -57,14 +57,14 @@ const en: NotificationsTranslations = {
   notificationRemoteCheckFailedDescription: "The last automatic check couldn't reach the remote.",
   notificationChangesPublishedTitle: (count) =>
     count === 0
-      ? "Published the line"
+      ? "Published the branch"
       : count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
   notificationAppUpdateTitle: (version) => `New version available: ${version}`,
   notificationAppUpdateDescription: "Found at startup, and nothing has been downloaded.",
   notificationAppUpdateAction: "View update",
-  notificationUpstreamGoneTitle: (line, remote) =>
-    `${line ? `“${line}”` : "This line"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
+  notificationUpstreamGoneTitle: (branch, remote) =>
+    `${branch ? `“${branch}”` : "This branch"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
   notificationUpstreamGoneDescription: "It was deleted on the remote. Your work on this computer hasn't changed.",
   notificationUpstreamGoneAction: "See options",
 };
@@ -96,14 +96,14 @@ const es: NotificationsTranslations = {
   notificationRemoteCheckFailedDescription: "La última comprobación automática no pudo llegar al remoto.",
   notificationChangesPublishedTitle: (count) =>
     count === 0
-      ? "Se publicó la línea"
+      ? "Se publicó la rama"
       : count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
   notificationAppUpdateTitle: (version) => `Nueva versión disponible: ${version}`,
   notificationAppUpdateDescription: "Detectada al iniciar, sin descargar nada.",
   notificationAppUpdateAction: "Ver actualización",
-  notificationUpstreamGoneTitle: (line, remote) =>
-    `${line ? `«${line}»` : "Esta línea"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
+  notificationUpstreamGoneTitle: (branch, remote) =>
+    `${branch ? `«${branch}»` : "Esta rama"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
   notificationUpstreamGoneDescription: "Se borró en el remoto. Tu trabajo en este ordenador no ha cambiado.",
   notificationUpstreamGoneAction: "Ver opciones",
 };

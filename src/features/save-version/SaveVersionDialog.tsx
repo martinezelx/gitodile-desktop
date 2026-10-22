@@ -43,7 +43,7 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPreview; t: Translations })
   const [showFiles, setShowFiles] = useState(false);
   // The same lines, in the same order, the quick commit box prints under its
   // plan — one list in `planNotes.ts` for both frames. The one that asks for
-  // action (no line to land on) is a banner rather than a note.
+  // action (no branch to land on) is a banner rather than a note.
   const notes = getSaveVersionNotes(plan, t).filter((note) => note !== t.saveVersionNoDestinationNote);
   const moreFiles = plan.totalFiles - plan.files.length;
   return (
@@ -53,7 +53,7 @@ function PlanSummary({ plan, t }: { plan: SaveVersionPreview; t: Translations })
           and the save cannot disagree. One voice for the numbers: the count
           is the headline and the breakdown reads after it as text, so the
           line is a sentence rather than three kinds of mark side by side. A
-          detached `HEAD` names no line rather than guessing one. */}
+          detached `HEAD` names no branch rather than guessing one. */}
       <div className="save-version-summary">
         <div className="save-version-summary__head">
           <strong>{t.saveVersionFilesCount(plan.totalFiles)}</strong>

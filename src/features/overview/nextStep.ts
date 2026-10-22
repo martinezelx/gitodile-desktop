@@ -29,16 +29,16 @@ export type NextStepAction =
   | "checkRemote"
   | "checkLocal"
   | "openSettings"
-  | "openLines"
+  | "openBranches"
   /** Opens Get project changes on what stops it: the overlapping files, or
    * what is in the way. */
   | "explainIncoming"
   /** Gets, combines and publishes in one confirmation. */
   | "getAndPublish"
-  /** Switches to the project's main line, the usual way out once this line's
+  /** Switches to the project's main branch, the usual way out once this branch's
    * remote branch is gone. */
   | "switchToDefault"
-  /** Forgets the remote branch this line tracked. */
+  /** Forgets the remote branch this branch tracked. */
   | "stopTracking";
 
 export type NextStepKind =
@@ -60,7 +60,7 @@ export type NextStepKind =
   | "unavailable"
   | "noRemote"
   | "noUpstream"
-  /** The remote branch this line tracked was deleted there. */
+  /** The remote branch this branch tracked was deleted there. */
   | "upstreamGone"
   | "detached"
   | "unborn"
@@ -78,7 +78,7 @@ export type NextStepThen =
   | { kind: "get"; count: number };
 
 /** One line under the hint saying whether what is waiting on the remote
- * gets in the way of local work — the forecast, in a sentence. `clear` lines
+ * gets in the way of local work — the forecast, in a sentence. `clear` forecasts
  * read as safe, the others as stopped. */
 export type NextStepNote =
   | { kind: "clear" }
@@ -113,11 +113,11 @@ export type NextStep = {
  */
 export function deriveNextStep(
   journey: Journey,
-  { canPublish, defaultLine = null }: {
+  { canPublish, defaultBranch = null }: {
     canPublish: boolean;
-    /** The project's main line when it is another line than this one: where
-     * a line whose remote branch is gone usually goes next. */
-    defaultLine?: string | null;
+    /** The project's main branch when it is another branch than this one: where
+     * a branch whose remote branch is gone usually goes next. */
+    defaultBranch?: string | null;
   },
 ): NextStep {
   const { changes, publish } = journey;
@@ -147,7 +147,7 @@ export function deriveNextStep(
         { kind: "overlap" });
     }
     if (forecast?.outcome === "clear") {
-      // Getting first is safe and keeps the line from diverging; saving is
+      // Getting first is safe and keeps the branch from diverging; saving is
       // still the step, so it keeps the primary button.
       const note: NextStepNote = forecast.combinedUnsavedCount > 0
         ? { kind: "incomingCombined", count: incoming, files: forecast.combinedUnsaved, fileCount: forecast.combinedUnsavedCount }
@@ -210,7 +210,7 @@ export function deriveNextStep(
     case "noRemote":
       return step("noRemote", "calm", null, ["openSettings"]);
     case "noUpstream":
-      // Publishing is how such a line gets a destination: the card offers it
+      // Publishing is how such a branch gets a destination: the card offers it
       // rather than telling the reader to do something it gives no way to do.
       return step("noUpstream", "calm", canPublish ? "publish" : null, []);
     case "upstreamGone":
@@ -219,11 +219,11 @@ export function deriveNextStep(
       return step(
         "upstreamGone",
         "unsaved",
-        defaultLine ? "switchToDefault" : null,
+        defaultBranch ? "switchToDefault" : null,
         [...(canPublish ? (["publish"] as const) : []), "stopTracking"],
       );
     case "detached":
-      return step("detached", "calm", null, ["openLines"]);
+      return step("detached", "calm", null, ["openBranches"]);
     case "unborn":
       return step("unborn", "calm", null, []);
     case "upToDate":

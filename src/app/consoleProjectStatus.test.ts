@@ -16,7 +16,7 @@ describe("consoleProjectStatus", () => {
     });
   });
 
-  it("does not read zeros as up to date when the line was never compared", () => {
+  it("does not read zeros as up to date when the branch was never compared", () => {
     for (const state of ["noRemote", "noUpstream", "unborn", "detached", "upstreamGone"] as const) {
       const status = consoleProjectStatus(tree, null, sync(state, 0));
       expect(status.unpublished, state).toBeNull();

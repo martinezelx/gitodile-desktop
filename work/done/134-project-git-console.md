@@ -36,7 +36,7 @@ The user requested a pre-1.0 screen that resembles a themed console but only
 operates on the current project. They chose customizable shortcuts for Git
 commands (for example, `stat` for `git status`), starting with read-only
 operations and iterating later. They approved a direction in which the console
-is the main work area, using the existing Lines screen's shell and visual
+is the main work area, using the existing Branches screen's shell and visual
 language. The [screen concept](../assets/134-git-console/console-screen-concept.png)
 is a layout reference, not a literal transcript or implementation spec.
 

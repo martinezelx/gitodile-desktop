@@ -26,7 +26,7 @@ export type NotificationIcon = React.ComponentType<{
 export const NOTIFICATION_ICONS: Record<NotificationKind, NotificationIcon> = {
   teamChangesAvailable: CloudDownload,
   remoteCheckFailed: TriangleAlert,
-  // The same cloud Overview's card wears for a line whose remote branch is gone.
+  // The same cloud Overview's card wears for a branch whose remote branch is gone.
   upstreamGone: CloudOff,
   changesPublished: CloudUpload,
   // The same arrow the Settings rail and the updater's own status line use for

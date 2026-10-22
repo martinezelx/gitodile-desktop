@@ -47,7 +47,7 @@ pointing at a row taps its keys in order instead of raising the text caret.
   identity.
 - The app's real app-level shortcuts were audited from their handlers:
   `App.tsx` (`handleShortcut`), `ChangesPanel.tsx` (`⌘/Ctrl+S`) and
-  `VersionLinesPanel.tsx` (`F2`).
+  `BranchesPanel.tsx` (`F2`).
 - `DESIGN.md` § Accessibility states keyboard shortcuts must use platform
   conventions; the sheet is where a reader sees them.
 
@@ -56,7 +56,7 @@ pointing at a row taps its keys in order instead of raising the text caret.
 - Rebuild the sheet: a header row (keyboard tile with the platform mark, title,
   close), groups with captions, rows without per-row rules.
 - List the implemented shortcuts: command palette, Settings, sidebar, next and
-  previous project, save a version, rename a version line, close dialogs.
+  previous project, save a version, rename a branch, close dialogs.
 - Platform-aware key labels: `⌘`/`⇧`/`esc` on macOS and iOS, `Ctrl`/`Shift`/`Esc`
   elsewhere, named by `modifierKeyLabels`.
 - Platform identity: `OperatingSystemMark` in a corner badge on the header tile,
@@ -75,7 +75,7 @@ pointing at a row taps its keys in order instead of raising the text caret.
 # Acceptance criteria
 
 - [x] The sheet lists the app-level shortcuts, grouped, with the row set matching
-      the handlers in `App.tsx`, `ChangesPanel.tsx` and `VersionLinesPanel.tsx`.
+      the handlers in `App.tsx`, `ChangesPanel.tsx` and `BranchesPanel.tsx`.
 - [x] Keys render per platform: `⌘`/`⇧`/`esc` on Apple platforms, `Ctrl`/`Shift`/
       `Esc` otherwise, verified by test with the mocked Windows bridge.
 - [x] The header tile wears the platform mark only for a recognised platform

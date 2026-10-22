@@ -50,7 +50,7 @@
 .save-version-summary__toggle svg { width: 14px; height: 14px; transition: transform var(--duration-fast); }
 .save-version-summary__toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 
-/* The line a version lands on: quieter than the count, and it gives way
+/* The branch a version lands on: quieter than the count, and it gives way
    (ellipsis) rather than push anything when the name runs long. */
 .save-version-branch {
   display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0;

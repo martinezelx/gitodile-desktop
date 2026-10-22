@@ -7,7 +7,7 @@ function tree(upstream: { upstream: string | null; ahead: number; behind: number
 }
 
 describe("getChangesEmptyState", () => {
-  it("reports a line that has no saved versions yet", () => {
+  it("reports a branch that has no saved versions yet", () => {
     expect(getChangesEmptyState(tree({ upstream: null, ahead: 0, behind: 0 }), "unborn")).toEqual({
       kind: "unborn",
     });
@@ -19,7 +19,7 @@ describe("getChangesEmptyState", () => {
     });
   });
 
-  it("reports no remote when the line has no upstream", () => {
+  it("reports no remote when the branch has no upstream", () => {
     expect(getChangesEmptyState(tree({ upstream: null, ahead: 0, behind: 0 }))).toEqual({ kind: "no-remote" });
   });
 
@@ -37,7 +37,7 @@ describe("getChangesEmptyState", () => {
     });
   });
 
-  it("brings changes in before publishing when the line has diverged", () => {
+  it("brings changes in before publishing when the branch has diverged", () => {
     // Ahead *and* behind: publishing is not the safe next step, so the helper
     // reports the remote-first state even though there is also local work.
     expect(getChangesEmptyState(tree({ upstream: "origin/main", ahead: 3, behind: 1 }))).toEqual({

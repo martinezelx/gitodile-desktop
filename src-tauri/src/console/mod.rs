@@ -136,10 +136,10 @@ pub(crate) enum Intent {
         target: String,
         create: bool,
     },
-    /// `checkout <name>`: a line to switch to, or a path to restore, which
+    /// `checkout <name>`: a branch to switch to, or a path to restore, which
     /// only the repository can tell.
     CheckoutName(String),
-    CreateLine(String),
+    CreateBranch(String),
     CreateTag(String),
     SetAside,
     ApplySetAside(Option<String>),
@@ -149,8 +149,8 @@ pub(crate) enum Intent {
     Pull(Option<String>),
     Push {
         remote: Option<String>,
-        line: Option<String>,
-        /// Nothing named: Git pushes the current line to its upstream.
+        branch: Option<String>,
+        /// Nothing named: Git pushes the current branch to its upstream.
         plain: bool,
     },
     AskRemote(Option<String>),
@@ -166,14 +166,14 @@ pub(crate) enum PlanFact {
     },
     /// `files` is absent when the command names its own paths.
     Commits {
-        line: Option<String>,
+        branch: Option<String>,
         files: Option<usize>,
     },
     Switches {
         target: String,
         create: bool,
     },
-    CreatesLine {
+    CreatesBranch {
         name: String,
     },
     CreatesTag {
@@ -199,7 +199,7 @@ pub(crate) enum PlanFact {
     },
     Publishes {
         remote: Option<String>,
-        line: Option<String>,
+        branch: Option<String>,
         versions: Option<usize>,
     },
     AsksRemote {
@@ -448,7 +448,7 @@ pub(crate) fn plan_console_command(
             "plan_console_command",
             None,
         )?);
-        if preview::names_a_line(&path, &name)? {
+        if preview::names_a_branch(&path, &name)? {
             classified.tier = Tier::LocalChange;
             classified.intent = Intent::Switch {
                 target: name,
@@ -1312,7 +1312,7 @@ mod change_tests {
         assert_eq!(
             facts,
             [PlanFact::Commits {
-                line: Some(main.clone()),
+                branch: Some(main.clone()),
                 files: Some(1)
             }]
         );
@@ -1334,7 +1334,7 @@ mod change_tests {
         apply(&settings, &path, "git commit -m 'on try'");
         let on_try = git(&path, &["rev-parse", "HEAD"]);
 
-        // `checkout <line>` is a switch once the plan finds the line.
+        // `checkout <branch>` is a switch once the plan finds the branch.
         let plan = plan_with(&settings, &path, &format!("git checkout {main}"), true);
         assert_eq!(plan.tier, Some(Tier::LocalChange));
         assert_eq!(
@@ -1346,7 +1346,7 @@ mod change_tests {
         );
         change(&settings, &path, plan);
         assert_eq!(git(&path, &["symbolic-ref", "--short", "HEAD"]), main);
-        // A file name is not a line: it stays refused.
+        // A file name is not a branch: it stays refused.
         let restore = plan_with(&settings, &path, "git checkout file.txt", true);
         assert_eq!(restore.tier, Some(Tier::Destructive));
         assert!(restore.plan_id.is_none());
@@ -1354,7 +1354,7 @@ mod change_tests {
         let (facts, _) = apply(&settings, &path, "git branch feature");
         assert_eq!(
             facts,
-            [PlanFact::CreatesLine {
+            [PlanFact::CreatesBranch {
                 name: "feature".into()
             }]
         );
@@ -1485,7 +1485,7 @@ mod change_tests {
             facts,
             [PlanFact::Publishes {
                 remote: Some("origin".into()),
-                line: Some(main.clone()),
+                branch: Some(main.clone()),
                 versions: None
             }]
         );
@@ -1496,7 +1496,7 @@ mod change_tests {
             facts,
             [PlanFact::Publishes {
                 remote: Some("origin".into()),
-                line: Some(main.clone()),
+                branch: Some(main.clone()),
                 versions: Some(1)
             }]
         );

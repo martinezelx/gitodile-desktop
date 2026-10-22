@@ -19,7 +19,7 @@ export function formatHistoryDate(
   const date = dateFromTimestamp(timestamp);
   if (!date) return null;
   /* Only the absolute date follows the format preference; the relative phrase
-     is `formatRelativeTime` in `shared/i18n`, which the version-lines detail
+     is `formatRelativeTime` in `shared/i18n`, which the branches detail
      reads for the same kind of fact. */
   return { relative: formatRelativeTime(date, formats, now), absolute: formatDate(date, formats, "date-time") };
 }

@@ -238,14 +238,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 0 28px 72px; }
 .status-bar__project > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-strong); }
 .status-bar__project:hover { background: var(--surface-hover); }
 .status-bar__separator { flex-shrink: 0; padding: 0 1px; color: var(--text-secondary-color); }
-.status-bar .version-lines-quick-switch { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; max-width: 280px; }
-.status-bar .version-line-selector { height: 28px; min-width: 0; padding: 0 6px; gap: 5px; display: inline-flex; align-items: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-primary-color); font: inherit; cursor: pointer; }
-.status-bar .version-line-selector:hover { background: var(--surface-hover); }
-.status-bar .version-line-selector__icon { width: 14px; height: 14px; flex-shrink: 0; }
-.status-bar .version-line-selector__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-body); font-weight: var(--weight-strong); }
-.status-bar .version-line-selector__chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
-.status-bar .version-line-selector__marker { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--status-warning); }
-.status-bar .version-line-selector__marker--error { background: var(--status-danger); }
+.status-bar .branches-quick-switch { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; max-width: 280px; }
+.status-bar .branch-selector { height: 28px; min-width: 0; padding: 0 6px; gap: 5px; display: inline-flex; align-items: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-primary-color); font: inherit; cursor: pointer; }
+.status-bar .branch-selector:hover { background: var(--surface-hover); }
+.status-bar .branch-selector__icon { width: 14px; height: 14px; flex-shrink: 0; }
+.status-bar .branch-selector__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-body); font-weight: var(--weight-strong); }
+.status-bar .branch-selector__chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-secondary-color); }
+.status-bar .branch-selector__marker { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--status-warning); }
+.status-bar .branch-selector__marker--error { background: var(--status-danger); }
 .status-bar__sync-split { display: inline-flex; align-items: center; flex-shrink: 0; height: 28px; border-radius: var(--radius-pill); background: var(--surface-hover); overflow: hidden; }
 .status-bar__sync { height: 28px; padding: 0 8px 0 10px; font-size: var(--text-label); color: var(--text-secondary-color); }
 .status-bar__sync--warning { color: var(--status-warning); }
@@ -629,7 +629,7 @@ function remoteModel(kind) {
     case "ahead": return { shape: "action", mark: "cloudUpload", words: "Publicar 3 versiones", tooltip: "Publicar 3 versiones · Comprobado hace 3 min" };
     case "behind": return { shape: "action", mark: "cloudDownload", words: "Traer 2 versiones", tooltip: "Traer 2 versiones · Comprobado hace 3 min" };
     case "diverged": return { shape: "action", mark: "cloudSync", words: "Traer y publicar", tooltip: "Traer y publicar · Comprobado hace 3 min" };
-    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta línea", tooltip: "Publicar esta línea · Sin destino de publicación" };
+    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta rama", tooltip: "Publicar esta rama · Sin destino de publicación" };
     case "checking": return { shape: "held", mark: "loader", words: "Publicar 3 versiones", tooltip: "Comprobando el remoto…" };
     case "error": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "La comprobación falló", sub: "Al día antes", tooltip: "La comprobación falló · Al día antes" };
     case "noRemote": return { shape: "fact", tone: "neutral", mark: "cloud", words: "Sin remoto conectado", tooltip: "Sin remoto conectado" };
@@ -649,7 +649,7 @@ const COMMANDS = [
   { group: "Hacer", icon: "cloudUpload", label: "Publicar 3 versiones", hint: "" },
   { group: "Hacer", icon: "cloudDownload", label: "Traer 2 versiones", hint: "" },
   { group: "Hacer", icon: "undo2", label: "Deshacer el último cambio", hint: "" },
-  { group: "Ir", icon: "gitBranch", label: "Cambiar de línea…", hint: "" },
+  { group: "Ir", icon: "gitBranch", label: "Cambiar de rama…", hint: "" },
   { group: "Ir", icon: "fileDiff", label: "Ver cambios", hint: "" },
   { group: "Ir", icon: "history", label: "Abrir historial", hint: "" },
   { group: "App", icon: "circleArrowUp", label: "Buscar actualizaciones", hint: "" },
@@ -776,7 +776,7 @@ function titlebar() {
     "</div></div>";
 }
 function rail() {
-  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Líneas" }];
+  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Ramas" }];
   return '<aside class="rail">' + items.map((it) =>
     '<button class="rail-item' + (it.active ? " rail-item--active" : "") + '" type="button" data-tooltip="' + it.label + '"><span class="rail-item__icon">' + I[it.icon] + '</span><span class="rail-item__label">' + it.label + "</span></button>").join("") +
     '<span class="rail-spacer"></span><span class="rail-avatar" title="gitodile">gi</span>' +
@@ -827,9 +827,9 @@ function renderB5() {
 function renderHoy() {
   const b = branchFace(); const f = remoteFace(); const rel = releaseModel(state.news);
   const lineFace = b.tree.spinner
-    ? '<span class="version-line-selector__icon icon--spinning" style="display:inline-flex">' + I.loader + "</span>"
-    : withClass(I.gitBranch, "version-line-selector__icon") + '<span class="version-line-selector__value">main</span>' +
-      (b.tree.dot ? '<span class="version-line-selector__marker' + (b.tree.dot === "error" ? " version-line-selector__marker--error" : "") + '"></span>' : "");
+    ? '<span class="branch-selector__icon icon--spinning" style="display:inline-flex">' + I.loader + "</span>"
+    : withClass(I.gitBranch, "branch-selector__icon") + '<span class="branch-selector__value">main</span>' +
+      (b.tree.dot ? '<span class="branch-selector__marker' + (b.tree.dot === "error" ? " branch-selector__marker--error" : "") + '"></span>' : "");
   const syncLeft = f.r.shape === "action"
     ? '<button class="status-bar__item status-bar__sync-action" type="button" data-tooltip="' + f.r.tooltip + '">' + I[f.r.mark] + "<span>" + f.words + "</span></button>"
     : f.r.shape === "held"
@@ -845,7 +845,7 @@ function renderHoy() {
     '<span class="status-bar__cluster status-bar__working">' +
     '<button class="status-bar__project" type="button" data-tooltip="Proyecto: gitodile · Ajustes del proyecto">' + I.folderGit2 + "<span>gitodile</span></button>" +
     '<span class="status-bar__separator">/</span>' +
-    '<div class="version-lines-quick-switch"><button class="version-line-selector" type="button" data-tooltip="main · ' + b.tree.label + '">' + lineFace + withClass(I.chevronUp, "version-line-selector__chevron") + "</button></div></span>" +
+    '<div class="branches-quick-switch"><button class="branch-selector" type="button" data-tooltip="main · ' + b.tree.label + '">' + lineFace + withClass(I.chevronUp, "branch-selector__chevron") + "</button></div></span>" +
     '<span class="status-bar__cluster"><span class="status-bar__sync-split">' + syncLeft +
     '<button class="status-bar__action" type="button" data-tooltip="Comprobar cambios del proyecto remoto">' + I.rotateCw + "</button></span></span>" +
     '</div><div class="status-bar__group status-bar__group--system">' + release + "</div></footer>");

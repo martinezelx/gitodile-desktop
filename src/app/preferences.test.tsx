@@ -13,6 +13,8 @@ import {
   useReducedMotionPreference,
   useStoredBoolean,
   useStoredRemoteCheckInterval,
+  NAVIGATION_PREFERENCES_STORAGE_KEY,
+  useStoredNavigationPreferences,
 } from "./preferences";
 import { startThemeFade } from "./themeTransition";
 
@@ -128,6 +130,36 @@ describe("Git hooks preference", () => {
    fails in the real app: StrictMode remounts the same instance, the flag is
    already spent, and the default gets written after all. */
 const strict = { wrapper: StrictMode } as const;
+
+describe("branch navigation preferences", () => {
+  const defaults = ["overview", "workbench", "branches", "console", "recovery"];
+  it("retains current visibility and custom order across launches", () => {
+    localStorage.setItem(NAVIGATION_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      visibleDestinationIds: ["console", "workbench"],
+      destinationOrderIds: ["branches", "console", "overview", "workbench", "recovery"],
+      displayMode: "icons-only",
+    }));
+    const first = renderHook(() => useStoredNavigationPreferences(defaults), strict);
+    expect(first.result.current[0]).toEqual({
+      visibleDestinationIds: ["console", "workbench"],
+      destinationOrderIds: ["branches", "console", "overview", "workbench", "recovery"],
+      displayMode: "icons-only",
+    });
+    first.unmount();
+    expect(renderHook(() => useStoredNavigationPreferences(defaults), strict).result.current[0].visibleDestinationIds)
+      .not.toContain("branches");
+  });
+
+  it("deduplicates current IDs, drops unknown data and fills missing order entries", () => {
+    localStorage.setItem(NAVIGATION_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      visibleDestinationIds: ["unknown", "branches", "branches", "overview", 7],
+      destinationOrderIds: ["unknown", "branches", "branches", "console", "overview", null],
+    }));
+    const { result } = renderHook(() => useStoredNavigationPreferences(defaults));
+    expect(result.current[0].visibleDestinationIds).toEqual(["branches", "overview"]);
+    expect(result.current[0].destinationOrderIds).toEqual(["branches", "console", "overview", "workbench", "recovery"]);
+  });
+});
 
 describe("preferences persist a choice, not a default", () => {
   /* The bug this guards against: the hooks default flipped to `true` and every

@@ -259,13 +259,13 @@ its toolbar the containing block — History already did, and the Changes file
 list's strip gained `position: relative` — and the panel then takes that strip's
 own inset on both sides at every column width.
 
-Deliberately no `overflow` on `.filter-panel`, though version-lines caps its own
+Deliberately no `overflow` on `.filter-panel`, though branches caps its own
 private copy: History puts absolutely positioned lists inside this panel (the
-line picker, the two completion shortcuts) and a scroll container here would
+branch picker, the two completion shortcuts) and a scroll container here would
 clip them.
 
 What stayed in `history.css` is what only History asks for: the completion
-fields, the version-line picker and the two ends of a date range. The scope chip
+fields, the branch picker and the two ends of a date range. The scope chip
 became the surface's `quiet` chip — a chip that states context rather than a
 filter — rather than a History-specific modifier.
 
@@ -342,7 +342,7 @@ for the path. Registering it caught a real mistake in review: it was first given
 authorizing a repository spawns Git. It is a `read` policy, like every other
 command that opens a repository.
 
-The version-lines screen still keeps its own private copy of a filter panel
+The branches screen still keeps its own private copy of a filter panel
 under its own class names. It is a third consumer worth folding onto this
 surface, but it is outside this task's scope and its groups (sort, state,
 prefix) are its own; the shape audit now names the shared surface, so the copy

@@ -197,12 +197,12 @@ describe("Get project changes dialog", () => {
     expect(onPhaseChange).toHaveBeenLastCalledWith("success");
   });
 
-  it("offers to combine a diverged line, and to publish in the same confirmation", async () => {
+  it("offers to combine a diverged branch, and to publish in the same confirmation", async () => {
     const sync = controller(mergePlan);
     const onPublishAfter = vi.fn(async () => ({ publishedCount: 2, remote: "origin" }));
     const { onClose } = renderDialog(sync, { canPublish: true, onPublishAfter });
     expect(await screen.findByRole("heading", { name: "Get and combine 2 versions" })).toBeInTheDocument();
-    expect(screen.getByText(/A merge version joins both lines/)).toBeInTheDocument();
+    expect(screen.getByText(/A merge version joins both branches/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Get and combine" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Get, combine and publish" }));
     await waitFor(() => expect(onPublishAfter).toHaveBeenCalled());
@@ -310,11 +310,11 @@ describe("Get project changes dialog", () => {
     expect(screen.getByText(/refs\/gitodile\/recovery\/v1\/get-team-changes\/worktree-a\/1/)).toBeInTheDocument();
   });
 
-  it("offers nothing to get from a line whose remote branch is gone", async () => {
+  it("offers nothing to get from a branch whose remote branch is gone", async () => {
     const sync = controller();
     renderDialog(sync, { upstreamGone: true });
     expect(await screen.findByRole("alertdialog", { name: "The update stopped safely" })).toBeInTheDocument();
-    expect(screen.getByText("The branch this line tracks no longer exists on the remote.")).toBeInTheDocument();
+    expect(screen.getByText("The tracked branch no longer exists on the remote.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
     expect(sync.planGet).not.toHaveBeenCalled();
   });
@@ -325,7 +325,7 @@ describe("Get project changes dialog", () => {
     renderDialog(controller(), { refreshRemote });
     expect(await screen.findByRole("heading", { name: "Get 2 versions from origin" })).toBeInTheDocument();
     finishCheck({ ...syncStatus(basePlan.remoteCommit), state: "upstreamGone", behind: 0, nextActions: ["checkAgain"] });
-    expect(await screen.findByText("The branch this line tracks no longer exists on the remote.")).toBeInTheDocument();
+    expect(await screen.findByText("The tracked branch no longer exists on the remote.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Get" })).not.toBeInTheDocument();
   });
 

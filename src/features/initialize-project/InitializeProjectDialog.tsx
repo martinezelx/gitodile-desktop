@@ -74,7 +74,7 @@ export type InitializeProjectDialogProps = {
   initialName?: string;
   controller: InitializeProjectController;
   saveVersionController: SaveVersionController;
-  /** The user's default version-line name, already resolved by the caller —
+  /** The user's default branch name, already resolved by the caller —
    * the stored `init.defaultBranch`, or the app's fallback when there is none.
    * It seeds the field below; the field, not this, is what the project is
    * created with, so a one-off name is still one edit away. */
@@ -701,7 +701,7 @@ export function InitializeProjectDialog({
           </DialogBanner>
         )}
 
-        {/* What most people never change: the main line's name, a README and
+        {/* What most people never change: the main branch's name, a README and
             a remote to connect afterwards. */}
         <details className="initialize-dialog__advanced" open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
           <summary>{t.initializeAdvancedLabel}</summary>

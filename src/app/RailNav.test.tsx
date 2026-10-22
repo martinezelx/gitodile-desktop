@@ -20,7 +20,7 @@ function item(id: string, overrides: Partial<RailNavItem> = {}): RailNavItem {
 const items = [
   item("Overview"),
   item("Changes"),
-  item("Version lines"),
+  item("Branches"),
   item("History"),
   item("Recovery", { isDisabled: true, disabledLabel: "Recovery — coming soon" }),
 ];
@@ -54,7 +54,7 @@ describe("RailNav", () => {
       within(screen.getByRole("navigation", { name: "Project navigation" }))
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Overview", "Changes", "Version lines", "History", "Recovery", "More"]);
+    ).toEqual(["Overview", "Changes", "Branches", "History", "Recovery", "More"]);
     const recovery = screen.getByRole("button", { name: "Recovery — coming soon" });
     expect(recovery).toHaveAttribute("aria-disabled", "true");
     expect(recovery).toHaveAttribute("data-tooltip", "Recovery — coming soon");
@@ -119,7 +119,7 @@ describe("RailNav", () => {
     await userEvent.click(more);
     const menu = screen.getByRole("menu", { name: "More" });
     expect(within(menu).getAllByRole("menuitem").map((entry) => entry.textContent)).toEqual([
-      "Version lines",
+      "Branches",
       "History",
       "Recovery — coming soon",
       "Customize navigation bar",

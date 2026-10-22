@@ -52,8 +52,8 @@
    beside it and of the Changes file list, and all three carry their own
    surface with one strip at the top holding the row's controls. */
 .history-timeline {
-  /* Lane tints. The line being read is the trunk, a step above the rail's
-     divider ink; every other line takes one of the brand's avatar hues
+  /* Lane tints. The branch being read is the trunk, a step above the rail's
+     divider ink; every other branch takes one of the brand's avatar hues
      pulled most of the way toward that ink, so lanes tell apart without
      shouting and every theme gets them without tokens of its own. Declared
      on the timeline, not its scroller: the lane card beside the pointer sits
@@ -92,7 +92,7 @@
 }
 /* The state row under the search strip — the row the Changes list gives its
    breakdown — at the inner strip's height. It holds the scope chip while the
-   timeline is not the current line's; the rest of the time it is not drawn,
+   timeline is not the current branch's; the rest of the time it is not drawn,
    so the rows keep their first pixel. */
 .history-timeline__state {
   flex: 0 0 auto;
@@ -105,7 +105,7 @@
 }
 /* The scope, as a chip: which history is being read, removable where it is
    stated. It has a row of its own rather than a place among the filter chips,
-   because it is not a filter — clearing the filters must not change the line. */
+   because it is not a filter — clearing the filters must not change the branch. */
 .history-scope-chip {
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   max-width: 100%; height: 24px; padding: 0 6px 0 9px;
@@ -137,7 +137,7 @@
 .history-timeline__toolbar .search-box { flex: 1; }
 
 /* What stayed behind when the filter surface moved to `shared/ui` (task 121):
-   the completion fields, the version-line picker and the two ends of a date
+   the completion fields, the branch picker and the two ends of a date
    range are questions only History asks, and a primitive is not the place for
    the one screen's vocabulary.
 
@@ -161,7 +161,7 @@
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .history-filter__field:focus-within { border-color: var(--focus-ring); background: var(--surface-panel); }
-/* A line is chosen: the field is holding an answer, not waiting for one. The
+/* A branch is chosen: the field is holding an answer, not waiting for one. The
    accent border and the heavier value say so on their own — the clear control
    beside them is the second, non-colour signal. */
 .history-filter__field--selected {
@@ -241,7 +241,7 @@
 .history-scope-picker__option:hover { background: var(--surface-hover); }
 .history-scope-picker__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* The tick, not the fill: a highlighted row and a hovered row would be the same
-   thing to look at, and the chosen line has to stay legible under the pointer. */
+   thing to look at, and the chosen branch has to stay legible under the pointer. */
 .history-scope-picker__option--selected { font-weight: var(--weight-strong); }
 .history-scope-picker__tick { color: var(--accent-primary); }
 .history-scope-picker__empty {
@@ -341,8 +341,8 @@
    inside the 5px inset), in the accent while the selection sits below the
    boundary. */
 
-/* Where the remote's copy of the line begins: the "Published" chip on the
-   rail (TimelineChip, as on Overview and Lines), which folds the block, with
+/* Where the remote's copy of the branch begins: the "Published" chip on the
+   rail (TimelineChip, as on Overview and Branches), which folds the block, with
    its air above. The remote and its branch are the piece's tooltip. */
 .history-boundary {
   position: relative; height: 32px;
@@ -561,7 +561,7 @@
    is read in the detail strip, which is the surface that has room for it. */
 .history-row__title { overflow: hidden; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); line-height: var(--leading-snug); text-overflow: ellipsis; white-space: nowrap; }
 /* Who, then the states, from the row's start; when, at its end — the shape
-   of a Lines row, so the two lists read alike. The author used to be spelled
+   of a Branches row, so the two lists read alike. The author used to be spelled
    out here, the longest and most repetitive fact down the column; as initials
    it leaves the glyphs room, and the date keeps one place in every row. */
 .history-row__meta { min-width: 0; display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-caption); }
@@ -595,7 +595,7 @@
 /* Shared with the Overview summary, like the badge below it. */
 .history-meta-dot { flex: 0 0 auto; color: var(--border-subtle); }
 
-/* The version line or tag a saved version sits on, said in the same breath as
+/* The branch or tag a saved version sits on, said in the same breath as
    who saved it and when — and the only one of the three that is not prose.
    Author and date are bare text; a reference is a name Git owns, so it takes a
    capsule and a glyph and cannot be read as the continuation of a sentence.
@@ -604,8 +604,8 @@
    its own rows. This sheet loads after `overview.css`, so one definition
    serves both without an override.
 
-   Only the checked-out line spends a color. A tag is not a warning and a
-   remote line is not a status, so they part from a local line by glyph and by
+   Only the checked-out branch spends a color. A tag is not a warning and a
+   remote branch is not a status, so they part from a local branch by glyph and by
    nothing else: the accent marks a state, never a category. */
 .history-ref-badge {
   min-width: 0; max-width: 40%; flex-shrink: 0;
@@ -621,7 +621,7 @@
 }
 .history-ref-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
 .history-ref-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* The current line is a fact about the row, not a state to act on: a neutral
+/* The current branch is a fact about the row, not a state to act on: a neutral
    capsule, so the accent stays with selection and the screen's action. */
 .history-ref-badge--current {
   border-color: var(--border-divider);

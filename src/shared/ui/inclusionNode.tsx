@@ -1,9 +1,9 @@
 import React, { useLayoutEffect, useRef } from "react";
 
 /** The include control of a list whose items go into one action — the files
- * a version saves, the lines a clean-up deletes — drawn in History's node
+ * a version saves, the branches a clean-up deletes — drawn in History's node
  * language: a filled disc when the item is in, a ring when it is out, and a
- * half moon when only part of it (a folder, "all lines") is in. The native
+ * half moon when only part of it (a folder, "all branches") is in. The native
  * checkbox is still the control — it keeps the label, the indeterminate
  * state and the keyboard — but it is visually hidden; the node is its drawing.
  *

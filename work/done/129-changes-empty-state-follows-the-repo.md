@@ -49,7 +49,7 @@ variant is what shipped here.
 
 - A pure `getChangesEmptyState(workingTree, headState)` in the feature that maps
   the snapshot to `unborn · detached · no-remote · behind · ahead · up-to-date`.
-  A diverged line (ahead *and* behind) reports `behind`: publishing while the
+  A diverged branch (ahead *and* behind) reports `behind`: publishing while the
   remote has newer work is not the safe next step.
 - The Changes empty block is built from that state: headline, sentence, optional
   primary, up to two secondary actions, and the existing restore ghost when
@@ -66,8 +66,8 @@ variant is what shipped here.
 # Out of scope
 
 - Any change to what the diff pane shows when there are files to review.
-- A "Get back to your version line" action for the detached state (the offer is
-  History only; switching lines stays on Lines and the status bar).
+- A "Get back to your branch" action for the detached state (the offer is
+  History only; switching branches stays on Branches and the status bar).
 - New publish or sync machinery: the primary reuses `openPublishDialog` and
   `startSessionOperation("sync")` unchanged.
 
@@ -81,7 +81,7 @@ variant is what shipped here.
       changes"; `no-remote` offers project settings; `unborn` offers none.
 - [x] The primary action runs the existing previewed flows (publish dialog,
       sync operation); "View history" switches the Work screen to History.
-- [x] A diverged line reports `behind`, so publishing waits for the incoming
+- [x] A diverged branch reports `behind`, so publishing waits for the incoming
       work.
 - [x] The one-run attention halo is the button's own motion and is disabled
       under `prefers-reduced-motion`.
@@ -115,7 +115,7 @@ Work screen its Changes/History tabs.
   branch lives in one tested place and the JSX only renders it. No new read and
   no new Rust command: `workingTree.upstream` and `project.headState` were
   already on hand.
-- **The remote wins a divergence.** A line that is both ahead and behind shows
+- **The remote wins a divergence.** A branch that is both ahead and behind shows
   "Get project changes", because the safe next step is to integrate before
   publishing. The helper documents this and a test pins it.
 - **Retire "Back to Overview".** It duplicated the rail and spent the pane's one

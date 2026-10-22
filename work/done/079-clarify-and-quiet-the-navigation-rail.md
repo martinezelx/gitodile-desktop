@@ -103,7 +103,7 @@ The relevant findings from the review are summarized above.
   project switching behavior, or sidebar collapse behavior.
 - Adding authentication, hosting-provider integrations, cloud accounts, user
   profiles, or an account menu.
-- Renaming **Lines** or changing screen-level navigation vocabulary.
+- Renaming **Branches** or changing screen-level navigation vocabulary.
 - Introducing a new tooltip dependency or a second icon library.
 
 # Acceptance criteria

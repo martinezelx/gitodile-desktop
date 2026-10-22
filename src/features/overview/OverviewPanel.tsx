@@ -13,7 +13,7 @@ import type { RepositoryInfo } from "../repository";
 import type { WorkingTreeStatus } from "../status";
 import type { PendingVersionsResult } from "../publish";
 import type { HistoryController } from "../history";
-import type { VersionLinesSnapshot } from "../version-lines";
+import type { BranchesSnapshot } from "../branches";
 import type { TeamSyncViewState } from "../sync";
 import { deriveJourney } from "./journey";
 import { NextStepCard, type NextStepHandlers } from "./NextStepCard";
@@ -42,7 +42,7 @@ export type OverviewProjectIdentity = {
  * settings, actions on the project the name names — and where it lives as a
  * chip at the far end: the service and its `owner/name`, opening its page,
  * or "Only on this computer". The edge of the row is what leads out of the
- * app, aligned with the next-step card's actions below it. The line it is on
+ * app, aligned with the next-step card's actions below it. The branch it is on
  * is the status bar's, not repeated here. The path is the folder button's tooltip and the technology
  * is the project's own icon, so neither is spelled out. The next-step card
  * under it is the page's subject; this row only says whose page this is.
@@ -144,9 +144,9 @@ export function OverviewPanel({
   onPublishUpTo,
   pendingVersions,
   pendingVersionsError,
-  versionLines,
-  onQuickSwitchVersionLine,
-  onGoToVersionLines,
+  branches,
+  onQuickSwitchBranch,
+  onGoToBranches,
   onOpenProjectFolder,
   onOpenRemoteHome,
   onOpenSaveVersion,
@@ -200,15 +200,15 @@ export function OverviewPanel({
   onForgetRecentProject: (path: string) => void;
   pendingVersions: PendingVersionsResult;
   pendingVersionsError: string | null;
-  /** The project session's cached branch inventory, shared with the Version
-   * lines screen so Overview's quick-switch menu opens instantly instead of
+  /** The project session's cached branch inventory, shared with the
+   * Branches screen so Overview's quick-switch menu opens instantly instead of
    * reading branches again every time (task 019). */
-  versionLines: VersionLinesSnapshot | null;
+  branches: BranchesSnapshot | null;
   canPublish: boolean;
   onPublish: () => void;
   onPublishUpTo: (commit: string) => void;
-  onQuickSwitchVersionLine: (target: string) => void;
-  onGoToVersionLines: () => void;
+  onQuickSwitchBranch: (target: string) => void;
+  onGoToBranches: () => void;
   /** Opens the project's folder in the system file manager, from the
    * header's folder button. */
   onOpenProjectFolder: () => void;
@@ -228,7 +228,7 @@ export function OverviewPanel({
   selfEmail?: string | null;
   /** Opens the save-version flow. Overview has no file-selection UI of its
    * own to drive `SaveVersionDialog`'s exclusion checkboxes, so — like
-   * `VersionLinesPanel` and `SwitchVersionLineDialog`'s own `onSaveVersion`
+   * `BranchesPanel` and `SwitchBranchDialog`'s own `onSaveVersion`
    * — this is expected to navigate to Changes and open the dialog there,
    * reusing its one existing implementation rather than a second copy of it. */
   onOpenSaveVersion: () => void;
@@ -238,7 +238,7 @@ export function OverviewPanel({
   /** Gets the remote's versions, combines them and publishes, in one
    * confirmation. */
   onGetAndPublish: () => void;
-  /** The line forgets the remote branch it tracked — offered once that
+  /** The branch forgets the remote branch it tracked — offered once that
    * branch is gone from the remote. */
   onStopTrackingRemote: () => void;
   /** The same project-scoped cache used by the full History screen. Overview
@@ -269,12 +269,12 @@ export function OverviewPanel({
       pendingVersionsError,
       teamSync,
     });
-    // Where a line whose remote branch is gone usually goes next: the
-    // remote's default line, when this isn't it.
-    const defaultLine = versionLines?.lines.find((line) => line.isDefault && !line.isActive)?.name ?? null;
-    const nextStep = deriveNextStep(journey, { canPublish, defaultLine });
+    // Where a branch whose remote branch is gone usually goes next: the
+    // remote's default branch, when this isn't it.
+    const defaultBranch = branches?.branches.find((branch) => branch.isDefault && !branch.isActive)?.name ?? null;
+    const nextStep = deriveNextStep(journey, { canPublish, defaultBranch });
     const isRefreshing = isCheckingChanges || teamSync.isCheckingRemote;
-    // Only a line with an upstream can be checked against one; the same gate
+    // Only a branch with an upstream can be checked against one; the same gate
     // the status bar's own cloud button uses.
     const canCheckTeamChanges =
       project.headState === "branch" && Boolean(project.branch) && !teamSync.isCheckingRemote;
@@ -289,11 +289,11 @@ export function OverviewPanel({
       checkRemote: checkTeamChanges,
       checkLocal: onCheckLocalChanges,
       openSettings: onOpenProjectSettings,
-      openLines: onGoToVersionLines,
+      openBranches: onGoToBranches,
       explainIncoming: onReviewAndGetTeamChanges,
       getAndPublish: onGetAndPublish,
       switchToDefault: () => {
-        if (defaultLine) onQuickSwitchVersionLine(defaultLine);
+        if (defaultBranch) onQuickSwitchBranch(defaultBranch);
       },
       stopTracking: onStopTrackingRemote,
     };
@@ -317,7 +317,7 @@ export function OverviewPanel({
           onPrefetchProjectSettings={onPrefetchProjectSettings}
         />
 
-        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} defaultLine={defaultLine} />
+        <NextStepCard nextStep={nextStep} journey={journey} handlers={nextStepHandlers} defaultBranch={defaultBranch} />
 
         {/* Where the work is, as one timeline — waiting on the remote, now,
             only on this computer, published — beside what the next step will

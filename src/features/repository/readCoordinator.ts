@@ -33,7 +33,7 @@ export type RepositoryReadSubscriber = {
   /**
    * Whether `refreshAll` waits for this refresh before resolving.
    *
-   * Only the working-tree snapshot is awaited. Version lines is a background
+   * Only the working-tree snapshot is awaited. Branches is a background
    * dependent read that callers do not block on, and that distinction used to
    * be a single `void` keyword in the middle of `refreshAll` — stating it here
    * is the point of the field.
@@ -77,7 +77,7 @@ export function createRepositoryReadCoordinator(
   };
 
   /** Starts only shared-ref readers and waits for every one of them. Explicit
-   * screen refreshes use this after a remote check so history, version lines,
+   * screen refreshes use this after a remote check so history, branches,
    * and local sync facts are read once from the final tracking-ref state. */
   const refreshSharedAndWait = async (state: ProjectSessionsState, path: string): Promise<void> => {
     const query = queryFor(state, path);

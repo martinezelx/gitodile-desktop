@@ -27,7 +27,7 @@ their edge is at the same place, and both give up their second panel at the
 same window width. The open file is named at the same size on either screen.
 
 History is the destination directly under Changes, where the loop it belongs to
-already is; Lines follows it.
+already is; Branches follows it.
 
 # Context
 
@@ -61,7 +61,7 @@ drifted the way two hand-copied rules do:
 - Align the two screens' breakpoints.
 - Give the History workspace's file pane a strip, level with the diff pane's,
   and name the open file at the size Changes names it.
-- Move History above Lines in the screen registry, and adopt that order for
+- Move History above Branches in the screen registry, and adopt that order for
   anyone whose stored rail order is the superseded default.
 
 # Out of scope
@@ -71,7 +71,7 @@ drifted the way two hand-copied rules do:
   obvious merge (its controls into the tab band, the count onto the Diff tab's
   own badge) was measured against the narrowest two-panel window and left for
   its own task rather than crowded in here.
-- Version lines' header. It is a different pattern — a title with a paragraph
+- Branches' header. It is a different pattern — a title with a paragraph
   under it — and moving it would change that screen without being asked, the
   same reason task 114 left its search box alone.
 

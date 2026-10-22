@@ -14,7 +14,7 @@ completed: 2026-08-05
 # Goal
 
 Rebuild the top of the Overview screen from three separate cards (project
-identity, working-tree status, version-line "spotlight") into one integrated
+identity, working-tree status, branch "spotlight") into one integrated
 status card closer to a standard git-client dashboard, using a mockup the
 user supplied as the starting reference, then iterating on it directly rather
 than matching it pixel-for-pixel.
@@ -27,9 +27,9 @@ this order:
 1. Disable "Report an issue" in the titlebar's "More actions" menu until it's
    actually implemented, matching History/Recovery's existing disabled state.
 2. Fix Overview going narrow-and-centered instead of using the full width the
-   collapsed sidebar frees up (Changes and Version lines already did this
+   collapsed sidebar frees up (Changes and Branches already did this
    correctly).
-3. From a mockup screenshot: merge the version-line card, the working-tree
+3. From a mockup screenshot: merge the branch card, the working-tree
    status card, and the saved-but-unpublished list into one integrated
    status card; show a summary of which files changed, not just counts.
 4. Iterate on the changed-files preview's layout across several rounds: a
@@ -73,7 +73,7 @@ this order:
   (see Decisions).
 - `SavedVersionSummary` (the Rust struct behind the saved-versions list) had
   no date or author field. Adding the date mirrors the format already used
-  for a version line's tip (`%cI`, matching `committerdate:iso-strict`).
+  for a branch's tip (`%cI`, matching `committerdate:iso-strict`).
   Adding a file count per version was scoped out — it would have meant a
   different, more invasive `git log` invocation (or eagerly fetching each
   commit's file list up front, defeating the deliberate lazy-load design of
@@ -106,7 +106,7 @@ this order:
 
 **Merged status card** (`main.tsx`, `OverviewPanel`)
 - Header: project identity on the left; on the right, a breadcrumb — a
-  branch selector (`OverviewVersionLineQuickActions`, its branch icon now
+  branch selector (`OverviewBranchQuickActions`, its branch icon now
   living inside the selector pill itself rather than floating beside it)
   plus an inline "N ready to publish" stat when saved versions exist.
 - One `.project-hero` card holds: status icon + headline + message, the
@@ -142,7 +142,7 @@ this order:
   spans first-node-center to last-node-center via `top`/`bottom`, not a
   fixed height, so it survives a row expanding). Newest version marked
   active (green); the rest neutral.
-- Saved date (`toLocaleDateString`, same pattern as `versionLinesPanel.tsx`)
+- Saved date (`toLocaleDateString`, same pattern as `branchesPanel.tsx`)
   and an author chip (icon + name, `max-width: 140px` with an ellipsis,
   full name in the tooltip and the element's own text) added to each row's
   summary; the commit hash was removed.
@@ -191,7 +191,7 @@ this order:
 # Acceptance criteria
 
 - [x] Overview uses the collapsed sidebar's full width, matching Changes and
-      Version lines.
+      Branches.
 - [x] "Report an issue" is disabled with a tooltip, matching History/Recovery.
 - [x] Overview's top section is one status card, not three.
 - [x] Changed files are grouped by category, each category's height
@@ -273,7 +273,7 @@ planning to replace.
 - **The branch icon moved inside the selector, not just recolored.** Two
   near-identical branch glyphs flanking the selector pill (the leading icon,
   and the "New" button's `GitBranchPlus`) read as a repeated shape. Moving
-  the leading icon inside the pill (as `.version-line-selector__icon`,
+  the leading icon inside the pill (as `.branch-selector__icon`,
   `currentColor` instead of `--accent-primary`) left only one branch glyph
   in the row; the "New" button's icon was intentionally left as-is (only
   option 1 of two proposed fixes was approved).
@@ -315,10 +315,10 @@ cargo test --manifest-path src-tauri/Cargo.toml                # 172 passed
   grepped for every class touched more than once this session
   (`.pending-versions__*`, `.project-hero*`, `.changes-preview__*`,
   `.overview-meta*`) to confirm exactly one definition of each survives.
-  Confirmed no leftover references to removed classes (`.version-line-card`
+  Confirmed no leftover references to removed classes (`.branch-card`
   minus its still-used `__value`, `.changes-preview__dir`,
-  `.pending-versions__hash`, `.version-lines-quick-switch--spotlight`,
-  `.secondary-button--large`, `.version-line-selector__value--action`).
+  `.pending-versions__hash`, `.branches-quick-switch--spotlight`,
+  `.secondary-button--large`, `.branch-selector__value--action`).
 - Verified in-browser (Chromium preview, no Tauri backend available) via
   computed-style/`getBoundingClientRect` assertions rather than eyeballing,
   at each point a visual claim was made: icon sizes/colors matching between

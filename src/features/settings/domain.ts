@@ -228,7 +228,7 @@ export type GitUpdateLaunchResult = {
 
 export type GitIdentity = { name: string | null; email: string | null };
 
-/** The name Git gives a new project's first version line, from the global
+/** The name Git gives a new project's first branch, from the global
  * `init.defaultBranch`. `null` means the key is unset and Git's own built-in
  * default applies — a state to report, not a name to claim. */
 export type GitDefaultBranch = { name: string | null };

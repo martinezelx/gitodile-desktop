@@ -84,7 +84,7 @@ left as a later advanced-mode surface over the same model.
 
 - Typed operator syntax (`author:`, `file:`) in the search box. It is the same
   model through a second door and belongs with advanced mode.
-- Branch/version-line scoping ("this line only" vs "all local lines").
+- Branch scoping ("this branch only" vs "all local branches").
 - Full-text search of version *contents* (`git log -S`/`-G`).
 - A calendar date picker. Named ranges first.
 

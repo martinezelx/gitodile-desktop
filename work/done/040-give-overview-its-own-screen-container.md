@@ -22,7 +22,7 @@ root in fact rather than in intention.
 # User outcome
 
 No visible change. Overview must look and behave identically, including its
-change preview, placeholder states and version-line quick actions.
+change preview, placeholder states and branch quick actions.
 
 # Context
 
@@ -36,7 +36,7 @@ a comment saying the shell still composes the visual panel. Its reads already
 belong to repository, status and publish controllers, so what remains in
 `main.tsx` is roughly 660 lines of presentation: `OverviewPanel`,
 `OverviewChangesPreview`, `OverviewPlaceholderCard`,
-`OverviewVersionLineQuickActions` and their icon and label tables.
+`OverviewBranchQuickActions` and their icon and label tables.
 
 The reason it survived is worth stating: no task in 023–030 was ever assigned
 the Overview screen. The migrations were organized by layer, so a screen nobody
@@ -108,7 +108,7 @@ None. Task 043 documents the result and should run after this.
 
 `src/features/overview/OverviewPanel.tsx` (783 lines) now owns `OverviewPanel`
 and everything only it used: `OverviewChangesPreview`,
-`OverviewPlaceholderCard`, `OverviewVersionLineQuickActions`,
+`OverviewPlaceholderCard`, `OverviewBranchQuickActions`,
 `StatusAnnouncement`, the lazy `OverviewFileTypeIcon`, the category label and
 icon tables, `repositoryStatus`, and `ProjectPath` with its folder icon. All
 three of those last helpers were used by nothing else, which is a decent sign
@@ -143,8 +143,8 @@ The task listed moving Overview-owned copy and rules into the feature. Both were
 already correct: every translation key Overview uses lives in the `overview` or
 `status` namespace and none in `app`, and no Overview class is defined in
 `app-shell.css`. Task 030 did that work. The only cross-feature detail left is
-that Overview *uses* classes owned by `changes`, `status` and `version-lines`
-(`.changes-preview__*`, `.status-breakdown`, `.version-lines-quick-switch__*`),
+that Overview *uses* classes owned by `changes`, `status` and `branches`
+(`.changes-preview__*`, `.status-breakdown`, `.branches-quick-switch__*`),
 which is consumption rather than ownership and was left alone.
 
 ## Measurements

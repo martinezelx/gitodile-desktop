@@ -418,7 +418,7 @@ function remoteModel(kind) {
     case "ahead": return { shape: "action", mark: "cloudUpload", words: "Publicar 3 versiones", tooltip: "Publicar 3 versiones · Comprobado hace 3 min" };
     case "behind": return { shape: "action", mark: "cloudDownload", words: "Traer 2 versiones", tooltip: "Traer 2 versiones · Comprobado hace 3 min" };
     case "diverged": return { shape: "action", mark: "cloudSync", words: "Traer y publicar", tooltip: "Traer y publicar · Comprobado hace 3 min" };
-    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta línea", tooltip: "Publicar esta línea · Sin destino de publicación" };
+    case "noUpstream": return { shape: "action", mark: "cloudUpload", words: "Publicar esta rama", tooltip: "Publicar esta rama · Sin destino de publicación" };
     case "checking": return { shape: "held", mark: "loader", words: "Publicar 3 versiones", tooltip: "Comprobando el remoto…" };
     case "error": return { shape: "fact", tone: "warning", mark: "cloudAlert", words: "La comprobación falló", tooltip: "La comprobación falló · Al día antes" };
     case "noRemote": return { shape: "fact", tone: "neutral", mark: "cloud", words: "Sin remoto conectado", tooltip: "Sin remoto conectado" };
@@ -431,7 +431,7 @@ const COMMANDS = [
   { group: "Hacer", icon: "cloudUpload", label: "Publicar 3 versiones", hint: "" },
   { group: "Hacer", icon: "cloudDownload", label: "Traer 2 versiones", hint: "" },
   { group: "Hacer", icon: "undo2", label: "Deshacer el último cambio", hint: "" },
-  { group: "Ir", icon: "gitBranch", label: "Cambiar de línea…", hint: "" },
+  { group: "Ir", icon: "gitBranch", label: "Cambiar de rama…", hint: "" },
   { group: "Ir", icon: "fileDiff", label: "Ver cambios", hint: "" },
   { group: "Ir", icon: "history", label: "Abrir historial", hint: "" },
   { group: "App", icon: "circleArrowUp", label: "Buscar actualizaciones", hint: "" },
@@ -552,7 +552,7 @@ function titlebar() {
     '<button class="window-control window-control--close" type="button" aria-label="Cerrar"><span class="wc-close"></span></button></div></div>';
 }
 function rail() {
-  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Líneas" }];
+  const items = [{ icon: "house", label: "Inicio", active: true }, { icon: "fileDiff", label: "Cambios" }, { icon: "history", label: "Historial" }, { icon: "gitBranch", label: "Ramas" }];
   return '<aside class="rail">' + items.map((it) => '<button class="rail-item' + (it.active ? " rail-item--active" : "") + '" type="button" data-tooltip="' + it.label + '"><span class="rail-item__icon">' + I[it.icon] + '</span><span class="rail-item__label">' + it.label + "</span></button>").join("") +
     '<span class="rail-spacer"></span><span class="rail-avatar" title="gitodile">gi</span><button class="rail-round" type="button" data-tooltip="Ajustes">' + I.settings + "</button></aside>";
 }

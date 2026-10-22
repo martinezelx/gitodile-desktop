@@ -12,7 +12,7 @@ describe("LoadingBar", () => {
   });
 
   it("can preserve a previously visible loading message", () => {
-    render(<LoadingBar label="Loading version lines" showLabel />);
-    expect(screen.getByText("Loading version lines")).toHaveClass("loading-state__message");
+    render(<LoadingBar label="Loading branches" showLabel />);
+    expect(screen.getByText("Loading branches")).toHaveClass("loading-state__message");
   });
 });

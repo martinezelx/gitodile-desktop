@@ -61,7 +61,7 @@ operation are real.
 Within a few seconds of opening a project, the user should be able to answer:
 
 1. Which project did I open?
-2. Which folder and version line am I looking at?
+2. Which folder and branch am I looking at?
 3. Is this a normal repository or a linked worktree?
 4. Is the project usable, or does it need attention?
 5. What can I safely do next?
@@ -81,7 +81,7 @@ access, and a clear next action take priority over decorative density.
   - unborn branch: explain that the project has no saved versions yet;
   - detached HEAD: explain that a specific saved version is open and avoid
     implying that the user is on a normal branch.
-- Show the current branch/version line when one exists. Exact refs are
+- Show the current branch when one exists. Exact refs are
   technical data and use the monospaced font.
 - Keep the resolved worktree root available in the interface. The full absolute
   path may be shown as secondary text, in a project-details disclosure, or in
@@ -117,7 +117,7 @@ access, and a clear next action take priority over decorative density.
 
 Show a small set of factual, data-backed cards or rows. For task 001:
 
-- **Current version line**: branch name when available, or the appropriate
+- **Current branch**: branch name when available, or the appropriate
   unborn/detached explanation.
 - **Project location**: resolved root path, with worktree status and selected
   subfolder context when relevant.
@@ -169,7 +169,7 @@ When later tasks add these modules:
   activity list unless each presentation supports a distinct user decision;
 - place exact terms such as `origin/main` and "commit" in secondary/advanced
   detail. Default copy continues to use "saved version", "publish changes", and
-  "version line" where that wording remains technically accurate.
+  "branch" where that wording remains technically accurate.
 
 ## Layout and visual rules
 
@@ -345,7 +345,7 @@ When later tasks add these modules:
 
 - **Opened-project Overview completion (supersedes the earlier summary-card
   note):** `src/main.tsx` now uses the project name as its `h1` and renders the
-  resolved path, a truthful readiness card, current version line, location,
+  resolved path, a truthful readiness card, current branch, location,
   project/worktree type, nested-selection context, and a keyboard-accessible
   technical-details disclosure. "Open another project" is the sole primary
   action; close remains in the project menu.
@@ -377,7 +377,7 @@ When later tasks add these modules:
     `Escape` dismissal, and focus returned to the trigger.
 - **Overview composition.** The resolved path was rendered three times (header,
   location fact, technical details); the header copy was removed and replaced by
-  a chip row (project type, version line) that mirrors the concept's at-a-glance
+  a chip row (project type, branch) that mirrors the concept's at-a-glance
   band without adding data. Facts became individual `--surface-panel` cards
   instead of three rows sharing one border, and their accent-tinted icon chips
   were dropped: green is now reserved for the verified positive state in the

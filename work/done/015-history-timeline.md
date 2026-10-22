@@ -15,7 +15,7 @@ completed: 2026-08-24
 # Goal
 
 Add a performant, read-only History screen that presents the current version
-line as an understandable timeline of saved versions, with technical Git
+branch as an understandable timeline of saved versions, with technical Git
 details available progressively.
 
 # User outcome
@@ -250,7 +250,7 @@ Use temporary repositories for:
   64 diffs, and 20 MiB of detail/diff estimates. Requests are generation-bound,
   first-page and continuation reads coalesce, late closed-epoch results are
   inert, and shared repository invalidations refresh History after save,
-  publish, get-team-changes, version-line changes, watcher events, or explicit
+  publish, get-team-changes, branch changes, watcher events, or explicit
   repository refresh. Timeline rows and changed files are virtualized.
 - The feature owns its typed port/adapter/controller/screen descriptor, is
   registered through `src/screens.tsx`, warms only on project activation, and

@@ -48,7 +48,7 @@ is reached from exactly three places: the Changes panel, the History panel, and
 the pending-versions list under Overview. The application's own text keeps the
 system sans-serif stack in `tokens.css`, and the roughly fourteen hardcoded
 `ui-monospace` uses elsewhere — clone URLs, project paths, version hashes, the
-Git version, version-line names, sync file paths — are identifiers rather than
+Git version, branch names, sync file paths — are identifiers rather than
 code and deliberately stay outside this setting.
 
 # Scope

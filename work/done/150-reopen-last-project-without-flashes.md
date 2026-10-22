@@ -126,7 +126,7 @@ None.
   `OverviewPlaceholder.tsx`. The eager module owns them, and the lazy
   History summary chunk imports them from there.
 - Three `overview-placeholder__*` rules size the header's tile, name and
-  version-line switch, and keep the path row and the band's note at their
+  branch switch, and keep the path row and the band's note at their
   real 28px.
 
 # Validation

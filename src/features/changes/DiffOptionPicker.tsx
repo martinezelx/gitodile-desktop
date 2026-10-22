@@ -56,17 +56,17 @@ export function DiffOptionPicker<Value extends string>({
       <button
         ref={triggerRef}
         type="button"
-        className="version-line-selector changes-view-picker__trigger"
+        className="branch-selector changes-view-picker__trigger"
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label={`${ariaLabel} (${selected.label})`}
         onClick={() => setIsOpen((open) => !open)}
       >
-        <span className="version-line-selector__icon" aria-hidden="true">
+        <span className="branch-selector__icon" aria-hidden="true">
           {selected.icon}
         </span>
         <span className="changes-view-picker__value">{selected.label}</span>
-        <ChevronDown aria-hidden="true" className="version-line-selector__chevron" />
+        <ChevronDown aria-hidden="true" className="branch-selector__chevron" />
       </button>
       {isOpen && createPortal(
         <div

@@ -239,7 +239,7 @@ share the same rule.
 Changed from `sessionEpoch?` to a required `sessionEpoch`:
 `read_working_tree_status`, `read_file_diff`, `read_file_lines`,
 `read_working_tree_diffs`, `discover_remotes`, `list_unpublished_versions`,
-`read_commit_file_changes`, `read_commit_file_diff`, `get_version_lines`,
+`read_commit_file_changes`, `read_commit_file_diff`, `get_branches`,
 `watch_repository`, `unwatch_repository`.
 
 Semantic exceptions kept, now documented with their reason in

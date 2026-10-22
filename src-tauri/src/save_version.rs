@@ -278,9 +278,9 @@ fn validate_and_prepare_save(
     if head_state == HeadState::Detached {
         return Err(AppError::new(
             AppErrorCode::DetachedHead,
-            "This project isn't on a version line right now.",
+            "This project isn't on a branch right now.",
         )
-        .with_remediation("Switch to a version line before saving a version."));
+        .with_remediation("Switch to a branch before saving a version."));
     }
 
     if status.counts.conflicted > 0 {

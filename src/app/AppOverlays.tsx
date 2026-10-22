@@ -63,7 +63,7 @@ function toolAvailable(tooling: GitToolingState): boolean | null {
  * blank — a development build with no feed reads "Updates unavailable" rather
  * than going silent — and only the one transient state with nothing useful to
  * say (`installing`) yields null. The design's own message is `upToDateLabel`
- * ("Up to date"), kept short because it rides the version line; the rest reuse
+ * ("Up to date"), kept short because it shares the text row; the rest reuse
  * the update copy so the two surfaces cannot describe one build differently. */
 function aboutUpdateStatus(
   state: UpdateState | undefined,
@@ -368,7 +368,7 @@ export function AppOverlays({
       caption: t.shortcutsGroupEditing,
       items: [
         { label: t.shortcutsSaveVersion, keys: ["mod", "S"] },
-        { label: t.shortcutsRenameLine, keys: ["F2"] },
+        { label: t.shortcutsRenameBranch, keys: ["F2"] },
       ],
     },
     {

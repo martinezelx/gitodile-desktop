@@ -45,7 +45,7 @@ option was applied. Each decision below records the option chosen.
   end) and fade at the bottom while there is more; scrolled to the end,
   "Review" takes the lead and breathes once, as "View all" does.
 - **What you'll publish, decide and get.** The same: no note under any
-  card's list ("Seen by anyone on this line", "You'll see what changes
+  card's list ("Seen by anyone on this branch", "You'll see what changes
   first" and the overlaps note are gone), and every card's list scrolls,
   its link leading at the end. With nothing left to fit, `useFitCount`
   (whole rows measured to the box) is removed.
@@ -57,8 +57,8 @@ option was applied. Each decision below records the option chosen.
   (`--text-subtitle`), a 16px glyph and the same link ("View all", "Review").
 - **Timeline chevrons.** "Now"'s, "View all"'s and the rows' chevrons stand in
   one column; the scroll's gutter sits in the card's padding.
-- **Header.** The version-line quick switch is gone (the status bar names and
-  switches the line). In its place, where the project lives: the service's
+- **Header.** The branch quick switch is gone (the status bar names and
+  switches the branch). In its place, where the project lives: the service's
   mark and the remote's `owner/name` in a hairline chip, opening its web page,
   or "Only on this computer"; no slash before it. Rust reads it
   (`read_remote_home`) and opens the page it derives from the project's own
@@ -67,8 +67,8 @@ option was applied. Each decision below records the option chosen.
 - **Timeline separators.** "On this computer" (was "Only on this computer ·
   N versions") and "Published" (was "Published on origin" with a dashed rule
   to the card's edge) are the same chip on the rail, its glyph over the
-  rail; no count, no rule; the remote and line are the chip's tooltip. The
-  chip is shared (`TimelineChip` in `shared/ui/localOnly.tsx`), and Lines'
+  rail; no count, no rule; the remote and branch are the chip's tooltip. The
+  chip is shared (`TimelineChip` in `shared/ui/localOnly.tsx`), and Branches'
   "Saved versions" uses it too, at a compact size, its chips staying at the
   top of the list while it scrolls, as Overview's do. History's block heads
   are the same chips, each the button that folds its block (chevron inside,
@@ -214,7 +214,7 @@ Before closing, the whole diff was reviewed for bugs and leftovers:
 - Frontend: switching back to a project re-read its remote every time; it
   now reads only while nothing is known, and config changes still refresh it
   through the shared invalidation.
-- Dead code from the removed header switch: `.version-line-card__value`, a
+- Dead code from the removed header switch: `.branch-card__value`, a
   narrow-window rule for `.overview-meta`, and the `overviewSpecificSavedVersion`
   and `overviewNoSavedVersions` strings.
 

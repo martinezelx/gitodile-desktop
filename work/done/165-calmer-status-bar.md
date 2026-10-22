@@ -1,6 +1,6 @@
 ---
 id: 165
-title: A calmer status bar — project / line, an unsaved dot, one action recipe
+title: A calmer status bar — project / branch, an unsaved dot, one action recipe
 status: done
 priority: normal
 type: improvement
@@ -16,13 +16,13 @@ queue:
 # Goal
 
 Make the status bar quieter without losing a fact: drop the working-tree
-count badge and the `+N −N` line totals, read the project and its line as one
+count badge and the `+N −N` line totals, read the project and its branch as one
 sentence, and give every action on the strip the same shape.
 
 # User outcome
 
-The strip reads `project / line ●`, then the remote and the version. Unsaved
-work is a dot after the line's name; "up to date" is a grey cloud with its
+The strip reads `project / branch ●`, then the remote and the version. Unsaved
+work is a dot after the branch's name; "up to date" is a grey cloud with its
 age; every action — Publish, Get, Get and publish, New version, Ready to
 install — is the same neutral capsule with only its glyph in colour.
 
@@ -32,7 +32,7 @@ The strip showed six control shapes in 34px. In the most common state
 (working with unsaved changes and versions to publish) it drew three greens
 with three meanings — `+142`, the up-to-date cloud and the sync pill's glyph —
 and the diff's `−38` was the only red in the window, reading as an error. The
-gear sat between the project and its line, splitting the sentence, and the
+gear sat between the project and its branch, splitting the sentence, and the
 update tag wore an amber pill while the sync action wore a neutral one.
 
 Reviewed in an artifact that replicated the current bar and offered six
@@ -44,10 +44,10 @@ recipe.
 # Scope
 
 - `StatusBar`: the project name is the project-settings button (the gear is
-  gone), a quiet `/` joins it to the line, and the working-tree item, its
+  gone), a quiet `/` joins it to the branch, and the working-tree item, its
   count badge and the line totals are removed.
-- `VersionLineQuickSwitch`: an optional `workingTree` prop draws the unsaved
-  dot (danger tone when the tree could not be read), turns the line glyph into
+- `BranchQuickSwitch`: an optional `workingTree` prop draws the unsaved
+  dot (danger tone when the tree could not be read), turns the branch glyph into
   the spinner while the tree is read, and adds the sentence to the trigger's
   title. The trigger's accessible name is unchanged; the strip keeps the
   sentence for the screen reader.
@@ -71,7 +71,7 @@ recipe.
 # Acceptance criteria
 
 - [x] No `+N −N` and no count badge on the strip.
-- [x] A dirty tree draws the accent dot after the line's name; a clean tree
+- [x] A dirty tree draws the accent dot after the branch's name; a clean tree
       draws none; an unreadable tree draws the danger dot.
 - [x] The project name opens project settings and prefetches them on hover
       and focus.
@@ -86,7 +86,7 @@ recipe.
 - `src/app/StatusBar.test.tsx`
 - `src/app/app-shell.css`
 - `src/app/translations.ts`
-- `src/features/version-lines/VersionLineQuickSwitch.tsx`
+- `src/features/branches/BranchQuickSwitch.tsx`
 - `DESIGN.md`
 
 # Dependencies
@@ -115,7 +115,7 @@ recipe.
 # Validation
 
 - `pnpm exec vitest run src/app/StatusBar.test.tsx src/app/App.test.tsx
-  src/features/version-lines` — 10 files, 189 tests passed.
+  src/features/branches` — 10 files, 189 tests passed.
 - Visual check in the built-in browser through a throwaway harness rendering
   15 states in dark mode; the harness was deleted afterwards.
 - `pnpm run check` — passed: 139 frontend test files (1,444 tests), build,

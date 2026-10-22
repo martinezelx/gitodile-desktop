@@ -107,8 +107,8 @@ function PublishSummary({
               Rust refuses a publish with nothing to send to an existing one. */}
           {plan.commitCount === 0
             ? "recreatesDeletedBranch" in plan && plan.recreatesDeletedBranch
-              ? t.publishRecreateOnlyLine(plan.target.remote, plan.target.destinationBranch)
-              : t.publishCreateOnlyLine(plan.target.remote, plan.target.destinationBranch)
+              ? t.publishRecreateOnlyBranch(plan.target.remote, plan.target.destinationBranch)
+              : t.publishCreateOnlyBranch(plan.target.remote, plan.target.destinationBranch)
             : t.publishPlanLine(plan.commitCount, plan.target.remote, plan.target.destinationBranch)}
         </strong>
       </p>
@@ -396,7 +396,7 @@ export function PublishDialog({
   // Retrying can't make versions appear: "everything is published" only
   // offers the way out. Any other planning failure may pass on a retry.
   const isNothingToPublish = state.status === "blocked" && isAppError(state.error) && state.error.code === "nothing_to_publish";
-  // The remote has versions this line doesn't: publishing needs them first.
+  // The remote has versions this branch doesn't: publishing needs them first.
   const remoteMovedOn = (error: unknown): boolean =>
     isAppError(error) && (error.code === "behind_remote" || error.code === "diverged_histories");
   const canGetFirst = Boolean(onGetFirst) && (

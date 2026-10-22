@@ -5,7 +5,7 @@ import { flattenFileTree, isGroupedFileRow } from "./fileTree";
 const paths = [
   "src/features/history/HistoryPanel.tsx",
   "src/features/history/history.css",
-  "src/features/version-lines/panel.tsx",
+  "src/features/branches/panel.tsx",
   "src/app/App.tsx",
   "DESIGN.md",
   "docs/adr/0003.md",
@@ -26,11 +26,11 @@ describe("flattenFileTree", () => {
       "  app/ (1)",
       "    App.tsx",
       "  features/ (3)",
+      "    branches/ (1)",
+      "      panel.tsx",
       "    history/ (2)",
       "      history.css",
       "      HistoryPanel.tsx",
-      "    version-lines/ (1)",
-      "      panel.tsx",
       "DESIGN.md",
     ]);
   });

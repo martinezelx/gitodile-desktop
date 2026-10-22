@@ -501,7 +501,7 @@
   border-color: var(--node-fill);
   background: linear-gradient(90deg, var(--node-fill) 50%, var(--surface-panel) 50%);
 }
-/* Where the line's versions stand: the shared TimelineChip on the rail, its
+/* Where the branch's versions stand: the shared TimelineChip on the rail, its
    glyph over the rail where the rows' nodes are, for the versions only on
    this computer and again where the remote's copy begins. */
 .overview-timeline__group-head,

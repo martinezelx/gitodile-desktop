@@ -30,7 +30,7 @@ date, the strip says how long ago that was checked without hovering.
 # Context
 
 Before this task the status bar's remote cluster was the fact (a cloud and a
-word) plus the refresh (`check_team_changes`, a real `git fetch` of the line's
+word) plus the refresh (`check_team_changes`, a real `git fetch` of the branch's
 upstream). The fact turned into a Publish button only when ahead, still
 wearing the plain `Cloud` glyph and the strip's neutral ink, so it read as a
 fact rather than a button. Behind and diverged had no action at all: the strip
@@ -54,9 +54,9 @@ Reviewed against GitHub Desktop with option widgets; the user chose option A
 
 # Out of scope
 
-- A "Publish line" action for `noUpstream`: the publish flow does not yet set
-  an upstream for a line that has none, so the strip must not offer it.
-- Changing what the refresh fetches (still the line's upstream only, no prune).
+- A "Publish branch" action for `noUpstream`: the publish flow does not yet set
+  an upstream for a branch that has none, so the strip must not offer it.
+- Changing what the refresh fetches (still the branch's upstream only, no prune).
 - Overview's next-step card, which keeps its own forecast-aware choices.
 
 # Acceptance criteria

@@ -54,7 +54,7 @@ function describe(details: NotificationDetails, t: Translations): {
       };
     case "upstreamGone":
       return {
-        title: t.notificationUpstreamGoneTitle(details.line, details.remote),
+        title: t.notificationUpstreamGoneTitle(details.branch, details.remote),
         description: t.notificationUpstreamGoneDescription,
       };
     case "changesPublished":

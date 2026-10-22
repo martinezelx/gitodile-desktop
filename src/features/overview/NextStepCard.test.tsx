@@ -62,7 +62,7 @@ function handlers(): NextStepHandlers {
     checkRemote: vi.fn(),
     checkLocal: vi.fn(),
     openSettings: vi.fn(),
-    openLines: vi.fn(),
+    openBranches: vi.fn(),
     explainIncoming: vi.fn(),
     getAndPublish: vi.fn(),
     switchToDefault: vi.fn(),
@@ -99,7 +99,7 @@ describe("NextStepCard", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("says a line's remote branch is gone and offers the three ways on", async () => {
+  it("says a branch's remote branch is gone and offers the three ways on", async () => {
     const gone: TeamSyncViewState = {
       ...ahead,
       status: {
@@ -122,10 +122,10 @@ describe("NextStepCard", () => {
     const actions = handlers();
     const { container } = wrap(
       <NextStepCard
-        nextStep={deriveNextStep(journey, { canPublish: true, defaultLine: "main" })}
+        nextStep={deriveNextStep(journey, { canPublish: true, defaultBranch: "main" })}
         journey={journey}
         handlers={actions}
-        defaultLine="main"
+        defaultBranch="main"
       />,
     );
 
@@ -140,7 +140,7 @@ describe("NextStepCard", () => {
     expect(container.querySelectorAll(".primary-button")).toHaveLength(1);
   });
 
-  it("offers to publish a line that has no publish destination yet", async () => {
+  it("offers to publish a branch that has no publish destination yet", async () => {
     const journey = deriveJourney({
       workingTree: tree([]),
       workingTreeError: null,
@@ -152,12 +152,12 @@ describe("NextStepCard", () => {
     wrap(<NextStepCard nextStep={deriveNextStep(journey, { canPublish: true })} journey={journey} handlers={actions} />);
 
     expect(screen.getByRole("heading", { name: "No publish destination yet" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Publish this line…" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish this branch…" }));
     expect(actions.publish).toHaveBeenCalledOnce();
     expect(deriveNextStep(journey, { canPublish: false }).primary).toBeNull();
   });
 
-  it("offers no switch when the gone line has no main line to go to", () => {
+  it("offers no switch when the gone branch has no main branch to go to", () => {
     const journey = deriveJourney({
       workingTree: tree([]),
       workingTreeError: null,

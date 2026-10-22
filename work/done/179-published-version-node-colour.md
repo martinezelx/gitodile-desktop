@@ -30,7 +30,7 @@ Selection keeps meaning "the one accent node".
 
 # Context
 
-- Review of the current nodes (History 10px, Overview and Lines' recent list
+- Review of the current nodes (History 10px, Overview and Branches' recent list
   12px) found the published disc dull: border and fill were both
   `--text-secondary-color` at 70%, and hover changed only the 1.5–2px
   `border-color` to the accent, which barely registers on a filled disc.
@@ -54,7 +54,7 @@ Selection keeps meaning "the one accent node".
 
 - Set the published node to `border-color: var(--text-primary-color)` and
   `background: var(--text-primary-color)` in `history.css`, `overview.css` and
-  `version-lines.css`.
+  `branches.css`.
 - Add the C1 hover/focus halo to the three nodes (2px / 4.5px at 10px; the
   3px / 5.5px pair at 12px) and make sure the halo can ease (transition lists).
 - Update `DESIGN.md`: the three node descriptions, the theming prose and the
@@ -62,7 +62,7 @@ Selection keeps meaning "the one accent node".
 
 # Out of scope
 
-- The version-lines route SVG dots (`version-lines-route__dot--unpublished`,
+- The branches route SVG dots (`branches-route__dot--unpublished`,
   `__main-dot`): a separate drawing, not the list node.
 - The Overview "incoming" dashed node and the "Now" unsaved ring.
 - Rust payloads: `publication` already carries the state; no contract change.
@@ -89,7 +89,7 @@ Selection keeps meaning "the one accent node".
 
 - `src/features/history/history.css`
 - `src/features/overview/overview.css`
-- `src/features/version-lines/version-lines.css`
+- `src/features/branches/branches.css`
 - `DESIGN.md`
 
 # Dependencies
@@ -115,18 +115,18 @@ None.
 
 # Implementation notes
 
-- `history.css`, `overview.css`, `version-lines.css`: the published rule uses
+- `history.css`, `overview.css`, `branches.css`: the published rule uses
   `--text-primary-color` for border and fill; comments updated to say "primary
   ink" and to explain the one-family reading. The hover halo, Overview's
   `:active` scale and the transition lists (a missing `box-shadow` in Overview
-  and Version lines, a missing `background-color` in Version lines) are in
+  and Branches, a missing `background-color` in Branches) are in
   place.
 - In History the pointer halo excludes `.history-row--selected`, whose node
   already carries the accent fill and its own halo (3.5px / 22%): without the
   exclusion the more specific hover rule grew that halo on a selected row,
   which the pre-change stylesheet never did.
 - `DESIGN.md`: the Overview timeline section, the History lanes paragraph, the
-  Lines recent-list paragraph and the theming prose now say the published node
+  Branches recent-list paragraph and the theming prose now say the published node
   is a solid disc in the primary ink; the hover-halo wording is kept.
 - The token trial was reverted: `themes.css` (14 blocks + header) and
   `themeContrast.test.ts` (`REQUIRED_TOKENS` + a dedicated 3:1 test) are

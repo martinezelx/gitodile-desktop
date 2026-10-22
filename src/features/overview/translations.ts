@@ -15,7 +15,7 @@ export interface OverviewTranslations {
   overviewHomeWeb: string;
   overviewHomeOpenFailedTitle: string;
   overviewHomeOpenFailedMessage: string;
-  overviewVersionLineDescription: string;
+  overviewBranchDescription: string;
   overviewDetachedDescription: string;
   overviewUnbornDescription: string;
   overviewProjectType: string;
@@ -72,7 +72,7 @@ export interface OverviewTranslations {
   overviewTimelineEndMore: (count: number) => string;
   /** Under the last version of a shallow copy, whose older history was not downloaded. */
   overviewTimelineEndShallow: string;
-  /** Under the line's first version. */
+  /** Under the branch's first version. */
   overviewTimelineEndStart: string;
   /** The side column: what the next step will move, and where you can go
    * back to. */
@@ -89,7 +89,7 @@ export interface OverviewTranslations {
   overviewDetailLines: (added: number, removed: number) => string;
   /** The column's closing line, the consequence in one line that fits the
    * column in every language: where the work stays, or who will see it. */
-  /** When the remote line has another name than the project's line. */
+  /** When the remote branch has another name than the project's branch. */
   overviewDetailLoading: string;
   overviewDetailFilesError: string;
   overviewDetailVersionsError: string;
@@ -126,14 +126,14 @@ export interface OverviewTranslations {
   overviewNextDetachedTitle: string;
   overviewNextDetachedHint: string;
   overviewNextConnectRemote: string;
-  overviewNextOpenLines: string;
-  overviewNextGoneTitle: (line: string | null, remote: string | null) => string;
+  overviewNextOpenBranches: string;
+  overviewNextGoneTitle: (branch: string | null, remote: string | null) => string;
   overviewNextGoneHint: (remote: string | null) => string;
-  overviewNextSwitchTo: (line: string) => string;
+  overviewNextSwitchTo: (branch: string) => string;
   overviewNextPublishAgain: string;
   overviewNextStopTracking: string;
-  overviewNextPublishLine: string;
-  /** The timeline's boundary for a line whose remote branch was deleted. */
+  overviewNextPublishBranch: string;
+  /** The timeline's boundary for a branch whose remote branch was deleted. */
   overviewTimelineWasPublished: string;
   /** The neutral pill for what comes after this step: "Then: 3 new versions
    * on origin", "Then: publish 2 versions". */
@@ -171,9 +171,9 @@ export interface OverviewTranslations {
   overviewHistoryLocalOnly: string;
   /** A version saved under the user's own Git identity. */
   overviewHistoryYou: string;
-  /** The badge on the version the project stands on, in place of the line's
+  /** The badge on the version the project stands on, in place of the branch's
    * name, which the header already says. */
-  overviewHistoryCurrentLine: string;
+  overviewHistoryCurrentBranch: string;
   overviewHistoryPublicationUnknown: string;
   overviewHistoryOpenVersion: (title: string) => string;
   overviewHistoryRefreshFailed: string;
@@ -206,12 +206,12 @@ const en: OverviewTranslations = {
   overviewHomeWeb: "the web",
   overviewHomeOpenFailedTitle: "Couldn't open the page",
   overviewHomeOpenFailedMessage: "Open the project's page from your browser.",
-  overviewVersionLineDescription: "New work goes on this line.",
+  overviewBranchDescription: "New work goes on this branch.",
   overviewDetachedDescription: "You're looking at a specific point in history.",
   overviewUnbornDescription: "Your first saved version starts this project's history.",
   overviewProjectType: "Project type",
   overviewRepositoryTypeDescription: "A standard project in this folder.",
-  overviewWorktreeTypeDescription: "A linked workspace with its own files and version line.",
+  overviewWorktreeTypeDescription: "A linked workspace with its own files and branch.",
   overviewTechnicalDetails: "Technical details",
   overviewResolvedRoot: "Project root",
   overviewSelectedFolder: "Folder you selected",
@@ -311,17 +311,17 @@ const en: OverviewTranslations = {
   overviewNextNoRemoteTitle: "Saved on this computer",
   overviewNextNoRemoteHint: "Connect a remote to keep a copy elsewhere and share it.",
   overviewNextDetachedTitle: "You're looking at an older version",
-  overviewNextDetachedHint: "You can look around and try things. To keep saving, go back to a version line.",
+  overviewNextDetachedHint: "You can look around and try things. To keep saving, go back to a branch.",
   overviewNextConnectRemote: "Connect a remote",
-  overviewNextOpenLines: "Choose a version line",
-  overviewNextGoneTitle: (line, remote) =>
-    `${line ? `“${line}”` : "This line"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
+  overviewNextOpenBranches: "Choose a branch",
+  overviewNextGoneTitle: (branch, remote) =>
+    `${branch ? `“${branch}”` : "This branch"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
   overviewNextGoneHint: (remote) =>
     `Someone deleted it on ${remote ? `“${remote}”` : "the remote"}, usually after merging its pull request. Your saved versions are still on this computer.`,
-  overviewNextSwitchTo: (line) => `Switch to ${line}`,
+  overviewNextSwitchTo: (branch) => `Switch to ${branch}`,
   overviewNextPublishAgain: "Publish again…",
   overviewNextStopTracking: "Stop following the remote",
-  overviewNextPublishLine: "Publish this line…",
+  overviewNextPublishBranch: "Publish this branch…",
   overviewTimelineWasPublished: "Was published",
   overviewNextThen: "Then:",
   overviewNextThenGet: (count) => (count === 1 ? "1 new version" : `${count} new versions`),
@@ -352,7 +352,7 @@ const en: OverviewTranslations = {
   overviewHistoryPublished: "Published",
   overviewHistoryLocalOnly: "Not published",
   overviewHistoryYou: "You",
-  overviewHistoryCurrentLine: "current",
+  overviewHistoryCurrentBranch: "current",
   overviewHistoryPublicationUnknown: "Publish status unknown",
   overviewHistoryOpenVersion: (title) => `Open “${title}” in History`,
   overviewHistoryRefreshFailed: "Recent history may be out of date.",
@@ -383,12 +383,12 @@ const es: OverviewTranslations = {
   overviewHomeWeb: "la web",
   overviewHomeOpenFailedTitle: "No se pudo abrir la página",
   overviewHomeOpenFailedMessage: "Abre la página del proyecto desde tu navegador.",
-  overviewVersionLineDescription: "El trabajo nuevo va a esta línea.",
+  overviewBranchDescription: "El trabajo nuevo va a esta rama.",
   overviewDetachedDescription: "Estás viendo un punto concreto del historial.",
   overviewUnbornDescription: "Tu primera versión guardada inicia el historial del proyecto.",
   overviewProjectType: "Tipo de proyecto",
   overviewRepositoryTypeDescription: "Un proyecto normal en esta carpeta.",
-  overviewWorktreeTypeDescription: "Un espacio de trabajo vinculado, con sus propios archivos y línea de versión.",
+  overviewWorktreeTypeDescription: "Un espacio de trabajo vinculado, con sus propios archivos y rama.",
   overviewTechnicalDetails: "Detalles técnicos",
   overviewResolvedRoot: "Raíz del proyecto",
   overviewSelectedFolder: "Carpeta que elegiste",
@@ -488,17 +488,17 @@ const es: OverviewTranslations = {
   overviewNextNoRemoteTitle: "Guardado en este ordenador",
   overviewNextNoRemoteHint: "Conecta un remoto para tener una copia fuera y poder compartirlo.",
   overviewNextDetachedTitle: "Estás viendo una versión antigua",
-  overviewNextDetachedHint: "Puedes mirar y probar. Para seguir guardando, vuelve a una línea de versiones.",
+  overviewNextDetachedHint: "Puedes mirar y probar. Para seguir guardando, vuelve a una rama.",
   overviewNextConnectRemote: "Conectar un remoto",
-  overviewNextOpenLines: "Elegir una línea",
-  overviewNextGoneTitle: (line, remote) =>
-    `${line ? `«${line}»` : "Esta línea"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
+  overviewNextOpenBranches: "Elegir una rama",
+  overviewNextGoneTitle: (branch, remote) =>
+    `${branch ? `«${branch}»` : "Esta rama"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,
   overviewNextGoneHint: (remote) =>
     `Alguien la borró en ${remote ? `«${remote}»` : "el remoto"}, normalmente al fusionar su PR. Tus versiones siguen en este ordenador.`,
-  overviewNextSwitchTo: (line) => `Cambiar a ${line}`,
+  overviewNextSwitchTo: (branch) => `Cambiar a ${branch}`,
   overviewNextPublishAgain: "Volver a publicar…",
   overviewNextStopTracking: "Dejar de seguir el remoto",
-  overviewNextPublishLine: "Publicar esta línea…",
+  overviewNextPublishBranch: "Publicar esta rama…",
   overviewTimelineWasPublished: "Estuvo publicado",
   overviewNextThen: "Después:",
   overviewNextThenGet: (count) => (count === 1 ? "1 versión nueva" : `${count} versiones nuevas`),
@@ -530,7 +530,7 @@ const es: OverviewTranslations = {
   overviewHistoryPublished: "Publicada",
   overviewHistoryLocalOnly: "Sin publicar",
   overviewHistoryYou: "Tú",
-  overviewHistoryCurrentLine: "actual",
+  overviewHistoryCurrentBranch: "actual",
   overviewHistoryPublicationUnknown: "Publicación desconocida",
   overviewHistoryOpenVersion: (title) => `Abrir «${title}» en Historial`,
   overviewHistoryRefreshFailed: "El historial reciente puede estar desactualizado.",

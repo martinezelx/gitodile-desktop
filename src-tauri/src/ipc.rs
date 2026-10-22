@@ -11,6 +11,11 @@ use crate::{
     },
     application,
     bitbucket_access::BitbucketAccessService,
+    branches::{
+        self, BranchHistory, BranchesSnapshot, CleanUpBranchRequest, CleanUpBranchesPlan,
+        CleanUpBranchesResult, CreateBranchPlan, DeleteBranchPlan, DeleteBranchResult,
+        RenameBranchPlan, SwitchBranchPlan,
+    },
     changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
     clone::{
         self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
@@ -48,11 +53,6 @@ use crate::{
     tooling::{
         self, GitDefaultBranch, GitDiagnostics, GitIdentity, GitInstallationDetails,
         GitInstallationResult, GitLineEndings, GitUpdateLaunchResult, GitUpdateStatus,
-    },
-    version_lines::{
-        self, CleanUpLineRequest, CleanUpVersionLinesPlan, CleanUpVersionLinesResult,
-        CreateVersionLinePlan, DeleteVersionLinePlan, DeleteVersionLineResult,
-        RenameVersionLinePlan, SwitchVersionLinePlan, VersionLineHistory, VersionLinesSnapshot,
     },
     watch,
 };
@@ -846,7 +846,7 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
     report_result("set_line_endings", tooling::set_line_endings(mode))
 }
 
-/// The name Git will give the first version line of the next project it
+/// The name Git will give the first branch of the next project it
 /// creates. Global like the identity, and absent when Git's own default
 /// applies.
 #[tauri::command(async)]
@@ -965,7 +965,7 @@ pub(crate) fn read_project_remotes(
 }
 
 /// Where the project lives, for Overview's header: the service and path of
-/// the remote its line publishes to. Raw addresses stay on the Rust side.
+/// the remote its branch publishes to. Raw addresses stay on the Rust side.
 #[tauri::command(async)]
 pub(crate) fn read_remote_home(
     path: String,
@@ -1344,192 +1344,192 @@ pub(crate) fn publish(
 }
 
 #[tauri::command(async)]
-pub(crate) fn get_version_lines(
+pub(crate) fn get_branches(
     path: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "get_version_lines",
+        "get_branches",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::get_version_lines(path)
+            branches::get_branches(path)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn get_version_line_history(
+pub(crate) fn get_branch_history(
     path: String,
     name: String,
     session_epoch: String,
-) -> Result<VersionLineHistory, AppError> {
+) -> Result<BranchHistory, AppError> {
     report_result(
-        "get_version_line_history",
+        "get_branch_history",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::get_version_line_history(path, name)
+            branches::get_branch_history(path, name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_create_version_line(
+pub(crate) fn plan_create_branch(
     path: String,
     name: String,
     switch: bool,
     start_commit: Option<String>,
     session_epoch: String,
-) -> Result<CreateVersionLinePlan, AppError> {
+) -> Result<CreateBranchPlan, AppError> {
     report_result(
-        "plan_create_version_line",
+        "plan_create_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_create_version_line(path, name, switch, start_commit)
+            branches::plan_create_branch(path, name, switch, start_commit)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn create_version_line(
+pub(crate) fn create_branch(
     path: String,
     name: String,
     switch: bool,
     start_commit: Option<String>,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "create_version_line",
+        "create_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::create_version_line(path, name, switch, start_commit, state_token)
+            branches::create_branch(path, name, switch, start_commit, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_switch_version_line(
+pub(crate) fn plan_switch_branch(
     path: String,
     target: String,
     session_epoch: String,
-) -> Result<SwitchVersionLinePlan, AppError> {
+) -> Result<SwitchBranchPlan, AppError> {
     report_result(
-        "plan_switch_version_line",
+        "plan_switch_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_switch_version_line(path, target)
+            branches::plan_switch_branch(path, target)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn switch_version_line(
+pub(crate) fn switch_branch(
     path: String,
     target: String,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "switch_version_line",
+        "switch_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::switch_version_line(path, target, state_token)
+            branches::switch_branch(path, target, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_delete_version_line(
+pub(crate) fn plan_delete_branch(
     path: String,
     name: String,
     session_epoch: String,
-) -> Result<DeleteVersionLinePlan, AppError> {
+) -> Result<DeleteBranchPlan, AppError> {
     report_result(
-        "plan_delete_version_line",
+        "plan_delete_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_delete_version_line(path, name)
+            branches::plan_delete_branch(path, name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn delete_version_line(
+pub(crate) fn delete_branch(
     path: String,
     name: String,
     delete_remote: bool,
     state_token: String,
     session_epoch: String,
-) -> Result<DeleteVersionLineResult, AppError> {
+) -> Result<DeleteBranchResult, AppError> {
     report_result(
-        "delete_version_line",
+        "delete_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::delete_version_line(path, name, delete_remote, state_token)
+            branches::delete_branch(path, name, delete_remote, state_token)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_clean_up_version_lines(
+pub(crate) fn plan_clean_up_branches(
     path: String,
     names: Vec<String>,
     session_epoch: String,
-) -> Result<CleanUpVersionLinesPlan, AppError> {
+) -> Result<CleanUpBranchesPlan, AppError> {
     report_result(
-        "plan_clean_up_version_lines",
+        "plan_clean_up_branches",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_clean_up_version_lines(path, names)
+            branches::plan_clean_up_branches(path, names)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn clean_up_version_lines(
+pub(crate) fn clean_up_branches(
     path: String,
-    lines: Vec<CleanUpLineRequest>,
+    branches: Vec<CleanUpBranchRequest>,
     delete_remote: bool,
     session_epoch: String,
-) -> Result<CleanUpVersionLinesResult, AppError> {
+) -> Result<CleanUpBranchesResult, AppError> {
     report_result(
-        "clean_up_version_lines",
+        "clean_up_branches",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::clean_up_version_lines(path, lines, delete_remote)
+            branches::clean_up_branches(path, branches, delete_remote)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn plan_rename_version_line(
+pub(crate) fn plan_rename_branch(
     path: String,
     name: String,
     new_name: String,
     session_epoch: String,
-) -> Result<RenameVersionLinePlan, AppError> {
+) -> Result<RenameBranchPlan, AppError> {
     report_result(
-        "plan_rename_version_line",
+        "plan_rename_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::plan_rename_version_line(path, name, new_name)
+            branches::plan_rename_branch(path, name, new_name)
         })(),
     )
 }
 
 #[tauri::command(async)]
-pub(crate) fn rename_version_line(
+pub(crate) fn rename_branch(
     path: String,
     name: String,
     new_name: String,
     state_token: String,
     session_epoch: String,
-) -> Result<VersionLinesSnapshot, AppError> {
+) -> Result<BranchesSnapshot, AppError> {
     report_result(
-        "rename_version_line",
+        "rename_branch",
         (|| {
             validate_session(&path, &session_epoch)?;
-            version_lines::rename_version_line(path, name, new_name, state_token)
+            branches::rename_branch(path, name, new_name, state_token)
         })(),
     )
 }
@@ -1901,16 +1901,16 @@ mod contract_tests {
             AppErrorCode::PublishUncertain,
             AppErrorCode::GetTeamChangesUncertain,
             AppErrorCode::GitVersionTooOld,
-            AppErrorCode::VersionLineNameTaken,
-            AppErrorCode::VersionLineNameCollides,
-            AppErrorCode::VersionLineCheckedOutElsewhere,
-            AppErrorCode::VersionLineIsActive,
-            AppErrorCode::VersionLineIsDefault,
-            AppErrorCode::VersionLineMissing,
-            AppErrorCode::VersionLineUniqueWork,
-            AppErrorCode::VersionLineNotFinished,
-            AppErrorCode::VersionLineSwitchObstructed,
-            AppErrorCode::StaleVersionLinePlan,
+            AppErrorCode::BranchNameTaken,
+            AppErrorCode::BranchNameCollides,
+            AppErrorCode::BranchCheckedOutElsewhere,
+            AppErrorCode::BranchIsActive,
+            AppErrorCode::BranchIsDefault,
+            AppErrorCode::BranchMissing,
+            AppErrorCode::BranchUniqueWork,
+            AppErrorCode::BranchNotFinished,
+            AppErrorCode::BranchSwitchObstructed,
+            AppErrorCode::StaleBranchPlan,
             AppErrorCode::DirtyWorkingTree,
             AppErrorCode::IncomingTrackedChangeCollision,
             AppErrorCode::RefLocked,

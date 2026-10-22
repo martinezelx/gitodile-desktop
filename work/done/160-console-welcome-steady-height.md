@@ -58,7 +58,7 @@ projection threw them away.
 
 - The status bar, which already shows a spinner while it checks and is not
   drawn on the console screen.
-- The line row, which is absent only on a detached head or an unborn
+- The branch row, which is absent only on a detached head or an unborn
   repository. That is a lasting state, not a reading in flight.
 
 # Acceptance criteria
@@ -97,7 +97,7 @@ None.
   which is accurate.
 - **Top alignment as well.** With every reading-dependent row held, the
   summary's height is already steady. Top alignment also covers rows that
-  change for lasting reasons, such as the line row on a detached head.
+  change for lasting reasons, such as the branch row on a detached head.
 
 # Implementation notes
 

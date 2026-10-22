@@ -126,10 +126,10 @@ describe("the titlebar notification centre", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("says a line's remote branch is gone and opens Overview on its project", async () => {
+  it("says a branch's remote branch is gone and opens Overview on its project", async () => {
     const onOpenProjectOverview = vi.fn();
     const onReviewTeamChanges = vi.fn();
-    const notification = entry({ kind: "upstreamGone", line: "feature/login", remote: "origin" });
+    const notification = entry({ kind: "upstreamGone", branch: "feature/login", remote: "origin" });
     renderCentre({ notifications: [notification], unreadCount: 1, onOpenProjectOverview, onReviewTeamChanges });
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));

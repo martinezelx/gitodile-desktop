@@ -243,10 +243,10 @@ fn git_succeeds(repo: &str, args: &[&str]) -> bool {
     git_command(repo).args(args).status().unwrap().success()
 }
 
-/// The main line published, then `feature` published with one version, then
+/// The main branch published, then `feature` published with one version, then
 /// `feature` deleted on the remote — what a host does after merging a pull
 /// request — while this clone keeps its tracking ref.
-fn line_deleted_on_remote(label: &str) -> (String, String) {
+fn branch_deleted_on_remote(label: &str) -> (String, String) {
     let (repo, remote, main) = published_repo_and_remote(label);
     assert_ne!(main, "feature");
     assert!(git_succeeds(&repo, &["switch", "-q", "-c", "feature"]));
@@ -310,17 +310,17 @@ fn a_missing_tracking_ref_reads_as_gone_without_a_check() {
 }
 
 #[test]
-fn publishing_a_line_deleted_on_the_remote_says_it_recreates_and_counts_only_new_versions() {
+fn publishing_a_branch_deleted_on_the_remote_says_it_recreates_and_counts_only_new_versions() {
     let _guard = sync_test_guard();
-    let (repo, remote) = line_deleted_on_remote("sync-recreate");
+    let (repo, remote) = branch_deleted_on_remote("sync-recreate");
     save_file(&repo, "more.txt", "more work");
 
     let plan = plan_publish(repo.clone(), None, None).unwrap();
     assert!(plan.recreates_deleted_branch);
     assert!(!plan.will_create_upstream);
     assert_eq!(plan.target.destination_branch, "feature");
-    // The two versions on `feature`, not the main line's version under them:
-    // the remote's main line already has that one.
+    // The two versions on `feature`, not the main branch's version under them:
+    // the remote's main branch already has that one.
     assert_eq!(plan.commit_count, 2);
     assert_eq!(
         plan.commit_summary
@@ -359,7 +359,7 @@ fn a_first_publish_counts_only_what_the_remote_lacks() {
     assert!(!plan.recreates_deleted_branch);
     assert_eq!(plan.commit_count, 1);
     assert_eq!(plan.commit_summary.len(), 1);
-    // Overview's count agrees with the plan: the main line's version is on
+    // Overview's count agrees with the plan: the main branch's version is on
     // the remote already.
     let pending = list_unpublished_versions(repo.clone()).unwrap();
     assert_eq!(pending.total_count, 1);
@@ -370,9 +370,9 @@ fn a_first_publish_counts_only_what_the_remote_lacks() {
 }
 
 #[test]
-fn a_new_line_with_nothing_new_plans_only_its_branch() {
+fn a_new_branch_with_nothing_new_plans_only_its_branch() {
     let _guard = sync_test_guard();
-    let (repo, remote, _) = published_repo_and_remote("sync-empty-line");
+    let (repo, remote, _) = published_repo_and_remote("sync-empty-branch");
     assert!(git_succeeds(&repo, &["switch", "-q", "-c", "empty"]));
 
     let plan = plan_publish(repo.clone(), None, None).unwrap();
@@ -405,7 +405,7 @@ fn unpublished_versions_still_follow_a_local_upstream() {
 #[test]
 fn unpublished_versions_read_past_a_pruned_upstream() {
     let _guard = sync_test_guard();
-    let (repo, remote) = line_deleted_on_remote("sync-pruned-pending");
+    let (repo, remote) = branch_deleted_on_remote("sync-pruned-pending");
     assert!(git_succeeds(
         &repo,
         &["update-ref", "-d", "refs/remotes/origin/feature"]
@@ -424,7 +424,7 @@ fn unpublished_versions_read_past_a_pruned_upstream() {
 #[test]
 fn stop_tracking_remote_forgets_the_upstream_and_keeps_everything_else() {
     let _guard = sync_test_guard();
-    let (repo, remote) = line_deleted_on_remote("sync-stop-tracking");
+    let (repo, remote) = branch_deleted_on_remote("sync-stop-tracking");
     let head_before = head(&repo);
 
     let status = stop_tracking_remote(repo.clone(), session("stop-tracking")).unwrap();
@@ -1533,7 +1533,7 @@ fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
     assert_eq!(
         before.upstream_remote.as_deref(),
         Some("origin"),
-        "the published line's own remote, read from its configuration"
+        "the published branch's own remote, read from its configuration"
     );
 
     assert_eq!(
@@ -1601,7 +1601,7 @@ fn recovery_ref_exists(repo: &str, reference: &str) -> bool {
 }
 
 #[test]
-fn diverged_lines_without_overlap_are_combined_with_a_merge_version() {
+fn diverged_branches_without_overlap_are_combined_with_a_merge_version() {
     let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-merge");
     set_identity(&repo);
@@ -1619,7 +1619,9 @@ fn diverged_lines_without_overlap_are_combined_with_a_merge_version() {
 
     let status = check_team_changes(repo.clone(), session("merge")).unwrap();
     assert_eq!(status.state, TeamSyncState::Diverged);
-    let forecast = status.forecast.expect("a diverged line carries a forecast");
+    let forecast = status
+        .forecast
+        .expect("a diverged branch carries a forecast");
     assert_eq!(forecast.outcome, ForecastOutcome::Clear);
     assert_eq!(forecast.integration, IntegrationKind::Merge);
     assert_eq!(forecast.incoming_count, 1);
@@ -1669,7 +1671,7 @@ fn diverged_lines_without_overlap_are_combined_with_a_merge_version() {
 }
 
 #[test]
-fn diverged_lines_that_change_the_same_lines_are_refused_with_the_files() {
+fn diverged_branches_that_change_the_same_lines_are_refused_with_the_files() {
     let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-merge-overlap");
     set_identity(&repo);
@@ -1942,7 +1944,7 @@ fn remote_home_names_the_published_remote_and_never_reports_one_missing() {
         .unwrap()
         .to_string();
 
-    // The line publishes to origin, a folder on this machine: named by its
+    // The branch publishes to origin, a folder on this machine: named by its
     // folder, with no page to open.
     let home = crate::sync::read_remote_home(repo.clone())
         .unwrap()

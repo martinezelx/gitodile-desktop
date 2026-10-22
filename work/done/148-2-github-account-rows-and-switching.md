@@ -56,7 +56,7 @@ remain outside this task.
 # Validation
 
 - Focused frontend run: 78 tests passed across account UI/controller, IPC contract
-  and version-line tests. The account UI/controller contain 26 passing tests in
+  and branch tests. The account UI/controller contain 26 passing tests in
   the final aggregate run, including keyboard focus and failed retry handling.
 - Native authentication coverage: all 21 tests passed in the aggregate, including
   multiple accounts, exact switching, failed post-mutation checks, environment
@@ -69,7 +69,7 @@ remain outside this task.
   selection, exact inactive removal, connecting another account, empty state,
   light/dark themes and a narrower viewport passed. The harness was removed.
 - An overly specific focus assertion was corrected to accept the selected row's
-  retained actionable control. A version-line timing failure passed on focused
+  retained actionable control. A branch timing failure passed on focused
   repetition and both later aggregate frontend runs. The native contract caught
   an inventory ordering mismatch; it was fixed and its focused test passed.
 - Final `pnpm run check` passed: documentation/release/icon contracts, frontend

@@ -17,36 +17,36 @@ import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { TeamSyncState, TeamSyncViewState } from "../features/sync";
 import {
-  VersionLineQuickSwitch,
-  type VersionLineCreateContext,
-  type VersionLinesSnapshot,
-} from "../features/version-lines";
+  BranchQuickSwitch,
+  type BranchCreateContext,
+  type BranchesSnapshot,
+} from "../features/branches";
 import { ProjectQuickSwitch, type ProjectQuickSwitchProps } from "./project-switcher/ProjectSwitcher";
 
 const CLOCK_TICK_MS = 30_000;
-const NO_FAVOURITE_VERSION_LINES: ReadonlySet<string> = new Set();
+const NO_FAVOURITE_BRANCHES: ReadonlySet<string> = new Set();
 
 export type StatusBarProps = {
   project: Pick<RepositoryInfo, "name" | "branch" | "headState"> | null;
   workingTree: WorkingTreeStatus | null;
   workingTreeError: string | null;
   isCheckingChanges: boolean;
-  versionLines: VersionLinesSnapshot | null;
-  isLoadingVersionLines: boolean;
-  favouriteVersionLines?: ReadonlySet<string>;
-  onToggleFavouriteVersionLine?: (name: string) => void;
+  branches: BranchesSnapshot | null;
+  isLoadingBranches: boolean;
+  favouriteBranches?: ReadonlySet<string>;
+  onToggleFavouriteBranch?: (name: string) => void;
   teamSync: TeamSyncViewState;
-  onSwitchVersionLine: (target: string) => void;
-  /** Where the quick switch makes a new line, inside its own popup. */
-  versionLineCreate?: VersionLineCreateContext;
-  onSeeAllVersionLines: () => void;
+  onSwitchBranch: (target: string) => void;
+  /** Where the quick switch makes a new branch, inside its own popup. */
+  branchCreate?: BranchCreateContext;
+  onSeeAllBranches: () => void;
   onCheckTeamChanges: () => void;
   /** The project half of the block: the one place to change projects
    * (task 189). */
   projectSwitch: ProjectQuickSwitchProps;
   /** The remote fact doubles as the one sync action the relation calls for,
    * offered only while that relation is known and current: publish when this
-   * line is ahead, get when it is behind, get and publish when both moved. */
+   * branch is ahead, get when it is behind, get and publish when both moved. */
   onPublish: () => void;
   onGetChanges: () => void;
   onGetAndPublish: () => void;
@@ -82,13 +82,13 @@ function useStatusBarClock(): number {
  * now so Overview's band tells the same time. */
 export { formatRelativeCheckTime };
 
-function versionLineLabel(
+function branchLabel(
   project: NonNullable<StatusBarProps["project"]>,
   t: Translations,
 ): string {
   if (project.headState === "detached") return t.statusBarDetached;
   if (project.branch) return project.branch;
-  return project.headState === "unborn" ? t.statusBarUnbornLine : t.statusBarVersionLineUnavailable;
+  return project.headState === "unborn" ? t.statusBarUnbornBranch : t.statusBarBranchUnavailable;
 }
 
 function workingTreeLabel(
@@ -189,10 +189,10 @@ function teamSyncAction(
         : null;
     case "diverged":
       return { kind: "getAndPublish", label: t.statusBarGetAndPublishAction, icon: <CloudSync aria-hidden="true" />, onClick: handlers.onGetAndPublish };
-    // A line with no publish destination gets one by publishing, so that is
+    // A branch with no publish destination gets one by publishing, so that is
     // the action rather than a fact with nowhere to go.
     case "noUpstream":
-      return { kind: "publish", label: t.statusBarPublishLineAction, icon: <CloudUpload aria-hidden="true" />, onClick: handlers.onPublish };
+      return { kind: "publish", label: t.statusBarPublishBranchAction, icon: <CloudUpload aria-hidden="true" />, onClick: handlers.onPublish };
     default:
       return null;
   }
@@ -203,14 +203,14 @@ export function StatusBar({
   workingTree,
   workingTreeError,
   isCheckingChanges,
-  versionLines,
-  isLoadingVersionLines,
-  favouriteVersionLines = NO_FAVOURITE_VERSION_LINES,
-  onToggleFavouriteVersionLine,
+  branches,
+  isLoadingBranches,
+  favouriteBranches = NO_FAVOURITE_BRANCHES,
+  onToggleFavouriteBranch,
   teamSync,
-  onSwitchVersionLine,
-  versionLineCreate,
-  onSeeAllVersionLines,
+  onSwitchBranch,
+  branchCreate,
+  onSeeAllBranches,
   onCheckTeamChanges,
   projectSwitch,
   onPublish,
@@ -257,7 +257,7 @@ export function StatusBar({
     : null;
   const restingAge = isCurrent ? upToDateAge : null;
   const changesLabel = workingTreeLabel(workingTree, workingTreeError, isCheckingChanges, t);
-  // The working tree rides the line it belongs to: a dot after the line's
+  // The working tree rides the branch it belongs to: a dot after the branch's
   // name while there is unsaved work, the sentence in its tooltip and for the
   // screen reader. How much moved is Overview's and Changes' to say.
   const workingTreeState = isCheckingChanges
@@ -317,24 +317,24 @@ export function StatusBar({
   return (
     <footer className="status-bar" aria-label={t.statusBarAriaLabel} aria-busy={isBusy}>
       {/* The one persistent statement of what is being worked on — which
-          project, and which line of it — and the one place to change either.
+          project, and which branch of it — and the one place to change either.
           Two segments of the same shape, each a glyph, a name and a chevron,
           so they read as two controls side by side rather than one path. */}
       <span className="status-bar__block status-bar__block--where">
         <ProjectQuickSwitch {...projectSwitch} />
         {project && (
           <>
-            <VersionLineQuickSwitch
-              snapshot={versionLines}
-              isLoadingSnapshot={isLoadingVersionLines}
-              currentValue={versionLineLabel(project, t)}
+            <BranchQuickSwitch
+              snapshot={branches}
+              isLoadingSnapshot={isLoadingBranches}
+              currentValue={branchLabel(project, t)}
               canSwitch={project.headState === "branch" && Boolean(project.branch)}
               variant="status"
-              favouriteLines={favouriteVersionLines}
-              onToggleFavourite={onToggleFavouriteVersionLine}
-              onSwitch={onSwitchVersionLine}
-              create={versionLineCreate}
-              onSeeAll={onSeeAllVersionLines}
+              favouriteBranches={favouriteBranches}
+              onToggleFavourite={onToggleFavouriteBranch}
+              onSwitch={onSwitchBranch}
+              create={branchCreate}
+              onSeeAll={onSeeAllBranches}
               workingTree={{ state: workingTreeState, description: changesLabel }}
             />
             <span className="visually-hidden">{changesLabel}</span>
@@ -401,7 +401,7 @@ export function StatusBar({
               <span className="visually-hidden">{teamLabel}</span>
             </span>
           ) : (
-            // The state is a press like the project's and the line's: it says
+            // The state is a press like the project's and the branch's: it says
             // the relation and renews it. Its name says both, so it is never
             // mistaken for a label that does nothing. A word that is already
             // the action ("Check again") does not have the action restated

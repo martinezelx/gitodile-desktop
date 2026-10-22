@@ -459,7 +459,7 @@ pub(crate) struct SavedVersionSummary {
     pub(crate) title: String,
     pub(crate) description: Option<String>,
     /// `%cI` (committer date, ISO 8601 strict) — the same format already used
-    /// for a version line's tip (`committerdate:iso-strict` in
+    /// for a branch's tip (`committerdate:iso-strict` in
     /// `for-each-ref`'s format string), so the frontend parses both the same
     /// way.
     pub(crate) committed_at: String,
@@ -573,7 +573,7 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
         // what publishing would send is what no branch of the remote it would
         // choose holds — the same count the publish plan shows. A range over
         // a missing ref would fail, and plain `HEAD` would count every version
-        // the remote's other lines already have.
+        // the remote's other branches already have.
         _ => {
             let remotes = list_remotes(&path)?;
             match resolve_remote_selection(&remotes, upstream, None) {
@@ -602,7 +602,7 @@ pub(crate) fn list_unpublished_versions(path: String) -> Result<PendingVersionsR
 }
 
 /// Whether the upstream `git status` names still resolves: a remote-tracking
-/// ref, or a local branch for a line that tracks one (`remote = .`).
+/// ref, or a local branch for a branch that tracks one (`remote = .`).
 fn upstream_resolves(path: &str, upstream: &str) -> Result<bool, AppError> {
     let revision = format!("{upstream}^{{commit}}");
     Ok(
@@ -632,7 +632,7 @@ pub(crate) fn not_on_remote_revisions(
 }
 
 /// Read-only and local-only, the mirror of [`list_unpublished_versions`]: the
-/// versions the last-known remote-tracking ref has and this line does not —
+/// versions the last-known remote-tracking ref has and this branch does not —
 /// what the last remote check brought down, never a fresh fetch. Overview
 /// names them before the user chooses to get them. Without an upstream there
 /// is nothing to receive.

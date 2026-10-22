@@ -18,7 +18,7 @@ export type CommitFilesState =
   | { status: "error" };
 
 /** The versions waiting on the remote, read for one exact pair of commits —
- * the line's and the tracking ref's — so a new check or a new save reads them
+ * the branch's and the tracking ref's — so a new check or a new save reads them
  * again and nothing else does. */
 export type IncomingState =
   | { key: string; status: "loading" }

@@ -53,7 +53,7 @@ describe("deriveJourney", () => {
     expect(journey.changes).toEqual({ state: "dirty", total: 3, conflicted: 0 });
     expect(journey.save.state).toBe("active");
     expect(journey.publish.state).toBe("upToDate");
-    expect(journey.publish.remoteLine).toBe("origin/main");
+    expect(journey.publish.remoteBranch).toBe("origin/main");
   });
 
   it("never dates a cached status as a remote check", () => {
@@ -102,7 +102,7 @@ describe("deriveJourney", () => {
     expect(deriveJourney({ ...base, workingTree: tree({}), teamSync: sync() }).activeStep).toBeNull();
     expect(
       deriveJourney({ ...base, workingTree: tree({}), teamSync: sync({ state: "noRemote", upstreamRemote: null, destinationBranch: null }) }),
-    ).toMatchObject({ activeStep: null, publish: { state: "noRemote", remoteLine: null } });
+    ).toMatchObject({ activeStep: null, publish: { state: "noRemote", remoteBranch: null } });
   });
 
   it("reports what it does not know yet instead of guessing", () => {

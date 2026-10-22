@@ -9,7 +9,7 @@
 //! one history-changing workflow in the domain and its safety checks are
 //! helpers no other part of sync should be able to call. The read model here
 //! reaches it through one door, [`forecast_incoming`], so every status read of
-//! a line with versions waiting can say what getting them would do; splitting
+//! a branch with versions waiting can say what getting them would do; splitting
 //! it keeps everything else private and leaves this file as the read model.
 
 mod get_team_changes;
@@ -106,7 +106,7 @@ pub(crate) enum TeamSyncState {
     Ahead,
     Behind,
     Diverged,
-    /// The line tracks a remote branch that no longer exists: a check found
+    /// The branch tracks a remote branch that no longer exists: a check found
     /// it missing on the remote, or the tracking ref is gone too (Git's
     /// `[gone]`). The stale tracking ref, when there is one, is kept.
     UpstreamGone,
@@ -154,7 +154,7 @@ pub(crate) struct TeamSyncStatus {
     pub(crate) next_actions: Vec<SyncNextAction>,
     pub(crate) state_token: String,
     /// What getting the waiting versions would do, predicted locally. Present
-    /// only while the line is behind or diverged.
+    /// only while the branch is behind or diverged.
     pub(crate) forecast: Option<IncomingForecast>,
 }
 
@@ -388,7 +388,7 @@ pub(crate) struct ProjectRemote {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProjectRemotes {
     pub(crate) remotes: Vec<ProjectRemote>,
-    /// The remote the current version line publishes to, when it has one.
+    /// The remote the current branch publishes to, when it has one.
     pub(crate) upstream_remote: Option<String>,
 }
 
@@ -431,7 +431,7 @@ pub(crate) fn parse_project_remotes(output: &str) -> Vec<ProjectRemote> {
     remotes
 }
 
-/// The remote the checked-out version line publishes to, or `None` when it has
+/// The remote the checked-out branch publishes to, or `None` when it has
 /// no upstream or HEAD is detached. Read from the branch's own configuration
 /// rather than guessed from the remote list, which would be wrong the moment a
 /// project has two.
@@ -491,7 +491,7 @@ pub(crate) enum RemoteHomeProvider {
 }
 
 /// Where the project lives, as Overview's header names it: the service and
-/// the `owner/name` path of the remote the current line publishes to (else
+/// the `owner/name` path of the remote the current branch publishes to (else
 /// `origin`, else the first one). Read from the raw configured address here,
 /// so the label and the page `remote_web_page` opens come from one reading;
 /// neither carries userinfo, a query or a fragment.
@@ -1111,7 +1111,7 @@ pub(crate) fn classify_remote_failure(stderr: &str) -> AppError {
     if looks_like_missing_remote_ref(&lower) {
         return AppError::new(
             AppErrorCode::RemoteRefMissing,
-            "The configured team version line no longer exists on the remote project.",
+            "The configured team branch no longer exists on the remote project.",
         )
         .with_remediation("Check the remote setup before trying again.");
     }
@@ -1227,7 +1227,7 @@ pub(crate) fn resolve_upstream(
             AppErrorCode::InvalidRemoteConfiguration,
             "The configured upstream doesn't identify a usable remote project.",
         )
-        .with_remediation("Repair this version line's upstream configuration in Git."));
+        .with_remediation("Repair this branch's upstream configuration in Git."));
     }
     validate_remote_name(&remote)?;
     let destination_branch = merge_ref
@@ -1238,7 +1238,7 @@ pub(crate) fn resolve_upstream(
                 AppErrorCode::InvalidRemoteConfiguration,
                 "The configured upstream branch is invalid.",
             )
-            .with_remediation("Repair this version line's upstream configuration in Git.")
+            .with_remediation("Repair this branch's upstream configuration in Git.")
         })?
         .to_string();
     validate_branch_ref_name(path, &destination_branch)?;
@@ -1477,7 +1477,7 @@ pub(super) fn read_team_sync_status_inner(
     };
 
     // A remote that no longer has the branch is an answer, not a failure: the
-    // line's upstream is gone. The explicit no-prune policy keeps the last
+    // branch's upstream is gone. The explicit no-prune policy keeps the last
     // known tracking ref, which is reported but never compared against.
     let (fetched_commit, remote_branch_missing) = if perform_fetch {
         match fetch_remote_target(path, &target.remote, &target.fetch_refspec) {
@@ -1570,8 +1570,8 @@ pub(crate) fn check_team_changes(
     read_team_sync_status_inner(&path, &session_epoch, SyncKnowledge::Fresh, true, &identity)
 }
 
-/// Local mutation, chosen by the person for a line whose remote branch is
-/// gone: forget which remote branch the current line tracks. Only the line's
+/// Local mutation, chosen by the person for a branch whose remote branch is
+/// gone: forget which remote branch the current branch tracks. Only the branch's
 /// own `branch.<name>.remote` and `.merge` entries change — the same pair a
 /// first publish writes — so publishing again reconnects it. Files, history
 /// and the kept tracking ref are untouched.
@@ -1591,22 +1591,22 @@ pub(crate) fn stop_tracking_remote(
     else {
         return Err(AppError::new(
             AppErrorCode::DetachedHead,
-            "This project isn't on a version line right now.",
+            "This project isn't on a branch right now.",
         )
-        .with_remediation("Switch to a version line first."));
+        .with_remediation("Switch to a branch first."));
     };
     validate_branch_ref_name(&path, &branch)?;
     if read_config_value(&path, &format!("branch.{branch}.merge"))?.is_none() {
         return Err(AppError::new(
             AppErrorCode::InvalidRemoteConfiguration,
-            "This version line doesn't follow a remote branch.",
+            "This branch doesn't follow a remote branch.",
         ));
     }
     let output = run_git(&path, &["branch", "--unset-upstream", &branch])?;
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::GitConfigWriteFailed,
-            "GitOdile couldn't stop this version line from following its remote branch.",
+            "GitOdile couldn't stop this branch from following its remote branch.",
         )
         .with_remediation("Check that the project's Git configuration can be written."));
     }

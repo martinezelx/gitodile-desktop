@@ -106,12 +106,12 @@ import {
   type ProjectSettingsSection,
 } from "../features/project-settings";
 import {
-  createVersionLinesController,
-  useStoredFavouriteVersionLines,
-  useVersionLinesState,
-  versionLinesPort,
-  type VersionLineCreateContext,
-} from "../features/version-lines";
+  createBranchesController,
+  useStoredFavouriteBranches,
+  useBranchesState,
+  branchesPort,
+  type BranchCreateContext,
+} from "../features/branches";
 import { createHistoryController, historyPort } from "../features/history";
 import { appUpdatesPort, createAppUpdatesController, useAppUpdatesController, type UpdateState } from "../features/app-updates";
 import { useConsoleConfirmChanges } from "../features/console";
@@ -194,7 +194,7 @@ import {
   KeepAliveScreens,
   OverviewPanel,
   NAV_DESTINATIONS,
-  VersionLinesScreen,
+  BranchesScreen,
   WorkbenchScreen,
   markScreenSwitchIntent,
   prefetchScreenChunks,
@@ -224,11 +224,11 @@ const PublishDialog = lazy(() => loadPublishDialog().then((m) => ({ default: m.P
 // from, warmed with Publish for the same reason.
 const loadDiscardChangesDialog = () => import("../features/changes/DiscardChangesDialog");
 const DiscardChangesDialog = lazy(() => loadDiscardChangesDialog().then((m) => ({ default: m.DiscardChangesDialog })));
-const CreateVersionLineDialog = lazy(() =>
-  import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.CreateVersionLineDialog })),
+const CreateBranchDialog = lazy(() =>
+  import("../features/branches/BranchesDialog").then((m) => ({ default: m.CreateBranchDialog })),
 );
-const SwitchVersionLineDialog = lazy(() =>
-  import("../features/version-lines/VersionLinesDialog").then((m) => ({ default: m.SwitchVersionLineDialog })),
+const SwitchBranchDialog = lazy(() =>
+  import("../features/branches/BranchesDialog").then((m) => ({ default: m.SwitchBranchDialog })),
 );
 /** Kept as a local alias so the many `View` references below stay readable;
  * `screens.tsx` owns the definition and the registry that lists them. */
@@ -362,7 +362,7 @@ export function App(): React.JSX.Element {
       ? { label: t.titlebarSwitchToLightTheme, glyph: "sun", icon: <Sun className="titlebar-theme-icon" aria-hidden="true" /> }
       : { label: t.titlebarSwitchToDarkTheme, glyph: "moon", icon: <Moon className="titlebar-theme-icon" aria-hidden="true" /> };
   const [projectRuntime] = useState(() => createProjectRuntime(initialProjectSessionsState));
-  const [versionLinesController] = useState(() => createVersionLinesController(versionLinesPort));
+  const [branchesController] = useState(() => createBranchesController(branchesPort));
   const [historyController] = useState(() => createHistoryController(historyPort));
   const [repositoryController] = useState(() => createRepositoryController(repositoryPort));
   const [cloneController] = useState(() => createCloneController(clonePort));
@@ -409,11 +409,11 @@ export function App(): React.JSX.Element {
         supersede: (query) => statusController.supersede(query),
       },
       {
-        id: "version-lines",
+        id: "branches",
         refreshOn: "shared-change",
         blocking: false,
-        refresh: (query) => versionLinesController.refresh(query),
-        supersede: (query) => versionLinesController.supersede(query),
+        refresh: (query) => branchesController.refresh(query),
+        supersede: (query) => branchesController.supersede(query),
       },
       {
         id: "history",
@@ -432,7 +432,7 @@ export function App(): React.JSX.Element {
         supersede: (query) => syncController.supersede(projectRuntime, query),
       },
       {
-        // The forecast of a line with versions waiting compares them with
+        // The forecast of a branch with versions waiting compares them with
         // unsaved work, so a file save can change it (task 161). Only then,
         // and at an idle moment: it is a local read, never a fetch.
         id: "sync-forecast",
@@ -490,14 +490,14 @@ export function App(): React.JSX.Element {
   // deferral and diff retention belong to the feature controllers above.
   const watchedSessionsRef = useRef<Record<string, string>>({});
   const activeSession = sessionsState.activeId ? sessionsState.byId[sessionsState.activeId] : null;
-  const activeVersionLinesQuery = useMemo(
+  const activeBranchesQuery = useMemo(
     () => ({ projectId: activeSession?.id ?? "", sessionEpoch: activeSession?.epoch ?? "" }),
     [activeSession?.epoch, activeSession?.id],
   );
-  const activeVersionLines = useVersionLinesState(versionLinesController, activeVersionLinesQuery);
+  const activeBranches = useBranchesState(branchesController, activeBranchesQuery);
   const project = activeSession?.project ?? null;
-  const [favouriteVersionLines, toggleFavouriteVersionLine] =
-    useStoredFavouriteVersionLines(project?.commonGitDir ?? null);
+  const [favouriteBranches, toggleFavouriteBranch] =
+    useStoredFavouriteBranches(project?.commonGitDir ?? null);
   const workingTree = activeSession?.workingTree ?? null;
   const workingTreeError = activeSession?.workingTreeError ?? null;
   const isCheckingChanges = activeSession?.isCheckingChanges ?? false;
@@ -631,22 +631,22 @@ export function App(): React.JSX.Element {
      publish dialog has closed and its operation has finished, as above. */
   const [getAfterPublishSessionId, setGetAfterPublishSessionId] = useState<string | null>(null);
   // App-wide bounded quick-switch and Overview's quick-create are distinct
-  // from the Lines screen's own dialog state because neither entry point is
+  // from the Branches screen's own dialog state because neither entry point is
   // inside that screen's React subtree. All use the feature-owned dialogs and
   // port, so the safety plan stays identical whichever shortcut was used.
-  const [versionLineSwitchTarget, setVersionLineSwitchTarget] = useState<string | null>(null);
-  const [createLineRequest, setCreateLineRequest] = useState<
+  const [branchSwitchTarget, setBranchSwitchTarget] = useState<string | null>(null);
+  const [createBranchRequest, setCreateBranchRequest] = useState<
     { forceSwitch: boolean; startVersion?: { commit: string; shortCommit: string; subject: string } | null } | null
   >(null);
-  const [versionLinesAutoOpenCreate, setVersionLinesAutoOpenCreate] = useState(false);
+  const [branchesAutoOpenCreate, setBranchesAutoOpenCreate] = useState(false);
   /* Where one screen asked another to look. Both are consumed once and cleared
      by the screen that takes them: `KeepAliveScreens` holds every visited
      screen mounted for the session, so a target left standing would re-apply on
      the next render here and quietly undo whatever the reader chose after
      arriving. Neither is persisted — where someone was heading is not durable
      project state. */
-  const [historyScopeLineIntent, setHistoryScopeLineIntent] = useState<string | null>(null);
-  /** A saved version Lines asked History to open, alongside the line it is on. */
+  const [historyScopeBranchIntent, setHistoryScopeBranchIntent] = useState<string | null>(null);
+  /** A saved version Branches asked History to open, alongside the branch it is on. */
   const [historySelectCommitIntent, setHistorySelectCommitIntent] = useState<string | null>(null);
   // Overview's "Restore" on a discarded change opens the restore picker over
   // the Overview. Closing it leaves the Overview where it was; a restore moves
@@ -657,7 +657,7 @@ export function App(): React.JSX.Element {
   // Counts the picker's closes: one may have deleted stored copies, which
   // Changes' empty state offers a way back to.
   const [recoveriesRevision, setRecoveriesRevision] = useState(0);
-  const [linesSelectIntent, setLinesSelectIntent] = useState<string | null>(null);
+  const [linesSelectIntent, setBranchesSelectIntent] = useState<string | null>(null);
   const restoreDialogSession = restoreDialog
     ? sessionsState.byId[restoreDialog.sessionId] ?? null
     : null;
@@ -681,7 +681,7 @@ export function App(): React.JSX.Element {
     publishDialogSessionId !== null ||
     saveDialogSessionId !== null ||
     getTeamDialogSessionId !== null ||
-    activeSession?.operation?.kind === "version-line" ||
+    activeSession?.operation?.kind === "branch" ||
     activeSession?.operation?.kind === "discard";
   const showErrorDialog = (title: string, message: string): void => {
     setOpenErrorTitle(title);
@@ -806,8 +806,8 @@ export function App(): React.JSX.Element {
   };
 
   /* A local configuration change the person chose from Overview's card: the
-     line forgets the remote branch that was deleted. The controller commits
-     the line's new status; the rest of the project is read again after it. */
+     branch forgets the remote branch that was deleted. The controller commits
+     the branch's new status; the rest of the project is read again after it. */
   const stopTrackingRemote = (): void => {
     if (!activeSession) return;
     const path = activeSession.id;
@@ -1218,7 +1218,7 @@ export function App(): React.JSX.Element {
     if (epoch) await statusController.refresh(projectRuntime, { projectId: path, sessionEpoch: epoch }, mapStatusError);
   };
 
-  // A successful create/switch/delete on a version line changes `HEAD`, the
+  // A successful create/switch/delete on a branch changes `HEAD`, the
   // index, and the working tree — every one of task 016's "Operation
   // coordination and refresh" invalidation targets that already exist in
   // this app. Re-reading the repository facts (branch/head state) through
@@ -1226,11 +1226,11 @@ export function App(): React.JSX.Element {
   // active session in place (same `id`, since the path never changes), and
   // `checkWorkingTree` covers both the working-tree status and the pending-
   // versions list save/publish depend on. Clearing the Changes selection
-  // stops a diff/file that may not exist on the new line from staying
+  // stops a diff/file that may not exist on the new branch from staying
   // "selected". The mutation result is committed directly to the
-  // Version-lines feature controller by both the screen and Overview dialogs,
+  // Branches feature controller by both the screen and Overview dialogs,
   // so this callback only refreshes repository facts shared by features.
-  const handleVersionLineChanged = async (path: string): Promise<void> => {
+  const handleBranchChanged = async (path: string): Promise<void> => {
     repositoryReads.discardDeferred(path);
     dispatchSessions({ type: "setChangesSelection", id: path, selection: EMPTY_CHANGES_SELECTION });
     await repositoryReads.refreshAll(projectRuntime, sessionsState, path);
@@ -1239,7 +1239,7 @@ export function App(): React.JSX.Element {
   const handleMutationSucceeded = (path: string): Promise<void> =>
     repositoryReads.refreshAfterMutation(projectRuntime, sessionsState, path);
 
-  const startVersionLineOperation = (path: string): boolean => {
+  const startBranchOperation = (path: string): boolean => {
     const session = sessionsState.byId[path];
     if (!session) {
       return false;
@@ -1252,7 +1252,7 @@ export function App(): React.JSX.Element {
       );
       return false;
     }
-    dispatchSessions({ type: "startOperation", id: path, kind: "version-line" });
+    dispatchSessions({ type: "startOperation", id: path, kind: "branch" });
     return true;
   };
 
@@ -1261,7 +1261,7 @@ export function App(): React.JSX.Element {
     repositoryReads.finishDeferred(projectRuntime, sessionsState, path);
   };
 
-  const setVersionLineOperationPhase = (
+  const setBranchOperationPhase = (
     path: string,
     phase: "planning" | "executing" | "error" | "success",
   ): void => {
@@ -1434,20 +1434,20 @@ export function App(): React.JSX.Element {
 
   const projectPath = project?.path ?? null;
   /* Where the quick switches in the status bar and on Overview make a new
-     line, inside their own popup: the lock every version-line change takes,
+     branch, inside their own popup: the lock every branch change takes,
      and on success the same hand-back the create dialog gives — the session
-     cache first, then everything that depends on which line is active. */
-  const versionLineCreate: VersionLineCreateContext | undefined =
+     cache first, then everything that depends on which branch is active. */
+  const branchCreate: BranchCreateContext | undefined =
     project && activeSession
       ? {
           projectPath: project.path,
           sessionEpoch: activeSession.epoch,
-          onOperationStart: () => startVersionLineOperation(project.path),
+          onOperationStart: () => startBranchOperation(project.path),
           onOperationFinish: () => finishSessionOperation(project.path),
-          onOperationPhaseChange: (phase) => setVersionLineOperationPhase(project.path, phase),
+          onOperationPhaseChange: (phase) => setBranchOperationPhase(project.path, phase),
           onCreated: (snapshot) => {
-            versionLinesController.commit(activeVersionLinesQuery, snapshot);
-            void handleVersionLineChanged(project.path);
+            branchesController.commit(activeBranchesQuery, snapshot);
+            void handleBranchChanged(project.path);
             finishSessionOperation(project.path);
           },
         }
@@ -1511,16 +1511,16 @@ export function App(): React.JSX.Element {
       void workDetailController.ensureIncoming(query, incomingKey);
     });
   }, [activeSessionId, activeSessionEpoch, incomingKey, workDetailController]);
-  // The current line, while its remote branch is known to be deleted: Lines
+  // The current branch, while its remote branch is known to be deleted: Branches
   // and History name it, since Git's own `[gone]` needs the tracking ref gone.
-  const upstreamGoneLine =
+  const upstreamGoneBranch =
     teamSync.status?.state === "upstreamGone" ? teamSync.status.localBranch : null;
   const canPublish = Boolean(
     project &&
       project.headState === "branch" &&
-      // A line whose remote branch is gone can be published again on purpose,
+      // A branch whose remote branch is gone can be published again on purpose,
       // and one with no destination yet gets one by publishing — even when
-      // every version is already on the remote's other lines.
+      // every version is already on the remote's other branches.
       (pendingVersions.totalCount > 0 ||
         pendingVersionsError ||
         teamSync.status?.state === "upstreamGone" ||
@@ -1565,15 +1565,15 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
-  /* What History may ask of a version line, and the flow each request is
+  /* What History may ask of a branch, and the flow each request is
      handed to. History never mutates a repository itself: switching runs the
-     same previewed dialog the status bar and the Lines screen run, creating
+     same previewed dialog the status bar and the Branches screen run, creating
      runs the same create dialog, and viewing is navigation. Stable identities,
      because the timeline is memoized and a new object every render would
      re-render every row. */
-  const versionLineNames = useMemo(
-    () => activeVersionLines.snapshot?.lines.map((line) => line.name) ?? [],
-    [activeVersionLines.snapshot],
+  const branchNames = useMemo(
+    () => activeBranches.snapshot?.branches.map((branch) => branch.name) ?? [],
+    [activeBranches.snapshot],
   );
   /* Latest-value refs so the callbacks below can be identity-stable without
      closing over a stale project or a stale navigator. */
@@ -1581,23 +1581,23 @@ export function App(): React.JSX.Element {
   navigateToViewRef.current = navigateToView;
   const projectPathRef = useRef(projectPath);
   projectPathRef.current = projectPath;
-  const startVersionLineOperationRef = useRef(startVersionLineOperation);
-  startVersionLineOperationRef.current = startVersionLineOperation;
-  const viewVersionLine = useCallback((name: string) => {
-    setLinesSelectIntent(name);
-    navigateToViewRef.current("version-lines");
+  const startBranchOperationRef = useRef(startBranchOperation);
+  startBranchOperationRef.current = startBranchOperation;
+  const viewBranch = useCallback((name: string) => {
+    setBranchesSelectIntent(name);
+    navigateToViewRef.current("branches");
   }, []);
-  const switchToVersionLine = useCallback((name: string) => {
+  const switchToBranch = useCallback((name: string) => {
     const path = projectPathRef.current;
-    if (path && startVersionLineOperationRef.current(path)) {
-      setVersionLineSwitchTarget(name);
+    if (path && startBranchOperationRef.current(path)) {
+      setBranchSwitchTarget(name);
     }
   }, []);
-  const createVersionLineFromVersion = useCallback(
+  const createBranchFromVersion = useCallback(
     (version: { commit: string; shortCommit: string; subject: string }) => {
       const path = projectPathRef.current;
-      if (path && startVersionLineOperationRef.current(path)) {
-        setCreateLineRequest({
+      if (path && startBranchOperationRef.current(path)) {
+        setCreateBranchRequest({
           forceSwitch: false,
           startVersion: {
             commit: version.commit,
@@ -1609,10 +1609,10 @@ export function App(): React.JSX.Element {
     },
     [],
   );
-  const clearHistoryScopeLineIntent = useCallback(() => setHistoryScopeLineIntent(null), []);
+  const clearHistoryScopeBranchIntent = useCallback(() => setHistoryScopeBranchIntent(null), []);
   const clearHistorySelectCommitIntent = useCallback(() => setHistorySelectCommitIntent(null), []);
   const clearChangesRestoredElsewhere = useCallback(() => setChangesRestoredElsewhere(null), []);
-  const clearLinesSelectIntent = useCallback(() => setLinesSelectIntent(null), []);
+  const clearBranchesSelectIntent = useCallback(() => setBranchesSelectIntent(null), []);
 
   // Dropping a folder on the window opens it. Session lifecycle wiring, like
   // the watcher above, so it lives here rather than in a feature: it ends in
@@ -1793,7 +1793,7 @@ export function App(): React.JSX.Element {
         .check(projectRuntime, { projectId, sessionEpoch: activeSession.epoch }, mapSyncError)
         .then((status) => {
           if (status) {
-            // The line's remote branch is gone: news when a check first finds
+            // The branch's remote branch is gone: news when a check first finds
             // it, not every fifteen minutes after, so a dismissed entry stays
             // dismissed while nothing changes.
             if (
@@ -1803,10 +1803,10 @@ export function App(): React.JSX.Element {
               notificationCenter.notify({
                 projectId,
                 projectName,
-                details: { kind: "upstreamGone", line: status.localBranch, remote: status.upstreamRemote },
+                details: { kind: "upstreamGone", branch: status.localBranch, remote: status.upstreamRemote },
               });
             }
-            // A diverged line is news too once its forecast says what getting
+            // A diverged branch is news too once its forecast says what getting
             // would do: the dialog then combines it, or names what overlaps.
             // Without a forecast there is nothing to offer but a refusal, and
             // the status bar saying "diverged" on its own is better.
@@ -1853,7 +1853,7 @@ export function App(): React.JSX.Element {
     session: activeSession,
     changesController,
     historyController,
-    versionLinesController,
+    branchesController,
     syncController,
     mapSyncError,
   });
@@ -1896,7 +1896,7 @@ export function App(): React.JSX.Element {
     syncController.close(projectRuntime, { projectId: id, sessionEpoch: closingSession.epoch });
     repositoryReads.close(id, closingSession.epoch);
     delete watchedSessionsRef.current[id];
-    versionLinesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
+    branchesController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     historyController.close({ projectId: id, sessionEpoch: closingSession.epoch });
     workDetailController.forget({ projectId: id, sessionEpoch: closingSession.epoch });
     dispatchSessions({ type: "close", id });
@@ -2059,13 +2059,13 @@ export function App(): React.JSX.Element {
           { id: "go-history", label: t.commandGoHistory, action: () => openWorkbench("history") },
         );
       }
-      if (screen === "version-lines") {
+      if (screen === "branches") {
         entries.push({
-          id: "new-version-line",
-          label: t.commandNewVersionLine,
+          id: "new-branch",
+          label: t.commandNewBranch,
           action: () => {
-            navigateToView("version-lines");
-            setVersionLinesAutoOpenCreate(true);
+            navigateToView("branches");
+            setBranchesAutoOpenCreate(true);
           },
         });
       }
@@ -2121,11 +2121,11 @@ export function App(): React.JSX.Element {
                 }),
               }]
             : []),
-          ...(view === "version-lines"
+          ...(view === "branches"
             ? [{
-                id: "refresh-version-lines",
-                label: t.commandRefreshVersionLines,
-                action: () => void versionLinesController.refresh({
+                id: "refresh-branches",
+                label: t.commandRefreshBranches,
+                action: () => void branchesController.refresh({
                   projectId: activeSession.id,
                   sessionEpoch: activeSession.epoch,
                 }),
@@ -2253,7 +2253,7 @@ export function App(): React.JSX.Element {
   // The field lives in the strip and survives navigation, so a destination run
   // from the palette would leave the focus in chrome that no longer describes
   // the screen. Each screen names its own target — Home's launcher, Console's
-  // prompt, the Work screen's active tab, the Overview and Lines headings — and
+  // prompt, the Work screen's active tab, the Overview and Branches headings — and
   // it takes the focus once the navigation has committed. The retry covers a
   // lazy chunk arriving after this effect; a dialog opened by a command keeps
   // its own focus.
@@ -2310,8 +2310,8 @@ export function App(): React.JSX.Element {
   /** What the active project itself needs, for the status bar's project
    * mark: something to resolve first (a failed or uncertain operation,
    * overlapping changes, a history that could not be read), then work in
-   * progress. The line's own state — unsaved, unreadable, checking — is the
-   * line marker's. A missing Git identity is not raised here: only the global
+   * progress. The branch's own state — unsaved, unreadable, checking — is the
+   * branch marker's. A missing Git identity is not raised here: only the global
    * one is read, and a project can set its own. */
   const activeProjectStatus = ((): ProjectStatusMark | null => {
     if (!activeSession) return null;
@@ -2646,7 +2646,7 @@ export function App(): React.JSX.Element {
       </header>
 
       <main
-        className={`app-shell${view === "workbench" || view === "version-lines" || view === "console" ? " app-shell--internal-scroll" : ""}${view === "overview" ? " app-shell--overview" : ""}${view === "console" || view === "home" ? "" : " app-shell--sheet"}`}
+        className={`app-shell${view === "workbench" || view === "branches" || view === "console" ? " app-shell--internal-scroll" : ""}${view === "overview" ? " app-shell--overview" : ""}${view === "console" || view === "home" ? "" : " app-shell--sheet"}`}
       >
         {/* Read by `usePortalFlyout`: every menu the rail opens flies out from
             this panel's edge rather than from the button inside it. */}
@@ -2723,7 +2723,7 @@ export function App(): React.JSX.Element {
 
         <section
           {...autoHideScrollbarProps<HTMLElement>()}
-          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "version-lines" ? " workspace--version-lines" : ""}${view === "console" ? " workspace--console" : ""}`}
+          className={`workspace auto-hide-scrollbar${view === "workbench" ? " workspace--workbench" : ""}${view === "branches" ? " workspace--branches" : ""}${view === "console" ? " workspace--console" : ""}`}
         >
           <div className="compact-nav-row">
             <div className="compact-history-controls" aria-label={t.titlebarHistoryControls}>
@@ -2880,10 +2880,10 @@ export function App(): React.JSX.Element {
                   onPublishUpTo={(commit) => openPublishDialog(commit)}
                   pendingVersions={pendingVersions}
                   pendingVersionsError={pendingVersionsError}
-                  versionLines={activeVersionLines.snapshot}
-                  onQuickSwitchVersionLine={(target) => {
-                    if (projectPath && startVersionLineOperation(projectPath)) {
-                      setVersionLineSwitchTarget(target);
+                  branches={activeBranches.snapshot}
+                  onQuickSwitchBranch={(target) => {
+                    if (projectPath && startBranchOperation(projectPath)) {
+                      setBranchSwitchTarget(target);
                     }
                   }}
                   onOpenRemoteHome={(remote) => {
@@ -2906,7 +2906,7 @@ export function App(): React.JSX.Element {
                     avatarStyle: projectAvatarStyle,
                   }}
                   selfEmail={gitIdentity.identity.email || null}
-                  onGoToVersionLines={() => navigateToView("version-lines")}
+                  onGoToBranches={() => navigateToView("branches")}
                   onOpenProjectFolder={() => {
                     if (activeSession) openProjectFolder(activeSession.id);
                   }}
@@ -2994,52 +2994,52 @@ export function App(): React.JSX.Element {
                               projectPath={project.path}
                               sessionEpoch={activeSession?.epoch ?? ""}
                               watcherState={activeWatcherState}
-                              lines={versionLineNames}
-                              scopeLineIntent={historyScopeLineIntent}
+                              branches={branchNames}
+                              scopeBranchIntent={historyScopeBranchIntent}
                               selectCommitIntent={historySelectCommitIntent}
                               onSelectCommitIntentHandled={clearHistorySelectCommitIntent}
-                              onScopeLineIntentHandled={clearHistoryScopeLineIntent}
-                              onViewLine={viewVersionLine}
-                              onSwitchLine={switchToVersionLine}
-                              onCreateLineFromVersion={createVersionLineFromVersion}
+                              onScopeBranchIntentHandled={clearHistoryScopeBranchIntent}
+                              onViewBranch={viewBranch}
+                              onSwitchBranch={switchToBranch}
+                              onCreateBranchFromVersion={createBranchFromVersion}
                               onPublish={() => openPublishDialog()}
                               onOpenSettings={() => openSettings("general")}
                               selfEmail={gitIdentity.identity.email || null}
-                              upstreamGoneLine={upstreamGoneLine}
+                              upstreamGoneBranch={upstreamGoneBranch}
                             />
                           )}
                         />
                       </Suspense>
                     ),
-                    "version-lines": (
+                    "branches": (
                       <Suspense fallback={<ViewLoadingFallback />}>
-                        <VersionLinesScreen
-                          controller={versionLinesController}
+                        <BranchesScreen
+                          controller={branchesController}
                           projectPath={project.path}
                           sessionEpoch={activeSession?.epoch ?? ""}
                           watcherState={activeWatcherState}
                           onOpenSettings={() => openSettings("general")}
-                          onChanged={() => void handleVersionLineChanged(project.path)}
-                          onOperationStart={() => startVersionLineOperation(project.path)}
+                          onChanged={() => void handleBranchChanged(project.path)}
+                          onOperationStart={() => startBranchOperation(project.path)}
                           onOperationFinish={() => finishSessionOperation(project.path)}
-                          onOperationPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
+                          onOperationPhaseChange={(phase) => setBranchOperationPhase(project.path, phase)}
                           onSaveVersion={() => {
                             startSessionOperation("save");
                             openWorkbench("changes");
                           }}
                           onOpenChanges={() => openWorkbench("changes")}
                           onOpenHistory={(name, commit) => {
-                            setHistoryScopeLineIntent(name);
+                            setHistoryScopeBranchIntent(name);
                             setHistorySelectCommitIntent(commit ?? null);
                             openWorkbench("history");
                           }}
                           // As the status bar: with no remote there is nowhere to publish to.
                           onPublish={activeSession?.teamSync.status?.state === "noRemote" ? undefined : () => openPublishDialog()}
-                          autoOpenCreate={versionLinesAutoOpenCreate}
-                          onAutoOpenCreateHandled={() => setVersionLinesAutoOpenCreate(false)}
-                          selectLineIntent={linesSelectIntent}
-                          onSelectLineIntentHandled={clearLinesSelectIntent}
-                          upstreamGoneLine={upstreamGoneLine}
+                          autoOpenCreate={branchesAutoOpenCreate}
+                          onAutoOpenCreateHandled={() => setBranchesAutoOpenCreate(false)}
+                          selectBranchIntent={linesSelectIntent}
+                          onSelectBranchIntentHandled={clearBranchesSelectIntent}
+                          upstreamGoneBranch={upstreamGoneBranch}
                         />
                       </Suspense>
                     ),
@@ -3089,18 +3089,18 @@ export function App(): React.JSX.Element {
           workingTree={workingTree}
           workingTreeError={workingTreeError}
           isCheckingChanges={isCheckingChanges}
-          versionLines={activeVersionLines.snapshot}
-          isLoadingVersionLines={activeVersionLines.isLoading}
-          favouriteVersionLines={favouriteVersionLines}
-          onToggleFavouriteVersionLine={toggleFavouriteVersionLine}
+          branches={activeBranches.snapshot}
+          isLoadingBranches={activeBranches.isLoading}
+          favouriteBranches={favouriteBranches}
+          onToggleFavouriteBranch={toggleFavouriteBranch}
           teamSync={teamSync}
-          onSwitchVersionLine={(target) => {
-            if (projectPath && startVersionLineOperation(projectPath)) {
-              setVersionLineSwitchTarget(target);
+          onSwitchBranch={(target) => {
+            if (projectPath && startBranchOperation(projectPath)) {
+              setBranchSwitchTarget(target);
             }
           }}
-          versionLineCreate={versionLineCreate}
-          onSeeAllVersionLines={() => navigateToView("version-lines")}
+          branchCreate={branchCreate}
+          onSeeAllBranches={() => navigateToView("branches")}
           onCheckTeamChanges={() => checkTeamChanges()}
           projectSwitch={{
             entries: switcherEntries,
@@ -3317,21 +3317,21 @@ export function App(): React.JSX.Element {
         />
       )}
 
-      {project && versionLineSwitchTarget && (
+      {project && branchSwitchTarget && (
         <Suspense fallback={null}>
-          <SwitchVersionLineDialog
+          <SwitchBranchDialog
             isOpen
             projectPath={project.path}
             sessionEpoch={activeSession?.epoch ?? ""}
-            target={versionLineSwitchTarget}
+            target={branchSwitchTarget}
             onClose={() => {
-              setVersionLineSwitchTarget(null);
+              setBranchSwitchTarget(null);
               finishSessionOperation(project.path);
             }}
             onSwitched={(snapshot) => {
-              versionLinesController.commit(activeVersionLinesQuery, snapshot);
-              setVersionLineSwitchTarget(null);
-              void handleVersionLineChanged(project.path);
+              branchesController.commit(activeBranchesQuery, snapshot);
+              setBranchSwitchTarget(null);
+              void handleBranchChanged(project.path);
               finishSessionOperation(project.path);
             }}
             onSaveVersion={() => {
@@ -3339,34 +3339,34 @@ export function App(): React.JSX.Element {
               openWorkbench("changes");
             }}
             onCreateWithWork={() => {
-              if (startVersionLineOperation(project.path)) {
-                setCreateLineRequest({ forceSwitch: false });
+              if (startBranchOperation(project.path)) {
+                setCreateBranchRequest({ forceSwitch: false });
               }
             }}
-            onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
+            onPhaseChange={(phase) => setBranchOperationPhase(project.path, phase)}
           />
         </Suspense>
       )}
 
-      {project && createLineRequest && (
+      {project && createBranchRequest && (
         <Suspense fallback={null}>
-          <CreateVersionLineDialog
+          <CreateBranchDialog
             isOpen
             projectPath={project.path}
             sessionEpoch={activeSession?.epoch ?? ""}
-            forceSwitch={createLineRequest.forceSwitch}
-            startVersion={createLineRequest.startVersion ?? null}
+            forceSwitch={createBranchRequest.forceSwitch}
+            startVersion={createBranchRequest.startVersion ?? null}
             onClose={() => {
-              setCreateLineRequest(null);
+              setCreateBranchRequest(null);
               finishSessionOperation(project.path);
             }}
             onCreated={(snapshot) => {
-              versionLinesController.commit(activeVersionLinesQuery, snapshot);
-              setCreateLineRequest(null);
-              void handleVersionLineChanged(project.path);
+              branchesController.commit(activeBranchesQuery, snapshot);
+              setCreateBranchRequest(null);
+              void handleBranchChanged(project.path);
               finishSessionOperation(project.path);
             }}
-            onPhaseChange={(phase) => setVersionLineOperationPhase(project.path, phase)}
+            onPhaseChange={(phase) => setBranchOperationPhase(project.path, phase)}
           />
         </Suspense>
       )}

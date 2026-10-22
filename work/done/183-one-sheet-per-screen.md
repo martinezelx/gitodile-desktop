@@ -18,7 +18,7 @@ queue:
 
 Column 2 of the app shell becomes one sheet per screen, as decided in
 [ADR 0032](../../docs/adr/0032-one-sheet-per-screen.md). The titlebar and
-rail stay the flat frame. Overview, Work (Changes and History) and Lines lay
+rail stay the flat frame. Overview, Work (Changes and History) and Branches lay
 their panels edge to edge on the sheet, divided by hairlines instead of
 floating as separate cards. The status bar becomes the sheet's foot, and
 Home drops the global status bar in favour of its own "This computer" row
@@ -26,7 +26,7 @@ and, like Console, takes no sheet: its launcher floats on the plane alone.
 
 # User outcome
 
-Moving between Overview, Work, Lines and Home no longer changes what kind of
+Moving between Overview, Work, Branches and Home no longer changes what kind of
 window it is: there is always one sheet on the same frame. The diff and the
 lists get the 16px the gaps took, and Home reads as a launcher only, without
 a strip of project facts it is not about.
@@ -47,7 +47,7 @@ first draft tinted it, and that was dropped.
   narrow-window cases.
 - `App.tsx`: the shell class that turns the sheet on (every view but
   Console), and no global status bar on Home.
-- Overview, Changes, History and Lines sheets: panels lose the card recipe;
+- Overview, Changes, History and Branches sheets: panels lose the card recipe;
   hairlines between panes and bands; forced-colours outlines that only
   existed for the cards.
 - Home: no sheet; the launcher box keeps its own lift and floats alone.
@@ -63,17 +63,17 @@ replace its lost elevation (accent halo, separate task if wanted).
 
 # Acceptance criteria
 
-- [x] Overview, Work (both tabs) and Lines show one sheet on
+- [x] Overview, Work (both tabs) and Branches show one sheet on
       `--surface-panel` with `--border-subtle`, `--shadow-sm` and
       `--radius-surface`, with the same 16px frame on all four sides and
       `--shadow-md`.
 - [x] Inside the sheet no panel wears a border, shadow or radius of its own;
-      Changes, History and Lines panes meet on one 1px hairline and their
+      Changes, History and Branches panes meet on one 1px hairline and their
       strips stay level.
 - [x] Overview reads as header, next step and body bands; the timeline and
       the side column are divided by a hairline, and the side column's
       sections by hairlines.
-- [x] The status bar is the sheet's foot on Overview, Work and Lines; its
+- [x] The status bar is the sheet's foot on Overview, Work and Branches; its
       fade over a scrolled workspace uses the sheet's colour.
 - [x] Home has no global status bar and no sheet; the launcher floats on
       the plane with `--surface-raised` and `--shadow-md`.

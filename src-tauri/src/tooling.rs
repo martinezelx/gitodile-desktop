@@ -1516,7 +1516,7 @@ pub(crate) fn set_line_endings(mode: String) -> Result<(), AppError> {
     set_line_endings_with_override(&mode, None)
 }
 
-/// The name Git gives the first version line of a project it creates, read
+/// The name Git gives the first branch of a project it creates, read
 /// from the global `init.defaultBranch`.
 ///
 /// `None` is an answer rather than a failure: with the key unset, Git falls
@@ -1545,7 +1545,7 @@ fn validate_default_branch_name(name: &str) -> Result<String, AppError> {
     if name.is_empty() || name.starts_with('-') || name.chars().any(char::is_control) {
         return Err(AppError::new(
             AppErrorCode::InvalidInitialBranch,
-            "Enter a valid default version-line name.",
+            "Enter a valid default branch name.",
         )
         .with_remediation("Use a Git branch name such as main."));
     }
@@ -1556,7 +1556,7 @@ fn validate_default_branch_name(name: &str) -> Result<String, AppError> {
     if !output.status.success() {
         return Err(AppError::new(
             AppErrorCode::InvalidInitialBranch,
-            "That default version-line name isn't valid in Git.",
+            "That default branch name isn't valid in Git.",
         )
         .with_remediation(
             "Choose a name such as main without spaces or Git reference punctuation.",

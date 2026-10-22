@@ -52,7 +52,7 @@ GitOdile already detects, installs and updates both CLIs (`tooling.rs`, task
   - `mine`: `gh pr status` / `glab mr list --author=@me`
   - `issues`: `gh issue list` / `glab issue list`
   - `runs`: `gh run list -L 20` / `glab ci list`
-  - `checks`: `gh pr checks` / `glab ci status` (current line)
+  - `checks`: `gh pr checks` / `glab ci status` (current branch)
   - `repo`: `gh repo view` / `glab repo view`
 - Provider-neutral names: the project's remote decides whether gh or glab runs,
   and `help` and the output show the exact command. A project with no
@@ -115,7 +115,7 @@ None beyond the completed account tasks of epic 148.
 - 2026-10-06: shortcuts only, read-only, using the CLI's own login (owner).
 - The CLI runs in the project folder, as `gh pr list` typed in a terminal
   there would, instead of naming the repository with `--repo`: `my-prs` and
-  `checks` read the current line, which only the folder gives. The host is
+  `checks` read the current branch, which only the folder gives. The host is
   still pinned (`GH_HOST`, `GITLAB_HOST`) to the one GitOdile detected.
 - Inherited `GH_TOKEN`/`GITLAB_TOKEN` are left alone: they are how some people
   log these CLIs in, and the console should answer as their terminal does.
@@ -143,7 +143,7 @@ None beyond the completed account tasks of epic 148.
 
 - Live, with a temporary test since removed: on this repository
   (github.com, gh 2.96.0) all six shortcuts answered; `checks` reported no pull
-  request for the line, as gh does. On a scratch repository with a gitlab.com
+  request for the branch, as gh does. On a scratch repository with a gitlab.com
   remote (glab 1.120.0) all six answered.
 - Browser harness (deleted afterwards): `prs` prints gh's table; the welcome
   shows "proveedor: GitLab Self-Managed · gitlab.corp.example"; `issues` on a

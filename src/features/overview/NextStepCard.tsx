@@ -61,7 +61,7 @@ const ACTION_ICONS: Record<NextStepAction, React.JSX.Element> = {
   checkRemote: <RotateCw aria-hidden="true" />,
   checkLocal: <RotateCw aria-hidden="true" />,
   openSettings: <Cloud aria-hidden="true" />,
-  openLines: <GitBranch aria-hidden="true" />,
+  openBranches: <GitBranch aria-hidden="true" />,
   explainIncoming: <Eye aria-hidden="true" />,
   getAndPublish: <CloudUpload aria-hidden="true" />,
   switchToDefault: <GitBranch aria-hidden="true" />,
@@ -84,13 +84,13 @@ export function NextStepCard({
   nextStep,
   journey,
   handlers,
-  defaultLine = null,
+  defaultBranch = null,
 }: {
   nextStep: NextStep;
   journey: Journey;
   handlers: NextStepHandlers;
   /** Names the switch action's destination. */
-  defaultLine?: string | null;
+  defaultBranch?: string | null;
 }): React.JSX.Element {
   const { t } = useLanguage();
   const titleId = useId();
@@ -163,7 +163,7 @@ export function NextStepCard({
         return kind === "upstreamGone"
           ? t.overviewNextPublishAgain
           : kind === "noUpstream"
-            ? t.overviewNextPublishLine
+            ? t.overviewNextPublishBranch
             : t.overviewPublishAll(publish.pending);
       case "openHistory": return t.changesEmptyViewHistory;
       case "getChanges":
@@ -174,8 +174,8 @@ export function NextStepCard({
       case "checkRemote": return kind === "unavailable" ? t.syncCheckAgain : t.overviewFactsCheck;
       case "checkLocal": return t.overviewCheckLocalAgain;
       case "openSettings": return t.overviewNextConnectRemote;
-      case "openLines": return t.overviewNextOpenLines;
-      case "switchToDefault": return t.overviewNextSwitchTo(defaultLine ?? "");
+      case "openBranches": return t.overviewNextOpenBranches;
+      case "switchToDefault": return t.overviewNextSwitchTo(defaultBranch ?? "");
       case "stopTracking": return t.overviewNextStopTracking;
     }
   };

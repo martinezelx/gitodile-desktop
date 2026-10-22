@@ -1,14 +1,14 @@
-//! Recovery records for workflows that move or remove a version line.
+//! Recovery records for workflows that move or remove a branch.
 //!
-//! Getting project changes moves the version line (a fast-forward or a merge
+//! Getting project changes moves the branch (a fast-forward or a merge
 //! version), so the previous tip is preserved as a hidden ref under
 //! `refs/gitodile/recovery/` per ADR 0008. When that update also combines
 //! unsaved edits with incoming ones, their previous content is kept as a
 //! snapshot commit under a sibling `-unsaved` namespace, owned by the same
-//! record (ADR 0030). Deleting a line whose work reached the main line only as
+//! record (ADR 0030). Deleting a branch whose work reached the main branch only as
 //! copies removes the one ref holding its original versions, so their tip is
-//! preserved the same way first (ADR 0016). Cleaning up several lines at once
-//! keeps one record per deleted line, so each can be recreated by name (ADR
+//! preserved the same way first (ADR 0016). Cleaning up several branches at once
+//! keeps one record per deleted branch, so each can be recreated by name (ADR
 //! 0034). Each operation has its own namespace, manifest folder and retention
 //! limit; the protocol is one. Records are owned per
 //! worktree and reconciled before a new one is reserved.
@@ -28,35 +28,35 @@ use std::sync::atomic::{AtomicU64, Ordering};
 const HISTORY_RECOVERY_SCHEMA_VERSION: u32 = 1;
 /// Per operation: each keeps its own newest twenty, except a clean-up.
 pub(crate) const MAX_HISTORY_RECOVERY_RECORDS: usize = 20;
-/// A clean-up writes one record per line it deletes, so it keeps more, and a
-/// single clean-up may never ask for more lines than this: it would evict its
+/// A clean-up writes one record per branch it deletes, so it keeps more, and a
+/// single clean-up may never ask for more branches than this: it would evict its
 /// own records while it wrote them.
 pub(crate) const MAX_CLEAN_UP_RECOVERY_RECORDS: usize = 50;
 
 /// The workflows that keep a recovery point before they change a version
-/// line. The slug names the ref namespace, the manifest folder and the
+/// branch. The slug names the ref namespace, the manifest folder and the
 /// record's `operation` field; `get-team-changes` is the ADR 0008 layout
 /// unchanged, so records already written stay where they are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HistoryRecoveryOperation {
     GetTeamChanges,
-    DeleteVersionLine,
-    CleanUpVersionLines,
+    DeleteBranch,
+    CleanUpBranches,
 }
 
 impl HistoryRecoveryOperation {
     fn slug(self) -> &'static str {
         match self {
             Self::GetTeamChanges => "get-team-changes",
-            Self::DeleteVersionLine => "delete-version-line",
-            Self::CleanUpVersionLines => "clean-up-version-lines",
+            Self::DeleteBranch => "delete-branch",
+            Self::CleanUpBranches => "clean-up-branches",
         }
     }
 
     fn retention_limit(self) -> usize {
         match self {
-            Self::CleanUpVersionLines => MAX_CLEAN_UP_RECOVERY_RECORDS,
-            Self::GetTeamChanges | Self::DeleteVersionLine => MAX_HISTORY_RECOVERY_RECORDS,
+            Self::CleanUpBranches => MAX_CLEAN_UP_RECOVERY_RECORDS,
+            Self::GetTeamChanges | Self::DeleteBranch => MAX_HISTORY_RECOVERY_RECORDS,
         }
     }
 
@@ -193,13 +193,13 @@ pub(crate) fn plan_history_recovery_for(
             "GitOdile will protect the current saved version with a verified local reference before changing history or files.",
             "team-update",
         ),
-        HistoryRecoveryOperation::DeleteVersionLine => (
-            "GitOdile will keep this line's original saved versions with a verified local reference before deleting it.",
-            "deleted-line",
+        HistoryRecoveryOperation::DeleteBranch => (
+            "GitOdile will keep this branch's original saved versions with a verified local reference before deleting it.",
+            "deleted-branch",
         ),
-        HistoryRecoveryOperation::CleanUpVersionLines => (
-            "GitOdile will keep each line's name and last saved version with a verified local reference before deleting it.",
-            "cleaned-up-line",
+        HistoryRecoveryOperation::CleanUpBranches => (
+            "GitOdile will keep each branch's name and last saved version with a verified local reference before deleting it.",
+            "cleaned-up-branch",
         ),
     };
     let limit = operation.retention_limit();
@@ -324,7 +324,7 @@ fn delete_history_record(
 
 /// The snapshot only means something next to its record, so it goes with it.
 /// Best effort: a snapshot ref left behind protects content, it never moves
-/// a version line.
+/// a branch.
 fn delete_unsaved_snapshot_ref(path: &str, record: &HistoryRecoveryRecord) {
     if let (Some(reference), Some(snapshot)) = (&record.unsaved_reference, &record.unsaved_snapshot)
     {
@@ -669,26 +669,26 @@ mod tests {
             "refs/gitodile/recovery/v1/get-team-changes"
         );
         assert_eq!(
-            HistoryRecoveryOperation::DeleteVersionLine.namespace(),
-            "refs/gitodile/recovery/v1/delete-version-line"
+            HistoryRecoveryOperation::DeleteBranch.namespace(),
+            "refs/gitodile/recovery/v1/delete-branch"
         );
         assert_eq!(
             history_record_path(
                 &common,
-                HistoryRecoveryOperation::DeleteVersionLine,
+                HistoryRecoveryOperation::DeleteBranch,
                 "worktree-main",
                 "record-id"
             ),
-            root.join("delete-version-line")
+            root.join("delete-branch")
                 .join("worktree-main")
                 .join("record-id.json")
         );
         assert_eq!(
-            HistoryRecoveryOperation::CleanUpVersionLines.namespace(),
-            "refs/gitodile/recovery/v1/clean-up-version-lines"
+            HistoryRecoveryOperation::CleanUpBranches.namespace(),
+            "refs/gitodile/recovery/v1/clean-up-branches"
         );
         assert_eq!(
-            HistoryRecoveryOperation::CleanUpVersionLines.retention_limit(),
+            HistoryRecoveryOperation::CleanUpBranches.retention_limit(),
             MAX_CLEAN_UP_RECOVERY_RECORDS
         );
         assert_eq!(

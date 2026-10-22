@@ -166,7 +166,7 @@ describe("ConsoleScreen", () => {
     const welcome = document.querySelector(".console-welcome");
     expect(welcome?.querySelector(".console-art")).toHaveAttribute("aria-hidden", "true");
     expect(welcome).toHaveTextContent(/projectDemo/);
-    expect(welcome).toHaveTextContent(/linemain/);
+    expect(welcome).toHaveTextContent(/branchmain/);
     expect(within(welcome as HTMLElement).getByText(__APP_VERSION__, { exact: true })).toBeInTheDocument();
     expect(welcome).toHaveTextContent(/git2\.47\.1/);
     expect(welcome).toHaveTextContent(/confirmbefore each change/);
@@ -498,7 +498,7 @@ describe("ConsoleScreen changes", () => {
   });
 
   it("cancels with Escape and says why a change failed or went stale", async () => {
-    vi.spyOn(consolePort, "plan").mockResolvedValue({ ...CHANGE_PLAN, command: "git commit -m x", facts: [{ kind: "commits", line: "main", files: 1 }] });
+    vi.spyOn(consolePort, "plan").mockResolvedValue({ ...CHANGE_PLAN, command: "git commit -m x", facts: [{ kind: "commits", branch: "main", files: 1 }] });
     const runChange = vi.spyOn(consolePort, "runChange")
       .mockResolvedValueOnce({ ...CHANGE_RESULT, success: false, exitCode: 1, stderr: "blocked by the project", failure: "hook_rejected" })
       .mockRejectedValueOnce({ code: "stale_preview", message: "The project changed after this command was previewed, so it didn't run." });
@@ -506,7 +506,7 @@ describe("ConsoleScreen changes", () => {
     renderChanges();
     const prompt = screen.getByRole("combobox", { name: "Console command" });
     await user.type(prompt, "git commit -m x{Enter}");
-    expect(await screen.findByText("Saves a new version with 1 file ready to save on the line “main”.")).toBeInTheDocument();
+    expect(await screen.findByText("Saves a new version with 1 file ready to save on the branch “main”.")).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.getByText("Cancelled. Nothing changed.", { selector: ".console-block__note" })).toBeInTheDocument();
 
