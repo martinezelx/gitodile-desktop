@@ -45,7 +45,11 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 and `196` into task 195 by explicit request. The next unused
-top-level ID after the current plan is `197`.
+top-level ID after the current plan is `198`.
+
+Deliberate notification reading and persistent silent history are complete in
+[197](done/197-silent-notification-inbox.md), including the compact bulk-read
+glyph and aligned row controls. Sound remains deferred by explicit user request.
 
 The combined screen-entry motion, folder-view defaults and initial-selection
 refinement is [195](done/195-calm-screen-entry-motion.md).

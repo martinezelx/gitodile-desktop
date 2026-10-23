@@ -788,21 +788,22 @@ export function App(): React.JSX.Element {
      A project that has since been closed does nothing at all. The notification
      stays in the list as a record of what happened; it was never a promise that
      the project is still open. */
-  const reviewTeamChangesFromNotification = (notification: AppNotification): void => {
+  const reviewTeamChangesFromNotification = (notification: AppNotification): boolean => {
     const id = notification.projectId;
-    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return false;
     if (sessionsState.activeId !== id) activateSession(id);
-    startSessionOperation("sync", undefined, id);
+    return startSessionOperation("sync", undefined, id);
   };
 
   /* The same rules for a notification whose way on is Overview's card: a
      closed project does nothing, and a blocking dialog keeps the window where
      it is. */
-  const openOverviewFromNotification = (notification: AppNotification): void => {
+  const openOverviewFromNotification = (notification: AppNotification): boolean => {
     const id = notification.projectId;
-    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return false;
     if (sessionsState.activeId !== id) activateSession(id);
     navigateToView("overview");
+    return true;
   };
 
   /* A local configuration change the person chose from Overview's card: the
@@ -2603,12 +2604,20 @@ export function App(): React.JSX.Element {
           notifications={notificationCenter.notifications}
           unreadCount={notificationCenter.unreadCount}
           isEnabled={notificationsEnabled}
-          onOpened={notificationCenter.markAllRead}
+          hasStorageWarning={notificationCenter.hasStorageWarning}
+          onMarkAllRead={notificationCenter.markAllRead}
+          onSetRead={(notification, read) => notificationCenter.setRead(notification.id, read)}
           onClear={notificationCenter.clear}
           onDismiss={(notification) => notificationCenter.dismiss(notification.id)}
           onToggleEnabled={setNotificationsEnabled}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
-          onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
+          onReviewAppUpdate={() => {
+            if (hasBlockingDialog) return false;
+            // The dialog uses the current updater snapshot, never the stored
+            // notice's candidate/version. Opening it does not check or install.
+            setIsAppUpdateOpen(true);
+            return true;
+          }}
           onOpenProjectOverview={openOverviewFromNotification}
           onOpenSettings={() => openSettings("notifications")}
         />

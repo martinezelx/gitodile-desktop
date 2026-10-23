@@ -76,6 +76,24 @@ describe("recording notifications", () => {
     expect(both.map((entry) => entry.projectId)).toEqual(["/projects/beta", "/projects/alpha"]);
   });
 
+  it("keeps repeated news in place with its original identity and arrival time", () => {
+    const first = recordNotification([], request(teamChanges(2)));
+    const [original] = first;
+    const withReceipt = recordNotification(first, request(published(1)));
+    const repeated = recordNotification(withReceipt, {
+      ...request(teamChanges(2)), projectName: "Renamed project",
+    });
+
+    expect(repeated.map((entry) => entry.id)).toEqual(withReceipt.map((entry) => entry.id));
+    expect(repeated[1]).toMatchObject({
+      id: original!.id, createdAt: original!.createdAt, read: false, projectName: "Renamed project",
+    });
+    const changed = recordNotification(repeated, request(teamChanges(3, "def")));
+    expect(changed[0]?.id).not.toBe(original!.id);
+    expect(changed[0]?.read).toBe(false);
+    expect(changed[0]?.details).toMatchObject({ behind: 3 });
+  });
+
   it("does not light the badge again when a collapsed entry says the same thing", () => {
     const first = recordNotification([], request(teamChanges(2, "abc")));
     const read = markNotificationsRead(first);

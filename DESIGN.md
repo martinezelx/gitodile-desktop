@@ -128,9 +128,29 @@ The main desktop window should broadly support:
      its action is the shared small secondary button, and a per-row trash sits in the
      bottom-right corner, uncovered only while its row is pointed at or
      focused, so the destructive control is deliberate and the dot never
-     competes for the corner. A footer of two icons — settings on the left,
-     clear-all on the right — keeps the destructive control away from the
-     benign one, and clear-all is disabled while the list is empty. When
+     competes for the corner. The footer keeps settings on the left and the
+     two inbox actions on the right, all as icon controls with tooltips.
+     Clear-all is disabled while the list is empty. A double-check glyph with
+     a "Mark all as read" tooltip acknowledges without deleting and is disabled
+     when nothing is unread. Each card has an always-reachable
+     read/unread control beside its dismiss control in the same action row, with
+     matching 28px targets and 14px glyphs centred on one horizontal axis.
+     Both controls appear on row hover or keyboard focus, reserve their space
+     while hidden, and stay visible on devices without hover.
+     The review action sits at the left of that row. Opening, hovering,
+     scrolling and closing never acknowledge a notice. A review acknowledges
+     only its own notice after the destination opens; unavailable projects
+     leave it unread and explain why. Row marks always reflect live state,
+     including arrivals while open, and removing a row keeps keyboard focus
+     inside the panel. An automatic check repeating the same news keeps its
+     card's identity, position and arrival time, preserving keyboard focus;
+     changed news arrives at the top. Read state survives restarts in a local
+     bounded inbox of 50 entries (oldest evicted first). Removing or reading an update notice
+     does not hide the available update in Settings or re-alert that same
+     acknowledged version. Update cards name the historical version and open
+     the updater's current state. All notifications remain silent; sound is
+     deferred. Storage failures are disclosed within the panel without adding
+     another notification. When
      notifications are off, the panel says so and offers the same switch
      Settings uses, bound to the same preference, so they can be turned back on
      without leaving the window. The switch fades out once notifications are

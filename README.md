@@ -165,7 +165,12 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   titlebar: project changes an automatic check found, checks that could not
   reach the remote, and versions you published. Everything stays inside the app
   — no operating-system notifications — and one switch in Settings turns the
-  recording off.
+  recording off. Opening the bell leaves notices unread until you mark one,
+  review its destination, or explicitly mark all as read. Reading and deleting
+  are separate actions. The latest 50 notices and their read states stay on
+  this device across restarts; detailed error text is not retained. Dismissing
+  an update notice does not hide the update in Settings or re-alert the same
+  acknowledged version. The app remains silent.
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.

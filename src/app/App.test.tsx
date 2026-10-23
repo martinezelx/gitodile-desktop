@@ -572,8 +572,8 @@ describe("App project restoration", () => {
       fireEvent.click(unreadBell);
       const panel = screen.getByRole("dialog", { name: "Notifications" });
       expect(within(panel).getByText("1 newer version is available")).toBeInTheDocument();
-      // Reading it is what clears the badge.
-      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+      // Opening the inbox is not acknowledgment.
+      expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
 
       fireEvent.click(within(panel).getByRole("button", { name: "Review and get" }));
       expect(screen.queryByRole("dialog", { name: "Notifications" })).not.toBeInTheDocument();
@@ -605,6 +605,7 @@ describe("App project restoration", () => {
         within(afterFailure).getByText("Couldn't check for project changes"),
       ).toBeInTheDocument();
       expect(within(afterFailure).getAllByRole("listitem")).toHaveLength(2);
+      fireEvent.click(within(afterFailure).getByRole("button", { name: "Mark all as read" }));
       fireEvent.keyDown(document, { key: "Escape" });
       await settle(50);
 
@@ -1825,7 +1826,9 @@ describe("App project restoration", () => {
     await user.click(await screen.findByRole("button", { name: /Open “Older version” in History/ }));
     expect(await screen.findByRole("treeitem", { name: /Older version/ })).toHaveAttribute("aria-selected", "true");
     await user.click(within(nav).getByRole("button", { name: "Branches" }));
-    const selectedBranch = await screen.findByRole("treeitem", { name: /feature\/spike/ });
+    // Like firstFile above, allow the lazy screen and deferred project snapshot
+    // to settle under the parallel suite; the default findBy budget is only 1s.
+    const selectedBranch = await screen.findByRole("treeitem", { name: /feature\/spike/ }, { timeout: 5000 });
     await user.click(selectedBranch);
     expect(selectedBranch).toHaveAttribute("aria-selected", "true");
     await user.click(within(nav).getByRole("button", { name: "Overview" }));

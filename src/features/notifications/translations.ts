@@ -7,6 +7,11 @@ export interface NotificationsTranslations {
   notificationsPanelAriaLabel: string;
   notificationsListAriaLabel: string;
   notificationsClear: string;
+  notificationsMarkRead: string;
+  notificationsMarkUnread: string;
+  notificationsMarkAllRead: string;
+  notificationsStorageWarning: string;
+  notificationsActionUnavailable: string;
   notificationsEmptyTitle: string;
   notificationsEmptyLine: string;
   notificationsDisabledTitle: string;
@@ -41,6 +46,11 @@ const en: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notifications",
   notificationsListAriaLabel: "Recent notifications",
   notificationsClear: "Clear all",
+  notificationsMarkRead: "Mark as read",
+  notificationsMarkUnread: "Mark as unread",
+  notificationsMarkAllRead: "Mark all as read",
+  notificationsStorageWarning: "Some notification history could not be saved or restored. New notices remain available while the app is open.",
+  notificationsActionUnavailable: "This notice could not be opened. Its project may be closed or another action may be in progress.",
   notificationsEmptyTitle: "All caught up",
   notificationsEmptyLine: "New notifications show up here.",
   notificationsDisabledTitle: "Notifications are off",
@@ -60,8 +70,8 @@ const en: NotificationsTranslations = {
       ? "Published the branch"
       : count === 1 ? "Published 1 saved version" : `Published ${count} saved versions`,
   notificationChangesPublishedTo: (destination) => `Sent to ${destination}.`,
-  notificationAppUpdateTitle: (version) => `New version available: ${version}`,
-  notificationAppUpdateDescription: "Found at startup, and nothing has been downloaded.",
+  notificationAppUpdateTitle: (version) => `App update: ${version}`,
+  notificationAppUpdateDescription: "Open Updates to see its current status.",
   notificationAppUpdateAction: "View update",
   notificationUpstreamGoneTitle: (branch, remote) =>
     `${branch ? `“${branch}”` : "This branch"} is no longer on ${remote ? `“${remote}”` : "the remote"}`,
@@ -80,6 +90,11 @@ const es: NotificationsTranslations = {
   notificationsPanelAriaLabel: "Notificaciones",
   notificationsListAriaLabel: "Notificaciones recientes",
   notificationsClear: "Borrar todo",
+  notificationsMarkRead: "Marcar como leída",
+  notificationsMarkUnread: "Marcar como no leída",
+  notificationsMarkAllRead: "Marcar todas como leídas",
+  notificationsStorageWarning: "Parte del historial no se pudo guardar o recuperar. Los avisos nuevos seguirán disponibles mientras la app esté abierta.",
+  notificationsActionUnavailable: "No se pudo abrir este aviso. Puede que su proyecto esté cerrado o haya otra acción en curso.",
   notificationsEmptyTitle: "Todo al día",
   notificationsEmptyLine: "Aquí verás las notificaciones nuevas.",
   notificationsDisabledTitle: "Notificaciones desactivadas",
@@ -99,8 +114,8 @@ const es: NotificationsTranslations = {
       ? "Se publicó la rama"
       : count === 1 ? "Se publicó 1 versión guardada" : `Se publicaron ${count} versiones guardadas`,
   notificationChangesPublishedTo: (destination) => `Enviado a ${destination}.`,
-  notificationAppUpdateTitle: (version) => `Nueva versión disponible: ${version}`,
-  notificationAppUpdateDescription: "Detectada al iniciar, sin descargar nada.",
+  notificationAppUpdateTitle: (version) => `Actualización de la app: ${version}`,
+  notificationAppUpdateDescription: "Abre Actualizaciones para ver su estado actual.",
   notificationAppUpdateAction: "Ver actualización",
   notificationUpstreamGoneTitle: (branch, remote) =>
     `${branch ? `«${branch}»` : "Esta rama"} ya no está en ${remote ? `«${remote}»` : "el remoto"}`,

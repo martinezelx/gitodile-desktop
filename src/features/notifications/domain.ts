@@ -80,11 +80,10 @@ export const NOTIFICATION_KINDS: Record<NotificationKind, NotificationKindSpec> 
   appUpdateAvailable: { tone: "app", collapses: true, unreadOnArrival: true },
 };
 
-/** Enough to cover a long session, small enough that the panel never becomes a
- * list nobody scrolls. Nothing is persisted, so this is the whole memory. */
+/** The local inbox retains the latest fifty events, including across restarts. */
 export const NOTIFICATION_LIMIT = 50;
 
-/** Structural equality over the payload only. Used by the collapse rule to tell
+/** Whether payloads report the same known news. Used by the collapse rule to tell
  * "the same news again" from "different news", which is what decides whether a
  * replaced entry goes back to unread.
  *
@@ -104,7 +103,10 @@ export function notificationDetailsEqual(
         left.remoteCommit === right.remoteCommit
       );
     case "remoteCheckFailed":
-      return right.kind === "remoteCheckFailed" && left.reason === right.reason;
+      // Restored notices omit detailed error text. An unknown reason alone is
+      // not evidence of new trouble; live, known reason changes still re-alert.
+      return right.kind === "remoteCheckFailed"
+        && (left.reason === null || right.reason === null || left.reason === right.reason);
     case "upstreamGone":
       return right.kind === "upstreamGone" && left.branch === right.branch && left.remote === right.remote;
     case "changesPublished":
@@ -135,12 +137,10 @@ export type NotificationRequest = {
 /**
  * The new list after recording one event, newest first.
  *
- * A collapsing kind finds its previous entry for the same project and replaces
- * it in place *at the top* — it is the newest thing that happened, even when it
- * says what the old one said. It keeps its read flag only when the payload is
- * unchanged: an unchanged upstream that the user has already seen must not
- * light the badge again, while a check that now reports four versions instead
- * of one is genuinely new and asks for attention.
+ * Repeating known news updates its metadata in place, keeping the card's ID,
+ * arrival time and read state. A periodic check is not a new event and must
+ * not reorder the inbox or remount a focused control. Materially changed news
+ * replaces the previous entry at the top and asks for attention again.
  */
 export function recordNotification(
   list: readonly AppNotification[],
@@ -154,20 +154,18 @@ export function recordNotification(
       ) ?? null)
     : null;
 
-  const wasSeen =
-    previous !== null &&
-    previous.read &&
-    notificationDetailsEqual(previous.details, request.details);
+  const sameNews = previous !== null && notificationDetailsEqual(previous.details, request.details);
 
   const entry: AppNotification = {
-    id: request.id,
-    createdAt: request.createdAt,
-    read: wasSeen || !spec.unreadOnArrival,
+    id: sameNews ? previous.id : request.id,
+    createdAt: sameNews ? previous.createdAt : request.createdAt,
+    read: sameNews ? previous.read : !spec.unreadOnArrival,
     projectId: request.projectId,
     projectName: request.projectName,
     details: request.details,
   };
 
+  if (sameNews) return list.map((candidate) => candidate === previous ? entry : candidate);
   const rest = previous ? list.filter((candidate) => candidate !== previous) : list;
   return [entry, ...rest].slice(0, NOTIFICATION_LIMIT);
 }
@@ -176,8 +174,7 @@ export function unreadNotificationCount(list: readonly AppNotification[]): numbe
   return list.reduce((count, entry) => (entry.read ? count : count + 1), 0);
 }
 
-/** Returns the same array when nothing was unread, so opening an already-read
- * panel does not rerender the titlebar. The return type stays `readonly`
+/** Returns the same array when nothing was unread. The return type stays `readonly`
  * precisely because of that case: the array handed back may be the caller's own
  * input, and casting the promise away would invite someone to mutate it. */
 export function markNotificationsRead(
@@ -191,6 +188,13 @@ export function markNotificationsRead(
  * the composition root agree on it by type rather than by matching string
  * literals in two files. */
 export type NotificationActionId = "reviewTeamChanges" | "reviewAppUpdate" | "openOverview";
+
+export function setNotificationRead(
+  list: readonly AppNotification[], id: string, read: boolean,
+): readonly AppNotification[] {
+  if (!list.some((entry) => entry.id === id && entry.read !== read)) return list;
+  return list.map((entry) => entry.id === id ? { ...entry, read } : entry);
+}
 
 /** The kinds with somewhere to go. Kept as a function rather than a field on
  * the spec so the panel asks about the entry it is rendering, and a kind whose

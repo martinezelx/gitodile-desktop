@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LanguageProvider } from "../../i18n";
 import { NotificationCenter } from "./NotificationCenter";
+import { useNotificationCenter } from "./useNotificationCenter";
 import { recordNotification, type AppNotification, type NotificationDetails } from "./domain";
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   delete document.documentElement.dataset.reducedMotion;
 });
 
@@ -31,7 +33,8 @@ function renderCentre(overrides: Partial<React.ComponentProps<typeof Notificatio
     notifications: [] as readonly AppNotification[],
     unreadCount: 0,
     isEnabled: true,
-    onOpened: vi.fn(),
+    onMarkAllRead: vi.fn(),
+    onSetRead: vi.fn(),
     onClear: vi.fn(),
     onDismiss: vi.fn(),
     onToggleEnabled: vi.fn(),
@@ -81,20 +84,20 @@ describe("the titlebar notification centre", () => {
     expect(document.querySelector(".notification-center__dot")).toBeNull();
   });
 
-  it("marks everything read when the panel opens, and keeps showing which rows were unread", async () => {
-    const onOpened = vi.fn();
-    renderCentre({ notifications: [entry(teamChanges)], unreadCount: 1, onOpened });
+  it("keeps notices unread when the panel opens", async () => {
+    const onMarkAllRead = vi.fn();
+    renderCentre({ notifications: [entry(teamChanges)], unreadCount: 1, onMarkAllRead });
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
 
-    expect(onOpened).toHaveBeenCalledTimes(1);
+    expect(onMarkAllRead).not.toHaveBeenCalled();
     const panel = screen.getByRole("dialog", { name: "Notifications" });
     expect(within(panel).getByText("3 newer versions are available")).toBeInTheDocument();
     expect(within(panel).getByText("Unread", { exact: false })).toBeInTheDocument();
   });
 
   it("offers the review action for available project changes and closes on use", async () => {
-    const onReviewTeamChanges = vi.fn();
+    const onReviewTeamChanges = vi.fn(() => true);
     const notification = entry(teamChanges);
     renderCentre({ notifications: [notification], unreadCount: 1, onReviewTeamChanges });
 
@@ -106,8 +109,8 @@ describe("the titlebar notification centre", () => {
   });
 
   it("offers to open the update dialog for a newer app version and closes on use", async () => {
-    const onReviewAppUpdate = vi.fn();
-    const onReviewTeamChanges = vi.fn();
+    const onReviewAppUpdate = vi.fn(() => true);
+    const onReviewTeamChanges = vi.fn(() => true);
     renderCentre({
       notifications: [entry({ kind: "appUpdateAvailable", version: "0.3.0" })],
       unreadCount: 1,
@@ -117,8 +120,8 @@ describe("the titlebar notification centre", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
     const panel = screen.getByRole("dialog", { name: "Notifications" });
-    expect(within(panel).getByText("New version available: 0.3.0")).toBeInTheDocument();
-    expect(within(panel).getByText("Found at startup, and nothing has been downloaded.")).toBeInTheDocument();
+    expect(within(panel).getByText("App update: 0.3.0")).toBeInTheDocument();
+    expect(within(panel).getByText("Open Updates to see its current status.")).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("button", { name: "View update" }));
 
     expect(onReviewAppUpdate).toHaveBeenCalledOnce();
@@ -127,8 +130,8 @@ describe("the titlebar notification centre", () => {
   });
 
   it("says a branch's remote branch is gone and opens Overview on its project", async () => {
-    const onOpenProjectOverview = vi.fn();
-    const onReviewTeamChanges = vi.fn();
+    const onOpenProjectOverview = vi.fn(() => true);
+    const onReviewTeamChanges = vi.fn(() => true);
     const notification = entry({ kind: "upstreamGone", branch: "feature/login", remote: "origin" });
     renderCentre({ notifications: [notification], unreadCount: 1, onOpenProjectOverview, onReviewTeamChanges });
 
@@ -334,7 +337,8 @@ describe("the titlebar notification centre", () => {
           notifications={[]}
           unreadCount={1}
           isEnabled
-          onOpened={vi.fn()}
+          onMarkAllRead={vi.fn()}
+          onSetRead={vi.fn()}
           onClear={vi.fn()}
           onDismiss={vi.fn()}
           onToggleEnabled={vi.fn()}
@@ -358,7 +362,8 @@ describe("the titlebar notification centre", () => {
           notifications={[]}
           unreadCount={1}
           isEnabled
-          onOpened={vi.fn()}
+          onMarkAllRead={vi.fn()}
+          onSetRead={vi.fn()}
           onClear={vi.fn()}
           onDismiss={vi.fn()}
           onToggleEnabled={vi.fn()}
@@ -409,7 +414,8 @@ describe("the titlebar notification centre", () => {
           notifications={[]}
           unreadCount={1}
           isEnabled
-          onOpened={vi.fn()}
+          onMarkAllRead={vi.fn()}
+          onSetRead={vi.fn()}
           onClear={vi.fn()}
           onDismiss={vi.fn()}
           onToggleEnabled={vi.fn()}
@@ -438,7 +444,8 @@ describe("the titlebar notification centre", () => {
           notifications={[]}
           unreadCount={1}
           isEnabled
-          onOpened={vi.fn()}
+          onMarkAllRead={vi.fn()}
+          onSetRead={vi.fn()}
           onClear={vi.fn()}
           onDismiss={vi.fn()}
           onToggleEnabled={vi.fn()}
@@ -451,5 +458,111 @@ describe("the titlebar notification centre", () => {
     );
 
     expect(dotClass()).not.toContain("notification-center__dot--arrive");
+  });
+});
+
+
+describe("explicit acknowledgment", () => {
+  it("preserves unread on Escape and reopening, and marks only the chosen notice after review", async () => {
+    const onSetRead = vi.fn();
+    const onMarkAllRead = vi.fn();
+    const update = entry({ kind: "appUpdateAvailable", version: "0.4.2" });
+    renderCentre({ notifications: [update, entry(teamChanges)], unreadCount: 2,
+      onSetRead, onMarkAllRead, onReviewAppUpdate: () => true });
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
+    expect(onSetRead).not.toHaveBeenCalled();
+    expect(onMarkAllRead).not.toHaveBeenCalled();
+    expect(document.querySelectorAll(".notification--unread")).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "View update" }));
+    expect(onSetRead).toHaveBeenCalledExactlyOnceWith(update, true);
+  });
+
+  it("renders arrivals while open using their current unread state", async () => {
+    const { props, rerender } = renderCentre({ notifications: [entry(teamChanges, true)] });
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const newer = entry({ kind: "appUpdateAvailable", version: "0.4.2" });
+    rerender(<LanguageProvider><NotificationCenter {...props}
+      notifications={[newer, ...props.notifications]} unreadCount={1} /></LanguageProvider>);
+    expect(document.querySelectorAll(".notification--unread")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
+  });
+
+  it("keeps an unavailable project notice unread and reports why its action did not open", async () => {
+    const onSetRead = vi.fn();
+    renderCentre({ notifications: [entry(teamChanges)], unreadCount: 1,
+      onReviewTeamChanges: () => false, onSetRead });
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review and get" }));
+    expect(onSetRead).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("project may be closed");
+  });
+
+  function LiveInbox({ checkNumber = 0 }: { checkNumber?: number }) {
+    const store = useNotificationCenter(true);
+    useEffect(() => {
+      store.notify({ details: { kind: "appUpdateAvailable", version: "0.4.2" } });
+      store.notify({ details: { kind: "remoteCheckFailed", reason: null } });
+    }, [store.notify]);
+    useEffect(() => {
+      if (checkNumber > 0) store.notify({ details: { kind: "remoteCheckFailed", reason: null } });
+    }, [checkNumber, store.notify]);
+    return <NotificationCenter notifications={store.notifications} unreadCount={store.unreadCount}
+      isEnabled onMarkAllRead={store.markAllRead}
+      onSetRead={(entry, read) => store.setRead(entry.id, read)}
+      onClear={store.clear} onDismiss={(entry) => store.dismiss(entry.id)}
+      onToggleEnabled={() => undefined} onReviewTeamChanges={() => false}
+      onReviewAppUpdate={() => true} onOpenProjectOverview={() => false} onOpenSettings={() => undefined} />;
+  }
+
+  it("keeps keyboard focus on a notice when an automatic check repeats its news", async () => {
+    const { rerender } = render(<LanguageProvider><LiveInbox /></LanguageProvider>);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
+    const control = screen.getAllByRole("button", { name: "Mark as read" })[0]!;
+    control.focus();
+    rerender(<LanguageProvider><LiveInbox checkNumber={1} /></LanguageProvider>);
+    expect(control).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark as unread" })).toHaveFocus();
+  });
+
+  it("toggles reading in place and keeps bulk reading separate from deletion", async () => {
+    localStorage.clear();
+    render(<LanguageProvider><LiveInbox /></LanguageProvider>);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
+    const read = screen.getAllByRole("button", { name: "Mark as read" })[0]!;
+    read.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark as unread" })).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Notifications, 2 unread" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Mark all as read" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear all" })).toBeEnabled();
+    expect(screen.getByRole("dialog")).toHaveFocus();
+  });
+
+  it("keeps focus in the inbox when deleting a row and then the last row", async () => {
+    localStorage.clear();
+    render(<LanguageProvider><LiveInbox /></LanguageProvider>);
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Delete notification" })[0]!);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "View update" })).toHaveFocus();
+    await userEvent.click(screen.getByRole("button", { name: "Delete notification" }));
+    expect(screen.getByRole("dialog")).toHaveFocus();
+    expect(screen.getByText("All caught up")).toBeInTheDocument();
+  });
+
+  it("shows storage failure in the panel without creating a recursive notice", async () => {
+    renderCentre({ hasStorageWarning: true });
+    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    expect(screen.getByRole("status")).toHaveTextContent("could not be saved or restored");
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
   });
 });

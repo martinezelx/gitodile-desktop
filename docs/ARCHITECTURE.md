@@ -94,6 +94,17 @@ it to name. A feature like that must not grow a read of its own to fill the
 gap — the moment a surface fetches to populate itself, it has become one more
 thing that runs when the user was doing something else.
 
+The notification feature owns a versioned, bounded localStorage inbox (50
+entries, with independently bounded fields and input size). Its persistence
+boundary validates unknown data and allowlists stored fields; detailed error
+reasons stay in memory only. The store persists read state and one acknowledged
+app-update version independently of card retention, so removing or evicting
+that card cannot re-alert the same offered release. Storage failure leaves the
+live inbox usable with a panel warning. Restoring/opening it triggers no IPC,
+network activity or audio. Review callbacks report whether their destination
+opened before the panel acknowledges the individual notice; app-update review
+always uses the updater's current snapshot rather than a stored candidate.
+
 ### Screens and lifecycle
 
 Every screen is registered once in `src/app/screens.tsx`. The descriptor drives

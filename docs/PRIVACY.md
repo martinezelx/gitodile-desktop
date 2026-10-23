@@ -1,6 +1,6 @@
 # Privacy policy
 
-Last updated: 2026-10-05
+Last updated: 2026-10-24
 
 GitOdile is a local-first desktop Git client. Repository contents, paths,
 history, settings and recovery records stay on the user's device unless the
@@ -8,7 +8,17 @@ user explicitly starts an operation that communicates with a configured Git
 remote or opens an external service.
 
 GitOdile does not require a GitOdile account and does not include product
-analytics, advertising trackers or telemetry. The application can contact:
+analytics, advertising trackers or telemetry.
+
+The notification inbox retains up to 50 notices locally, including project
+names/paths, event metadata and read states, until removed or displaced by newer
+notices. It also retains one acknowledged app-update version to prevent repeated
+alerts after its notice is removed. Detailed error reasons are not persisted.
+Turning notification recording off preserves the existing inbox and stops new
+collection. Nothing in this history is uploaded, and viewing it starts no
+network request. Notifications do not play sounds.
+
+The application can contact:
 
 - a user-configured Git remote when the user clones, fetches, pulls or pushes;
 - GitHub for a read-only access check after the user edits a complete GitHub

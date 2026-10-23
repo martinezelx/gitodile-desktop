@@ -131,29 +131,49 @@
 .notification__project::after { content: "·"; margin-left: 6px; font-weight: var(--weight-normal); }
 
 /* The shared small secondary button; only its place in the row is local. */
-.notification__action { align-self: flex-start; margin-top: var(--space-1); }
-
-/* Revealed while the row is pointed at or focused; solid where there is no
-   pointer, because a hover-only control is unreachable. Destructive in effect
-   but small: one entry leaves the session list. */
-.notification__dismiss {
-  position: absolute; bottom: 8px; right: 8px;
-  width: 24px; height: 24px; z-index: 1;
+.notification__action { align-self: center; }
+.notification__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+.notification__read {
+  width: 28px; height: 28px; flex-shrink: 0; margin-left: auto;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   opacity: 0;
   transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
 }
-.notification__dismiss svg { width: 13px; height: 13px; }
+.notification__read svg { width: 14px; height: 14px; }
+.notification__read:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+.notification-center__notice {
+  margin: 0; padding: var(--space-2); font-size: var(--text-label);
+  color: var(--text-secondary-color); line-height: var(--leading-normal);
+}
+
+/* Revealed while the row is pointed at or focused; solid where there is no
+   pointer, because a hover-only control is unreachable. Destructive in effect
+   but small: one entry leaves the local inbox. */
+.notification__dismiss {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-round);
+  background: transparent; color: var(--text-secondary-color);
+  opacity: 0;
+  transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+.notification__dismiss svg { width: 14px; height: 14px; }
 .notification__dismiss:hover {
   background: color-mix(in srgb, var(--status-danger) 14%, transparent);
   color: var(--status-danger);
 }
+.notification:hover .notification__read,
+.notification:focus-within .notification__read,
+.notification:focus-visible .notification__read,
 .notification:hover .notification__dismiss,
 .notification:focus-within .notification__dismiss,
 .notification:focus-visible .notification__dismiss { opacity: 1; }
-@media (hover: none) { .notification__dismiss { opacity: 1; } }
+@media (hover: none) {
+  .notification__read,
+  .notification__dismiss { opacity: 1; }
+}
 
 /* ---- Off, with a list still on screen ---- */
 .notification-center__disabled-row {
@@ -213,7 +233,7 @@
   .notification-center__empty-switch { transition: none; }
 }
 
-/* ---- Footer: two icons, settings left and clear right ---- */
+/* ---- Footer: settings left; mark all read and clear right ---- */
 .notification-center__footer {
   display: flex; align-items: center; gap: var(--space-1);
   padding: 6px 2px 2px;
@@ -236,6 +256,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .notification-center__footer-action,
+  .notification__read,
   .notification__dismiss { transition: none; }
 }
 
