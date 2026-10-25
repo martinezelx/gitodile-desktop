@@ -19,13 +19,16 @@ import type { Translations } from "../../i18n";
  * position. The arrows stay (disabled) so the control does not jump in and out
  * while someone types.
  */
-export function DiffStepNav({ kind, position, total, onPrevious, onNext, t }: {
+export function DiffStepNav({ kind, position, total, onPrevious, onNext, t, allowUnselectedNext = false }: {
   kind: "file" | "hunk";
   /** 1-based, or `0` when what is open is not in the list being stepped. */
   position: number;
   total: number;
   onPrevious: () => void;
   onNext: () => void;
+  /** A document can open above its first change. Its first Next selects that
+   * change; file navigation still disables a selection outside the list. */
+  allowUnselectedNext?: boolean;
   t: Translations;
 }): React.JSX.Element {
   const isFile = kind === "file";
@@ -52,7 +55,7 @@ export function DiffStepNav({ kind, position, total, onPrevious, onNext, t }: {
         className="changes-diff__step"
         aria-label={nextLabel}
         data-tooltip={nextLabel}
-        disabled={position === 0 || position >= total}
+        disabled={(!allowUnselectedNext && position === 0) || position >= total}
         onClick={onNext}
       >
         <Next aria-hidden="true" />

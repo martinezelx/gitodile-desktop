@@ -104,6 +104,9 @@ export function createChangesController(port: ChangesPort) {
     getStore,
     fetchDiff,
     warmStore: warm,
+    readFileMarkdown(projectId: string, sessionEpoch: string, filePath: string) {
+      return port.readFileMarkdown({ projectId, sessionEpoch, filePath });
+    },
     readFileLines(projectId: string, sessionEpoch: string, filePath: string, startLine: number, endLine: number) {
       return port.readFileLines({ projectId, sessionEpoch, filePath, startLine, endLine });
     },

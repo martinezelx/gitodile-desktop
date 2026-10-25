@@ -162,6 +162,7 @@ pub fn run() {
             ipc::read_file_diff,
             ipc::read_file_image_preview,
             ipc::read_file_lines,
+            ipc::read_file_markdown,
             ipc::read_working_tree_diffs,
             ipc::plan_discard_changes,
             ipc::discard_changes,

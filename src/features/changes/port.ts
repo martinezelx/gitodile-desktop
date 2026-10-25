@@ -5,6 +5,7 @@ import type {
   DiscardResult,
   FileDiff,
   FileLines,
+  MarkdownPreview,
   ImagePreview,
   WorkingTreeDiffBatch,
 } from "./domain";
@@ -29,6 +30,7 @@ export interface ChangesPort {
   revealFile(query: FileDiffQuery): Promise<void>;
   readWorkingTreeDiffs(query: ChangesQuery): Promise<WorkingTreeDiffBatch>;
   readFileLines(query: FileLinesQuery): Promise<FileLines>;
+  readFileMarkdown(query: FileDiffQuery): Promise<MarkdownPreview>;
   readFileImagePreview(query: ImagePreviewQuery): Promise<ImagePreview>;
   planDiscard(query: ChangesQuery & { selectedPath: string | null }): Promise<DiscardPlan>;
   discard(query: ChangesQuery & { selectedPath: string | null; stateToken: string }): Promise<DiscardResult>;

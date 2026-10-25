@@ -26,6 +26,41 @@ or transport types.
 
 ## Frontend ownership
 
+The Changes Markdown preview reads full saved/current documents on demand
+through `ChangesPort.readFileMarkdown` and the session-validated
+`read_file_markdown` command. Rust authorizes a read-only operation, checks the
+Markdown extension and canonical project containment, requires a regular UTF-8
+file and caps the actual read at 128 KiB per version (plus one byte to detect overflow).
+Symlink files and saved symlink blobs are refused: Git stores their destination
+path, which must not be compared with dereferenced document content.
+The saved side is read from a pinned HEAD object, using the original path from
+fresh Git status for a rename. Deleted current files and genuinely new saved
+sides are explicit missing versions; Git/encoding failures never become additions.
+Oversized content is refused by the native document reader. The frontend can
+instead reuse complete hunks from the already-loaded text diff, without another
+file read. These independent fragments are explicitly labelled partial and may
+lack formatting/reference context. At most 24 hunks, 400 source lines and 32K
+source code units enter excerpt preparation, under a shared 250 ms budget.
+Incomplete or excessive hunks are omitted with a notice; if none fit, use text.
+The preview request is keyed by the selected diff snapshot and project epoch;
+hidden views detach listeners and reuse the request on return. The renderer
+is the default for supported Markdown files; an explicit reading choice is
+persisted locally under `gitodile-markdown-view`, separately from code diffs.
+Read/size/comparison failures fall back to text with an explanation without
+changing that preference. Reselecting Markdown retries the read.
+The renderer
+uses CommonMark/GFM without raw HTML, active links or image resource loads.
+Line and AST comparisons have time/edit-distance bounds. Full Markdown trees
+are merged into one unified document, interleaving removed/added blocks and
+retaining shared context once. Compatible lists, quotes and tables merge their
+children. Reference links/images resolve within their original full document;
+footnotes have version-scoped identifiers. Tree traversal also has a depth bound.
+Full preview preserves complete semantic blocks. Excerpt preview parses each
+available hunk independently, never joining Markdown syntax across source gaps.
+Both representations annotate consecutive changed blocks as navigation groups;
+only referenced footnotes contribute stops. Active-screen navigation scrolls to
+the requested marker without restarting on reveal or triggering another read.
+
 The frontend is a modular monolith:
 
 ```text

@@ -55,6 +55,15 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Review and copy readable, syntax-colored text diffs, inspect binary or
   oversized-file states, and navigate large change lists with virtualization
   and bounded native payloads.
+- Read `.md` and `.markdown` documents in Changes with **Markdown preview** by default.
+  **View** retains the text diff modes and remembers a separate Markdown preference.
+  If preview is unavailable, the text diff opens with an explanation and a retry option.
+  The read-only preview compares the last saved document with the current working
+  copy (up to 128 KiB each), highlighting removed and added Markdown blocks in
+  one unified formatted document, including tables and task lists. HTML is hidden;
+  links and images stay inactive. Change arrows navigate affected block groups.
+  Oversized documents can show bounded changed fragments from the available diff,
+  with a partial-preview notice and gaps; full text modes remain available.
 - Discard one file or every unsaved change through a confirmed, state-checked
   flow that creates a persistent local recovery record and offers Undo. The
   confirmation can be turned off; the recovery record and Undo cannot.

@@ -5,7 +5,10 @@ use crate::status::{
     checked_status_records, find_status_entry, ChangeCategory, LineTotals, RawStatusEntry,
     MAX_REPORTED_ENTRIES, STATUS_ARGS,
 };
-use std::{io::ErrorKind, path::Path};
+use std::{
+    io::{ErrorKind, Read},
+    path::Path,
+};
 
 #[cfg(test)]
 use crate::git_command::base_git_command;
@@ -1496,6 +1499,224 @@ pub(crate) fn read_commit_file_diff(
 // `MAX_EXPANDABLE_FILE_BYTES`.
 pub(crate) const MAX_EXPANDED_LINES: usize = 500;
 pub(crate) const MAX_EXPANDABLE_FILE_BYTES: u64 = 8 * 1024 * 1024;
+
+/// Markdown parsing is more expensive than displaying a line range. Never
+/// return a partial document: truncation could change its Markdown structure.
+pub(crate) const MAX_MARKDOWN_PREVIEW_BYTES: u64 = 128 * 1024;
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub(crate) enum MarkdownPreview {
+    Ready {
+        content: Option<String>,
+        #[serde(rename = "beforeContent")]
+        before_content: Option<String>,
+    },
+    TooLarge {
+        #[serde(rename = "limitBytes")]
+        limit_bytes: u64,
+    },
+}
+
+pub(crate) fn read_file_markdown(
+    path: String,
+    file_path: String,
+) -> Result<MarkdownPreview, AppError> {
+    let (_repository, _access) =
+        application::authorize_repository(&path, "read_file_markdown", None)?;
+    validate_repo_relative_path(&file_path)?;
+    if !Path::new(&file_path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
+    {
+        return Err(AppError::new(
+            AppErrorCode::PathInvalid,
+            "Choose a Markdown document.",
+        ));
+    }
+    let status = run_git(&path, &STATUS_ARGS)?;
+    if !status.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::GitCommandFailed,
+            "Git couldn't check this document's changes.",
+        ));
+    }
+    let entry = find_status_entry(&status.stdout, &file_path)?;
+    if entry
+        .as_ref()
+        .is_some_and(|entry| entry.category == ChangeCategory::Conflicted)
+    {
+        return Err(AppError::new(
+            AppErrorCode::UnresolvedConflicts,
+            "Resolve this document's overlapping changes before previewing it.",
+        ));
+    }
+    let current = if entry
+        .as_ref()
+        .is_some_and(|entry| entry.category == ChangeCategory::Deleted)
+        && !Path::new(&path).join(&file_path).exists()
+    {
+        MarkdownPreview::Ready {
+            content: None,
+            before_content: None,
+        }
+    } else {
+        read_markdown_worktree(&path, &file_path)?
+    };
+    let MarkdownPreview::Ready { content, .. } = current else {
+        return Ok(current);
+    };
+    let head = run_git(&path, &["rev-parse", "--verify", "-q", "HEAD"])?;
+    let before_content = if head.status.success() {
+        let base = entry
+            .as_ref()
+            .and_then(|entry| entry.original_path.as_deref())
+            .unwrap_or(&file_path);
+        validate_repo_relative_path(base)?;
+        // A successful tree lookup distinguishes an absent file from a broken
+        // object/read. Literal pathspecs also handle names containing brackets.
+        let tree = run_git(
+            &path,
+            &[
+                "--literal-pathspecs",
+                "ls-tree",
+                "-z",
+                "--full-tree",
+                git_stdout(&head).trim(),
+                "--",
+                base,
+            ],
+        )?;
+        if !tree.status.success() {
+            return Err(markdown_read_error());
+        }
+        if tree.stdout.is_empty() {
+            None
+        } else {
+            let header = tree
+                .stdout
+                .split(|byte| *byte == b'\t')
+                .next()
+                .ok_or_else(markdown_read_error)?;
+            let header = std::str::from_utf8(header).map_err(|_| markdown_read_error())?;
+            let fields: Vec<_> = header.split_whitespace().collect();
+            if fields.len() != 3 || fields[1] != "blob" || !matches!(fields[0], "100644" | "100755")
+            {
+                return Err(markdown_read_error());
+            }
+            let spec = fields[2];
+            let size = run_git(&path, &["cat-file", "-s", spec])?;
+            if !size.status.success() {
+                return Err(markdown_read_error());
+            }
+            let bytes = git_stdout(&size)
+                .trim()
+                .parse::<u64>()
+                .map_err(|_| markdown_read_error())?;
+            if bytes > MAX_MARKDOWN_PREVIEW_BYTES {
+                return Ok(MarkdownPreview::TooLarge {
+                    limit_bytes: MAX_MARKDOWN_PREVIEW_BYTES,
+                });
+            }
+            let blob = run_git_capped(
+                &path,
+                &["cat-file", "blob", spec],
+                MAX_MARKDOWN_PREVIEW_BYTES as usize,
+            )?;
+            if !blob.status.success() || blob.limit_exceeded {
+                return Err(markdown_read_error());
+            }
+            Some(decode_markdown(blob.stdout)?)
+        }
+    } else if head.status.code() == Some(1) {
+        None // An unborn branch has no saved document yet.
+    } else {
+        return Err(markdown_read_error());
+    };
+    Ok(MarkdownPreview::Ready {
+        content,
+        before_content,
+    })
+}
+
+fn markdown_read_error() -> AppError {
+    AppError::new(
+        AppErrorCode::GitCommandFailed,
+        "The saved document couldn't be read.",
+    )
+    .with_remediation("Refresh the changes list and try again.")
+}
+
+fn decode_markdown(bytes: Vec<u8>) -> Result<String, AppError> {
+    let text = String::from_utf8(bytes).map_err(|_| {
+        AppError::new(
+            AppErrorCode::PathEncodingUnsupported,
+            "This document isn't UTF-8 text.",
+        )
+    })?;
+    if text.contains('\0') {
+        return Err(AppError::new(
+            AppErrorCode::PathEncodingUnsupported,
+            "This document isn't readable as text.",
+        ));
+    }
+    Ok(text.strip_prefix('\u{feff}').unwrap_or(&text).to_string())
+}
+
+fn read_markdown_worktree(path: &str, file_path: &str) -> Result<MarkdownPreview, AppError> {
+    let unreadable = || {
+        AppError::new(AppErrorCode::PathUnusable, "This document can't be read.")
+            .with_remediation("Refresh the changes list or open the document in your editor.")
+    };
+    let root = Path::new(path).canonicalize().map_err(|_| unreadable())?;
+    // A Git symlink stores its destination, not the referenced document.
+    // Dereferencing it would compare unrelated content against that path text.
+    if std::fs::symlink_metadata(root.join(file_path))
+        .map_err(|_| unreadable())?
+        .file_type()
+        .is_symlink()
+    {
+        return Err(unreadable());
+    }
+    let target = root
+        .join(file_path)
+        .canonicalize()
+        .map_err(|_| unreadable())?;
+    if !target.starts_with(&root) {
+        return Err(AppError::new(
+            AppErrorCode::PathInvalid,
+            "That document is outside this project.",
+        ));
+    }
+    // Check the resolved path before opening (including special files), then
+    // recheck the opened handle and cap the actual read in case it grows.
+    if !target.metadata().map_err(|_| unreadable())?.is_file() {
+        return Err(unreadable());
+    }
+    let file = std::fs::File::open(&target).map_err(|_| unreadable())?;
+    let metadata = file.metadata().map_err(|_| unreadable())?;
+    if !metadata.is_file() {
+        return Err(unreadable());
+    }
+    let too_large = || MarkdownPreview::TooLarge {
+        limit_bytes: MAX_MARKDOWN_PREVIEW_BYTES,
+    };
+    if metadata.len() > MAX_MARKDOWN_PREVIEW_BYTES {
+        return Ok(too_large());
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_MARKDOWN_PREVIEW_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| unreadable())?;
+    if bytes.len() as u64 > MAX_MARKDOWN_PREVIEW_BYTES {
+        return Ok(too_large());
+    }
+    Ok(MarkdownPreview::Ready {
+        content: Some(decode_markdown(bytes)?),
+        before_content: None,
+    })
+}
 
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]

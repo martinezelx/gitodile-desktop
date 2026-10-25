@@ -1,4 +1,4 @@
-import { Columns2, FileText, Rows3 } from "lucide-react";
+import { Columns2, FileText, Rows3, BookOpen } from "lucide-react";
 
 import type { Translations } from "../../i18n";
 import { DiffOptionPicker } from "./DiffOptionPicker";
@@ -23,21 +23,26 @@ export function DiffViewSelector({
   value,
   onChange,
   t,
+  markdown,
 }: {
   value: DiffViewMode;
   onChange: (mode: DiffViewMode) => void;
   t: Translations;
+  markdown?: { selected: boolean; onSelect: () => void };
 }): React.JSX.Element {
   return (
     <DiffOptionPicker
-      value={value}
+      value={markdown?.selected ? "markdown" : value}
       ariaLabel={t.changesViewAriaLabel}
-      onChange={onChange}
-      options={VIEW_MODES.map((mode) => ({
+      onChange={(mode) => {
+        if (mode === "markdown") markdown?.onSelect();
+        else onChange(mode);
+      }}
+      options={[...VIEW_MODES.map((mode) => ({
         value: mode,
         label: t[VIEW_MODE_LABEL_KEYS[mode]],
         icon: VIEW_MODE_ICONS[mode],
-      }))}
+      })), ...(markdown ? [{ value: "markdown" as const, label: t.changesMarkdownPreview, icon: <BookOpen aria-hidden="true" /> }] : [])]}
     />
   );
 }

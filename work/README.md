@@ -45,7 +45,17 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 and `196` into task 195 by explicit request. The next unused
-top-level ID after the current plan is `198`.
+top-level ID after the current plan is `202`.
+
+The Markdown document preview in Changes is tracked in
+[198](done/198-markdown-preview-in-changes.md), implemented ahead of the queue
+at the user's request.
+
+Its rendered before/after comparison follow-up is
+[199](done/199-rendered-markdown-changes.md).
+The single-document refinement is [200](done/200-unified-rendered-markdown-diff.md).
+Navigation and bounded oversized-document excerpts are tracked in
+[201](done/201-markdown-change-navigation-and-excerpts.md).
 
 Deliberate notification reading and persistent silent history are complete in
 [197](done/197-silent-notification-inbox.md), including the compact bulk-read

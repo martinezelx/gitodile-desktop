@@ -16,7 +16,10 @@ use crate::{
         CleanUpBranchesResult, CreateBranchPlan, DeleteBranchPlan, DeleteBranchResult,
         RenameBranchPlan, SwitchBranchPlan,
     },
-    changes::{self, CommitFileChange, FileDiff, FileLines, ImagePreview, WorkingTreeDiffBatch},
+    changes::{
+        self, CommitFileChange, FileDiff, FileLines, ImagePreview, MarkdownPreview,
+        WorkingTreeDiffBatch,
+    },
     clone::{
         self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
     },
@@ -628,6 +631,21 @@ pub(crate) fn read_file_image_preview(
         (|| {
             validate_session(&path, &session_epoch)?;
             changes::read_file_image_preview(path, file_path, original_path, commit)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_file_markdown(
+    path: String,
+    file_path: String,
+    session_epoch: String,
+) -> Result<MarkdownPreview, AppError> {
+    report_result(
+        "read_file_markdown",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            changes::read_file_markdown(path, file_path)
         })(),
     )
 }

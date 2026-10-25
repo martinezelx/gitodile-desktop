@@ -1,4 +1,20 @@
 export interface ChangesTranslations {
+  changesMarkdownPreview: string;
+  changesMarkdownFallback: string;
+  changesMarkdownExcerpt: string;
+  changesMarkdownExcerptLimited: string;
+  changesMarkdownExcerptPosition: (oldLine: number, newLine: number) => string;
+  changesMarkdownUnified: string;
+  changesMarkdownDeleted: string;
+  changesMarkdownUnchanged: string;
+  changesMarkdownComplex: string;
+  changesMarkdownCounts: (removed: number, added: number) => string;
+  changesMarkdownLoading: string;
+  changesMarkdownError: string;
+  changesMarkdownEmpty: string;
+  changesMarkdownTooLarge: (limitKiB: number) => string;
+  changesMarkdownNotice: string;
+  changesMarkdownImage: (alt: string) => string;
   changesSummaryClean: string;
   changesEmptySavedTitle: string;
   changesEmptyAheadDescription: (count: number) => string;
@@ -290,6 +306,22 @@ const en: ChangesTranslations = {
   changesViewUnified: "Unified",
   changesViewSplit: "Split",
   changesViewAccessible: "Accessible text",
+  changesMarkdownPreview: "Markdown preview",
+  changesMarkdownFallback: "Showing text changes instead. You can try Markdown preview again from View.",
+  changesMarkdownExcerpt: "Partial Markdown preview · Only changed fragments and their nearby context are shown, using the available text diff. Formatting and references may be incomplete because the rest of the document is omitted.",
+  changesMarkdownExcerptLimited: "Some changes are omitted to keep this preview bounded. More detail is available in the text diff or your editor.",
+  changesMarkdownExcerptPosition: (oldLine, newLine) => `… Previous line ${oldLine} · Current line ${newLine}`,
+  changesMarkdownUnified: "Markdown changes in one document",
+  changesMarkdownDeleted: "This file has been deleted. Its previous content is shown below.",
+  changesMarkdownUnchanged: "No visible changes between these versions.",
+  changesMarkdownComplex: "This document exceeds the formatted comparison limits.",
+  changesMarkdownCounts: (removed, added) => `− ${removed} removed ${removed === 1 ? "line" : "lines"} · + ${added} added ${added === 1 ? "line" : "lines"}. Entire affected blocks are highlighted.`,
+  changesMarkdownLoading: "Loading document…",
+  changesMarkdownError: "This document could not be read. It may have moved, been deleted, or use an unsupported text encoding.",
+  changesMarkdownEmpty: "This document is empty.",
+  changesMarkdownTooLarge: (limit) => `One version of this document exceeds the ${limit} KiB preview limit.`,
+  changesMarkdownNotice: "Read only · Compared with the last saved version. HTML is hidden; links and images are inactive.",
+  changesMarkdownImage: (alt) => alt ? `Image: ${alt}` : "Image (not loaded)",
   changesViewAccessibleAriaLabel: "All changes as accessible text",
   changesViewAriaLabel: "Diff view",
   changesHunkPosition: (position, total) => `Change ${position} of ${total}`,
@@ -479,6 +511,22 @@ const es: ChangesTranslations = {
   changesViewUnified: "Unificada",
   changesViewSplit: "Dividida",
   changesViewAccessible: "Texto accesible",
+  changesMarkdownPreview: "Vista previa Markdown",
+  changesMarkdownFallback: "Se muestran los cambios de texto. Puedes reintentar la vista previa Markdown desde Vista.",
+  changesMarkdownExcerpt: "Vista Markdown parcial · Solo se muestran fragmentos modificados y su contexto cercano, usando el diff de texto disponible. El formato y las referencias pueden estar incompletos porque se omite el resto del documento.",
+  changesMarkdownExcerptLimited: "Se omiten algunos cambios para limitar el tamaño de la vista previa. Consulta más detalle en el diff de texto o en tu editor.",
+  changesMarkdownExcerptPosition: (oldLine, newLine) => `… Línea anterior ${oldLine} · Línea actual ${newLine}`,
+  changesMarkdownUnified: "Cambios Markdown en un solo documento",
+  changesMarkdownDeleted: "Este archivo se ha eliminado. Su contenido anterior se muestra debajo.",
+  changesMarkdownUnchanged: "No hay cambios visibles entre estas versiones.",
+  changesMarkdownComplex: "Este documento supera los límites de la comparación con formato.",
+  changesMarkdownCounts: (removed, added) => `− ${removed} ${removed === 1 ? "línea eliminada" : "líneas eliminadas"} · + ${added} ${added === 1 ? "línea añadida" : "líneas añadidas"}. Se resaltan los bloques afectados completos.`,
+  changesMarkdownLoading: "Cargando documento…",
+  changesMarkdownError: "No se pudo leer el documento. Puede que se haya movido, eliminado o que use una codificación de texto no compatible.",
+  changesMarkdownEmpty: "Este documento está vacío.",
+  changesMarkdownTooLarge: (limit) => `Una versión de este documento supera el límite de ${limit} KiB de la vista previa.`,
+  changesMarkdownNotice: "Solo lectura · Comparado con la última versión guardada. El HTML se oculta; los enlaces y las imágenes están inactivos.",
+  changesMarkdownImage: (alt) => alt ? `Imagen: ${alt}` : "Imagen (sin cargar)",
   changesViewAccessibleAriaLabel: "Todos los cambios como texto accesible",
   changesViewAriaLabel: "Vista de los cambios",
   changesHunkPosition: (position, total) => `Cambio ${position} de ${total}`,

@@ -819,6 +819,52 @@
 }
 .changes-diff__status svg { width: 22px; height: 22px; }
 .changes-diff__status--error { color: var(--status-danger); }
+
+/* Document typography lives on the same solid surface as the diff. Reset
+   base styles locally so lists, headings and tables keep Markdown's shape. */
+.markdown-preview { width: 100%; min-width: 0; color: var(--text-primary-color); }
+.markdown-preview__summary { padding: var(--space-3) var(--space-4); color: var(--text-secondary-color); font-size: var(--text-label); }
+.markdown-preview__document .markdown-preview__removed { background: color-mix(in srgb, var(--diff-removed) 13%, transparent); border-inline-start: 3px solid var(--diff-removed); }
+.markdown-preview__document .markdown-preview__added { background: color-mix(in srgb, var(--diff-added) 13%, transparent); border-inline-start: 3px solid var(--diff-added); }
+.markdown-preview__document .markdown-preview__removed + .markdown-preview__added { margin-top: var(--space-2); }
+.markdown-preview__document :is(.markdown-preview__added, .markdown-preview__removed):not(tr)::before { display: inline; margin-inline-end: .4em; font-family: var(--font-mono); }
+.markdown-preview__document .markdown-preview__added:not(tr)::before,
+.markdown-preview__document tr.markdown-preview__added > :first-child::before { content: "+ "; color: var(--diff-added); }
+.markdown-preview__document .markdown-preview__removed:not(tr)::before,
+.markdown-preview__document tr.markdown-preview__removed > :first-child::before { content: "− "; color: var(--diff-removed); }
+.markdown-preview__notice {
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary-color); font-size: var(--text-label);
+}
+.markdown-preview__document {
+  max-width: 860px; margin: 0 auto; padding: clamp(16px, 4vw, 40px);
+  font-size: var(--text-lead); line-height: var(--leading-code); overflow-wrap: anywhere;
+}
+.markdown-preview__document > :first-child { margin-top: 0; }
+.markdown-preview__excerpt + .markdown-preview__excerpt { border-top: 1px dashed var(--border-subtle); margin-top: var(--space-4); padding-top: var(--space-4); }
+.markdown-preview__document [data-current-markdown-change] { outline: 2px solid var(--text-secondary-color); outline-offset: 3px; }
+.markdown-preview__document :where(h1, h2, h3, h4, h5, h6) { margin: 1.5em 0 .6em; font-weight: var(--weight-heading); line-height: var(--leading-snug); }
+.markdown-preview__document h1 { font-size: var(--text-hero); }
+.markdown-preview__document h2 { font-size: var(--text-display); }
+.markdown-preview__document h3 { font-size: var(--text-title); }
+.markdown-preview__document :where(h4, h5, h6) { font-size: var(--text-lead); }
+.markdown-preview__document :where(p, ul, ol, blockquote, pre, table) { margin: 0 0 1em; }
+.markdown-preview__document :where(ul, ol) { padding-left: 1.8em; }
+.markdown-preview__document ul { list-style: disc; }
+.markdown-preview__document ol { list-style: decimal; }
+.markdown-preview__document li > :where(ul, ol) { margin-bottom: 0; }
+.markdown-preview__document blockquote { padding: 0 1em; border-left: 3px solid var(--border-subtle); color: var(--text-secondary-color); }
+.markdown-preview__document code { font-family: var(--font-mono); font-size: var(--text-body); background: var(--surface-hover); padding: .15em .3em; border-radius: var(--radius-item); }
+.markdown-preview__document pre { padding: 16px; background: var(--surface-hover); overflow-x: auto; border-radius: var(--radius-item); }
+.markdown-preview__document pre code { padding: 0; background: transparent; overflow-wrap: normal; }
+.markdown-preview__document table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.markdown-preview__document :where(th, td) { padding: 6px 12px; border: 1px solid var(--border-subtle); text-align: start; }
+.markdown-preview__document th { font-weight: var(--weight-heading); background: var(--surface-hover); }
+.markdown-preview__document hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 24px 0; }
+.markdown-preview__link { text-decoration: underline; text-underline-offset: 3px; }
+.markdown-preview__image { color: var(--text-secondary-color); font-style: italic; }
+.markdown-preview__document .contains-task-list { list-style: none; }
+.markdown-preview__document input[type="checkbox"] { margin-inline-end: .5em; }
 .changes-diff__truncated {
   margin: var(--space-3) var(--space-4) 0; padding: 8px 10px; border-radius: var(--radius-item);
   background: var(--surface-hover); color: var(--text-secondary-color); font-size: var(--text-label);

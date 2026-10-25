@@ -51,6 +51,29 @@ audience, positioning, and detailed competitive context.
 
 ## Design goal
 
+Changes offers **Markdown preview** in its View picker for `.md` and `.markdown`
+text files that are not conflicted, selecting it by default. Remember explicit
+Markdown choices across sessions independently of code-file view choices.
+If a read fails or the document exceeds size/comparison limits, show the text
+diff with an explanation; keep the preference and offer retry through View.
+It compares complete saved/current documents,
+highlighting affected blocks in red/green with minus/plus markers in one unified
+document. Unchanged context appears once; a replacement shows the removed block
+before the added block at the same position. Compatible lists, tables and quotes
+merge their items/rows so shared context stays in place. New files show additions;
+deleted files retain their saved content and disclose deletion. A summary counts source-line
+changes and explains the block-level granularity. Document typography stays on
+the solid diff surface, with a compact read-only notice. The change arrows step
+between groups of affected blocks; diff search remains hidden while previewing.
+Oversized documents can show isolated changed fragments from the cached text
+diff, clearly labelled partial, with source-line positions and a warning that
+omitted context can affect formatting and references. Separate fragments never
+join into one Markdown construct. Further limits disclose omitted changes;
+unavailable excerpts retain the text fallback. Switching back restores the chosen diff mode. Conflicted files
+retain their diff. HTML is hidden, images are text placeholders,
+and links are inert so repository content cannot navigate the desktop WebView
+or load resources. History and word-level rendered changes are deferred.
+
 GitOdile should make a complex technical system feel calm, understandable, and safe. The interface must be modern and distinctive without sacrificing readability or looking like a decorative concept app.
 
 The intended feeling is:

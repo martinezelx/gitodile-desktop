@@ -35,7 +35,10 @@ import { DiffViewSelector } from "./DiffViewSelector";
 import { DiffStepNav } from "./DiffStepNav";
 import { DiffFind } from "./DiffFind";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
-import type { DiscardRecovery, FileDiff } from "./domain";
+import { canPreviewMarkdown, type DiscardRecovery, type FileDiff } from "./domain";
+import { MarkdownPreviewView, useMarkdownPreview } from "./markdownPreview";
+import { useMarkdownView } from "./markdownPreference";
+import { buildMarkdownExcerpt, buildUnifiedMarkdown } from "./markdownChanges";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
@@ -650,7 +653,28 @@ function DiffWorkspace({
   // deliberately survives moving between files, and the change target is
   // reset per file by the effect below.
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
+  const [markdownView, setMarkdownView] = useMarkdownView();
+  const currentDiff = diffState.status === "ready" && diffState.diff.path === selectedPath ? diffState.diff : null;
+  const markdownAvailable = canPreviewMarkdown(currentDiff);
+  const requestsMarkdown = markdownView === "markdown" && markdownAvailable;
+  const markdown = useMarkdownPreview(currentDiff, `${projectPath}\0${sessionEpoch}`, requestsMarkdown,
+    (filePath) => controller.readFileMarkdown(projectPath, sessionEpoch, filePath));
+  const comparison = useMemo(() => requestsMarkdown && markdown.state.status === "ready" && markdown.state.preview.kind === "ready"
+    ? buildUnifiedMarkdown(markdown.state.preview.beforeContent, markdown.state.preview.content) : undefined,
+  [requestsMarkdown, markdown.state]);
+  const excerpt = useMemo(() => requestsMarkdown && markdown.state.status === "ready" && markdown.state.preview.kind === "too-large" && currentDiff?.kind === "text"
+    ? buildMarkdownExcerpt(currentDiff.hunks, currentDiff.truncated) : undefined,
+  [requestsMarkdown, markdown.state, currentDiff]);
+  const markdownFailure = !requestsMarkdown ? null : markdown.state.status === "error" ? t.changesMarkdownError
+    : markdown.state.status === "ready" && markdown.state.preview.kind === "too-large" && !excerpt
+      ? t.changesMarkdownTooLarge(markdown.state.preview.limitBytes / 1024)
+      : comparison === null ? t.changesMarkdownComplex : null;
+  const showsMarkdown = requestsMarkdown && markdownFailure === null;
+  const effectiveViewMode = markdownAvailable && markdownView !== "markdown" ? markdownView : viewMode;
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
+  const [markdownTarget, setMarkdownTarget] = useState({ index: -1, token: 0 });
+  const markdownCount = comparison?.changeCount ?? excerpt?.changeCount ?? 0;
+  const markdownIndex = Math.min(markdownTarget.index, Math.max(0, markdownCount - 1));
   const [diffSearch, setDiffSearch] = useState("");
   const [isFindOpen, setIsFindOpen] = useState(false);
   const hunkCount = getHunkCount(diffState);
@@ -671,6 +695,7 @@ function DiffWorkspace({
   useEffect(() => {
     setHunkTarget({ index: 0, token: 0 });
   }, [selectedPath]);
+  useEffect(() => { setMarkdownTarget({ index: -1, token: 0 }); }, [currentDiff, comparison, excerpt]);
 
   /* The strip names the file, so the name keeps its room and the folder gives
    * way first — but not to the point of showing a two-letter stub of the last
@@ -796,7 +821,7 @@ function DiffWorkspace({
               t={t}
             />
           )}
-          {hunkCount > 0 && viewMode !== "accessible" && (
+          {hunkCount > 0 && effectiveViewMode !== "accessible" && !showsMarkdown && (
             <DiffStepNav
               kind="hunk"
               position={hunkTarget.index + 1}
@@ -806,17 +831,23 @@ function DiffWorkspace({
               t={t}
             />
           )}
+          {showsMarkdown && markdownCount > 0 && <DiffStepNav
+            kind="hunk" position={markdownIndex + 1} total={markdownCount} allowUnselectedNext
+            onPrevious={() => setMarkdownTarget((target) => ({ index: markdownIndex - 1, token: target.token + 1 }))}
+            onNext={() => setMarkdownTarget((target) => ({ index: markdownIndex + 1, token: target.token + 1 }))}
+            t={t}
+          />}
           {/* The same find History's diff strip carries, between the arrows and
               the reading controls: a magnifier at rest, a pill whose X closes
               it once opened. */}
-          <DiffFind
+          {!showsMarkdown && <DiffFind
             isOpen={isFindOpen}
             query={diffSearch}
             onQueryChange={setDiffSearch}
             onOpen={() => setIsFindOpen(true)}
             onClose={() => { setIsFindOpen(false); setDiffSearch(""); }}
             t={t}
-          />
+          />}
           {/* Last, at the far edge: the arrows move within this file, and the
               picker changes the file's whole shape. A picture answers the same
               question with its own pickers, in the same place and the same
@@ -826,7 +857,12 @@ function DiffWorkspace({
           {hasViewControls && (
             <div className="changes-diff__view">
               {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
-              {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+              {showsReadingMode && <DiffViewSelector value={effectiveViewMode} onChange={(mode) => {
+                if (markdownAvailable) setMarkdownView(mode); else setViewMode(mode);
+              }} markdown={markdownAvailable ? { selected: showsMarkdown, onSelect: () => {
+                setMarkdownView("markdown");
+                if (markdownFailure) markdown.retry();
+              } } : undefined} t={t} />}
             </div>
           )}
         </div>
@@ -847,7 +883,8 @@ function DiffWorkspace({
         )}
         {diffState.status === "ready" && (
           <div className="changes-diff-context-scope" onContextMenu={onCodeContextMenu}>
-            <DiffResultView
+            {markdownFailure && <p className="changes-diff__status" role="status">{markdownFailure} {t.changesMarkdownFallback}</p>}
+            {showsMarkdown ? <MarkdownPreviewView state={markdown.state} retry={markdown.retry} t={t} comparison={comparison} excerpt={excerpt} changeTarget={markdownTarget} /> : <DiffResultView
               diff={diffState.diff}
               projectPath={projectPath}
               sessionEpoch={sessionEpoch}
@@ -855,11 +892,11 @@ function DiffWorkspace({
                 controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
               }
               picture={picture}
-              viewMode={viewMode}
+              viewMode={effectiveViewMode}
               hunkTarget={hunkTarget}
               searchQuery={diffSearch}
               t={t}
-            />
+            />}
           </div>
         )}
       </div>

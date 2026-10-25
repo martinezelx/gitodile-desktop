@@ -33,6 +33,7 @@
     { "name": "read_file_diff", "arguments": ["path", "filePath", "sessionEpoch"], "response": "FileDiff" },
     { "name": "read_file_image_preview", "arguments": ["path", "filePath", "originalPath?", "commit?", "sessionEpoch"], "response": "ImagePreview" },
     { "name": "read_file_lines", "arguments": ["path", "filePath", "startLine", "endLine", "sessionEpoch"], "response": "FileLines" },
+    { "name": "read_file_markdown", "arguments": ["path", "filePath", "sessionEpoch"], "response": "MarkdownPreview" },
     { "name": "read_working_tree_diffs", "arguments": ["path", "sessionEpoch"], "response": "WorkingTreeDiffBatch" },
     { "name": "plan_discard_changes", "arguments": ["path", "selectedPath?", "sessionEpoch"], "response": "DiscardPlan" },
     { "name": "discard_changes", "arguments": ["path", "selectedPath?", "stateToken", "sessionEpoch"], "response": "DiscardResult" },
