@@ -200,6 +200,36 @@ describe("usePortalFlyout focus", () => {
   });
 });
 
+describe("usePortalFlyout outside presses", () => {
+  it("dismisses on the titlebar before Tauri consumes the bubbling mousedown", () => {
+    // Tauri installs its document listener before React mounts, and calls
+    // stopImmediatePropagation when the press starts a native window drag.
+    const nativeDrag = vi.fn((event: MouseEvent) => {
+      if (event.target instanceof HTMLElement && event.target.hasAttribute("data-tauri-drag-region")) {
+        event.stopImmediatePropagation();
+      }
+    });
+    document.addEventListener("mousedown", nativeDrag);
+    try {
+      render(<>
+        <div data-tauri-drag-region data-testid="titlebar-drag" />
+        <Flyout focusTarget="container"><button type="button">Read notice</button></Flyout>
+      </>);
+      open();
+      fireEvent.mouseDown(screen.getByRole("button", { name: "Read notice" }));
+      expect(screen.getByTestId("popup")).toBeInTheDocument();
+      nativeDrag.mockClear();
+
+      fireEvent.mouseDown(screen.getByTestId("titlebar-drag"), { button: 0, detail: 1 });
+
+      expect(nativeDrag).toHaveBeenCalledOnce();
+      expect(screen.queryByTestId("popup")).toBeNull();
+    } finally {
+      document.removeEventListener("mousedown", nativeDrag);
+    }
+  });
+});
+
 describe("usePortalFlyout viewport changes", () => {
   it("dismisses on a scroll outside the popup by default", () => {
     render(

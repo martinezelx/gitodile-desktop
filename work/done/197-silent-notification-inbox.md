@@ -292,3 +292,27 @@ Implementation completion, 2026-10-24:
   production build, Rust formatting and Clippy, 623 Rust unit tests and the
   credential-helper integration test all passed. One existing Rust test remains
   ignored. Vite reports the existing entry-chunk warning (525.78 kB).
+
+## Outside-click follow-up, 2026-10-25
+
+- Reproduced the user's report in the Windows Tauri app: a press on the empty
+  titlebar immediately left of the bell left the inbox open. The panel's bounds
+  were correct; Tauri's injected drag listener consumed the bubbling mousedown
+  with `stopImmediatePropagation` before the flyout's listener could observe it.
+- The shared portal flyout observes outside mousedown in capture phase and
+  removes that same listener on cleanup. It neither cancels nor stops the event,
+  so native dragging still receives the press. Panel size, layout, read state,
+  sound policy and notification persistence are unchanged.
+- Added a regression reproducing Tauri's earlier document listener. It failed
+  against the previous code while the other nine flyout tests passed; it also
+  checks that an inside press stays open and the native handler still receives
+  the outside press.
+- After the fix, the 87 focused notification/flyout tests passed. In the real
+  Windows app, reopened the populated inbox and pressed the same titlebar
+  position left of the bell: it closed immediately, retaining the sample
+  notices and the existing panel layout.
+- Final `pnpm run check` exited 0: docs/contracts/release/icons, architecture,
+  TypeScript, all 149 frontend files / 1,643 tests, production build, Rust fmt
+  and Clippy, 623 Rust unit tests and the credential-helper integration passed.
+  One existing Rust test remains ignored; Vite retains the existing 500 kB
+  entry-chunk warning. Reopened the app with the saved sample inbox available.

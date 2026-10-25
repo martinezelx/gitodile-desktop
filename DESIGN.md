@@ -140,7 +140,8 @@ The main desktop window should broadly support:
      The review action sits at the left of that row. Opening, hovering,
      scrolling and closing never acknowledge a notice. A review acknowledges
      only its own notice after the destination opens; unavailable projects
-     leave it unread and explain why. Row marks always reflect live state,
+     leave it unread and explain why. Pressing outside closes the panel,
+     including in the titlebar's native window-drag region. Row marks always reflect live state,
      including arrivals while open, and removing a row keeps keyboard focus
      inside the panel. An automatic check repeating the same news keeps its
      card's identity, position and arrival time, preserving keyboard focus;

@@ -274,14 +274,17 @@ export function usePortalFlyout(
         setMeasureToken((token) => token + 1);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
+    // Tauri's document-level drag handler stops the bubbling mousedown on
+    // titlebar drag regions. Observe it first so a press beside the bell can
+    // dismiss a flyout while still reaching the native window-drag handler.
+    document.addEventListener("mousedown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
     if (dismissOnViewportChange) {
       window.addEventListener("scroll", handleDocumentScroll, true);
     }
     window.addEventListener("resize", handleResize);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("mousedown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
       if (dismissOnViewportChange) {
         window.removeEventListener("scroll", handleDocumentScroll, true);
