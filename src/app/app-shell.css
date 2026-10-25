@@ -903,10 +903,11 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
 .sidebar-round:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--surface-active); color: var(--text-primary-color); }
 .sidebar-round:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(0.97); }
 /* Each utility says what it does when pointed at, once, and rests there:
-   the gear turns 60°, the sun 45°, the moon tips back, the person lifts.
-   A transform on the glyph alone, over the rail's 180ms; it returns when the
-   pointer leaves. Disabled controls stay still — the
-   account's motion waits for sign-in to exist — and the system's reduced
+   the gear turns 60°, the sun 45°, the moon tips back 18°. The account control
+   uses only the shared background and ink change; its person/avatar stays still.
+   These turns affect the glyph alone, over the rail's 180ms, and return when
+   the pointer leaves. Disabled controls stay still — the
+   account's production control remains disabled — and the system's reduced
    motion, or the app's own setting, leaves every glyph where it is. */
 @media (prefers-reduced-motion: no-preference) {
   /* Ease-in-out rather than the rail icons' sharp ease-out: the same 180ms,
@@ -918,7 +919,6 @@ button.status-bar__seg:hover { background: var(--surface-hover); }
   :root:not([data-reduced-motion="true"]) .sidebar-round--settings:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: rotate(60deg); }
   :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="sun"]:hover svg { transform: rotate(45deg); }
   :root:not([data-reduced-motion="true"]) .sidebar-round--theme[data-glyph="moon"]:hover svg { transform: rotate(-18deg); }
-  :root:not([data-reduced-motion="true"]) .sidebar-round--account:hover:not(:disabled):not([aria-disabled="true"]) svg { transform: translateY(-2px); }
 }
 .sidebar-round--active { background: var(--surface-active); color: var(--accent-primary); }
 .sidebar-round:disabled,

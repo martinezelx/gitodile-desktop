@@ -7,6 +7,7 @@ import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
 import { AccountsSettings } from "../features/hosting-servers";
+import { AccountOverlays, type AccountController } from "../features/account";
 import { ConsoleConfirmChangesSetting, type ConsoleConfirmChangesState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -101,6 +102,7 @@ function aboutUpdateStatus(
 }
 
 export type AppOverlaysProps = {
+  accountController?: AccountController | null;
   issueReport: IssueReportState;
   settings: {
     isOpen: boolean;
@@ -201,6 +203,7 @@ export type AppOverlaysProps = {
 };
 
 export function AppOverlays({
+  accountController,
   issueReport,
   settings,
   projectSettings,
@@ -385,6 +388,7 @@ export function AppOverlays({
 
   return (
     <>
+      {import.meta.env.DEV && accountController && <AccountOverlays controller={accountController} />}
       <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
         <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => requestSettingsClose(false))}>

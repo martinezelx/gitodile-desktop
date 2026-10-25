@@ -25,6 +25,7 @@
 @import "./features/github/github.css";
 @import "./features/repository-browser/repository-browser.css";
 @import "./features/accounts/accounts.css";
+@import "./features/account/account.css";
 @import "./features/project-settings/project-settings.css";
 @import "./features/notifications/notifications.css";
 @import "./features/app-updates/app-updates.css";

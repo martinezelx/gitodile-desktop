@@ -51,6 +51,11 @@ Deliberate notification reading and persistent silent history are complete in
 [197](done/197-silent-notification-inbox.md), including the compact bulk-read
 glyph and aligned row controls. Sound remains deferred by explicit user request.
 
+The development-only GitOdile account sign-in mock is complete in
+[140](done/140-account-sign-in-screens-and-mock.md). It preserves the supplied
+HTML reference and implementation analysis under `assets/140-account-sign-in/`;
+real authentication and browser pages remain separate future work.
+
 The combined screen-entry motion, folder-view defaults and initial-selection
 refinement is [195](done/195-calm-screen-entry-motion.md).
 

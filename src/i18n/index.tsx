@@ -5,6 +5,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import { appTranslations } from "../app/translations";
 import { accountsTranslations } from "../features/accounts/translations";
+import { accountTranslations } from "../features/account/translations";
 import { bitbucketTranslations } from "../features/bitbucket/translations";
 import { changesTranslations } from "../features/changes/translations";
 import { cloneTranslations } from "../features/clone/translations";
@@ -58,6 +59,7 @@ export const LANGUAGE_NAMES: Record<Language, string> = {
 };
 
 export const translationNamespaces = {
+  account: accountTranslations,
   app: appTranslations,
   shared: sharedTranslations,
   clone: cloneTranslations,
@@ -88,6 +90,7 @@ export const translationNamespaces = {
 } as const;
 
 const en = {
+  ...accountTranslations.en,
   ...appTranslations.en,
   ...sharedTranslations.en,
   ...cloneTranslations.en,
@@ -120,6 +123,7 @@ const en = {
 export type Translations = typeof en;
 
 const es: Translations = {
+  ...accountTranslations.es,
   ...appTranslations.es,
   ...sharedTranslations.es,
   ...cloneTranslations.es,

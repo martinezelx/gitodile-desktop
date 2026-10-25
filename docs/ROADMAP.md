@@ -104,7 +104,12 @@ references and therefore do not change when priorities move.
 | Q20 | 127 | Settle canonical colour themes |
 | Q21 | 130 | Add project identity icons |
 | Q22 | 131 | Replace the app icon with the mascot |
-| Q23 | 140 | Build the account sign-in screens against a functional mock |
+
+The optional account sign-in prototype is complete in
+[task 140](../work/done/140-account-sign-in-screens-and-mock.md). It is a
+development-only visual mock; real account authentication remains proposed in
+[ADR 0016](adr/0016-sign-in-through-the-system-browser.md) and is not a gate for
+the account-free local core.
 
 ### Public distribution — delivered
 

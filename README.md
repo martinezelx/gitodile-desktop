@@ -511,6 +511,13 @@ Run only the Vite frontend at `http://localhost:1420`:
 pnpm run dev
 ```
 
+Development builds include a local account demo, opened from the person/sign-in
+control in the rail or from More actions. Choose a demo result before signing
+in to exercise success (Free or Pro), waiting, cancellation and failures. It
+opens no browser, sends no account data and retains its fictitious session only
+in memory. Hosting connections and actual feature access are unaffected.
+Published builds keep the disabled coming-soon account control.
+
 About, What's new and the update flow share the version injected from
 `package.json`. Vite watches that manifest as a configuration dependency and
 reloads the frontend after a version change. A Git branch name alone does not

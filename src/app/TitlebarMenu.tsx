@@ -19,6 +19,7 @@ export function TitlebarMenu({
   canReloadWindow,
   onReportIssue,
   isReportingIssue,
+  renderAccountControl,
 }: {
   onOpenHome: () => void;
   onOpenAbout: () => void;
@@ -35,6 +36,7 @@ export function TitlebarMenu({
   canReloadWindow: boolean;
   onReportIssue: () => void;
   isReportingIssue: boolean;
+  renderAccountControl?: (onOpen: () => void, trigger: React.RefObject<HTMLButtonElement | null>) => React.ReactNode;
 }): React.JSX.Element {
   const { t } = useLanguage();
   // Spelled the way the shortcut sheet spells it: ⌘, on a Mac, Ctrl+, elsewhere.
@@ -175,6 +177,7 @@ export function TitlebarMenu({
             <Keyboard aria-hidden="true" />
             <span>{t.titlebarKeyboardShortcuts}</span>
           </button>
+          {renderAccountControl?.(() => closeMenu(true), triggerRef)}
           <div className="app-menu__divider" role="separator" />
           <button className="titlebar-menu__item" type="button" role="menuitem" tabIndex={-1} onClick={() => runMenuAction(onOpenChangelog)}>
             <Sparkles aria-hidden="true" />

@@ -30,6 +30,7 @@ const EXPECTED_IMPORTS = [
   "./features/github/github.css",
   "./features/repository-browser/repository-browser.css",
   "./features/accounts/accounts.css",
+  "./features/account/account.css",
   "./features/project-settings/project-settings.css",
   "./features/notifications/notifications.css",
   "./features/app-updates/app-updates.css",

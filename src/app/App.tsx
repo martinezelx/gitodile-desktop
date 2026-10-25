@@ -46,6 +46,7 @@ import {
   type CloneResult,
 } from "../features/clone";
 import { accountsPort, useAccounts } from "../features/accounts";
+import { AccountControl, createMockAccountController, useAccountModal } from "../features/account";
 import { createRepositoryBrowserController, repositoryBrowserPort } from "../features/repository-browser";
 import { readHomeAccounts, type HomeSetup } from "../features/home";
 import {
@@ -257,6 +258,8 @@ function ViewLoadingFallback(): React.JSX.Element {
 
 export function App(): React.JSX.Element {
   const { t } = useLanguage();
+  const [accountController] = useState(() => import.meta.env.DEV ? createMockAccountController() : null);
+  const isAccountModalOpen = useAccountModal(accountController);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isAppUpdateOpen, setIsAppUpdateOpen] = useState(false);
@@ -672,6 +675,7 @@ export function App(): React.JSX.Element {
   // flight (see the "Decisions" section of task 012): switching and closing
   // the active project are both disabled while either dialog is open.
   const hasBlockingDialog =
+    isAccountModalOpen ||
     isSettingsOpen ||
     // Scoped to one project: switching underneath it would leave the panel
     // reading and writing a repository the app is no longer showing.
@@ -1963,6 +1967,7 @@ export function App(): React.JSX.Element {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         if (hasOpenDialog) return;
+        accountController?.closePopover(true);
         openPalette();
         // The field is the search itself: the shortcut puts the cursor in the
         // one the active screen shows — the strip's, or the Console's own.
@@ -1977,6 +1982,7 @@ export function App(): React.JSX.Element {
           return;
         }
         event.preventDefault();
+        accountController?.closePopover(true);
         setIsSidebarHidden((hidden) => !hidden);
         return;
       }
@@ -1987,6 +1993,7 @@ export function App(): React.JSX.Element {
           return;
         }
         event.preventDefault();
+        accountController?.closePopover(true);
         openSettings();
         return;
       }
@@ -2010,7 +2017,7 @@ export function App(): React.JSX.Element {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [sessionsState, hasBlockingDialog, hasOpenDialog, view]);
+  }, [accountController, sessionsState, hasBlockingDialog, hasOpenDialog, view]);
 
   const commandDrafts: AppCommandDraft[] = [
     // "Go to X" comes from the screen registry, in nav order, so a new screen
@@ -2434,6 +2441,8 @@ export function App(): React.JSX.Element {
             and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
           <TitlebarMenu
+            renderAccountControl={import.meta.env.DEV && accountController ? (onOpen, fallbackRef) =>
+              <AccountControl controller={accountController} compact menuClassName="titlebar-menu__item" onOpen={onOpen} fallbackRef={fallbackRef} /> : undefined}
             onOpenHome={() => navigateToView("home")}
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
@@ -2541,7 +2550,8 @@ export function App(): React.JSX.Element {
                   );
                 },
               )}
-              <button
+              {import.meta.env.DEV && accountController ? <AccountControl controller={accountController} compact
+                onOpen={closeJumpMenu} fallbackRef={sidebarToggleRef} /> : <button
                 className="app-menu__item"
                 type="button"
                 role="menuitem"
@@ -2550,7 +2560,7 @@ export function App(): React.JSX.Element {
               >
                 <UserRound aria-hidden="true" />
                 <span>{t.navAccountTitle}</span>
-              </button>
+              </button>}
             </div>,
             document.body,
           )}
@@ -2714,11 +2724,9 @@ export function App(): React.JSX.Element {
                   </button>
                 );
               })}
-              {/* Signing in is not built yet, but its place in the rail is: it
-                  sits with Settings the way an account always does, disabled
-                  and saying so, rather than appearing later and pushing the
-                  rail's furniture around. */}
-              <button
+              {/* Account UI is a development-only simulation. Published builds
+                  retain the reserved coming-soon control. */}
+              {import.meta.env.DEV && accountController ? <AccountControl controller={accountController} /> : <button
                 className="sidebar-round sidebar-round--account"
                 type="button"
                 aria-disabled="true"
@@ -2726,7 +2734,7 @@ export function App(): React.JSX.Element {
                 data-tooltip={t.navAccountTitle}
               >
                 <UserRound aria-hidden="true" />
-              </button>
+              </button>}
             </nav>
         </aside>
 
@@ -3430,6 +3438,7 @@ export function App(): React.JSX.Element {
       )}
 
       <AppOverlays
+        accountController={accountController}
         issueReport={issueReport}
         projectSettings={{
           isOpen: isProjectSettingsOpen,

@@ -254,6 +254,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 /** The theme toggle lives in the rail's foot (task 189); the title bar's copy
@@ -1081,7 +1082,31 @@ describe("App project restoration", () => {
     expect(screen.getByLabelText("Folder")).toHaveValue("C:\\ordinary folder");
   });
 
+  it("hands off the account popover before shell shortcuts and restores a live focus target", async () => {
+    localStorage.setItem("gitodile-language", "en");
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    const account = screen.getByRole("button", { name: "Sign in · Account demo" });
+    await user.click(account);
+    expect(screen.getByRole("dialog", { name: "Your GitOdile account" })).toBeInTheDocument();
+    await user.keyboard("{Control>},{/Control}");
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Your GitOdile account" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(account).toHaveFocus());
+    await user.click(account);
+    await user.keyboard("{Control>}k{/Control}");
+    expect(screen.getByRole("listbox", { name: "Command palette" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Your GitOdile account" })).not.toBeInTheDocument();
+  });
+
   it("opens Settings as a sectioned dialog without replacing the active screen", async () => {
+    vi.stubEnv("DEV", false);
     mockedInvoke.mockImplementation((command) => {
       if (command === "git_diagnostics") {
         return Promise.resolve({ state: "available", version: "2.50.0" });

@@ -260,11 +260,15 @@ The main desktop window should broadly support:
      rounded fills, and the capsule read as a minus button. The circles wear
      `--surface-hover` at rest, so hovering one steps up to `--surface-active`,
      and its glyph says what it does once and rests there: the gear turns 60°,
-     the sun 45°, the moon tips back 18°, the person lifts 2px, over 180ms
+     the sun 45°, the moon tips back 18°, over 180ms
      on an ease-in-out (`cubic-bezier(0.45, 0, 0.25, 1)`): the rail icons'
-     sharp ease-out spent the turn in the first 40ms and read as a jump. A disabled control stays still (the account's motion
-     waits for sign-in), and reduced motion — the system's or the app's —
+     sharp ease-out spent the turn in the first 40ms and read as a jump. A disabled control stays still (including the account
+     placeholder in published builds), and reduced motion — the system's or the app's —
      leaves every glyph where it is. Nothing loops;
+   - the account control uses a plain person glyph before sign-in and the
+     person's avatar afterwards. The button's circular surface supplies its
+     frame. Hover changes background and ink only; the person/avatar does not
+     rotate or slide;
    - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
      control), giving the window over to content. Collapsed means `display:
      none`, never a zero width or a transparent column: a rail still in the tab
@@ -2797,6 +2801,12 @@ it at step 2 rather than inventing its own:
    `--avatar-ring`), and from then on opens a popover with name, email, a
    `PRO` capsule when entitled, and menu rows: plan and billing, what the
    account stores, sign out.
+
+The account control's avatar stays centred in the utility button's circular hit
+area. A small static success-coloured dot at its lower trailing edge means a
+session is active, with the same state available as an accessible description.
+It is absent while signed out and does not claim that a network connection has
+been checked. The dot does not pulse or compete with notification attention.
 
 **Failure never implies lost work.** Every account error is a sentence of what
 happened and what to do, followed by the reassurance that projects and saved
