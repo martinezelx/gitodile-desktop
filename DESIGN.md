@@ -242,8 +242,17 @@ The main desktop window should broadly support:
      the narrow rail scroll. The menu always ends after a separator with
      "Customize navigation bar", which opens the dedicated Settings section.
      There the destinations are the same bordered list as Notifications: each
-     row reads icon, name, then how to move it (arrows that surface on hover
-     or focus, and the grip), then its switch. A destination switched off keeps
+     row reads grip, icon, name, precise move arrows, then its switch. The
+     list caps its width at 400px (and shrinks with its container), keeping
+     controls near the short destination names rather than across the whole
+     preferences column. The appearance choices share that 400px limit and use
+     theme cards: a wide miniature above a short caption, with a selected border
+     and check. The drawing includes a rail and a filled workspace specimen,
+     rather than a small thumbnail beside a large empty text area.
+     Arrows remain quiet at rest and gain emphasis on hover or focus; their
+     space is always reserved. The two display-mode choices show miniature
+     rails at the same width, with a check in the selected option, so removing
+     captions reads as a vertical space saving. A destination switched off keeps
      its row in the secondary ink with an "In More" tag, so the list never
      changes height and its place in the order stays visible;
    - the rail holds no project (task 189). Which project is open, and the
@@ -2693,7 +2702,7 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
-**GitHub integration is a separate connection.** Settings has one **Accounts**
+**GitHub integration is a separate connection.** Settings has one **Integrations**
 section for every provider, in two groups: **Connected accounts**, and **By
 provider**, a folded block per provider (glyph, name, and a one-line summary —
 accounts, company servers, whether its CLI is installed) whose body holds what
@@ -2729,8 +2738,24 @@ every group. **One accent-filled action per page**: Connect account while nothin
 connected and the panel's submit; tooling checks and server additions stay
 secondary. Cancellation restores the initiating control's focus.
 
+Known rejected tokens say **Token rejected**, with provider-specific guidance,
+rather than reusing a Git remote-access error. A known invalid browser
+authorization says **Needs attention** even when its cached receipt also needs
+checking. One main explanation belongs to the row; technical GitLab CLI repair
+guidance is disclosed on demand, with an explicit connection check. No copy
+infers expiry or revocation from a network failure.
+
+Development builds additionally expose **Account**, separate from the
+project connections, with an always-visible Demo label. It shows the mock
+identity and plan, next-attempt scenario, sign-out and Reset demo. Reset clears
+the simulated session and restores the Free outcome. It is memory-only and
+sends nothing. Starting the existing account flow suspends Settings' focus trap
+and makes that workspace inert until the flow closes; the initiating button
+receives focus again. The account dialog adds no second backdrop veil. This
+category and its palette entry are absent from production builds.
+
 Browser account detection contacts GitHub after launch (ADR 0027) or on
-Check accounts; opening the section renders cached state only. List saved accounts with the
+Check connections; opening the section renders cached state only. List saved accounts with the
 active account first. Reuse the installation row: a small circular cached avatar,
 username and status chip on the left, actions aligned to the far right, and the
 host beneath the identity. Use a neutral person glyph if the image fails;

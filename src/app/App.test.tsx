@@ -1105,6 +1105,44 @@ describe("App project restoration", () => {
     expect(screen.queryByRole("dialog", { name: "Your GitOdile account" })).not.toBeInTheDocument();
   });
 
+  it("runs the account demo from Settings with one modal focus owner and a shared session", async () => {
+    localStorage.setItem("gitodile-language", "en");
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.50.0" });
+      if (command === "get_git_identity") return Promise.resolve({ name: "", email: "" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const user = userEvent.setup();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
+    const settings = screen.getByRole("dialog", { name: "Settings" });
+    await user.click(within(settings).getByRole("tab", { name: "Account" }));
+    await user.selectOptions(within(settings).getByLabelText("Demo result"), "waiting");
+    const start = within(settings).getByRole("button", { name: "Try sign-in" });
+    await user.click(start);
+    expect(settings).toHaveAttribute("inert");
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    const waiting = screen.getByRole("dialog", { name: "Waiting for the browser…" });
+    await user.keyboard("{Tab}");
+    expect(waiting).toContainElement(document.activeElement as HTMLElement);
+    await user.keyboard("{Escape}");
+    expect(settings).not.toHaveAttribute("inert");
+    await waitFor(() => expect(start).toHaveFocus());
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBe(settings);
+    await user.selectOptions(within(settings).getByLabelText("Demo result"), "pro");
+    await user.click(start);
+    await waitFor(() => expect(within(settings).getByText("Pro · Demo")).toBeVisible(), { timeout: 5000 });
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Luis Martinez · Account demo" })).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Settings" })[0]);
+    await user.click(screen.getByRole("tab", { name: "Account" }));
+    expect(screen.getByText("Pro · Demo")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Reset demo" }));
+    expect(screen.getByLabelText("Demo result")).toHaveValue("success");
+    expect(screen.getByRole("button", { name: "Sign in · Account demo" })).toBeInTheDocument();
+  }, 15000);
+
   it("opens Settings as a sectioned dialog without replacing the active screen", async () => {
     vi.stubEnv("DEV", false);
     mockedInvoke.mockImplementation((command) => {
@@ -1133,6 +1171,7 @@ describe("App project restoration", () => {
     await user.click(trigger);
 
     const dialog = screen.getByRole("dialog", { name: "Settings" });
+    expect(within(dialog).queryByRole("tab", { name: "Account" })).toBeNull();
     // Synchronous on purpose: the panel is eager, so the dialog and its content
     // land in the same commit. Making the overlay lazy again would fail here
     // before it could reach the user as a fallback frame.

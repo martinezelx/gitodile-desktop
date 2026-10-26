@@ -1,6 +1,10 @@
 import type { AccountScenario } from "./domain";
 
 interface AccountCopy {
+  accountSettingsTitle: string; accountSettingsSession: string; accountSettingsSignedOut: string;
+  accountSettingsSignedOutHint: string; accountSettingsTry: string; accountNextAttempt: string;
+  accountReset: string; accountTrySignIn: string; accountSettingsPreview: string;
+  accountDemoFree: string; accountDemoPro: string;
   accountTitle: string; accountDemo: string; accountDemoHint: string; accountOptional: string;
   accountSignIn: string; accountSignOut: string; accountBrowserHint: string;
   accountBenefits: readonly string[]; accountWaiting: string; accountCodeHint: string;
@@ -16,6 +20,12 @@ interface AccountCopy {
 // shared dictionary while letting the production bundler erase demo copy.
 export const accountTranslations: { en: AccountCopy; es: AccountCopy } = import.meta.env.DEV ? {
   en: {
+    accountSettingsTitle: "Account", accountSettingsSession: "Your session",
+    accountSettingsSignedOut: "No demo session", accountSettingsSignedOutHint: "Try the sign-in flow with a sample account.",
+    accountSettingsTry: "Try the account demo", accountNextAttempt: "This result applies to the next attempt. Your session is kept only until the app closes.",
+    accountReset: "Reset demo", accountTrySignIn: "Try sign-in",
+    accountSettingsPreview: "Development preview. Pro, billing and preference sync are simulated or unavailable. Your project connections stay separate.",
+    accountDemoFree: "Free · Demo", accountDemoPro: "Pro · Demo",
     accountTitle: "Your GitOdile account", accountDemo: "Account demo",
     accountDemoHint: "Visual simulation · no browser opens and no data is sent.",
     accountOptional: "Optional. All local work works the same without it.",
@@ -31,6 +41,12 @@ export const accountTranslations: { en: AccountCopy; es: AccountCopy } = import.
     accountLocalSafe: "Your projects and saved versions are unaffected.", accountRetry: "Try again", accountNotNow: "Not now",
   },
   es: {
+    accountSettingsTitle: "Cuenta", accountSettingsSession: "Tu sesión",
+    accountSettingsSignedOut: "Sin sesión demo", accountSettingsSignedOutHint: "Prueba el inicio de sesión con una cuenta de ejemplo.",
+    accountSettingsTry: "Probar la demo de cuenta", accountNextAttempt: "Este resultado se aplica al próximo intento. La sesión solo se conserva hasta cerrar la app.",
+    accountReset: "Restablecer demo", accountTrySignIn: "Probar inicio de sesión",
+    accountSettingsPreview: "Vista previa de desarrollo. Pro, facturación y sincronización de preferencias están simulados o no disponibles. Las conexiones de tus proyectos son independientes.",
+    accountDemoFree: "Free · Demo", accountDemoPro: "Pro · Demo",
     accountTitle: "Tu cuenta de GitOdile", accountDemo: "Demo de cuenta",
     accountDemoHint: "Simulación visual · no se abre el navegador ni se envían datos.",
     accountOptional: "Opcional. Todo lo local funciona igual sin ella.",

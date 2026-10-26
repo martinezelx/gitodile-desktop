@@ -45,7 +45,13 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 and `196` into task 195 by explicit request. The next unused
-top-level ID after the current plan is `202`.
+top-level ID after the current plan is `203`.
+
+The Settings visual review, hosting-account wording and development-only
+GitOdile demo controls are scoped in
+[202](done/202-settings-visual-review-and-demo-account.md), completed ahead of
+the queue at the user's request. It records the reference captures, iterative
+visual review, final code fixes and passing aggregate validation.
 
 The Markdown document preview in Changes is tracked in
 [198](done/198-markdown-preview-in-changes.md), implemented ahead of the queue

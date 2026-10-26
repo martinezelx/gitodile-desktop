@@ -134,7 +134,7 @@ describe("one account list for every provider", () => {
 
   it("checks every provider in the list from one action", async () => {
     const { accountPort, auth, gitlabAuth, serverAuth } = setup({ providers: [github, server, gitlab, bitbucket] });
-    await userEvent.click(await screen.findByRole("button", { name: "Check accounts" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Check connections" }));
     await waitFor(() => expect(accountPort.check).toHaveBeenCalledTimes(3));
     expect(vi.mocked(accountPort.check).mock.calls.map(([provider]) => provider)).toEqual(["github", "gitlab", "bitbucket"]);
     expect(auth.check).toHaveBeenCalledOnce();
@@ -321,7 +321,9 @@ describe("removing a connection", () => {
 
   it("confirms a Bitbucket removal naming what stays valid", async () => {
     const { bitbucketToken } = setup({ rows: [token("bitbucket", uuid, { login: "luis", available: false, unavailableReason: "authentication_failed" })] });
-    expect(await screen.findByText("Reconnect")).toBeVisible();
+    expect(await screen.findByText("Token rejected")).toBeVisible();
+    expect(screen.getByText(/bitbucket.org rejected this saved token/)).toBeVisible();
+    expect(screen.queryByText(/Check your Git credentials/)).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Remove token · @luis" }));
     const confirm = screen.getByRole("group", { name: "Remove the token for luis?" });
     expect(within(confirm).getByText(/stays valid at Atlassian/)).toBeVisible();

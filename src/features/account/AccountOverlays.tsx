@@ -8,13 +8,12 @@ import type { AccountScenario } from "./domain";
 
 const SCENARIOS: readonly AccountScenario[] = ["success", "pro", "waiting", "offline", "unfinished", "expired", "cancelled"];
 
-function DemoControls({ controller }: { controller: AccountController }): React.JSX.Element {
+export function DemoControls({ controller, settings = false }: { controller: AccountController; settings?: boolean }): React.JSX.Element {
   const { t } = useLanguage();
   const { scenario } = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const id = useId();
-  return <div className="account-demo">
-    <span className="account-demo__label">{t.accountDemo}</span>
-    <p>{t.accountDemoHint}</p>
+  return <div className={`account-demo${settings ? " account-demo--settings" : ""}`}>
+    {!settings && <><span className="account-demo__label">{t.accountDemo}</span><p>{t.accountDemoHint}</p></>}
     <label htmlFor={id}>{t.accountScenario}</label>
     <select id={id} value={scenario} onChange={(event) => {
       const next = SCENARIOS.find((item) => item === event.target.value);
@@ -22,6 +21,7 @@ function DemoControls({ controller }: { controller: AccountController }): React.
     }}>
       {SCENARIOS.map((item) => <option key={item} value={item}>{t.accountScenarios[item]}</option>)}
     </select>
+    {settings && <p>{t.accountNextAttempt}</p>}
   </div>;
 }
 
@@ -64,7 +64,7 @@ function AccountPopover({ controller }: { controller: AccountController }): Reac
   </div>, document.body);
 }
 
-export function AccountOverlays({ controller }: { controller: AccountController }): React.JSX.Element {
+export function AccountOverlays({ controller, overSettings = false }: { controller: AccountController; overSettings?: boolean }): React.JSX.Element {
   const { t } = useLanguage();
   const { account } = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const showToast = useToast();
@@ -93,6 +93,7 @@ export function AccountOverlays({ controller }: { controller: AccountController 
   return <>
     <AccountPopover controller={controller} />
     {isModal && createPortal(<Dialog size="s" titleId={titleId} descriptionId={descriptionId}
+      className={overSettings ? "account-dialog--over-settings" : undefined}
       title={account.kind === "waiting" ? t.accountWaiting : t.accountTitle}
       icon={<UserRound />} tone="app" onClose={dismiss} closeLabel={t.accountCancel} dialogRef={dialogRef}>
       {account.kind === "waiting" ? <>

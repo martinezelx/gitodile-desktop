@@ -45,6 +45,12 @@ export function createAccountController(port: AccountPort, selectScenario: (scen
     },
     setScenario(scenario: AccountScenario) { selectScenario(scenario); emit({ scenario }); },
     start() { emit({ popoverOpen: false }); port.start(); },
+    startFrom(anchor: HTMLElement) { emit({ anchor, popoverOpen: false }); port.start(); },
+    reset() {
+      port.cancel();
+      selectScenario("success");
+      emit({ scenario: "success", popoverOpen: false });
+    },
     reopen: () => port.reopen(),
     cancel() { port.cancel(); restoreFocus(); },
     signOut() { port.signOut(); emit({ popoverOpen: false }); restoreFocus(); },

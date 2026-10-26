@@ -4,6 +4,7 @@ import {
   Bell,
   BellOff,
   CheckCircle2,
+  Check,
   ChevronDown,
   ChevronUp,
   CircleAlert,
@@ -19,6 +20,7 @@ import {
   SquareTerminal,
   TriangleAlert,
   UsersRound,
+  UserRound,
   WrapText,
 } from "lucide-react";
 
@@ -78,7 +80,7 @@ import {
   combineRemoteCheckInterval,
   isRemoteCheckPreset,
   recommendedLineEndingChoice,
-  SETTINGS_SECTIONS,
+  availableSettingsSections,
   settingsSectionLabel,
   splitRemoteCheckInterval,
   type GitDiagnostics,
@@ -162,6 +164,7 @@ export type AccountsToolSlot = { name: string; section: React.ReactNode; inline:
 /** Static: nothing about the rail's icons depends on state, a preference or the
  * language. */
 const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
+  "gitodile-account": <UserRound />,
   general: <Settings />,
   notifications: <Bell />,
   appearance: <Palette />,
@@ -290,17 +293,17 @@ const SettingsNav = React.memo(function SettingsNav({
           : 0;
     const next =
       step !== 0
-        ? (index + step + SETTINGS_SECTIONS.length) % SETTINGS_SECTIONS.length
+        ? (index + step + sections.length) % sections.length
         : event.key === "Home"
           ? 0
           : event.key === "End"
-            ? SETTINGS_SECTIONS.length - 1
+            ? sections.length - 1
             : -1;
     if (next < 0) {
       return;
     }
     event.preventDefault();
-    onSectionChange(SETTINGS_SECTIONS[next]);
+    onSectionChange(sections[next].id);
     tabRefs.current[next]?.focus();
   };
 
@@ -376,6 +379,7 @@ export function SettingsPanel({
   ghTooling,
   glabTooling, glabActions, glabCopy,
   accounts,
+  gitodileAccount,
   gitDiagnostics,
   gitUpdateStatus,
   onCheckGitUpdate,
@@ -428,6 +432,8 @@ export function SettingsPanel({
    * product's block, the bare row for the connect panel, and whether it needs
    * a look. */
   accounts?: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
+  /** Optional development demo, rendered by the account feature. */
+  gitodileAccount?: React.ReactNode;
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   onCheckGitUpdate: () => Promise<void>;
@@ -876,14 +882,15 @@ export function SettingsPanel({
   /* Only the labels depend on anything, so only they are recomputed. Built
      inline, this rebuilt five icon elements and the list around them on every
      keystroke in the identity field. */
+  const hasAccountDemo = Boolean(gitodileAccount);
   const sections = useMemo(
     () =>
-      SETTINGS_SECTIONS.map((id) => ({
+      availableSettingsSections(hasAccountDemo).map((id) => ({
         id,
         label: settingsSectionLabel(id, t),
         icon: SECTION_ICONS[id],
       })),
-    [t],
+    [t, hasAccountDemo],
   );
   const needsGitAttention = isGitInstallationBroken(gitDiagnostics);
   const ghAttention = toolAttention(ghTooling.diagnostics, ghTooling.updateStatus);
@@ -1010,6 +1017,7 @@ export function SettingsPanel({
         aria-labelledby={`settings-tab-${activeSection}`}
         tabIndex={0}
       >
+        {activeSection === "gitodile-account" && gitodileAccount}
         {activeSection === "general" && (
           <div className="settings-groups">
             <section className="settings-group">
@@ -1511,6 +1519,64 @@ export function SettingsPanel({
                     }`}
                     key={item.id}
                   >
+                    <button
+                      className="navigation-destination__handle"
+                      type="button"
+                      aria-label={`${t.settingsNavigationReorderLabel}: ${item.label}`}
+                      title={`${t.settingsNavigationReorderLabel}: ${item.label}`}
+                      onPointerDown={(event) => {
+                        if (event.button !== 0) return;
+                        event.preventDefault();
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        setDraggedNavigationId(item.id);
+                      }}
+                      onPointerMove={(event) => {
+                        if (draggedNavigationId !== item.id) return;
+                        const target = document
+                          .elementFromPoint(event.clientX, event.clientY)
+                          ?.closest<HTMLElement>("[data-navigation-id]");
+                        const targetId = target?.dataset.navigationId;
+                        const targetIndex = navigationItems.findIndex(
+                          (destination) => destination.id === targetId,
+                        );
+                        setDragOverNavigationId(targetId ?? null);
+                        if (targetIndex >= 0 && targetId !== item.id) {
+                          moveNavigationDestination(item.id, targetIndex);
+                        }
+                      }}
+                      onPointerUp={(event) => {
+                        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                          event.currentTarget.releasePointerCapture(event.pointerId);
+                        }
+                        setDraggedNavigationId(null);
+                        setDragOverNavigationId(null);
+                      }}
+                      onPointerCancel={() => {
+                        setDraggedNavigationId(null);
+                        setDragOverNavigationId(null);
+                      }}
+                      onLostPointerCapture={() => {
+                        setDraggedNavigationId(null);
+                        setDragOverNavigationId(null);
+                      }}
+                      onKeyDown={(event) => {
+                        const toIndex =
+                          event.key === "ArrowUp"
+                            ? index - 1
+                            : event.key === "ArrowDown"
+                              ? index + 1
+                              : event.key === "Home"
+                                ? 0
+                                : event.key === "End"
+                                  ? navigationItems.length - 1
+                                  : null;
+                        if (toIndex === null || toIndex < 0 || toIndex >= navigationItems.length) return;
+                        event.preventDefault();
+                        moveNavigationDestination(item.id, toIndex);
+                      }}
+                    >
+                      <GripVertical aria-hidden="true" />
+                    </button>
                     <span className="navigation-destination__icon" aria-hidden="true">
                       {item.icon}
                     </span>
@@ -1523,9 +1589,6 @@ export function SettingsPanel({
                         <span className="navigation-destination__tag">{t.settingsNavigationMovedToMore}</span>
                       )}
                     </span>
-                    {/* Reordering trails the name: a row says what it is before
-                        how to move it. The arrows surface on hover or focus;
-                        the grip stays, next to the switch. */}
                     <div className="navigation-destination__order-controls">
                       <div className="navigation-destination__move-buttons">
                         <button
@@ -1549,60 +1612,6 @@ export function SettingsPanel({
                           <ChevronDown aria-hidden="true" />
                         </button>
                       </div>
-                      <button
-                        className="navigation-destination__handle"
-                        type="button"
-                        aria-label={`${t.settingsNavigationReorderLabel}: ${item.label}`}
-                        title={`${t.settingsNavigationReorderLabel}: ${item.label}`}
-                        onPointerDown={(event) => {
-                          if (event.button !== 0) return;
-                          event.preventDefault();
-                          event.currentTarget.setPointerCapture(event.pointerId);
-                          setDraggedNavigationId(item.id);
-                        }}
-                        onPointerMove={(event) => {
-                          if (draggedNavigationId !== item.id) return;
-                          const target = document
-                            .elementFromPoint(event.clientX, event.clientY)
-                            ?.closest<HTMLElement>("[data-navigation-id]");
-                          const targetId = target?.dataset.navigationId;
-                          const targetIndex = navigationItems.findIndex(
-                            (destination) => destination.id === targetId,
-                          );
-                          setDragOverNavigationId(targetId ?? null);
-                          if (targetIndex >= 0 && targetId !== item.id) {
-                            moveNavigationDestination(item.id, targetIndex);
-                          }
-                        }}
-                        onPointerUp={(event) => {
-                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                            event.currentTarget.releasePointerCapture(event.pointerId);
-                          }
-                          setDraggedNavigationId(null);
-                          setDragOverNavigationId(null);
-                        }}
-                        onPointerCancel={() => {
-                          setDraggedNavigationId(null);
-                          setDragOverNavigationId(null);
-                        }}
-                        onKeyDown={(event) => {
-                          const toIndex =
-                            event.key === "ArrowUp"
-                              ? index - 1
-                              : event.key === "ArrowDown"
-                                ? index + 1
-                                : event.key === "Home"
-                                  ? 0
-                                  : event.key === "End"
-                                    ? navigationItems.length - 1
-                                    : null;
-                          if (toIndex === null || toIndex < 0 || toIndex >= navigationItems.length) return;
-                          event.preventDefault();
-                          moveNavigationDestination(item.id, toIndex);
-                        }}
-                      >
-                        <GripVertical aria-hidden="true" />
-                      </button>
                     </div>
                     <ToggleSwitch
                       label={item.label}
@@ -1637,7 +1646,7 @@ export function SettingsPanel({
                   return (
                     <button
                       key={mode}
-                      className={`navigation-display__option${
+                      className={`theme-card navigation-display__option${
                         isActive ? " navigation-display__option--active" : ""
                       }`}
                       type="button"
@@ -1650,12 +1659,23 @@ export function SettingsPanel({
                         className={`navigation-display__preview navigation-display__preview--${mode}`}
                         aria-hidden="true"
                       >
-                        <span><PanelLeft /></span>
-                        {mode === "icons-and-text" && <small>{t.navOverview}</small>}
+                        <span className="navigation-display__mini-rail">
+                          {navigationItems.slice(0, 3).map(sample => (
+                            <span className="navigation-display__mini-item" key={sample.id}>
+                              {sample.icon}{mode === "icons-and-text" && <small>{sample.label}</small>}
+                            </span>
+                          ))}
+                        </span>
+                        <span className="navigation-display__mini-content">
+                          <span className="navigation-display__mini-header"><i /><i /></span>
+                          <span className="navigation-display__mini-body"><i /><i /><i /><i /></span>
+                          <span className="navigation-display__mini-status"><i /><i /></span>
+                        </span>
                       </span>
-                      <span className="navigation-display__copy">
+                      <span className="navigation-display__label">
                         <strong>{label}</strong>
-                        <small>
+                        <span className="navigation-display__check" aria-hidden="true">{isActive && <Check />}</span>
+                        <small className="visually-hidden">
                           {mode === "icons-and-text"
                             ? t.settingsNavigationIconsAndTextDescription
                             : t.settingsNavigationIconsOnlyDescription}

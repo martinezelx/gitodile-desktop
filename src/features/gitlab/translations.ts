@@ -1,6 +1,8 @@
 import type { GitLabAuthState } from "./domain";
 
 interface GitLabTranslations {
+  gitlabAuthRepairDetails: string;
+  gitlabAuthRepairHint: string;
   gitlabAuthCancel: string;
   gitlabAuthConfirm: string;
   gitlabAuthDisconnect: string;
@@ -16,11 +18,13 @@ interface GitLabTranslations {
 }
 
 const en: GitLabTranslations = {
+  gitlabAuthRepairDetails: "How to repair this connection",
+  gitlabAuthRepairHint: "Repair or remove this server's browser session with GitLab CLI (glab), then check connections here. Token connections are independent.",
   gitlabAuthCancel: "Cancel connection",
   gitlabAuthConfirm: "Continue in browser",
   gitlabAuthDisconnect: "Sign out",
   gitlabAuthAccountName: "GitLab account",
-  gitlabAuthChip: { connected: "Connected", saved: "Saved", unchecked: "Not checked", signed_out: "Not connected", checking: "In progress", invalid: "Reconnect", unavailable: "Unavailable", environment: "Managed externally" },
+  gitlabAuthChip: { connected: "Connected", saved: "Saved", unchecked: "Not checked yet", signed_out: "Not connected", checking: "In progress", invalid: "Needs attention", unavailable: "Unavailable", environment: "Managed externally" },
   gitlabAuthLogoutConsent: "Removes @{login} from GitLab CLI on this computer, for every tool that uses it.",
   gitlabAuthLogoutBrowser: "Your browser session, projects and Git settings don't change.",
   gitlabAuthShared: "It's shared with GitLab CLI, so signing out here also signs out the tools that use it.",
@@ -29,7 +33,7 @@ const en: GitLabTranslations = {
   gitlabAuthNeedsCheck: "GitLab CLI may have changed. Check the accounts before trying again.",
   gitlabAuthStatus: {
     unchecked: "Account not checked", checking: "Checking your GitLab account…", signed_out: "No GitLab account connected",
-    connected: "Connected", invalid: "Your GitLab CLI authorization is invalid. Repair or remove it with glab, then check here again. Token connections above remain independent.",
+    connected: "Connected", invalid: "The browser connection to GitLab is no longer valid.",
     offline: "Couldn't reach GitLab. Check your connection and try again.", login_starting: "Preparing browser connection…",
     signing_out: "Signing out of GitLab CLI…",
     switching: "Switching the active GitLab CLI account…",
@@ -42,11 +46,13 @@ const en: GitLabTranslations = {
 };
 
 const es: GitLabTranslations = {
+  gitlabAuthRepairDetails: "Cómo reparar esta conexión",
+  gitlabAuthRepairHint: "Repara o elimina la sesión de navegador de este servidor con GitLab CLI (glab) y comprueba las conexiones aquí. Las conexiones por token son independientes.",
   gitlabAuthCancel: "Cancelar conexión",
   gitlabAuthConfirm: "Continuar en el navegador",
   gitlabAuthDisconnect: "Cerrar sesión",
   gitlabAuthAccountName: "Cuenta de GitLab",
-  gitlabAuthChip: { connected: "Conectada", saved: "Guardada", unchecked: "Sin comprobar", signed_out: "Sin conectar", checking: "En curso", invalid: "Reconectar", unavailable: "No disponible", environment: "Gestión externa" },
+  gitlabAuthChip: { connected: "Conectada", saved: "Guardada", unchecked: "Pendiente de comprobar", signed_out: "Sin conectar", checking: "En curso", invalid: "Revisa la conexión", unavailable: "No disponible", environment: "Gestión externa" },
   gitlabAuthLogoutConsent: "Quita @{login} de GitLab CLI en este equipo, para todas las herramientas que la usan.",
   gitlabAuthLogoutBrowser: "Tu sesión del navegador, tus proyectos y la configuración de Git no cambian.",
   gitlabAuthShared: "Se comparte con GitLab CLI, así que cerrar sesión aquí también la cierra en las herramientas que la usan.",
@@ -55,7 +61,7 @@ const es: GitLabTranslations = {
   gitlabAuthNeedsCheck: "GitLab CLI puede haber cambiado. Comprueba las cuentas antes de reintentar.",
   gitlabAuthStatus: {
     unchecked: "Cuenta sin comprobar", checking: "Comprobando tu cuenta de GitLab…", signed_out: "Sin cuenta de GitLab conectada",
-    connected: "Conectada", invalid: "La autorización de GitLab CLI no es válida. Repárala o elimínala con glab y vuelve a comprobarla aquí. Los tokens de arriba siguen siendo independientes.",
+    connected: "Conectada", invalid: "La conexión con GitLab mediante el navegador ya no es válida.",
     offline: "No se pudo contactar con GitLab. Comprueba tu conexión e inténtalo de nuevo.", login_starting: "Preparando la conexión en el navegador…",
     signing_out: "Cerrando la sesión de GitLab CLI…",
     switching: "Cambiando la cuenta activa de GitLab CLI…",

@@ -87,7 +87,7 @@ import {
 } from "../features/sync";
 import type { PublishResult } from "../features/publish";
 import {
-  SETTINGS_SECTIONS,
+  availableSettingsSections,
   settingsPort,
   settingsSectionLabel,
   DEFAULT_BRANCH_FALLBACK,
@@ -2042,7 +2042,7 @@ export function App(): React.JSX.Element {
             label: t[destination.commandLabelKey],
             action: () => openSettings(),
           },
-          ...SETTINGS_SECTIONS.map((section) => ({
+          ...availableSettingsSections(Boolean(accountController)).map((section) => ({
             id: `open-settings-${section}`,
             label: t.commandGoSettingsSection(settingsSectionLabel(section, t)),
             action: () => openSettings(section),

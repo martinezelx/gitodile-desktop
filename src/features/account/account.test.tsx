@@ -68,6 +68,19 @@ describe("account attempts", () => {
     expect(controller.getSnapshot().account.kind).toBe("signed-in"); reconnected();
   });
 
+  it("reset cancels the attempt and restores Free for the next sign-in", () => {
+    const port = createMockAccountPort(100);
+    const controller = createAccountController(port, port.setScenario);
+    const stop = controller.subscribe(() => undefined);
+    controller.setScenario("pro"); controller.start();
+    controller.reset();
+    vi.advanceTimersByTime(100);
+    expect(controller.getSnapshot()).toMatchObject({ account: SIGNED_OUT, scenario: "success" });
+    controller.start(); vi.advanceTimersByTime(100);
+    expect(controller.getSnapshot().account).toMatchObject({ kind: "signed-in", identity: { pro: false } });
+    stop();
+  });
+
   it("clears the timer when a subscriber immediately cancels or retries", () => {
     const port = createMockAccountPort(100);
     const stop = port.subscribe(() => {

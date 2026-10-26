@@ -16,6 +16,23 @@ import type { NavigationPreferences } from "./domain";
 afterEach(cleanup);
 
 describe("optional GitHub CLI tooling", () => {
+  it("includes the demo only when supplied and navigates the actual available tabs", async () => {
+    const user = userEvent.setup();
+    const view = renderPanel(createPort(), { gitodileAccount: <p>Demo body</p> });
+    const demo = screen.getByRole("tab", { name: "Account" });
+    screen.getByRole("tab", { name: "General" }).focus();
+    await user.keyboard("{Home}");
+    expect(demo).toHaveFocus();
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Demo body");
+    await user.keyboard("{End}{ArrowDown}");
+    expect(demo).toHaveFocus();
+    view.unmount();
+    renderPanel(createPort());
+    expect(screen.queryByRole("tab", { name: "Account" })).toBeNull();
+    screen.getByRole("tab", { name: "General" }).focus();
+    await user.keyboard("{End}{ArrowDown}");
+    expect(screen.getByRole("tab", { name: "General" })).toHaveFocus();
+  });
   it("lists accounts before CLI tooling and keeps adding one independent of a missing gh", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
     const addAccount = vi.fn();
@@ -141,7 +158,7 @@ describe("optional GitHub CLI tooling", () => {
     const gitTab = screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ });
     gitTab.focus();
     await userEvent.keyboard("{ArrowDown}");
-    expect(screen.getByRole("tab", { name: "Accounts" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Integrations" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByRole("region", { name: "GitHub on your computer" })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "main" })).not.toBeInTheDocument();
@@ -172,14 +189,14 @@ describe("optional GitHub CLI tooling", () => {
     const row = screen.getByRole("group", { name: "GitHub tool" });
     expect(within(row).getByText("Not responding")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "GitHub on your computer" })).toBeNull();
-    expect(within(screen.getByRole("tab", { name: /^Accounts/ })).getByRole("img", { name: "GitHub tool: needs attention" })).toBeInTheDocument();
+    expect(within(screen.getByRole("tab", { name: /^Integrations/ })).getByRole("img", { name: "GitHub tool: needs attention" })).toBeInTheDocument();
   });
 
   it("leaves the rail quiet while gh is only not installed", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
     renderPanel(port, { initialSection: "accounts" });
     await screen.findByText("Not installed on this computer.");
-    expect(within(screen.getByRole("tab", { name: "Accounts" })).queryByRole("img")).toBeNull();
+    expect(within(screen.getByRole("tab", { name: "Integrations" })).queryByRole("img")).toBeNull();
   });
 
   it("reads only the local version on startup and keeps GitHub optional", async () => {
@@ -292,6 +309,7 @@ type PanelOverrides = Partial<{
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
+  gitodileAccount: React.ReactNode;
   accounts: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
@@ -343,6 +361,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
   return (
     <SettingsPanel
       ghTooling={ghTooling}
+      gitodileAccount={overrides.gitodileAccount}
       accounts={overrides.accounts ?? ((tooling) => tooling.github.section)}
       theme={overrides.theme ?? "system"}
       setTheme={overrides.setTheme ?? vi.fn()}
@@ -1151,7 +1170,7 @@ describe("Settings panel section rail", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Overview. New position 2 of 3.");
   });
 
-  it("reorders with captured pointer movement over another row", () => {
+  it.each(["mouse", "touch"])("reorders with captured %s pointer movement over another row", (pointerType) => {
     const setNavigationPreferences = vi.fn();
     renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
     const source = screen.getByRole("button", { name: "Reorder: Overview" });
@@ -1168,9 +1187,9 @@ describe("Settings panel section rail", () => {
       value: vi.fn(() => target),
     });
 
-    fireEvent.pointerDown(source, { button: 0, pointerId: 1 });
-    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1 });
-    fireEvent.pointerUp(source, { pointerId: 1 });
+    fireEvent.pointerDown(source, { button: 0, pointerId: 1, pointerType });
+    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1, pointerType });
+    fireEvent.pointerUp(source, { pointerId: 1, pointerType });
 
     Object.defineProperty(document, "elementFromPoint", {
       configurable: true,
@@ -1185,6 +1204,19 @@ describe("Settings panel section rail", () => {
       destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-and-text",
     }).destinationOrderIds).toEqual(["changes", "history", "overview"]);
+  });
+
+  it("clears a drag interrupted by loss of pointer capture", () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+    const source = screen.getByRole("button", { name: "Reorder: Overview" });
+    Object.defineProperty(source, "setPointerCapture", { configurable: true, value: vi.fn() });
+    fireEvent.pointerDown(source, { button: 0, pointerId: 1 });
+    expect(source.closest(".navigation-destination")).toHaveClass("navigation-destination--dragging");
+    fireEvent.lostPointerCapture(source, { pointerId: 1 });
+    expect(source.closest(".navigation-destination")).not.toHaveClass("navigation-destination--dragging");
+    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1 });
+    expect(setNavigationPreferences).not.toHaveBeenCalled();
   });
 
   it("moves a destination with the explicit arrow buttons", async () => {

@@ -1,4 +1,6 @@
 const en = {
+  accountsTokenRejected: "Token rejected",
+  accountsTokenRejectedHint: "{provider} rejected this saved token. Use Connect account to add a new token, or remove this connection.",
   accountsCatalogFailed: "Couldn't read saved connections. Try reading them again.",
   accountsRetryRead: "Retry reading connections",
   accountsChoose: "Choose a connection", accountsTokenMethod: "Token", accountsBrowserMethod: "Browser", accountsRemove: "Remove",
@@ -6,7 +8,7 @@ const en = {
   accountsUseGit: "Use existing Git credentials",
   accountsProjectHelp: "This account is used inside GitOdile for HTTPS. SSH uses your configured keys. Your commit name and email are separate.",
   accountsUnavailable: "{account} · unavailable", accountsNeedsCheck: "Check connection",
-  accountsCheck: "Check accounts", accountsChecking: "Checking accounts",
+  accountsCheck: "Check connections", accountsChecking: "Checking connections",
   accountsFailed: "The account could not be checked or saved. Check the connection and try again.",
   accountsEmpty: "Connect an account in Settings, then detect it here. Detection contacts the provider.",
   accountsProjectTitle: "HTTPS access",
@@ -16,6 +18,8 @@ const en = {
   accountsRemoteInsecure: "A remote of this server uses HTTP, and accounts are only sent over HTTPS. Change it to https:// above.",
 };
 const es: Record<keyof typeof en, string> = {
+  accountsTokenRejected: "Token rechazado",
+  accountsTokenRejectedHint: "{provider} ha rechazado este token guardado. Usa Conectar cuenta para añadir otro token o quita esta conexión.",
   accountsCatalogFailed: "No se pudieron leer las conexiones guardadas. Intenta leerlas de nuevo.",
   accountsRetryRead: "Reintentar lectura de conexiones",
   accountsChoose: "Elige una conexión", accountsTokenMethod: "Token", accountsBrowserMethod: "Navegador", accountsRemove: "Quitar",
@@ -23,7 +27,7 @@ const es: Record<keyof typeof en, string> = {
   accountsUseGit: "Usar las credenciales existentes de Git",
   accountsProjectHelp: "Esta cuenta se usa dentro de GitOdile para HTTPS. SSH utiliza tus claves configuradas. El nombre y correo de tus versiones guardadas son independientes.",
   accountsUnavailable: "{account} · no disponible", accountsNeedsCheck: "Comprobar conexión",
-  accountsCheck: "Comprobar cuentas", accountsChecking: "Comprobando cuentas",
+  accountsCheck: "Comprobar conexiones", accountsChecking: "Comprobando conexiones",
   accountsFailed: "No se ha podido comprobar o guardar la cuenta. Comprueba la conexión e inténtalo de nuevo.",
   accountsEmpty: "Conecta una cuenta en Ajustes y detéctala aquí. La detección contacta con el proveedor.",
   accountsProjectTitle: "Acceso HTTPS",

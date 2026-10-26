@@ -25,14 +25,16 @@
 .hosting-accounts__host-label strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .hosting-accounts__host-label svg { width: 14px; height: 14px; flex-shrink: 0; }
 .hosting-accounts__pill { padding: 1px var(--space-2); border: 1px solid var(--border-divider); border-radius: var(--radius-pill); font-size: var(--text-caption); }
-.hosting-accounts__list { display: grid; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
+.hosting-accounts__list { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
 .hosting-accounts__list > * { padding: var(--space-3) var(--space-4); }
 .hosting-accounts__list > * + * { border-top: 1px solid var(--border-subtle); }
 .hosting-accounts__list > .hosting-accounts__method,
-.hosting-accounts__list > .github-account--embedded { display: grid; gap: var(--space-3); padding: 0; }
-.hosting-accounts__method > *, .github-account--embedded > * { margin-inline: var(--space-4); }
-.hosting-accounts__method > :first-child, .github-account--embedded > :first-child { margin-top: var(--space-3); }
-.hosting-accounts__method > :last-child, .github-account--embedded > :last-child { margin-bottom: var(--space-3); }
+.hosting-accounts__list > .github-account--embedded { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+/* The container owns the inset: paragraph margin resets must never push a
+   standalone failure against the host card's edge when no identity is known. */
+.github-account--embedded .status-line { min-width: 0; align-items: flex-start; font-size: var(--text-label); line-height: var(--leading-normal); }
+.github-account--embedded .status-line > span { min-width: 0; overflow-wrap: anywhere; }
+.github-account--embedded .github-token__permissions { min-width: 0; overflow-wrap: anywhere; }
 .hosting-accounts__empty { padding: var(--space-3) var(--space-4); }
 .hosting-accounts__add { gap: var(--space-4); }
 .hosting-accounts__add-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); font-weight: var(--weight-strong); }
@@ -82,15 +84,18 @@
   .hosting-accounts__header { flex-wrap: wrap; }
 }
 /* One account per row, all the same height: avatar, login + chips, actions. */
-.account-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: var(--control-height-lg); }
+.account-row { min-width: 0; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: var(--control-height-lg); }
 .account-row__avatar { display: grid; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-secondary-color); }
 .account-row__avatar svg { width: 16px; height: 16px; }
 .account-row__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .account-row__main { display: grid; gap: var(--space-1); min-width: 0; }
 .account-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
-.account-row__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
+.account-row__name { overflow-wrap: anywhere; min-width: 0; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-strong); }
 .account-row__method { color: var(--text-secondary-color); }
 .account-row__notice { display: grid; gap: var(--space-1); }
+.account-row__notice .status-line { align-items: flex-start; font-size: var(--text-label); line-height: var(--leading-normal); }
+.account-row__notice .status-line svg { margin-top: 3px; }
+.account-row__notice span { overflow-wrap: anywhere; }
 .account-row__notice > * { margin: 0; }
 .account-row__notice svg { width: 13px; height: 13px; flex-shrink: 0; }
 .account-row__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }

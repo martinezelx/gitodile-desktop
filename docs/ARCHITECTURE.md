@@ -824,7 +824,7 @@ absent from normal development and production builds.
 
 ### Optional GitHub CLI tooling
 
-The GitHub block of Settings → Accounts owns machine-level `gh` readiness through its
+The GitHub block of Settings → Integrations owns machine-level `gh` readiness through its
 typed port and adapter. Git configuration stays in the separate Git section.
 `tooling.rs` shares fixed platform installation/update plans with Git while
 keeping each tool's launch guards and update cache independent. The renderer
@@ -961,7 +961,7 @@ secrets and unregisters it while bindings stay saved and unavailable. The Git
 helper receives a server's authority as an argument and rebuilds its adapter only
 when that authority derives the account's instance ID. Credential scopes, remote
 validation and header masking compare host and port. The `hosting-servers`
-feature owns the Settings → Accounts composition (`AccountsSettings`: one
+feature owns the Settings → Integrations composition (`AccountsSettings`: one
 connected-accounts list for every provider grouped by host, the provider menu
 and connect panels, and a folded block per provider holding its server
 inventory and CLI tooling) and its typed port. It composes `accounts`' token
@@ -976,6 +976,15 @@ list. See
 
 ### Shared hosting accounts and Git access
 
+The optional GitOdile identity demo is separate from hosting accounts.
+`features/account` owns its controller, scenarios, overlays and `AccountSettings`
+body; the development composition injects that body into Settings. Both the
+category rail and command palette use `availableSettingsSections` with the same
+capability check. A modal account flow temporarily suspends the Settings focus
+trap and makes its retained DOM inert, preserving drafts and a live return-focus
+target. Closing Settings does not dispose the app-scoped session. Production
+omits the demo capability and copy; it introduces no native authentication.
+
 `credentials.rs` owns provider-neutral metadata, bounded persistent project
 bindings and the internal Git credential protocol. `hosting.rs` registers
 adapters for both the desktop and helper process; `main.rs` dispatches helper
@@ -985,7 +994,7 @@ Bitbucket is token-only.
 picker shared by clone and project settings. `useAccounts` keeps the last local
 receipt per port, so a remounted section renders it before the next read and
 reports `loaded` so an unread catalog is never shown as empty.
-`hosting::sync_accounts_after_launch` runs the Check accounts action for every
+`hosting::sync_accounts_after_launch` runs the Check connections action for every
 product three seconds after launch; see
 [ADR 0027](adr/0027-verify-saved-accounts-after-launch.md). Providers implement adapters rather
 than duplicating the selection store, picker or Git access policy.

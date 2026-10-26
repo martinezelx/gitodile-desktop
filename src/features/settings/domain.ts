@@ -101,7 +101,12 @@ export const SETTINGS_SECTIONS = [
   "updates",
 ] as const;
 
-export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "gitodile-account";
+
+/** The optional account body is a capability, supplied only by the dev shell. */
+export function availableSettingsSections(hasAccountDemo = false): readonly SettingsSection[] {
+  return hasAccountDemo ? ["gitodile-account", ...SETTINGS_SECTIONS] : SETTINGS_SECTIONS;
+}
 
 /** The rail label for a section. Exported because the command palette offers
  * one entry per section and must name them exactly as the rail does.
@@ -122,9 +127,11 @@ export function settingsSectionLabel(
     settingsAccountsTitle: string;
     settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
+    accountSettingsTitle?: string;
   },
 ): string {
   const labels: Record<SettingsSection, string> = {
+    "gitodile-account": t.accountSettingsTitle ?? "",
     general: t.settingsGeneralTitle,
     notifications: t.settingsNotificationsTitle,
     appearance: t.settingsInterfaceTitle,

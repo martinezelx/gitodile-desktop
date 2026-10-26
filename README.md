@@ -335,7 +335,7 @@ GitOdile uses the system Git executable. Git **2.23 or newer** is required for
 branch switching; diagnostics remain available when Git is missing or
 unusable.
 
-The GitHub block of Settings → Accounts offers optional **GitHub CLI (`gh`)** diagnostics,
+The GitHub block of Settings → Integrations offers optional **GitHub CLI (`gh`)** diagnostics,
 installation and update guidance. Windows starts WinGet for the exact
 `GitHub.cli` package, with official instructions as a fallback; macOS and Linux
 open the official platform instructions. Local version checks require no
@@ -345,7 +345,7 @@ missing. Windows update checks are explicit and
 cached for five minutes; other platforms use the official update instructions.
 An installer being started is not proof of installation: reopen GitOdile after
 installing to inherit the updated `PATH`. This prepares the dependency for
-future PRs and Actions; those screens are not yet implemented. Settings → Accounts
+future PRs and Actions; those screens are not yet implemented. Settings → Integrations
 offers explicit account detection and browser connection through gh. It shows
 the saved github.com accounts and cached avatars, with the active account first,
 and retains their last known identities when offline,
@@ -368,7 +368,7 @@ See
 [ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
 for ordinary local Git workflows.
 
-Settings → Accounts lists every connection first; each provider's company
+Settings → Integrations lists every connection first; each provider's company
 servers and CLI installation sit in that provider's folded block below. Browser connections and saved gh accounts require the CLI;
 token connections work with or without it. Cloning a GitHub or GitLab.com HTTPS URL
 and Project settings → Remote offer a shared account selector. Different projects
@@ -381,7 +381,7 @@ the system's normal authentication. Account selection does not change commit
 authorship, configure SSH or prove publishing permissions. GitHub, GitLab.com and Bitbucket Cloud share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
-Settings → Accounts starts with one **Connected accounts** list: every token and
+Settings → Integrations starts with one **Connected accounts** list: every token and
 browser connection of every provider (github.com, gitlab.com, bitbucket.org and
 each company server), grouped under its host, leaving out hosts with nothing
 connected. One check action covers every provider, and one **Connect account**
@@ -399,7 +399,7 @@ token connections coexist with browser connections; even the same username has
 separate connection choices. Removing one deletes its local secret, leaves its
 project selections unavailable and does not revoke the token on GitHub. Saved connections
 of every product are verified in the background a few seconds after launch, as
-GitHub Desktop does; **Check accounts** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
+GitHub Desktop does; **Check connections** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
 Metadata stores
 only usernames, and the token input clears when sent to Rust.
 
@@ -448,7 +448,7 @@ remain unclaimed until exercised with an authorized account and environment.
 
 ### Bitbucket Cloud
 
-bitbucket.org **API token** connections join the same list in Settings → Accounts
+bitbucket.org **API token** connections join the same list in Settings → Integrations
 and use the same masked token form; there is no browser connection or CLI.
 Create an Atlassian API token with scopes for Bitbucket: `read:user:bitbucket`
 and `read:workspace:bitbucket` for identity and discovery, plus
@@ -468,7 +468,7 @@ qualified yet.
 
 ### Company servers
 
-The GitHub and GitLab blocks of Settings → Accounts each list their **company
+The GitHub and GitLab blocks of Settings → Integrations each list their **company
 servers** (**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated). Add a server by its HTTPS address (`https://git.example.com`, with
 an optional port); GitOdile contacts it once, without credentials, to confirm
 the product and a supported version (GHES 3.0+, GitLab 14.0+), then its
@@ -521,7 +521,9 @@ pnpm run dev
 ```
 
 Development builds include a local account demo, opened from the person/sign-in
-control in the rail or from More actions. Choose a demo result before signing
+control in the rail, More actions, or Settings → Account. Settings
+shows the current demo identity, sign-out and Reset demo, which clears the
+attempt/session and restores Free as the next result. Choose a demo result before signing
 in to exercise success (Free or Pro), waiting, cancellation and failures. It
 opens no browser, sends no account data and retains its fictitious session only
 in memory. Hosting connections and actual feature access are unaffected.

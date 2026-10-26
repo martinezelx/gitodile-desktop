@@ -1334,7 +1334,7 @@
    the subtle hairline (DESIGN.md, Regions, not cards). The rail's 12px plus
    an item's 12px put its icons on the header's 24px inset. */
 .settings-nav {
-  display: grid; align-content: start; gap: 4px; padding: 20px 12px;
+  min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 4px; padding: 20px 12px;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-raised);
 }
@@ -1351,7 +1351,8 @@
   color: var(--text-primary-color); font-weight: var(--weight-title);
 }
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
-.settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
+.settings-nav__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.settings-nav__item > span:first-child { width: 18px; height: 18px; flex-shrink: 0; display: grid; place-items: center; }
 .settings-nav__item svg { width: 18px; height: 18px; }
 .settings-view {
   min-height: 0; overflow-y: auto; scrollbar-gutter: stable;

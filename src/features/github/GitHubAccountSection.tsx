@@ -77,7 +77,7 @@ export function GitHubAccountSection({ controller, available, allowSwitch = true
 
   const row = (account: GitHubSavedAccount): React.JSX.Element => {
     const state = githubAccountChip(snapshot, account, available, busy);
-    const chip: ToolChip = { label: t.githubAuthChip[state], tone: state === "connected" ? "success" : state === "invalid" ? "danger"
+    const chip: ToolChip = { label: t.githubAuthChip[state], tone: state === "connected" ? "success" : state === "invalid" ? "warning"
       : state === "unchecked" && snapshot.state !== "unchecked" ? "warning" : "neutral",
       icon: state === "connected" ? <CheckCircle2 aria-hidden="true" /> : state === "checking" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : undefined };
     const signOut = <button type="button" className="secondary-button"
@@ -115,7 +115,7 @@ export function GitHubAccountSection({ controller, available, allowSwitch = true
   }}>
     {accounts.length === 0 && (status || cancel) && <div className="github-account__actions github-account__pending">{status}{cancel}</div>}
     {accounts.map(row)}
-    {snapshot.needsCheck && <p className="github-account__note">{t.githubAuthNeedsCheck}</p>}
+    {snapshot.needsCheck && snapshot.state !== "invalid" && <p className="github-account__note">{t.githubAuthNeedsCheck}</p>}
     {snapshot.signedOutAccount && <p className="github-account__note" role="status">{t.githubAuthLogoutDone.replace("{login}", snapshot.signedOutAccount)}</p>}
     {snapshot.state === "awaiting_browser" && snapshot.deviceCode && <div className="github-account__authorization">
       <p>{t.githubAuthDeviceSteps}</p>

@@ -4,6 +4,7 @@ import { useLanguage } from "../../i18n";
 import { AccountRow } from "../accounts";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import type { GitLabAuthController } from "./useGitLabAuth";
+import { gitlabAccountChip } from "./domain";
 
 /** One host's glab account inside the shared account list, which owns the
  * heading, the account check and the way to connect. glab keeps one session
@@ -20,6 +21,7 @@ export function GitLabAccountSection({ controller, available, host = "gitlab.com
   const restoreFocus = useRef(false);
   const account = snapshot.account;
   const busy = pending || snapshot.operationId !== null;
+  const progressLabel = snapshot.operationId ? t.gitlabAuthStatus[snapshot.state] : t.gitlabAuthChip.checking;
   useInstallDraftBlocker(`gitlab-browser:${host}`, t.gitlabAuthAccountName, busy || confirming);
   useEffect(() => {
     if (confirming) confirm.current?.focus();
@@ -27,21 +29,30 @@ export function GitLabAccountSection({ controller, available, host = "gitlab.com
   }, [confirming]);
   const verified = snapshot.state === "connected" && !snapshot.needsCheck;
   const failure = ["failed", "invalid", "offline", "timed_out", "cli_unsupported", "environment_controlled"].includes(snapshot.state);
+  const chip = gitlabAccountChip(snapshot, available, busy);
+  const notice = failure ? <p className="status-line status-line--warning" role="alert"><CircleAlert aria-hidden="true" /><span>{t.gitlabAuthStatus[snapshot.state]}</span></p>
+    : available === false && account ? <p className="github-account__note">{t.gitlabAuthStatus.cli_missing}</p>
+      : snapshot.needsCheck ? <p role="status" className="github-account__note">{t.gitlabAuthNeedsCheck}</p> : null;
   const dismiss = (): void => { restoreFocus.current = true; setConfirming(false); };
   if (!account && !busy && !failure && !snapshot.needsCheck) return null;
   return <div className="github-account github-account--embedded" onKeyDownCapture={event => {
     if (event.key === "Escape" && confirming) { event.preventDefault(); event.stopPropagation(); if (!busy) dismiss(); }
   }}>
     {account && <AccountRow login={account.login} method="browser"
-      state={{ label: busy ? t.gitlabAuthChip.checking : verified ? t.gitlabAuthChip.connected : t.gitlabAuthChip.unchecked,
-        tone: verified && !busy ? "success" : "neutral",
-        icon: busy ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : verified ? <CheckCircle2 aria-hidden="true" /> : undefined }}
-      notice={snapshot.needsCheck ? <p role="status" className="github-account__note">{t.gitlabAuthNeedsCheck}</p> : null}
+      state={{ label: t.gitlabAuthChip[chip],
+        tone: chip === "connected" ? "success" : chip === "invalid" || chip === "unavailable" ? "warning" : "neutral",
+        icon: busy ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : chip === "connected" ? <CheckCircle2 aria-hidden="true" /> : undefined }}
+      notice={!busy ? notice : null}
       actions={<button type="button" className="secondary-button" disabled={busy || !verified || available !== true || confirming}
         onClick={event => { trigger.current = event.currentTarget; setConfirming(true); }}>{t.gitlabAuthDisconnect}</button>} />}
-    {!account && snapshot.needsCheck && !busy && <p role="status" className="github-account__note">{t.gitlabAuthNeedsCheck}</p>}
+    {!account && !busy && notice}
+    {snapshot.state === "invalid" && !busy && <details className="github-token__permissions">
+      <summary>{t.gitlabAuthRepairDetails}</summary>
+      <p>{t.gitlabAuthRepairHint}</p>
+      <div className="github-account__actions"><button type="button" className="secondary-button" onClick={() => void controller.check()}>{t.accountsCheck}</button></div>
+    </details>}
     {busy && <div className="github-account__actions github-account__pending">
-      <p role="status" className="status-line status-line--progress"><LoaderCircle className="icon--spinning" aria-hidden="true" /><span>{t.gitlabAuthStatus[snapshot.state]}</span></p>
+      <p role="status" className="status-line status-line--progress"><LoaderCircle className="icon--spinning" aria-hidden="true" /><span>{progressLabel}</span></p>
       {snapshot.operationId && <button type="button" className="secondary-button" disabled={pending || snapshot.state === "cancelling"}
         onClick={() => void controller.cancel()}>{t.gitlabAuthCancel}</button>}
     </div>}
@@ -54,6 +65,5 @@ export function GitLabAccountSection({ controller, available, host = "gitlab.com
           onClick={() => { setConfirming(false); void controller.disconnect(account.id); }}>{t.gitlabAuthDisconnect}</button>
       </div>
     </div>}
-    {failure && <p className="status-line status-line--warning" role="alert"><CircleAlert aria-hidden="true" /><span>{t.gitlabAuthStatus[snapshot.state]}</span></p>}
   </div>;
 }
