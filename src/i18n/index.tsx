@@ -1,3 +1,4 @@
+import { azureTranslations } from "../features/azure/translations";
 import { gitlabTranslations } from "../features/gitlab/translations";
 import { gitlabTokenTranslations } from "../features/gitlab/tokenTranslations";
 import { gitlabToolingTranslations } from "../features/gitlab/toolingTranslations";
@@ -73,6 +74,7 @@ export const translationNamespaces = {
   github: githubTranslations,
   githubToken: githubTokenTranslations,
   bitbucket: bitbucketTranslations,
+  azure: azureTranslations,
   hostingServers: hostingServersTranslations,
   repositoryBrowser: repositoryBrowserTranslations,
   accounts: accountsTranslations,
@@ -104,6 +106,7 @@ const en = {
   ...githubTranslations.en,
   ...githubTokenTranslations.en,
   ...bitbucketTranslations.en,
+  ...azureTranslations.en,
   ...hostingServersTranslations.en,
   ...repositoryBrowserTranslations.en,
   ...accountsTranslations.en,
@@ -137,6 +140,7 @@ const es: Translations = {
   ...githubTranslations.es,
   ...githubTokenTranslations.es,
   ...bitbucketTranslations.es,
+  ...azureTranslations.es,
   ...hostingServersTranslations.es,
   ...repositoryBrowserTranslations.es,
   ...accountsTranslations.es,

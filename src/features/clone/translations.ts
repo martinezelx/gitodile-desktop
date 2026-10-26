@@ -5,6 +5,9 @@ export interface CloneTranslations {
   cloneDialogDescription: string;
   cloneSourceTabs: string;
   cloneGitAddress: string;
+  cloneAzureHelp: string;
+  cloneAzureSourcePlaceholder: string;
+  cloneAzureAddressRequired: string;
   cloneComingSoon: string;
   cloneConnectionLabel: string;
   cloneNextDestination: string;
@@ -76,6 +79,9 @@ const dependency = (value: DependencyDiscovery): string =>
 const en: CloneTranslations = {
   cloneSourceTabs: "Project source",
   cloneGitAddress: "Git address",
+  cloneAzureSourcePlaceholder: "https://dev.azure.com/organization/project/_git/repository",
+  cloneAzureHelp: "Paste the HTTPS clone address from Azure Repos, then choose a saved connection or use your existing Git access.",
+  cloneAzureAddressRequired: "Enter an Azure Repos HTTPS clone address: https://dev.azure.com/organization/project/_git/repository.",
   cloneComingSoon: "Coming soon",
   cloneConnectionLabel: "Connection to download",
   cloneNextDestination: "Next: choose a destination and clone.",
@@ -158,6 +164,9 @@ const dependencyEs = (value: DependencyDiscovery): string =>
 const es: CloneTranslations = {
   cloneSourceTabs: "Origen del proyecto",
   cloneGitAddress: "Dirección de Git",
+  cloneAzureSourcePlaceholder: "https://dev.azure.com/organizacion/proyecto/_git/repositorio",
+  cloneAzureHelp: "Pega la dirección HTTPS para clonar desde Azure Repos y elige una conexión guardada o usa tu acceso existente de Git.",
+  cloneAzureAddressRequired: "Introduce una dirección HTTPS de Azure Repos: https://dev.azure.com/organizacion/proyecto/_git/repositorio.",
   cloneComingSoon: "Próximamente",
   cloneConnectionLabel: "Conexión para descargar",
   cloneNextDestination: "Siguiente: elegir destino y clonar.",

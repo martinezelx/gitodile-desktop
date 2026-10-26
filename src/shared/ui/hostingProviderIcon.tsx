@@ -10,6 +10,15 @@ export function GitHubIcon(): React.JSX.Element {
 }
 /** Provider identity shared by Settings, clone and repository browsing. */
 export function HostingProviderIcon({ provider }: { provider: string }): React.JSX.Element {
+  // Microsoft Codicons' Azure DevOps mark, CC BY 4.0. Geometry unchanged;
+  // displayed at 18px with the surrounding ink, like the other providers.
+  // https://github.com/microsoft/vscode-codicons/blob/main/src/icons/azure-devops.svg
+  // Attribution and license: THIRD_PARTY_LICENSES.md.
+  if (provider === "azure") return (
+    <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M15 3.62172V12.1336L11.5 15L6.075 13.025V14.9825L3.00375 10.9713L11.955 11.6704V4.00624L15 3.62172ZM12.0163 4.04994L6.99375 1V3.00125L2.3825 4.35581L1 6.12984V10.1586L2.9775 11.0325V5.86767L12.0163 4.04994Z" />
+    </svg>
+  );
   if (provider === "github") return <GitHubIcon />;
   // Bitbucket geometry: Simple Icons 16.34.0 (CC0-1.0). https://simpleicons.org
   if (provider === "bitbucket") return (

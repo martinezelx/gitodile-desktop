@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, KeyRound, LoaderCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { autoHideScrollbarProps, HostingProviderIcon, usePortalFlyout } from "../../shared/ui";
-import { providerKind, type AccountCatalog } from "./domain";
+import { providerKind, providerLabel, type AccountCatalog } from "./domain";
 
 type Option = { value: string | null; name: string; host: string; method: string; disabled: boolean };
 /** The menu's last item checks the accounts instead of choosing one. */
@@ -32,10 +32,15 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
   const missing = value !== null && !selected;
   const blocked = disabled || catalog.busy;
   const isOpen = openProvider === provider && !blocked;
-  const fieldLabel = label ?? `${t.accountsProjectLabel} · ${catalog.providers.find(item => item.id === provider)?.host ?? provider}`;
+  const selectedProvider = catalog.providers.find(item => item.id === provider);
+  const fieldLabel = label ?? `${t.accountsProjectLabel} · ${(selectedProvider ? providerLabel(selectedProvider) : provider)}`;
   const placeholder = required ? t.accountsChoose : t.accountsUseGit;
   const method = (accountId: string): string => accountId.includes(":token.") ? t.accountsTokenMethod : t.accountsBrowserMethod;
-  const grouped = new Set(accounts.map(account => account.host)).size > 1;
+  const accountHost = (account: AccountCatalog["accounts"][number]): string => {
+    const instance = catalog.providers.find(item => item.id === account.provider);
+    return instance?.scopePath ? `${account.host}/${instance.scopePath}` : account.host;
+  };
+  const grouped = new Set(accounts.map(accountHost)).size > 1;
   const builtIn = (id: string): boolean => catalog.providers.find(item => item.id === id)?.builtIn ?? true;
   // A required choice has no "none" option: the trigger shows the prompt.
   const options: Option[] = [
@@ -43,7 +48,7 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
     ...(missing ? [{ value, name: t.accountsUnavailable.replace("{account}", value), host: "", method: "", disabled: true }] : []),
     // github.com/gitlab.com first, then company servers by name.
     ...[...accounts].sort((a, b) => !grouped ? 0 : Number(!builtIn(a.provider)) - Number(!builtIn(b.provider)) || a.host.localeCompare(b.host))
-      .map(account => ({ value: account.id, name: `@${account.login}`, host: account.host,
+      .map(account => ({ value: account.id, name: `@${account.login}`, host: accountHost(account),
         method: method(account.id), disabled: !account.available })),
     ...(compact ? [] : [{ value: CHECK, name: t.accountsCheck, host: "", method: "", disabled: false }]),
   ];
@@ -116,7 +121,7 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
         <span className="hosting-account-picker__glyph"><HostingProviderIcon provider={iconKind} /></span>
         <span id={`${id}-value`} className="hosting-account-picker__identity">
           <span>{shown}</span>
-          {selected && (!compact || !selected.available) && <small>{compact ? t.accountsNeedsCheck : selected.host}{!compact && !selected.available && ` · ${t.accountsNeedsCheck}`}</small>}
+          {selected && (!compact || !selected.available) && <small>{compact ? t.accountsNeedsCheck : accountHost(selected)}{!compact && !selected.available && ` · ${t.accountsNeedsCheck}`}</small>}
         </span>
         {selected && <span id={`${id}-method`} className="hosting-account-picker__method">{method(selected.id)}</span>}
         {catalog.busy ? <LoaderCircle className="hosting-account-picker__chevron icon--spinning" aria-label={t.accountsChecking} />

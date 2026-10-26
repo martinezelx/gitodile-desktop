@@ -10,6 +10,7 @@ use crate::{
         UpdateCheckSource, UpdateState,
     },
     application,
+    azure_access::AzureOrganizations,
     bitbucket_access::BitbucketAccessService,
     branches::{
         self, BranchHistory, BranchesSnapshot, CleanUpBranchRequest, CleanUpBranchesPlan,
@@ -59,6 +60,35 @@ use crate::{
     },
     watch,
 };
+
+#[tauri::command]
+pub(crate) async fn add_azure_token(
+    service: tauri::State<'_, AzureOrganizations>,
+    organization: String,
+    token: String,
+    request_id: String,
+) -> Result<String, AppError> {
+    report_result(
+        "add_azure_token",
+        service.add(organization, token, request_id).await,
+    )
+}
+#[tauri::command(async)]
+pub(crate) fn remove_azure_token(
+    service: tauri::State<'_, AzureOrganizations>,
+    account_id: String,
+) -> Result<(), AppError> {
+    let _command = application::enter("remove_azure_token");
+    report_result("remove_azure_token", service.remove(&account_id))
+}
+#[tauri::command]
+pub(crate) fn cancel_azure_request(
+    service: tauri::State<'_, AzureOrganizations>,
+    request_id: String,
+) {
+    let _command = application::enter("cancel_azure_request");
+    service.cancel(&request_id);
+}
 
 #[tauri::command]
 pub(crate) async fn add_github_token(

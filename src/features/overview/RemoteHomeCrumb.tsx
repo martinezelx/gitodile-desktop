@@ -10,6 +10,7 @@ const SERVICE_NAMES: Record<Exclude<RemoteHome["provider"], "other">, string> = 
   github: "GitHub",
   gitlab: "GitLab",
   bitbucket: "Bitbucket",
+  azure: "Azure Repos",
 };
 
 /** Where the project lives, as a chip beside its name. Its glyph is the

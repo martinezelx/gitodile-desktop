@@ -12,12 +12,12 @@ import {
 } from "lucide-react";
 
 import { useLanguage } from "../../i18n";
-import { AccountPicker, accountsPort, providerForSource, providerKind, useAccounts, type AccountsPort, type HostingKind } from "../accounts";
+import { AccountPicker, accountsPort, azureCloneOrganization, providerForSource, providerKind, useAccounts, type AccountsPort, type HostingKind } from "../accounts";
 import { RepositoryBrowser, createRepositoryBrowserController, repositoryBrowserPort, type RepositoryBrowserPort, type RepositoryChoice } from "../repository-browser";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
 import { isAppError, localizeAppError } from "../../shared/i18n";
 import { Dialog, DialogFacts, FieldError, HostingProviderIcon, useFieldErrors, useModalFocus } from "../../shared/ui";
-import { cloneSourceSummary, cloneSuggestedName } from "./sourceAccess";
+import { cloneSourceSummary, cloneSuggestedName, hostingCloneAddress } from "./sourceAccess";
 import type { CloneAttempt, CloneController } from "./controller";
 import {
   readLastCloneConnection,
@@ -39,7 +39,7 @@ const PROGRESS_STEPS: { step: "downloading" | "checking" | "opening"; phases: Cl
 ];
 
 /** Where Clone opens instead of the address field: a provider's tab, showing
- * one connection's projects. */
+ * one connection's projects, or Azure's URL form with its connection. */
 export type CloneRepositoriesStart = { kind: HostingKind; accountId: string };
 
 type DialogStep =
@@ -68,7 +68,7 @@ export function CloneDialog({
    * launcher; it fills the field when the dialog opens and is still checked
    * like anything typed there. */
   initialSource?: string;
-  /** Opens on a provider's tab instead, showing this connection's projects,
+  /** Opens on a provider's tab instead, using this connection,
    * such as when Home's account list leads here for the rest of them. */
   initialRepositories?: CloneRepositoriesStart;
   controller: CloneController;
@@ -83,20 +83,29 @@ export function CloneDialog({
   const [source, setSource] = useState("");
   const [accountId, setAccountId] = useState<string | null>(null);
   const [sourceMode, setSourceMode] = useState<"url" | HostingKind>("url");
+  const manualSource = sourceMode === "url" || sourceMode === "azure";
+  const [preferredAzure, setPreferredAzure] = useState<string | null>(null);
   const [selectedRepository, setSelectedRepository] = useState<RepositoryChoice | null>(null);
   const [repositoryBrowser] = useState(() => createRepositoryBrowserController(repositoryPort));
   const browserState = useSyncExternalStore(repositoryBrowser.subscribe, repositoryBrowser.snapshot);
   const access = useSyncExternalStore(controller.sourceAccess.subscribe, controller.sourceAccess.snapshot);
   const { catalog, failed: accountsFailed, pending: checkingAccounts, check: checkAccounts } = useAccounts(accountPort, isOpen);
   const provider = providerForSource(source, catalog.providers);
-  useEffect(() => { setAccountId(current => provider && current?.startsWith(`${provider}:`) ? current : null); }, [provider]);
+  useEffect(() => {
+    const next = provider && accountId?.startsWith(`${provider}:`) ? accountId
+      : sourceMode === "azure" && provider && preferredAzure?.startsWith(`${provider}:`) ? preferredAzure : null;
+    if (next !== accountId) {
+      setAccountId(next);
+      if (sourceMode === "azure" && azureCloneOrganization(source)) controller.sourceAccess.update(source, next, catalog.providers);
+    }
+  }, [provider, accountId, sourceMode, preferredAzure, source, controller, catalog.providers]);
   // Entering a discovery tab offers the connection used last time, or the only
   // usable one. Selecting is local; finding projects stays an explicit action.
   // A check in progress (such as the launch sync, ADR 0027) may still make
   // connections usable, so wait for it.
   const preselected = useRef<string | null>(null);
   useEffect(() => {
-    if (sourceMode === "url") { preselected.current = null; return; }
+    if (manualSource) { preselected.current = null; return; }
     if (preselected.current === sourceMode || catalog.providers.length === 0 || browserState.accountId) return;
     if (checkingAccounts || catalog.busy) return;
     preselected.current = sourceMode;
@@ -105,7 +114,7 @@ export function CloneDialog({
     const remembered = readLastCloneConnection(sourceMode);
     const choice = usable.find(account => account.id === remembered) ?? (usable.length === 1 ? usable[0] : undefined);
     if (choice) repositoryBrowser.select(choice.id);
-  }, [sourceMode, catalog, browserState.accountId, repositoryBrowser, checkingAccounts]);
+  }, [sourceMode, manualSource, catalog, browserState.accountId, repositoryBrowser, checkingAccounts]);
   const [destinationParent, setDestinationParent] = useState(readLastCloneParent);
   const initialDestinationParent = useRef(destinationParent);
   const [destinationName, setDestinationName] = useState("");
@@ -144,11 +153,13 @@ export function CloneDialog({
   useEffect(() => {
     if (isOpen) {
       resetTransientState();
+      setPreferredAzure(null);
       if (initialSource) { setSourceMode("url"); setSource(initialSource); }
       else if (initialRepositories) {
         // Selecting finds its projects at once, so the list arrives with the tab.
         setSourceMode(initialRepositories.kind);
-        repositoryBrowser.select(initialRepositories.accountId);
+        if (initialRepositories.kind === "azure") setPreferredAzure(initialRepositories.accountId);
+        else repositoryBrowser.select(initialRepositories.accountId);
       }
     }
     else { controller.sourceAccess.reset(); repositoryBrowser.cancel(); }
@@ -174,8 +185,8 @@ export function CloneDialog({
 
   useEffect(() => {
     if (step === "destination") dialogRef.current?.querySelector<HTMLInputElement>("#clone-parent")?.focus();
-    if (step === "input" && sourceMode === "url") dialogRef.current?.querySelector<HTMLInputElement>("#clone-source")?.focus();
-  }, [step, sourceMode]);
+    if (step === "input" && manualSource) dialogRef.current?.querySelector<HTMLInputElement>("#clone-source")?.focus();
+  }, [step, sourceMode, manualSource]);
 
   const finishClose = (): void => {
     controller.supersede();
@@ -233,7 +244,8 @@ export function CloneDialog({
   };
 
   const chooseDestination = (): void => {
-    if (!validate([{ field: "clone-source", invalid: !source.trim(), message: t.commonRequiredField }])) return;
+    if (!validate([{ field: "clone-source", invalid: !source.trim(), message: t.commonRequiredField },
+      { field: "clone-source", invalid: sourceMode === "azure" && Boolean(source.trim()) && !azureCloneOrganization(source), message: t.cloneAzureAddressRequired }])) return;
     controller.sourceAccess.cancel();
     repositoryBrowser.cancel();
     if (!destinationName.trim()) setDestinationName(cloneSuggestedName(source));
@@ -242,14 +254,16 @@ export function CloneDialog({
 
   const editSource = (value: string): void => {
     const nextProvider = providerForSource(value, catalog.providers);
-    const nextAccount = nextProvider && accountId?.startsWith(nextProvider + ":") ? accountId : null;
+    const preferred = accountId ?? (sourceMode === "azure" ? preferredAzure : null);
+    const nextAccount = nextProvider && preferred?.startsWith(nextProvider + ":") ? preferred : null;
     setSource(value); setAccountId(nextAccount); setDestinationName(""); setSelectedRepository(null);
-    controller.sourceAccess.update(value, nextAccount, catalog.providers);
+    if (sourceMode === "azure" && !azureCloneOrganization(value)) controller.sourceAccess.reset();
+    else controller.sourceAccess.update(value, nextAccount, catalog.providers);
   };
 
   const changeSourceMode = (mode: "url" | HostingKind): void => {
     controller.sourceAccess.cancel(); repositoryBrowser.cancel();
-    if (mode !== sourceMode) { repositoryBrowser.select(null); setSelectedRepository(null); setSource(""); setAccountId(null); setDestinationName(""); }
+    if (mode !== sourceMode) { repositoryBrowser.select(null); setSelectedRepository(null); setSource(""); setAccountId(null); setPreferredAzure(null); setDestinationName(""); }
     setSourceMode(mode); resetFieldErrors();
   };
 
@@ -431,17 +445,18 @@ export function CloneDialog({
       onClose={step === "opening" ? undefined : close}
       closeLabel={t.commonClose}
       dialogRef={dialogRef}
-      className={`clone-dialog auto-hide-scrollbar${isForm && sourceMode !== "url" ? " clone-dialog--repositories" : ""}`}
+      className={`clone-dialog auto-hide-scrollbar${isForm && !manualSource ? " clone-dialog--repositories" : ""}`}
     >
       {isForm && (
-        <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (sourceMode === "url" || browserChoiceValid) chooseDestination(); }}>
+        <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (manualSource || browserChoiceValid) chooseDestination(); }}>
           <nav className="clone-dialog__sources" aria-label={t.cloneSourceTabs}>
             <button type="button" aria-pressed={sourceMode === "url"} onClick={() => changeSourceMode("url")}><Link aria-hidden="true" />{t.cloneGitAddress}</button>
             <button type="button" aria-pressed={sourceMode === "github"} onClick={() => changeSourceMode("github")}><HostingProviderIcon provider="github" />GitHub</button>
             <button type="button" aria-pressed={sourceMode === "gitlab"} onClick={() => changeSourceMode("gitlab")}><HostingProviderIcon provider="gitlab" />GitLab</button>
             <button type="button" aria-pressed={sourceMode === "bitbucket"} onClick={() => changeSourceMode("bitbucket")}><HostingProviderIcon provider="bitbucket" />Bitbucket</button>
+            <button type="button" aria-pressed={sourceMode === "azure"} onClick={() => changeSourceMode("azure")}><HostingProviderIcon provider="azure" />Azure Repos</button>
           </nav>
-          {sourceMode !== "url" ? <RepositoryBrowser provider={sourceMode} controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
+          {!manualSource ? <RepositoryBrowser provider={sourceMode} controller={repositoryBrowser} catalog={catalog} checking={checkingAccounts} failed={accountsFailed}
             onConnectionChange={id => writeLastCloneConnection(sourceMode, id)}
             onCheck={() => void checkAccounts(sourceMode)} selected={selectedRepository} onClearSelection={() => setSelectedRepository(null)}
             onChoose={choice => { setSelectedRepository(choice); setSource(choice.repository.cloneUrl); setAccountId(choice.accountId); setDestinationName(choice.repository.name); }} /> : <>
@@ -449,19 +464,27 @@ export function CloneDialog({
               <span id="clone-source-label">{t.cloneSourceLabel}</span>
               <span className="clone-dialog__address-input">
                 <input {...fieldProps("clone-source", "clone-source-help")} id="clone-source" aria-labelledby="clone-source-label" data-autofocus
-                  value={source} onChange={event => editSource(event.target.value)} placeholder={t.cloneSourcePlaceholder} autoComplete="off" spellCheck={false} required />
+                  value={source} onChange={event => editSource(event.target.value)} placeholder={sourceMode === "azure" ? t.cloneAzureSourcePlaceholder : t.cloneSourcePlaceholder} autoComplete="off" spellCheck={false} required />
                 {accessStatus === "checking" && <LoaderCircle className="icon--spinning" aria-hidden="true" />}
                 {accessStatus === "accessible" && <Check className="clone-dialog__access-ok" aria-hidden="true" />}
                 {accessStatus === "unavailable" && <CircleAlert className="clone-dialog__access-warning" aria-hidden="true" />}
               </span>
-              <small id="clone-source-help">{t.cloneSourceHelp}</small>
+              <small id="clone-source-help">{sourceMode === "azure" ? t.cloneAzureHelp : t.cloneSourceHelp}</small>
               <FieldError field="clone-source" errors={errors} />
             </label>
-            {provider && <AccountPicker catalog={catalog} provider={provider} value={accountId} label={t.cloneConnectionLabel}
-              onChange={id => { setAccountId(id); controller.sourceAccess.update(source, id, catalog.providers); }}
-              onCheck={() => void checkAccounts(provider)} disabled={checkingAccounts} failed={accountsFailed} />}
+            {(provider || sourceMode === "azure") && <AccountPicker catalog={catalog}
+              provider={sourceMode === "azure" && !azureCloneOrganization(source) ? "azure" : provider ?? "azure"}
+              kind={sourceMode === "azure" && (!provider || !azureCloneOrganization(source)) ? "azure" : undefined}
+              value={sourceMode === "azure" && !azureCloneOrganization(source) ? preferredAzure : accountId} label={t.cloneConnectionLabel}
+              onChange={id => {
+                if (sourceMode === "azure") setPreferredAzure(id);
+                const next = sourceMode === "azure" && (!provider || !id?.startsWith(`${provider}:`)) ? null : id;
+                setAccountId(next);
+                if (sourceMode !== "azure" || azureCloneOrganization(source)) controller.sourceAccess.update(source, next, catalog.providers);
+              }}
+              onCheck={() => void checkAccounts(sourceMode === "azure" ? "azure" : provider ?? "azure")} disabled={checkingAccounts} failed={accountsFailed} />}
             {accessStatus !== "idle" && <div className={"clone-dialog__access clone-dialog__access--" + accessStatus} role="status" aria-live="polite">
-              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ? providerKind(catalog.providers, provider) : "github"} />}
+              {accessStatus === "accessible" ? <Check aria-hidden="true" /> : <HostingProviderIcon provider={provider ? providerKind(catalog.providers, provider) : hostingCloneAddress(source, catalog.providers)?.provider ?? "github"} />}
               <div><strong>{accessTitle}</strong><small>{accessStatus === "unavailable" ? t.cloneAccessUnavailableHelp : accessStatus === "unconfirmed" ? t.cloneAccessUnconfirmedHelp : t.cloneAccessConnection(connectionLabel)}</small></div>
               <button type="button" className="app-dialog__link clone-dialog__text-action" onClick={() => accessStatus === "checking" ? controller.sourceAccess.cancel() : controller.sourceAccess.update(source, accountId, catalog.providers)}>
                 {accessStatus === "checking" ? t.commonCancel : t.cloneAccessRetry}
@@ -469,10 +492,10 @@ export function CloneDialog({
             </div>}
           </>}
           <footer className="clone-dialog__footer">
-            <p className="app-dialog__note">{sourceMode !== "url" && browserChoiceValid ? <><strong>{selectedRepository?.repository.fullName}</strong><span>{t.cloneNextDestination}</span></> : t.cloneNextDestination}</p>
+            <p className="app-dialog__note">{!manualSource && browserChoiceValid ? <><strong>{selectedRepository?.repository.fullName}</strong><span>{t.cloneNextDestination}</span></> : t.cloneNextDestination}</p>
             <div className="dialog-actions">
               <button className="secondary-button" type="button" onClick={close}>{t.commonCancel}</button>
-              <button className="primary-button" type="submit" disabled={sourceMode !== "url" ? !browserChoiceValid : accessStatus === "unavailable"}>
+              <button className="primary-button" type="submit" disabled={!manualSource ? !browserChoiceValid : accessStatus === "unavailable"}>
                 {accessStatus === "checking" || accessStatus === "unconfirmed" ? t.cloneContinueUnchecked : t.cloneReviewAction}
               </button>
             </div>
@@ -484,7 +507,7 @@ export function CloneDialog({
         <form className="clone-dialog__form" {...formProps} onSubmit={event => { event.preventDefault(); if (validateInput() && attempt && reviewedRequestMatches && !isPlanning) void executeAttempt(attempt); }}>
           <div className="clone-dialog__picked">
             {sourceMode !== "url" ? <HostingProviderIcon provider={sourceMode} /> : <Link aria-hidden="true" />}
-            <div><strong>{sourceMode !== "url" ? selectedRepository?.repository.fullName : t.cloneGitAddress}</strong>
+            <div><strong>{!manualSource ? selectedRepository?.repository.fullName : sourceMode === "azure" ? "Azure Repos" : t.cloneGitAddress}</strong>
               <small>{attempt?.plan.sourceDisplay ?? cloneSourceSummary(source)}</small>
               <small>{connectionLabel}</small></div>
             <button className="app-dialog__link clone-dialog__text-action" type="button" onClick={() => { controller.supersede(); setStep("input"); }}>{t.cloneChangeSource}</button>

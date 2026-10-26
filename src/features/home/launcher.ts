@@ -113,7 +113,7 @@ export function nextPromptIndex(random: () => number = Math.random): number {
    never reads a repository or the network to fill this in. */
 
 export type HomeGitState = "checking" | "available" | "missing" | "unusable" | "check_failed";
-export type HomeAccountKind = "github" | "gitlab" | "bitbucket";
+export type HomeAccountKind = "github" | "gitlab" | "bitbucket" | "azure";
 export type HomeAccount = {
   id: string;
   kind: HomeAccountKind;
@@ -142,6 +142,7 @@ export const ACCOUNT_KIND_NAMES: Record<HomeAccountKind, string> = {
   github: "GitHub",
   gitlab: "GitLab",
   bitbucket: "Bitbucket",
+  azure: "Azure Repos",
 };
 
 export type SetupStepId = "git" | "identity" | "account";
@@ -225,7 +226,7 @@ export function accountChoiceParts(account: HomeAccount, siblings: readonly Home
 
 function homeKind(catalog: AccountCatalog, provider: string): HomeAccountKind | null {
   const kind = providerKind(catalog.providers, provider);
-  return kind === "github" || kind === "gitlab" || kind === "bitbucket" ? kind : null;
+  return kind === "github" || kind === "gitlab" || kind === "bitbucket" || kind === "azure" ? kind : null;
 }
 
 /**
@@ -254,7 +255,7 @@ export function readHomeAccounts(
       login: account.login,
       // Token connections are stored as `<provider>:token.<login>`.
       source: account.id.includes(":token.") ? "token" : "connection",
-      server: provider && !provider.builtIn ? account.host : null,
+      server: provider && !provider.builtIn ? (provider.scopePath ? `${account.host}/${provider.scopePath}` : account.host) : null,
     }];
   });
   const pendingKinds = catalog.busy

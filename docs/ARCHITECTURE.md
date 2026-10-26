@@ -974,6 +974,22 @@ gh's device page for a server because the renderer's opener scope is a fixed
 list. See
 [ADR 0025](adr/0025-connect-company-servers-as-provider-instances.md).
 
+### Azure Repos Services organization connections
+
+`azure_access.rs` owns organization instances and canonical clone URL validation;
+`hosting_access.rs` supplies the native PAT lifecycle and connection-data identity
+checks. The shared provider contract has an optional `scopePath`, shown beside
+`dev.azure.com` in Settings and used to select one organization instance in clone
+and project account pickers. Process-only Git helpers enable `useHttpPath` and
+validate that scope before reading the secret. The same identity on two
+organizations has separate secure-store namespaces and bindings. Azure's
+frontend feature owns its typed port, adapter, organization step and token copy;
+`hosting-servers` composes it in Integrations. No Azure discovery source is
+registered. Clone offers a URL-only Azure tab; connected Home accounts open it
+with their selected connection without calling the repository-browser port.
+See [ADR 0036](adr/0036-connect-azure-repos-by-organization-and-pat.md)
+for URL normalization, account lifetime, limits and qualification boundaries.
+
 ### Shared hosting accounts and Git access
 
 The optional GitOdile identity demo is separate from hosting accounts.

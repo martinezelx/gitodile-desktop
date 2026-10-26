@@ -3,7 +3,7 @@ import { CircleAlert } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { HostingProviderIcon, RefreshIconButton } from "../../shared/ui";
 import { AccountPicker } from "./AccountPicker";
-import { providerForSource, remoteAccountIssues, type AccountCatalog, type AccountProject, type HostingProvider, type RemoteAccountIssue } from "./domain";
+import { providerForSource, providerLabel, remoteAccountIssues, type AccountCatalog, type AccountProject, type HostingProvider, type RemoteAccountIssue } from "./domain";
 import type { AccountsPort } from "./port";
 import { accountsPort } from "./tauriAdapter";
 import { useAccounts } from "./useAccounts";
@@ -87,8 +87,8 @@ function ProviderAccount({ project, port, provider, catalog, pending, issue, rea
     }
     finally { inFlight.current = false; if (request === generation.current) setSaving(false); }
   };
-  return <div className="hosting-access__row" role="group" aria-label={provider.host}>
-    <span className="hosting-access__host"><HostingProviderIcon provider={provider.kind} /><span>{provider.host}</span></span>
+  return <div className="hosting-access__row" role="group" aria-label={providerLabel(provider)}>
+    <span className="hosting-access__host"><HostingProviderIcon provider={provider.kind} /><span>{providerLabel(provider)}</span></span>
     <AccountPicker catalog={catalog} provider={provider.id} value={selection} onChange={value => void choose(value)}
       onCheck={onCheck} disabled={loading || saving || pending} compact />
     {(issue || writeFailed || saved) && <div className="hosting-access__status">

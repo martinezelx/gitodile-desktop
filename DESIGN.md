@@ -25,7 +25,7 @@ Choosing a project populates the normal destination review without starting a
 clone. A filter must say which page it searches; a partial list cannot read as
 the full account inventory. Opening a cached view does not refresh remotely.
 
-The clone overlay uses two screens: Git address, GitHub, GitLab and Bitbucket source tabs first; then the editable destination and native preview with
+The clone overlay uses two screens: Git address, GitHub, GitLab, Bitbucket and Azure Repos source tabs first; then the editable destination and native preview with
 Clone project. There is no numbered step bar or separate confirmation screen.
 Selecting a repository stays on the list and highlights the selection until
 Choose destination. Retain virtualized rows and invalidate selection on account
@@ -117,7 +117,7 @@ the list uses cached connections and never checks them remotely; saved
 connections are verified in the background after launch (ADR 0027).
 
 Hosting provider icons use monochrome silhouettes with `currentColor`, including
-GitHub, GitLab and Bitbucket. They follow the surrounding ink in light/dark themes and
+GitHub, GitLab, Bitbucket and Azure DevOps. They follow the surrounding ink in light/dark themes and
 selected states, rather than introducing provider brand colours into navigation.
 
 Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserve it, if used at all, for genuinely transient overlays (a modal scrim) — never for a panel that sits on screen the whole session. Code, diffs, file lists, conflict editors, forms, and long-form content must sit on fully opaque surfaces.
@@ -2769,6 +2769,17 @@ repository permissions and possible plaintext fallback. Its inline waiting panel
 has a selectable device code, Copy, Open GitHub and Cancel, with keyboard focus
 on Continue when consent opens. Cancellation does not promise unchanged
 authorization: gh may already have persisted it.
+
+**Azure Repos connects per organization.** The provider menu offers a personal
+access token. Its inline panel collects the organization name/address first,
+then uses the shared masked token editor with expiry, Code permissions and
+secure-storage guidance. Connected rows and project selectors name
+`dev.azure.com/organization`, so two organizations sharing a host stay distinct.
+Clone always offers an Azure Repos tab with its provider mark, HTTPS address
+field and connection picker. Home shows connected Azure accounts and opens that
+tab with the chosen connection. Users paste a clone URL; browser login and
+repository discovery are outside this version. See
+[ADR 0036](docs/adr/0036-connect-azure-repos-by-organization-and-pat.md).
 
 **Company servers are an inventory.** The group after Accounts lists each
 GitHub Enterprise Server or GitLab Self-Managed host with its account count and

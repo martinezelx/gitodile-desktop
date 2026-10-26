@@ -6,6 +6,71 @@ use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+#[test]
+fn azure_binary_refuses_wrong_organization_before_lookup_and_stops_git_fallback() {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(b"contoso");
+    let id = format!(
+        "azo-{}:token.11111111-1111-1111-1111-111111111111",
+        digest
+            .iter()
+            .take(10)
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
+    );
+    let binary = env!("CARGO_BIN_EXE_gitodile").replace('\\', "/");
+    let helper = format!(
+        "!{} --gitodile-credential-helper {} dev.azure.com/contoso",
+        quote(&binary),
+        quote(&id)
+    );
+    let root = std::env::temp_dir().join(format!("gitodile-azure-helper-{}", std::process::id()));
+    fs::create_dir_all(&root).unwrap();
+    for path in [
+        "other/project/_git/repo",
+        "contoso-other/project/_git/repo",
+        "contoso/%2e%2e/_git/repo",
+        "contoso/P/_git/R\npath=other/P/_git/R",
+    ] {
+        let mut child = Command::new("git")
+            .args([
+                "-c",
+                "credential.helper=",
+                "-c",
+                &format!("credential.helper={helper}"),
+                "-c",
+                "credential.helper=!echo username=fallback; echo password=unexpected_fallback",
+                "-c",
+                "credential.useHttpPath=true",
+                "credential",
+                "fill",
+            ])
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", root.join("empty.gitconfig"))
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .current_dir(&root)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(
+                format!("protocol=https\nhost=dev.azure.com\nusername=gitodile\npath={path}\n\n")
+                    .as_bytes(),
+            )
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("unexpected_fallback"));
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
 fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }

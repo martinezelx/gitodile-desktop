@@ -86,6 +86,8 @@ export interface HomeTranslations {
   homeAccountSection: (provider: string, login: string) => string;
   homeAccountSearchPlaceholder: (provider: string) => string;
   homeAccountLoading: string;
+  homeAzureCloneHelp: string;
+  homeAzureCloneAction: string;
   homeAccountError: string;
   homeAccountRetry: string;
   homeAccountEmpty: string;
@@ -178,6 +180,8 @@ const en: HomeTranslations = {
   homeAccountSection: (provider, login) => `Your projects on ${provider} · ${login}`,
   homeAccountSearchPlaceholder: (provider) => `Search your ${provider} projects…`,
   homeAccountLoading: "Loading your projects…",
+  homeAzureCloneHelp: "Clone an Azure Repos project by pasting its HTTPS clone address. Your selected connection will be ready to use.",
+  homeAzureCloneAction: "Clone from Azure Repos…",
   homeAccountError: "Couldn't load your projects.",
   homeAccountRetry: "Try again",
   homeAccountEmpty: "This account has no projects yet.",
@@ -270,6 +274,8 @@ const es: HomeTranslations = {
   homeAccountSection: (provider, login) => `Tus proyectos en ${provider} · ${login}`,
   homeAccountSearchPlaceholder: (provider) => `Busca en tus proyectos de ${provider}…`,
   homeAccountLoading: "Cargando tus proyectos…",
+  homeAzureCloneHelp: "Clona un proyecto de Azure Repos pegando su dirección HTTPS. Tu conexión seleccionada estará lista para usarla.",
+  homeAzureCloneAction: "Clonar desde Azure Repos…",
   homeAccountError: "No se han podido cargar tus proyectos.",
   homeAccountRetry: "Reintentar",
   homeAccountEmpty: "Esta cuenta aún no tiene proyectos.",

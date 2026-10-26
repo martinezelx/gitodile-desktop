@@ -5,11 +5,11 @@ export type HostingAccount = {
   avatarDataUrl: string | null; available: boolean;
   unavailableReason?: AppError["code"] | null;
 };
-export type HostingKind = "github" | "gitlab" | "bitbucket";
+export type HostingKind = "github" | "gitlab" | "bitbucket" | "azure";
 /** One provider instance: github.com, gitlab.com, bitbucket.org, or a
  * user-added company server. `host` is the exact HTTPS authority, including a
  * non-default port. */
-export type HostingProvider = { id: string; host: string; kind: HostingKind; builtIn: boolean };
+export type HostingProvider = { id: string; host: string; kind: HostingKind; builtIn: boolean; scopePath?: string | null };
 export type AccountCatalog = {
   providers: HostingProvider[];
   accounts: HostingAccount[]; busy: boolean;
@@ -39,7 +39,7 @@ export function remoteAccountIssues(remoteUrls: readonly string[], signInRemoteU
   for (const source of remoteUrls) {
     try {
       const url = new URL(source.trim());
-      const provider = providers.find(p => hostName(p.host) === url.hostname);
+      const provider = providers.find(p => hostName(p.host) === url.hostname && (!p.scopePath || url.pathname.split("/")[1] === p.scopePath));
       if (url.protocol === "http:" && provider && !issues.has(provider.id)) issues.set(provider.id, { issue: "insecure", host: provider.host });
     } catch { /* SSH, SCP-like and local remotes never use a selected account. */ }
   }
@@ -48,7 +48,26 @@ export function remoteAccountIssues(remoteUrls: readonly string[], signInRemoteU
 export function providerForSource(source: string, providers: AccountCatalog["providers"]): string | null {
   try {
     const url = new URL(source.trim());
-    if (url.protocol !== "https:" || url.username || url.password || url.search) return null;
-    return providers.find(provider => provider.host === url.host)?.id ?? null;
+    if (url.protocol !== "https:" || (url.username && url.hostname !== "dev.azure.com") || url.password || url.search) return null;
+    return providers.find(provider => provider.host === url.host && (!provider.scopePath || azureCloneOrganization(source) === provider.scopePath))?.id ?? null;
   } catch { return null; }
+}
+
+/** Azure Repos Services: organization/project/_git/repo, including the
+ * default-project shorthand. Match original segments before URL dot folding. */
+export function azureCloneOrganization(source: string): string | null {
+  try {
+    const url = new URL(source.trim());
+    if (url.protocol !== "https:" || url.host !== "dev.azure.com" || url.password || url.search || url.hash) return null;
+    const authorityAndPath = source.trim().split("://")[1] ?? "";
+    const rawPath = authorityAndPath.slice(authorityAndPath.indexOf("/") + 1);
+    const parts = rawPath?.replace(/\/+$/, "").split("/").map(decodeURIComponent) ?? [];
+    if ((parts.length !== 3 && parts.length !== 4) || parts.at(-2) !== "_git" || parts.some(part => !part || part === "." || part === ".." || /[\x00-\x1f\x7f/\\%?#]/.test(part))) return null;
+    const org = parts[0].toLowerCase();
+    if (rawPath.split("/")[0].toLowerCase() !== org) return null;
+    return /^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$/.test(org) ? org : null;
+  } catch { return null; }
+}
+export function providerLabel(provider: HostingProvider): string {
+  return provider.scopePath ? `${provider.host}/${provider.scopePath}` : provider.host;
 }

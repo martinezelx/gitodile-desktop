@@ -117,3 +117,29 @@ it("recognizes registered company servers by exact authority and maps their conn
     expect(hostingCloneAddress(source, providers)).toBeNull();
   }
 });
+
+it("recognizes manual Azure clone URLs without offering repository discovery", () => {
+  const providers = [
+    { id: "azo-one", host: "dev.azure.com", kind: "azure" as const, builtIn: false, scopePath: "one" },
+    { id: "azo-two", host: "dev.azure.com", kind: "azure" as const, builtIn: false, scopePath: "two" },
+  ];
+  expect(hostingCloneAddress("https://dev.azure.com/one/My%20Project/_git/My%20Repo", providers))
+    .toEqual({ https: true, provider: "azure", providerId: "azo-one" });
+  expect(hostingCloneAddress("https://two@dev.azure.com/two/_git/Repo", providers)?.providerId).toBe("azo-two");
+  expect(hostingCloneAddress("https://dev.azure.com/three/_git/Repo")?.provider).toBe("azure");
+});
+
+
+it("never probes malformed Azure addresses through a registered organization's generic host fallback", async () => {
+  vi.useFakeTimers();
+  const providers = [{ id: "azo-one", host: "dev.azure.com", kind: "azure" as const, builtIn: false, scopePath: "one" }];
+  const checkSource = vi.fn(async () => "accessible" as const);
+  const controller = createCloneSourceAccess({ checkSource, cancelSourceCheck: vi.fn(async () => undefined) });
+  for (const source of ["https://dev.azure.com/one/repo", "https://dev.azure.com/other/repo", "git@dev.azure.com:one/repo", "ssh://git@dev.azure.com/one/repo"]) {
+    expect(hostingCloneAddress(source, providers), source).toBeNull();
+    controller.update(source, null, providers);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(controller.snapshot().status).toBe("idle");
+  }
+  expect(checkSource).not.toHaveBeenCalled();
+});

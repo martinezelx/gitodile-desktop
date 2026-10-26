@@ -16,6 +16,15 @@ import {
   readHomeAccounts,
 } from "./launcher";
 
+it("includes Azure organization connections in Home and its setup readiness", () => {
+  const snapshot = readHomeAccounts({ busy: false,
+    providers: [{ id: "azo-contoso", host: "dev.azure.com", kind: "azure", builtIn: false, scopePath: "contoso" }],
+    accounts: [{ id: "azo-contoso:token.user", provider: "azo-contoso", host: "dev.azure.com", login: "Ada", available: true, avatarDataUrl: null }],
+  }, true);
+  expect(snapshot.accounts).toEqual([{ id: "azo-contoso:token.user", kind: "azure", login: "Ada", source: "token", server: "dev.azure.com/contoso" }]);
+  expect(planSetup({ git: { state: "available", version: "2.50.0", isRechecking: false }, identity: { name: "Ada", email: "ada@example.test" }, accounts: snapshot.accounts }).complete).toBe(true);
+});
+
 describe("daySlot", () => {
   it.each([
     [6, "morning"],

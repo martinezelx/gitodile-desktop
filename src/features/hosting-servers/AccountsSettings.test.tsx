@@ -153,7 +153,7 @@ describe("connecting an account", () => {
       await userEvent.click(trigger);
       const menu = screen.getByRole("menu", { name: "Choose a provider" });
       expect(within(menu).getAllByRole("menuitem").map(item => item.textContent)).toEqual([
-        "GitHub With the browser or a token", "GitLab With the browser or a token", "Bitbucket With an Atlassian API token",
+        "GitHub With the browser or a token", "GitLab With the browser or a token", "Bitbucket With an Atlassian API token", "Azure Repos With a personal access token",
       ]);
       expect(within(menu).getByRole("menuitem", { name: /^GitHub/ })).toHaveFocus();
       await userEvent.keyboard("{ArrowDown}");

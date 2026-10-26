@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 
 /// Products whose saved connections the launch sync verifies; each check also
 /// covers that product's company servers.
-const LAUNCH_SYNC_PRODUCTS: [&str; 3] = ["github", "gitlab", "bitbucket"];
+const LAUNCH_SYNC_PRODUCTS: [&str; 4] = ["github", "gitlab", "bitbucket", "azure"];
 /// Long enough for the window to paint first; the sync is never on that path.
 const LAUNCH_SYNC_DELAY: std::time::Duration = std::time::Duration::from_secs(3);
 
@@ -108,6 +108,9 @@ pub fn credential_helper_entry() -> Option<i32> {
 }
 
 fn helper_server(account_id: &str, host: &str) -> Result<Arc<dyn AccessProvider>, ()> {
+    if host.starts_with("dev.azure.com/") {
+        return crate::azure_access::helper(account_id, host);
+    }
     let (provider, _) = credentials::split_account(account_id).ok_or(())?;
     let kind = [ProviderKind::GitHub, ProviderKind::GitLab]
         .into_iter()
@@ -167,6 +170,7 @@ fn id_prefix(kind: ProviderKind) -> &'static str {
         ProviderKind::GitLab => "gls-",
         // Never a company server; `ProviderKind::server_kind` refuses it.
         ProviderKind::Bitbucket => "bbc-",
+        ProviderKind::Azure => "azo-",
     }
 }
 
@@ -239,7 +243,7 @@ fn build(entry: &ServerEntry, path: PathBuf) -> Option<Server> {
             let service = GitLabAuthService::for_host(&entry.id, &entry.host);
             (ServerCli::GitLab(service.clone()), Arc::new(service))
         }
-        ProviderKind::Bitbucket => return None,
+        ProviderKind::Bitbucket | ProviderKind::Azure => return None,
     };
     Some(Server {
         entry: entry.clone(),
@@ -615,7 +619,7 @@ mod tests {
         .iter()
         .map(|provider| provider.kind())
         .collect::<Vec<_>>();
-        assert_eq!(registered, LAUNCH_SYNC_PRODUCTS);
+        assert_eq!([registered, vec!["azure"]].concat(), LAUNCH_SYNC_PRODUCTS);
     }
 
     #[test]

@@ -293,6 +293,7 @@ export function HomeLauncher({
 
   const showAccount = (accountId: string): void => {
     if (!repositoryBrowser) return;
+    if (setup?.accounts?.some(account => account.id === accountId && account.kind === "azure")) { repositoryBrowser.cancel(); return; }
     // The one network read Home makes, and only on an explicit choice.
     repositoryBrowser.select(accountId);
     const state = repositoryBrowser.snapshot();
@@ -354,7 +355,7 @@ export function HomeLauncher({
   );
 
   if (activeAccount && (intent.kind === "empty" || intent.kind === "text")) {
-    const repositories = browser?.accountId === activeAccount.id ? (browser.page?.repositories ?? null) : null;
+    const repositories = activeAccount.kind !== "azure" && browser?.accountId === activeAccount.id ? (browser.page?.repositories ?? null) : null;
     const text = intent.kind === "text" ? intent.text : "";
     const first = repositories
       ? matchRecentProjects(
@@ -601,7 +602,7 @@ export function HomeLauncher({
               aria-label={t.homeLauncherLabel}
               placeholder={
                 activeAccount
-                  ? t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
+                  ? activeAccount.kind === "azure" ? t.homeLauncherPlaceholderFirst : t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
                   : hasRecents
                     ? t.homeLauncherPlaceholder
                     : t.homeLauncherPlaceholderFirst

@@ -466,6 +466,33 @@ without it but never select an account. See
 Behavior is covered by hermetic fixtures; no real Bitbucket token has been
 qualified yet.
 
+### Azure Repos Services
+
+Connect Azure Repos in Settings → Integrations → Connect account → Azure Repos.
+Enter the organization name (or its `https://dev.azure.com/organization` address),
+then a personal access token created for that organization. The app verifies the
+Azure identity and saves the PAT in the system secure store, without plaintext
+fallback. Code **Read** permits reads; **Read & write** is needed to publish,
+subject to repository permissions and branch policies. PATs expire and must be
+replaced manually; your organization can restrict their use.
+
+Choose Azure Repos in Clone, or open it from a connected Azure account in Home.
+Paste a `https://dev.azure.com/organization/project/_git/repository` URL, including
+names with encoded spaces. Home carries the selected connection into Clone. Copied username-only clone URLs are
+normalized before cloning. Choose the connection in each project's remote
+settings to get and publish changes. Each organization has its own credentials,
+including when several projects use the shared `dev.azure.com` host. Existing
+remotes must use the canonical lowercased organization URL without embedded
+sign-in details to use a saved connection; GitOdile does not rewrite them.
+Removing a token locally does not revoke it in Azure. Up to eight organizations
+and eight token identities per organization are supported.
+
+Repository browsing, Microsoft browser login, legacy `visualstudio.com` aliases
+and self-hosted Azure DevOps Server are not included. Existing Git credentials
+and SSH remain available without a selected GitOdile connection. Live Azure
+clone/publish and macOS/Linux qualification remain unverified; see
+[ADR 0036](docs/adr/0036-connect-azure-repos-by-organization-and-pat.md).
+
 ### Company servers
 
 The GitHub and GitLab blocks of Settings → Integrations each list their **company
@@ -592,3 +619,5 @@ Copyright © 2026 Luis M. Martínez.
 
 The GitOdile name, logo, application icon, and visual identity are subject to
 separate brand rights. The software license does not grant rights to use them.
+
+Third-party icon attribution is recorded in [third-party notices](THIRD_PARTY_LICENSES.md).
