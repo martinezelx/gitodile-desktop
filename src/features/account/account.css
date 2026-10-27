@@ -27,6 +27,13 @@
 .account-control__status { position: absolute; right: 0; bottom: 0; box-sizing: border-box; width: 9px; height: 9px; border: 2px solid var(--surface-raised); border-radius: var(--radius-round); background: var(--status-success); }
 .account-avatar { box-sizing: border-box; width: 30px; height: 30px; display: inline-grid; place-items: center; line-height: var(--leading-none); border-radius: var(--radius-round); background: var(--surface-active); color: var(--text-primary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); box-shadow: var(--avatar-ring); flex-shrink: 0; }
 .account-avatar--large { width: 40px; height: 40px; }
+/* Inside a menu the glyph takes the 16px icon column so the row lines up with
+   its neighbours; the 20px avatar bleeds 2px each side through negative margin. */
+.account-control--menu .account-control__glyph { width: 20px; height: 20px; margin: -2px; }
+.account-control--menu .account-avatar { width: 20px; height: 20px; font-size: var(--text-micro); }
+.account-control--menu .account-control__status { width: 8px; height: 8px; }
+.account-control__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-control__tag { margin-left: auto; padding-left: var(--space-4); flex-shrink: 0; white-space: nowrap; color: var(--text-secondary-color); font-size: var(--text-label); }
 .account-person { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .account-person p { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
 .account-settings .settings-group__header h3 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

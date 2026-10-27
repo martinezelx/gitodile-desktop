@@ -95,6 +95,7 @@
   top: calc(100% + var(--space-2));
   left: 0;
   min-width: 210px;
+  max-width: 300px;
   padding: var(--space-2);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);

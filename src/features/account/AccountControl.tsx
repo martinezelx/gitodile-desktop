@@ -19,7 +19,7 @@ export function AccountControl({ controller, compact = false, menuClassName = "a
   const label = `${identity?.name ?? t.accountSignIn} · ${t.accountDemo}`;
   return <button
     ref={buttonRef}
-    className={compact ? menuClassName : "sidebar-round sidebar-round--account"}
+    className={compact ? `${menuClassName} account-control--menu` : "sidebar-round sidebar-round--account"}
     type="button" role={compact ? "menuitem" : undefined}
     tabIndex={compact ? -1 : undefined}
     aria-label={label} data-tooltip={compact ? undefined : label}
@@ -36,6 +36,11 @@ export function AccountControl({ controller, compact = false, menuClassName = "a
       {identity ? <><span className="account-avatar">{identity.initials}</span><span className="account-control__status" /></> : <UserRound />}
     </span>
     {identity && <span id={statusId} className="visually-hidden">{t.accountSuccess}</span>}
-    {compact && <span>{label}</span>}
+    {/* One line in every state: the name truncates and the demo marker stays
+        a quiet trailing tag, like a menu shortcut. The full label is aria-label. */}
+    {compact && <>
+      <span className="account-control__name">{identity?.name ?? t.accountSignIn}</span>
+      <span className="account-control__tag" aria-hidden="true">{t.accountDemo}</span>
+    </>}
   </button>;
 }

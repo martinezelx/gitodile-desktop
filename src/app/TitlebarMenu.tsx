@@ -76,10 +76,12 @@ export function TitlebarMenu({
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") closeMenu(true);
     };
-    document.addEventListener("mousedown", handlePointerDown);
+    // Capture phase: Tauri stops the bubbling mousedown on titlebar drag
+    // regions, so a press on the bar beside the menu would never reach us.
+    document.addEventListener("mousedown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("mousedown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
