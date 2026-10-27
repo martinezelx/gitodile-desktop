@@ -6,6 +6,46 @@ use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+/// A helper program from `src-tauri/examples/`, which Cargo builds next to
+/// this test binary for `cargo test`.
+fn example_binary(name: &str) -> std::path::PathBuf {
+    let examples = std::env::current_exe()
+        .expect("locate the test binary")
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("the target profile directory")
+        .join("examples");
+    // A plain `cargo test` also links `<name>` beside the hashed
+    // `<name>-<hash>` build; the newest of them is the current source.
+    let built = |file: &str| {
+        let stem = file.strip_suffix(std::env::consts::EXE_SUFFIX)?;
+        let hash = stem.strip_prefix(name)?;
+        (hash.is_empty()
+            || hash.strip_prefix('-').is_some_and(|hash| {
+                hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }))
+        .then_some(())
+    };
+    let newest = fs::read_dir(&examples)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| built(&entry.file_name().to_string_lossy()).is_some())
+        .max_by_key(|entry| {
+            entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .ok()
+        })
+        .map(|entry| entry.path());
+    newest.unwrap_or_else(|| {
+        panic!(
+            "{name} is not built in {}: run `cargo test` without `--lib`, or `cargo build --examples` first",
+            examples.display()
+        )
+    })
+}
+
 #[test]
 fn azure_binary_refuses_wrong_organization_before_lookup_and_stops_git_fallback() {
     use sha2::{Digest, Sha256};
@@ -129,28 +169,8 @@ fn desktop_helper_works_with_real_git_and_an_exact_inactive_account() {
     let root =
         std::env::temp_dir().join(format!("gitodile helper 'quoted' {}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
-    let source = root.join("gh.rs");
-    fs::write(
-        &source,
-        r#"
-fn main() {
-    let args = std::env::args().skip(1).collect::<Vec<_>>();
-    assert_eq!(args, ["auth", "token", "--hostname", "github.com", "--user", "InactiveUser"]);
-    assert!(std::env::var_os("GH_DEBUG").is_none());
-    assert!(std::env::var_os("GH_TOKEN").is_none());
-    println!("fixture_secret_for_inactive_account");
-}
-"#,
-    )
-    .unwrap();
     let fake = root.join(if cfg!(windows) { "gh.exe" } else { "gh" });
-    assert!(Command::new("rustc")
-        .arg(&source)
-        .arg("-o")
-        .arg(&fake)
-        .status()
-        .unwrap()
-        .success());
+    fs::copy(example_binary("test_fake_gh_inactive_account"), &fake).unwrap();
     let executable = root.join(if cfg!(windows) {
         "GitOdile.exe"
     } else {

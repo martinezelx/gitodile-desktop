@@ -582,49 +582,13 @@ mod tests {
         }
     }
     fn fixture(scenario: &str) -> String {
-        use std::{fs, sync::OnceLock};
-        static BINARY: OnceLock<std::path::PathBuf> = OnceLock::new();
-        let binary = BINARY.get_or_init(|| {
-            let directory = std::path::PathBuf::from(crate::test_support::unique_temp_dir("fake-glab"));
-            let source = directory.join("main.rs");
-            fs::write(&source, r###"
-use std::{env, fs, thread, time::Duration};
-fn main() {
-    let exe = env::current_exe().unwrap();
-    let scenario = exe.file_stem().unwrap().to_string_lossy();
-    let args: Vec<_> = env::args().skip(1).collect();
-    assert!(env::var_os("GITLAB_TOKEN").is_none());
-    assert!(env::var_os("GITLAB_ACCESS_TOKEN").is_none());
-    assert!(env::var_os("OAUTH_TOKEN").is_none());
-    assert_eq!(env::var("GITLAB_API_HOST").unwrap(), "gitlab.com");
-    assert_eq!(env::var("GLAB_API_PROTOCOL").unwrap(), "https");
-    if args == ["--version"] { println!("glab 1.120.0 (fixture)"); return; }
-    if scenario == "slow" { thread::sleep(Duration::from_secs(30)); return; }
-    if args.get(1).map(String::as_str) == Some("login") {
-        assert_eq!(args, ["auth", "login", "--hostname", "gitlab.com", "--web", "--api-host", "gitlab.com", "--api-protocol", "https", "--git-protocol", "https", "--ssh-hostname", "gitlab.com", "--container-registry-domains", "registry.gitlab.com", "--use-keyring"]);
-        fs::write(exe.with_extension("saved"), "saved").unwrap(); return;
-    }
-    if args.get(1).map(String::as_str) == Some("logout") {
-        assert_eq!(args, ["auth", "logout", "--hostname", "gitlab.com"]);
-        fs::write(exe.with_extension("removed"), "removed").unwrap(); return;
-    }
-    assert_eq!(args, ["auth", "credential-helper", "--repo", "https://gitlab.com/gitodile/credential-boundary"]);
-    if scenario == "browser" && !exe.with_extension("saved").exists() {
-        println!(r#"{{"type":"error","message":"glab is not authenticated. Use glab auth login to authenticate"}}"#);
-    } else {
-        println!(r#"{{"type":"success","instance_url":"https://gitlab.com","token":{{"type":"oauth2","token":"fixture-oauth-only-123456"}}}}"#);
-    }
-}
-"###).unwrap();
-            let executable = directory.join(if cfg!(windows) { "fake.exe" } else { "fake" });
-            assert!(Command::new("rustc").arg(source).arg("-o").arg(&executable).status().unwrap().success());
-            executable
-        });
-        let path = binary.with_file_name(format!(
-            "{scenario}{}",
-            if cfg!(windows) { ".exe" } else { "" }
-        ));
-        fs::copy(binary, &path).unwrap();
+        use std::{fs, path::PathBuf, sync::OnceLock};
+        static DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
+        let directory = DIRECTORY
+            .get_or_init(|| PathBuf::from(crate::test_support::unique_temp_dir("fake-glab")));
+        // The fake reads its scenario from its own file name.
+        let path = directory.join(format!("{scenario}{}", std::env::consts::EXE_SUFFIX));
+        fs::copy(crate::test_support::example_binary("test_fake_glab"), &path).unwrap();
         path.to_string_lossy().into_owned()
     }
     fn identity(secret: &Secret, _: &CancellationToken) -> Result<hosting_access::User, AuthState> {

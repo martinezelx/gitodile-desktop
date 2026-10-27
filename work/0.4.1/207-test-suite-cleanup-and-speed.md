@@ -148,6 +148,15 @@ Phase 2 — the rule:
 - Add a "Tests" section to `AGENTS.md` (draft below) and link it from
   `CONTRIBUTING.md` and `docs/architecture/frontend-feature-guide.md` §6.
 
+Phase 3 — what the phase 2 measurement left (added 2026-10-27):
+
+- Split `App.test.tsx`, which bounded the whole Vitest run as one file.
+- Cut the Git processes the application spawns where one would do
+  (repository discovery, branch-name checks).
+- Stop compiling fake `gh`/`glab` executables while tests run.
+- Review the suites for tests that duplicate another test's coverage,
+  including regression tests added with bug fixes, and delete them.
+
 CI changes (separate pull request to `main`, because the release coordinator
 rejects `.github/` and `scripts/release/` changes on a release branch):
 
@@ -176,7 +185,7 @@ with what phases 0 and 1 measured.
 
 # Acceptance criteria
 
-- [ ] Before/after timings recorded for `pnpm run test`, `cargo test` and
+- [x] Before/after timings recorded for `pnpm run test`, `cargo test` and
       `pnpm run check`, measured the same way as the Context section.
 - [x] Vitest no longer creates jsdom for pure-logic files and no longer runs
       the `node:test` files under `scripts/**`.
@@ -186,7 +195,11 @@ with what phases 0 and 1 measured.
 - [x] `sync_tests` run in parallel, or the lock is kept with a documented
       reason.
 - [ ] Rust and script tests leave no `gitodile-*` entries in the temp
-      directory after a passing run.
+      directory after a passing run. (Script tests: fixed in
+      [#67](https://github.com/martinezelx/gitodile-desktop/pull/67), not merged
+      yet. Rust: each run leaves about 100 directories under its own
+      `gitodile-tests/<pid>-<start>` root, which the next run removes after one
+      hour, so the leftovers stay bounded rather than reaching zero.)
 - [x] `App.test.tsx` covers only cross-screen wiring; moved cases keep their
       assertions in the owning feature.
 - [x] No safety assertion (data loss, history, remote, recovery) is lost; each
@@ -194,8 +207,10 @@ with what phases 0 and 1 measured.
       notes.
 - [x] `AGENTS.md` contains the test rule and the linked docs reference it.
 - [ ] CI changes land in their own pull request to `main`, with the required
-      checks list kept consistent.
-- [ ] `pnpm run check` passes.
+      checks list kept consistent. (Opened as
+      [#67](https://github.com/martinezelx/gitodile-desktop/pull/67), CI green,
+      waiting for review.)
+- [x] `pnpm run check` passes.
 
 # Relevant files
 
@@ -324,10 +339,9 @@ Frontend:
   state to a class the UI is styled by (unread, active, animating, placement)
   and stay. Only the two `StatusBar` layout pins above were pure structure.
 
-Follow-up, outside this task's scope: the application spawns several Git
-processes where one would do (four `rev-parse` calls to discover a
-repository, a `check-ref-format` per name). Batching them would make both the
-Rust suite and the app itself faster on Windows.
+The application spawns several Git processes where one would do (four
+`rev-parse` calls to discover a repository, a `check-ref-format` per name).
+Phase 3 takes that on.
 
 ## Phase 2 (2026-10-27)
 
@@ -340,6 +354,66 @@ Rust suite and the app itself faster on Windows.
   "While coding" links to it.
 - `CONTRIBUTING.md` and `docs/architecture/frontend-feature-guide.md` §6 link
   to the rule instead of restating it.
+
+## Phase 3 (2026-10-27)
+
+Frontend:
+
+- `App.test.tsx` (40 tests, 44 s as one file) is four files by concern:
+  `App.test.tsx` (shell: menus, dialogs, Settings, themes, status bar),
+  `App.home.test.tsx`, `App.projects.test.tsx` and `App.navigation.test.tsx`.
+  They share `src/test-fixtures/appTestHarness.ts`; each keeps its own
+  `vi.mock` calls because Vitest hoists them per file. No test changed.
+
+Application (Rust), measured with the same Git shim as phase 1:
+
+- `RepositoryContext::discover`, which every operation runs, asks one
+  `rev-parse` for all four answers in a working tree, and `open_repository`
+  does the same. Anything but four clean lines (not a repository, a bare one,
+  a line break in a path) falls back to the previous one-question-at-a-time
+  path, which also keeps every error message as it was. A new test covers
+  the nested-folder and bare-repository paths.
+- `validate_branch_ref_name` remembers names Git has accepted (bounded to
+  256; rejections and `@{...}` shorthands, which Git resolves against the
+  repository, are never remembered).
+- One Rust run now spawns 7,929 Git processes, against 10,583 before phase
+  1: `rev-parse` 2,821 → 1,856, `check-ref-format` 411 → 66. The app saves
+  three processes (about 150 ms on Windows) on every operation.
+
+Rust tests:
+
+- The fake `gh` and `glab` programs moved from strings compiled with `rustc`
+  inside three tests to `src-tauri/examples/test_fake_*.rs`, declared with
+  `harness = false`, so Cargo builds them with the test binaries and
+  `test_support::example_binary` finds the newest build.
+  `cargo test --all-targets` also runs examples; under their build name the
+  fakes exit at once, and tests always run a copy named after the scenario.
+  `cargo test --lib` alone does not build examples; the locator says so.
+
+Deleted as duplicates, with where the behavior is still proven:
+
+- `BranchQuickCreateBox` and `QuickCommitBox`: "lets a press elsewhere land
+  before an empty box folds away" and "keeps an empty box open when the
+  window, not the box, loses focus" (four tests). Both components get that
+  rule from `useDockedComposerFocus`, and `dockedComposer.test.tsx` proves it
+  ("lets a press elsewhere land first", "does not fold when the window, not
+  the box, loses focus"). Each component keeps its own draft and option tests.
+- `core_workflow_tests::repository_state_journey_…`: every state it walked
+  has its own test (unborn and detached in `repository_tests`, conflict diff
+  and batch exclusion in `changes_tests`, ahead/behind and the diverged merge
+  plan in `sync_tests`, the conflicted count in `status` and
+  `save_version_tests`).
+- `core_workflow_tests::discard_and_branch_journey_…`: selected discard and
+  undo are `recovery_tests`, and create, switch and delete are
+  `branches::tests`. The main journey (open, save, publish, get, reopen)
+  stays as the one connected end-to-end check that task 065-1 asked for.
+
+Reviewed and kept: the tests added by `fix:` commits (329 still present)
+mostly guard data, history, remote or accessibility behavior, so their origin
+is no reason to delete them. The scan for tests that only pin classes or
+layout found 38 candidates; on reading, they map a state or a preference to
+the class the UI exposes it by (diff wrapping, palette position, unread,
+animation), which the rule allows.
 
 # Validation
 
@@ -374,3 +448,59 @@ Phase 1, same desktop and conditions:
   `TitlebarMenu` tests moved files, and the three tests listed in the phase 1
   notes are the only ones removed.
 - The Rust inventory is unchanged (646 passed, 1 ignored).
+
+Final measurement after phase 2 (same desktop, `tauri dev` not running):
+
+| Check | Baseline | Now |
+| --- | --- | --- |
+| `pnpm run test` | 139–168 s; 0, 24 and 10 failures in three runs | 51–61 s; 1,757 tests, no failures |
+| Rust lib tests | 300 s | 118–125 s; 646 tests |
+| `sync_tests` alone | 188 s | 49 s |
+| History pagination fixture | 44 s | 1.6 s |
+| `node --test scripts/icons/*.test.mjs` | 9.7 s | 1.7 s |
+| `pnpm run check` | parts summed to roughly 9–10 min | 274 s warm; 325 s after a branch switch that recompiled Rust |
+
+CI, before these changes (release 0.4.0, run 39768429466 on the pull request
+and 39770643912 on the push to `main`), and an ordinary pull request with
+[#67](https://github.com/martinezelx/gitodile-desktop/pull/67)'s scoping
+(run 40583450615). #67's run still tests `main`'s code, so it shows the
+skipped jobs, not the faster suites:
+
+| Job | Release PR | Push to main | Ordinary PR with #67 |
+| --- | --- | --- | --- |
+| Frontend checks | 3 m 16 s | 3 m 15 s | 2 m 7 s |
+| Rust checks (linux) | 5 m 32 s | 3 m 53 s | 2 m 29 s |
+| Rust checks (windows) | 4 m 38 s | 13 m 9 s | 6 m 58 s |
+| Rust checks (macos) | 4 m 45 s | 8 m 41 s | 4 s (skipped) |
+| Desktop release compile (linux) | 15 m 13 s | 28 m 49 s | 4 s (skipped) |
+| Desktop release compile (windows) | 6 m 19 s | 10 m 47 s | 12 s (skipped) |
+
+Where the remaining time goes, measured after phase 2:
+
+- Frontend: `App.test.tsx` takes 44 s as one file, and a file runs on one
+  worker, so it bounds the whole run (51–61 s). Splitting it into two or
+  three files by concern would let them run in parallel without dropping a
+  test. Next: `ConsoleScreen` 17 s, `ChangesPanel` 14 s.
+- Rust: the run is bound by throughput, not by its longest test (about
+  1,800 s of test time over 16 threads; the longest test takes 41 s under
+  load). Most of that time is Git processes spawned by the code under test,
+  so the production follow-up above is the remaining large lever.
+- Three tests still compile a fake `gh`/`glab` executable with `rustc` while
+  they run (`github_auth.rs`, `gitlab_auth.rs`, `tests/credential_helper.rs`).
+  They predate the rule and compile once per process.
+
+Phase 3, same desktop and conditions:
+
+| Check | After phase 2 | After phase 3 |
+| --- | --- | --- |
+| `pnpm run test` | 51–61 s; 1,757 tests | 47–54 s; 1,753 tests |
+| Slowest Vitest file | `App.test.tsx` 44 s | `ConsoleScreen.test.tsx` 19 s; the App files 13–16 s each |
+| Rust lib tests | 118–125 s; 646 tests | 112 s; 645 tests |
+| Git processes in one Rust run | about 10,500 | 7,929 |
+| `pnpm run check` | 274 s warm | 256 s, including a Rust rebuild after `cargo fmt` |
+
+- Splitting `App.test.tsx` removed the single-file bound, but the run is now
+  bound by total test time over the workers, so the gain is smaller than the
+  44 s file suggested.
+- The four deleted frontend tests and two deleted journeys are listed in the
+  phase 3 notes; the Rust count also gains the new discovery test.

@@ -363,3 +363,46 @@ pub(crate) fn git_commit_series(path: &str, file: Option<&str>, versions: &[(Str
         assert!(status.success(), "checking out the series should succeed");
     }
 }
+
+/// A helper program from `src-tauri/examples/`. Cargo builds the examples next
+/// to the test binaries for `cargo test` (not for `cargo test --lib`), so no
+/// test compiles a fake executable while it runs. They are declared with
+/// `harness = false` in `Cargo.toml`, so even the build `--all-targets` makes
+/// runs their `main`.
+pub(crate) fn example_binary(name: &str) -> PathBuf {
+    let examples = std::env::current_exe()
+        .expect("locate the test binary")
+        .parent()
+        .and_then(Path::parent)
+        .expect("the target profile directory")
+        .join("examples");
+    // A plain `cargo test` also links `<name>` beside the hashed
+    // `<name>-<hash>` build; the newest of them is the current source.
+    let built = |file: &str| {
+        let stem = file.strip_suffix(std::env::consts::EXE_SUFFIX)?;
+        let hash = stem.strip_prefix(name)?;
+        (hash.is_empty()
+            || hash.strip_prefix('-').is_some_and(|hash| {
+                hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }))
+        .then_some(())
+    };
+    let newest = fs::read_dir(&examples)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| built(&entry.file_name().to_string_lossy()).is_some())
+        .max_by_key(|entry| {
+            entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .ok()
+        })
+        .map(|entry| entry.path());
+    newest.unwrap_or_else(|| {
+        panic!(
+            "{name} is not built in {}: run `cargo test` without `--lib`, or `cargo build --examples` first",
+            examples.display()
+        )
+    })
+}

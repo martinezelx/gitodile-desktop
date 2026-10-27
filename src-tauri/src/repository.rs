@@ -2,8 +2,10 @@ use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, git_stdout, run_git};
 use crate::{application, repository_access, session};
 use std::{
+    collections::HashSet,
     io::ErrorKind,
     path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
 };
 
 pub(crate) fn display_path(path: PathBuf) -> String {
@@ -67,8 +69,31 @@ pub(crate) fn classify_head(has_branch: bool, has_commit: bool) -> HeadState {
 /// Uses Git's own ref parser before a branch name enters a refspec or a
 /// branch mutation.
 pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
+    // Operations check the same few names again and again, and each check is
+    // a Git process. Git's answer depends only on the name, except for an
+    // `@{...}` shorthand that it resolves against the repository, so accepted
+    // names without one are remembered (a bounded set; rejections are not).
+    static ACCEPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    const ACCEPTED_LIMIT: usize = 256;
+    let accepted = ACCEPTED.get_or_init(Default::default);
+    let rememberable = !name.contains("@{");
+    if rememberable
+        && accepted
+            .lock()
+            .is_ok_and(|accepted| accepted.contains(name))
+    {
+        return Ok(());
+    }
     let output = run_git(path, &["check-ref-format", "--branch", name])?;
     if output.status.success() {
+        if rememberable {
+            if let Ok(mut accepted) = accepted.lock() {
+                if accepted.len() >= ACCEPTED_LIMIT {
+                    accepted.clear();
+                }
+                accepted.insert(name.to_string());
+            }
+        }
         Ok(())
     } else {
         Err(AppError::new(
@@ -131,6 +156,39 @@ pub(crate) enum HeadState {
     Unborn,
 }
 
+/// The slow path of `open_repository`'s discovery: returns the worktree root,
+/// Git directory and common Git directory as Git prints them, or the error
+/// that says why the folder can't be opened.
+fn discover_one_question_at_a_time(path: &str) -> Result<(String, String, String), AppError> {
+    let is_repo = run_git(path, &["rev-parse", "--is-inside-work-tree"])?;
+    if !is_repo.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::NotRepository,
+            "This folder isn't inside a Git project.",
+        )
+        .with_remediation("Choose a folder inside an existing Git project."));
+    }
+    if git_stdout(&is_repo) != "true" {
+        let is_bare = run_git(path, &["rev-parse", "--is-bare-repository"])?;
+        if is_bare.status.success() && git_stdout(&is_bare) == "true" {
+            return Err(AppError::new(
+                AppErrorCode::BareRepository,
+                "Bare Git repositories aren't supported yet.",
+            )
+            .with_remediation("Choose a project folder with working files."));
+        }
+        return Err(AppError::new(
+            AppErrorCode::NotRepository,
+            "This folder isn't inside a Git project.",
+        )
+        .with_remediation("Choose a folder inside an existing Git project."));
+    }
+    let root = checked_git_stdout(run_git(path, &["rev-parse", "--show-toplevel"])?)?;
+    let git_dir = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let common_dir = checked_git_stdout(run_git(path, &["rev-parse", "--git-common-dir"])?)?;
+    Ok((root, git_dir, common_dir))
+}
+
 pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
@@ -158,34 +216,31 @@ pub(crate) fn open_repository(
     })?;
     let selected_path = display_path(selected_path_buf.clone());
 
-    let is_repo = run_git(&path, &["rev-parse", "--is-inside-work-tree"])?;
-    if !is_repo.status.success() {
-        return Err(AppError::new(
-            AppErrorCode::NotRepository,
-            "This folder isn't inside a Git project.",
-        )
-        .with_remediation("Choose a folder inside an existing Git project."));
-    }
-    if git_stdout(&is_repo) != "true" {
-        let is_bare = run_git(&path, &["rev-parse", "--is-bare-repository"])?;
-        if is_bare.status.success() && git_stdout(&is_bare) == "true" {
-            return Err(AppError::new(
-                AppErrorCode::BareRepository,
-                "Bare Git repositories aren't supported yet.",
-            )
-            .with_remediation("Choose a project folder with working files."));
+    // One process answers the four discovery questions in a working tree.
+    // Anything but four clean lines (not a repository, a bare one, a line
+    // break inside a path) asks them one at a time, which also tells the
+    // failures apart.
+    let combined = run_git(
+        &path,
+        &[
+            "rev-parse",
+            "--is-inside-work-tree",
+            "--show-toplevel",
+            "--absolute-git-dir",
+            "--git-common-dir",
+        ],
+    )?;
+    let combined = combined.status.success().then(|| git_stdout(&combined));
+    let answers = combined
+        .as_deref()
+        .map(|output| output.lines().collect::<Vec<_>>());
+    let (root, git_dir_raw, common_dir_raw) = match answers.as_deref() {
+        Some(["true", root, git_dir, common]) => {
+            (root.to_string(), git_dir.to_string(), common.to_string())
         }
-        return Err(AppError::new(
-            AppErrorCode::NotRepository,
-            "This folder isn't inside a Git project.",
-        )
-        .with_remediation("Choose a folder inside an existing Git project."));
-    }
-
-    let root = checked_git_stdout(run_git(&path, &["rev-parse", "--show-toplevel"])?)?;
+        _ => discover_one_question_at_a_time(&path)?,
+    };
     let root_path = normalized_path(repo_path, &root);
-    let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
-    let common_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--git-common-dir"])?)?;
     let git_dir_path = normalized_path(&root_path, &git_dir_raw);
     // `--git-common-dir` is relative to the directory passed to `git -C`,
     // not necessarily to the worktree root. Resolving it from `root_path`

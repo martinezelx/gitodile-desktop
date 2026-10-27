@@ -283,9 +283,12 @@ Where it goes — the cheapest level that proves the behavior:
 
 1. A pure function in the owning domain or controller (`*.test.ts`).
 2. A component with its port mocked (`*.test.tsx`).
-3. `src/app/App.test.tsx`, only for what the composition root owns: wiring
-   between screens, keep-alive, project activation and the shared stores.
-   Feature behavior belongs in the feature's own tests.
+3. The `src/app/App*.test.tsx` files, only for what the composition root
+   owns: wiring between screens, keep-alive, project activation and the
+   shared stores. Feature behavior belongs in the feature's own tests. Add a
+   case to the file of its concern (shell, home, projects, navigation); they
+   share `src/test-fixtures/appTestHarness.ts`, and a file that grows past
+   about 15 s holds back the whole run, so split it rather than let it grow.
 4. In Rust, parsers and planners are unit tests with no Git process. A
    temporary repository is for behavior that only Git itself can show
    (`src-tauri/src/tests/<domain>_tests.rs` or the owning module).
@@ -302,7 +305,9 @@ How to write it:
   `git_commit_series` for a run of versions. A Git process costs about 50 ms
   on Windows, so spawn as few as the behavior needs. Never write fixtures to
   the shared temp directory, take a process-wide lock, `sleep` while waiting
-  for a result, or compile code while a test runs.
+  for a result, or compile code while a test runs: a fake CLI is a
+  `src-tauri/examples/test_fake_*` program declared with `harness = false`,
+  found through `test_support::example_binary`.
 - New tests under `scripts/` use `node:test`; `check:docs` runs them.
 
 Budgets: a new or changed frontend test that takes over 1 s, or a Rust test

@@ -58,6 +58,24 @@ syn = { version = "3", features = ["full"] }
 base64 = "0.23"
 minisign-verify = "0.2"
 
+# Stand-ins for the `gh` and `glab` CLIs. `test = false` makes `cargo test`
+# build them as ordinary programs next to the test binaries, so no test has
+# to compile one while it runs (see `test_support::example_binary`).
+[[example]]
+name = "test_fake_gh"
+test = false
+harness = false
+
+[[example]]
+name = "test_fake_gh_inactive_account"
+test = false
+harness = false
+
+[[example]]
+name = "test_fake_glab"
+test = false
+harness = false
+
 # Smaller binary loads (and pages in from disk) faster on launch; this app is
 # I/O-bound (spawning git, not number-crunching), so trading opt-level 3 for
 # "s" costs nothing noticeable at runtime. See https://v2.tauri.app/concept/size/.
