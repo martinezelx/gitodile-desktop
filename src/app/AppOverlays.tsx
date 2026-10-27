@@ -17,6 +17,7 @@ import {
   type GitIdentityState,
   type GitToolingState,
   type LineEndingsState,
+  type NavigationItem,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
   type SettingsSection,
@@ -137,7 +138,8 @@ export type AppOverlaysProps = {
     setNotificationsEnabled: BooleanSetter;
     runGitHooks: boolean;
     setRunGitHooks: BooleanSetter;
-    navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
+    navigationItems: NavigationItem[];
+    defaultNavigationPreferences: NavigationPreferences;
     navigationPreferences: NavigationPreferences;
     setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
     diffPreferences: DiffPreferences;
@@ -461,6 +463,7 @@ export function AppOverlays({
               runGitHooks={settings.runGitHooks}
               setRunGitHooks={settings.setRunGitHooks}
               navigationItems={settings.navigationItems}
+              defaultNavigationPreferences={settings.defaultNavigationPreferences}
               navigationPreferences={settings.navigationPreferences}
               setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}

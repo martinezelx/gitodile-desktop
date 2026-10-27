@@ -1182,7 +1182,7 @@ describe("App project restoration", () => {
     // should not shut the dialog the user just asked for.
     await waitFor(() => expect(within(dialog).getByRole("tab", { name: "General" })).toHaveFocus());
 
-    await user.click(within(dialog).getByRole("tab", { name: "Interface" }));
+    await user.click(within(dialog).getByRole("tab", { name: "Language & region" }));
     expect(within(dialog).getByRole("heading", { name: "Language" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
@@ -1235,7 +1235,7 @@ describe("App project restoration", () => {
       "true",
     );
 
-    await user.click(navigationSettings.getByRole("switch", { name: "Work" }));
+    await user.click(navigationSettings.getByRole("switch", { name: "Show Work in the sidebar" }));
     await user.click(navigationSettings.getByRole("radio", { name: /Icons only/ }));
     await user.keyboard("{Escape}");
 

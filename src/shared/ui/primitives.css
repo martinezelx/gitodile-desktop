@@ -1352,6 +1352,15 @@
 }
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
 .settings-nav__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* Block titles in the Settings rail. Rows drop to 36px there so three titles
+   and a divider fit beside eleven sections without the rail scrolling. */
+.settings-nav__group {
+  padding: var(--space-3) 12px 2px; color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.settings-nav__group:first-child { padding-top: 0; }
+.settings-nav__divider { height: 1px; margin: 6px 12px; background: var(--border-subtle); }
+.settings-nav:has(.settings-nav__group) .settings-nav__item { min-height: 36px; }
 .settings-nav__item > span:first-child { width: 18px; height: 18px; flex-shrink: 0; display: grid; place-items: center; }
 .settings-nav__item svg { width: 18px; height: 18px; }
 .settings-view {
@@ -1451,10 +1460,12 @@
   border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-primary-color);
 }
 .tool-row__tile svg { width: 16px; height: 16px; }
-/* The app's own mark is the whole mascot, so it sits a touch larger in the
-   same circle without the tile changing size; its aspect ratio sets the height
-   and leaves headroom for the update row's hop. */
-.tool-row__tile .gitodile-mascot { width: 24px; height: auto; }
+/* The app's own mark is the whole mascot, so it stands free: no circle behind
+   it and nothing clipping it, filling the same 32px column without the row
+   changing size. Its aspect ratio sets the height, and the update row's hop
+   rises past the tile instead of being cut off by it. */
+.tool-row__tile:has(> .gitodile-mascot) { overflow: visible; background: transparent; }
+.tool-row__tile .gitodile-mascot { width: 30px; height: auto; }
 .tool-row__name { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
 .tool-row__chip {
   display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
@@ -1561,6 +1572,8 @@
   }
   .settings-nav::-webkit-scrollbar { display: none; }
   .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
+  /* The rail is a scrolling row here; block titles would only break it up. */
+  .settings-nav__group, .settings-nav__divider { display: none; }
   .settings-view { padding: 22px 20px 28px; }
   /* Both settings dialogs are still wide at this breakpoint. Keep short
      choices together and let them wrap only when they genuinely run out of

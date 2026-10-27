@@ -45,7 +45,12 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 and `196` into task 195 by explicit request. The next unused
-top-level ID after the current plan is `203`.
+top-level ID after the current plan is `204`.
+
+Its follow-up, [203](done/203-settings-navigation-and-organization-refinement.md),
+refines Navigation, adds Language & region, folds Line endings into Git, groups
+the rail and unifies picker selection, completed ahead of the queue at the
+user's request.
 
 The Settings visual review, hosting-account wording and development-only
 GitOdile demo controls are scoped in

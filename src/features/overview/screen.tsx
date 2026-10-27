@@ -16,6 +16,7 @@ export const overviewScreenModule = {
   id: "overview",
   section: "project",
   labelKey: "navOverview",
+  descriptionKey: "navOverviewDescription",
   disabledLabelKey: "navOverviewTitle",
   commandLabelKey: "commandGoOverview",
   icon: <LayoutDashboard />,

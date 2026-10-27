@@ -20,6 +20,7 @@ export const workbenchScreenModule = {
   id: "workbench",
   section: "project",
   labelKey: "navWork",
+  descriptionKey: "navWorkDescription",
   disabledLabelKey: "navWorkTitle",
   commandLabelKey: "commandGoWork",
   icon: <Layers />,

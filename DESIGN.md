@@ -242,19 +242,24 @@ The main desktop window should broadly support:
      the narrow rail scroll. The menu always ends after a separator with
      "Customize navigation bar", which opens the dedicated Settings section.
      There the destinations are the same bordered list as Notifications: each
-     row reads grip, icon, name, precise move arrows, then its switch. The
-     list caps its width at 400px (and shrinks with its container), keeping
-     controls near the short destination names rather than across the whole
-     preferences column. The appearance choices share that 400px limit and use
-     theme cards: a wide miniature above a short caption, with a selected border
-     and check. The drawing includes a rail and a filled workspace specimen,
-     rather than a small thumbnail beside a large empty text area.
-     Arrows remain quiet at rest and gain emphasis on hover or focus; their
-     space is always reserved. The two display-mode choices show miniature
-     rails at the same width, with a check in the selected option, so removing
-     captions reads as a vertical space saving. A destination switched off keeps
-     its row in the secondary ink with an "In More" tag, so the list never
-     changes height and its place in the order stays visible;
+     row reads grip, icon, name over a one-line plain-language description of
+     the section, precise move arrows, then its switch. The list spans the
+     preferences column: the description is what fills it, so the width carries
+     content instead of a stretched gap between a short name and its switch.
+     The switch is named for what it does ("Show Overview in the sidebar"), and
+     its "on" fill uses the secondary ink so five switches do not outweigh the
+     names. "Restore default" in the group header returns membership and order
+     to the registry's and leaves the appearance alone. The appearance choices
+     span the column too, as two wide cards side by side (stacking when a card
+     would squeeze its copy): a miniature on the left, drawn from the user's own
+     visible sections in their order, and the name, check and a short trade-off
+     on the right. The selected card takes a quiet fill and its filled check
+     rather than the theme picker's accent ring. Arrows are hidden at rest and
+     appear on the row's hover or focus (always shown without hover); their
+     space is always reserved, and the grip reorders from the keyboard. A
+     destination switched off keeps its row at full contrast with an "In More"
+     tag, so the list never changes height and its place in the order stays
+     visible;
    - the rail holds no project (task 189). Which project is open, and the
      way to change it, is the status bar's project segment, which sits at the
      foot of every project screen; Home lists every project itself. The rail
@@ -2093,9 +2098,19 @@ from Settings > Interface > Theme and the command palette. The picker shows
 each theme as a miniature of the app in its own tokens, with the scheme carried
 by a glyph and by the option's accessible name, never by colour alone. Each
 option is a bordered card in the project-icon picker's language, with a 16:10
-miniature and the name beneath it; the official cards carry a verified rosette
-in `--accent-primary` right after the name — a seal, not a check, because
-selection is the accent border.
+miniature and the name beneath it; the official cards carry an "Official" tag
+right after the name — a word, not a mark, because any check-like glyph on all
+three cards would read as all three being chosen. The community grid sits under
+a visible "More themes" title. Every picker card in Settings (themes, project
+icons, date and number formats, code fonts, the navigation appearance) shares
+one selected state: a quiet fill, the secondary-ink border and a filled check
+in the card's top corner, clear of the specimen being judged.
+
+The Settings rail is grouped into three titled blocks — App, Work, and
+Version control — with Updates set apart below a divider; the titles are visual only,
+so the arrow keys move straight across them. Line endings is the last group of
+the Git section rather than a rail entry, after the Git installation, the
+identity, the default branch and hooks.
 
 Do not introduce a color anywhere in the product (status badges, diff
 highlighting, charts, mascot variants) without first checking whether it is
@@ -2445,8 +2460,9 @@ Rules:
   system and app reduced-motion settings remove them; the mascot then shows
   still.
 - **The mascot in Settings › Updates carries the update's work, not a brand
-  moment.** The app's own row shows the whole mascot in its 32px tile, still
-  while the state is settled. While the update is checked, verified or
+  moment.** The app's own row shows the whole mascot standing free in the
+  row's 32px column — no circle behind it and nothing clipping it, so the hop
+  rises past the tile — still while the state is settled. While the update is checked, verified or
   installed it hops: a small jump twice a second that lands with a squash from
   the feet (`hop`), so it reads as someone waiting, beside the button's own
   spinner. While a download of known size runs, the body fills from the feet

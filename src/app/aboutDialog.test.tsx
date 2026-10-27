@@ -104,6 +104,11 @@ function buildProps(
       runGitHooks: false,
       setRunGitHooks: vi.fn(),
       navigationItems: [],
+      defaultNavigationPreferences: {
+        visibleDestinationIds: [],
+        destinationOrderIds: [],
+        displayMode: "icons-and-text",
+      },
       navigationPreferences: {
         visibleDestinationIds: [],
         destinationOrderIds: [],

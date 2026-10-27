@@ -10,6 +10,7 @@ export const homeScreenModule = {
   id: "home",
   section: "application",
   labelKey: "navHome",
+  descriptionKey: null,
   disabledLabelKey: null,
   commandLabelKey: "commandGoHome",
   icon: <House />,

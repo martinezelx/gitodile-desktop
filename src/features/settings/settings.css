@@ -16,12 +16,25 @@
 /* The same dense list as Notifications: one bordered surface with rows split
    by hairlines, not rows floating in the section. Each row reads grip, icon,
    name, precise move arrows, then whether it shows. */
+/* Full column width: each row carries a plain-language line about its section,
+   which is what fills the space a bare name list left empty. */
 .navigation-destinations {
-  width: min(100%, 400px); min-width: 0; display: grid; gap: 0; padding: 0;
+  width: 100%; min-width: 0; display: grid; gap: 0; padding: 0;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
 }
+.navigation-destinations__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.navigation-destinations__restore {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 28px; padding: 0 var(--space-2); margin-top: -2px;
+  border: 0; border-radius: var(--radius-item); background: transparent;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); white-space: nowrap;
+}
+.navigation-destinations__restore:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.navigation-destinations__restore:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.navigation-destinations__restore:disabled { opacity: 0.45; cursor: default; }
+.navigation-destinations__restore svg { width: 13px; height: 13px; }
 .navigation-destination {
-  min-height: 48px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto auto;
+  min-height: 56px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto auto;
   align-items: center; gap: var(--space-2); padding: 4px var(--space-3) 4px var(--space-2);
   transition: background var(--duration-fast), opacity var(--duration-fast);
 }
@@ -48,26 +61,32 @@
   border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
 }
 .navigation-destination__icon svg { width: 17px; height: 17px; }
-.navigation-destination__copy { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.navigation-destination__copy strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
+.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; padding-block: 6px; }
+.navigation-destination__name { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.navigation-destination__name strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
+.navigation-destination__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
 /* The same capsule as the Notifications "Silent" tag. */
 .navigation-destination__tag {
   flex-shrink: 0; padding: 0 6px;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
-/* Off: kept in place in the secondary ink — colour, not opacity, so every
-   theme's contrast contract still holds. */
-.navigation-destination--hidden .navigation-destination__copy strong { color: var(--text-secondary-color); font-weight: var(--weight-normal); }
-.navigation-destination--hidden .navigation-destination__icon { color: var(--text-secondary-color); }
-/* Reserved space keeps the list stable; quiet arrows remain discoverable. */
+/* Section switches sit in a dense list of five; the full accent fill made them
+   outweigh the names, so "on" here uses the secondary ink instead. */
+.navigation-destination .toggle-switch--on { background: var(--text-secondary-color); }
+/* Reserved space keeps the list stable. The arrows appear with the row's hover
+   or focus: the handle already reorders from the keyboard, and the switch is
+   left as the row's one resting control. */
 .navigation-destination__move-buttons {
   display: flex; align-items: center; gap: 2px;
-  opacity: 0.55;
+  opacity: 0;
   transition: opacity var(--duration-fast);
 }
 .navigation-destination:hover .navigation-destination__move-buttons,
 .navigation-destination:focus-within .navigation-destination__move-buttons { opacity: 1; }
+@media (hover: none) {
+  .navigation-destination__move-buttons { opacity: 1; }
+}
 .navigation-destination__move-button {
   width: 28px; height: 28px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent;
@@ -82,8 +101,15 @@
 .navigation-destination__move-button:disabled { opacity: 0.4; cursor: default; }
 .navigation-destination__move-button svg { width: 16px; height: 16px; }
 
-/* Theme-card geometry: the specimen fills the top, its caption sits below. */
-.navigation-display { width: min(100%, 400px); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: 0; }
+/* Wide cards across the column: the miniature on the left, its name and what
+   it trades on the right. They stack once a card would squeeze its copy. The
+   `.theme-card` qualifier outranks the theme picker's own rules, which come
+   later in this file. */
+.navigation-display { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-3); padding: 0; }
+.theme-card.navigation-display__option {
+  grid-template-columns: 176px minmax(0, 1fr); align-items: center; gap: var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); text-align: left;
+}
 .navigation-display__preview {
   aspect-ratio: 16 / 9; display: grid; grid-template-columns: 40px minmax(0, 1fr);
   overflow: hidden; border: 1px solid var(--border-subtle);
@@ -112,11 +138,9 @@
   line-height: var(--leading-none); text-overflow: ellipsis; white-space: nowrap;
 }
 .navigation-display__preview--icons-only .navigation-display__mini-item { min-height: 20px; }
-.navigation-display__label { min-width: 0; display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+.navigation-display__label { min-width: 0; display: grid; gap: 2px; }
+.navigation-display__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
 .navigation-display__label strong { color: var(--text-primary-color); font-size: var(--text-label); font-weight: var(--weight-strong); }
-.navigation-display__check { flex-shrink: 0; display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--border-control); border-radius: var(--radius-round); }
-.navigation-display__option--active .navigation-display__check { background: var(--text-primary-color); color: var(--surface-raised); border-color: var(--text-primary-color); }
-.navigation-display__check svg { width: 13px; height: 13px; }
 
 /* Two by two rather than a row of four: the sample line is what has to be
    readable, and four across would squeeze it to the point of defeating the
@@ -134,13 +158,7 @@
 .font-picker__option:hover:not(.font-picker__option--active) {
   border-color: var(--text-secondary-color); color: var(--text-primary-color);
 }
-/* The card is already a specimen, so its stable neutral surface states the
-   selection without laying a checkmark over the thing being judged. */
-.font-picker__option--active {
-  border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
-  color: var(--text-primary-color);
-}
+.font-picker__option--active { color: var(--text-primary-color); }
 .font-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
 /* The diff's own size and surface, so the sample previews the real thing
    rather than a flattering enlargement on the wrong background. `--surface-code`
@@ -200,11 +218,7 @@
 .format-picker__option:hover:not(.format-picker__option--active) {
   border-color: var(--text-secondary-color); color: var(--text-primary-color);
 }
-.format-picker__option--active {
-  border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
-  color: var(--text-primary-color);
-}
+.format-picker__option--active { color: var(--text-primary-color); }
 .format-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
 /* Tabular figures so the samples line up column-wise and the difference
    between them is the separator rather than the glyph widths. */
@@ -307,7 +321,11 @@
 .theme-picker__community {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--space-3);
 }
-.theme-picker__official { margin-bottom: var(--space-5); }
+.theme-picker__official { margin-bottom: var(--space-4); }
+.theme-picker__heading {
+  margin: 0 0 var(--space-2); color: var(--text-secondary-color);
+  font-size: var(--text-label); font-weight: var(--weight-strong);
+}
 /* Padding and inner radius are concentric: 14 = 10 + 4. */
 .theme-card {
   display: grid; gap: var(--space-2); min-width: 0;
@@ -319,10 +337,27 @@
 }
 .theme-card:hover { background: var(--surface-hover); }
 .theme-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.theme-card[aria-checked="true"] {
-  border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
+/* One selected state for every picker card in Settings — themes, project
+   icons, date and number formats, code fonts and the navigation appearance:
+   a quiet fill, the secondary-ink border and the shared corner check
+   (`SelectionCheck`). The check sits in the corner rather than over the card's
+   specimen, so a font or a theme is still judged on its own. */
+.theme-card, .project-icons-card, .format-picker__option, .font-picker__option { position: relative; }
+.theme-card[aria-checked="true"],
+.project-icons-card--active,
+.format-picker__option--active,
+.font-picker__option--active {
+  border-color: var(--text-secondary-color);
+  box-shadow: none;
+  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
 }
+.selection-check {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+  display: grid; place-items: center; pointer-events: none;
+  border-radius: var(--radius-round); background: var(--text-primary-color); color: var(--surface-card);
+  box-shadow: 0 0 0 2px var(--surface-card);
+}
+.selection-check svg { width: 11px; height: 11px; }
 /* 16:10, not square: the miniature's content fills the top of the frame, and
    a square left the lower half as empty app background. The hairline keeps a
    light preview from dissolving into a light card. */
@@ -337,15 +372,15 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--text-label); font-weight: var(--weight-strong);
 }
-/* The official badge: a verified rosette right after the name, the way a
-   verified mark follows a profile name, so the two centre as one group and
-   the name truncates before it. A rosette rather than a plain check: selection
-   is the border, and a check on all three cards would read as all three being
-   chosen. `--accent-primary`, not the brand lime: the name now sits on the
-   card's own surface, and the lime measures 1.95:1 on a light one. */
+/* The official tag: a word under the name, so a long name such as "GitOdile
+   Light" never truncates to make room for it at the minimum width. Text rather
+   than a mark: selection is the corner check, and any check-like glyph on all
+   three cards read as all three being chosen. */
+.theme-card__label:has(.theme-card__official) { flex-direction: column; gap: 3px; }
 .theme-card__official {
-  flex-shrink: 0; width: 14px; height: 14px; margin-left: 4px;
-  color: var(--accent-primary);
+  flex-shrink: 0; padding: 0 6px;
+  border-radius: var(--radius-pill); background: var(--surface-active); color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong); line-height: var(--leading-snug);
 }
 .theme-card__split { display: grid; grid-template-columns: 1fr 1fr; }
 
@@ -389,10 +424,6 @@
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .project-icons-card:hover { background: var(--surface-hover); }
-.project-icons-card--active {
-  border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
-}
 .project-icons-card__preview {
   display: flex;
   align-items: center;

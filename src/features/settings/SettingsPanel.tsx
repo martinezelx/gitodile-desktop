@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  BadgeCheck,
   Bell,
   BellOff,
   CheckCircle2,
@@ -10,12 +9,13 @@ import {
   CircleAlert,
   CircleArrowUp,
   CircleFadingArrowUp,
-  CornerDownLeft,
   GripVertical,
   Info,
+  Languages,
   LoaderCircle,
   PanelLeft,
   Palette,
+  RotateCcw,
   Settings,
   SquareTerminal,
   TriangleAlert,
@@ -81,12 +81,15 @@ import {
   isRemoteCheckPreset,
   recommendedLineEndingChoice,
   availableSettingsSections,
+  settingsSectionGroup,
   settingsSectionLabel,
+  type SettingsSectionGroup,
   splitRemoteCheckInterval,
   type GitDiagnostics,
   type GitUpdateStatus,
   type LineEndingChoice,
   type NavigationDisplayMode,
+  type NavigationItem,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
   type RemoteCheckUnit,
@@ -168,14 +171,25 @@ const SECTION_ICONS: Record<SettingsSection, React.JSX.Element> = {
   general: <Settings />,
   notifications: <Bell />,
   appearance: <Palette />,
+  language: <Languages />,
   navigation: <PanelLeft />,
   reading: <WrapText />,
   console: <SquareTerminal />,
   git: <GitIcon />,
   accounts: <UsersRound />,
-  "line-endings": <CornerDownLeft />,
   updates: <CircleFadingArrowUp />,
 };
+
+/** The one selected mark every picker card in Settings shares: a filled check
+ * in the card's top corner, beside a quiet fill. It sits in the corner so it
+ * never lands on the specimen being judged. */
+function SelectionCheck(): React.JSX.Element {
+  return (
+    <span className="selection-check" aria-hidden="true">
+      <Check />
+    </span>
+  );
+}
 
 /** The three kinds the centre records, in the order the panel shows them: the
  * two background events first, the receipt last.
@@ -266,6 +280,7 @@ const SettingsNav = React.memo(function SettingsNav({
   accountsAttention,
   railLabel,
   attentionLabel,
+  groupLabels,
 }: {
   sections: Array<{
     id: SettingsSection;
@@ -282,6 +297,8 @@ const SettingsNav = React.memo(function SettingsNav({
   accountsAttention: { tone: "update" | "problem"; label: string } | null;
   railLabel: string;
   attentionLabel: string;
+  /** Titles of the rail's blocks; Updates has none and gets a divider. */
+  groupLabels: Record<Exclude<SettingsSectionGroup, "updates">, string>;
 }): React.JSX.Element {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number): void => {
@@ -311,9 +328,17 @@ const SettingsNav = React.memo(function SettingsNav({
     <div className="settings-nav" role="tablist" aria-orientation="vertical" aria-label={railLabel}>
       {sections.map((section, index) => {
         const isActive = activeSection === section.id;
+        const group = settingsSectionGroup(section.id);
+        const startsGroup = index === 0 || settingsSectionGroup(sections[index - 1].id) !== group;
         return (
+          <React.Fragment key={section.id}>
+          {/* Visual only: a tablist may own nothing but tabs, so the block
+              titles stay out of the accessibility tree and the arrow keys
+              walk straight across them. */}
+          {startsGroup && (group === "updates"
+            ? <span className="settings-nav__divider" aria-hidden="true" />
+            : <span className="settings-nav__group" aria-hidden="true">{groupLabels[group]}</span>)}
           <button
-            key={section.id}
             ref={(element) => {
               tabRefs.current[index] = element;
             }}
@@ -354,6 +379,7 @@ const SettingsNav = React.memo(function SettingsNav({
               </span>
             )}
           </button>
+          </React.Fragment>
         );
       })}
     </div>
@@ -401,6 +427,7 @@ export function SettingsPanel({
   runGitHooks,
   setRunGitHooks,
   navigationItems,
+  defaultNavigationPreferences,
   navigationPreferences,
   setNavigationPreferences,
   diffPreferences,
@@ -454,7 +481,9 @@ export function SettingsPanel({
   setNotificationsEnabled: (value: boolean) => void;
   runGitHooks: boolean;
   setRunGitHooks: (value: boolean) => void;
-  navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
+  navigationItems: NavigationItem[];
+  /** What "Restore default" returns membership and order to. */
+  defaultNavigationPreferences: NavigationPreferences;
   navigationPreferences: NavigationPreferences;
   setNavigationPreferences: (
     update: (previous: NavigationPreferences) => NavigationPreferences,
@@ -945,6 +974,33 @@ export function SettingsPanel({
       );
     }
   };
+  const sameIds = (left: readonly string[], right: readonly string[]): boolean =>
+    left.length === right.length && left.every((id, index) => id === right[index]);
+  // Compared on what the list shows, so a stored order carrying ids that no
+  // longer exist does not keep the button enabled for nothing.
+  const navigationIsDefault =
+    sameIds(
+      navigationItems.map((item) => item.id),
+      defaultNavigationPreferences.destinationOrderIds.filter((id) =>
+        navigationItems.some((item) => item.id === id),
+      ),
+    ) &&
+    navigationItems.every(
+      (item) =>
+        visibleNavigationIds.has(item.id) ===
+        defaultNavigationPreferences.visibleDestinationIds.includes(item.id),
+    );
+  // Appearance is its own choice below and stays as it is.
+  const restoreNavigationDefaults = (): void => {
+    setNavigationPreferences((previous) => ({
+      ...previous,
+      visibleDestinationIds: [...defaultNavigationPreferences.visibleDestinationIds],
+      destinationOrderIds: [...defaultNavigationPreferences.destinationOrderIds],
+    }));
+    setNavigationOrderNotice(t.settingsNavigationRestoredNotice);
+  };
+  const shownNavigationItems = navigationItems.filter((item) => visibleNavigationIds.has(item.id));
+  const navigationMiniRail = (shownNavigationItems.length > 0 ? shownNavigationItems : navigationItems).slice(0, 3);
   const setNavigationDisplayMode = (displayMode: NavigationDisplayMode): void => {
     setNavigationPreferences((previous) => ({ ...previous, displayMode }));
   };
@@ -989,9 +1045,10 @@ export function SettingsPanel({
         onClick={() => setTheme(option.id)}
       >
         <span className="theme-card__tile">{option.preview}</span>
+        {isSelected && <SelectionCheck />}
         <span className="theme-card__label">
           <span className="theme-card__name">{option.name}</span>
-          {option.official && <BadgeCheck className="theme-card__official" aria-hidden="true" />}
+          {option.official && <span className="theme-card__official" aria-hidden="true">{t.settingsThemeOfficialBadge}</span>}
         </span>
       </button>
     );
@@ -1008,6 +1065,7 @@ export function SettingsPanel({
         accountsAttention={accountsAttention}
         railLabel={t.settingsSectionsAriaLabel}
         attentionLabel={t.settingsGitNeedsAttention}
+        groupLabels={{ app: t.settingsRailGroupApp, work: t.settingsRailGroupWork, git: t.settingsRailGroupGit }}
       />
       <div
         {...autoHideScrollbarProps<HTMLDivElement>()}
@@ -1291,8 +1349,9 @@ export function SettingsPanel({
               </header>
               <div className="settings-group__body">
                 {/* Two radiogroups so the accessible names still say which
-                    group a theme belongs to; the official three are marked by
-                    the official badge, not by a label. */}
+                    group a theme belongs to. The official three carry an
+                    "Official" tag; the community grid gets a visible title, so
+                    the gap between them is not the only thing saying so. */}
                 <div
                   className="theme-picker__official"
                   role="radiogroup"
@@ -1301,6 +1360,7 @@ export function SettingsPanel({
                 >
                   {officialThemeOptions.map(renderThemeCard)}
                 </div>
+                <p className="theme-picker__heading" aria-hidden="true">{t.settingsThemeMoreTitle}</p>
                 <div
                   className="theme-picker__community"
                   role="radiogroup"
@@ -1379,12 +1439,18 @@ export function SettingsPanel({
                         </span>
                         <span className="project-icons-card__label">{label}</span>
                         <span className="project-icons-card__hint">{hint}</span>
+                        {isActive && <SelectionCheck />}
                       </button>
                     );
                   })}
                 </div>
               </div>
             </section>
+          </div>
+        )}
+
+        {activeSection === "language" && (
+          <div className="settings-groups">
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsLanguageTitle}</h3>
@@ -1413,11 +1479,12 @@ export function SettingsPanel({
                 </div>
               </div>
             </section>
-            {/* Beside Language rather than in a rail entry of its own: this is
-                the same question about how the interface reads, and a locale
-                is not one decision but three. Each option is labelled by what
-                it does and shows the result, because "Day first" is a
-                description and `30/08/2026` is the answer. */}
+            {/* Beside Language, in a section of their own apart from the
+                visual Interface choices: changing the language is when people
+                look at how dates and numbers read, and a locale is not one
+                decision but three. Each option is labelled by what it does and
+                shows the result, because "Day first" is a description and
+                `30/08/2026` is the answer. */}
             <section className="settings-group">
               <header className="settings-group__header">
                 <h3>{t.settingsFormatsTitle}</h3>
@@ -1449,6 +1516,7 @@ export function SettingsPanel({
                           className={`format-picker__option${isActive ? " format-picker__option--active" : ""}`}
                           onClick={() => setDateFormat(option)}
                         >
+                          {isActive && <SelectionCheck />}
                           <span className="format-picker__name">{dateFormatLabels[option]}</span>
                           <span className="format-picker__sample" aria-hidden="true">
                             {sample}
@@ -1483,6 +1551,7 @@ export function SettingsPanel({
                           className={`format-picker__option${isActive ? " format-picker__option--active" : ""}`}
                           onClick={() => setNumberFormat(option)}
                         >
+                          {isActive && <SelectionCheck />}
                           <span className="format-picker__name">
                             {numberFormatLabels[option]}
                           </span>
@@ -1502,9 +1571,20 @@ export function SettingsPanel({
         {activeSection === "navigation" && (
           <div className="settings-groups">
             <section className="settings-group">
-              <header className="settings-group__header">
-                <h3>{t.settingsNavigationDestinationsTitle}</h3>
-                <p>{t.settingsNavigationDestinationsDescription}</p>
+              <header className="settings-group__header navigation-destinations__header">
+                <div>
+                  <h3>{t.settingsNavigationDestinationsTitle}</h3>
+                  <p>{t.settingsNavigationDestinationsDescription}</p>
+                </div>
+                <button
+                  type="button"
+                  className="navigation-destinations__restore"
+                  disabled={navigationIsDefault}
+                  onClick={restoreNavigationDefaults}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  {t.settingsNavigationRestoreDefault}
+                </button>
               </header>
               <div className="settings-group__body navigation-destinations">
                 {navigationItems.map((item, index) => (
@@ -1580,13 +1660,19 @@ export function SettingsPanel({
                     <span className="navigation-destination__icon" aria-hidden="true">
                       {item.icon}
                     </span>
-                    {/* A section turned off keeps its row, dimmed and tagged,
-                        so the list never changes height and its place in the
-                        order stays visible. */}
+                    {/* A section turned off keeps its row and gains a tag, so
+                        the list never changes height and its place in the
+                        order stays visible. The tag and the switch say it
+                        once; the name keeps its full contrast. */}
                     <span className="navigation-destination__copy">
-                      <strong>{item.label}</strong>
-                      {!visibleNavigationIds.has(item.id) && (
-                        <span className="navigation-destination__tag">{t.settingsNavigationMovedToMore}</span>
+                      <span className="navigation-destination__name">
+                        <strong>{item.label}</strong>
+                        {!visibleNavigationIds.has(item.id) && (
+                          <span className="navigation-destination__tag">{t.settingsNavigationMovedToMore}</span>
+                        )}
+                      </span>
+                      {item.description && (
+                        <span className="navigation-destination__description">{item.description}</span>
                       )}
                     </span>
                     <div className="navigation-destination__order-controls">
@@ -1614,7 +1700,7 @@ export function SettingsPanel({
                       </div>
                     </div>
                     <ToggleSwitch
-                      label={item.label}
+                      label={t.settingsNavigationShowLabel.replace("{section}", item.label)}
                       checked={visibleNavigationIds.has(item.id)}
                       onChange={(isVisible) => setDestinationVisible(item.id, isVisible)}
                     />
@@ -1659,8 +1745,10 @@ export function SettingsPanel({
                         className={`navigation-display__preview navigation-display__preview--${mode}`}
                         aria-hidden="true"
                       >
+                        {/* Drawn from the user's own rail, so the choice is
+                            previewed on what they will actually see. */}
                         <span className="navigation-display__mini-rail">
-                          {navigationItems.slice(0, 3).map(sample => (
+                          {navigationMiniRail.map(sample => (
                             <span className="navigation-display__mini-item" key={sample.id}>
                               {sample.icon}{mode === "icons-and-text" && <small>{sample.label}</small>}
                             </span>
@@ -1672,10 +1760,10 @@ export function SettingsPanel({
                           <span className="navigation-display__mini-status"><i /><i /></span>
                         </span>
                       </span>
+                      {isActive && <SelectionCheck />}
                       <span className="navigation-display__label">
                         <strong>{label}</strong>
-                        <span className="navigation-display__check" aria-hidden="true">{isActive && <Check />}</span>
-                        <small className="visually-hidden">
+                        <small className="navigation-display__description">
                           {mode === "icons-and-text"
                             ? t.settingsNavigationIconsAndTextDescription
                             : t.settingsNavigationIconsOnlyDescription}
@@ -1790,6 +1878,7 @@ export function SettingsPanel({
                         style={{ fontFamily: DIFF_CODE_FONT_STACKS[font] }}
                         onClick={() => setDiffPreferences((previous) => ({ ...previous, codeFont: font }))}
                       >
+                        {isActive && <SelectionCheck />}
                         <span className="font-picker__name">{CODE_FONT_LABELS[font]}</span>
                         {/* Not decorative text: this is the comparison the
                             choice actually turns on, so it is hidden from
@@ -1810,8 +1899,10 @@ export function SettingsPanel({
         {activeSection === "console" && (
           <div className="settings-groups">
             <section className="settings-group">
+              {/* No `h3`: this is the section's only group and the rail
+                  already says "Console" — the redundant heading layer task 057
+                  removed, kept out here as in the other single-group sections. */}
               <header className="settings-group__header">
-                <h3>{t.settingsConsoleTitle}</h3>
                 <p>{t.settingsConsoleDescription}</p>
               </header>
               <div className="settings-group__body">
@@ -2002,6 +2093,85 @@ export function SettingsPanel({
             </section>
             <section className="settings-group">
               <header className="settings-group__header">
+                <h3>{t.settingsIdentityTitle}</h3>
+                <p>{t.settingsIdentityDescription}</p>
+              </header>
+              {/* Saved when focus leaves the pair, not behind a Save button:
+                  every other control here applies on change, and the button
+                  was the only thing standing between a typed name and a
+                  dismissed dialog. */}
+              <div className="settings-group__body identity-block" onBlur={handleIdentityBlur}>
+                <div className="identity-fields">
+                  <label className="text-field">
+                    <span>{t.identityNameLabel}</span>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(event) => {
+                        setNameInput(event.target.value);
+                        setIsConfirmingDiscard(false);
+                      }}
+                      placeholder={t.identityNamePlaceholder}
+                    />
+                  </label>
+                  <label className="text-field">
+                    <span>{t.identityEmailLabel}</span>
+                    <input
+                      type="email"
+                      value={emailInput}
+                      aria-invalid={hasVisitedEmail && hasEmailFormatError}
+                      aria-describedby={hasVisitedEmail && hasEmailFormatError ? "identity-email-error" : undefined}
+                      onChange={(event) => {
+                        setEmailInput(event.target.value);
+                        setIsConfirmingDiscard(false);
+                      }}
+                      placeholder={t.identityEmailPlaceholder}
+                    />
+                  </label>
+                </div>
+                <div className="identity-block__status" role="status">
+                  {hasVisitedEmail && hasEmailFormatError ? (
+                    <p id="identity-email-error" className="settings-row__hint settings-row__hint--danger">
+                      <TriangleAlert aria-hidden="true" />
+                      <span>{t.identityInvalidEmail}</span>
+                    </p>
+                  ) : isSavingIdentity ? (
+                    <p className="settings-row__hint">
+                      <LoaderCircle aria-hidden="true" className="icon--spinning" />
+                      <span>{t.settingsSaving}</span>
+                    </p>
+                  ) : identityNotice ? (
+                    <p className={`settings-row__hint settings-row__hint--${identityNotice.tone}`}>
+                      {NOTICE_ICONS[identityNotice.tone]}
+                      <span>{identityNotice.message}</span>
+                    </p>
+                  ) : null}
+                </div>
+                {isConfirmingDiscard && (
+                  <div className="identity-block__confirm" role="alert">
+                    <div>
+                      <strong>{t.identityUnsavedTitle}</strong>
+                      <p>{t.identityUnsavedBody}</p>
+                    </div>
+                    <div className="settings-row__actions">
+                      <button className="secondary-button" type="button" onClick={() => onClose?.()}>
+                        {t.identityDiscardAndClose}
+                      </button>
+                      <button
+                        ref={keepEditingRef}
+                        className="primary-button"
+                        type="button"
+                        onClick={() => setIsConfirmingDiscard(false)}
+                      >
+                        {t.identityKeepEditing}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+            <section className="settings-group">
+              <header className="settings-group__header">
                 <h3>{t.settingsDefaultBranchTitle}</h3>
                 <p>{t.settingsDefaultBranchDescription}</p>
               </header>
@@ -2115,115 +2285,11 @@ export function SettingsPanel({
               </div>
             </section>
             <section className="settings-group">
+              {/* A group of Git rather than a rail entry of its own: it is Git
+                  configuration, and as the last group it stays out of the way
+                  of the identity and branch choices a newcomer needs first. */}
               <header className="settings-group__header">
-                <h3>{t.settingsIdentityTitle}</h3>
-                <p>{t.settingsIdentityDescription}</p>
-              </header>
-              {/* Saved when focus leaves the pair, not behind a Save button:
-                  every other control here applies on change, and the button
-                  was the only thing standing between a typed name and a
-                  dismissed dialog. */}
-              <div className="settings-group__body identity-block" onBlur={handleIdentityBlur}>
-                <div className="identity-fields">
-                  <label className="text-field">
-                    <span>{t.identityNameLabel}</span>
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(event) => {
-                        setNameInput(event.target.value);
-                        setIsConfirmingDiscard(false);
-                      }}
-                      placeholder={t.identityNamePlaceholder}
-                    />
-                  </label>
-                  <label className="text-field">
-                    <span>{t.identityEmailLabel}</span>
-                    <input
-                      type="email"
-                      value={emailInput}
-                      aria-invalid={hasVisitedEmail && hasEmailFormatError}
-                      aria-describedby={hasVisitedEmail && hasEmailFormatError ? "identity-email-error" : undefined}
-                      onChange={(event) => {
-                        setEmailInput(event.target.value);
-                        setIsConfirmingDiscard(false);
-                      }}
-                      placeholder={t.identityEmailPlaceholder}
-                    />
-                  </label>
-                </div>
-                <div className="identity-block__status" role="status">
-                  {hasVisitedEmail && hasEmailFormatError ? (
-                    <p id="identity-email-error" className="settings-row__hint settings-row__hint--danger">
-                      <TriangleAlert aria-hidden="true" />
-                      <span>{t.identityInvalidEmail}</span>
-                    </p>
-                  ) : isSavingIdentity ? (
-                    <p className="settings-row__hint">
-                      <LoaderCircle aria-hidden="true" className="icon--spinning" />
-                      <span>{t.settingsSaving}</span>
-                    </p>
-                  ) : identityNotice ? (
-                    <p className={`settings-row__hint settings-row__hint--${identityNotice.tone}`}>
-                      {NOTICE_ICONS[identityNotice.tone]}
-                      <span>{identityNotice.message}</span>
-                    </p>
-                  ) : null}
-                </div>
-                {isConfirmingDiscard && (
-                  <div className="identity-block__confirm" role="alert">
-                    <div>
-                      <strong>{t.identityUnsavedTitle}</strong>
-                      <p>{t.identityUnsavedBody}</p>
-                    </div>
-                    <div className="settings-row__actions">
-                      <button className="secondary-button" type="button" onClick={() => onClose?.()}>
-                        {t.identityDiscardAndClose}
-                      </button>
-                      <button
-                        ref={keepEditingRef}
-                        className="primary-button"
-                        type="button"
-                        onClick={() => setIsConfirmingDiscard(false)}
-                      >
-                        {t.identityKeepEditing}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {activeSection === "accounts" && (
-          <div className="settings-groups">
-            {accounts?.({
-              github: {
-                name: t.ghName,
-                section: <GhToolingSection port={port} tooling={ghTooling} />,
-                inline: <GhToolingSection port={port} tooling={ghTooling} variant="inline" />,
-                attention: ghAttention,
-              },
-              gitlab: glabTooling ? {
-                name: glabName,
-                section: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
-                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} />,
-                inline: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
-                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} variant="inline" />,
-                attention: glabAttention,
-              } : null,
-            })}
-          </div>
-        )}
-
-        {activeSection === "line-endings" && (
-          <div className="settings-groups">
-            <section className="settings-group">
-              {/* No `h3` here: the rail already says "Line endings" and this is
-                  the section's only group, so a heading would repeat it — the
-                  redundant heading layer task 057 removed. */}
-              <header className="settings-group__header">
+                <h3>{t.settingsLineEndingsTitle}</h3>
                 <p>{t.settingsLineEndingsDescription}</p>
               </header>
               <div className="settings-group__body">
@@ -2314,6 +2380,27 @@ export function SettingsPanel({
                 )}
               </div>
             </section>
+          </div>
+        )}
+
+        {activeSection === "accounts" && (
+          <div className="settings-groups">
+            {accounts?.({
+              github: {
+                name: t.ghName,
+                section: <GhToolingSection port={port} tooling={ghTooling} />,
+                inline: <GhToolingSection port={port} tooling={ghTooling} variant="inline" />,
+                attention: ghAttention,
+              },
+              gitlab: glabTooling ? {
+                name: glabName,
+                section: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} />,
+                inline: <GhToolingSection port={port} tooling={glabTooling} actions={glabActions} copy={glabCopy}
+                  mark={<HostingProviderIcon provider="gitlab" />} guidanceUrl={GLAB_GUIDANCE_URL} variant="inline" />,
+                attention: glabAttention,
+              } : null,
+            })}
           </div>
         )}
 

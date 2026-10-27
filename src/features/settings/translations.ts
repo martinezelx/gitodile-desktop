@@ -38,10 +38,17 @@ export interface SettingsTranslations {
   /** How a blocked app update names unsaved changes in this dialog. */
   settingsInstallBlockerLabel: string;
   settingsInterfaceTitle: string;
+  settingsRailGroupApp: string;
+  settingsRailGroupWork: string;
+  settingsRailGroupGit: string;
+  settingsLanguageRegionTitle: string;
   settingsNavigationTitle: string;
   settingsNavigationDestinationsTitle: string;
   settingsNavigationDestinationsDescription: string;
   settingsNavigationMovedToMore: string;
+  settingsNavigationShowLabel: string;
+  settingsNavigationRestoreDefault: string;
+  settingsNavigationRestoredNotice: string;
   settingsNavigationReorderLabel: string;
   settingsNavigationMoveUpLabel: string;
   settingsNavigationMoveDownLabel: string;
@@ -77,6 +84,7 @@ export interface SettingsTranslations {
   themeMatchDevice: string;
   settingsThemeOfficialTitle: string;
   settingsThemeMoreTitle: string;
+  settingsThemeOfficialBadge: string;
   themeSchemeAuto: string;
   themeSchemeLight: string;
   themeSchemeDark: string;
@@ -289,10 +297,17 @@ export interface SettingsTranslations {
 const en: SettingsTranslations = {
   settingsInstallBlockerLabel: "Settings",
   settingsInterfaceTitle: "Interface",
+  settingsRailGroupApp: "App",
+  settingsRailGroupWork: "Work",
+  settingsRailGroupGit: "Version control",
+  settingsLanguageRegionTitle: "Language & region",
   settingsNavigationTitle: "Navigation",
-  settingsNavigationDestinationsTitle: "Sections in the bar",
+  settingsNavigationDestinationsTitle: "Sidebar sections",
   settingsNavigationDestinationsDescription: "Drag to change the order. Hidden sections remain available in More.",
   settingsNavigationMovedToMore: "In More",
+  settingsNavigationShowLabel: "Show {section} in the sidebar",
+  settingsNavigationRestoreDefault: "Restore default",
+  settingsNavigationRestoredNotice: "Default sections and order restored.",
   settingsNavigationReorderLabel: "Reorder",
   settingsNavigationMoveUpLabel: "Move up",
   settingsNavigationMoveDownLabel: "Move down",
@@ -328,6 +343,7 @@ const en: SettingsTranslations = {
   themeMatchDevice: "System",
   settingsThemeOfficialTitle: "Official",
   settingsThemeMoreTitle: "More themes",
+  settingsThemeOfficialBadge: "Official",
   themeSchemeAuto: "light or dark to match your system",
   themeSchemeLight: "light theme",
   themeSchemeDark: "dark theme",
@@ -347,7 +363,7 @@ const en: SettingsTranslations = {
   settingsNotificationsTitle: "Notifications",
   settingsNotificationsWhileAwayTitle: "While you're doing something else",
   notificationsEnableLabel: "Enable notifications",
-  notificationsEnableDescription: "A short log under the bell that never leaves the app.",
+  notificationsEnableDescription: "Kept under the bell in the app; they never leave your computer.",
   notificationsEventsTitle: "You'll be told when",
   notificationsEventsOffTitle: "Turn them on to be told when",
   notificationsSilentTag: "Silent",
@@ -524,11 +540,11 @@ const en: SettingsTranslations = {
   settingsStartupTitle: "Startup",
   startupReopenLabel: "Reopen projects from your last session",
   startupReopenDescription: "Restores the projects that were open when you quit.",
-  settingsWatchingTitle: "Automatic refresh",
+  settingsWatchingTitle: "Project tracking",
   watchingLabel: "Keep project screens up to date",
   watchingDescription: "Refreshes when files or versions change, so turn it off only if a large or network project gets slow.",
   remoteCheckLabel: "Check remote project changes",
-  remoteCheckDescription: "Uses the network, and you can also check by hand.",
+  remoteCheckDescription: "How often to look for new versions on the server. You can always check by hand.",
   remoteCheckIntervalLabel: "How often to check the remote",
   remoteCheckNever: "Never",
   remoteCheckMinutesShort: (minutes) => `${minutes} min`,
@@ -568,7 +584,7 @@ const en: SettingsTranslations = {
   settingsReadingDiffsTitle: "Diffs",
   settingsReadingDescription: "How file changes are shown.",
   readingWrapLabel: "Wrap long lines",
-  readingWrapDescription: "When off, long lines scroll sideways.",
+  readingWrapDescription: "Breaks long lines so they fit without scrolling sideways.",
   readingIgnoreWhitespaceLabel: "Ignore spacing-only changes",
   readingIgnoreWhitespaceDescription: "Hide changes that only add or remove spaces.",
   readingSyntaxLabel: "Syntax highlighting",
@@ -587,10 +603,17 @@ const en: SettingsTranslations = {
 const es: SettingsTranslations = {
   settingsInstallBlockerLabel: "Ajustes",
   settingsInterfaceTitle: "Interfaz",
+  settingsRailGroupApp: "App",
+  settingsRailGroupWork: "Trabajo",
+  settingsRailGroupGit: "Control de versiones",
+  settingsLanguageRegionTitle: "Idioma y región",
   settingsNavigationTitle: "Navegación",
-  settingsNavigationDestinationsTitle: "Secciones de la barra",
+  settingsNavigationDestinationsTitle: "Secciones de la barra lateral",
   settingsNavigationDestinationsDescription: "Arrastra para cambiar el orden. Las secciones ocultas siguen disponibles en Más.",
   settingsNavigationMovedToMore: "En Más",
+  settingsNavigationShowLabel: "Mostrar {section} en la barra lateral",
+  settingsNavigationRestoreDefault: "Restaurar predeterminado",
+  settingsNavigationRestoredNotice: "Se han restaurado las secciones y el orden predeterminados.",
   settingsNavigationReorderLabel: "Reordenar",
   settingsNavigationMoveUpLabel: "Subir",
   settingsNavigationMoveDownLabel: "Bajar",
@@ -626,6 +649,7 @@ const es: SettingsTranslations = {
   themeMatchDevice: "Sistema",
   settingsThemeOfficialTitle: "Oficiales",
   settingsThemeMoreTitle: "Más temas",
+  settingsThemeOfficialBadge: "Oficial",
   themeSchemeAuto: "claro u oscuro según el sistema",
   themeSchemeLight: "tema claro",
   themeSchemeDark: "tema oscuro",
@@ -645,7 +669,7 @@ const es: SettingsTranslations = {
   settingsNotificationsTitle: "Notificaciones",
   settingsNotificationsWhileAwayTitle: "Mientras haces otra cosa",
   notificationsEnableLabel: "Activar notificaciones",
-  notificationsEnableDescription: "Un breve registro bajo la campana que nunca sale de la aplicación.",
+  notificationsEnableDescription: "Se guardan en la campana de la app y nunca salen de tu ordenador.",
   notificationsEventsTitle: "Te avisará de",
   notificationsEventsOffTitle: "Actívalas para que te avise de",
   notificationsSilentTag: "Silencioso",
@@ -822,11 +846,11 @@ const es: SettingsTranslations = {
   settingsStartupTitle: "Al abrir la app",
   startupReopenLabel: "Reabrir los proyectos de la última sesión",
   startupReopenDescription: "Recupera los proyectos que estaban abiertos al salir.",
-  settingsWatchingTitle: "Actualización automática",
+  settingsWatchingTitle: "Seguimiento de proyectos",
   watchingLabel: "Mantener al día las pantallas del proyecto",
   watchingDescription: "Se actualiza cuando cambian archivos o versiones, así que desactívalo solo si un proyecto grande o en red va lento.",
   remoteCheckLabel: "Comprobar cambios del proyecto remoto",
-  remoteCheckDescription: "Usa la red y también puedes comprobarlo a mano.",
+  remoteCheckDescription: "Cada cuánto se buscan versiones nuevas en el servidor. Siempre puedes comprobarlo a mano.",
   remoteCheckIntervalLabel: "Cada cuánto comprobar el remoto",
   remoteCheckNever: "Nunca",
   remoteCheckMinutesShort: (minutes) => `${minutes} min`,
@@ -866,7 +890,7 @@ const es: SettingsTranslations = {
   settingsReadingDiffsTitle: "Cambios",
   settingsReadingDescription: "Cómo se muestran los cambios de los archivos.",
   readingWrapLabel: "Ajustar líneas largas",
-  readingWrapDescription: "Desactivado, las líneas largas se desplazan en horizontal.",
+  readingWrapDescription: "Parte las líneas largas para que quepan sin desplazarte en horizontal.",
   readingIgnoreWhitespaceLabel: "Ignorar cambios solo de espaciado",
   readingIgnoreWhitespaceDescription: "Oculta los cambios que solo añaden o quitan espacios.",
   readingSyntaxLabel: "Resaltado de sintaxis",

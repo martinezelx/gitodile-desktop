@@ -3495,8 +3495,10 @@ export function App(): React.JSX.Element {
           navigationItems: orderedProjectNavDestinations.map((destination) => ({
             id: destination.id,
             label: t[destination.labelKey],
+            description: destination.descriptionKey ? t[destination.descriptionKey] : null,
             icon: destination.icon,
           })),
+          defaultNavigationPreferences: DEFAULT_NAVIGATION_PREFERENCES,
           navigationPreferences,
           setNavigationPreferences,
           diffPreferences,

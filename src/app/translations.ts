@@ -53,15 +53,20 @@ export interface AppTranslations {
   navProjectAriaLabel: string;
   navApplicationAriaLabel: string;
   navOverview: string;
+  navOverviewDescription: string;
   navOverviewTitle: string;
   navHome: string;
   navWork: string;
+  navWorkDescription: string;
   navWorkTitle: string;
   navBranches: string;
+  navBranchesDescription: string;
   navBranchesTitle: string;
   navConsole: string;
+  navConsoleDescription: string;
   navConsoleTitle: string;
   navRecovery: string;
+  navRecoveryDescription: string;
   navRecoveryTitle: string;
   navSettings: string;
   navMore: string;
@@ -293,15 +298,20 @@ const en: AppTranslations = {
   navProjectAriaLabel: "Project navigation",
   navApplicationAriaLabel: "Application",
   navOverview: "Overview",
+  navOverviewDescription: "Where the project stands, at a glance.",
   navOverviewTitle: "Overview — open a project first",
   navHome: "Home",
   navWork: "Work",
+  navWorkDescription: "Your changes and the versions you save.",
   navWorkTitle: "Work — open a project first",
   navBranches: "Branches",
+  navBranchesDescription: "Switch, create and compare branches.",
   navBranchesTitle: "Branches — open a project first",
   navConsole: "Console",
+  navConsoleDescription: "Run Git commands yourself.",
   navConsoleTitle: "Console — open a project first",
   navRecovery: "Recovery",
+  navRecoveryDescription: "Coming soon: go back to an earlier moment.",
   navRecoveryTitle: "Recovery — coming soon",
   navSettings: "Settings",
   navMore: "More",
@@ -519,15 +529,20 @@ const es: AppTranslations = {
   navProjectAriaLabel: "Navegación del proyecto",
   navApplicationAriaLabel: "Aplicación",
   navOverview: "Resumen",
+  navOverviewDescription: "Cómo está el proyecto, de un vistazo.",
   navOverviewTitle: "Resumen — abre antes un proyecto",
   navHome: "Inicio",
   navWork: "Trabajo",
+  navWorkDescription: "Tus cambios y las versiones que guardas.",
   navWorkTitle: "Trabajo — abre antes un proyecto",
   navBranches: "Ramas",
+  navBranchesDescription: "Cambia de rama, crea ramas y compáralas.",
   navBranchesTitle: "Ramas — abre antes un proyecto",
   navConsole: "Consola",
+  navConsoleDescription: "Ejecuta comandos de Git tú mismo.",
   navConsoleTitle: "Consola — abre antes un proyecto",
   navRecovery: "Rescate",
+  navRecoveryDescription: "Próximamente: vuelve a un momento anterior.",
   navRecoveryTitle: "Rescate — próximamente",
   navSettings: "Ajustes",
   navMore: "Más",

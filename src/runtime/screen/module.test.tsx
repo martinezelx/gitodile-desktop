@@ -36,6 +36,7 @@ const completeModule = {
   id: "test",
   section: "project",
   labelKey: "navOverview",
+  descriptionKey: null,
   disabledLabelKey: null,
   commandLabelKey: "commandGoOverview",
   icon: <LayoutDashboard />,

@@ -84,6 +84,14 @@ export type NavigationPreferences = {
   displayMode: NavigationDisplayMode;
 };
 
+/** One sidebar section as Navigation Settings lists it, already translated. */
+export type NavigationItem = {
+  id: string;
+  label: string;
+  description: string | null;
+  icon: React.JSX.Element;
+};
+
 /** The panel's sections, in rail order. The list is the feature's to define,
  * but the *selection* is app state: opening lands on General unless a caller
  * names a section, and the dialog header can steer it, so it arrives as a
@@ -92,16 +100,39 @@ export const SETTINGS_SECTIONS = [
   "general",
   "notifications",
   "appearance",
+  "language",
   "navigation",
   "reading",
   "console",
   "git",
   "accounts",
-  "line-endings",
   "updates",
 ] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | "gitodile-account";
+
+/** The rail's blocks: what the app does, how a project's work reads, and Git
+ * with the integrations that reach its remotes. Each title names a scope, not
+ * the sections under it. Updates stands apart at the foot.
+ * A record so a new section cannot ship without a place in the rail. */
+export type SettingsSectionGroup = "app" | "work" | "git" | "updates";
+const SETTINGS_SECTION_GROUPS: Record<SettingsSection, SettingsSectionGroup> = {
+  "gitodile-account": "app",
+  general: "app",
+  notifications: "app",
+  appearance: "app",
+  language: "app",
+  navigation: "app",
+  reading: "work",
+  console: "work",
+  git: "git",
+  accounts: "git",
+  updates: "updates",
+};
+
+export function settingsSectionGroup(section: SettingsSection): SettingsSectionGroup {
+  return SETTINGS_SECTION_GROUPS[section];
+}
 
 /** The optional account body is a capability, supplied only by the dev shell. */
 export function availableSettingsSections(hasAccountDemo = false): readonly SettingsSection[] {
@@ -120,12 +151,12 @@ export function settingsSectionLabel(
     settingsGeneralTitle: string;
     settingsNotificationsTitle: string;
     settingsInterfaceTitle: string;
+    settingsLanguageRegionTitle: string;
     settingsNavigationTitle: string;
     settingsReadingTitle: string;
     settingsConsoleTitle: string;
     settingsGitTitle: string;
     settingsAccountsTitle: string;
-    settingsLineEndingsTitle: string;
     settingsUpdatesTitle: string;
     accountSettingsTitle?: string;
   },
@@ -135,12 +166,12 @@ export function settingsSectionLabel(
     general: t.settingsGeneralTitle,
     notifications: t.settingsNotificationsTitle,
     appearance: t.settingsInterfaceTitle,
+    language: t.settingsLanguageRegionTitle,
     navigation: t.settingsNavigationTitle,
     reading: t.settingsReadingTitle,
     console: t.settingsConsoleTitle,
     git: t.settingsGitTitle,
     accounts: t.settingsAccountsTitle,
-    "line-endings": t.settingsLineEndingsTitle,
     updates: t.settingsUpdatesTitle,
   };
   return labels[section];
