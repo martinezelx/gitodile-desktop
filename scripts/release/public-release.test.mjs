@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -35,6 +34,7 @@ import {
   updateFeedbackReadme,
 } from "./public-release.mjs";
 import { ANONYMOUS_RETRY, anonymousHash, atomicPublicCommit, publish, reconcileAssets, validateSourceRun } from "./github-publication.mjs";
+import { tempDir } from "./test-temp.mjs";
 
 const PUBLISHED_AT = "2026-09-14T11:13:05Z";
 /** A plan the way the publish job sees it once GitHub has recorded the
@@ -155,7 +155,7 @@ function qualification(enabled = false, pair = PAIR) {
 }
 
 function signedMatrix(version) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-publication-"));
+  const root = tempDir("gitodile-publication-");
   const identity = candidate(version);
   for (const target of REQUIRED_TARGETS) {
     const directory = path.join(root, target);
@@ -619,7 +619,7 @@ function fakeDestination({ initialRelease = null, initialFiles = {} } = {}) {
 
 function stagedPublication(version, mode) {
   const signed = signedMatrix(version);
-  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-publish-")), "bundle");
+  const output = path.join(tempDir("gitodile-publish-"), "bundle");
   const notes = path.join(path.dirname(output), "notes.md");
   fs.writeFileSync(notes, `# GitOdile ${version}\n\nFirst single-channel release.\n`);
   const qualificationFile = path.join(path.dirname(output), "qualification.json");

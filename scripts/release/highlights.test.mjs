@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
@@ -19,6 +18,7 @@ import {
 } from "./highlights.mjs";
 import { renderReleaseNotes } from "./release-notes.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
+import { tempDir } from "./test-temp.mjs";
 
 function expectCode(code, callback) {
   assert.throws(callback, (error) => error instanceof ReleaseValidationError && error.code === code);
@@ -55,7 +55,7 @@ test("every malformed shape is refused with a message naming the file and the fi
 });
 
 test("the directory check orders versions, requires the current one and refuses orphans", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-highlights-"));
+  const root = tempDir("gitodile-highlights-");
   const highlights = path.join(root, "docs", "release", "highlights");
   const notes = path.join(root, "docs", "release", "notes");
   fs.mkdirSync(highlights, { recursive: true });
@@ -113,7 +113,7 @@ test("the notes' Highlights section is rendered from the English lines, between 
   expectCode("notes_invalid", () => applyHighlightsBlock("No title here.\n", [line]));
 
   // `release:notes` rewrites only the marked block of the version's notes.
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-notes-"));
+  const root = tempDir("gitodile-release-notes-");
   fs.mkdirSync(path.join(root, "docs", "release", "highlights"), { recursive: true });
   fs.mkdirSync(path.join(root, "docs", "release", "notes"), { recursive: true });
   expectCode("highlights_missing", () => renderReleaseNotes({ root, version: "0.3.0" }));
