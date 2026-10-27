@@ -45,7 +45,7 @@ export { moveFocusWithinRadioGroup } from "./radioGroup";
 export { AutomaticUpdatesNotice } from "./automaticUpdatesNotice";
 export { useFieldErrors, FieldError } from "./fieldErrors";
 export type { FieldCheck, FieldErrorMap, FieldErrorState } from "./fieldErrors";
-export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown } from "./popupMenu";
+export { useAnchoredPopup, usePortalFlyout, handlePopupMenuKeyDown, onDocumentPress } from "./popupMenu";
 /* ADR 0003's two-consumer bar, passed twice: the Changes file list and its
    diff shared one right-click menu, History borrowed the whole component to
    get its behaviour, and the branches list needed the same mechanics for

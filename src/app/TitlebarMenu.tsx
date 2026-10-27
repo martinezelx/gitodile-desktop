@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Bug, CircleFadingArrowUp, CloudDownload, Ellipsis, FolderOpen, FolderPlus, FolderX, House, Info, Keyboard, RotateCw, Settings, Sparkles } from "lucide-react";
 import { useLanguage } from "../i18n";
+import { onDocumentPress } from "../shared/ui";
 import { IS_MAC, modifierKeyLabels } from "./branding";
 
 export function TitlebarMenu({
@@ -76,12 +77,10 @@ export function TitlebarMenu({
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") closeMenu(true);
     };
-    // Capture phase: Tauri stops the bubbling mousedown on titlebar drag
-    // regions, so a press on the bar beside the menu would never reach us.
-    document.addEventListener("mousedown", handlePointerDown, true);
+    const removePressListener = onDocumentPress(handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown, true);
+      removePressListener();
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);

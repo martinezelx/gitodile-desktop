@@ -155,6 +155,14 @@ with no navigation in front of it, and `React.lazy` suspends on first render
 even when its module is already warmed, so code-splitting one buys a fallback
 frame no prefetch can remove.
 
+A popup that closes on a press outside itself listens through
+`onDocumentPress` from `shared/ui`, never a bare document `mousedown`. Tauri
+stops the bubbling mousedown on the titlebar's drag region, so a bare listener
+leaves the popup open when the bar is pressed; `onDocumentPress` observes that
+region in the capture phase and everything else while bubbling, which keeps a
+nested surface portalled out of its popup (a calendar, an account list) able to
+keep its own press with `stopPropagation`.
+
 Visited project screens remain mounted for the active project epoch. Home is an
 application-session screen: switching projects does not evict it, and showing
 it never clears the underlying active project or changes that project's

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import { formatDate, type LocaleFormats } from "../i18n";
+import { onDocumentPress } from "./popupMenu";
 
 /** A calendar day, as `YYYY-MM-DD`.
  *
@@ -397,7 +398,7 @@ export function DateField({ value, formats, labels, min, max, className, onChang
       if (containerRef.current?.contains(target) || popupRef.current?.contains(target)) return;
       setIsOpen(false);
     };
-    document.addEventListener("mousedown", handlePointerDown);
+    const removePressListener = onDocumentPress(handlePointerDown);
     document.addEventListener("focusin", handleFocusIn);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
@@ -407,7 +408,7 @@ export function DateField({ value, formats, labels, min, max, className, onChang
     // delay is a window in which a key press goes to the wrong place.
     popupRef.current?.querySelector<HTMLElement>('.date-calendar__day[tabindex="0"]')?.focus();
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      removePressListener();
       document.removeEventListener("focusin", handleFocusIn);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
