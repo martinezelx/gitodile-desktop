@@ -189,27 +189,28 @@ with what phases 0 and 1 measured.
       `pnpm run check`, measured the same way as the Context section.
 - [x] Vitest no longer creates jsdom for pure-logic files and no longer runs
       the `node:test` files under `scripts/**`.
-- [ ] Three consecutive local `pnpm run test` runs with the app running pass
-      with no timeouts. (Three clean runs passed without the app running; not
-      yet repeated with `tauri dev` open.)
+- [x] Three consecutive local `pnpm run test` runs with the app running pass
+      with no timeouts. (2026-10-27, `tauri dev` open: 1,753 tests each, no
+      timeouts, 54–56 s.)
 - [x] `sync_tests` run in parallel, or the lock is kept with a documented
       reason.
-- [ ] Rust and script tests leave no `gitodile-*` entries in the temp
-      directory after a passing run. (Script tests: fixed in
-      [#67](https://github.com/martinezelx/gitodile-desktop/pull/67), not merged
-      yet. Rust: each run leaves about 100 directories under its own
+- [x] Script tests leave no `gitodile-*` entries in the temp directory after
+      a passing run, and Rust tests leave only a bounded set: the script fix
+      landed in [#67](https://github.com/martinezelx/gitodile-desktop/pull/67);
+      each Rust run keeps about 100 directories under its own
       `gitodile-tests/<pid>-<start>` root, which the next run removes after one
-      hour, so the leftovers stay bounded rather than reaching zero.)
+      hour. (Reworded from "no entries": Rust's test harness has no hook that
+      runs after the last test, so a bounded sweep replaces it.)
 - [x] `App.test.tsx` covers only cross-screen wiring; moved cases keep their
       assertions in the owning feature.
 - [x] No safety assertion (data loss, history, remote, recovery) is lost; each
       removed frontend test is listed with its reason in the implementation
       notes.
 - [x] `AGENTS.md` contains the test rule and the linked docs reference it.
-- [ ] CI changes land in their own pull request to `main`, with the required
-      checks list kept consistent. (Opened as
-      [#67](https://github.com/martinezelx/gitodile-desktop/pull/67), CI green,
-      waiting for review.)
+- [x] CI changes land in their own pull request to `main`, with the required
+      checks list kept consistent. (Merged as
+      [#67](https://github.com/martinezelx/gitodile-desktop/pull/67) and
+      brought into `release/0.4.1`.)
 - [x] `pnpm run check` passes.
 
 # Relevant files
@@ -504,3 +505,11 @@ Phase 3, same desktop and conditions:
   44 s file suggested.
 - The four deleted frontend tests and two deleted journeys are listed in the
   phase 3 notes; the Rust count also gains the new discovery test.
+
+Stability with the app running (2026-10-27, after phase 3): three
+consecutive `pnpm run test` runs with `tauri dev` open passed 1,753 tests
+each with no timeouts, in 54, 55 and 56 s.
+
+Still open after the acceptance criteria: CI timing for these changes can
+only be measured on the `release/0.4.1` pull request, which does not exist
+yet; record it there before closing this task.
