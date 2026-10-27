@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -24,6 +24,15 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
+// Off by default, as in a browser or on Windows and Linux; the macOS test
+// turns it on and drives the menu through the fake port.
+vi.mock("./nativeAppMenu", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./nativeAppMenu")>()),
+  hasNativeMacWindowChrome: vi.fn(() => false),
+}));
+vi.mock("./nativeAppMenuAdapter", () => ({
+  nativeAppMenuPort: { install: vi.fn(async () => ({ update: vi.fn(async () => undefined) })) },
+}));
 
 const mockedInvoke = vi.mocked(invoke);
 const mockedOpenFolderDialog = vi.mocked(openFolderDialog);
@@ -402,6 +411,40 @@ describe("TitlebarMenu", () => {
     expect(reload).toHaveAttribute("aria-disabled", "true");
     await user.click(reload);
     expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+});
+
+describe("App on macOS", () => {
+  it("leaves window controls and the overflow menu to macOS and runs menu bar entries", async () => {
+    const { hasNativeMacWindowChrome } = await import("./nativeAppMenu");
+    const { nativeAppMenuPort } = await import("./nativeAppMenuAdapter");
+    vi.mocked(hasNativeMacWindowChrome).mockReturnValue(true);
+    mockedInvoke.mockImplementation(() => Promise.reject(new Error("No project open")));
+    try {
+      render(<LanguageProvider><App /></LanguageProvider>);
+
+      expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Minimize window" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Close window" })).toBeNull();
+      expect(document.querySelector(".app-window")).toHaveClass("app-window--mac-traffic-lights");
+
+      const install = vi.mocked(nativeAppMenuPort.install);
+      await waitFor(() => expect(install).toHaveBeenCalled());
+      const [sections, onCommand] = install.mock.calls[0];
+      expect(sections.map((section) => section.text)).toEqual(["GitOdile", "File", "Edit", "View", "Window", "Help"]);
+
+      act(() => onCommand("keyboard-shortcuts"));
+      expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+
+      // The menu may trail the app by a render: an entry clicked while a
+      // dialog owns the screen does nothing, as its shortcut would.
+      act(() => onCommand("about"));
+      // The shortcut sheet borrows `.about-dialog`; About's own hero does not.
+      expect(document.querySelector(".about-dialog__hero")).toBeNull();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    } finally {
+      vi.mocked(hasNativeMacWindowChrome).mockReturnValue(false);
+    }
   });
 });
 

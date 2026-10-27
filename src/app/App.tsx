@@ -155,6 +155,14 @@ import {
 import { startThemeFade } from "./themeTransition";
 import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
+import {
+  hasNativeMacWindowChrome,
+  isAppMenuCommandEnabled,
+  planAppMenu,
+  useNativeAppMenu,
+  type AppMenuCommand,
+} from "./nativeAppMenu";
+import { nativeAppMenuPort } from "./nativeAppMenuAdapter";
 import { RailNav, type RailNavItem } from "./RailNav";
 import { StatusBar } from "./StatusBar";
 import {
@@ -2386,6 +2394,7 @@ export function App(): React.JSX.Element {
         toggleMaximize: async () => {},
         close: async () => {},
         isMaximized: async () => false,
+        isFullscreen: async () => false,
         onResized: async () => () => {},
       };
   const performWindowAction = (action: () => Promise<void>): void => {
@@ -2393,20 +2402,30 @@ export function App(): React.JSX.Element {
   };
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+  // macOS draws its own traffic lights over the titlebar and the menu bar
+  // takes the overflow menu's place (task 204). Read once: the platform
+  // cannot change while the app runs.
+  const [hasNativeMacChrome] = useState(hasNativeMacWindowChrome);
+  // macOS hides the traffic lights in full screen, so their inset goes too.
+  const [isWindowFullscreen, setIsWindowFullscreen] = useState(false);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void appWindow.isMaximized().then((maximized) => {
-      if (!cancelled) setIsWindowMaximized(maximized);
-    });
-
-    void appWindow.onResized(() => {
+    const readWindowState = (): void => {
       void appWindow.isMaximized().then((maximized) => {
         if (!cancelled) setIsWindowMaximized(maximized);
       });
-    }).then((fn) => {
+      if (hasNativeMacChrome) {
+        void appWindow.isFullscreen().then((fullscreen) => {
+          if (!cancelled) setIsWindowFullscreen(fullscreen);
+        });
+      }
+    };
+    readWindowState();
+
+    void appWindow.onResized(readWindowState).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
     });
@@ -2416,6 +2435,92 @@ export function App(): React.JSX.Element {
       unlisten?.();
     };
   }, []);
+
+  const appMenuSections = planAppMenu(
+    {
+      about: t.aboutGitOdile,
+      checkUpdates: t.commandCheckAppUpdates,
+      settings: t.appMenuSettings,
+      home: t.navHome,
+      openProject: t.titlebarOpenProject,
+      openingProject: t.overviewOpening,
+      createProject: t.titlebarCreateProject,
+      cloneProject: t.titlebarCloneProject,
+      closeProject: t.overviewCloseProject,
+      hideSidebar: t.titlebarHideSidebar,
+      showSidebar: t.titlebarShowSidebar,
+      goBack: t.titlebarGoBack,
+      goForward: t.titlebarGoForward,
+      reloadWindow: t.titlebarReloadWindow,
+      keyboardShortcuts: t.titlebarKeyboardShortcuts,
+      whatsNew: t.changelogTitle,
+      reportIssue: t.titlebarReportIssue,
+      file: t.appMenuFile,
+      edit: t.appMenuEdit,
+      view: t.appMenuView,
+      window: t.appMenuWindow,
+      help: t.appMenuHelp,
+      services: t.appMenuServices,
+      hide: t.appMenuHide,
+      hideOthers: t.appMenuHideOthers,
+      showAll: t.appMenuShowAll,
+      quit: t.appMenuQuit,
+      closeWindow: t.appMenuCloseWindow,
+      undo: t.appMenuUndo,
+      redo: t.appMenuRedo,
+      cut: t.appMenuCut,
+      copy: t.appMenuCopy,
+      paste: t.appMenuPaste,
+      selectAll: t.appMenuSelectAll,
+      fullscreen: t.appMenuFullscreen,
+      minimize: t.appMenuMinimize,
+      zoom: t.appMenuZoom,
+      bringAllToFront: t.appMenuBringAllToFront,
+    },
+    {
+      hasProject: project !== null && view !== "home",
+      isOpeningProject: isOpening,
+      canReloadWindow: !hasUnsettledOperation(sessionsState),
+      isReportingIssue: issueReport.isOpening,
+      isSidebarHidden,
+      canGoBack,
+      canGoForward,
+      hasOpenDialog,
+    },
+  );
+
+  const runAppMenuCommand = (command: AppMenuCommand): void => {
+    // The native menu is updated asynchronously, so a click can land on an
+    // entry the app has just turned off (a dialog opened, the history ran out).
+    if (!isAppMenuCommandEnabled(appMenuSections, command)) return;
+    accountController?.closePopover(true);
+    switch (command) {
+      case "about": setIsAboutOpen(true); return;
+      case "check-updates":
+        setIsAppUpdateOpen(true);
+        void appUpdatesController.check();
+        return;
+      case "settings": openSettings(); return;
+      case "home": navigateToView("home"); return;
+      case "open-project": void handleOpenProject(); return;
+      case "create-project": setInitializeDialogRequest({ mode: "new-folder" }); return;
+      case "clone-project": setIsCloneOpen(true); return;
+      case "close-project": requestCloseActiveProject(); return;
+      case "toggle-sidebar":
+        closeJumpMenu();
+        setIsSidebarHidden((hidden) => !hidden);
+        return;
+      case "go-back": goBack(); return;
+      case "go-forward": goForward(); return;
+      case "reload-window": window.location.reload(); return;
+      case "keyboard-shortcuts": setIsShortcutsOpen(true); return;
+      case "whats-new": setIsChangelogOpen(true); return;
+      case "report-issue": void issueReport.report(); return;
+    }
+  };
+
+  useNativeAppMenu(hasNativeMacChrome ? nativeAppMenuPort : null, appMenuSections, runAppMenuCommand);
+
 
   return (
     // Wraps the whole shell rather than the Changes screen: the pending
@@ -2427,7 +2532,8 @@ export function App(): React.JSX.Element {
       className={
         `app-window` +
         (navigationPreferences.displayMode === "icons-only" ? " app-window--icons-only" : "") +
-        (isSidebarHidden ? " app-window--sidebar-hidden" : "")
+        (isSidebarHidden ? " app-window--sidebar-hidden" : "") +
+        (hasNativeMacChrome && !isWindowFullscreen ? " app-window--mac-traffic-lights" : "")
       }
     >
       <span className="visually-hidden" role="status" aria-live="polite">
@@ -2440,7 +2546,8 @@ export function App(): React.JSX.Element {
             mascot lives in the brand moments instead — the no-project welcome
             and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
-          <TitlebarMenu
+          {/* On macOS these entries live in the menu bar instead (task 204). */}
+          {!hasNativeMacChrome && <TitlebarMenu
             renderAccountControl={import.meta.env.DEV && accountController ? (onOpen, fallbackRef) =>
               <AccountControl controller={accountController} compact menuClassName="titlebar-menu__item" onOpen={onOpen} fallbackRef={fallbackRef} /> : undefined}
             onOpenHome={() => navigateToView("home")}
@@ -2461,7 +2568,7 @@ export function App(): React.JSX.Element {
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
             onReportIssue={() => void issueReport.report()}
             isReportingIssue={issueReport.isOpening}
-          />
+          />}
           {/* Sits with the menu rather than in the rail it collapses: a
               control that hides its own container would vanish with it, and
               the way back has to stay where it was.
@@ -2632,7 +2739,9 @@ export function App(): React.JSX.Element {
           onOpenSettings={() => openSettings("notifications")}
         />
 
-        <div className="window-controls" aria-label={t.windowControls}>
+        {/* macOS draws its own traffic lights on the left. Not rendered
+            rather than hidden, so nothing announces buttons that are not there. */}
+        {!hasNativeMacChrome && <div className="window-controls" aria-label={t.windowControls}>
           <button
             className="window-control"
             type="button"
@@ -2661,7 +2770,7 @@ export function App(): React.JSX.Element {
           >
             <span className="window-control__close" aria-hidden="true" />
           </button>
-        </div>
+        </div>}
       </header>
 
       <main

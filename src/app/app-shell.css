@@ -46,6 +46,11 @@
   user-select: none;
 }
 .app-window--sidebar-hidden .window-titlebar { padding-left: 10px; }
+/* macOS draws its traffic lights over this corner (task 204): 16px in, three
+   12px lights 8px apart, then room before the first control. Placed after the
+   collapsed-rail rule and as specific as it, so it also wins over the compact
+   layout's plain inset further down. The right edge has no window buttons. */
+.app-window--mac-traffic-lights .window-titlebar { padding-left: 80px; padding-right: 10px; }
 
 .window-titlebar__drag { flex: 1; height: 100%; min-width: 0; }
 /* No brand block: the titlebar is controls only (DESIGN.md § Brand). The

@@ -242,6 +242,30 @@ export interface AppTranslations {
   closeConfirmTitle: string;
   closeConfirmBodyGeneric: string;
   closeConfirmBodyNamed: (name: string) => string;
+  /** The macOS menu bar (task 204). Only the entries the overflow menu has no
+   * label for; the standard items are spelled the way macOS spells them. */
+  appMenuSettings: string;
+  appMenuFile: string;
+  appMenuEdit: string;
+  appMenuView: string;
+  appMenuWindow: string;
+  appMenuHelp: string;
+  appMenuServices: string;
+  appMenuHide: string;
+  appMenuHideOthers: string;
+  appMenuShowAll: string;
+  appMenuQuit: string;
+  appMenuCloseWindow: string;
+  appMenuUndo: string;
+  appMenuRedo: string;
+  appMenuCut: string;
+  appMenuCopy: string;
+  appMenuPaste: string;
+  appMenuSelectAll: string;
+  appMenuFullscreen: string;
+  appMenuMinimize: string;
+  appMenuZoom: string;
+  appMenuBringAllToFront: string;
 }
 
 const en: AppTranslations = {
@@ -473,6 +497,28 @@ const en: AppTranslations = {
   closeConfirmTitle: "Close this project?",
   closeConfirmBodyGeneric: "Nothing on disk changes, and you can reopen it anytime.",
   closeConfirmBodyNamed: (name) => `“${name}” stays as it is on disk, and you can reopen it anytime.`,
+  appMenuSettings: "Settings…",
+  appMenuFile: "File",
+  appMenuEdit: "Edit",
+  appMenuView: "View",
+  appMenuWindow: "Window",
+  appMenuHelp: "Help",
+  appMenuServices: "Services",
+  appMenuHide: "Hide GitOdile",
+  appMenuHideOthers: "Hide Others",
+  appMenuShowAll: "Show All",
+  appMenuQuit: "Quit GitOdile",
+  appMenuCloseWindow: "Close Window",
+  appMenuUndo: "Undo",
+  appMenuRedo: "Redo",
+  appMenuCut: "Cut",
+  appMenuCopy: "Copy",
+  appMenuPaste: "Paste",
+  appMenuSelectAll: "Select All",
+  appMenuFullscreen: "Enter Full Screen",
+  appMenuMinimize: "Minimize",
+  appMenuZoom: "Zoom",
+  appMenuBringAllToFront: "Bring All to Front",
 };
 
 const es: AppTranslations = {
@@ -704,6 +750,28 @@ const es: AppTranslations = {
   closeConfirmTitle: "¿Cerrar este proyecto?",
   closeConfirmBodyGeneric: "No cambia nada en el disco y puedes volver a abrirlo cuando quieras.",
   closeConfirmBodyNamed: (name) => `«${name}» se queda tal cual en el disco y puedes volver a abrirlo cuando quieras.`,
+  appMenuSettings: "Ajustes…",
+  appMenuFile: "Archivo",
+  appMenuEdit: "Edición",
+  appMenuView: "Visualización",
+  appMenuWindow: "Ventana",
+  appMenuHelp: "Ayuda",
+  appMenuServices: "Servicios",
+  appMenuHide: "Ocultar GitOdile",
+  appMenuHideOthers: "Ocultar otros",
+  appMenuShowAll: "Mostrar todo",
+  appMenuQuit: "Salir de GitOdile",
+  appMenuCloseWindow: "Cerrar ventana",
+  appMenuUndo: "Deshacer",
+  appMenuRedo: "Rehacer",
+  appMenuCut: "Cortar",
+  appMenuCopy: "Copiar",
+  appMenuPaste: "Pegar",
+  appMenuSelectAll: "Seleccionar todo",
+  appMenuFullscreen: "Entrar en pantalla completa",
+  appMenuMinimize: "Minimizar",
+  appMenuZoom: "Zoom",
+  appMenuBringAllToFront: "Traer todo al frente",
 };
 
 export const appTranslations = { en, es } as const;
