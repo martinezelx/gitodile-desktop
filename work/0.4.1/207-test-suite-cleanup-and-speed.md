@@ -199,9 +199,9 @@ rejects `.github/` and `scripts/release/` changes on a release branch):
       reason.
 - [ ] Rust and script tests leave no `gitodile-*` entries in the temp
       directory after a passing run.
-- [ ] `App.test.tsx` covers only cross-screen wiring; moved cases keep their
+- [x] `App.test.tsx` covers only cross-screen wiring; moved cases keep their
       assertions in the owning feature.
-- [ ] No safety assertion (data loss, history, remote, recovery) is lost; each
+- [x] No safety assertion (data loss, history, remote, recovery) is lost; each
       removed frontend test is listed with its reason in the implementation
       notes.
 - [ ] `AGENTS.md` contains the test rule and the linked docs reference it.
@@ -283,6 +283,64 @@ Scripts:
   release branch (`AGENTS.md`); it goes with the CI changes in the separate
   pull request to `main`.
 
+## Phase 1 (2026-10-27)
+
+Measuring first changed the plan. A `git` shim that logged every invocation
+counted 10,583 Git processes in one Rust run: about 2,000 are fixture setup
+(`init`, `add`, `commit`); the rest are the code under test, led by 2,821
+`rev-parse` calls (repository discovery spawns four per operation) and 411
+`check-ref-format` calls. A Git process costs about 50 ms on Windows.
+
+Rust:
+
+- `published_repo_and_remote` (62 call sites plus the helpers built on it)
+  builds the published repository and its bare remote once per process
+  through the real publish flow, then copies the pair for every test, points
+  `origin` at the copy and refreshes the copied index's stat data. About
+  fifteen Git processes per call become two.
+- `test_support::git_commit_series` writes a run of versions with one
+  `git fast-import` instead of an `add` + `commit` pair per version. Used by
+  the 205-version pagination fixture (44 s → 1.6 s), the 140-version
+  unpublished-cap fixture and the ten-version branch-history fixture. The 40
+  tags of the decoration-cap fixture come from one `update-ref --stdin`.
+- The remaining slow tests are journeys whose cost is the code under test
+  (`core_workflow_tests` about 10 s each in isolation, branch clean-up,
+  history reads). They stay as they are; see the follow-up below.
+
+Frontend:
+
+- 32 `type` calls that entered long literal text (URLs, tokens, paths) now
+  click the field and paste, which is how that text reaches the field and
+  avoids a render per character. Short typed commands, where each key is the
+  behavior under test (Console), still type.
+- `App.test.tsx`: the eight `TitlebarMenu` tests, which render the menu alone,
+  moved to `TitlebarMenu.test.tsx`.
+- Removed, with the reason:
+  - `App` "keeps a place for each provider whose saved connection is still
+    being checked": duplicates `HomeLauncher` "holds one place per provider
+    still being checked" and "holds two places when both providers are still
+    being checked"; the App-level re-read is still covered by "fills in
+    Home's accounts once the launch check lands".
+  - The mascot CSS-class assertion in `App` "welcomes with three described
+    entry points" (its `aria-hidden` assertion stays).
+  - `StatusBar` "sets the project and its branch side by side, and the remote
+    as one phrase" and "puts the field between where you are and the
+    remote": they pinned DOM order and class names, not behavior.
+- Decision: the "10–15 tests" target for `App.test.tsx` was wrong. Reading
+  its remaining 40 tests, they exercise what only the composition root owns:
+  keep-alive across screens, retained selection and scroll, project
+  activation and refresh, stale responses after reopening, the palette
+  handing focus to screens, and the shared stores behind Home. Cutting them
+  to a number would remove real coverage, so they stay.
+- Of the 61 tests whose assertions are mostly classes or styles, most map a
+  state to a class the UI is styled by (unread, active, animating, placement)
+  and stay. Only the two `StatusBar` layout pins above were pure structure.
+
+Follow-up, outside this task's scope: the application spawns several Git
+processes where one would do (four `rev-parse` calls to discover a
+repository, a `check-ref-format` per name). Batching them would make both the
+Rust suite and the app itself faster on Windows.
+
 # Validation
 
 Phase 0, measured on the same Windows desktop as the baseline (2026-10-27;
@@ -303,3 +361,16 @@ Phase 0, measured on the same Windows desktop as the baseline (2026-10-27;
   `scripts/release/*.test.mjs`, whose fix belongs to the `main` pull request.
 - `cargo clippy --all-targets --all-features -D warnings`: pass.
 - CI timing after these changes is not measured yet; it needs a pushed run.
+
+Phase 1, same desktop and conditions:
+
+| Check | After phase 0 | After phase 1 |
+| --- | --- | --- |
+| `pnpm run test` | 57–90 s | 51–54 s; 153 files, 1,757 tests, three consecutive clean runs |
+| Rust lib tests | 155–210 s | 119–125 s in four runs, 646 tests |
+| `pnpm run check` | 377 s | 274 s, exit 0 |
+
+- Vitest inventory compared with the phase 0 report: the eight
+  `TitlebarMenu` tests moved files, and the three tests listed in the phase 1
+  notes are the only ones removed.
+- The Rust inventory is unchanged (646 passed, 1 ignored).

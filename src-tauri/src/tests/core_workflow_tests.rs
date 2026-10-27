@@ -298,18 +298,10 @@ fn discard_and_branch_journey_undoes_then_creates_switches_and_deletes() {
 fn branch_history_reports_recent_versions_the_count_and_the_overflow() {
     let repo = unique_temp_dir("branch-history");
     git_init(&repo);
-    for index in 0..10 {
-        write_file(
-            &repo,
-            "tracked.txt",
-            &format!(
-                "version {index}
-"
-            ),
-        );
-        git_add_all(&repo);
-        git_commit(&repo, &format!("Version {index}"));
-    }
+    let versions: Vec<_> = (0..10)
+        .map(|index| (format!("Version {index}"), format!("version {index}\n")))
+        .collect();
+    git_commit_series(&repo, Some("tracked.txt"), &versions);
     let branch = current_branch(&repo);
 
     let history = crate::branches::get_branch_history(repo.clone(), branch.clone())

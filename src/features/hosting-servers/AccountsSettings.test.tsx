@@ -181,7 +181,8 @@ describe("connecting an account", () => {
     expect(within(panel).getByRole("radio", { name: /github\.com/ })).toBeChecked();
     const input = within(panel).getByLabelText("Personal access token");
     expect(input).toHaveFocus(); expect(input).toHaveAttribute("type", "password");
-    await userEvent.type(input, "fixture-secret-token-1234");
+    await userEvent.click(input);
+    await userEvent.paste("fixture-secret-token-1234");
     await userEvent.click(within(panel).getByRole("button", { name: "Check and connect" }));
     expect(input).toHaveValue("");
     expect(builtIn.add).toHaveBeenCalledWith("fixture-secret-token-1234", expect.any(String));
@@ -199,7 +200,8 @@ describe("connecting an account", () => {
     await userEvent.click(screen.getByRole("radio", { name: /ghe\.example\.com:8443/ }));
     await userEvent.click(screen.getByText("Which permissions does it need?"));
     expect(screen.getByText(/Create it on this server/)).toBeVisible();
-    await userEvent.type(screen.getByLabelText("Personal access token"), "fixture-secret-token-5678");
+    await userEvent.click(screen.getByLabelText("Personal access token"));
+    await userEvent.paste("fixture-secret-token-5678");
     await userEvent.click(screen.getByRole("button", { name: "Check and connect" }));
     expect(serverToken.add).toHaveBeenCalledWith("fixture-secret-token-5678", expect.any(String));
     expect(builtIn.add).not.toHaveBeenCalled();
@@ -209,7 +211,8 @@ describe("connecting an account", () => {
     const harness = setup();
     harness.builtIn.add = vi.fn(async () => { harness.state.rows = [token("github", "octocat")]; throw new Error("Lost receipt"); });
     await connectWith("GitHub");
-    await userEvent.type(screen.getByLabelText("Personal access token"), "fixture-secret-token-1234");
+    await userEvent.click(screen.getByLabelText("Personal access token"));
+    await userEvent.paste("fixture-secret-token-1234");
     await userEvent.click(screen.getByRole("button", { name: "Check and connect" }));
     expect(await screen.findByRole("group", { name: "@octocat" })).toBeVisible();
     expect(screen.getByRole("alert")).toBeVisible();
@@ -272,7 +275,8 @@ describe("connecting an account", () => {
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute("type", "password");
     expect(within(panel).getByText(/read:repository:bitbucket/)).toBeInTheDocument();
-    await userEvent.type(input, "fixture-bitbucket-secret-1234");
+    await userEvent.click(input);
+    await userEvent.paste("fixture-bitbucket-secret-1234");
     await userEvent.click(within(panel).getByRole("button", { name: "Check and connect" }));
     expect(input).toHaveValue("");
     expect(bitbucketToken.add).toHaveBeenCalledWith("fixture-bitbucket-secret-1234", expect.any(String));
@@ -287,7 +291,8 @@ describe("connecting an account", () => {
   it("explains a refused Bitbucket token without exposing it", async () => {
     setup({ bitbucketPort: { add: vi.fn(async () => { throw { code: "permission_denied", message: "", remediation: null }; }) } });
     await connectWith("Bitbucket");
-    await userEvent.type(screen.getByLabelText("API token"), "fixture-bitbucket-secret-1234");
+    await userEvent.click(screen.getByLabelText("API token"));
+    await userEvent.paste("fixture-bitbucket-secret-1234");
     await userEvent.click(screen.getByRole("button", { name: "Check and connect" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Bitbucket refused this token.");
@@ -380,7 +385,8 @@ describe("provider blocks", () => {
     setup();
     const block = await expandProvider("GitHub");
     await userEvent.click(within(block).getByRole("button", { name: "Add a server" }));
-    await userEvent.type(within(block).getByLabelText("Server address"), "https://ghe.example.com");
+    await userEvent.click(within(block).getByLabelText("Server address"));
+    await userEvent.paste("https://ghe.example.com");
     const head = within(block).getByRole("button", { expanded: true });
     await userEvent.click(head);
     await userEvent.click(head);
@@ -396,7 +402,8 @@ describe("company servers", () => {
     await userEvent.click(within(block).getByRole("button", { name: "Add a server" }));
     const address = screen.getByLabelText("Server address");
     expect(address).toHaveFocus();
-    await userEvent.type(address, "  https://ghe.example.com:8443  ");
+    await userEvent.click(address);
+    await userEvent.paste("  https://ghe.example.com:8443  ");
     expect(port.add).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
     expect(port.add).toHaveBeenCalledWith("github", "https://ghe.example.com:8443", expect.stringMatching(/^server_/));
@@ -411,7 +418,8 @@ describe("company servers", () => {
     await expandProvider("GitHub");
     await screen.findByText("0 accounts");
     await userEvent.click(screen.getByRole("button", { name: "Add a server" }));
-    await userEvent.type(screen.getByLabelText("Server address"), "gitlab.example.com");
+    await userEvent.click(screen.getByLabelText("Server address"));
+    await userEvent.paste("gitlab.example.com");
     await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("doesn't answer as a supported server");
     await userEvent.keyboard("{Escape}");

@@ -518,7 +518,9 @@ describe("SaveVersionDialog", () => {
     renderDialog();
     await screen.findByLabelText("Version name");
 
-    await userEvent.type(screen.getByLabelText("Version name"), "  fix the thing  ");
+    await userEvent.click(screen.getByLabelText("Version name"));
+
+    await userEvent.paste("  fix the thing  ");
     await userEvent.type(await detailsField(), "  details  ");
     mockedInvoke.mockResolvedValueOnce(saveResult({ description: "details" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));

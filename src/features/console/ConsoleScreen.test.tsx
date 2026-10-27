@@ -440,7 +440,8 @@ describe("ConsoleScreen typed Git commands", () => {
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     expect(screen.getByRole("alert")).toHaveTextContent("starts with git");
     await user.clear(field);
-    await user.type(field, "git log --oneline");
+    await user.click(field);
+    await user.paste("git log --oneline");
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     await waitFor(() => expect(plan).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1", line: "git log --oneline", runHooks: true }));
     const pane = screen.getByRole("region", { name: "Console shortcuts" });
@@ -468,7 +469,8 @@ describe("ConsoleScreen typed Git commands", () => {
     await user.type(screen.getByRole("textbox", { name: "Shortcut name" }), "undo");
     screen.getByRole("spinbutton", { name: "Query" }).focus();
     await user.keyboard("{End}");
-    await user.type(screen.getByRole("textbox", { name: "Git command line" }), "git reset --hard");
+    await user.click(screen.getByRole("textbox", { name: "Git command line" }));
+    await user.paste("git reset --hard");
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("git reset can discard work");
     expect(within(screen.getByRole("region", { name: "Console shortcuts" })).queryByText("undo")).not.toBeInTheDocument();

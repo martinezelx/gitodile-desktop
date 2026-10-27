@@ -17,14 +17,16 @@ it("collects the organization before a masked token, clears it before sending an
   const { port, token, onAdded, onSettled } = setup();
   const organization = screen.getByRole("textbox", { name: "Azure organization" });
   expect(organization).toHaveFocus();
-  await userEvent.type(organization, "https://dev.azure.com/Contoso/");
+  await userEvent.click(organization);
+  await userEvent.paste("https://dev.azure.com/Contoso/");
   await userEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(port.tokenPort).toHaveBeenLastCalledWith("contoso");
   expect(screen.getByText("dev.azure.com/contoso")).toBeInTheDocument();
   const input = screen.getByLabelText("Personal access token (PAT)");
   expect(input).toHaveAttribute("type", "password"); expect(input).toHaveFocus();
   expect(screen.getByText(/Code: Read & write/)).toBeInTheDocument();
-  await userEvent.type(input, "fixture-pat-123456789");
+  await userEvent.click(input);
+  await userEvent.paste("fixture-pat-123456789");
   await userEvent.click(screen.getByRole("button", { name: "Check and connect" }));
   expect(token.add).toHaveBeenCalledWith("fixture-pat-123456789", expect.stringMatching(/^token_/));
   expect(input).toHaveValue("");
@@ -33,7 +35,8 @@ it("collects the organization before a masked token, clears it before sending an
 });
 it("rejects arbitrary servers before collecting or sending a token", async () => {
   const { token } = setup();
-  await userEvent.type(screen.getByRole("textbox", { name: "Azure organization" }), "https://evil.invalid/contoso");
+  await userEvent.click(screen.getByRole("textbox", { name: "Azure organization" }));
+  await userEvent.paste("https://evil.invalid/contoso");
   await userEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("alert")).toHaveTextContent("organization name");
   expect(screen.queryByLabelText("Personal access token (PAT)")).not.toBeInTheDocument();
@@ -44,7 +47,8 @@ it("reports a rejected token and clears the input without claiming a saved conne
   await userEvent.type(screen.getByRole("textbox", { name: "Azure organization" }), "contoso");
   await userEvent.click(screen.getByRole("button", { name: "Continue" }));
   const token = screen.getByLabelText("Personal access token (PAT)");
-  await userEvent.type(token, "fixture-expired-token");
+  await userEvent.click(token);
+  await userEvent.paste("fixture-expired-token");
   await userEvent.click(screen.getByRole("button", { name: "Check and connect" }));
   expect(await screen.findByRole("alert")).toBeInTheDocument();
   expect(token).toHaveValue(""); expect(onAdded).not.toHaveBeenCalled(); expect(onSettled).toHaveBeenCalledOnce();

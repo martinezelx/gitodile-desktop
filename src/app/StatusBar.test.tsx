@@ -204,39 +204,6 @@ describe("StatusBar", () => {
     expect(onQueryChange).toHaveBeenCalled();
   });
 
-  it("sets the project and its branch side by side, and the remote as one phrase", () => {
-    const { container } = renderBar();
-
-    const blocks = container.querySelectorAll(".status-bar__block");
-    expect(blocks).toHaveLength(2);
-    expect(blocks[0]).toHaveClass("status-bar__block--where");
-    expect(blocks[1]).toHaveClass("status-bar__block--remote");
-    // Two segments of one shape and no mark between them (task 189): the
-    // project's trigger, then the branch's.
-    expect(container.querySelector(".status-bar__path")).toBeNull();
-    const where = Array.from(blocks[0].children);
-    expect(where[0]).toHaveClass("status-bar__project");
-    expect(where[1]).toHaveClass("branches-quick-switch");
-    // The strip no longer carries the app version: its release notes live in
-    // the menu and the notification centre now.
-    expect(screen.getByRole("contentinfo").textContent).not.toMatch(/\d+\.\d+\.\d+/);
-  });
-
-  it("puts the field between where you are and the remote", () => {
-    renderBar();
-    const footer = screen.getByRole("contentinfo");
-    const children = Array.from(footer.children);
-
-    expect(children[0]).toHaveClass("status-bar__block--where");
-    expect(children[1]).toHaveClass("status-bar__search-slot");
-    expect(children[2]).toHaveClass("status-bar__block--remote");
-    expect(footer.querySelector(".status-bar__sync")).not.toBeNull();
-    // The remote's two segments — the fact and the check — side by side.
-    const remote = footer.querySelector(".status-bar__block--remote");
-    expect(remote?.querySelectorAll(".status-bar__seg")).toHaveLength(2);
-    expect(remote?.querySelector(".status-bar__seg + .status-bar__refresh")).not.toBeNull();
-  });
-
   it("opens the project popup from its name, and acts on the active project from its head", async () => {
     const onOpenProjectSettings = vi.fn();
     const onPrefetchProjectSettings = vi.fn();

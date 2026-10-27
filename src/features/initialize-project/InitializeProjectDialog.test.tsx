@@ -227,7 +227,8 @@ describe("InitializeProjectDialog", () => {
     await userEvent.type(screen.getByLabelText(/^Project name/), "demo");
     await userEvent.click(screen.getByText("More options"));
     await userEvent.click(screen.getByLabelText(/^Connect to a remote project/));
-    await userEvent.type(screen.getByLabelText("Remote address"), "https://alice:secret@example.test/team/demo.git?token=hidden");
+    await userEvent.click(screen.getByLabelText("Remote address"));
+    await userEvent.paste("https://alice:secret@example.test/team/demo.git?token=hidden");
     expect(port.planRemote).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Create project" }));
     expect(await screen.findByRole("heading", { name: "Connect a remote project" })).toBeInTheDocument();

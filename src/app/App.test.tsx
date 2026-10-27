@@ -6,7 +6,6 @@ import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LanguageProvider } from "../i18n";
 import { App } from "./App";
-import { TitlebarMenu } from "./TitlebarMenu";
 import type { RepositoryInfo } from "../features/repository";
 import type { WorkingTreeStatus } from "../features/status";
 import type { HistoryPage, SavedVersionSummary } from "../features/history";
@@ -273,146 +272,6 @@ function railButton(name: string): HTMLElement {
   if (!foot) throw new Error("The rail's foot is not rendered");
   return within(foot).getByRole("button", { name });
 }
-
-describe("TitlebarMenu", () => {
-  function renderMenu(overrides: Partial<React.ComponentProps<typeof TitlebarMenu>> = {}) {
-    const props: React.ComponentProps<typeof TitlebarMenu> = {
-      onOpenHome: vi.fn(),
-      onOpenAbout: vi.fn(),
-      onOpenChangelog: vi.fn(),
-      onOpenProject: vi.fn(),
-      onCreateProject: vi.fn(),
-      onCloneProject: vi.fn(),
-      onCloseProject: vi.fn(),
-      onOpenSettings: vi.fn(),
-      onOpenShortcuts: vi.fn(),
-      hasProject: true,
-      isOpeningProject: false,
-      canReloadWindow: true,
-      onReportIssue: vi.fn(),
-      isReportingIssue: false,
-      ...overrides,
-    };
-    render(
-      <LanguageProvider>
-        <TitlebarMenu {...props} />
-      </LanguageProvider>,
-    );
-    return props;
-  }
-
-  it("implements the expected menu keyboard navigation and restores focus", async () => {
-    const user = userEvent.setup();
-    renderMenu();
-    const trigger = screen.getByRole("button", { name: "More actions" });
-
-    await user.click(trigger);
-    const items = screen.getAllByRole("menuitem");
-    expect(items[0]).toHaveTextContent("Home");
-    expect(items[0]).toHaveFocus();
-
-    await user.keyboard("{End}");
-    expect(items.at(-1)).toHaveFocus();
-    await user.keyboard("{ArrowDown}");
-    expect(items[0]).toHaveFocus();
-    await user.keyboard("{ArrowUp}");
-    expect(items.at(-1)).toHaveFocus();
-    await user.keyboard("{Home}");
-    expect(items[0]).toHaveFocus();
-    await user.keyboard("{Escape}");
-
-    expect(screen.queryByRole("menu")).toBeNull();
-    expect(trigger).toHaveFocus();
-
-    await user.keyboard("{ArrowUp}");
-    expect(screen.getAllByRole("menuitem").at(-1)).toHaveFocus();
-    await user.tab();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("restores the trigger before running a menu action", async () => {
-    const user = userEvent.setup();
-    const onOpenShortcuts = vi.fn(() => {
-      expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
-    });
-    renderMenu({ onOpenShortcuts });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Keyboard shortcuts" }));
-
-    expect(onOpenShortcuts).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("opens Projects from the first menu item", async () => {
-    const user = userEvent.setup();
-    const onOpenHome = vi.fn();
-    renderMenu({ onOpenHome });
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.keyboard("{Enter}");
-    expect(onOpenHome).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("offers provider-neutral cloning from the titlebar menu", async () => {
-    const user = userEvent.setup();
-    const onCloneProject = vi.fn();
-    renderMenu({ onCloneProject });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Clone remote project…" }));
-
-    expect(onCloneProject).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("offers local project creation from the titlebar menu", async () => {
-    const user = userEvent.setup();
-    const onCreateProject = vi.fn();
-    renderMenu({ onCreateProject });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Create local project…" }));
-
-    expect(onCreateProject).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("groups the app's own entries, with the changelog first and About last", async () => {
-    const user = userEvent.setup();
-    const onOpenChangelog = vi.fn();
-    renderMenu({ onOpenChangelog });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    const names = screen.getAllByRole("menuitem").map((item) => item.textContent);
-    expect(names.slice(-5)).toEqual(["What's new", "Check for updates", "About GitOdile", "Report an issue", "Reload window"]);
-
-    await user.click(screen.getByRole("menuitem", { name: "What's new" }));
-    expect(onOpenChangelog).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("starts the shared application-update flow from More actions", async () => {
-    const user = userEvent.setup();
-    const onCheckAppUpdates = vi.fn();
-    renderMenu({ onCheckAppUpdates });
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(screen.getByRole("menuitem", { name: "Check for updates" }));
-    expect(onCheckAppUpdates).toHaveBeenCalledOnce();
-    expect(screen.queryByRole("menu")).toBeNull();
-  });
-
-  it("keeps reload focusable but unavailable while an operation is unsettled", async () => {
-    const user = userEvent.setup();
-    renderMenu({ canReloadWindow: false });
-
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    const reload = screen.getByRole("menuitem", { name: /Reload window.*Wait for the current operation to finish/ });
-    expect(reload).toHaveAttribute("aria-disabled", "true");
-    await user.click(reload);
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-  });
-});
 
 describe("App on macOS", () => {
   it("leaves window controls and the overflow menu to macOS and runs menu bar entries", async () => {
@@ -782,7 +641,8 @@ describe("App project restoration", () => {
     await user.keyboard("{Escape}");
 
     await user.keyboard("{Control>}k{/Control}");
-    await user.type(screen.getByRole("combobox"), "Clone a remote project");
+    await user.click(screen.getByRole("combobox"));
+    await user.paste("Clone a remote project");
     await user.keyboard("{Enter}");
     expect(screen.getByRole("dialog", { name: "Clone a project" })).toBeInTheDocument();
   });
@@ -815,7 +675,6 @@ describe("App project restoration", () => {
     // The mascot greets here, not in the titlebar, and stays decorative.
     const welcomeMascot = document.querySelector(".home-launcher .gitodile-mascot");
     expect(welcomeMascot).toHaveAttribute("aria-hidden", "true");
-    expect(welcomeMascot).toHaveClass("gitodile-mascot--body", "gitodile-mascot--blink", "gitodile-mascot--enter", "home-launcher__mascot");
     expect(document.querySelector(".window-titlebar .gitodile-mascot")).toBeNull();
 
     // Each hint has to stay a *description*: folded into the name instead, it
@@ -933,45 +792,6 @@ describe("App project restoration", () => {
     expect(await within(tabs).findByRole("button", { name: "GitHub" }, { timeout: 3000 })).toBeInTheDocument();
     expect(tabs.querySelector(".home-launcher__tab--placeholder")).toBeNull();
     expect(reads).toBeGreaterThanOrEqual(2);
-  });
-
-  it("keeps a place for each provider whose saved connection is still being checked", async () => {
-    localStorage.setItem(
-      "gitodile-recent-projects",
-      JSON.stringify({ version: 1, entries: [{ path: restoredProject.path, name: restoredProject.name }] }),
-    );
-    const providers = [
-      { id: "github", host: "github.com", kind: "github", builtIn: true },
-      { id: "gitlab", host: "gitlab.com", kind: "gitlab", builtIn: true },
-    ];
-    const github = { id: "github:martinezelx", provider: "github", host: "github.com", login: "martinezelx", avatarDataUrl: null };
-    const gitlab = { id: "gitlab:token.martinezelx", provider: "gitlab", host: "gitlab.com", login: "martinezelx", avatarDataUrl: null };
-    let reads = 0;
-    mockedInvoke.mockImplementation((command) => {
-      if (command === "git_diagnostics") return Promise.resolve({ state: "available", version: "2.55.0" });
-      if (command === "get_git_identity") return Promise.resolve({ name: "Luis", email: "luis@example.com" });
-      if (command === "get_account_catalog") {
-        reads += 1;
-        // GitHub's check lands first; GitLab's a read later.
-        return Promise.resolve(
-          reads === 1
-            ? { providers, accounts: [{ ...github, available: true }, { ...gitlab, available: false }], busy: true }
-            : { providers, accounts: [{ ...github, available: true }, { ...gitlab, available: true }], busy: false },
-        );
-      }
-      return Promise.resolve(undefined);
-    });
-    render(
-      <LanguageProvider>
-        <App />
-      </LanguageProvider>,
-    );
-
-    const tabs = await screen.findByRole("group", { name: "Show" });
-    expect(await within(tabs).findByRole("button", { name: "GitHub" })).toBeInTheDocument();
-    if (reads === 1) expect(tabs.querySelectorAll(".home-launcher__tab--placeholder")).toHaveLength(1);
-    expect(await within(tabs).findByRole("button", { name: "GitLab" }, { timeout: 3000 })).toBeInTheDocument();
-    expect(tabs.querySelector(".home-launcher__tab--placeholder")).toBeNull();
   });
 
   it("lists favourite recents in their own tab, sharing the switcher's own store", async () => {

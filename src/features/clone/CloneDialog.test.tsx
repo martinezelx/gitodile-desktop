@@ -78,7 +78,8 @@ function renderDialog(portOverrides: Partial<ClonePort> = {}, accountPort?: Acco
 }
 
 async function enterAndReview(): Promise<void> {
-  await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://alice:secret@example.test/team/project.git?token=hidden");
+  await userEvent.click(screen.getByPlaceholderText("https://example.com/team/project.git"));
+  await userEvent.paste("https://alice:secret@example.test/team/project.git?token=hidden");
   await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
   await userEvent.type(screen.getByPlaceholderText("Choose a folder"), "C:\\projects");
   expect(await screen.findByText("https://example.test/team/project.git")).toBeInTheDocument();
@@ -124,7 +125,8 @@ describe("CloneDialog", () => {
     const accounts: AccountsPort = { readCatalog: vi.fn(async () => ({ busy: false, providers: [], accounts: [] })), check: vi.fn(), readProject: vi.fn(), selectProject: vi.fn() };
     renderDialog({ plan, checkSource }, accounts, { list, cancel: vi.fn(async () => undefined) });
     await userEvent.click(screen.getByRole("button", { name: "Azure Repos" }));
-    await userEvent.type(screen.getByPlaceholderText("https://dev.azure.com/organization/project/_git/repository"), "https://github.com/team/repo");
+    await userEvent.click(screen.getByPlaceholderText("https://dev.azure.com/organization/project/_git/repository"));
+    await userEvent.paste("https://github.com/team/repo");
     await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
     expect(screen.getByText(/Enter an Azure Repos HTTPS clone address/)).toBeInTheDocument();
     expect(plan).not.toHaveBeenCalled(); expect(checkSource).not.toHaveBeenCalled(); expect(list).not.toHaveBeenCalled();
@@ -209,7 +211,8 @@ describe("CloneDialog", () => {
     const plan = vi.fn<ClonePort["plan"]>(async () => ({ ...planFixture, sourceDisplay: "https://github.com/team/project.git", accountId: "github:work" }));
     const execute = vi.fn<ClonePort["execute"]>(async () => result);
     renderDialog({ plan, execute }, accountPort);
-    await userEvent.type(screen.getByPlaceholderText("https://example.com/team/project.git"), "https://github.com/team/project.git");
+    await userEvent.click(screen.getByPlaceholderText("https://example.com/team/project.git"));
+    await userEvent.paste("https://github.com/team/project.git");
     await userEvent.click(await screen.findByRole("combobox"));
     await userEvent.click(screen.getByRole("option", { name: /@work/ }));
     await userEvent.click(screen.getByRole("button", {name: /Choose destination|Continue without checking/}));
@@ -249,7 +252,9 @@ describe("CloneDialog", () => {
     expect(source).toHaveAttribute("aria-invalid", "true");
     expect(source).toHaveFocus();
 
-    await userEvent.type(source, "https://example.test/team/project.git");
+    await userEvent.click(source);
+
+    await userEvent.paste("https://example.test/team/project.git");
     expect(source).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByText("Fill in this field.")).not.toBeInTheDocument();
 
@@ -263,7 +268,8 @@ describe("CloneDialog", () => {
     const plan = vi.fn<ClonePort["plan"]>().mockImplementationOnce(() => oldPlan.promise).mockImplementationOnce(() => newPlan.promise);
     const execute = vi.fn<ClonePort["execute"]>(async () => result);
     renderDialog({ plan, execute });
-    await userEvent.type(screen.getByLabelText("Project address"), "https://example.test/team/project.git");
+    await userEvent.click(screen.getByLabelText("Project address"));
+    await userEvent.paste("https://example.test/team/project.git");
     await userEvent.click(screen.getByRole("button", { name: "Choose destination" }));
     expect(screen.queryByRole("button", { name: "Review" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Save inside")).toHaveFocus();

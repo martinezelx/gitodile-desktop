@@ -534,7 +534,8 @@ describe("Settings panel native boundary", () => {
     // pair, like every other control in the panel applies on change.
     const email = await screen.findByRole("textbox", { name: "Email" });
     await userEvent.clear(email);
-    await userEvent.type(email, "ada@lovelace.dev");
+    await userEvent.click(email);
+    await userEvent.paste("ada@lovelace.dev");
     await userEvent.tab();
 
     await waitFor(() =>
@@ -672,7 +673,8 @@ describe("Settings panel identity draft", () => {
     renderPanel(port, { initialSection: "git" });
 
     await userEvent.type(await screen.findByRole("textbox", { name: "Name" }), "Ada");
-    await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "ada@lovelace.dev");
+    await userEvent.click(screen.getByRole("textbox", { name: "Email" }));
+    await userEvent.paste("ada@lovelace.dev");
     await userEvent.tab();
 
     // The message used to render with the same success check as "Saved.",
@@ -695,7 +697,8 @@ describe("Settings panel identity draft", () => {
     });
 
     await userEvent.type(await screen.findByRole("textbox", { name: "Name" }), "Ada");
-    await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "ada@lovelace.dev");
+    await userEvent.click(screen.getByRole("textbox", { name: "Email" }));
+    await userEvent.paste("ada@lovelace.dev");
 
     // Dismissed with focus still in the field, so no blur has committed yet.
     expect(closeGuard.current?.()).toBe(true);

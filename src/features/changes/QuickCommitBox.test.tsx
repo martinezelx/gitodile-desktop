@@ -345,7 +345,8 @@ describe("QuickCommitBox", () => {
     const { container } = renderBox();
     expect(screen.queryByRole("button", { name: "Close save version form" })).not.toBeInTheDocument();
     const title = screen.getByLabelText("Version name");
-    await userEvent.type(title, "half-written thought");
+    await userEvent.click(title);
+    await userEvent.paste("half-written thought");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "and some detail");
     await userEvent.click(screen.getByRole("checkbox", { name: "Also publish" }));
 

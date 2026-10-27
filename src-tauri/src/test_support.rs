@@ -230,27 +230,136 @@ pub(crate) fn remote_branch_sha(remote_path: &str, branch: &str) -> Option<Strin
 /// Sets up a repository with one commit already published to a fresh bare
 /// remote under `origin`, with upstream tracking configured — the common
 /// starting point most publish tests build on.
+///
+/// Building the pair takes about fifteen Git processes, the slowest part of
+/// a test on Windows, and it is the same pair every time. The first call
+/// builds it through the real publish flow; every call copies that finished
+/// pair and points the copy's `origin` at its own remote.
 pub(crate) fn published_repo_and_remote(label: &str) -> (String, String, String) {
+    static TEMPLATE: OnceLock<(String, String, String)> = OnceLock::new();
+    let (template_repo, template_remote, branch) = TEMPLATE.get_or_init(|| {
+        let repo = unique_temp_dir("published-template");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let remote = unique_temp_dir("published-template-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
+        publish(
+            repo.clone(),
+            plan.target.remote,
+            plan.state_token,
+            None,
+            true,
+        )
+        .expect("first publish should succeed");
+        (repo, remote, branch)
+    });
+
     let repo = unique_temp_dir(&format!("publish-{label}"));
-    git_init(&repo);
-    write_file(&repo, "a.txt", "hello\n");
-    git_add_all(&repo);
-    git_commit(&repo, "first");
-    let branch = current_branch(&repo);
-
     let remote = unique_temp_dir(&format!("publish-{label}-remote"));
-    init_bare_remote(&remote);
-    wire_remote(&repo, "origin", &remote);
+    copy_dir(Path::new(template_repo), Path::new(&repo));
+    copy_dir(Path::new(template_remote), Path::new(&remote));
+    let status = git_command(&repo)
+        .args(["remote", "set-url", "origin", &remote])
+        .status()
+        .expect("run git remote set-url");
+    assert!(status.success(), "git remote set-url should succeed");
+    // The copied index still holds the template's file stat data. Refresh it
+    // here, so a test that compares the index before and after an operation
+    // never sees Git doing that refresh on the operation's behalf.
+    let status = git_command(&repo)
+        .args(["update-index", "-q", "--refresh"])
+        .status()
+        .expect("run git update-index");
+    assert!(
+        status.success(),
+        "git update-index --refresh should succeed"
+    );
 
-    let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
-    publish(
-        repo.clone(),
-        plan.target.remote,
-        plan.state_token,
-        None,
-        true,
-    )
-    .expect("first publish should succeed");
+    (repo, remote, branch.clone())
+}
 
-    (repo, remote, branch)
+fn copy_dir(from: &Path, to: &Path) {
+    fs::create_dir_all(to).expect("create fixture copy directory");
+    for entry in fs::read_dir(from).expect("read fixture template") {
+        let entry = entry.expect("read fixture template entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("read fixture entry type").is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).expect("copy fixture file");
+        }
+    }
+}
+
+/// Appends one version per `(message, contents)` to the current branch in a
+/// single `git fast-import`, each replacing `file` with its contents (or
+/// leaving the tree as it is when `file` is `None`), then checks the last one
+/// out. A loop of `add` + `commit` costs two processes per version; fixtures
+/// that need hundreds of versions spent most of a minute on Windows there.
+/// The working tree must be clean, as it is after any of the helpers above.
+pub(crate) fn git_commit_series(path: &str, file: Option<&str>, versions: &[(String, String)]) {
+    let branch = git_command(path)
+        .args(["symbolic-ref", "HEAD"])
+        .output()
+        .expect("read the current branch ref");
+    assert!(branch.status.success(), "the series needs a branch");
+    let branch = git_stdout(&branch);
+    let parent = git_command(path)
+        .args(["rev-parse", "--verify", "--quiet", "HEAD"])
+        .output()
+        .expect("read the current version");
+    let parent = parent.status.success().then(|| git_stdout(&parent));
+
+    let when = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or_default();
+    let mut stream = Vec::new();
+    for (index, (message, contents)) in versions.iter().enumerate() {
+        stream.extend_from_slice(format!("commit {branch}\n").as_bytes());
+        stream.extend_from_slice(
+            format!("committer GitOdile Test <test@gitodile.local> {when} +0000\n").as_bytes(),
+        );
+        stream.extend_from_slice(format!("data {}\n{message}\n", message.len()).as_bytes());
+        if index == 0 {
+            if let Some(parent) = &parent {
+                stream.extend_from_slice(format!("from {parent}\n").as_bytes());
+            }
+        }
+        if let Some(file) = file {
+            stream.extend_from_slice(
+                format!(
+                    "M 100644 inline {file}\ndata {}\n{contents}\n",
+                    contents.len()
+                )
+                .as_bytes(),
+            );
+        }
+    }
+
+    let mut import = git_command(path)
+        .args(["fast-import", "--quiet"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .expect("run git fast-import");
+    std::io::Write::write_all(&mut import.stdin.take().unwrap(), &stream)
+        .expect("write the fast-import stream");
+    assert!(
+        import.wait().expect("wait for git fast-import").success(),
+        "git fast-import should succeed"
+    );
+    if file.is_some() {
+        let status = git_command(path)
+            .args(["reset", "-q", "--hard"])
+            .status()
+            .expect("run git reset");
+        assert!(status.success(), "checking out the series should succeed");
+    }
 }
