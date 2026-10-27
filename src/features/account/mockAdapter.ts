@@ -29,7 +29,7 @@ export function createMockAccountPort(delayMs = 3500): AccountPort & {
       if (outcome !== "waiting") timer = setTimeout(() => {
         timer = undefined;
         send({ kind: "complete", requestId: id, outcome,
-          identity: { name: "Luis Martinez", email: "luis@example.com", initials: "LM", pro: outcome === "pro" } });
+          identity: { name: "Luis Martinez", email: "luis@example.com", pro: outcome === "pro" } });
       }, delayMs);
       // Install the timer first: a subscriber may synchronously cancel or retry
       // when it observes waiting, and must be able to clear this exact attempt.

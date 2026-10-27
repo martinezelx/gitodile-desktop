@@ -235,16 +235,14 @@
   color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
   font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
 }
-/* The user's own versions: a person glyph on the neutral tint, not the
-   initials on a colour of their own. */
+/* The user's own versions: their initials on the neutral tint, not on a
+   colour of their own. */
 .author-avatar--self {
   background: var(--surface-hover);
   color: var(--text-secondary-color);
 }
-.author-avatar--self svg { width: 11px; height: 11px; }
 /* Beside a strip's title, where it is the author's only trace. */
 .author-avatar--strip { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-caption); }
-.author-avatar--strip.author-avatar--self svg { width: 14px; height: 14px; }
 @media (forced-colors: active) {
   .author-avatar { border: 1px solid CanvasText; }
 }

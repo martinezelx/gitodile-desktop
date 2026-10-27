@@ -2,7 +2,7 @@
 //! Provider-specific identities/endpoints remain explicit; browser sessions
 //! stay owned by their CLI. Persisted metadata never contains credentials.
 use crate::{
-    application,
+    application, avatar,
     credentials::{AccessProvider, Account, Secret},
     error::{AppError, AppErrorCode},
     git::CancellationToken,
@@ -76,6 +76,15 @@ impl ProviderKind {
     }
     pub(crate) fn name(self) -> &'static str {
         self.id()
+    }
+    /// Azure's identity response carries no picture (ADR 0038).
+    fn picture(self) -> Option<avatar::Provider> {
+        match self {
+            Self::GitHub => Some(avatar::Provider::GitHub),
+            Self::GitLab => Some(avatar::Provider::GitLab),
+            Self::Bitbucket => Some(avatar::Provider::Bitbucket),
+            Self::Azure => None,
+        }
     }
     /// A company server's REST origin; the public hosts keep theirs.
     fn server_origin(self, host: &str) -> String {
@@ -292,6 +301,7 @@ impl HostingAccessService {
         };
         for login in &logins {
             self.store.remove(login)?;
+            avatar::forget(&self.token_account(login));
         }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         for login in &logins {
@@ -520,11 +530,35 @@ impl HostingAccessService {
         state.advance(&login);
         state.verified.insert(login.to_ascii_lowercase());
         state.failures.remove(&login.to_ascii_lowercase());
-        Ok(format!(
-            "{}:token.{}",
-            self.id(),
-            login.to_ascii_lowercase()
-        ))
+        Ok(self.token_account(&login))
+    }
+    fn token_account(&self, login: &str) -> String {
+        format!("{}:token.{}", self.id(), login.to_ascii_lowercase())
+    }
+    async fn refresh_picture(
+        &self,
+        account: &str,
+        raw: Option<&str>,
+        cancellation: &CancellationToken,
+    ) {
+        let Some(provider) = self.kind.picture() else {
+            return;
+        };
+        avatar::refresh(account, provider, &self.host, raw, cancellation).await;
+        // A removal that raced the download has already forgotten the
+        // picture; never leave one behind for a connection that is gone.
+        if !self.is_saved(account) {
+            avatar::forget(account);
+        }
+    }
+    fn is_saved(&self, account: &str) -> bool {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        state.metadata.as_ref().is_ok_and(|metadata| {
+            metadata
+                .logins
+                .iter()
+                .any(|login| self.token_account(login) == account)
+        })
     }
     fn save_identity(
         &self,
@@ -586,6 +620,8 @@ impl HostingAccessService {
         state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.metadata = Ok(next);
         state.advance(key);
+        drop(state);
+        avatar::forget(&self.token_account(key));
         Ok(())
     }
     fn request(&self, id: &str, command: &'static str) -> Result<Arc<Request>, AppError> {
@@ -657,16 +693,22 @@ impl HostingAccessService {
         let request = self.request(&request_id, command)?;
         let user = user(self.kind, &self.api_origin, &secret, &request.cancellation).await?;
         request.ensure_active()?;
+        let picture = user.avatar_url.clone();
         let service = self.clone();
+        let cancellation = request.cancellation.clone();
         // Keychain prompts/storage are synchronous and must not block the async executor.
-        tokio::task::spawn_blocking(move || {
+        let account = tokio::task::spawn_blocking(move || {
             // Keep admission until the synchronous storage worker ends, even
             // if its waiting IPC future is abandoned during a window close.
             request.ensure_active()?;
             service.save_identity(user, &secret, &request.cancellation)
         })
         .await
-        .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))?
+        .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))??;
+        // The connection is saved; its picture is optional enrichment.
+        self.refresh_picture(&account, picture.as_deref(), &cancellation)
+            .await;
+        Ok(account)
     }
     pub(crate) async fn repositories(
         &self,
@@ -832,8 +874,10 @@ impl AccessProvider for HostingAccessService {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(metadata) = &state.metadata {
             accounts.extend(metadata.logins.iter().map(|login| {
+                let id = self.token_account(login);
                 Account {
-                    id: format!("{}:token.{}", self.id(), login.to_ascii_lowercase()),
+                    avatar_data_url: avatar::cached(&id),
+                    id,
                     provider: self.id().into(),
                     host: self.host().into(),
                     login: state
@@ -843,7 +887,6 @@ impl AccessProvider for HostingAccessService {
                         .and_then(|m| m.usernames.get(login))
                         .cloned()
                         .unwrap_or_else(|| login.clone()),
-                    avatar_data_url: None,
                     // A verified connection stays usable while a background
                     // check runs; its result replaces this state when it lands.
                     available: state.verified.contains(&login.to_ascii_lowercase()),
@@ -916,7 +959,7 @@ impl AccessProvider for HostingAccessService {
                                     .await
                                     .and_then(|user| {
                                         if user.key(kind)?.eq_ignore_ascii_case(&login) {
-                                            Ok(user.login)
+                                            Ok((user.login, user.avatar_url))
                                         } else {
                                             Err(error(AppErrorCode::AuthenticationFailed))
                                         }
@@ -927,6 +970,7 @@ impl AccessProvider for HostingAccessService {
                         });
                     }
                     let mut renamed = false;
+                    let mut pictures = Vec::new();
                     while let Some(result) = workers.join_next().await {
                         let Ok((login, generation, verification)) = result else {
                             continue;
@@ -945,7 +989,8 @@ impl AccessProvider for HostingAccessService {
                         }
                         let key = login.to_ascii_lowercase();
                         match verification {
-                            Ok(username) => {
+                            Ok((username, picture)) => {
+                                pictures.push((service.token_account(&login), picture));
                                 if service.kind != ProviderKind::GitHub {
                                     if let Ok(metadata) = &mut state.metadata {
                                         let previous = metadata
@@ -966,6 +1011,19 @@ impl AccessProvider for HostingAccessService {
                     if renamed {
                         service.persist_usernames();
                     }
+                    // Pictures are optional enrichment, fetched together like
+                    // gh's: one bounded download each, inside the same check.
+                    let mut downloads = tokio::task::JoinSet::new();
+                    for (account, picture) in pictures {
+                        let service = service.clone();
+                        let cancellation = cancellation.clone();
+                        downloads.spawn(async move {
+                            service
+                                .refresh_picture(&account, picture.as_deref(), &cancellation)
+                                .await;
+                        });
+                    }
+                    while downloads.join_next().await.is_some() {}
                 });
             })
             .is_err()
@@ -1024,6 +1082,10 @@ pub(crate) struct User {
     /// Bitbucket's stable identity; `login` then holds its display name.
     #[serde(skip)]
     pub(crate) uuid: Option<String>,
+    /// The profile picture URL the provider reported, still unvalidated;
+    /// `avatar::picture_url` decides whether it may be downloaded.
+    #[serde(default)]
+    pub(crate) avatar_url: Option<String>,
 }
 impl User {
     fn key(&self, kind: ProviderKind) -> Result<String, AppError> {
@@ -1052,6 +1114,17 @@ struct BitbucketUser {
     nickname: Option<String>,
     #[serde(default)]
     display_name: Option<String>,
+    #[serde(default)]
+    links: Option<BitbucketUserLinks>,
+}
+#[derive(Deserialize)]
+struct BitbucketUserLinks {
+    #[serde(default)]
+    avatar: Option<BitbucketAvatar>,
+}
+#[derive(Deserialize)]
+struct BitbucketAvatar {
+    href: String,
 }
 fn parse_bitbucket_user(bytes: &[u8]) -> Result<User, AppError> {
     let user: BitbucketUser =
@@ -1067,6 +1140,10 @@ fn parse_bitbucket_user(bytes: &[u8]) -> Result<User, AppError> {
         login,
         id: None,
         uuid: Some(uuid),
+        avatar_url: user
+            .links
+            .and_then(|links| links.avatar)
+            .map(|link| link.href),
     })
 }
 async fn user(
@@ -2156,6 +2233,7 @@ mod tests {
                     id: Some(42),
                     login: "studio.user_1".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &secret,
                 &cancellation,
@@ -2190,6 +2268,7 @@ mod tests {
                     id: Some(42),
                     login: "renamed".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &secret,
                 &cancellation
@@ -2248,6 +2327,7 @@ mod tests {
             id: Some(id),
             login: login.into(),
             uuid: None,
+            avatar_url: None,
         };
         service
             .save_identity(user(42, "old.name"), &secret, &cancellation)
@@ -2318,9 +2398,10 @@ mod tests {
     #[tokio::test]
     async fn gitlab_ingestion_verifies_identity_and_discovery_rechecks_numeric_id() {
         let (mut service, _) = gitlab_fixture("gitlab-ingestion");
+        // GitLab's Gravatar fallback is never requested: one request only.
         let (origin, worker) = endpoint(vec![(
             "200 OK".into(),
-            r#"{"id":42,"username":"studio.user_1"}"#.into(),
+            r#"{"id":42,"username":"studio.user_1","avatar_url":"https://secure.gravatar.com/avatar/abc"}"#.into(),
         )]);
         service.api_origin = origin;
         assert_eq!(
@@ -2393,6 +2474,7 @@ mod tests {
                     id: Some(42),
                     login: "name".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap(),
                 &CancellationToken::default(),
@@ -2442,6 +2524,15 @@ mod tests {
         )
         .unwrap();
         assert_eq!(user.login, "Full Name");
+        assert_eq!(user.avatar_url, None);
+        let user = parse_bitbucket_user(
+            br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"luis","links":{"avatar":{"href":"https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc/128"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            user.avatar_url.as_deref(),
+            Some("https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc/128")
+        );
         for body in [
             r#"{"uuid":"not-a-uuid","nickname":"name"}"#,
             r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c330}","nickname":"name"}"#,
@@ -3186,5 +3277,7 @@ fn parse_azure_user(bytes: &[u8]) -> Result<User, AppError> {
         login: user.provider_display_name,
         id: None,
         uuid: Some(uuid),
+        // connectionData carries no picture; see ADR 0038.
+        avatar_url: None,
     })
 }

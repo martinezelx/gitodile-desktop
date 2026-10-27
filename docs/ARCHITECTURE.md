@@ -881,11 +881,27 @@ Environment-controlled sessions cannot be changed by these account commands.
 Explicit account actions can enrich a verified identity through a bounded gh
 `api users/<login>` public profile query with a validated username. Up to four
 accounts receive optional avatar enrichment concurrently; a newly activated
-account is first, and other cached images remain available. A separate native
-HTTP client with no credentials and
-no redirects downloads only a fixed GitHub avatar CDN URL derived from that
-profile's numeric id. The optional PNG/JPEG response is capped at 256 KiB,
-encoded through the shared `encoding.rs` helper and cached in memory. Renderer
+account is first, and other cached images remain available. Pictures for every
+provider go through `avatar.rs`
+([ADR 0038](adr/0038-hosting-account-profile-pictures.md)). It owns:
+
+- the allow-list of picture hosts per provider; github.com uses a fixed CDN URL
+  derived from the profile's numeric id;
+- a credential-free client with no redirects;
+- PNG/JPEG/GIF/WebP sniffing capped at 256 KiB, encoded through `encoding.rs`;
+- the per-account disk cache under the app cache directory.
+
+gh, glab and the token connections in `hosting_access.rs` refresh a picture
+after each successful verification, and delete it on sign-out or removal.
+Token rows read the cache, so a picture renders at launch. The renderer shows
+three separate identities:
+
+- `ProjectAvatar` (shared UI) for a project;
+- `ProfileAvatar` (`features/account`, initials only) for the GitOdile profile;
+- `HostingAvatar` (`features/accounts`, picture plus provider badge) for a
+  hosting account.
+
+None of them reads another's source. Renderer
 CSP and browser opener scopes remain unchanged; image failure never changes
 authentication status. Cached reads and Settings visibility cause no downloads.
 

@@ -347,7 +347,7 @@ An installer being started is not proof of installation: reopen GitOdile after
 installing to inherit the updated `PATH`. This prepares the dependency for
 future PRs and Actions; those screens are not yet implemented. Settings → Integrations
 offers explicit account detection and browser connection through gh. It shows
-the saved github.com accounts and cached avatars, with the active account first,
+the saved github.com accounts and their cached profile pictures, with the active account first,
 and retains their last known identities when offline,
 with a temporary device code, browser retry and cancellation during login.
 Opening Settings never checks authentication over the network. A gh version with

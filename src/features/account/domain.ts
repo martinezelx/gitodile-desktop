@@ -1,7 +1,7 @@
 export type AccountOutcome = "success" | "pro" | "offline" | "unfinished" | "expired" | "cancelled";
 export type AccountScenario = AccountOutcome | "waiting";
 export type AccountRequest = { id: number; code: string; startedAt: number };
-export type AccountIdentity = { name: string; email: string; initials: string; pro: boolean };
+export type AccountIdentity = { name: string; email: string; pro: boolean };
 export type AccountState =
   | { kind: "signed-out" }
   | { kind: "waiting"; request: AccountRequest; reopened: number }

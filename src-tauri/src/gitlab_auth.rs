@@ -1,7 +1,7 @@
 //! One explicitly verified GitLab.com CLI identity. glab owns its OAuth session.
 //! Credentials are captured privately, then checked against the fixed native API.
 use crate::{
-    application,
+    application, avatar,
     cli_auth::{self, AuthState},
     credentials::{AccessProvider, Account, Secret},
     git::CancellationToken,
@@ -171,6 +171,11 @@ impl GitLabAuthService {
                 let cancelled = cancellation.is_cancelled();
                 match result {
                     Ok(account) => {
+                        if let Some(previous) = &inner.snapshot.account {
+                            if account.as_ref().map(|a| &a.id) != Some(&previous.id) {
+                                avatar::forget(&previous.id);
+                            }
+                        }
                         inner.snapshot.state = if account.is_some() {
                             AuthState::Connected
                         } else {
@@ -445,9 +450,29 @@ fn perform(
     if environment_credential() {
         return Err(AuthState::EnvironmentControlled);
     }
-    perform_with(target, &program, action, cancellation, |secret, cancel| {
-        verify(&target.host, secret, cancel)
-    })
+    let picture = Mutex::new(None);
+    let mut account = perform_with(target, &program, action, cancellation, |secret, cancel| {
+        let user = verify(&target.host, secret, cancel)?;
+        *picture.lock().unwrap_or_else(|e| e.into_inner()) = user.avatar_url.clone();
+        Ok(user)
+    })?;
+    if let Some(account) = &mut account {
+        let raw = picture.into_inner().unwrap_or_else(|e| e.into_inner());
+        account.avatar_data_url = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .ok()
+            .and_then(|runtime| {
+                runtime.block_on(avatar::refresh(
+                    &account.id,
+                    avatar::Provider::GitLab,
+                    &target.host,
+                    raw.as_deref(),
+                    cancellation,
+                ))
+            });
+    }
+    Ok(account)
 }
 fn exact_credential(
     target: &Target,
@@ -608,6 +633,7 @@ fn main() {
             id: Some(42),
             login: "user.with_dot".into(),
             uuid: None,
+            avatar_url: None,
         })
     }
     #[test]

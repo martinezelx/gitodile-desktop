@@ -38,7 +38,7 @@ export function GitLabAccountSection({ controller, available, host = "gitlab.com
   return <div className="github-account github-account--embedded" onKeyDownCapture={event => {
     if (event.key === "Escape" && confirming) { event.preventDefault(); event.stopPropagation(); if (!busy) dismiss(); }
   }}>
-    {account && <AccountRow login={account.login} method="browser"
+    {account && <AccountRow login={account.login} provider="gitlab" picture={account.avatarDataUrl} method="browser"
       state={{ label: t.gitlabAuthChip[chip],
         tone: chip === "connected" ? "success" : chip === "invalid" || chip === "unavailable" ? "warning" : "neutral",
         icon: busy ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : chip === "connected" ? <CheckCircle2 aria-hidden="true" /> : undefined }}

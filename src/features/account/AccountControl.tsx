@@ -2,6 +2,7 @@ import React, { useId, useRef, useSyncExternalStore } from "react";
 import { UserRound } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import type { AccountController } from "./controller";
+import { ProfileAvatar } from "./ProfileAvatar";
 
 export function AccountControl({ controller, compact = false, menuClassName = "app-menu__item", onOpen, fallbackRef }: {
   controller: AccountController;
@@ -33,7 +34,7 @@ export function AccountControl({ controller, compact = false, menuClassName = "a
     }}
   >
     <span className="account-control__glyph" aria-hidden="true">
-      {identity ? <><span className="account-avatar">{identity.initials}</span><span className="account-control__status" /></> : <UserRound />}
+      {identity ? <><ProfileAvatar name={identity.name} /><span className="account-control__status" /></> : <UserRound />}
     </span>
     {identity && <span id={statusId} className="visually-hidden">{t.accountSuccess}</span>}
     {/* One line in every state: the name truncates and the demo marker stays

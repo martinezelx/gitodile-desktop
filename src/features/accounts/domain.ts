@@ -6,6 +6,12 @@ export type HostingAccount = {
   unavailableReason?: AppError["code"] | null;
 };
 export type HostingKind = "github" | "gitlab" | "bitbucket" | "azure";
+/** A picture as the native side encodes it (ADR 0038): a bounded raster data
+ * URL. Anything else is refused before it reaches an `<img>`. */
+export function isPictureDataUrl(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.length <= 350_000
+    && /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+}
 /** One provider instance: github.com, gitlab.com, bitbucket.org, or a
  * user-added company server. `host` is the exact HTTPS authority, including a
  * non-default port. */

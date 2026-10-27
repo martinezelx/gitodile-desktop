@@ -57,7 +57,3 @@ export function githubAccountChip(snapshot: GitHubAuthSnapshot, account: GitHubS
   return "unchecked";
 }
 
-export function isGitHubAvatarDataUrl(value: string | null): value is string {
-  return value !== null && value.length <= 350_000
-    && /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
-}

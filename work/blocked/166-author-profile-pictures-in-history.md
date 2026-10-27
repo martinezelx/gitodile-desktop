@@ -130,10 +130,18 @@ Constraints that shape the design:
 
 # Dependencies
 
+- The shared picture module and disk cache from
+  [148-14](../done/148-14-hosting-account-profile-pictures.md).
 - Bitbucket part: [148-11](../active/148-11-bitbucket-token-connections.md).
   GitHub and GitLab can ship first.
 
 # Decisions
+
+- 2026-10-27: the owner decided that saved versions show initials for every
+  author, the user's own as "LM" on the neutral tint. Hosting pictures appear
+  only where the account is the subject: Settings and the account picker
+  ([ADR 0038](../../docs/adr/0038-hosting-account-profile-pictures.md)). This
+  task stays deferred and needs that decision revisited before it can start.
 
 - 2026-10-13: approved and deferred to a later release; fallback stays the
   current glyph/initials avatar.

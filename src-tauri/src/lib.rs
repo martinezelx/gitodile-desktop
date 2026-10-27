@@ -6,6 +6,7 @@ mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;
+mod avatar;
 mod azure_access;
 mod bitbucket_access;
 mod branches;
@@ -90,6 +91,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            avatar::install(app.path().app_cache_dir()?.join("avatars"));
             let github = app
                 .state::<github_auth::GitHubAuthService>()
                 .inner()

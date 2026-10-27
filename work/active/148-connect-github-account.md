@@ -43,6 +43,7 @@ Milestones, in dependency order:
 - [x] GitHub Enterprise Server and GitLab Self-Managed hosts ([148-10](../done/148-10-enterprise-and-self-managed-hosts.md)).
 - [ ] Bitbucket Cloud token connections and repository discovery ([148-11](148-11-bitbucket-token-connections.md)).
 - [x] Azure Repos Services organization/PAT connections ([148-13](../done/148-13-azure-repos-token-connections.md)).
+- [x] Profile pictures for every hosting account, kept apart from the project icon and the GitOdile profile ([148-14](../done/148-14-hosting-account-profile-pictures.md)).
 - [ ] Pull/merge requests: list/details/create/checks and safe branch opening ([148-6](148-6-pull-request-screen.md)).
 - [ ] Actions/CI: runs/status/logs and planned rerun/cancel/dispatch ([148-7](148-7-actions-and-ci-screen.md)).
 - [x] Read-only gh/glab shortcuts in the project console ([148-12](../done/148-12-console-gh-and-glab-shortcuts.md)).

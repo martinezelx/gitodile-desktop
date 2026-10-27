@@ -18,7 +18,7 @@ describe("account attempts", () => {
     const request = { id: 1, code: "GTDL · 4821", startedAt: 0 };
     const first = transitionAccount(SIGNED_OUT, { kind: "start", request });
     const replacement = transitionAccount(first, { kind: "start", request: { ...request, id: 2 } });
-    const complete = { kind: "complete", requestId: 1, outcome: "pro", identity: { name: "Demo", email: "demo@example.com", initials: "D", pro: true } } as const;
+    const complete = { kind: "complete", requestId: 1, outcome: "pro", identity: { name: "Demo", email: "demo@example.com", pro: true } } as const;
     expect(transitionAccount(replacement, complete)).toBe(replacement);
     expect(transitionAccount(transitionAccount(first, { kind: "clear" }), complete)).toBe(SIGNED_OUT);
   });

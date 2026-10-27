@@ -3,6 +3,7 @@ import { FlaskConical, Play, RotateCcw, UserRound } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { DemoControls } from "./AccountOverlays";
 import type { AccountController } from "./controller";
+import { ProfileAvatar } from "./ProfileAvatar";
 
 /** The app injects this development-only body; Settings never owns a session. */
 export function AccountSettings({ controller }: { controller: AccountController }): React.JSX.Element {
@@ -17,7 +18,7 @@ export function AccountSettings({ controller }: { controller: AccountController 
         <p>{t.accountOptional}</p>
       </header>
       <div className="account-settings__identity">
-        {identity ? <span className="account-avatar account-avatar--large" aria-hidden="true">{identity.initials}</span>
+        {identity ? <ProfileAvatar name={identity.name} large />
           : <span className="account-settings__placeholder" aria-hidden="true"><UserRound /></span>}
         <div className="account-settings__person">
           <strong>{identity?.name ?? t.accountSettingsSignedOut}</strong>

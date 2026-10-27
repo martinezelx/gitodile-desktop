@@ -1243,9 +1243,11 @@ has the first line; under it, from the start, who saved it as initials on
 their own colour, tinted rather than filled so a solo project's column stays
 quiet (`.author-avatar` in `shared/ui`, keyed on the email so two people
 with the same initials still read apart, the full name on its tooltip). The
-user's own versions wear a person glyph on the neutral tint instead of their
-initials — "you" is the one author never told apart by colour — with "You
-(name)" on the tooltip; the detail strip wears the same avatar at its own
+user's own versions wear their initials too, on the neutral tint instead of a
+colour of their own — "you" is the one author never told apart by colour — with
+"You (name)" on the tooltip. A hosting account's picture never appears on a
+version, only where the account itself is the subject
+([ADR 0038](docs/adr/0038-hosting-account-profile-pictures.md)); the detail strip wears the same avatar at its own
 size. Then
 come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
@@ -2738,7 +2740,9 @@ Connected accounts is one list for every host of every provider; a host with
 nothing connected or in progress is left out rather than drawn empty, and the
 list says once when nothing is connected at all. Each host is a
 small label (glyph, host, a "Company" pill for servers) over a bordered list of
-account rows, each one line: a 32px avatar, the login, a method chip (Token or
+account rows, each one line: a 32px avatar (the account's own picture from its
+provider, or the person glyph) with the provider's mark on a small raised badge
+at its lower trailing corner, the login, a method chip (Token or
 Browser) and a state chip, with short text verbs on the right (Use · Remove ·
 Sign out); a second line appears only for a problem or a storage caveat. The
 installation rows for Git, the CLIs and the app update share that geometry in
@@ -2874,7 +2878,8 @@ it at step 2 rather than inventing its own:
 4. **Back in the app.** The waiting dialog closes by itself, the window comes
    forward, and a brief notice confirms "Signed in" with the plan in one line.
    The rail control becomes the person's avatar (round, with
-   `--avatar-ring`), and from then on opens a popover with name, email, a
+   `--avatar-ring`): the initials of the first and last name they set, never a
+   hosting account's picture. From then on opens a popover with name, email, a
    `PRO` capsule when entitled, and menu rows: plan and billing, what the
    account stores, sign out.
 
@@ -2883,6 +2888,20 @@ area. A small static success-coloured dot at its lower trailing edge means a
 session is active, with the same state available as an accessible description.
 It is absent while signed out and does not claim that a network connection has
 been checked. The dot does not pulse or compete with notification attention.
+
+**Three identities, never interchangeable**
+([ADR 0038](docs/adr/0038-hosting-account-profile-pictures.md)):
+
+- the **project icon** is a rounded square (`--radius-identity`) made locally
+  from an emoji, a technology mark or initials;
+- the **GitOdile profile** is a round chip of the person's initials;
+- a **hosting account** is a round picture from its provider, with the provider
+  badge in account lists.
+
+A surface shows the one identity it is about. Saved versions are about a
+person, so every author, the user included, wears initials. The account picker shows an
+account's picture in its 28px glyph slot without the badge, because the slot is
+too small and the trigger already names the provider.
 
 **Failure never implies lost work.** Every account error is a sentence of what
 happened and what to do, followed by the reassurance that projects and saved

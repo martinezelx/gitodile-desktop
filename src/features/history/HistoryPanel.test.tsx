@@ -553,8 +553,9 @@ describe("HistoryPanel", () => {
 
     const avatar = container.querySelector(".history-row .author-avatar");
     expect(avatar).toHaveClass("author-avatar--self");
-    expect(avatar).not.toHaveTextContent("AL");
-    expect(avatar?.querySelector("svg")).not.toBeNull();
+    // Their own initials on the neutral tint, never a picture.
+    expect(avatar).toHaveTextContent("AL");
+    expect(avatar?.querySelector("img, svg")).toBeNull();
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
     expect(container.querySelector(".history-row")).toHaveAttribute("aria-description", expect.stringContaining("You (Ada Lovelace)"));
 

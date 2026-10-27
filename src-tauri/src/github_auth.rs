@@ -2,7 +2,7 @@
 //! Only explicit actions reach the network; snapshots are memory-only reads.
 
 use crate::credentials::{AccessProvider, Account, Secret};
-use crate::{application, encoding::base64_encode, git::CancellationToken, tooling};
+use crate::{application, avatar, git::CancellationToken, tooling};
 use serde::Serialize;
 
 use std::process::{Command, Stdio};
@@ -399,6 +399,7 @@ impl GitHubAuthService {
         }
         let cancelling = inner.snapshot.state == AuthState::Cancelling;
         if let Some(login) = &removed {
+            avatar::forget(&format!("{}:{login}", self.id));
             inner
                 .snapshot
                 .accounts
@@ -416,8 +417,23 @@ impl GitHubAuthService {
         let state = match result {
             Ok(mut result) => {
                 let state = result.state();
+                // A verified answer is the whole list: an account gh no longer
+                // holds (signed out elsewhere) leaves no picture behind.
+                for previous in &inner.snapshot.accounts {
+                    let login = &previous.account.login;
+                    if !result
+                        .accounts
+                        .iter()
+                        .any(|entry| entry.account.login == *login)
+                    {
+                        avatar::forget(&format!("{}:{login}", self.id));
+                    }
+                }
                 for entry in &mut result.accounts {
-                    if entry.account.avatar_data_url.is_none() {
+                    let account = format!("{}:{}", self.id, entry.account.login);
+                    if let Some(picture) = &entry.account.avatar_data_url {
+                        avatar::remember(&account, picture);
+                    } else {
                         entry.account.avatar_data_url = inner
                             .snapshot
                             .accounts
@@ -431,7 +447,8 @@ impl GitHubAuthService {
                                     .as_ref()
                                     .filter(|previous| previous.login == entry.account.login)
                                     .and_then(|previous| previous.avatar_data_url.clone())
-                            });
+                            })
+                            .or_else(|| avatar::cached(&account));
                     }
                 }
                 inner.snapshot.account = result
@@ -868,69 +885,52 @@ fn switch_with_programs(
 
 /// Optional image work must not grow the check deadline with the account list.
 /// At most four profiles are refreshed concurrently; other rows use their
-/// memory-cached avatar (or a placeholder), and refresh when made active.
-/// Enterprise avatars may sit behind the server's private mode; their rows
-/// use the local placeholder instead of an authenticated image request.
+/// cached picture (or a placeholder), and refresh when made active.
+/// Enterprise pictures are requested without a credential: a server in
+/// private mode refuses them and its rows keep the local placeholder.
 fn enrich_avatars(
     host: &str,
     programs: &[&str],
     token: &CancellationToken,
     accounts: &mut AuthAccounts,
 ) {
-    if host != PUBLIC_HOST {
-        return;
-    }
     thread::scope(|scope| {
         for entry in accounts.accounts.iter_mut().take(4) {
             scope.spawn(move || {
-                entry.account.avatar_data_url = fetch_avatar(programs, token, &entry.account.login);
+                entry.account.avatar_data_url =
+                    fetch_avatar(programs, token, host, &entry.account.login);
             });
         }
     });
 }
 
-const AVATAR_CAP: usize = 256 * 1024;
-
-fn avatar_http_client() -> Result<reqwest::Client, reqwest::Error> {
-    // The updater initializes this same provider only when checking updates.
-    // Avatars may be the first HTTP request, including in gated development builds.
-    if rustls::crypto::CryptoProvider::get_default().is_none() {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(3))
-        .build()
-}
-
-fn avatar_url(profile: &[u8], login: &str) -> Option<String> {
+/// github.com pictures come from a fixed CDN URL derived from the verified
+/// numeric account id; a company server's from its own reported URL, limited
+/// to that server's picture hosts.
+fn avatar_url(profile: &[u8], host: &str, login: &str) -> Option<reqwest::Url> {
     let profile: serde_json::Value = serde_json::from_slice(profile).ok()?;
     if !profile.get("login")?.as_str()?.eq_ignore_ascii_case(login) {
         return None;
     }
     let id = profile.get("id")?.as_u64().filter(|id| *id > 0)?;
-    Some(format!("https://avatars.githubusercontent.com/u/{id}?s=96"))
-}
-
-fn avatar_data_url(bytes: &[u8]) -> Option<String> {
-    if bytes.len() > AVATAR_CAP {
-        return None;
-    }
-    let mime = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        "image/png"
-    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
-        "image/jpeg"
+    let raw = if host == PUBLIC_HOST {
+        format!("https://avatars.githubusercontent.com/u/{id}")
     } else {
-        return None;
+        profile.get("avatar_url")?.as_str()?.to_owned()
     };
-    Some(format!("data:{mime};base64,{}", base64_encode(bytes)))
+    avatar::picture_url(avatar::Provider::GitHub, host, &raw)
 }
 
-/// Only explicit account actions retrieve a small public avatar. This separate
-/// HTTP client has no credential headers, no redirects, no renderer networking,
-/// and no persistence. Profile failure never changes authentication success.
-fn fetch_avatar(programs: &[&str], token: &CancellationToken, login: &str) -> Option<String> {
-    if !valid_login(login) {
+/// Only explicit account actions retrieve a small public picture, through the
+/// shared credential-free download. Profile failure never changes
+/// authentication success.
+fn fetch_avatar(
+    programs: &[&str],
+    token: &CancellationToken,
+    host: &str,
+    login: &str,
+) -> Option<String> {
+    if !valid_login_on(host, login) {
         return None;
     }
     let endpoint = format!("users/{login}");
@@ -941,12 +941,12 @@ fn fetch_avatar(programs: &[&str], token: &CancellationToken, login: &str) -> Op
                 &[
                     "api",
                     "--hostname",
-                    PUBLIC_HOST,
+                    host,
                     "--method",
                     "GET",
                     &endpoint,
                     "--jq",
-                    "{id: .id, login: .login}",
+                    "{id: .id, login: .login, avatar_url: .avatar_url}",
                 ],
             ),
             token,
@@ -958,29 +958,8 @@ fn fetch_avatar(programs: &[&str], token: &CancellationToken, login: &str) -> Op
             Ok(profile) if profile.success => profile,
             _ => return None,
         };
-        let url = avatar_url(&profile.stdout, login)?;
-        return tauri::async_runtime::block_on(async {
-            if token.is_cancelled() {
-                return None;
-            }
-            let client = avatar_http_client().ok()?;
-            let mut response = client.get(url).send().await.ok()?;
-            if !response.status().is_success()
-                || response
-                    .content_length()
-                    .is_some_and(|length| length > AVATAR_CAP as u64)
-            {
-                return None;
-            }
-            let mut bytes = Vec::new();
-            while let Some(chunk) = response.chunk().await.ok()? {
-                if token.is_cancelled() || bytes.len().saturating_add(chunk.len()) > AVATAR_CAP {
-                    return None;
-                }
-                bytes.extend_from_slice(&chunk);
-            }
-            avatar_data_url(&bytes)
-        });
+        let url = avatar_url(&profile.stdout, host, login)?;
+        return tauri::async_runtime::block_on(avatar::download(&url, token));
     }
     None
 }
@@ -1644,38 +1623,48 @@ fn main() {
     }
 
     #[test]
-    fn avatar_boundary_rejects_external_urls_svg_oversize_and_mismatched_identity() {
+    fn avatar_boundary_rejects_external_urls_and_mismatched_identity() {
+        let url = |json: &[u8], host| avatar_url(json, host, "octocat").map(String::from);
         assert_eq!(
-            avatar_url(
+            url(
                 br#"{"id":42,"login":"octocat","avatar_url":"https://evil.example"}"#,
-                "octocat"
+                "github.com"
             ),
             Some("https://avatars.githubusercontent.com/u/42?s=96".into())
         );
-        for json in [
-            br#"{"id":42,"login":"another-user"}"#.as_slice(),
-            br#"{"id":0,"login":"octocat"}"#,
-            br#"{"id":"https://evil.example","login":"octocat"}"#,
-        ] {
-            assert!(avatar_url(json, "octocat").is_none());
-        }
-        assert!(avatar_data_url(b"<svg onload='steal()'>").is_none());
-        let mut oversize = vec![0; AVATAR_CAP + 1];
-        oversize[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
-        assert!(avatar_data_url(&oversize).is_none());
         assert_eq!(
-            avatar_data_url(b"\x89PNG\r\n\x1a\n"),
-            Some("data:image/png;base64,iVBORw0KGgo=".into())
+            url(
+                br#"{"id":7,"login":"octocat","avatar_url":"https://git.example.com/avatars/u/7"}"#,
+                "git.example.com"
+            ),
+            Some("https://git.example.com/avatars/u/7?s=96".into())
         );
+        for (json, host) in [
+            (
+                br#"{"id":42,"login":"another-user"}"#.as_slice(),
+                "github.com",
+            ),
+            (br#"{"id":0,"login":"octocat"}"#, "github.com"),
+            (
+                br#"{"id":"https://evil.example","login":"octocat"}"#,
+                "github.com",
+            ),
+            (
+                br#"{"id":7,"login":"octocat","avatar_url":"https://evil.example/u/7"}"#,
+                "git.example.com",
+            ),
+            (br#"{"id":7,"login":"octocat"}"#, "git.example.com"),
+        ] {
+            assert!(url(json, host).is_none());
+        }
         let program = fixture("profile-unavailable");
-        assert!(fetch_avatar(&[&program], &CancellationToken::default(), "octocat").is_none());
-    }
-
-    #[test]
-    fn avatar_can_be_the_first_http_client_without_an_update_check() {
-        tauri::async_runtime::block_on(async {
-            assert!(avatar_http_client().is_ok());
-        });
+        assert!(fetch_avatar(
+            &[&program],
+            &CancellationToken::default(),
+            "github.com",
+            "octocat"
+        )
+        .is_none());
     }
 
     #[test]

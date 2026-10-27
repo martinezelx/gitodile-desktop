@@ -5,6 +5,7 @@ import { useLanguage } from "../../i18n";
 import { Dialog, DialogBanner, useModalFocus, usePortalFlyout, useToast } from "../../shared/ui";
 import type { AccountController } from "./controller";
 import type { AccountScenario } from "./domain";
+import { ProfileAvatar } from "./ProfileAvatar";
 
 const SCENARIOS: readonly AccountScenario[] = ["success", "pro", "waiting", "offline", "unfinished", "expired", "cancelled"];
 
@@ -44,7 +45,7 @@ function AccountPopover({ controller }: { controller: AccountController }): Reac
     }}>
     {identity ? <>
       <div className="account-person">
-        <span className="account-avatar account-avatar--large" aria-hidden="true">{identity.initials}</span>
+        <ProfileAvatar name={identity.name} large />
         <div><h2 id={titleId}>{identity.name} {identity.pro && <span className="account-pro">PRO</span>}</h2><p>{identity.email}</p></div>
       </div>
       <p className="account-demo__label">{t.accountDemo}</p>

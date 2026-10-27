@@ -30,7 +30,11 @@ The application can contact:
   issue or security problem.
 - GitHub when the user explicitly detects/checks GitHub CLI accounts, activates
   a saved account, signs out, or starts browser authorization from Settings.
-- GitHub's avatar CDN when an explicit account action retrieves the account image.
+- A connected account's profile picture host when that connection is made or
+  verified (after launch or on Check connections): GitHub's avatar CDN, a GitHub
+  Enterprise Server or GitLab instance's own host, or Bitbucket's Atlassian
+  avatar CDN. The request carries no credential. Gravatar is never contacted
+  ([ADR 0038](adr/0038-hosting-account-profile-pictures.md)).
 - GitHub's API when the user connects/checks a personal token, or explicitly
   finds, refreshes or pages through projects in the clone browser.
 
@@ -41,9 +45,11 @@ identity, temporary authorization codes or raw authentication output in diagnost
 reports. GitHub CLI owns credential persistence and can fall back to a plaintext
 file if its system credential store fails. This is disclosed before connecting
 and when a file-backed credential is detected. Opening Settings initiates no
-GitHub authentication network check. Public account avatars are fetched by a
-bounded native client without an authentication token, redirects or disk storage;
-the renderer displays cached inline image data. Sign-out removes only the selected
+GitHub authentication network check. Public account pictures are fetched by a
+bounded native client without an authentication token or redirects. The last good
+picture of each connected account is kept in the app cache directory, and is
+deleted when that connection is signed out or removed. The renderer displays
+inline image data. Sign-out removes only the selected
 account's local shared gh credentials, leaving the browser session and GitHub
 authorization active. gh may activate another saved account, which is checked
 and displayed. Selecting a saved account updates gh's local active-account

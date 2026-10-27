@@ -5,7 +5,7 @@ import { isAppError, localizeAppError } from "../../shared/i18n";
 import type { ToolChip } from "../../shared/ui";
 import { AccountRow } from "./AccountRow";
 import { useInstallDraftBlocker } from "../../runtime/drafts";
-import type { AccountCatalog } from "./domain";
+import { providerKind, type AccountCatalog } from "./domain";
 
 export interface TokenConnectionPort { add(token: string, requestId: string): Promise<string>; remove(accountId: string): Promise<void>; cancel(requestId: string): Promise<void> }
 export type TokenConnectionCopy = {
@@ -68,7 +68,8 @@ export function TokenConnectionRows({ provider, catalog, checking, port, copy, o
       const state = checking || catalog.busy ? "checking" : account.available ? "connected" : account.unavailableReason === "authentication_failed" ? "invalid" : "unchecked";
       const chip: ToolChip = { label: state === "invalid" ? t.accountsTokenRejected : copy.chips[state], tone: state === "checking" ? "neutral" : account.available ? "success" : account.unavailableReason ? "warning" : "neutral",
         icon: state === "checking" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : account.available ? <CheckCircle2 aria-hidden="true" /> : undefined };
-      return <AccountRow key={account.id} login={account.login} method="token" state={chip}
+      return <AccountRow key={account.id} login={account.login} provider={providerKind(catalog.providers, provider)}
+        picture={account.avatarDataUrl} method="token" state={chip}
         notice={state !== "checking" && !account.available && account.unavailableReason ? <p className="status-line status-line--warning"><CircleAlert aria-hidden="true" />
           <span>{state === "invalid" ? t.accountsTokenRejectedHint.replace("{provider}", catalog.providers.find(item => item.id === provider)?.host ?? provider)
             : localizeAppError({ code: account.unavailableReason, message: "", remediation: null }, t, copy.failed)}</span></p> : null}
