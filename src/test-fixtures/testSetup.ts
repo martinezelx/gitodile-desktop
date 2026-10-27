@@ -1,5 +1,9 @@
 import "@testing-library/jest-dom/vitest";
 
+// Pure-logic files run in the `node` environment; the layout stubs below only
+// make sense where jsdom provides elements.
+const hasDom = typeof Element !== "undefined";
+
 // jsdom has no real layout engine, so every element reports a zero-size
 // bounding rect by default. `@tanstack/react-virtual` (used by the diff
 // viewer in `changes.tsx` to render only on-screen lines of a large file)
@@ -31,17 +35,19 @@ const STUBBED_RECT: DOMRect = {
   },
 };
 
-Element.prototype.getBoundingClientRect = () => STUBBED_RECT;
+if (hasDom) {
+  Element.prototype.getBoundingClientRect = () => STUBBED_RECT;
 
-// `getBoundingClientRect` alone isn't enough: jsdom also defines
-// `offsetHeight`/`clientHeight` (and their `*Width` counterparts) as getters
-// hardcoded to 0, and the virtualizer reads those directly for the
-// scrollable container's viewport size.
-for (const property of ["offsetHeight", "offsetWidth", "clientHeight", "clientWidth"] as const) {
-  Object.defineProperty(HTMLElement.prototype, property, {
-    configurable: true,
-    get() {
-      return property.endsWith("Height") ? STUBBED_RECT.height : STUBBED_RECT.width;
-    },
-  });
+  // `getBoundingClientRect` alone isn't enough: jsdom also defines
+  // `offsetHeight`/`clientHeight` (and their `*Width` counterparts) as getters
+  // hardcoded to 0, and the virtualizer reads those directly for the
+  // scrollable container's viewport size.
+  for (const property of ["offsetHeight", "offsetWidth", "clientHeight", "clientWidth"] as const) {
+    Object.defineProperty(HTMLElement.prototype, property, {
+      configurable: true,
+      get() {
+        return property.endsWith("Height") ? STUBBED_RECT.height : STUBBED_RECT.width;
+      },
+    });
+  }
 }

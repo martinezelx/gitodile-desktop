@@ -1057,7 +1057,8 @@ mod tests {
 
     #[test]
     fn a_new_read_cancels_the_superseded_process_token() {
-        let path = std::env::temp_dir().join(format!("gitodile-supersede-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-supersede-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")
@@ -1091,8 +1092,8 @@ mod tests {
 
     #[test]
     fn a_read_of_another_subject_does_not_supersede_the_first() {
-        let path =
-            std::env::temp_dir().join(format!("gitodile-subject-read-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-subject-read-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")
@@ -1133,8 +1134,8 @@ mod tests {
 
     #[test]
     fn an_inherited_read_does_not_supersede_an_independent_peer() {
-        let path =
-            std::env::temp_dir().join(format!("gitodile-inherited-read-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-inherited-read-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")

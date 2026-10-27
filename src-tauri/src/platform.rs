@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn exclusive_directory_move_never_replaces_an_existing_directory() {
-        let root = std::env::temp_dir().join(format!(
+        let root = crate::test_support::test_temp_root().join(format!(
             "gitodile-exclusive-move-{}-{}",
             std::process::id(),
             crate::session::global()

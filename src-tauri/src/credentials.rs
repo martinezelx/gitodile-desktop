@@ -1030,7 +1030,7 @@ mod tests {
     }
     fn scratch() -> PathBuf {
         static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
+        let path = crate::test_support::test_temp_root().join(format!(
             "gitodile-account-test-{}-{}",
             std::process::id(),
             SEQUENCE.fetch_add(1, Ordering::SeqCst)

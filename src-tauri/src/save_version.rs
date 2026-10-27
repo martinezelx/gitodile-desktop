@@ -834,7 +834,7 @@ mod tests {
 
     fn test_path(label: &str) -> PathBuf {
         static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-        std::env::temp_dir().join(format!(
+        crate::test_support::test_temp_root().join(format!(
             "gitodile-test-{label}-{}-{}",
             std::process::id(),
             TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed),

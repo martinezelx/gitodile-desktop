@@ -575,7 +575,7 @@ mod tests {
 
     #[test]
     fn pre_cancelled_work_never_attempts_to_spawn_but_respects_non_cancellable_policy() {
-        let missing = std::env::temp_dir().join(format!(
+        let missing = crate::test_support::test_temp_root().join(format!(
             "gitodile-missing-cancellation-fixture-{}",
             std::process::id()
         ));

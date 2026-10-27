@@ -60,7 +60,7 @@ fn open_repository_rejects_a_non_repository_folder() {
 
 #[test]
 fn open_repository_rejects_a_missing_folder() {
-    let mut path = std::env::temp_dir();
+    let mut path = crate::test_support::test_temp_root().to_path_buf();
     path.push(format!(
         "gitodile-test-does-not-exist-{}",
         std::process::id()
@@ -93,7 +93,7 @@ fn open_repository_detects_a_linked_worktree() {
     git_init(&main_path);
     git_commit_empty(&main_path);
 
-    let mut worktree_buf = std::env::temp_dir();
+    let mut worktree_buf = crate::test_support::test_temp_root().to_path_buf();
     worktree_buf.push(format!(
         "gitodile-test-worktree-linked-{}",
         std::process::id()

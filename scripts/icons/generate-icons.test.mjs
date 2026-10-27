@@ -5,20 +5,20 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { BRAND_ICON_SIZES, parseIcns } from "./generate-icons.mjs";
-import { brandSourceSvg, generatedFiles, iconSourceSvg, installerSourceSvg, mascotSvg, variantNames } from "./mascot.mjs";
+import { brandSourceSvg, iconSourceSvg, installerSourceSvg, mascotSvg, variantNames } from "./mascot.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-test("the committed ICNS carries every entry and the generated mascot files match mascot.mjs", () => {
+// Drift between mascot.mjs and its generated files is `check:icons`'
+// `mascot.mjs --check`, which renders every file once; repeating it here
+// doubled the slowest step of the gate.
+test("the committed ICNS carries every entry", () => {
   const entries = parseIcns(fs.readFileSync(path.join(root, "src-tauri", "icons", "icon.icns")));
   for (const type of ["is32", "il32", "ic11", "ic12", "ic07", "ic08", "ic09", "ic10"]) {
     assert.ok(
       entries.some((entry) => entry.type === type),
       `icon.icns has ${type}`,
     );
-  }
-  for (const [file, text] of Object.entries(generatedFiles())) {
-    assert.equal(fs.readFileSync(file, "utf8").replaceAll("\r\n", "\n"), text, path.basename(file));
   }
 });
 

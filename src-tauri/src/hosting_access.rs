@@ -1626,7 +1626,7 @@ mod tests {
         }
         let (entered, started) = std::sync::mpsc::channel();
         let (release, gate) = std::sync::mpsc::channel();
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-prompt-test-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(
@@ -1697,7 +1697,7 @@ mod tests {
     }
     #[test]
     fn token_source_survives_restart_without_secret_json_or_implicit_verification() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-token-test-{}", std::process::id()))
             .join("accounts.json");
         let store = Arc::new(MemoryStore::default());
@@ -1822,7 +1822,7 @@ mod tests {
     }
     #[tokio::test]
     async fn discovery_checks_the_exact_identity_before_private_results_and_never_follows_links() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-discovery-{}", std::process::id()))
             .join("accounts.json");
         let store = Arc::new(MemoryStore::default());
@@ -2106,7 +2106,7 @@ mod tests {
     }
     #[test]
     fn token_helper_keeps_the_account_source_and_emits_the_real_http_username() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-token-helper-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(
@@ -2163,7 +2163,7 @@ mod tests {
                 Err(error(AppErrorCode::SecureStorageUnavailable))
             }
         }
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-unavailable-store-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(

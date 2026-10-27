@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FILE_LIST_VIEW_STORAGE_KEY, flattenFileTree, isGroupedFileRow, readFileListView } from "./fileTree";

@@ -494,7 +494,8 @@ describe("App project restoration", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("wires the status bar to the active project and its remote check", async () => {
+  /** A restored project with a clean tree and a remote one version ahead. */
+  function restoreProjectWithStatusBar(): void {
     localStorage.setItem("gitodile-reopen-last-project", "true");
     localStorage.setItem(
       "gitodile-projects",
@@ -516,7 +517,10 @@ describe("App project restoration", () => {
       if (command === "unwatch_repository") return Promise.resolve();
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
+  }
 
+  it("wires the status bar to the active project and its remote check", async () => {
+    restoreProjectWithStatusBar();
     render(<LanguageProvider><App /></LanguageProvider>);
 
     const statusBar = await screen.findByRole("contentinfo", { name: "Project status" });
@@ -542,7 +546,12 @@ describe("App project restoration", () => {
     expect(within(palette).getByText("Check for updates")).toBeInTheDocument();
     await userEvent.click(within(palette).getByText("Check for updates"));
     expect(screen.getByRole("dialog", { name: "Updates" })).toBeInTheDocument();
-    await userEvent.keyboard("{Escape}");
+  });
+
+  it("opens the release notes and About from the overflow menu, not the status bar", async () => {
+    restoreProjectWithStatusBar();
+    render(<LanguageProvider><App /></LanguageProvider>);
+    const statusBar = await screen.findByRole("contentinfo", { name: "Project status" });
 
     // The strip carries no version: the release notes open from the overflow
     // menu now, where the update check sits beside them.

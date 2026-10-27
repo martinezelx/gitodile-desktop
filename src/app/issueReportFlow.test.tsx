@@ -102,7 +102,7 @@ it("keeps browser failure, retry and manual-link recovery in the same dialog", a
   await user.click(screen.getByRole("button", { name: "Try again" }));
   expect(port.open).toHaveBeenNthCalledWith(2, attemptedUrl);
   expect(screen.queryByRole("alertdialog")).toBeNull();
-  expect(trigger).toHaveFocus();
+  await waitFor(() => expect(trigger).toHaveFocus());
 });
 
 it("falls back to a reviewable environment report when session rendering is unavailable", async () => {

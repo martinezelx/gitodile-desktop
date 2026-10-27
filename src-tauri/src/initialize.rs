@@ -894,8 +894,8 @@ mod tests {
 
     #[test]
     fn ownership_markers_must_match_exactly() {
-        let root =
-            std::env::temp_dir().join(format!("gitodile-init-marker-{}", new_operation_id()));
+        let root = crate::test_support::test_temp_root()
+            .join(format!("gitodile-init-marker-{}", new_operation_id()));
         fs::create_dir(&root).unwrap();
         let marker = root.join(OWNER_MARKER);
         create_owner_marker(&marker, "a1-b2").unwrap();
@@ -910,8 +910,8 @@ mod tests {
 
     #[test]
     fn cleanup_never_removes_non_empty_or_mismatched_owned_paths() {
-        let root =
-            std::env::temp_dir().join(format!("gitodile-init-cleanup-{}", new_operation_id()));
+        let root = crate::test_support::test_temp_root()
+            .join(format!("gitodile-init-cleanup-{}", new_operation_id()));
         fs::create_dir(&root).unwrap();
         let operation_id = "a1-b2";
         create_owner_marker(&root.join(OWNER_MARKER), operation_id).unwrap();

@@ -3,15 +3,6 @@ use crate::*;
 use crate::{application, recovery::HistoryRecoveryMetadata};
 use std::fs;
 use std::path::Path;
-use std::sync::{Mutex, MutexGuard};
-
-static SYNC_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-fn sync_test_guard() -> MutexGuard<'static, ()> {
-    SYNC_TEST_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
 
 fn session(label: &str) -> String {
     format!("sync-epoch-{label}")
@@ -64,7 +55,6 @@ fn clone_remote(remote: &str, label: &str) -> String {
 
 #[test]
 fn local_sync_status_covers_unborn_detached_no_remote_and_no_upstream() {
-    let _guard = sync_test_guard();
     let unborn = unique_temp_dir("sync-unborn");
     git_init(&unborn);
     let unborn_status = read_team_sync_status(unborn.clone(), session("unborn")).unwrap();
@@ -111,7 +101,6 @@ fn local_sync_status_covers_unborn_detached_no_remote_and_no_upstream() {
 
 #[test]
 fn explicit_check_reports_fresh_up_to_date_and_preserves_head_index_and_files() {
-    let _guard = sync_test_guard();
     let (repo, remote, _branch) = published_repo_and_remote("sync-fresh");
     write_file(&repo, "untracked.txt", "keep me\n");
     let head_before = git_stdout(&test_git(&repo, &["rev-parse", "HEAD"]).unwrap());
@@ -146,7 +135,6 @@ fn explicit_check_reports_fresh_up_to_date_and_preserves_head_index_and_files() 
 
 #[test]
 fn explicit_check_classifies_ahead_behind_and_diverged_from_commit_ancestry() {
-    let _guard = sync_test_guard();
     let (ahead_repo, ahead_remote, _) = published_repo_and_remote("sync-ahead");
     write_file(&ahead_repo, "ahead.txt", "local\n");
     git_add_all(&ahead_repo);
@@ -189,7 +177,6 @@ fn explicit_check_classifies_ahead_behind_and_diverged_from_commit_ancestry() {
 
 #[test]
 fn check_updates_only_the_configured_upstream_tracking_ref() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("sync-one-tracking");
     let other_remote = unique_temp_dir("sync-one-tracking-other-remote");
     init_bare_remote(&other_remote);
@@ -261,7 +248,6 @@ fn branch_deleted_on_remote(label: &str) -> (String, String) {
 
 #[test]
 fn removed_upstream_reads_as_gone_without_pruning_cached_tracking() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("sync-removed");
     let tracking = format!("refs/remotes/origin/{branch}");
     let cached_before = git_stdout(&test_git(&repo, &["rev-parse", &tracking]).unwrap());
@@ -293,7 +279,6 @@ fn removed_upstream_reads_as_gone_without_pruning_cached_tracking() {
 
 #[test]
 fn a_missing_tracking_ref_reads_as_gone_without_a_check() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("sync-gone-cached");
     let tracking = format!("refs/remotes/origin/{branch}");
     assert!(git_succeeds(&repo, &["update-ref", "-d", &tracking]));
@@ -311,7 +296,6 @@ fn a_missing_tracking_ref_reads_as_gone_without_a_check() {
 
 #[test]
 fn publishing_a_branch_deleted_on_the_remote_says_it_recreates_and_counts_only_new_versions() {
-    let _guard = sync_test_guard();
     let (repo, remote) = branch_deleted_on_remote("sync-recreate");
     save_file(&repo, "more.txt", "more work");
 
@@ -349,7 +333,6 @@ fn publishing_a_branch_deleted_on_the_remote_says_it_recreates_and_counts_only_n
 
 #[test]
 fn a_first_publish_counts_only_what_the_remote_lacks() {
-    let _guard = sync_test_guard();
     let (repo, remote, _) = published_repo_and_remote("sync-first-count");
     assert!(git_succeeds(&repo, &["switch", "-q", "-c", "fresh"]));
     save_file(&repo, "fresh.txt", "fresh work");
@@ -371,7 +354,6 @@ fn a_first_publish_counts_only_what_the_remote_lacks() {
 
 #[test]
 fn a_new_branch_with_nothing_new_plans_only_its_branch() {
-    let _guard = sync_test_guard();
     let (repo, remote, _) = published_repo_and_remote("sync-empty-branch");
     assert!(git_succeeds(&repo, &["switch", "-q", "-c", "empty"]));
 
@@ -386,7 +368,6 @@ fn a_new_branch_with_nothing_new_plans_only_its_branch() {
 
 #[test]
 fn unpublished_versions_still_follow_a_local_upstream() {
-    let _guard = sync_test_guard();
     let (repo, remote, main) = published_repo_and_remote("sync-local-upstream");
     assert!(git_succeeds(
         &repo,
@@ -404,7 +385,6 @@ fn unpublished_versions_still_follow_a_local_upstream() {
 
 #[test]
 fn unpublished_versions_read_past_a_pruned_upstream() {
-    let _guard = sync_test_guard();
     let (repo, remote) = branch_deleted_on_remote("sync-pruned-pending");
     assert!(git_succeeds(
         &repo,
@@ -423,7 +403,6 @@ fn unpublished_versions_read_past_a_pruned_upstream() {
 
 #[test]
 fn stop_tracking_remote_forgets_the_upstream_and_keeps_everything_else() {
-    let _guard = sync_test_guard();
     let (repo, remote) = branch_deleted_on_remote("sync-stop-tracking");
     let head_before = head(&repo);
 
@@ -454,7 +433,6 @@ fn stop_tracking_remote_forgets_the_upstream_and_keeps_everything_else() {
 
 #[test]
 fn malformed_or_unreachable_upstreams_fail_without_guessing_another_remote() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("sync-invalid-config");
     let second = unique_temp_dir("sync-invalid-config-second");
     init_bare_remote(&second);
@@ -493,7 +471,6 @@ fn malformed_or_unreachable_upstreams_fail_without_guessing_another_remote() {
 
 #[test]
 fn rewritten_upstream_is_fetched_through_its_configured_force_mapping() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("sync-rewritten");
     let replacement = unique_temp_dir("sync-rewritten-replacement");
     git_init(&replacement);
@@ -530,7 +507,6 @@ fn rewritten_upstream_is_fetched_through_its_configured_force_mapping() {
 
 #[test]
 fn remote_failures_are_classified_without_serializing_secrets() {
-    let _guard = sync_test_guard();
     let auth = classify_remote_failure(
         "fatal: Authentication failed for 'https://alice:secret@example.test/repo.git?token=abc'",
     );
@@ -553,7 +529,6 @@ fn remote_failures_are_classified_without_serializing_secrets() {
 
 #[test]
 fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-success");
     write_file(&repo, "rename-source.txt", "rename me\n");
     write_file(&repo, "delete-me.txt", "delete me\n");
@@ -640,7 +615,6 @@ fn get_team_changes_reviews_and_applies_exact_fast_forward_with_recovery() {
 
 #[test]
 fn get_plan_blocks_up_to_date_and_ahead_and_plans_a_merge_for_diverged() {
-    let _guard = sync_test_guard();
     let (current_repo, current_remote, _) = published_repo_and_remote("get-current");
     let current_head = git_stdout(&test_git(&current_repo, &["rev-parse", "HEAD"]).unwrap());
     let current_error = plan_after_check(&current_repo, "current").unwrap_err();
@@ -706,7 +680,6 @@ fn get_plan_blocks_up_to_date_and_ahead_and_plans_a_merge_for_diverged() {
 
 #[test]
 fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collisions() {
-    let _guard = sync_test_guard();
     let (dirty_repo, dirty_remote, dirty_branch) = published_repo_and_remote("get-dirty");
     let dirty_other = clone_remote(&dirty_remote, "get-dirty-other");
     write_file(&dirty_other, "team.txt", "team\n");
@@ -791,7 +764,6 @@ fn get_plan_allows_proven_separate_tracked_and_ignored_content_but_blocks_collis
 
 #[test]
 fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git_operations() {
-    let _guard = sync_test_guard();
     let (staged_repo, staged_remote, staged_branch) = published_repo_and_remote("get-staged");
     let staged_other = clone_remote(&staged_remote, "get-staged-other");
     write_file(&staged_other, "team.txt", "team\n");
@@ -893,7 +865,6 @@ fn get_plan_allows_separate_staged_changes_and_blocks_ignored_collisions_and_git
 
 #[test]
 fn get_plan_blocks_a_prepared_change_to_an_incoming_source_or_destination() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-tracked-collision");
     let other = clone_remote(&remote, "get-tracked-collision-other");
     write_file(&other, "a.txt", "team edit\n");
@@ -947,7 +918,6 @@ fn get_plan_blocks_a_prepared_change_to_an_incoming_source_or_destination() {
 
 #[test]
 fn get_team_changes_preserves_separate_staged_unstaged_and_untracked_work() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-with-local-work");
     let other = clone_remote(&remote, "get-with-local-work-other");
     write_file(&other, "team.txt", "team\n");
@@ -1029,7 +999,6 @@ fn get_team_changes_preserves_separate_staged_unstaged_and_untracked_work() {
 
 #[test]
 fn get_team_changes_rejects_local_content_changed_after_preview_before_recovery() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-local-state-stale");
     let other = clone_remote(&remote, "get-local-state-stale-other");
     write_file(&other, "team.txt", "team\n");
@@ -1078,7 +1047,6 @@ fn get_team_changes_rejects_local_content_changed_after_preview_before_recovery(
 
 #[test]
 fn execution_rejects_a_remote_target_that_advanced_after_preview_without_local_mutation() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-stale");
     let other = clone_remote(&remote, "get-stale-other");
     write_file(&other, "one.txt", "one\n");
@@ -1128,7 +1096,6 @@ fn execution_rejects_a_remote_target_that_advanced_after_preview_without_local_m
 
 #[test]
 fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mutation() {
-    let _guard = sync_test_guard();
     let (upstream_repo, upstream_remote, upstream_branch) =
         published_repo_and_remote("get-upstream-change");
     let upstream_other = clone_remote(&upstream_remote, "get-upstream-change-other");
@@ -1239,7 +1206,6 @@ fn execution_rejects_changed_upstream_and_recovery_creation_lock_before_local_mu
 
 #[test]
 fn history_recovery_names_are_create_only_and_retention_survives_reacquisition() {
-    let _guard = sync_test_guard();
     let repo = unique_temp_dir("history-recovery-retention");
     git_init(&repo);
     git_commit_empty(&repo);
@@ -1374,7 +1340,6 @@ fn history_recovery_names_are_create_only_and_retention_survives_reacquisition()
 
 #[test]
 fn a_post_recovery_ref_lock_returns_uncertain_and_keeps_the_recovery() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-uncertain-lock");
     let other = clone_remote(&remote, "get-uncertain-lock-other");
     write_file(&other, "team.txt", "team\n");
@@ -1431,7 +1396,6 @@ fn a_post_recovery_ref_lock_returns_uncertain_and_keeps_the_recovery() {
 
 #[test]
 fn get_plan_caps_many_incoming_versions_without_losing_the_total() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-many");
     let other = clone_remote(&remote, "get-many-other");
     for index in 0..(MAX_INCOMING_VERSIONS + 5) {
@@ -1456,7 +1420,6 @@ fn get_plan_caps_many_incoming_versions_without_losing_the_total() {
 
 #[test]
 fn get_plan_caps_many_incoming_files_without_losing_categories_or_total() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-many-files");
     let other = clone_remote(&remote, "get-many-files-other");
     for index in 0..(MAX_INCOMING_FILES + 5) {
@@ -1524,7 +1487,6 @@ fn project_remotes_report_push_urls_and_hidden_credentials() {
 
 #[test]
 fn changing_a_remote_url_validates_names_and_addresses_before_writing() {
-    let _guard = sync_test_guard();
     let (repo, remote, _branch) = published_repo_and_remote("set-remote-url");
 
     let before = read_project_remotes(repo.clone()).unwrap();
@@ -1602,7 +1564,6 @@ fn recovery_ref_exists(repo: &str, reference: &str) -> bool {
 
 #[test]
 fn diverged_branches_without_overlap_are_combined_with_a_merge_version() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-merge");
     set_identity(&repo);
     let other = clone_remote(&remote, "get-merge-other");
@@ -1672,7 +1633,6 @@ fn diverged_branches_without_overlap_are_combined_with_a_merge_version() {
 
 #[test]
 fn diverged_branches_that_change_the_same_lines_are_refused_with_the_files() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-merge-overlap");
     set_identity(&repo);
     let other = clone_remote(&remote, "get-merge-overlap-other");
@@ -1718,7 +1678,6 @@ fn diverged_branches_that_change_the_same_lines_are_refused_with_the_files() {
 
 #[test]
 fn unsaved_edits_on_other_lines_of_an_incoming_file_stay_unsaved_on_top_of_it() {
-    let _guard = sync_test_guard();
     let (repo, remote, other, branch) = repo_with_lines("get-combine");
     write_file(&other, "lines.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nTEAM\n");
     git_add_all(&other);
@@ -1776,7 +1735,6 @@ fn unsaved_edits_on_other_lines_of_an_incoming_file_stay_unsaved_on_top_of_it() 
 
 #[test]
 fn unsaved_edits_to_the_same_lines_are_refused_and_left_untouched() {
-    let _guard = sync_test_guard();
     let (repo, remote, other, branch) = repo_with_lines("get-unsaved-overlap");
     write_file(&other, "lines.txt", "TEAM\nl2\nl3\nl4\nl5\nl6\nl7\nl8\n");
     git_add_all(&other);
@@ -1819,7 +1777,6 @@ fn unsaved_edits_to_the_same_lines_are_refused_and_left_untouched() {
 
 #[test]
 fn a_prepared_edit_to_an_incoming_file_blocks_even_on_other_lines() {
-    let _guard = sync_test_guard();
     let (repo, remote, other, branch) = repo_with_lines("get-prepared-overlap");
     write_file(&other, "lines.txt", "l1\nl2\nl3\nl4\nl5\nl6\nl7\nTEAM\n");
     git_add_all(&other);
@@ -1844,7 +1801,6 @@ fn a_prepared_edit_to_an_incoming_file_blocks_even_on_other_lines() {
 
 #[test]
 fn merge_hooks_can_stop_the_merge_version_before_anything_moves() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-merge-hook");
     set_identity(&repo);
     let other = clone_remote(&remote, "get-merge-hook-other");
@@ -1895,7 +1851,6 @@ fn merge_hooks_can_stop_the_merge_version_before_anything_moves() {
 
 #[test]
 fn a_split_index_still_lets_the_plan_prove_separate_unsaved_work_can_be_carried() {
-    let _guard = sync_test_guard();
     let (repo, remote, branch) = published_repo_and_remote("get-split-index");
     let other = clone_remote(&remote, "get-split-index-other");
     write_file(&other, "team.txt", "team\n");
@@ -1936,7 +1891,6 @@ fn a_split_index_still_lets_the_plan_prove_separate_unsaved_work_can_be_carried(
 
 #[test]
 fn remote_home_names_the_published_remote_and_never_reports_one_missing() {
-    let _guard = sync_test_guard();
     let (repo, remote, _branch) = published_repo_and_remote("remote-home");
     let leaf = std::path::Path::new(&remote)
         .file_name()

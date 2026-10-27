@@ -395,7 +395,7 @@ mod tests {
     use std::time::Instant;
 
     fn repository(label: &str) -> (PathBuf, RepositoryContext) {
-        let path = std::env::temp_dir().join(format!(
+        let path = crate::test_support::test_temp_root().join(format!(
             "gitodile-access-{label}-{}-{:?}",
             std::process::id(),
             thread::current().id()

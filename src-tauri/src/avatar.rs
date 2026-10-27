@@ -420,7 +420,7 @@ mod tests {
     }
 
     fn scratch() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
+        let dir = crate::test_support::test_temp_root().join(format!(
             "gitodile-avatar-{}-{:?}",
             std::process::id(),
             std::thread::current().id()

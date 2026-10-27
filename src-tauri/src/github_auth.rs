@@ -974,7 +974,7 @@ mod tests {
     fn fixture(scenario: &str) -> String {
         static BINARY: OnceLock<PathBuf> = OnceLock::new();
         let binary = BINARY.get_or_init(|| {
-            let directory = std::env::temp_dir().join(format!("gitodile-gh-fixture-{}", std::process::id()));
+            let directory = crate::test_support::test_temp_root().join(format!("gitodile-gh-fixture-{}", std::process::id()));
             fs::create_dir_all(&directory).unwrap();
             let source = directory.join("fake.rs");
             fs::write(&source, r#"

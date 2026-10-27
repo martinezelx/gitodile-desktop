@@ -1,10 +1,47 @@
 use crate::*;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// How long a run's fixture directory may outlive its process before a later
+/// run removes it. No test run lasts this long, so an older root is garbage.
+const STALE_TEST_RUN: Duration = Duration::from_secs(60 * 60);
+
+/// The directory every fixture of this test process lives under:
+/// `<temp>/gitodile-tests/<pid>-<start>`. libtest has no teardown hook, and a
+/// failing test skips its own cleanup, so instead each run sweeps the roots
+/// that earlier runs left behind. Fixtures never reach the shared temp
+/// directory itself, where they used to pile up by the hundred thousand.
+pub(crate) fn test_temp_root() -> &'static Path {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let parent = std::env::temp_dir().join("gitodile-tests");
+        if let Ok(entries) = fs::read_dir(&parent) {
+            for entry in entries.flatten() {
+                let stale = entry
+                    .metadata()
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+                    .and_then(|modified| modified.elapsed().ok())
+                    .is_some_and(|age| age > STALE_TEST_RUN);
+                if stale {
+                    let _ = fs::remove_dir_all(entry.path());
+                }
+            }
+        }
+        let started = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_millis())
+            .unwrap_or_default();
+        let root = parent.join(format!("{}-{started}", std::process::id()));
+        fs::create_dir_all(&root).expect("create the test run's temp root");
+        root
+    })
+}
 
 pub(crate) fn unique_temp_dir(label: &str) -> String {
-    let mut dir = std::env::temp_dir();
-    dir.push(format!("gitodile-test-{label}-{}", std::process::id()));
+    let dir = test_temp_root().join(label);
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).expect("create temp dir for test");
     dir.to_string_lossy().to_string()
@@ -84,11 +121,7 @@ pub(crate) fn current_branch(path: &str) -> String {
 /// A `GIT_CONFIG_GLOBAL` file with an identity set, so planner tests don't
 /// depend on (or risk reading) the real machine's global Git identity.
 pub(crate) fn write_test_identity_config(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-test-identity-{label}-{}.gitconfig",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("identity-{label}.gitconfig"));
     fs::write(
         &path,
         "[user]\n\tname = GitOdile Test\n\temail = test@gitodile.local\n",
@@ -101,11 +134,7 @@ pub(crate) fn write_test_identity_config(label: &str) -> String {
 /// finds no identity there and (with no local repo config set either)
 /// reports none configured, deterministically.
 pub(crate) fn empty_identity_override(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-test-no-identity-{label}-{}.gitconfig",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("no-identity-{label}.gitconfig"));
     let _ = fs::remove_file(&path);
     path.to_string_lossy().to_string()
 }
@@ -139,11 +168,7 @@ pub(crate) fn write_failing_hook(git_dir: &Path, name: &str) {
 /// untracked file in that repository's status.
 #[cfg(target_os = "windows")]
 pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-fake-gpg-{label}-{}.bat",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("fake-gpg-{label}.bat"));
     fs::write(
         &path,
         "@echo off\r\necho gpg failed to sign the data 1>&2\r\nexit /b 1\r\n",
@@ -155,11 +180,7 @@ pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
     use std::os::unix::fs::PermissionsExt;
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-fake-gpg-{label}-{}.sh",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("fake-gpg-{label}.sh"));
     fs::write(
         &path,
         "#!/bin/sh\necho 'gpg failed to sign the data' 1>&2\nexit 1\n",
