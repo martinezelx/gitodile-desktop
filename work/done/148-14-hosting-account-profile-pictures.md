@@ -54,7 +54,7 @@ What other clients do:
   the machine, with a clearable cache.
 - **Zed** uses GitHub's avatar CDN for blame authors
   (`avatars.githubusercontent.com/u/e?email=`), which costs no API quota. This
-  is relevant to [166](../blocked/166-author-profile-pictures-in-history.md),
+  is relevant to [166](../after-1.0/166-author-profile-pictures-in-history.md),
   not to this task.
 - What they share: an account's picture comes from the identity response the
   client already requests (`/user`), not from an extra call, and a local
@@ -103,7 +103,7 @@ What other clients do:
      When the user never uploaded a picture, GitLab returns a Gravatar URL.
      Ignore it, consistent with 166's "no third-party lookup" rule.
    - Bitbucket Cloud: `links.avatar.href` from `/2.0/user` (Atlassian's avatar
-     CDN). This needs [148-11](../active/148-11-bitbucket-token-connections.md).
+     CDN). This needs [148-11](../after-1.0/148-11-bitbucket-token-connections.md).
    - Azure Repos: `connectionData` carries no picture. Investigate the
      authenticated member-avatar endpoint. If it needs more than one bounded
      request with the existing PAT scope, ship Azure with the glyph and record
@@ -125,7 +125,7 @@ What other clients do:
 # Out of scope
 
 - Commit-author pictures in History
-  ([166](../blocked/166-author-profile-pictures-in-history.md)). It reuses this
+  ([166](../after-1.0/166-author-profile-pictures-in-history.md)). It reuses this
   module and cache later.
 - A real picture for the GitOdile profile, or choosing a hosting picture for it.
   To be decided when GitOdile sign-in is implemented.
@@ -179,7 +179,7 @@ What other clients do:
 
 # Dependencies
 
-- The Bitbucket part needs [148-11](../active/148-11-bitbucket-token-connections.md).
+- The Bitbucket part needs [148-11](../after-1.0/148-11-bitbucket-token-connections.md).
   GitHub, GitLab and Azure can ship first.
 
 # Decisions

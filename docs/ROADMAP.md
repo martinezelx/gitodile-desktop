@@ -2,7 +2,10 @@
 
 This roadmap defines the capability sequence and release gates for GitOdile.
 It is not a calendar promise. Approved implementation scope and acceptance
-criteria live under [`work/active/`](../work/active/).
+criteria live in one folder per planned version under [`work/`](../work/README.md):
+[`0.5.0`](../work/0.5.0/README.md), [`0.6.0`](../work/0.6.0/README.md),
+[`0.7.0`](../work/0.7.0/README.md), [`1.0.0`](../work/1.0.0/README.md) and
+[`after-1.0`](../work/after-1.0/README.md).
 
 ## Release objective
 
@@ -21,9 +24,13 @@ ordinary lifecycle of a project without falling back to the terminal:
 9. install, update, and run a verified build on Windows, macOS, and Linux.
 
 The local workflow remains provider-neutral and usable without an account.
-Native GitHub account login, forks, pull requests, issues, checks, worktrees,
-tags/releases, and advanced history rewriting are not part of the `1.0.0`
-contract.
+Hosting accounts shipped ahead of `1.0.0` (epic 148) but are not part of its
+contract. Pull requests, checks, forks, issues, worktrees, tags/releases, and
+advanced history rewriting are not part of the `1.0.0` contract either.
+
+`1.0.0` is the foundation for the agent-era direction in
+[`PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md#the-agent-era-direction); none of
+that direction's features are added before it ships.
 
 ## Current baseline
 
@@ -41,6 +48,8 @@ Already delivered:
   diffs without changing the project;
 - configure Git identity, line endings, themes, language, watching, and
   confirmations;
+- connect GitHub, GitLab, Bitbucket Cloud, Azure Repos and company-server
+  accounts, browse their repositories and scope project access to one account;
 - enforce typed IPC, repository/session authorization, bounded Git execution,
   mutation planning, invalidation, and architecture checks.
 
@@ -63,53 +72,30 @@ product specification.
 | Browse commit history and commit diffs | Delivered | Audit and harden |
 | Create, switch, publish, and delete branches | Mostly delivered | Audit; publish uses the existing remote flow |
 | Fetch, fast-forward pull, and push | Delivered | Audit and harden |
-| Merge a local branch or diverged upstream | Missing | Required: task 065-4 |
-| Resolve merge conflicts | Missing | Required: epic 037 |
-| Stash and restore unfinished work | Missing | Required: task 064 |
-| Undo/revert earlier work safely | Partial recovery plumbing only | Required: tasks 065-5 and 065-6 |
-| GitHub login, forks, pull requests, issues, checks | Missing | Deferred; provider-specific and not needed for the local core |
+| Merge a local branch or diverged upstream | Missing | Required: task 065-4 (`0.5.0`) |
+| Resolve merge conflicts | Missing | Required at GitHub Desktop level: epic 037 (`0.5.0`); three-pane editor after `1.0.0` (epic 206) |
+| Stash and restore unfinished work | Missing | Required: epic 064 (`0.6.0`) |
+| Undo/revert earlier work safely | Partial recovery plumbing only | Required: tasks 065-5 and 065-6 (`0.6.0`) |
+| Hosting-account sign-in | Delivered ahead of `1.0.0` | Not a gate; stays Free |
+| Pull requests and checks | Missing | After `1.0.0`: tasks 148-6 and 148-7 (`1.3`) |
+| Forks, issues | Missing | Deferred; provider-specific and not needed for the local core |
 | Rebase, force push, amend, cherry-pick, squash, reorder | Missing | Deferred; history rewriting is not needed for the first safe workflow |
 
-## Ordered path to `1.0.0`
+## Versions to `1.0.0`
 
-The release epic is [`065`](../work/active/release-1.0/065-release-1.0.md).
-The order below prioritizes the updater for public distribution, followed by
-the remaining product dependencies. Only one active implementation task should
-be worked at a time.
+The release epic is [`065`](../work/1.0.0/065-release-1.0.md). Each version
+folder holds its tasks and a README with its goal and exit condition. Inside a
+folder, `queue` is the ascending execution order and restarts at `01`; only
+the earliest unfinished version is worked, one task at a time. Task IDs remain
+permanent references and do not change when work moves between versions.
 
-`queue` is the simple ascending execution number. Task IDs remain permanent
-references and therefore do not change when priorities move.
-
-| Queue | Task | Outcome |
+| Version | Theme | Tasks in queue order |
 | --- | --- | --- |
-| Q01 | 037-1 | Establish conflict truth and recovery |
-| Q02 | 037-2 | Select the editor foundation |
-| Q03 | 037-3 | Add the read-only conflict workspace |
-| Q04 | 037-4 | Resolve text conflicts safely |
-| Q05 | 037-5 | Complete or abort a merge |
-| Q06 | 037-6 | Handle non-text and structural conflicts |
-| Q07 | 037-7 | Audit the conflict workflow |
-| Q08 | 065-4 | Integrate local branches and diverged project changes |
-| Q09 | 065-5 | Make recovery records visible/actionable |
-| Q10 | 065-6 | Undo or reverse a saved version |
-| Q11 | 064-1 | Discover and inspect saved sets |
-| Q12 | 064-2 | Set all or selected changes aside |
-| Q13 | 064-3 | Restore a saved set and keep its copy |
-| Q14 | 064-4 | Remove one saved set with recovery |
-| Q15 | 064-5 | Audit the set-aside workflow |
-| Q16 | 065-7 | Harden credential and remote diagnostics |
-| Q17 | 065-8 | Verify and distribute `1.0.0` |
-| Q18 | 065-9-13 | Record the remaining updater evidence and add OS signing |
-| Q19 | 065-10 | Qualify macOS updater delivery after `1.0.0` |
-| Q20 | 127 | Settle canonical colour themes |
-| Q21 | 130 | Add project identity icons |
-| Q22 | 131 | Replace the app icon with the mascot |
-
-The optional account sign-in prototype is complete in
-[task 140](../work/done/140-account-sign-in-screens-and-mock.md). It is a
-development-only visual mock; real account authentication remains proposed in
-[ADR 0016](adr/0016-sign-in-through-the-system-browser.md) and is not a gate for
-the account-free local core.
+| `0.4.1` | Close the current release | No open task; 148-14 shipped |
+| [`0.5.0`](../work/0.5.0/README.md) | Collaboration complete | 037-1, 037-3, 037-6, 037-5, 037-7, 065-4 |
+| [`0.6.0`](../work/0.6.0/README.md) | Safety visible and reusable | 065-5, 065-6, 064-1 … 064-5; 139 once unblocked |
+| [`0.7.0`](../work/0.7.0/README.md) | Release candidate | 065-7, 065-8, 065-9-13 |
+| [`1.0.0`](../work/1.0.0/README.md) | Ship | Epic 065 acceptance |
 
 ### Public distribution — delivered
 
@@ -119,11 +105,11 @@ the account-free local core.
   builds, merge-driven releases, public publishing and the release-notes
   automation are on `main` and proven by public releases, all on one update
   channel (ADR 0019). The evidence, production approval and OS-signing work still open
-  is [Q19 / 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
+  is [065-9-13](../work/0.7.0/065-9-13-updater-evidence-and-os-signing.md) in `0.7.0`.
 - This enables public distribution before the rest of the 1.0.0 feature set.
   New operations and drafts must integrate with install protection as they land.
-  Git credential diagnostics remain Q16 / 065-7; final product qualification
-  remains Q18 / 065-8. Completing this epic does not establish 1.0.0 readiness.
+  Git credential diagnostics remain 065-7; final product qualification
+  remains 065-8. Completing this epic does not establish 1.0.0 readiness.
   ADR 0011 defers Windows Authenticode and all macOS delivery until after
   `1.0.0`; the initial release matrix is Windows x86-64 plus Linux x86-64.
 
@@ -138,7 +124,7 @@ Exit condition met: the current feature set has repeatable end-to-end journeys
 and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
 065-8's release gate.
 
-### Gate 1 — Complete project entry and understanding
+### Gate 1 — Complete project entry and understanding (completed)
 
 - **065-2 (completed 2026-08-21): Clone a remote project safely.** URL/path validation, destination
    preview, progress/cancellation, partial-clone cleanup, credential errors,
@@ -153,13 +139,18 @@ and honest Windows desktop evidence. macOS/Linux runtime evidence remains task
 Exit condition: a first-time user can acquire or create a project, make and
 save a change, and verify the result in History.
 
-### Gate 2 — Complete collaboration and overlaps
+### Gate 2 — Complete collaboration and overlaps (`0.5.0`)
 
-- **Q01–Q07 / 037: Guided conflict resolution.** Deliver its child slices from conflict
-   truth/recovery through editing, completion/abort, accessibility, and audit.
-   It first supports an externally started merge so its safety model can be
-   proven independently.
-- **Q08 / 065-4: Integrate branches and diverged project changes.** Add previewed
+- **037: Resolve overlapping changes.** At GitHub Desktop level: understand
+   each overlap, keep one side per file or edit it in the user's editor, mark
+   it resolved or reset it, then finish or abort the merge with a plan, all on
+   a durable snapshot. It first supports an externally started merge (a
+   terminal, an editor, a coding agent) so its safety model can be proven
+   independently, and its first slice decides how overlaps GitOdile detects
+   itself become sessions. A paused rebase, cherry-pick, revert or stash apply
+   left by another tool is detected and explained read-only, never resolved.
+   The three-pane editor is epic 206 after `1.0.0` (decided 2026-10-27).
+- **065-4: Integrate branches and diverged project changes.** Add previewed
    local-branch merge. Clean, non-fast-forward team integration shipped in
    task 161 (ADR 0030); overlaps still enter task 037's established session
    contract.
@@ -167,51 +158,54 @@ save a change, and verify the result in History.
 Exit condition: both the clean and conflicting collaboration paths can finish
 without a terminal. Rebase and force push remain excluded.
 
-### Gate 3 — Make safety visible and reusable
+### Gate 3 — Make safety visible and reusable (`0.6.0`)
 
-- **Q09 / 065-5: Recovery center.** Inventory supported recovery records, explain
+- **065-5: Recovery center.** Inventory supported recovery records, explain
    retention/eligibility, and perform only state-token-safe restores.
-- **Q10 / 065-6: Restore a saved version.** From History, choose a reversible
+- **065-6: Restore a saved version.** From History, choose a reversible
    strategy: undo unpublished local work or create a new reverting version for
    shared work. Never hide history rewriting or use a destructive hard reset.
-- **Q11–Q15 / 064: Set changes aside.** Deliver the five epic children in order;
+- **064: Set changes aside.** Deliver the five epic children in order;
   discovery/create come first, then restore and
    removal after the conflict and recovery contracts they consume are stable.
+- **139: History and destructive console commands** become workable once the
+   Recovery Center (065-5) exists; the task stays blocked until then.
 
 Exit condition: destructive and history-changing product actions have a
 discoverable recovery lifecycle, and unfinished work can be moved aside and
 restored safely.
 
-### Gate 4 — Release candidate
+065-5 and 065-6 are also the foundation for the post-`1.0.0` safety net. They
+add no agent feature, but their models must not have to be rewritten for it;
+see [Design seeds in `1.0.0`](#design-seeds-in-100).
 
-- **Q16 / 065-7: Credential and remote diagnostics.** Verify system credential
+### Gate 4 — Release candidate (`0.7.0`)
+
+- **065-7: Credential and remote diagnostics.** Verify system credential
     helper behavior for clone/fetch/publish, classify common provider-neutral
-    failures, and give actionable remediation. Native provider login remains
-    post-`1.0.0`.
+    failures, and give actionable remediation.
 - **099 (completed 2026-09-01): Visual-system closure.** Audited every shipped screen, shell
     region, menu, popover, dialog, control family, and representative state
     against the settled radius and control-geometry system. Fix and guard all
     drift before the final platform matrix.
-- **Q17 / 134: Project Git console.** Ship the first keyboard-driven,
-   project-scoped screen for fixed read-only Git queries and custom shortcut
-   names. It uses the existing bounded Rust runner and does not replace the
-   guided workflows or expose a system shell; see [task 134](../work/done/134-project-git-console.md).
-- **Q25–Q26 / 138: Git commands in the console.** Typed Git commands, parsed
-   and classified in Rust into permission tiers
-   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)): read
-   commands, and local and remote changes that are previewed and, unless the
-   person turns that off, confirmed. The advanced mode that first gated changes
-   was removed by [ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md)
-   ([task 149](../work/done/149-single-console-mode.md)); see
-   [epic 138](../work/done/138-console-git-commands.md).
-   138-1 is independent. History and destructive commands moved to
-   [task 139](../work/blocked/139-console-history-and-destructive-commands.md),
-   blocked on the Recovery Center (065-5).
-- **Q18 / 065-8: Release hardening and distribution.** Run the complete workflow
+- **134 / 138 (completed): Project Git console.** A keyboard-driven,
+   project-scoped screen for Git queries and typed Git commands classified in
+   Rust into permission tiers
+   ([ADR 0017](adr/0017-console-git-commands-by-permission-tier.md)); changes
+   are previewed and, unless the person turns that off, confirmed
+   ([ADR 0028](adr/0028-console-runs-changes-without-a-read-only-mode.md),
+   [task 134](../work/done/134-project-git-console.md),
+   [epic 138](../work/done/138-console-git-commands.md),
+   [task 149](../work/done/149-single-console-mode.md)). History and
+   destructive commands are
+   [task 139](../work/0.6.0/139-console-history-and-destructive-commands.md).
+- **065-8: Release hardening and distribution.** Run the complete workflow
     matrix, accessibility and large-repository audits; validate real WebView
     behavior on all supported platforms; produce signed/notarized packages;
     qualify updates and reinstall recovery, versioning, release notes, and
     support docs.
+- **065-9-13: Updater evidence and OS signing.** Record the evidence the
+    updater epic still owes and add OS-level signing.
 
 Exit condition: all `1.0.0` acceptance criteria pass, there are no known
 data-loss defects, and every advertised platform has evidence from the actual
@@ -231,36 +225,50 @@ artifact being shipped.
 
 existing recovery records + 037 recovery contract
           └──────────────> 065-5 recovery center ──> 065-6
+                                     └──────────> 139 console history commands
 
-current baseline ──> 065-9-1 → 2 → 3 → 4 → 5 → 6 → 7 signed updates
-                                                        │
-all functional gates ──> 065-7 diagnostics ───────────────┤
-099 visual closure (complete) ───────────────────────────┤
-                                                        └─> 065-8 release candidate
+065-9 signed updates (complete) ──> 065-9-13 evidence and OS signing ──┐
+all functional gates ──> 065-7 diagnostics ─────────────────────────────┤
+099 visual closure (complete) ──────────────────────────────────────────┤
+                                                                        └─> 065-8 release candidate
 ```
 
 Task 064 discovery and create slices may be developed before task 037, but its
 restore-conflict path cannot be complete until task 037 owns `stashApply`.
 Task 065-8 is the only task allowed to make a release-readiness claim.
 
-## Version markers
+## Design seeds in `1.0.0`
 
-These markers describe maturity and may be combined into fewer public builds:
+The tasks below stay inside their `1.0.0` scope. They must only avoid
+assumptions that the post-`1.0.0` safety net would have to undo:
 
-- `0.2`: audited existing core loop;
-- `0.3`: clone/create/history complete;
-- `0.4`: clean and conflicting collaboration complete;
-- `0.5`: recovery center, saved-version restore, and set-aside complete;
-- `0.9`: feature freeze; diagnostics and release hardening only;
-- `1.0.0`: every release-epic gate satisfied on shipped artifacts.
-
-Version numbers advance only when their exit conditions are met. They are not
-deadlines.
+- **065-5 Recovery center.** A recovery record must not assume GitOdile created
+  it. The record model, inventory and restore path should accept a future
+  record whose origin is a change made outside GitOdile.
+- **065-6 Restore a saved version.** The restore planner should be able to take
+  a contiguous range of saved versions, not only one, even if the `1.0.0`
+  interface offers a single version.
+- **Repository watcher.** Invalidation should be able to tell a change
+  GitOdile made from one another tool made, so external activity can later be
+  recorded without rewriting the watcher.
 
 ## After `1.0.0`
 
-Post-`1.0.0` priorities are selected from [`work/backlog.md`](../work/backlog.md)
-using the product test in [`PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md). Likely
-themes are partial-file/line workflows, compare and advanced history actions,
-provider integrations, worktrees, repository health, and optional local or
-consented AI assistance.
+Post-`1.0.0` work follows the agent-era direction in
+[`PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md#the-agent-era-direction) and
+[ADR 0039](adr/0039-position-gitodile-for-humans-and-their-agents.md). Approved
+but unscheduled tasks wait in [`work/after-1.0/`](../work/after-1.0/README.md);
+ideas stay in [`work/backlog.md`](../work/backlog.md) until promoted.
+
+| Version | Theme | Scope |
+| --- | --- | --- |
+| `1.1` | Safety net | Automatic checkpoints, external-activity timeline, undo a whole session, warnings about dangerous operations made outside GitOdile |
+| `1.2` | Understand | Human/agent attribution, sessions grouping bursts of work, agent badges in History |
+| `1.3` | Publish with confidence | Pre-publish review with risk alerts, pull requests and checks (148-6, 148-7); candidate for the three-way conflict editor (epic 206) |
+| `1.4` | Parallel work | Worktrees as work in progress, compare attempts, adopt one and clean up the rest |
+| `2.x` | Work alongside agents | Local API or MCP for agents, optional consented AI summaries |
+
+Each theme is scoped into tasks only when its version starts. Other candidates
+from the backlog (partial-line saves, compare, advanced history actions,
+repository health, macOS delivery in 065-10) are scheduled against the same
+product test.

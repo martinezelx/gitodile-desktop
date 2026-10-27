@@ -131,7 +131,12 @@ Expected value includes the supported local core:
 - basic set-aside and restore workflow;
 - recovery and Undo required by supported Free operations;
 - core settings, diagnostics, languages, themes, and supported desktop
-  platforms.
+  platforms;
+- hosting-account sign-in, repository browsing and per-project account
+  scoping;
+- each project's pull-request and checks screen once it ships;
+- the post-`1.0.0` safety net and its critical pre-publish alerts, as
+  allocated in [Agent-era allocation](#agent-era-allocation).
 
 ### GitOdile Pro
 
@@ -162,9 +167,12 @@ Possible Pro value includes:
   squash, or reorder once each has a safe GitOdile interaction model;
 - linked worktrees presented through the product's parallel-work language;
 - advanced repository-health guidance;
-- provider/account integrations;
+- cross-project provider value: one inbox for every project's pull requests
+  and checks, in-app code review, and explanations of failed checks;
 - higher-productivity command and workflow features;
-- optional AI or coding-agent assistance, with its own privacy and cost model.
+- optional AI or coding-agent assistance, with its own privacy and cost model;
+- the agent-era capabilities allocated to Pro in
+  [Agent-era allocation](#agent-era-allocation).
 
 These examples are not a promise that every advanced Git command belongs in Pro
 or that matching competitors' feature counts is the monetization strategy.
@@ -214,6 +222,39 @@ Potential Enterprise value includes:
 
 Enterprise administration is not a `1.0.0` requirement and should not be built
 speculatively.
+
+## Agent-era allocation
+
+The post-`1.0.0` direction ([ADR 0039](adr/0039-position-gitodile-for-humans-and-their-agents.md))
+follows one rule: **Free protects you; Pro helps you understand and move fast
+at volume; Teams sets shared rules.**
+
+The safety net is Free even though the changes it protects against are made by
+another tool, not by GitOdile. The promise "See everything. Undo anything."
+must be true for a Free user, the recovery story is how the product spreads,
+and charging to recover lost work contradicts "monetize power and convenience,
+not fear". Checkpoints are local and cost GitOdile nothing per user, so Free
+does not cap how long they are kept beyond the user's own disk settings.
+
+| Theme | Free | Pro | Teams |
+| --- | --- | --- | --- |
+| Safety net | Automatic checkpoints, external-activity timeline, undo a whole session, dangerous-operation warnings | — | — |
+| Understand | Human/agent badges in History, external activity in the timeline | Sessions with summaries, filters by agent, compare sessions | Team view of agent activity without uploading repository contents |
+| Publish with confidence | Critical alerts before publishing: secrets, very large files, mass deletions | Full review flow: reviewed-file marks, checklist, extended risk alerts (CI, dependencies, migrations) | Shared rules such as "nothing is published without review" |
+| Pull requests and checks | Each project's PR and checks screen: list, create, details, diff, status, comments; re-run or cancel checks with confirmation | Inbox across every project, in-app code review (line comments, approve, request changes), failed-check explanations | Organization-level provider connections |
+| Parallel work | See existing worktrees (read-only) | Manage worktrees, compare attempts, adopt one and clean up the rest | — |
+| Working alongside agents | — | Local API or MCP for agents; AI summaries with the user's own key or a local model | Shared agent configuration |
+| Hosting accounts | Sign-in, repository browsing, per-project scoping | — | — |
+
+Publishing a secret cannot be undone, so the secret alert is safety and stays
+Free. Pull requests and checks are Free per project because GitHub Desktop
+offers them free and the desktop talks to the provider directly, with no
+GitOdile server cost; Pro earns its price from volume across projects.
+
+Optional AI does not become a per-user GitOdile cost at the current Pro price:
+it uses the user's own key or a local model. Included AI usage would be a
+separate add-on. Revisit the Pro price when the `1.1` safety net ships and the
+Pro value list above is real.
 
 ## Account and entitlement direction
 
@@ -388,8 +429,8 @@ pricing tier names in this document into architectural coupling.
   without making entitlements meaningless?
 - Does Teams need a minimum seat count?
 - Which shared team settings solve a real problem rather than add admin work?
-- Which provider integrations belong in Pro versus Teams?
-- Should optional AI use bring-your-own-key, included usage, metered credits,
-  or a separate add-on?
+- Which organization-level provider integrations belong in Teams beyond the
+  allocation above?
+- Does Pro stay at its working price once the agent-era Pro value ships?
 - At what demand and support threshold should Business / Enterprise become a
   real product rather than a pricing-page placeholder?

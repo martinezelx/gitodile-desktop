@@ -203,7 +203,7 @@ already supports radio semantics, keyboard moves and position announcements.
 - Changing provider credential storage, permissions, shared CLI sessions,
   native authentication workflows or Git configuration.
 - Implementing blocked provider features or the full credential diagnostics
-  workflow owned by [065-7](../active/release-1.0/065-7-credential-remote-diagnostics.md).
+  workflow owned by [065-7](../0.7.0/065-7-credential-remote-diagnostics.md).
 - New navigation destinations, rail width changes, a new theme system or
   a complete Settings rewrite.
 

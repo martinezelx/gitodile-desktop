@@ -18,7 +18,7 @@ queue:
 
 Add a closed set of read-only GitHub CLI (`gh`) and GitLab CLI (`glab`)
 shortcuts to the project console, as a child of
-[epic 148](../active/148-connect-github-account.md). People who connected a hosting
+[epic 148](../after-1.0/148-connect-github-account.md). People who connected a hosting
 account can see pull/merge requests, issues and CI runs for the open project
 without leaving GitOdile.
 

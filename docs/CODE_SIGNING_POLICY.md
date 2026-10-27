@@ -17,7 +17,7 @@ must still verify, and download guidance must warn that Windows may show
 SmartScreen or unknown-publisher prompts. Such packages must never be described
 as Authenticode-signed or OS-trusted.
 
-[Task 065-9-13](../work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
+[Task 065-9-13](../work/0.7.0/065-9-13-updater-evidence-and-os-signing.md)
 owns the provider choice and Authenticode qualification, now intended for every
 release through SignPath Foundation rather than only after `1.0.0` (task
 065-9-9 was folded into it on 2026-09-16). The provider must remain suitable

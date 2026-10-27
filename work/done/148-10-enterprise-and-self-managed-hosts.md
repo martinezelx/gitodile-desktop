@@ -16,7 +16,7 @@ queue:
 
 # Goal
 
-Extend [epic 148](../active/148-connect-github-account.md)'s shared accounts, HTTPS
+Extend [epic 148](../after-1.0/148-connect-github-account.md)'s shared accounts, HTTPS
 access and repository discovery from the fixed `github.com` and `gitlab.com`
 hosts to user-added corporate hosts: GitHub Enterprise Server and GitLab
 Self-Managed (including GitLab Dedicated, which behaves as a self-managed host).

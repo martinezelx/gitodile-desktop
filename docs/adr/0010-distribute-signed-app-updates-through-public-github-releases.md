@@ -119,7 +119,7 @@ Inspection on 2026-09-03 found:
 - At the start of planning the installed version was `0.1.0`; its separate alpha label was renamed to
   preview when the user settled the two-channel policy below. The local
   Changelog deliberately opens without a network request.
-- [Task 065-8](../../work/active/release-1.0/065-8-release-hardening.md)
+- [Task 065-8](../../work/0.7.0/065-8-release-hardening.md)
   previously owned the unspecified update strategy. There was no updater ADR.
 - [ADR 0006](0006-defer-macos-and-linux-runtime-validation.md) still requires
   real packaged-platform evidence. [ADR 0001](0001-adopt-a-progressive-hybrid-git-backend.md)

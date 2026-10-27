@@ -558,7 +558,7 @@ describe("App project restoration", () => {
     expect(screen.queryByRole("button", { name: "About" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "More actions" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "About GitOdile" }));
-    expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." })).toBeInTheDocument();
   });
 
   it("records both outcomes of an automatic check, and offers the review flow from the notification", async () => {

@@ -57,7 +57,7 @@ mutation at all, and 138-2 refuses every History and Destructive command.
 
 History and destructive commands, which need the recovery points of the
 Recovery Center (task 065-5), were planned as a third child and moved out on
-2026-09-29 to [task 139](../blocked/139-console-history-and-destructive-commands.md).
+2026-09-29 to [task 139](../0.6.0/139-console-history-and-destructive-commands.md).
 This epic closes without them.
 
 # Out of scope
@@ -94,8 +94,8 @@ This epic closes without them.
 
 Closed on 2026-09-29 with both children done. ADR 0017 was accepted as
 implemented, with section 5 and the History and Destructive tiers left to
-[task 139](../blocked/139-console-history-and-destructive-commands.md). The
+[task 139](../0.6.0/139-console-history-and-destructive-commands.md). The
 release qualification of the console modes on every platform is not run here:
 it is part of the console criterion of
-[epic 065](../active/release-1.0/065-release-1.0.md), which task 065-8
+[epic 065](../1.0.0/065-release-1.0.md), which task 065-8
 qualifies; the last criterion above is closed by handing it there.

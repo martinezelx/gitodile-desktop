@@ -468,8 +468,8 @@ const en: AppTranslations = {
       ? "1 project from your last session couldn't be reopened."
       : `${count} projects from your last session couldn't be reopened.`,
   aboutGitOdile: "About GitOdile",
-  aboutHeading: "Git without the fear.",
-  aboutDescription: "Version control in clear, worry-free steps.",
+  aboutHeading: "See everything. Undo anything.",
+  aboutDescription: "The Git client for humans and their agents.",
   aboutLicense: "GNU AGPL v3.0 only",
   aboutViewLicense: "View license",
   aboutViewSource: "View source code",
@@ -721,8 +721,8 @@ const es: AppTranslations = {
       ? "1 proyecto de tu última sesión no se pudo volver a abrir."
       : `${count} proyectos de tu última sesión no se pudieron volver a abrir.`,
   aboutGitOdile: "Acerca de GitOdile",
-  aboutHeading: "Git sin miedo.",
-  aboutDescription: "El control de versiones, en pasos claros y sin sustos.",
+  aboutHeading: "Todo a la vista. Todo reversible.",
+  aboutDescription: "El cliente de Git para personas y sus agentes.",
   aboutLicense: "Solo GNU AGPL v3.0",
   aboutViewLicense: "Ver licencia",
   aboutViewSource: "Ver código fuente",

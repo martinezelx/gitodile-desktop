@@ -116,5 +116,5 @@ Closed on 2026-09-16 when the updater epic was wound down: the code,
 pipeline and contracts this task describes are on `main` and were
 exercised by the public previews `0.2.0-preview.10` to `.12`. The
 criteria left unchecked above are not claimed; the publisher-evidence criteria (immutable assets, retries, anonymous downloads, qualification-gated promotion, `check:publication` before a real publication)
-moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+moved to [065-9-13](../0.7.0/065-9-13-updater-evidence-and-os-signing.md),
 which owns everything the updater still has to prove.

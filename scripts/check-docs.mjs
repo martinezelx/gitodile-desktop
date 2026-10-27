@@ -52,24 +52,45 @@ for (const file of markdownFiles) {
 
 const taskIds = new Map();
 const taskRecords = [];
-for (const area of ["active", "blocked", "done"]) {
-  const directory = path.join(root, "work", area);
-  if (!fs.existsSync(directory)) continue;
+const workRoot = path.join(root, "work");
+const versionFolder = /^\d+\.\d+\.\d+$/;
+const laterFolder = "after-1.0";
+const allowedStatuses = (area) =>
+  area === "done" ? ["done"] : area === laterFolder ? ["planned", "blocked"] : ["active", "blocked"];
+const taskAreas = fs
+  .readdirSync(workRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && (versionFolder.test(entry.name) || entry.name === laterFolder || entry.name === "done"))
+  .map((entry) => entry.name);
+for (const legacy of ["active", "blocked"]) {
+  if (fs.existsSync(path.join(workRoot, legacy))) {
+    errors.push(`work/${legacy}/ is retired; pending tasks live in version folders or work/${laterFolder}/`);
+  }
+}
+for (const area of taskAreas) {
+  const directory = path.join(workRoot, area);
+  if (area !== "done" && !fs.existsSync(path.join(directory, "README.md"))) {
+    errors.push(`work/${area}/ needs a README.md stating its goal and exit condition`);
+  }
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isDirectory()) errors.push(`work/${area}/${entry.name}/ nests tasks; keep each folder flat`);
+  }
   for (const file of collectMarkdownFiles(directory)) {
+    if (path.basename(file) === "README.md") continue;
     const source = fs.readFileSync(file, "utf8");
     const metadata = readFrontmatter(source);
     if (!metadata) {
       errors.push(`${relative(file)} has no task frontmatter`);
       continue;
     }
-    if (metadata.status !== area) {
-      errors.push(`${relative(file)} has status ${metadata.status || "<missing>"}; expected ${area}`);
+    const statuses = allowedStatuses(area);
+    if (!statuses.includes(metadata.status)) {
+      errors.push(`${relative(file)} has status ${metadata.status || "<missing>"}; expected ${statuses.join(" or ")}`);
     }
     if (area === "done" && !/^\d{4}-\d{2}-\d{2}$/.test(metadata.completed ?? "")) {
       errors.push(`${relative(file)} is done but has no valid completed date`);
     }
     if (area !== "done" && metadata.completed) {
-      errors.push(`${relative(file)} is ${area} but already has completed: ${metadata.completed}`);
+      errors.push(`${relative(file)} is ${metadata.status} but already has completed: ${metadata.completed}`);
     }
     if (metadata.id) {
       if (reservedTaskIds.has(metadata.id)) {
@@ -86,22 +107,23 @@ for (const area of ["active", "blocked", "done"]) {
   }
 }
 
-const activeQueues = new Map();
+// Each version folder owns one contiguous queue of its active leaf tasks.
+const versionQueues = new Map();
 for (const record of taskRecords) {
   const { area, file, metadata } = record;
+  const active = metadata.status === "active";
   if (metadata.parent) {
     const parent = taskIds.get(metadata.parent);
     if (!parent) {
       errors.push(`${file} has missing parent task ${metadata.parent}`);
-    } else if (
-      area === "active" &&
-      parent.metadata.type === "epic" &&
-      !metadata.id.startsWith(`${metadata.parent}-`)
-    ) {
+    } else if (active && parent.metadata.type === "epic" && !metadata.id.startsWith(`${metadata.parent}-`)) {
       errors.push(`${file} is an active epic child but id ${metadata.id} does not use prefix ${metadata.parent}-`);
     }
   }
-  if (area !== "active") continue;
+  if (!active) {
+    if (area !== "done" && metadata.queue) errors.push(`${file} is ${metadata.status} and must not hold a queue position`);
+    continue;
+  }
   if (metadata.type === "epic") {
     if (metadata.queue) errors.push(`${file} is an epic and must leave queueing to its children`);
     continue;
@@ -110,20 +132,24 @@ for (const record of taskRecords) {
     errors.push(`${file} must have a two-digit active queue value`);
     continue;
   }
-  const previous = activeQueues.get(metadata.queue);
-  if (previous) errors.push(`${file} duplicates active queue ${metadata.queue} from ${previous}`);
-  else activeQueues.set(metadata.queue, file);
+  const queues = versionQueues.get(area) ?? new Map();
+  versionQueues.set(area, queues);
+  const previous = queues.get(metadata.queue);
+  if (previous) errors.push(`${file} duplicates queue ${metadata.queue} in work/${area}/ from ${previous}`);
+  else queues.set(metadata.queue, file);
 }
 
-const orderedQueues = [...activeQueues.keys()].map(Number).sort((a, b) => a - b);
-for (const [index, queue] of orderedQueues.entries()) {
-  const expected = index + 1;
-  if (queue !== expected) {
-    errors.push(
-      `active queue is not contiguous: expected ${String(expected).padStart(2, "0")}, ` +
-        `found ${String(queue).padStart(2, "0")}`,
-    );
-    break;
+for (const [area, queues] of versionQueues) {
+  const ordered = [...queues.keys()].map(Number).sort((a, b) => a - b);
+  for (const [index, queue] of ordered.entries()) {
+    const expected = index + 1;
+    if (queue !== expected) {
+      errors.push(
+        `work/${area}/ queue is not contiguous: expected ${String(expected).padStart(2, "0")}, ` +
+          `found ${String(queue).padStart(2, "0")}`,
+      );
+      break;
+    }
   }
 }
 

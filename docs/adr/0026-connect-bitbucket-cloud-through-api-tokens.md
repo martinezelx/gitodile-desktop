@@ -5,7 +5,7 @@
 
 ## Context
 
-Task [148-11](../../work/active/148-11-bitbucket-token-connections.md) adds
+Task [148-11](../../work/after-1.0/148-11-bitbucket-token-connections.md) adds
 Bitbucket Cloud (`bitbucket.org`) beside GitHub and GitLab. The shared account
 registry, project bindings and Git helper of
 [ADR 0022](0022-share-provider-accounts-and-scope-git-access.md), the native
@@ -19,7 +19,7 @@ already exist. Bitbucket differs from both providers in ways that matter here:
   scopes and always expire.
 - There is no official CLI comparable to gh or glab, so there is no browser
   session to reuse. A GitOdile OAuth consumer or Git Credential Manager would be
-  a separate authorization design ([148-8](../../work/blocked/148-8-bitbucket-accounts.md)).
+  a separate authorization design ([148-8](../../work/after-1.0/148-8-bitbucket-accounts.md)).
 - The cross-workspace endpoints (`GET /2.0/repositories`,
   `/2.0/user/permissions/*`, `GET /2.0/workspaces`) were retired on 2026-04-14.
 - Identities are UUIDs; usernames and display names can change, and the

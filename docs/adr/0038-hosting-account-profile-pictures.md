@@ -90,7 +90,7 @@ emails leave the machine.
 - Authors in History and Branches never show a picture, so there is nothing
   to keep consistent between two accounts on one host or a project without a
   connected account.
-  [Task 166](../../work/blocked/166-author-profile-pictures-in-history.md) stays
+  [Task 166](../../work/after-1.0/166-author-profile-pictures-in-history.md) stays
   deferred against this decision.
 
 ## Alternatives considered

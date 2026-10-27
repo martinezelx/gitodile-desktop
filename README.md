@@ -1,7 +1,8 @@
 # GitOdile
 
-> **Git without the fear.** A friendly desktop Git client built around user
-> intent, clear consequences, and safe recovery paths.
+> **See everything. Undo anything.** The Git client for humans and their
+> agents, built around user intent, clear consequences, and safe recovery
+> paths.
 
 GitOdile is a pre-release, local-first Git client for Windows, macOS, and
 Linux. It is designed for learners, AI-assisted builders, designers, writers,
@@ -194,7 +195,7 @@ until after `1.0.0`; see
 [ADR 0011](docs/adr/0011-defer-windows-authenticode-and-macos-delivery-until-after-1.0.md).
 The dependency-ordered `1.0.0` plan is in the
 [`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
-[`work/active/`](work/active/) and the completed core-workflow evidence in
+[`work/`](work/README.md) version folders and the completed core-workflow evidence in
 [`task 065-1`](work/done/065-1-core-workflow-audit.md), clone evidence in
 [`task 065-2`](work/done/065-2-clone-remote-project.md), and local-creation
 evidence in [`task 065-3`](work/done/065-3-create-local-project.md).
@@ -218,7 +219,7 @@ authorize a release. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
 [ADR 0019](docs/adr/0019-publish-updates-through-one-channel.md)
 and [task 065-9](work/done/065-9-signed-application-updates.md); the evidence and OS-signing work still
-open is tracked by [task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
+open is tracked by [task 065-9-13](work/0.7.0/065-9-13-updater-evidence-and-os-signing.md).
 The native updater lifecycle and its visual controls are implemented in
 Settings → Updates. The current release matrix enables only Windows x86-64
 per-user NSIS and Linux x86-64 AppImage candidates. Releases currently publish
@@ -261,7 +262,7 @@ Release tags are protected, candidate builds originate from reviewed GitHub
 Actions runs, and published packages must retain their checksums and Tauri
 updater-signature evidence. Windows packages through `1.0.0` intentionally lack
 publicly trusted Authenticode and may trigger SmartScreen or unknown-publisher
-warnings. [Task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
+warnings. [Task 065-9-13](work/0.7.0/065-9-13-updater-evidence-and-os-signing.md)
 owns OS-level signing (SignPath Foundation is the intended
 provider) and the remaining qualification evidence. No external
 signing-service application has been submitted yet.

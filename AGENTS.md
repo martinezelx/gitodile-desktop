@@ -26,9 +26,15 @@ The UI should explain what will happen and preserve a recovery path whenever rea
 
 Working name: **GitOdile**
 
-Working promise: **Git without the fear.**
+Slogan (in the app): **See everything. Undo anything.**
 
-Alternative description: **A friendly Git desktop client.**
+Descriptor (website and store listings): **The Git client for humans and their agents.**
+
+Direction: a next-generation Git client that is the control tower and safety
+net of a project, whether a person or a coding agent did the work. `1.0.0`
+reaches the ordinary workflow first; agent-era features come after it. See
+"The agent-era direction" in `docs/PRODUCT_STRATEGY.md` and
+[ADR 0039](docs/adr/0039-position-gitodile-for-humans-and-their-agents.md).
 
 The crocodile mascot should feel confident and friendly, not childish. Branding may use small moments of personality, but the product must remain credible for professional work.
 
@@ -265,7 +271,8 @@ Keep durable facts in one place and link to them instead of copying them:
 - `DESIGN.md`: visual, interaction, content, and accessibility direction.
 - `docs/ARCHITECTURE.md`: current architecture and extension rules.
 - `docs/adr/`: decision rationale and alternatives.
-- `work/`: approved scope and execution history, never the sole home of a
+- `work/`: approved scope and execution history, organized as one folder per
+  planned version, `after-1.0/` and a flat `done/`; never the sole home of a
   durable architecture rule.
 
 `PRODUCT.md` is a compact design-tooling brief; do not expand it into a second
@@ -275,9 +282,9 @@ evidence or measurement baselines and must identify themselves as such.
 When moving a task, keep its relative links valid. Task IDs are unique and
 permanent; a child may use its parent's ID plus a suffix such as `010-1`.
 IDs identify work and do not encode current priority. Active non-epic tasks use
-the contiguous `queue` field for execution order; epics leave queueing to their
-suffixed children. Files in `work/done/` require `status: done` and a completion
-date.
+the `queue` field, contiguous inside their version folder, for execution order;
+epics leave queueing to their suffixed children. Files in `work/done/` require
+`status: done` and a completion date. See `work/README.md`.
 
 ## Agent workflow
 
