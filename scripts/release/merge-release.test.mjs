@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -17,6 +16,7 @@ import {
 import { NOTES_PLACEHOLDER, parseCommandLine, prepareRelease } from "./release-prepare.mjs";
 import { applyHighlightsBlock, renderHighlightsBlock, scaffoldHighlights } from "./highlights.mjs";
 import { ReleaseValidationError } from "./release-candidate.mjs";
+import { tempDir } from "./test-temp.mjs";
 
 function git(root, ...args) {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true });
@@ -42,7 +42,7 @@ function writeVersion(root, version, notes = null, highlights = scaffoldHighligh
 }
 
 function repository(baseline = "0.2.5") {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-merge-release-"));
+  const parent = tempDir("gitodile-merge-release-");
   const bare = path.join(parent, "origin.git");
   const root = path.join(parent, "work");
   git(parent, "init", "--bare", bare);
