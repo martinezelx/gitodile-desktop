@@ -591,6 +591,9 @@ describe("production style composition", () => {
     expect(diffCode).toContain("line-height: var(--leading-code)");
     expect(seed?.[1]).toBe(step("--text-label"));
     expect(seed?.[2]).toBe(tokens.match(/--leading-code:\s*([\d.]+)/)?.[1]);
+    // The lines are inside a `<code>`, whose browser default is the generic
+    // `monospace`: the chosen font has to be inherited past it explicitly.
+    expect(ruleBody("features/changes/changes.css", ".diff-code > code")).toContain("font-family: inherit");
 
     const offenders: string[] = [];
     for (const importPath of EXPECTED_IMPORTS) {

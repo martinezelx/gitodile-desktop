@@ -1,9 +1,9 @@
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { translations } from "../../i18n";
-import { DiffResultView, lineColumns, widestRowColumns } from "./DiffResultView";
+import { DiffResultView, lineColumns, measureCharWidth, widestRowColumns } from "./DiffResultView";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import { DiffPreferencesProvider, DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "./diffPreferences";
 import type { DiffHunk, FileDiff, ImagePreview, ImagePreviewSide } from "./domain";
@@ -173,6 +173,104 @@ describe("DiffResultView reading preferences", () => {
     // pane for a file the list says has changed reads as a bug.
     expect(screen.getByRole("heading", { name: "Only spacing changed" })).toBeInTheDocument();
     expect(document.querySelector(".diff-code")).toBeNull();
+  });
+});
+
+describe("character width", () => {
+  const originalRect = Element.prototype.getBoundingClientRect;
+
+  afterEach(() => {
+    Element.prototype.getBoundingClientRect = originalRect;
+    Reflect.deleteProperty(document, "fonts");
+  });
+
+  it("does not keep a width measured while the font is still the fallback", () => {
+    let loaded = false;
+    let probeWidth = 800;
+    Object.defineProperty(document, "fonts", { configurable: true, value: { check: () => loaded } });
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      return { ...originalRect.call(this), width: probeWidth };
+    };
+    const element = document.createElement("pre");
+    // Its own font name, so no other test's cached width can answer for it.
+    const font = '12px "Width Test Mono"';
+
+    // `font-display: swap` is painting the fallback: measure it, keep nothing.
+    expect(measureCharWidth(element, font, "normal")).toBe(8);
+
+    // The face arrives under the same name, and the width that counts is its own.
+    loaded = true;
+    probeWidth = 1000;
+    expect(measureCharWidth(element, font, "normal")).toBe(10);
+
+    // From then on it is cached.
+    probeWidth = 1200;
+    expect(measureCharWidth(element, font, "normal")).toBe(10);
+  });
+});
+
+describe("wrapped row heights", () => {
+  const LINE_HEIGHT = 12 * 1.6;
+  const longLine = "x".repeat(300);
+  const originalRect = Element.prototype.getBoundingClientRect;
+  const originalResizeObserver = globalThis.ResizeObserver;
+
+  afterEach(() => {
+    Element.prototype.getBoundingClientRect = originalRect;
+    globalThis.ResizeObserver = originalResizeObserver;
+  });
+
+  it("keeps a measured row's height when a resize leaves it unchanged but moves its estimate", () => {
+    // Every resize observer the diff creates, so the test can report a new
+    // width to the one watching the scroller — jsdom never fires them itself.
+    const observers: Array<{ callback: ResizeObserverCallback; targets: Element[] }> = [];
+    globalThis.ResizeObserver = class implements ResizeObserver {
+      private readonly record: { callback: ResizeObserverCallback; targets: Element[] };
+      constructor(callback: ResizeObserverCallback) {
+        this.record = { callback, targets: [] };
+        observers.push(this.record);
+      }
+      observe(target: Element): void {
+        this.record.targets.push(target);
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+    };
+    // The long line really takes four rows, at either width: only its
+    // estimate moves with the wrap point.
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const rect = originalRect.call(this);
+      const index = this instanceof HTMLElement && this.classList.contains("diff-row") ? this.dataset.index : undefined;
+      if (index === undefined) return rect;
+      return { ...rect, height: (index === "0" ? 4 : 1) * LINE_HEIGHT };
+    };
+
+    renderDiff({}, undefined, textDiff([{
+      header: "@@ -1,0 +1,2 @@",
+      oldStart: 1,
+      oldLines: 0,
+      newStart: 1,
+      newLines: 2,
+      lines: [
+        { kind: "addition", content: longLine, oldLineNumber: null, newLineNumber: 1 },
+        { kind: "addition", content: "short", oldLineNumber: null, newLineNumber: 2 },
+      ],
+    }]));
+    const rowStart = (index: number): string =>
+      document.querySelector<HTMLElement>(`.diff-row[data-index="${index}"]`)?.style.transform ?? "";
+    expect(rowStart(1)).toBe(`translateY(${4 * LINE_HEIGHT}px)`);
+
+    // Wide enough that the estimate drops to two rows.
+    const element = scroller();
+    const charWidth = originalRect.call(element).width / 100;
+    Object.defineProperty(element, "clientWidth", { configurable: true, value: 80 + 150 * charWidth });
+    const scrollerObserver = observers.find((observer) => observer.targets.includes(element));
+    act(() => {
+      scrollerObserver?.callback([], {} as ResizeObserver);
+    });
+
+    // Placing it at the estimate overlapped the next row by two lines.
+    expect(rowStart(1)).toBe(`translateY(${4 * LINE_HEIGHT}px)`);
   });
 });
 

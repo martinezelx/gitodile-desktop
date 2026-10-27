@@ -891,6 +891,11 @@
   font-family: var(--diff-code-font, "Atkinson Hyperlegible Mono", var(--font-mono));
   user-select: text;
 }
+/* The lines sit in a `<code>`, which the browser's own stylesheet sets to its
+   generic `monospace`. Without this the preference above reached the probe
+   that measures a character, but never the text: every choice drew the
+   system's fallback font. */
+.diff-code > code { font-family: inherit; }
 .diff-code--accessible {
   padding: var(--space-3) var(--space-4); overflow: auto; white-space: pre;
   color: var(--text-primary-color);

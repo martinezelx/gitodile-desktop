@@ -354,11 +354,28 @@ const DIFF_CONTENT_GUTTER = 80;
  * keep in sync), and it goes through the same layout path that will actually
  * wrap the lines. Sampled over many characters so sub-pixel advances don't
  * round away. Cached because a resize would otherwise force a layout on
- * every frame of a drag. */
+ * every frame of a drag.
+ *
+ * Only once the font has loaded, though. The key is the font as CSS names it,
+ * which is the same string while `font-display: swap` is still painting the
+ * fallback, so a width cached then was the fallback's for the rest of the
+ * session — no later re-measure could replace it. */
 const SAMPLE_TEXT = "0".repeat(100);
 const charWidthByFont = new Map<string, number>();
 
-function measureCharWidth(element: HTMLElement, fontKey: string): number {
+/** Whether every face `font` names has finished loading. `document.fonts` is
+ * absent in some test environments, and a shorthand it cannot parse throws;
+ * either way there is nothing to wait for. */
+function isFontLoaded(font: string): boolean {
+  try {
+    return document.fonts?.check(font) ?? true;
+  } catch {
+    return true;
+  }
+}
+
+export function measureCharWidth(element: HTMLElement, font: string, letterSpacing: string): number {
+  const fontKey = `${font} ${letterSpacing}`;
   const cached = charWidthByFont.get(fontKey);
   if (cached !== undefined) {
     return cached;
@@ -369,7 +386,7 @@ function measureCharWidth(element: HTMLElement, fontKey: string): number {
   element.appendChild(probe);
   const width = probe.getBoundingClientRect().width / SAMPLE_TEXT.length;
   probe.remove();
-  if (width > 0) {
+  if (width > 0 && isFontLoaded(font)) {
     charWidthByFont.set(fontKey, width);
   }
   return width;
@@ -422,28 +439,61 @@ const DIFF_SPLIT_CONTENT_GUTTER = 125;
 /** How many visual rows a pre-wrapped diff line is likely to occupy before
  * the browser can measure it. This deliberately models tabs and Unicode
  * display columns instead of using UTF-16 `string.length`; the live DOM
- * measurement remains authoritative because font fallback can still vary. */
+ * measurement remains authoritative because font fallback can still vary.
+ *
+ * It also wraps where the browser does. `pre-wrap` breaks after a space and
+ * lets the spaces hang past the edge, and `overflow-wrap: anywhere` splits a
+ * word only when it cannot fit on a row of its own. Filling every row to the
+ * last column instead ignored the gap a word leaves when it moves down, which
+ * on a long line of imports added up to a whole row the estimate never
+ * counted. A wide glyph is a break opportunity of its own, as CJK text is. */
 export function estimateLineRows(content: string, charsPerLine: number, tabSize = 8): number {
   if (charsPerLine <= 0) {
     return 1;
   }
   let rows = 1;
   let column = 0;
-  for (const symbol of content) {
-    const width = symbol === "\t"
-      ? Math.max(1, tabSize - (column % tabSize))
-      : codePointColumns(symbol);
-    if (width === 0) continue;
-    if (column > 0 && column + width > charsPerLine) {
+  // Reused rather than reallocated per word: this runs for every row of the
+  // file on each re-estimate.
+  const word: number[] = [];
+  let wordColumns = 0;
+  const placeWord = (): void => {
+    if (wordColumns === 0) return;
+    if (column > 0 && column + wordColumns > charsPerLine) {
       rows += 1;
       column = 0;
     }
-    column += width;
-    while (column > charsPerLine) {
-      rows += 1;
-      column -= charsPerLine;
+    if (column + wordColumns <= charsPerLine) {
+      column += wordColumns;
+    } else {
+      // Longer than a whole row: only now does it break inside the word.
+      for (const width of word) {
+        if (column > 0 && column + width > charsPerLine) {
+          rows += 1;
+          column = 0;
+        }
+        column += width;
+      }
     }
+    word.length = 0;
+    wordColumns = 0;
+  };
+  for (const symbol of content) {
+    if (symbol === " " || symbol === "\t") {
+      placeWord();
+      // Hangs at the end of a row rather than wrapping, so it only pushes
+      // the next word down.
+      column += symbol === "\t" ? Math.max(1, tabSize - (column % tabSize)) : 1;
+      continue;
+    }
+    const width = codePointColumns(symbol);
+    if (width === 0) continue;
+    if (width > 1) placeWord();
+    word.push(width);
+    wordColumns += width;
+    if (width > 1) placeWord();
   }
+  placeWord();
   return rows;
 }
 
@@ -689,7 +739,7 @@ function DiffHunkList({
     }
     const readMetrics = (): void => {
       const style = window.getComputedStyle(element);
-      const charWidth = measureCharWidth(element, `${style.font} ${style.letterSpacing}`);
+      const charWidth = measureCharWidth(element, style.font, style.letterSpacing);
       const parsedLineHeight = Number.parseFloat(style.lineHeight);
       const parsedTabSize = Number.parseFloat(style.tabSize);
       const contentWidth = element.clientWidth - DIFF_CONTENT_GUTTER;
@@ -725,17 +775,22 @@ function DiffHunkList({
        `font-display: swap` paints the fallback until it arrives. The swap
        changes character width without resizing anything, so the measurement
        taken above can be the fallback's. Re-measure once the font set has
-       settled. `document.fonts` is absent in some test environments, so its
-       absence has to be survivable rather than assumed away. */
+       settled, and again whenever a face finishes loading: `ready` can settle
+       before the face is even requested, since the request only starts once
+       the diff's text is laid out in it. `document.fonts` is absent in some
+       test environments, so its absence has to be survivable rather than
+       assumed away. */
     let isCurrent = true;
     void document.fonts?.ready.then(() => {
       if (isCurrent) {
         readMetrics();
       }
     });
+    document.fonts?.addEventListener("loadingdone", readMetrics);
     return () => {
       isCurrent = false;
       observer.disconnect();
+      document.fonts?.removeEventListener("loadingdone", readMetrics);
     };
     // `tabWidth` and `codeFont` are read back off the computed style rather
     // than used directly, so they have to re-run this — changing either
@@ -787,6 +842,17 @@ function DiffHunkList({
     // which is why the marker rows kept a 32px estimate against a 39.25px
     // chip no matter how many times they were measured. Handing the mounted
     // rows back is what makes measurement stick.
+    //
+    // Only once the positions are rebuilt, though. `measure()` leaves them
+    // holding the old sizes until something reads them, and `resizeItem`
+    // compares each new measurement against those positions: a row whose
+    // height survived the resize compared equal, was never written back, and
+    // the rebuild that followed placed it at its estimate — a long wrapped
+    // line estimated a row short overlapped the next one until it scrolled
+    // out. Reading the measurements first puts the estimates there, so every
+    // row that differs from its estimate is recorded. `getTotalSize` is the
+    // public read that rebuilds them; `getMeasurements` itself is private.
+    virtualizer.getTotalSize();
     const mounted = scrollRef.current?.querySelectorAll<HTMLElement>(".diff-row[data-index]");
     mounted?.forEach((element) => virtualizer.measureElement(element));
   }, [metrics.charsPerLine, metrics.splitCharsPerLine, metrics.lineHeight, metrics.tabSize, viewMode, markerRowHeight]);

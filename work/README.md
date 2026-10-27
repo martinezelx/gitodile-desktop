@@ -45,7 +45,11 @@ and 038 predate that convention, so their already-permanent child IDs remain
 
 Reserved IDs without their own task file are still burned: `062` was folded
 into task 057 and `196` into task 195 by explicit request. The next unused
-top-level ID after the current plan is `204`.
+top-level ID after the current plan is `206`.
+
+Overlapping wrapped diff lines and the code font the diff never drew in are
+fixed in [205](done/205-diff-row-overlap-and-code-font.md), completed ahead of
+the queue at the user's request.
 
 Its follow-up, [203](done/203-settings-navigation-and-organization-refinement.md),
 refines Navigation, adds Language & region, folds Line endings into Git, groups

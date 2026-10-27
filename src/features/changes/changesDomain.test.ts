@@ -473,6 +473,34 @@ describe("estimateLineRows", () => {
     expect(estimateLineRows("🙂🙂🙂", 4)).toBe(2);
     expect(estimateLineRows("e\u0301e\u0301", 2)).toBe(1);
   });
+
+  it("moves a word that does not fit down whole, as pre-wrap does", () => {
+    // Filling each row to the last column fits this in three rows; the
+    // browser puts one word on each and needs four.
+    expect(estimateLineRows("aaaaa bbbbb ccccc ddddd", 9)).toBe(4);
+  });
+
+  it("lets the space before a wrap hang instead of starting a row with it", () => {
+    expect(estimateLineRows("aaaa bbbb", 4)).toBe(2);
+    expect(estimateLineRows("aaaa ", 4)).toBe(1);
+  });
+
+  it("breaks inside a word only once it is longer than a whole row", () => {
+    // `ab` stays put, the long word moves down, and only then is it split.
+    expect(estimateLineRows(`ab ${"x".repeat(10)}`, 8)).toBe(3);
+  });
+
+  it("counts the row a long line of imports leaves at its wrapped ends", () => {
+    const imports =
+      "import { AutomaticUpdatesNotice, AuthorAvatar, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, " +
+      "DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, " +
+      "LoadingPlaceholder, LocalOnlyIcon, onDocumentPress, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, " +
+      "TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from \"../../shared/ui\";";
+    // 449 columns at 150 per row would be three full rows; the browser
+    // measured four.
+    expect(imports.length).toBe(449);
+    expect(estimateLineRows(imports, 150)).toBe(4);
+  });
 });
 
 describe("measureDiffRowHeight", () => {
