@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
@@ -20,6 +19,7 @@ import {
   verifyArtifactShape,
   verifyEvidenceArtifacts,
 } from "./release-evidence.mjs";
+import { tempDir } from "./test-temp.mjs";
 
 function git(root, ...args) {
   const result = spawnSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true });
@@ -43,7 +43,7 @@ function writeMetadata(root, version, overrides = {}) {
 }
 
 function repository(version = "0.3.0", overrides = {}) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-release-test-"));
+  const root = tempDir("gitodile-release-test-");
   git(root, "init", "-b", "main");
   git(root, "config", "user.email", "release-test@example.invalid");
   git(root, "config", "user.name", "Release Test");
@@ -209,7 +209,7 @@ test("evidence rejects source archives and non-package output", () => {
 });
 
 test("Windows trust evidence rejects self-signed or unpinned Authenticode identities", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitodile-windows-trust-"));
+  const root = tempDir("gitodile-windows-trust-");
   const identity = path.join(root, "identity.json");
   const output = path.join(root, "trust.json");
   const validationOutput = path.join(root, "validation-trust.json");
@@ -489,6 +489,16 @@ test("workflows expose no branch publication path and pin external actions", () 
     job.strategy?.matrix?.include?.map((entry) => entry.runner) ?? [job["runs-on"]]));
   for (const runner of runners) assert.doesNotMatch(runner, /-latest$/, `${runner} is a moving runner image`);
   assert.deepEqual(ci.parsed.jobs["desktop-release-compile"].strategy.matrix.include.map(({ platform }) => platform), ["linux", "windows"]);
+  // Ordinary pull requests may skip the macOS Rust checks and the release
+  // compile, but those jobs still report under their required names, and
+  // a push to main or a release pull request always runs them in full.
+  for (const name of ["rust", "desktop-release-compile"]) {
+    const [scope, ...work] = ci.parsed.jobs[name].steps;
+    assert.equal(scope.id, "scope", `${name} decides its scope first`);
+    assert.match(scope.run, /\[ "\$EVENT" != pull_request \] \|\| \[\[ "\$HEAD_REF" == release\/\* \]\]; then\s+full=true/);
+    for (const step of work) assert.match(step.if, /^steps\.scope\.outputs\.full == 'true'/, `${name} gates every step`);
+  }
+  assert.equal(ci.parsed.jobs.rust.steps[0].env.ALWAYS, "${{ matrix.platform != 'macos' }}");
   assert.equal(ci.parsed.concurrency["cancel-in-progress"], "${{ github.event_name == 'pull_request' }}",
     "a push to main must never cancel the checks the coordinator waits for");
   for (const [name, job] of Object.entries(ci.parsed.jobs)) {
