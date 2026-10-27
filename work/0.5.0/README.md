@@ -22,7 +22,6 @@ The three-pane conflict editor is not part of this version; it is epic
 | 04 | [037-5](037-5-complete-or-abort-merge.md) | Finish or abort a merge |
 | 05 | [037-7](037-7-conflict-workflow-audit.md) | Audit the conflict workflow |
 | 06 | [065-4](065-4-integrate-branches.md) | Integrate local branches and diverged project changes |
-
 Epic: [037 resolve overlapping changes](037-guided-conflict-resolution.md).
 
 ## Exit condition
