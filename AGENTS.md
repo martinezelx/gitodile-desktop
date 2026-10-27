@@ -256,10 +256,61 @@ In summary:
 - Rust code must pass `cargo fmt` and `cargo clippy`.
 - Avoid `any` unless interacting with an untyped boundary and document why.
 - Return structured errors from Rust; do not expose raw command output as the primary error message.
-- Add unit tests for parsers and operation planners.
-- Add integration tests around temporary Git repositories.
 - Keep commits focused and use conventional commit prefixes where practical.
 - Update documentation when behavior, architecture, or vocabulary changes.
+
+## Tests
+
+A test exists to catch a regression a user would notice. These rules apply to
+every test you add or change; review rejects one that breaks them. They came
+out of task 207, when 1,759 frontend and 646 Rust tests made the gate slow and
+flaky.
+
+When to add a test:
+
+- Add one for a behavior: a Git safety rule (data, history, remote, recovery),
+  a parser or operation planner, a contract across a boundary (IPC,
+  architecture, screen registration), or a fixed bug whose cause could return.
+- Do not add one that only pins copy, CSS classes, DOM order or layout; check
+  those in the running app or the browser harness. A class assertion belongs
+  in a test only when the class is how the UI exposes a state (selected,
+  unread, animating).
+- Extend the existing test of the same behavior, or turn it into `it.each`,
+  before writing a new one. When a behavior changes or goes away, change or
+  delete its tests in the same commit.
+
+Where it goes — the cheapest level that proves the behavior:
+
+1. A pure function in the owning domain or controller (`*.test.ts`).
+2. A component with its port mocked (`*.test.tsx`).
+3. `src/app/App.test.tsx`, only for what the composition root owns: wiring
+   between screens, keep-alive, project activation and the shared stores.
+   Feature behavior belongs in the feature's own tests.
+4. In Rust, parsers and planners are unit tests with no Git process. A
+   temporary repository is for behavior that only Git itself can show
+   (`src-tauri/src/tests/<domain>_tests.rs` or the owning module).
+
+How to write it:
+
+- A `.ts` test runs in Node. Add `// @vitest-environment jsdom` only when it
+  needs the DOM or `localStorage`.
+- Paste long text (`user.click`, then `user.paste`); type it only when each key
+  is the behavior under test. Wait for asynchronous results with `findBy*` or
+  `waitFor`; never raise a timeout to cover a slow test.
+- Rust fixtures come from `src-tauri/src/test_support.rs`: `unique_temp_dir`
+  (inside the test run's own temp root), `published_repo_and_remote`, and
+  `git_commit_series` for a run of versions. A Git process costs about 50 ms
+  on Windows, so spawn as few as the behavior needs. Never write fixtures to
+  the shared temp directory, take a process-wide lock, `sleep` while waiting
+  for a result, or compile code while a test runs.
+- New tests under `scripts/` use `node:test`; `check:docs` runs them.
+
+Budgets: a new or changed frontend test that takes over 1 s, or a Rust test
+over 5 s when run alone, carries a comment saying why it cannot be cheaper.
+
+While iterating, run only the affected tests (`pnpm vitest run <path>`,
+`cargo test --manifest-path src-tauri/Cargo.toml <module>`); `pnpm run check`
+remains the completion gate.
 
 ## Documentation ownership
 
@@ -300,7 +351,7 @@ While coding:
 
 1. Make the smallest coherent change.
 2. Preserve safety boundaries.
-3. Add or update tests.
+3. Add or update tests as [Tests](#tests) describes.
 4. Check keyboard accessibility and empty/error/loading states.
 5. Avoid introducing dependencies for trivial utilities.
 

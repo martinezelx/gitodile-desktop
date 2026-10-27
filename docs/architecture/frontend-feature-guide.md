@@ -87,7 +87,8 @@ screens already preload their own container and additional chunks.
 
 ## 6. Prove the contract
 
-At minimum add tests for:
+Write them under the [test rules](../../AGENTS.md#tests). At minimum add tests
+for:
 
 - duplicate/incomplete registration;
 - one loader shared by lazy mount and primary preload;

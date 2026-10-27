@@ -158,23 +158,11 @@ rejects `.github/` and `scripts/release/` changes on a release branch):
   the merge tree equals the tested head, and whether macOS Rust checks can run
   only on release pull requests and `main`.
 
-## Draft rule for `AGENTS.md`
+## Test rule
 
-- A test protects a behavior: a safety rule (data, history, remote), a parser
-  or planner, a contract (IPC, architecture), or a bug that has regressed
-  before. Copy, CSS and layout are validated in the running app or the
-  browser harness, not pinned by tests.
-- Choose the cheapest level: pure function, then component with a mocked port,
-  then `App.test.tsx`, which is only for wiring between screens.
-- Extend an existing test of the same behavior (`it.each`) before adding a new
-  one. Changing or removing a behavior removes its tests in the same commit.
-- Rust: parsers and planners without `git` processes; a temporary repository
-  only when Git behavior cannot be proven otherwise; no global mutexes, no
-  `sleep`, no `rustc` at run time; temporary directories always clean up.
-- Budgets: no frontend test over 1 s and no Rust test over 5 s on Linux unless
-  the test says why.
-- While iterating run only the affected tests; the aggregate gate runs before
-  the commit.
+The draft rule from the analysis became the
+[`Tests` section of `AGENTS.md`](../../AGENTS.md#tests) in phase 2, reworded
+with what phases 0 and 1 measured.
 
 # Out of scope
 
@@ -204,7 +192,7 @@ rejects `.github/` and `scripts/release/` changes on a release branch):
 - [x] No safety assertion (data loss, history, remote, recovery) is lost; each
       removed frontend test is listed with its reason in the implementation
       notes.
-- [ ] `AGENTS.md` contains the test rule and the linked docs reference it.
+- [x] `AGENTS.md` contains the test rule and the linked docs reference it.
 - [ ] CI changes land in their own pull request to `main`, with the required
       checks list kept consistent.
 - [ ] `pnpm run check` passes.
@@ -340,6 +328,18 @@ Follow-up, outside this task's scope: the application spawns several Git
 processes where one would do (four `rev-parse` calls to discover a
 repository, a `check-ref-format` per name). Batching them would make both the
 Rust suite and the app itself faster on Windows.
+
+## Phase 2 (2026-10-27)
+
+- `AGENTS.md` gains a `Tests` section: when a test is warranted, the cheapest
+  level that proves the behavior, how frontend and Rust tests are written
+  (environments, pasting long text, `test_support` fixtures, no shared temp
+  directory, locks, sleeps or run-time compilation), time budgets for new or
+  changed tests, and running only affected tests while iterating. The two
+  test bullets under "Development conventions" moved into it, and step 3 of
+  "While coding" links to it.
+- `CONTRIBUTING.md` and `docs/architecture/frontend-feature-guide.md` §6 link
+  to the rule instead of restating it.
 
 # Validation
 
