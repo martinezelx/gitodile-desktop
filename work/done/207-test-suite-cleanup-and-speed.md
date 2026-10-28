@@ -1,7 +1,7 @@
 ---
 id: 207
 title: Make the test suites fast, stable and governed by a test rule
-status: active
+status: done
 priority: high
 type: chore
 areas:
@@ -10,9 +10,9 @@ areas:
   - ci
   - docs
 created: 2026-10-27
-completed:
+completed: 2026-10-28
 parent:
-queue: "01"
+queue:
 ---
 
 # Goal
@@ -510,6 +510,25 @@ Stability with the app running (2026-10-27, after phase 3): three
 consecutive `pnpm run test` runs with `tauri dev` open passed 1,753 tests
 each with no timeouts, in 54, 55 and 56 s.
 
-Still open after the acceptance criteria: CI timing for these changes can
-only be measured on the `release/0.4.1` pull request, which does not exist
-yet; record it there before closing this task.
+CI after these changes, on the `release/0.4.1` pull request
+([#68](https://github.com/martinezelx/gitodile-desktop/pull/68), run
+40709908325) and its push to `main` (run 40711401674), against release 0.4.0:
+
+| Job | 0.4.0 release PR | 0.4.1 release PR | 0.4.0 push to main | 0.4.1 push to main |
+| --- | --- | --- | --- | --- |
+| Frontend checks | 3 m 16 s | 1 m 59 s | 3 m 15 s | 2 m 35 s |
+| Rust checks (linux) | 5 m 32 s | 3 m 26 s | 3 m 53 s | 4 m 3 s |
+| Rust checks (windows) | 4 m 38 s | 7 m 38 s | 13 m 9 s | 7 m 46 s |
+| Rust checks (macos) | 4 m 45 s | 3 m 37 s | 8 m 41 s | 5 m 4 s |
+| Desktop release compile (linux) | 15 m 13 s | 4 m 35 s | 28 m 49 s | 5 m 10 s |
+| Desktop release compile (windows) | 6 m 19 s | 5 m 2 s | 10 m 47 s | 8 m 15 s |
+| Whole run | 15 m 19 s | 7 m 46 s | 28 m 54 s | 8 m 22 s |
+
+- Both release runs now take about 8 minutes, bounded by Windows Rust
+  checks. Windows runner times vary widely between runs (4 m 38 s to 13 m 9 s
+  for the same 0.4.0 code), so the Windows row shows no measurable gain.
+- The release compile no longer dominates; its 0.4.0 times were mostly cold
+  caches.
+- The first 0.4.1 pull request run (40707223450) failed in the Linux and
+  Windows Rust checks; `bc208d2` made the fake CLIs and long-path fixtures
+  stable in CI before the passing run above.
