@@ -975,14 +975,7 @@ mod tests {
         static DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
         let directory = DIRECTORY
             .get_or_init(|| PathBuf::from(crate::test_support::unique_temp_dir("fake-gh")));
-        // The fake reads its scenario from its own file name.
-        let executable = directory.join(format!("{scenario}{}", std::env::consts::EXE_SUFFIX));
-        fs::copy(
-            crate::test_support::example_binary("test_fake_gh"),
-            &executable,
-        )
-        .unwrap();
-        executable.to_string_lossy().into_owned()
+        crate::test_support::scenario_program(directory, "test_fake_gh", scenario)
     }
 
     #[test]

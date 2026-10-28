@@ -582,14 +582,11 @@ mod tests {
         }
     }
     fn fixture(scenario: &str) -> String {
-        use std::{fs, path::PathBuf, sync::OnceLock};
+        use std::{path::PathBuf, sync::OnceLock};
         static DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
         let directory = DIRECTORY
             .get_or_init(|| PathBuf::from(crate::test_support::unique_temp_dir("fake-glab")));
-        // The fake reads its scenario from its own file name.
-        let path = directory.join(format!("{scenario}{}", std::env::consts::EXE_SUFFIX));
-        fs::copy(crate::test_support::example_binary("test_fake_glab"), &path).unwrap();
-        path.to_string_lossy().into_owned()
+        crate::test_support::scenario_program(directory, "test_fake_glab", scenario)
     }
     fn identity(secret: &Secret, _: &CancellationToken) -> Result<hosting_access::User, AuthState> {
         assert_eq!(secret.bytes(), b"fixture-oauth-only-123456");

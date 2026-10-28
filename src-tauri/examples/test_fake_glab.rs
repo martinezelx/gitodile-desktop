@@ -1,11 +1,11 @@
 //! A stand-in for the `glab` CLI, used only by `gitlab_auth`'s tests.
 //! Cargo builds it next to the test binaries, so no test compiles a fake
-//! executable while it runs. The
-//! copy's file name picks the scenario.
+//! executable while it runs. The name it is run under (`argv[0]`, not
+//! the symlink-resolved `current_exe`) picks the scenario.
 
 use std::{env, fs, thread, time::Duration};
 fn main() {
-    let exe = env::current_exe().unwrap();
+    let exe = std::path::PathBuf::from(env::args_os().next().unwrap());
     let scenario = exe.file_stem().unwrap().to_string_lossy();
     // `cargo test --all-targets` runs every example under its build name;
     // a test always runs a copy named after its scenario.

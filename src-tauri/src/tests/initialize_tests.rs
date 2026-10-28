@@ -518,11 +518,12 @@ fn remote_connection_is_separately_planned_redacted_and_preserves_config() {
 #[test]
 fn long_local_paths_and_custom_unborn_branch_are_supported_within_platform_limits() {
     let root = unique_temp_dir("initialize-long-path");
-    let level_one = Path::new(&root).join("a".repeat(48));
-    let level_two = level_one.join("b".repeat(48));
+    // Long, yet inside the 240-unit Windows budget below CI's longer temp root.
+    let level_one = Path::new(&root).join("a".repeat(40));
+    let level_two = level_one.join("b".repeat(40));
     fs::create_dir_all(&level_two).unwrap();
     let parent = level_two.to_string_lossy().into_owned();
-    let name = "c".repeat(48);
+    let name = "c".repeat(40);
     let plan = plan_initialize_project(
         InitializeTargetKind::NewFolder,
         parent.clone(),

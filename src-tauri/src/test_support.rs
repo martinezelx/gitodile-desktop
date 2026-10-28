@@ -406,3 +406,17 @@ pub(crate) fn example_binary(name: &str) -> PathBuf {
         )
     })
 }
+
+/// A scenario of a fake CLI: `<directory>/<scenario>`, which the fake reads
+/// back from its `argv[0]`. On Unix it is a symlink, because a copy is open for
+/// writing while other tests fork, and a child that inherits that descriptor
+/// until it execs makes running the copy fail with "text file busy".
+pub(crate) fn scenario_program(directory: &Path, example: &str, scenario: &str) -> String {
+    let path = directory.join(format!("{scenario}{}", std::env::consts::EXE_SUFFIX));
+    let _ = fs::remove_file(&path);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(example_binary(example), &path).expect("link the fake CLI");
+    #[cfg(not(unix))]
+    fs::copy(example_binary(example), &path).expect("copy the fake CLI");
+    path.to_string_lossy().into_owned()
+}
