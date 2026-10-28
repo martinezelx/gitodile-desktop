@@ -13,6 +13,7 @@ import {
   Info,
   Languages,
   LoaderCircle,
+  Monitor,
   PanelLeft,
   Palette,
   RotateCcw,
@@ -24,7 +25,7 @@ import {
   WrapText,
 } from "lucide-react";
 
-import { LANGUAGE_NAMES, useLanguage, type Language, type LanguagePreference } from "../../i18n";
+import { LANGUAGE_NAMES, LANGUAGE_SPECIMENS, useLanguage, type LanguagePreference } from "../../i18n";
 import {
   DATE_FORMATS,
   FORMAT_SAMPLE_DATE,
@@ -517,8 +518,15 @@ export function SettingsPanel({
   onRegisterCloseGuard?: (guard: (() => boolean) | null) => void;
   port?: SettingsPort;
 }): React.JSX.Element {
-  const { t, languagePreference, setLanguagePreference, formats, setDateFormat, setNumberFormat } =
-    useLanguage();
+  const {
+    t,
+    languagePreference,
+    setLanguagePreference,
+    systemLanguage,
+    formats,
+    setDateFormat,
+    setNumberFormat,
+  } = useLanguage();
   const { notice: gitActionNotice, clear: clearGitActionNotice, begin: beginGitActionNotice } = useToolNotice();
   const notificationEventsTitleId = useId();
   const [nameInput, setNameInput] = useState(identity.identity.name);
@@ -1457,25 +1465,44 @@ export function SettingsPanel({
                 <p>{t.settingsLanguageDescription}</p>
               </header>
               <div className="settings-group__body">
+                {/* Cards like the formats below rather than a segmented
+                    control: each language is judged by how the app reads in
+                    it, so the card shows the product's own words. "System"
+                    shows the language it resolves to now. */}
                 <div
-                  className="segmented-control"
+                  className="format-picker language-picker"
                   role="radiogroup"
                   aria-label={t.languageAriaLabel}
                   onKeyDown={moveFocusWithinRadioGroup}
                 >
-                  {LANGUAGE_ORDER.map((option, index) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={languagePreference === option}
-                      tabIndex={isRadioTabStop(languagePreference === option, true, index) ? 0 : -1}
-                      className={`segmented-control__option${languagePreference === option ? " segmented-control__option--active" : ""}`}
-                      onClick={() => setLanguagePreference(option)}
-                    >
-                      {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option as Language]}
-                    </button>
-                  ))}
+                  {LANGUAGE_ORDER.map((option, index) => {
+                    const isActive = languagePreference === option;
+                    const shown = option === "system" ? systemLanguage : option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        tabIndex={isRadioTabStop(isActive, true, index) ? 0 : -1}
+                        className={`format-picker__option${isActive ? " format-picker__option--active" : ""}`}
+                        onClick={() => setLanguagePreference(option)}
+                      >
+                        {isActive && <SelectionCheck />}
+                        <span className="language-picker__name">
+                          <span className="language-picker__mark" aria-hidden="true">
+                            {option === "system" ? <Monitor /> : option.toUpperCase()}
+                          </span>
+                          <span className="format-picker__name">
+                            {option === "system" ? t.commonSystem : LANGUAGE_NAMES[option]}
+                          </span>
+                        </span>
+                        <span className="language-picker__sample" aria-hidden="true">
+                          {option === "system" ? LANGUAGE_NAMES[shown] : LANGUAGE_SPECIMENS[shown]}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </section>

@@ -6,6 +6,7 @@ import { initialLanguage, LanguageProvider, loadTranslations } from "./i18n";
 import { App } from "./app/App";
 import { repairEagerlyStoredDefaults } from "./app/preferences";
 import { SwitchMeasurementRoot, WindowErrorBoundary } from "./app/screens";
+import { startLanguageFade } from "./app/themeTransition";
 import "./styles/fonts.css";
 
 // Repair known defaults before the first render reads any preference.
@@ -19,7 +20,7 @@ function renderApp(rootElement: HTMLElement): void {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <SwitchMeasurementRoot>
-        <LanguageProvider>
+        <LanguageProvider animateLanguageChange={startLanguageFade}>
           <WindowErrorBoundary>
             <App />
           </WindowErrorBoundary>

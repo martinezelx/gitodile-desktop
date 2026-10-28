@@ -13,6 +13,9 @@ import { isReducedMotionRequested } from "../shared/ui";
  * that geometry to get wrong, and "system" — which Settings offers and which has
  * no direction to come from — was always going to need it anyway.
  *
+ * A language change takes the same fade: every label in the window changes at
+ * once, and without it the new words snap in over a single frame.
+ *
  * The document element carries `data-theme-transition` for the duration; the
  * choreography lives in `styles/theme-transition.css`. */
 
@@ -52,8 +55,19 @@ function prefersInstantChange(): boolean {
 
 /** Whole-window cross-fade of the incoming theme. */
 export function startThemeFade(applyPreference: () => void): void {
+  startWindowFade(applyPreference, true);
+}
+
+/** Whole-window cross-fade of the incoming language. The titlebar glyph says
+ * nothing about the language, so it dissolves with the window instead of
+ * turning over. */
+export function startLanguageFade(applyLanguage: () => void): void {
+  startWindowFade(applyLanguage, false);
+}
+
+function startWindowFade(applyChange: () => void, turnGlyph: boolean): void {
   if (prefersInstantChange()) {
-    applyPreference();
+    applyChange();
     return;
   }
   const root = document.documentElement;
@@ -63,12 +77,12 @@ export function startThemeFade(applyPreference: () => void): void {
   root.dataset.themeTransition = "fade";
   // A modal open now means the glyph is behind its blurred backdrop; leave it
   // out of the named layers so it cannot composite over the dialog.
-  if (hasOpenModal()) root.dataset.themeTransitionGlyph = "off";
+  if (!turnGlyph || hasOpenModal()) root.dataset.themeTransitionGlyph = "off";
 
   // `flushSync` so React's own part of the change (the toggle swapping its
-  // sun/moon glyph) lands in the captured new state instead of committing
-  // afterwards and popping into place.
-  const transition = document.startViewTransition(() => flushSync(applyPreference));
+  // sun/moon glyph, or every label in the window) lands in the captured new
+  // state instead of committing afterwards and popping into place.
+  const transition = document.startViewTransition(() => flushSync(applyChange));
   activeTransition = transition;
 
   const finish = (): void => {

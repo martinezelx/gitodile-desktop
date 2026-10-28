@@ -226,6 +226,19 @@
   color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
+/* The format cards, three across, each led by a round mark: the language's
+   code, or the monitor for "system". The sample is a short phrase rather than
+   a figure, so it wraps instead of ending in an ellipsis. */
+.language-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.language-picker__name { display: flex; align-items: center; gap: var(--space-2); }
+.language-picker__mark {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-wide);
+}
+.language-picker__mark svg { width: 12px; height: 12px; }
+.language-picker__sample { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 /* One stacked card per choice: each option is a sentence about what happens to
    files, which a segmented control has nowhere to put. */
 /* Provenance is context, not an alert: it reads as a caption under the list,
@@ -531,7 +544,7 @@
   .settings-nav__alert { margin-left: 2px; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
-  .format-picker { grid-template-columns: 1fr; }
+  .format-picker, .language-picker { grid-template-columns: 1fr; }
   .project-icons-picker { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .remote-check-cadence { width: 100%; }

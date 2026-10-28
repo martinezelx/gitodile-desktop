@@ -2105,7 +2105,7 @@ miniature and the name beneath it; the official cards carry an "Official" tag
 right after the name — a word, not a mark, because any check-like glyph on all
 three cards would read as all three being chosen. The community grid sits under
 a visible "More themes" title. Every picker card in Settings (themes, project
-icons, date and number formats, code fonts, the navigation appearance) shares
+icons, languages, date and number formats, code fonts, the navigation appearance) shares
 one selected state: a quiet fill, the secondary-ink border and a filled check
 in the card's top corner, clear of the specimen being judged.
 
@@ -2399,6 +2399,14 @@ Rules:
   caused by one control should look like it came from there; it was withdrawn,
   because a curve that paces a position does not pace a radius, and "system" —
   which Settings offers — has no origin to sweep from anyway;
+- a language change takes the same window cross-fade, so every label changes
+  together instead of the new words snapping in over one frame. The fade starts
+  once the incoming dictionary is loaded, never covers the load, and is skipped
+  when "System" resolves to the language already shown. Settings offers each
+  language as a picker card: a round mark with its code (the monitor for
+  "System"), its own name, and a line of the product's words in that language;
+  "System" shows the language it resolves to. No flags: a flag names a
+  country, not a language, and Windows draws flag emoji as two letters;
 - avoid large spring animations in work surfaces;
 - respect `prefers-reduced-motion`;
 - Appearance settings offers an app-specific **Reduce motion** switch, off by

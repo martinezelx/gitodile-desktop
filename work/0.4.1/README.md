@@ -16,4 +16,5 @@ the suites stay in proportion.
 
 Task 207 meets its acceptance criteria and `pnpm run check` passes; 0.5.0
 starts from the faster gate. Performance polish for this release is complete
-in [209](../done/209-startup-diff-and-refresh-performance.md).
+in [209](../done/209-startup-diff-and-refresh-performance.md), and the language
+change fade and picker cards in [210](../done/210-language-change-fade-and-picker-cards.md).

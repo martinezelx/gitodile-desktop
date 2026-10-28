@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { startThemeFade, stopActiveThemeTransition } from "./themeTransition";
+import { startLanguageFade, startThemeFade, stopActiveThemeTransition } from "./themeTransition";
 
 /** Stand-in for the real API: jsdom has no view transitions, so the tests drive
  * the capture callback and the `finished` promise by hand. */
@@ -123,6 +123,17 @@ describe("theme transitions", () => {
     startThemeFade(glyphAtCapture);
 
     expect(glyphAtCapture).toHaveReturnedWith(undefined);
+  });
+
+  // The sun/moon glyph has nothing to say about a language, so a language
+  // change dissolves it with the window instead of turning it over.
+  it("leaves the titlebar glyph unnamed for a language change", () => {
+    stubViewTransitions();
+    const glyphAtCapture = vi.fn(() => root.dataset.themeTransitionGlyph);
+
+    startLanguageFade(glyphAtCapture);
+
+    expect(glyphAtCapture).toHaveReturnedWith("off");
   });
 
   it("leaves no origin geometry on the root", () => {

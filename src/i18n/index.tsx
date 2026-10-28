@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
 import type { en as englishDictionary } from "./en";
 import {
@@ -29,6 +29,15 @@ const NUMBER_FORMAT_STORAGE_KEY = "gitodile-number-format";
 export const LANGUAGE_NAMES: Record<Language, string> = {
   en: "English",
   es: "Español",
+};
+
+/* What each language card in Settings shows under its name: the product's own
+   words in that language, so a reader judges the language by how GitOdile
+   reads in it. Outside the dictionaries for the same reason as the names, and
+   because only the active dictionary is loaded. */
+export const LANGUAGE_SPECIMENS: Record<Language, string> = {
+  en: "Everything is saved · Publish changes",
+  es: "Todo está guardado · Publicar cambios",
 };
 
 export type Translations = typeof englishDictionary;
@@ -100,6 +109,8 @@ interface LanguageContextValue {
   languagePreference: LanguagePreference;
   setLanguagePreference: (preference: LanguagePreference) => void;
   language: Language;
+  /** The language "system" resolves to, for Settings to show beside it. */
+  systemLanguage: Language;
   t: Translations;
   /** The active language plus both display formats, as one value to pass
    * down. Surfaces that formatted with `language` alone now pass this. */
@@ -113,7 +124,15 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+interface LanguageProviderProps {
+  children: React.ReactNode;
+  /** Wraps the commit of a language the user picked, once its dictionary is
+   * loaded, so the composition can animate it. Without one the change lands at
+   * once, which is what tests and the bootstrap's fallback want. */
+  animateLanguageChange?: (applyLanguage: () => void) => void;
+}
+
+export function LanguageProvider({ children, animateLanguageChange }: LanguageProviderProps): React.JSX.Element {
   const [languagePreference, setLanguagePreferenceState] = useState<LanguagePreference>(() =>
     readStoredLanguagePreference(),
   );
@@ -131,11 +150,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
         if (value) setSystemLanguage(resolveLanguage(value));
       })
       .catch(() => undefined);
-  }, []);
-
-  const setLanguagePreference = useCallback((preference: LanguagePreference): void => {
-    setLanguagePreferenceState(preference);
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
   }, []);
 
   const setDateFormat = useCallback((format: DateFormatPreference): void => {
@@ -175,6 +189,33 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       current = false;
     };
   }, [language, requestedLanguage]);
+  /* A change that alters the words on screen waits for the dictionary before
+     it starts animating, so the outgoing frame is captured while the old words
+     are still shown and the fade never covers a load. A change that keeps the
+     words (to "system" resolving to the same language) commits at once. Only
+     the latest pick commits: a load that answers after a newer pick would
+     otherwise put back the language the user just left. */
+  const latestLanguagePick = useRef(0);
+  const setLanguagePreference = useCallback(
+    (preference: LanguagePreference): void => {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
+      const pick = ++latestLanguagePick.current;
+      const commit = (): void => {
+        if (pick === latestLanguagePick.current) setLanguagePreferenceState(preference);
+      };
+      const next: Language = preference === "system" ? systemLanguage : preference;
+      if (!animateLanguageChange || next === language) {
+        commit();
+        return;
+      }
+      loadTranslations(next).then(
+        () => animateLanguageChange(commit),
+        // The provider keeps the current language until a dictionary loads.
+        commit,
+      );
+    },
+    [animateLanguageChange, language, systemLanguage],
+  );
   const t = loadedDictionaries[language];
   if (!t) {
     throw new Error(`The ${language} dictionary must be loaded with loadTranslations before the first render.`);
@@ -198,6 +239,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       languagePreference,
       setLanguagePreference,
       language,
+      systemLanguage,
       t,
       formats,
       setDateFormat,
@@ -205,7 +247,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       formatDate: (date: Date, style?: DateStyle) => formatDate(date, formats, style),
       formatNumber: (input: number) => formatNumber(input, formats),
     }),
-    [formats, language, languagePreference, setDateFormat, setLanguagePreference, setNumberFormat, t],
+    [
+      formats,
+      language,
+      languagePreference,
+      setDateFormat,
+      setLanguagePreference,
+      setNumberFormat,
+      systemLanguage,
+      t,
+    ],
   );
 
   return (
