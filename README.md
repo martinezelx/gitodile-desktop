@@ -548,6 +548,12 @@ Run only the Vite frontend at `http://localhost:1420`:
 pnpm run dev
 ```
 
+The same server serves the style gallery at
+`http://localhost:1420/gallery.html`: every shared primitive and state — tokens,
+controls, menus, empty, loading and error states, dialogs, banners and toasts —
+drawn from fixtures in any theme (`?theme=gitodile-dark`). It needs neither Tauri
+nor a project, and it is not part of the production build (`src/dev/gallery`).
+
 Development builds include a local account demo, opened from the person/sign-in
 control in the rail, More actions, or Settings → Account. Settings
 shows the current demo identity, sign-out and Reset demo, which clears the

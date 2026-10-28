@@ -1,0 +1,51 @@
+/* The gallery's own frame. Everything inside a specimen is the app's real CSS;
+   these rules only lay the specimens out and are not part of the cascade the
+   app ships (src/styles.css). */
+.gallery {
+  min-height: 100vh; padding: var(--space-5) var(--space-6) var(--space-6);
+  background: var(--surface-app); color: var(--text-primary-color); font-size: var(--text-body);
+}
+.gallery__bar {
+  position: sticky; top: 0; z-index: var(--layer-palette);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-6)) var(--space-5);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle); background: var(--surface-app);
+}
+.gallery__bar h1 { margin: 0 auto 0 0; font-size: var(--text-title); font-weight: var(--weight-heading); }
+.gallery__bar select { height: var(--control-height-sm); padding: 0 var(--space-3); border: 1px solid var(--border-control); border-radius: var(--radius-pill); background: var(--surface-control); color: inherit; font: inherit; }
+.gallery__nav { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.gallery__nav a { padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); color: var(--text-secondary-color); text-decoration: none; }
+.gallery__nav a:hover { background: var(--surface-hover); color: var(--text-primary-color); }
+
+.gallery__section { margin: 0 0 var(--space-6); scroll-margin-top: 72px; }
+.gallery__section > h2 { margin: 0 0 var(--space-1); font-size: var(--text-title); font-weight: var(--weight-heading); }
+.gallery__section > p { margin: 0 0 var(--space-4); color: var(--text-secondary-color); }
+.gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-4); }
+.gallery__specimen {
+  display: grid; align-content: start; gap: var(--space-3); min-width: 0; padding: var(--space-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel);
+}
+.gallery__specimen > h3 { margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.gallery__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.gallery__caption { color: var(--text-secondary-color); font-size: var(--text-caption); }
+
+/* Swatches and scales */
+.gallery__swatch { display: grid; gap: var(--space-1); width: 88px; font-size: var(--text-caption); color: var(--text-secondary-color); }
+.gallery__swatch span:first-child { height: 40px; border: 1px solid var(--border-subtle); border-radius: var(--radius-item); }
+.gallery__scale { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); }
+.gallery__scale code { color: var(--text-secondary-color); font-size: var(--text-caption); }
+.gallery__space { height: var(--space-3); border-radius: var(--radius-pill); background: var(--accent-primary); }
+.gallery__icon-box { display: grid; place-items: center; border: 1px dashed var(--border-control); border-radius: var(--radius-item); color: var(--text-secondary-color); }
+.gallery__tint { height: 32px; border-radius: var(--radius-item); }
+
+/* A dialog drawn in place rather than over the window. */
+.gallery__stage .app-dialog-backdrop { position: relative; inset: auto; z-index: auto; padding: var(--space-4); border-radius: var(--radius-surface); }
+.gallery__stage .app-dialog { max-width: 100%; }
+.gallery__float { position: relative; inset: auto; box-shadow: var(--shadow-lg); }
+.gallery__list { border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
+
+/* A stand-in window: the strip's field is a share of the window (`cqi`), and
+   the strip itself sits beside the 64px rail inside the sheet's 16px frame. */
+.gallery__window { container-type: inline-size; }
+.gallery__statusbar { --sheet-frame: 0px; display: grid; margin: var(--space-2) var(--space-4) 0 calc(64px + var(--space-4)); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-panel); }
