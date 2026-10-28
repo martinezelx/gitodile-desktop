@@ -88,6 +88,7 @@ is resolved only when the user marks it.
 
 # Relevant files
 
+- [Design](../../DESIGN.md) § Before designing a screen, dialog or panel, § Dialogs
 - [Epic 037](037-guided-conflict-resolution.md)
 - [037-1](037-1-conflict-domain-and-recovery.md)
 - [037-3](037-3-read-only-conflict-workspace.md)

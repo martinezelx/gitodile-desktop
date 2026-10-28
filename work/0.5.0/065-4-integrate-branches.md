@@ -88,6 +88,7 @@ using the overlap-to-session path that task 037-1's ADR decides.
 
 # Relevant files
 
+- [Design](../../DESIGN.md) § Before designing a screen, dialog or panel, § Dialogs
 - `src-tauri/src/sync/`
 - `src-tauri/src/branches.rs`
 - `src-tauri/src/recovery/`

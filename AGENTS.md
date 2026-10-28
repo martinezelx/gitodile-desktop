@@ -228,11 +228,18 @@ Agents must follow these rules when implementing operations:
 
 ## UI and visual direction
 
-Read `DESIGN.md` before changing visual styles.
+Read `DESIGN.md` before changing visual styles. Any task that adds or changes
+a screen, dialog, panel, menu or notice starts from its "Before designing a
+screen, dialog or panel" section: the app's current look is the specification,
+so a new surface matches its closest existing equivalent, reuses the
+`src/shared/ui` primitives, takes every value from a token, and is checked
+running in a light and a dark theme beside that equivalent. A new token,
+dialog width, radius, material or pattern is a change to `DESIGN.md` in the
+same commit, never a local exception.
 
 In summary:
 
-- Modern desktop interface with rounded surfaces and restrained translucency.
+- Modern desktop interface with rounded, opaque surfaces; translucency only for a transient scrim.
 - Dense information areas such as diffs must use solid, highly readable backgrounds.
 - Support light and dark themes.
 - Use motion sparingly and respect reduced-motion settings.
@@ -413,6 +420,9 @@ The main agent should primarily:
 - Understand the user's request and the relevant GitOdile architecture.
 - Inspect existing code before deciding how to change it.
 - Make architectural and high-level implementation decisions.
+- Make the visual decisions of a UI task before delegating it: name the
+  existing screen or dialog it must match and the `DESIGN.md` sections that
+  apply, so the worker implements a decided look rather than designing one.
 - Break larger work into narrowly scoped delegated tasks.
 - Delegate routine implementation whenever practical.
 - Review delegated work before accepting or integrating it.

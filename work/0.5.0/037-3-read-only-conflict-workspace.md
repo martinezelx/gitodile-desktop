@@ -70,6 +70,7 @@ Overview already has a `conflicts` state and a conflicted-file list to build on.
 
 # Relevant files
 
+- [Design](../../DESIGN.md) § Before designing a screen, dialog or panel, § Dialogs
 - `src/app/screens.tsx`
 - `src/features/overview/`
 - `src/features/changes/`
