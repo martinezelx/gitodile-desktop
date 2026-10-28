@@ -24,6 +24,7 @@ use crate::{
     clone::{
         self, CloneOperationRegistry, ClonePlan, CloneProgressPhase, CloneResult, CloneSourceAccess,
     },
+    conflicts::{self, ConflictSession, ConflictStageContent},
     console::{
         self, ConsoleHost, ConsoleHostingResult, ConsoleModes, ConsolePlan, ConsoleQueryResult,
         ConsoleRunResult, ConsoleSettings,
@@ -797,6 +798,37 @@ pub(crate) fn restore_discarded_changes(
         (|| {
             validate_session(&path, &session_epoch)?;
             recovery::restore_discarded_changes(path, recovery_id, state_token)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_conflict_session(
+    path: String,
+    session_epoch: String,
+) -> Result<Option<ConflictSession>, AppError> {
+    report_result(
+        "read_conflict_session",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            conflicts::read_conflict_session(path)
+        })(),
+    )
+}
+
+#[tauri::command(async)]
+pub(crate) fn read_conflict_stage(
+    path: String,
+    file_path: String,
+    stage: u8,
+    object_id: String,
+    session_epoch: String,
+) -> Result<ConflictStageContent, AppError> {
+    report_result(
+        "read_conflict_stage",
+        (|| {
+            validate_session(&path, &session_epoch)?;
+            conflicts::read_conflict_stage(path, file_path, stage, object_id)
         })(),
     )
 }
@@ -1967,6 +1999,7 @@ mod contract_tests {
             AppErrorCode::RecoveryUnavailable,
             AppErrorCode::RecoveryConflict,
             AppErrorCode::RecoveryFailed,
+            AppErrorCode::StaleConflictSession,
             AppErrorCode::IgnoreFileTooLarge,
             AppErrorCode::IgnoreFileNotText,
             AppErrorCode::StaleIgnoreFile,

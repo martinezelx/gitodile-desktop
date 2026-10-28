@@ -41,6 +41,8 @@
     { "name": "list_discard_recoveries", "arguments": ["path", "sessionEpoch"], "response": "DiscardRecoveryRecord[]" },
     { "name": "restore_discarded_changes", "arguments": ["path", "recoveryId", "stateToken", "sessionEpoch"], "response": "void" },
     { "name": "delete_discard_recovery", "arguments": ["path", "recoveryId", "sessionEpoch"], "response": "void" },
+    { "name": "read_conflict_session", "arguments": ["path", "sessionEpoch"], "response": "ConflictSession | null" },
+    { "name": "read_conflict_stage", "arguments": ["path", "filePath", "stage", "objectId", "sessionEpoch"], "response": "ConflictStageContent" },
     {"name": "glab_diagnostics", "arguments": [], "response": "GitDiagnostics"},
     {"name": "install_glab", "arguments": [], "response": "GitInstallationResult"},
     {"name": "update_glab", "arguments": [], "response": "GitUpdateLaunchResult"},
@@ -173,7 +175,7 @@
     "branch_name_collides", "branch_checked_out_elsewhere", "branch_is_active", "branch_is_default", "branch_missing",
     "branch_unique_work", "branch_not_finished", "branch_switch_obstructed", "stale_branch_plan",
     "dirty_working_tree", "incoming_tracked_change_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
-    "recovery_unavailable", "recovery_conflict", "recovery_failed",
+    "recovery_unavailable", "recovery_conflict", "recovery_failed", "stale_conflict_session",
     "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
     "install_blocked", "unsupported_server"
   ],

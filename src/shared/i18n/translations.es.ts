@@ -106,6 +106,7 @@ export const es: SharedTranslations = {
   errorRecoveryUnavailable: "Esa copia ya no está disponible.",
   errorRecoveryConflict: "Uno de esos archivos ha cambiado después, así que GitOdile no sobrescribirá el trabajo más nuevo.",
   errorRecoveryFailed: "No se pudo crear o aplicar la copia local. Revisa el espacio en disco y los permisos.",
+  errorStaleConflictSession: "Los cambios solapados han cambiado desde que GitOdile los leyó. Revísalos de nuevo.",
   errorIgnoreFileTooLarge: "Este archivo es demasiado grande para editarlo aquí. Ábrelo en un editor de texto.",
   errorIgnoreFileNotText: "Este archivo no es texto plano, así que GitOdile no lo reescribirá.",
   errorStaleIgnoreFile: "Este archivo cambió fuera de GitOdile. Vuelve a abrirlo antes de guardar.",

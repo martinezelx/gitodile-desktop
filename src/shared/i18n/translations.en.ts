@@ -106,6 +106,7 @@ export const en: SharedTranslations = {
   errorRecoveryUnavailable: "That copy is no longer available.",
   errorRecoveryConflict: "One of those files changed since, so GitOdile won't overwrite the newer work.",
   errorRecoveryFailed: "Couldn't create or apply the local copy. Check disk space and permissions.",
+  errorStaleConflictSession: "The overlapping changes changed since GitOdile read them. Review them again.",
   errorIgnoreFileTooLarge: "This file is too large to edit here. Open it in a text editor.",
   errorIgnoreFileNotText: "This file isn't plain text, so GitOdile won't rewrite it.",
   errorStaleIgnoreFile: "This file changed outside GitOdile. Reopen it before saving.",

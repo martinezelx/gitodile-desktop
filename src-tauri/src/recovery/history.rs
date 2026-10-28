@@ -15,7 +15,7 @@
 //! This is a separate owner from [`super::discard`]: the two share only the
 //! clock.
 
-use super::now_ms;
+use super::{now_ms, worktree_owner_id};
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::run_git;
 use crate::repository_access::RepositoryContext;
@@ -117,32 +117,6 @@ pub(crate) struct HistoryRecoveryMetadata {
     pub(crate) unsaved_snapshot: Option<String>,
 }
 
-fn stable_fnv1a(value: &str) -> u64 {
-    let mut hash = 0xcbf29ce484222325_u64;
-    for byte in value.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    hash
-}
-
-fn history_owner_id(repository: &RepositoryContext) -> String {
-    let common = repository.common_git_dir.backend_path();
-    let git_dir = repository.git_dir.backend_path();
-    let relative = if git_dir == common {
-        "main".to_string()
-    } else {
-        git_dir
-            .strip_prefix(common)
-            .unwrap_or(git_dir)
-            .to_string_lossy()
-            .replace('\\', "/")
-    };
-    #[cfg(target_os = "windows")]
-    let relative = relative.to_lowercase();
-    format!("worktree-{:016x}", stable_fnv1a(&relative))
-}
-
 fn unique_history_recovery_id() -> String {
     static SEQUENCE: AtomicU64 = AtomicU64::new(0);
     format!(
@@ -186,7 +160,7 @@ pub(crate) fn plan_history_recovery_for(
     repository: &RepositoryContext,
     operation: HistoryRecoveryOperation,
 ) -> HistoryRecoveryPreview {
-    let owner_id = history_owner_id(repository);
+    let owner_id = worktree_owner_id(repository);
     let recovery_id = unique_history_recovery_id();
     let (explanation, kind) = match operation {
         HistoryRecoveryOperation::GetTeamChanges => (
@@ -486,7 +460,7 @@ pub(crate) fn create_history_recovery_for(
     planned_reference: &str,
     metadata: HistoryRecoveryMetadata,
 ) -> Result<HistoryRecoveryRecord, AppError> {
-    let owner_id = history_owner_id(repository);
+    let owner_id = worktree_owner_id(repository);
     let prefix = format!("{}/{owner_id}/", operation.namespace());
     let recovery_id = planned_reference
         .strip_prefix(&prefix)
@@ -710,8 +684,14 @@ mod tests {
 
     #[test]
     fn history_owner_hash_and_ids_are_stable_and_collision_resistant() {
-        assert_eq!(stable_fnv1a("main"), stable_fnv1a("main"));
-        assert_ne!(stable_fnv1a("main"), stable_fnv1a("worktrees/one"));
+        assert_eq!(
+            super::super::stable_fnv1a("main"),
+            super::super::stable_fnv1a("main")
+        );
+        assert_ne!(
+            super::super::stable_fnv1a("main"),
+            super::super::stable_fnv1a("worktrees/one")
+        );
         assert_ne!(unique_history_recovery_id(), unique_history_recovery_id());
     }
 }

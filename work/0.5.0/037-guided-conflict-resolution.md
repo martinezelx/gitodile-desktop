@@ -272,7 +272,7 @@ Every class gets a safe whole-file path or an explicit, honest limitation.
 
 ## 9. Delivery slices
 
-1. [037-1](037-1-conflict-domain-and-recovery.md): session ADR, classification,
+1. [037-1](../done/037-1-conflict-domain-and-recovery.md): session ADR, classification,
    stage reader, snapshot, paused-operation detection, and how
    GitOdile-detected overlaps become sessions.
 2. [037-3](037-3-read-only-conflict-workspace.md): contextual entry, file list,
@@ -418,6 +418,13 @@ ship a resolver that can change files but cannot reset, finish or abort.
 Record child-task results, ADRs, module and port paths, IPC shapes, snapshot
 format and retention, the state machine, invalidation rules, Git commands and
 process counts, and platform deviations.
+
+- 037-1 (2026-10-28): [ADR 0041](../../docs/adr/0041-conflict-sessions-and-their-recovery.md)
+  fixes the session, roles, token, snapshot and the paused-`git merge` start
+  for GitOdile-detected overlaps. `src-tauri/src/conflicts.rs` and
+  `recovery/conflict.rs`; IPC `read_conflict_session` and
+  `read_conflict_stage`. Details, caps and process counts are in
+  [037-1](../done/037-1-conflict-domain-and-recovery.md).
 
 # Validation
 

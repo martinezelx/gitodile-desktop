@@ -13,6 +13,7 @@ mod branches;
 mod changes;
 mod cli_auth;
 mod clone;
+mod conflicts;
 mod console;
 mod credentials;
 mod desktop;
@@ -180,6 +181,8 @@ pub fn run() {
             ipc::list_discard_recoveries,
             ipc::restore_discarded_changes,
             ipc::delete_discard_recovery,
+            ipc::read_conflict_session,
+            ipc::read_conflict_stage,
             ipc::glab_diagnostics,
             ipc::install_glab,
             ipc::update_glab,
@@ -290,6 +293,9 @@ mod changes_tests;
 #[cfg(test)]
 #[path = "tests/clone_tests.rs"]
 mod clone_tests;
+#[cfg(test)]
+#[path = "tests/conflict_tests.rs"]
+mod conflict_tests;
 #[cfg(test)]
 #[path = "tests/core_workflow_tests.rs"]
 mod core_workflow_tests;

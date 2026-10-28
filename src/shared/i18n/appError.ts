@@ -38,7 +38,7 @@ export const APP_ERROR_CODES = [
   "branch_is_default", "branch_missing",
   "branch_unique_work", "branch_not_finished", "branch_switch_obstructed", "stale_branch_plan",
   "dirty_working_tree", "incoming_tracked_change_collision", "ref_locked", "nothing_to_discard", "stale_discard_plan",
-  "recovery_unavailable", "recovery_conflict", "recovery_failed",
+  "recovery_unavailable", "recovery_conflict", "recovery_failed", "stale_conflict_session",
   "ignore_file_too_large", "ignore_file_not_text", "stale_ignore_file", "ignore_file_write_failed",
   "install_blocked", "unsupported_server",
 ] as const;
@@ -168,6 +168,7 @@ export function localizeAppError(error: unknown, t: SharedTranslations, fallback
     recovery_unavailable: t.errorRecoveryUnavailable,
     recovery_conflict: t.errorRecoveryConflict,
     recovery_failed: t.errorRecoveryFailed,
+    stale_conflict_session: t.errorStaleConflictSession,
     ignore_file_too_large: t.errorIgnoreFileTooLarge,
     ignore_file_not_text: t.errorIgnoreFileNotText,
     stale_ignore_file: t.errorStaleIgnoreFile,

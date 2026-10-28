@@ -134,9 +134,8 @@ pub(crate) fn classify_path(path: &Path, paths: &WatchPaths) -> Option<Repositor
         }
         return match first.as_str() {
             "head" => Some(RepositoryInvalidationKind::HeadOrRefs),
-            "index" | "merge_head" | "cherry_pick_head" | "revert_head" | "rebase_head" => {
-                Some(RepositoryInvalidationKind::Worktree)
-            }
+            "index" | "merge_head" | "cherry_pick_head" | "revert_head" | "rebase_head"
+            | "rebase-merge" | "rebase-apply" => Some(RepositoryInvalidationKind::Worktree),
             "refs" | "packed-refs" => Some(RepositoryInvalidationKind::HeadOrRefs),
             _ => None,
         };
@@ -541,6 +540,16 @@ mod tests {
             None
         );
         assert_eq!(classify_path(&root.join(".git/index.lock"), &paths), None);
+        // A rebase steps through its own folder; GitOdile's snapshots never
+        // invalidate the project they preserve.
+        assert_eq!(
+            classify_path(&root.join(".git/rebase-merge/msgnum"), &paths),
+            Some(RepositoryInvalidationKind::Worktree)
+        );
+        assert_eq!(
+            classify_path(&root.join(".git/gitodile/conflicts/v1/x"), &paths),
+            None
+        );
     }
 
     #[test]

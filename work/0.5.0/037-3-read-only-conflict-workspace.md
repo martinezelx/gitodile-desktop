@@ -12,7 +12,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "037"
-queue: "02"
+queue: "01"
 ---
 
 # Goal
@@ -75,7 +75,7 @@ Overview already has a `conflicts` state and a conflicted-file list to build on.
 - `src/features/overview/`
 - `src/features/changes/`
 - `src/features/workbench/`
-- [037-1](037-1-conflict-domain-and-recovery.md)
+- [037-1](../done/037-1-conflict-domain-and-recovery.md)
 
 # Dependencies
 

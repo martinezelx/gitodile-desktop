@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, git_stdout, run_git};
-use crate::{application, repository_access, session};
+use crate::{application, conflicts, repository_access, session};
 use std::{
     collections::HashSet,
     io::ErrorKind,
@@ -109,17 +109,8 @@ pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), App
 pub(crate) fn git_operation_in_progress(path: &str) -> Result<Option<&'static str>, AppError> {
     let git_dir_raw = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
     let git_dir = Path::new(&git_dir_raw);
-    if git_dir.join("MERGE_HEAD").is_file() {
-        return Ok(Some("merge"));
-    }
-    if git_dir.join("CHERRY_PICK_HEAD").is_file() {
-        return Ok(Some("cherry-pick"));
-    }
-    if git_dir.join("REVERT_HEAD").is_file() {
-        return Ok(Some("revert"));
-    }
-    if git_dir.join("rebase-merge").is_dir() || git_dir.join("rebase-apply").is_dir() {
-        return Ok(Some("rebase"));
+    if let Some(operation) = conflicts::paused_operation_marker(git_dir) {
+        return Ok(Some(operation.as_str()));
     }
     if git_dir.join("BISECT_LOG").is_file() {
         return Ok(Some("bisect"));

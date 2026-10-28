@@ -1,0 +1,232 @@
+# ADR 0041: Read conflict sessions from Git and snapshot them before any change
+
+- Status: accepted
+- Date: 2026-10-28
+- Extends: [ADR 0007](0007-store-discard-recovery-in-worktree-git-metadata.md)
+  and [ADR 0008](0008-store-history-recovery-as-versioned-hidden-refs.md)
+  with a third recovery owner; amends point 7 of
+  [ADR 0030](0030-forecast-and-combine-project-changes.md) for task 065-4
+
+## Context
+
+Epic 037 lets a user resolve a paused merge inside GitOdile at GitHub Desktop
+level: keep one whole side per file or edit it in their own editor, mark it
+resolved, reset it, and finish or abort the merge. Before any of that can
+write to a conflicted file or to the index, GitOdile needs one contract for
+what a paused operation is, who started it, which side is which, how a stale
+view is detected, and what is preserved before the first change.
+
+Most paused merges are not started by GitOdile. A terminal, an editor or a
+coding agent leaves `MERGE_HEAD` and unmerged index entries behind, possibly
+over uncommitted work whose earlier state nobody recorded. Coding agents also
+rebase, cherry-pick, revert and pop stashes, and GitOdile must not be blind
+to the states those leave, even though it will not continue them.
+
+GitOdile's own integration (ADR 0030) builds merge versions with
+`merge-tree` and `commit-tree` and refuses real overlaps. Task 065-4 will
+integrate local branches and diverged upstreams, so an overlap GitOdile itself
+finds must become a session the resolver can work on.
+
+Git's conflict truth is the index: up to three stages per path (1 base,
+2 current, 3 incoming), any of which may be absent. Conflict markers in the
+working tree are only a rendering, may be edited away, and also appear in files
+that are not conflicted.
+
+## Decision
+
+### 1. The index and Git's operation markers are the only truth
+
+- A session is read with `git ls-files -u -z` (mode, object ID, stage and raw
+  path per entry) and the operation markers in the worktree's own Git
+  directory: `MERGE_HEAD`, `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `rebase-merge/`,
+  `rebase-apply/` (with `applying` inside it for `git am`). Working-tree
+  markers never decide anything. The rebase directories are checked first: a
+  rebase that replays a merge (`--rebase-merges`) also writes `MERGE_HEAD`,
+  and finishing that pause as a merge would leave the rebase half done.
+- Operations: `merge`, `rebase`, `cherry-pick`, `revert`, `am`, and `unmerged`
+  (unmerged entries with no marker, as `git stash pop` or `git checkout -m`
+  leave). The domain also names `stash-apply` and `apply-patch` for later; Git
+  exposes no marker that tells them apart from `unmerged` today.
+- Only a merge with exactly one merge head is **supported**. Every other
+  operation, and a merge with several heads (octopus), is read and explained
+  with its files, its step where Git records one (`msgnum`/`end`,
+  `next`/`last`), and the exact commands to continue or abort with the tool
+  that started it. It has no allowed action.
+- Reading a session is read-only: no `git status` refresh that rewrites the
+  index, no lock files, no marker or ref writes. Opening, refreshing and
+  revisiting the resolver therefore cannot change the project.
+
+### 2. Roles come from the operation and real names, not `ours`/`theirs`
+
+| Operation | Stage 2 (current) | Stage 3 (incoming) |
+| --- | --- | --- |
+| merge | the checked-out branch | the merge head |
+| rebase | the branch being rebased onto | the version being replayed (the user's own work) |
+| cherry-pick | the checked-out branch | the picked version |
+| revert | the checked-out branch | the reverted version's parent side |
+
+The current label is the checked-out branch, or the short commit when
+detached. The incoming label of a merge is the branch, remote branch or tag
+pointing at `MERGE_HEAD`, found with one `for-each-ref --points-at`; the name in
+`MERGE_MSG` is only a hint that must match one of them, because that file is
+editable. With no such name the label is the short commit. A rebase reads
+`head-name` and `onto` from its own directory.
+
+### 3. File shapes and the classes of epic 037
+
+Each path is classified from which stages exist and their modes: both
+changed, both added, deleted by current or by incoming, deleted by both, added
+by one side only (the residue of a rename or a file/directory conflict), and
+the facets mode change, symbolic link, submodule (gitlink), type change, and
+file/directory (the path is a directory on disk). Binary content, encoding and
+line endings are facts of a stage's content and are reported when that stage
+is read.
+
+Git records a rename conflict under each path separately, with no link
+between them in the index. GitOdile shows such paths as their per-path
+shapes and does not infer renames; every whole-file choice stays correct per
+path. A path that is not valid UTF-8 is listed with a lossy display name and is
+`unsupported`: GitOdile will not write to a path it cannot name exactly.
+
+Per-file states are `unresolved` (still unmerged), `editedOutside` (working
+content differs from the snapshot), `markedResolved` (in the snapshot, no longer
+unmerged), `stale` (unmerged, but its stages differ from the snapshot), and
+`unsupported`. Without a snapshot only `unresolved` and `unsupported` can be
+told apart.
+
+### 4. Bounds and lazy content
+
+- The unmerged listing is read with a 16 MiB output cap and at most 5,000
+  paths; a session past either bound says the list is partial and how many
+  paths it read. The file list is virtualized in the frontend.
+- Stage content is never part of the session. It is read per file and stage
+  with one `cat-file --batch`, capped at 2 MiB (the diff cap), after the
+  requested object ID is checked against that path's current stage, so the IPC
+  boundary can never read an arbitrary object. Content is returned as text when
+  it has no NUL byte in its first 8,000 bytes and is valid UTF-8, otherwise as
+  binary with its size.
+- Diagnostics carry object IDs, counts and phases, never content or paths.
+
+### 5. Session identity, state token and invalidation
+
+- **Session ID**: a hash of the worktree's Git directory, the operation, the
+  `HEAD` commit at the pause, and the operation's head commit(s). It is stable
+  across restarts and differs for every new pause.
+- **State token**: SHA-256 over the repository identity, the operation markers'
+  contents, `HEAD`, the raw unmerged listing, and the working type, size and
+  modification time of each unmerged path and of each snapshot path resolved
+  since (what a reset of that file would replace). Every later mutation (037-6, 037-5) takes
+  the token, revalidates it under the repository write lock and re-reads the
+  bytes of the paths it touches; a mismatch is `stale_conflict_session`.
+- The IPC layer validates the project session epoch as for every command.
+- Invalidation: the watcher already reports `index`, `HEAD`, refs and the
+  merge/cherry-pick/revert heads; it now also reports `rebase-merge/` and
+  `rebase-apply/`. GitOdile's own `gitodile/` directory never invalidates.
+  Overview and the Changes tab read the same cached session summary, refreshed
+  on activation and on those invalidations, never on visibility.
+
+### 6. A durable snapshot precedes the first change
+
+Before the first mutation of a session, GitOdile writes a snapshot. A
+discard record (ADR 0007) cannot serve: it copies the index file, which may be
+a split index, and restores whole working trees rather than one file's stages.
+
+```text
+<git-dir>/gitodile/conflicts/v1/<session-id>/
+  manifest.json
+  files/<sequence>
+<git-dir>/gitodile/conflicts/v1/.pending-<unique>/   (never trusted)
+refs/gitodile/recovery/v1/conflict/<owner>/<session-id>  -> tree
+```
+
+- The manifest (schema version 1) records the session, its origin, the
+  operation's heads, every unmerged entry (path, stage, mode, object ID), and
+  per path the working state: absent, regular file (bytes in `files/`, with the
+  executable bit), symbolic link (target), directory (no contents), or
+  `unreadable`/`omitted` when it could not be captured. Missing evidence is
+  recorded, never papered over, and makes the manifest `complete: false`.
+- Stage objects stay in the object database. A tree built with `mktree`, whose
+  entries are the stage blobs, is pinned by a hidden ref in the common
+  repository, so `gc` cannot prune an original side after it is resolved. The
+  ref points at a tree, not a commit, so it needs no identity. Gitlinks are
+  recorded but not pinned; their commits live in another repository.
+- Creation runs under the repository write lock, revalidates the state token,
+  writes into `.pending-<unique>`, flushes every file and the manifest, and
+  publishes with a rename. If a snapshot for the session already exists, it is
+  kept: the first snapshot is the original. A crash leaves only a pending
+  folder, which is ignored and removed once it is an hour old.
+- Total captured bytes are capped at 512 MiB per snapshot; a path past the cap
+  is `omitted`, so its unmerged stages can still be reset but not its working
+  edits.
+- The snapshot is per worktree (its Git directory), and the ref carries the
+  worktree's owner ID, as history recovery does. Linked worktrees never share
+  sessions or snapshots; they do share the common-directory write lock.
+- Retention: the snapshot of a live session is never removed. Snapshots of
+  ended sessions are kept for 30 days and at most ten per worktree, and are
+  trimmed only when a new snapshot is created, with their refs.
+- Privacy: snapshots stay inside the repository's Git directory, are never
+  transmitted, and nothing reads them except reset and the recovery center.
+
+The record carries `origin: gitodile | external`. An external origin means
+the pre-operation working state is unknown; abort (037-5) must never promise
+exact restoration then. This makes the snapshot the first recovery record whose
+origin may be outside GitOdile, as the recovery-center seed in `ROADMAP.md`
+requires.
+
+### 7. An overlap GitOdile finds becomes a real, paused `git merge`
+
+When task 065-4 integrates a branch or a diverged upstream and `merge-tree`
+predicts overlaps, and the user chooses to resolve them, GitOdile starts a real
+`git merge` that stops on them, instead of writing stages and `MERGE_HEAD`
+itself:
+
+- It refuses first, by name, when there are prepared (staged) changes or an
+  unsaved change to a path the merge touches, exactly as `git merge` would
+  refuse to protect them, and when another operation is paused.
+- It runs `git merge --no-ff --no-commit --no-autostash <commit>` with the
+  reviewed commit, so `merge.ff`, `merge.autoStash` and
+  `branch.<name>.mergeOptions` cannot change what was previewed. Nothing is
+  written to the user's Git configuration.
+- It writes a start record, then the history recovery point (ADR 0008),
+  immediately before the merge, so the session's origin is `gitodile` and the
+  pre-merge state is known.
+- Once the merge has paused, the session is the same as one started elsewhere:
+  the user's editor and other tools see an ordinary merge, `git merge --abort`
+  means what it always means, and finishing runs the merge's own commit hooks
+  (`pre-merge-commit`, `prepare-commit-msg`, `commit-msg`) through Git, honours
+  signing, and is never bypassed unless hooks are off in Settings.
+
+This amends ADR 0030's point 7 only for an explicit choice to resolve
+overlaps. A clean combine still uses `merge-tree` and `commit-tree`, with every
+failure before any change.
+
+## Consequences
+
+- One read path serves merges from GitOdile, a terminal, an editor or an agent,
+  and the explanation of the operations GitOdile cannot continue.
+- Every mutation in 037-6 and 037-5 has a token to revalidate and an original
+  to return to, including when the merge was started elsewhere.
+- Rename conflicts are shown per path. That is honest and safe, but less
+  helpful than a linked rename view; a later task can add one without changing
+  the snapshot.
+- Snapshots of large conflicted files cost disk inside `.git` until they
+  expire, bounded per snapshot and per worktree.
+- A GitOdile-started merge can leave `MERGE_HEAD` behind if the app stops
+  mid-merge. That is an ordinary paused merge, which the resolver reads like
+  any other.
+
+## Alternatives considered
+
+- **Build the session from `merge-tree` output** by writing stages into the
+  index and creating `MERGE_HEAD` ourselves. This avoids `git merge`'s refusals
+  and configuration, but reimplements what `git merge` writes (`MERGE_MSG`,
+  `MERGE_MODE`, `AUTO_MERGE`, conflict-marker content, rename residue) and
+  leaves a state that other tools could read differently from Git's own.
+- **Trust conflict markers in the working tree.** They can be edited, appear in
+  files that are not conflicted, and cannot describe a deletion, a mode change,
+  a symbolic link or a submodule.
+- **Copy the index file into the snapshot**, as discard recovery does. A split
+  index keeps entries in a shared file, and the copy would restore every path
+  instead of one file's stages.
+- **Pin stage objects with a commit.** A commit needs an identity and a message
+  and would appear in history tools; a tree ref needs neither.

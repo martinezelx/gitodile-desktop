@@ -4,6 +4,8 @@
 - Date: 2026-10-11
 - Extends: [ADR 0008](0008-store-history-recovery-as-versioned-hidden-refs.md)
   with a snapshot of combined unsaved content
+- Amended by: [ADR 0041](0041-conflict-sessions-and-their-recovery.md), §7 —
+  a real overlap the user chooses to resolve becomes a paused `git merge`
 
 ## Context
 

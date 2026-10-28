@@ -314,10 +314,12 @@ src-tauri/src/
   status.rs
   changes.rs
   history.rs              # bounded read-only saved-version timeline/details
-  recovery/               # two recovery owners that share only a clock
+  conflicts.rs            # read-only paused-operation sessions and stage reads
+  recovery/               # three recovery owners that share a clock and owner ID
     mod.rs
     discard.rs            # working-tree discard snapshots and safe restore
     history.rs            # pre-rewrite branch tips as hidden refs
+    conflict.rs           # a paused operation's stages and content, before a change
   save_version.rs
   publish.rs
   sync/                   # remotes, upstreams, fetch and relation knowledge
@@ -722,6 +724,35 @@ record that would write exactly what an existing one holds replaces it, so
 discarding the same work twice leaves one entry rather than two. The 2026-09-06
 amendment to ADR 0007 carries the reasoning, the verification that replaces the
 whole-tree comparison in that mode, and the retention rule.
+
+### Conflict sessions
+
+A paused operation is read by `conflicts.rs`
+([ADR 0041](adr/0041-conflict-sessions-and-their-recovery.md)). The index
+(`git ls-files -u -z`, bounded at 5,000 paths and 16 MiB) and Git's operation
+markers in the worktree's own Git directory are the only truth; conflict
+markers in files decide nothing. `read_conflict_session` reports the
+operation (merge, rebase, cherry-pick, revert, `am`, or unmerged entries with
+no marker), its step, both sides named by real refs rather than `ours`/`theirs`, each file's
+shape, facets, state and allowed whole-file actions, and a state token. Only a
+merge with one merge head is supported; every other operation is explained
+with its files and the exact Git commands, and has no action.
+`read_conflict_stage` reads one stage lazily, capped at the diff limit, after
+checking that the requested object is still that path's stage. Both are
+read-only and run under a shared read permit; `git_operation_in_progress`
+asks the same marker detection, so a refusal and the resolver never disagree.
+
+Before a session's first change, `recovery::create_conflict_snapshot` writes
+`<git-dir>/gitodile/conflicts/v1/<session-id>/` under the write lock, after
+revalidating the token before and after capture: a versioned manifest of every
+unmerged stage and each path's working content, published by a rename, with
+the stage blobs pinned by a tree under
+`refs/gitodile/recovery/v1/conflict/<owner>/<session-id>`. The first snapshot
+is the original and is never replaced; missing evidence is recorded as
+`unreadable` or `omitted`. The session read folds the snapshot back in, which
+is how a file becomes `markedResolved`, `editedOutside` or `stale`. The watcher
+also invalidates on `rebase-merge/` and `rebase-apply/`; GitOdile's own
+`gitodile/` folder never invalidates.
 
 Never silently resolve conflicts, discard untracked files, bypass hooks or
 signing, force-push, run `reset --hard`, clean files, or delete a branch without

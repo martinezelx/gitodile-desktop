@@ -71,7 +71,7 @@ snapshot and stale-state contract.
 
 - [Epic 206](206-three-way-conflict-editor.md)
 - [Epic 037](../0.5.0/037-guided-conflict-resolution.md)
-- [037-1](../0.5.0/037-1-conflict-domain-and-recovery.md)
+- [037-1](../done/037-1-conflict-domain-and-recovery.md)
 - [037-6](../0.5.0/037-6-resolve-files.md)
 
 # Dependencies

@@ -12,7 +12,7 @@ areas:
 created: 2026-08-18
 completed:
 parent: "037"
-queue: "03"
+queue: "02"
 ---
 
 # Scope change (2026-10-27)
@@ -90,7 +90,7 @@ is resolved only when the user marks it.
 
 - [Design](../../DESIGN.md) § Before designing a screen, dialog or panel, § Dialogs
 - [Epic 037](037-guided-conflict-resolution.md)
-- [037-1](037-1-conflict-domain-and-recovery.md)
+- [037-1](../done/037-1-conflict-domain-and-recovery.md)
 - [037-3](037-3-read-only-conflict-workspace.md)
 - `src-tauri/src/index.rs`
 - `src-tauri/src/desktop.rs`

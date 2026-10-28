@@ -104,6 +104,7 @@ export interface SharedTranslations {
   errorRecoveryUnavailable: string;
   errorRecoveryConflict: string;
   errorRecoveryFailed: string;
+  errorStaleConflictSession: string;
   errorIgnoreFileTooLarge: string;
   errorIgnoreFileNotText: string;
   errorStaleIgnoreFile: string;
