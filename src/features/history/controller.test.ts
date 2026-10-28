@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 
 import type { FileDiff } from "../changes";
@@ -83,6 +84,65 @@ function port(overrides: Partial<HistoryPort> = {}): HistoryPort {
 }
 
 describe("HistoryController", () => {
+  it("keeps the user's latest version choice when an earlier refresh completes", async () => {
+    const pending = deferred<HistoryPage>();
+    const readPage = vi.fn(async () => page([version(1), version(0)]));
+    const controller = createHistoryController(port({ readPage }));
+    await controller.refresh(query);
+    controller.selectVersion(query, version(0).commit);
+    await vi.waitFor(() => expect(controller.getSnapshot(query).detail.detail?.version.commit).toBe(version(0).commit));
+    readPage.mockImplementationOnce(() => pending.promise);
+    const refresh = controller.refresh(query);
+    controller.selectVersion(query, version(1).commit);
+    pending.resolve(page([version(1), version(0)]));
+    await refresh;
+    expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
+    await vi.waitFor(() => expect(controller.getSnapshot(query).detail.detail?.version.commit).toBe(version(1).commit));
+  });
+
+  it.each([null, "list"])("selects and reads only the first displayed file for saved layout %s, including cached details", async (view) => {
+    if (view === null) localStorage.removeItem("gitodile-file-list-view");
+    else localStorage.setItem("gitodile-file-list-view", view);
+    try {
+      const readDetail = vi.fn(async ({ commit }: { commit: string }) => ({
+        ...detail(commit === version(0).commit ? version(0) : version(1)),
+        files: ["README.md", "src/z.ts", "src/a.ts"].map((path) => ({ path, originalPath: null, category: "changed" as const })),
+      }));
+      const readFileDiff = vi.fn(async ({ filePath }: { filePath: string }) => ({
+        kind: "binary", path: filePath, originalPath: null, change: "changed",
+      } satisfies FileDiff));
+      const controller = createHistoryController(port({ readDetail, readFileDiff }));
+      const first = view === "list" ? "README.md" : "src/a.ts";
+      await controller.refresh(query);
+      await vi.waitFor(() => expect(controller.getSnapshot(query).fileDiff.diff?.path).toBe(first));
+      expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
+      expect(readFileDiff).toHaveBeenCalledTimes(1);
+      expect(readFileDiff.mock.calls[0][0].filePath).toBe(first);
+
+      controller.selectFile(query, "src/z.ts");
+      await vi.waitFor(() => expect(controller.getSnapshot(query).fileDiff.diff?.path).toBe("src/z.ts"));
+      await controller.refresh(query);
+      await vi.waitFor(() => expect(controller.getSnapshot(query).selectedFilePath).toBe("src/z.ts"));
+
+      controller.selectVersion(query, version(0).commit);
+      await vi.waitFor(() => expect(controller.getSnapshot(query).fileDiff.diff?.path).toBe(first));
+      controller.selectVersion(query, version(1).commit);
+      expect(controller.getSnapshot(query).selectedFilePath).toBe(first);
+      expect(readDetail).toHaveBeenCalledTimes(2);
+
+      controller.selectVersion(query, version(0).commit);
+      controller.setScrollOffset(query, 900);
+      controller.selectFile(query, "src/z.ts");
+      await vi.waitFor(() => expect(controller.getSnapshot(query).fileDiff.diff?.path).toBe("src/z.ts"));
+      const reads = readDetail.mock.calls.length;
+      await controller.refresh(query);
+      expect(controller.getSnapshot(query)).toMatchObject({ selectedCommit: version(0).commit, selectedFilePath: "src/z.ts", scrollOffset: 900 });
+      expect(readDetail).toHaveBeenCalledTimes(reads);
+    } finally {
+      localStorage.removeItem("gitodile-file-list-view");
+    }
+  });
+
   it("coalesces the first page and asks Rust for the bounded page size", async () => {
     const pending = deferred<HistoryPage>();
     const readPage = vi.fn(() => pending.promise);

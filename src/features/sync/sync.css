@@ -13,7 +13,7 @@
   list-style: none;
 }
 .get-team-disclosure summary::-webkit-details-marker { display: none; }
-.get-team-disclosure summary svg { width: 14px; height: 14px; transition: transform var(--duration-fast); }
+.get-team-disclosure summary svg { width: var(--icon-row); height: var(--icon-row); transition: transform var(--duration-fast); }
 .get-team-disclosure[open] summary svg { transform: rotate(180deg); }
 .get-team-disclosure summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
 
@@ -25,7 +25,7 @@
   max-height: 220px;
   overflow: auto;
   margin: var(--space-3) 0 0;
-  padding: 4px;
+  padding: var(--space-1);
   list-style: none;
   border-radius: var(--radius-surface);
   /* Resting inside the dialog: the card fill and a border, no shadow. */
@@ -60,7 +60,7 @@
   border-radius: var(--radius-item);
   background: var(--surface-control);
 }
-.get-team-overlaps svg { width: 16px; height: 16px; color: var(--status-danger); }
+.get-team-overlaps svg { width: var(--icon-control); height: var(--icon-control); color: var(--status-danger); }
 .get-team-overlaps__path { min-width: 0; overflow-wrap: anywhere; font: var(--text-label)/var(--leading-snug) var(--font-mono); }
 .get-team-overlaps small { grid-column: 2; color: var(--text-secondary-color); font-size: var(--text-caption); }
 

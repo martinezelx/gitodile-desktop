@@ -148,6 +148,38 @@ function versionOnBranch(index: number, name: string): SavedVersionSummary {
 afterEach(cleanup);
 
 describe("HistoryPanel", () => {
+  it("preserves an unsaved scroll when a filtered timeline rerenders", () => {
+    const historyController = controller();
+    const panel = () => (
+      <LanguageProvider>
+        <HistoryPanel tabs={TABS} controller={historyController} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={state(3, { scrollOffset: 0, filters: { ...NO_HISTORY_FILTERS, noMerges: true } })}
+          watcherState="watching" onOpenSettings={() => {}} error={null} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(panel());
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    timeline.scrollTop = 800;
+    fireEvent.scroll(timeline);
+    rerender(panel());
+    expect(timeline.scrollTop).toBe(800);
+  });
+
+  it("restores a mounted timeline once and preserves its live position on later renders", () => {
+    const historyController = controller();
+    const panel = (scrollOffset: number) => (
+      <LanguageProvider>
+        <HistoryPanel tabs={TABS} controller={historyController} query={{ projectId: "/repo", sessionEpoch: "epoch-1" }}
+          state={state(3, { scrollOffset })} watcherState="watching" onOpenSettings={() => {}} error={null} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(panel(800));
+    const timeline = screen.getByRole("tree", { name: "Saved versions timeline" });
+    expect(timeline.scrollTop).toBe(800);
+    rerender(panel(0));
+    expect(timeline.scrollTop).toBe(800);
+  });
+
   it("shows the native branch inventory limit warning without hiding history", () => {
     const history = state(3);
     renderPanel({
@@ -354,7 +386,7 @@ describe("HistoryPanel", () => {
     const { rerender } = render(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
     expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
     rerender(panel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/feature.tsx" })));
-    expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Files changed in this saved version" })).toBeInTheDocument();
     rerender(panel(state(2, { detail: { detail: null, isLoading: true, error: null } })));
     expect(screen.getAllByText("Reading this saved version…").length).toBeGreaterThan(0);
   });
@@ -426,14 +458,20 @@ describe("HistoryPanel", () => {
         filesTruncated: false,
         countsAreMinimum: false,
       };
-      renderPanel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "README.md" }));
-      expect(screen.getByRole("listbox", { name: "Files changed in this saved version" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Show files in folders" }));
+      const { rerender, historyController } = renderPanel(state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "README.md" }));
+      expect(screen.getByRole("group", { name: "Files changed in this saved version" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show files in folders" })).toHaveAttribute("aria-pressed", "true");
       const folder = screen.getByRole("button", { name: "src/app folder, 2 files" });
       expect(folder).toHaveAttribute("aria-expanded", "true");
       fireEvent.click(folder);
       expect(folder).toHaveAttribute("aria-expanded", "false");
       expect(screen.queryByRole("button", { name: /src\/app\/App\.tsx/ })).not.toBeInTheDocument();
+      rerender(<LanguageProvider><HistoryPanel tabs={TABS} controller={historyController}
+        query={{ projectId: "/repo", sessionEpoch: "epoch-1" }} watcherState="watching" error={null} onOpenSettings={() => {}}
+        state={state(2, { detail: { detail, isLoading: false, error: null }, selectedFilePath: "src/app/App.tsx" })}
+      /></LanguageProvider>);
+      expect(folder).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: /src\/app\/App\.tsx/ })).toHaveAttribute("aria-current", "true");
     } finally {
       localStorage.removeItem("gitodile-file-list-view");
     }
@@ -515,8 +553,9 @@ describe("HistoryPanel", () => {
 
     const avatar = container.querySelector(".history-row .author-avatar");
     expect(avatar).toHaveClass("author-avatar--self");
-    expect(avatar).not.toHaveTextContent("AL");
-    expect(avatar?.querySelector("svg")).not.toBeNull();
+    // Their own initials on the neutral tint, never a picture.
+    expect(avatar).toHaveTextContent("AL");
+    expect(avatar?.querySelector("img, svg")).toBeNull();
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
     expect(container.querySelector(".history-row")).toHaveAttribute("aria-description", expect.stringContaining("You (Ada Lovelace)"));
 

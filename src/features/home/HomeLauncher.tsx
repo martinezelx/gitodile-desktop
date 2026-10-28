@@ -293,6 +293,7 @@ export function HomeLauncher({
 
   const showAccount = (accountId: string): void => {
     if (!repositoryBrowser) return;
+    if (setup?.accounts?.some(account => account.id === accountId && account.kind === "azure")) { repositoryBrowser.cancel(); return; }
     // The one network read Home makes, and only on an explicit choice.
     repositoryBrowser.select(accountId);
     const state = repositoryBrowser.snapshot();
@@ -340,10 +341,9 @@ export function HomeLauncher({
   let primary: (() => void) | null = null;
   let results: React.ReactNode = null;
 
-  const recentRow = (entry: HomeRecentEntry, index: number, isPrimary: boolean): React.JSX.Element => (
+  const recentRow = (entry: HomeRecentEntry, isPrimary: boolean): React.JSX.Element => (
     <RecentRow
       key={entry.path}
-      index={index}
       entry={entry}
       opened={openedLabel(entry)}
       isPrimary={isPrimary}
@@ -355,7 +355,7 @@ export function HomeLauncher({
   );
 
   if (activeAccount && (intent.kind === "empty" || intent.kind === "text")) {
-    const repositories = browser?.accountId === activeAccount.id ? (browser.page?.repositories ?? null) : null;
+    const repositories = activeAccount.kind !== "azure" && browser?.accountId === activeAccount.id ? (browser.page?.repositories ?? null) : null;
     const text = intent.kind === "text" ? intent.text : "";
     const first = repositories
       ? matchRecentProjects(
@@ -410,7 +410,7 @@ export function HomeLauncher({
       results = (
         <>
           <ul className="home-launcher__list" aria-label={t.homeTabFavourites}>
-            {favourites.map((entry, index) => recentRow(entry, index, index === 0))}
+            {favourites.map((entry, index) => recentRow(entry, index === 0))}
           </ul>
           {favourites.length <= 2 && (
             <p className="home-launcher__note">
@@ -436,7 +436,7 @@ export function HomeLauncher({
           )}
           {rest.length > 0 && (
             <ul className="home-launcher__list" aria-label={t.homeRecentProjectsTitle}>
-              {rest.map((entry, index) => recentRow(entry, index, false))}
+              {rest.map((entry) => recentRow(entry, false))}
             </ul>
           )}
         </>
@@ -462,7 +462,7 @@ export function HomeLauncher({
         </LauncherSection>
         {sameName.length > 0 && (
           <LauncherSection label={t.homeSectionSameName}>
-            <ul className="home-launcher__list">{sameName.map((entry, index) => recentRow(entry, index, false))}</ul>
+            <ul className="home-launcher__list">{sameName.map((entry) => recentRow(entry, false))}</ul>
           </LauncherSection>
         )}
       </>
@@ -485,7 +485,7 @@ export function HomeLauncher({
         </LauncherSection>
         {matches.length > 0 && (
           <LauncherSection label={t.homeSectionProjects}>
-            <ul className="home-launcher__list">{matches.map((entry, index) => recentRow(entry, index, false))}</ul>
+            <ul className="home-launcher__list">{matches.map((entry) => recentRow(entry, false))}</ul>
           </LauncherSection>
         )}
       </>
@@ -498,7 +498,7 @@ export function HomeLauncher({
       <>
         {matches.length > 0 ? (
           <LauncherSection label={t.homeSectionProjects}>
-            <ul className="home-launcher__list">{matches.map((entry, index) => recentRow(entry, index, index === 0))}</ul>
+            <ul className="home-launcher__list">{matches.map((entry, index) => recentRow(entry, index === 0))}</ul>
           </LauncherSection>
         ) : (
           <p className="home-launcher__note home-launcher__note--plain">{t.homeNoMatches(intent.text)}</p>
@@ -602,7 +602,7 @@ export function HomeLauncher({
               aria-label={t.homeLauncherLabel}
               placeholder={
                 activeAccount
-                  ? t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
+                  ? activeAccount.kind === "azure" ? t.homeLauncherPlaceholderFirst : t.homeAccountSearchPlaceholder(ACCOUNT_KIND_NAMES[activeAccount.kind])
                   : hasRecents
                     ? t.homeLauncherPlaceholder
                     : t.homeLauncherPlaceholderFirst
@@ -815,7 +815,6 @@ function ContinueRow({
  * and the path is its description, so two projects that share a folder name
  * are still told apart. */
 function RecentRow({
-  index,
   entry,
   opened,
   isPrimary,
@@ -824,7 +823,6 @@ function RecentRow({
   onToggleFavourite,
   onForget,
 }: {
-  index: number;
   entry: HomeRecentEntry;
   opened: string | null;
   isPrimary: boolean;
@@ -841,8 +839,7 @@ function RecentRow({
 
   return (
     <li
-      className={`home-launcher__item home-launcher__item--recent row-in${isPrimary ? " home-launcher__item--primary" : ""}${entry.isFavourite ? " home-launcher__item--favourite" : ""}${entry.openState === "active" ? " home-launcher__item--active" : ""}`}
-      style={{ "--row-index": index } as React.CSSProperties}
+      className={`home-launcher__item home-launcher__item--recent${isPrimary ? " home-launcher__item--primary" : ""}${entry.isFavourite ? " home-launcher__item--favourite" : ""}${entry.openState === "active" ? " home-launcher__item--active" : ""}`}
     >
       <button
         className="home-launcher__open"

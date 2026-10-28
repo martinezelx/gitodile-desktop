@@ -6,7 +6,7 @@ export type OverviewProjectQuery = { path: string; sessionEpoch: string };
  * never crosses IPC; only what the header names. */
 export type RemoteHome = {
   remote: string;
-  provider: "github" | "gitlab" | "bitbucket" | "other";
+  provider: "github" | "gitlab" | "bitbucket" | "azure" | "other";
   /** `owner/name` (with GitLab's groups), or the folder of a local remote. */
   label: string;
   /** Whether Rust can derive a web page for it and open it. */

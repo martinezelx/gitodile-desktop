@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-import { handlePopupMenuKeyDown } from "./popupMenu";
+import { handlePopupMenuKeyDown, onDocumentPress } from "./popupMenu";
 
 /** Where a right-click happened, and what had focus when it did.
  *
@@ -73,12 +73,12 @@ export function ContextMenuSurface({
         onClose(true);
       }
     };
-    document.addEventListener("mousedown", dismiss);
+    const removePressListener = onDocumentPress(dismiss);
     document.addEventListener("keydown", closeOnEscape);
     window.addEventListener("resize", dismissForViewportChange);
     document.addEventListener("scroll", dismissForViewportChange, true);
     return () => {
-      document.removeEventListener("mousedown", dismiss);
+      removePressListener();
       document.removeEventListener("keydown", closeOnEscape);
       window.removeEventListener("resize", dismissForViewportChange);
       document.removeEventListener("scroll", dismissForViewportChange, true);

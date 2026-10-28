@@ -2,7 +2,8 @@
 
 This file is an inbox for ideas that are not approved for implementation. The
 dependency-ordered `1.0.0` scope lives in [`docs/ROADMAP.md`](../docs/ROADMAP.md)
-and [`work/active/release-1.0/`](active/release-1.0/). Promote one idea into a
+and the version folders under [`work/`](README.md). Approved post-`1.0.0`
+tasks wait in [`after-1.0/`](after-1.0/README.md). Promote one idea into a
 scoped task before coding it.
 
 ## Likely after `1.0.0`

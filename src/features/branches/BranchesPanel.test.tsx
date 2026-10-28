@@ -1089,6 +1089,7 @@ describe("BranchesPanel", () => {
     await within(detail).findByText("Saved versions");
     const avatar = detail.querySelector(".branches-detail__strip .author-avatar");
     expect(avatar).toHaveClass("author-avatar--self");
+    expect(avatar).toHaveTextContent("AL");
     expect(avatar).toHaveAttribute("data-tooltip", "You (Ada Lovelace)");
   });
 

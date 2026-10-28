@@ -16,7 +16,7 @@ queue:
 
 # Goal
 
-Complete the account/access foundation of [epic 148](../active/148-connect-github-account.md): reuse the browser login,
+Complete the account/access foundation of [epic 148](../after-1.0/148-connect-github-account.md): reuse the browser login,
 select an identity per project, and use it for HTTPS clone/fetch/push without
 changing the user's global Git configuration or the active gh account.
 

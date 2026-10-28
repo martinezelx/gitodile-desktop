@@ -2,8 +2,10 @@ use crate::error::{AppError, AppErrorCode};
 use crate::git_command::{checked_git_stdout, git_stdout, run_git};
 use crate::{application, repository_access, session};
 use std::{
+    collections::HashSet,
     io::ErrorKind,
     path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
 };
 
 pub(crate) fn display_path(path: PathBuf) -> String {
@@ -67,8 +69,31 @@ pub(crate) fn classify_head(has_branch: bool, has_commit: bool) -> HeadState {
 /// Uses Git's own ref parser before a branch name enters a refspec or a
 /// branch mutation.
 pub(crate) fn validate_branch_ref_name(path: &str, name: &str) -> Result<(), AppError> {
+    // Operations check the same few names again and again, and each check is
+    // a Git process. Git's answer depends only on the name, except for an
+    // `@{...}` shorthand that it resolves against the repository, so accepted
+    // names without one are remembered (a bounded set; rejections are not).
+    static ACCEPTED: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    const ACCEPTED_LIMIT: usize = 256;
+    let accepted = ACCEPTED.get_or_init(Default::default);
+    let rememberable = !name.contains("@{");
+    if rememberable
+        && accepted
+            .lock()
+            .is_ok_and(|accepted| accepted.contains(name))
+    {
+        return Ok(());
+    }
     let output = run_git(path, &["check-ref-format", "--branch", name])?;
     if output.status.success() {
+        if rememberable {
+            if let Ok(mut accepted) = accepted.lock() {
+                if accepted.len() >= ACCEPTED_LIMIT {
+                    accepted.clear();
+                }
+                accepted.insert(name.to_string());
+            }
+        }
         Ok(())
     } else {
         Err(AppError::new(
@@ -131,6 +156,95 @@ pub(crate) enum HeadState {
     Unborn,
 }
 
+/// What the combined discovery read learned about `HEAD`.
+#[derive(Debug, PartialEq, Eq)]
+enum HeadAnswer {
+    Branch(String),
+    Detached,
+    /// The read failed on `HEAD` alone, so `HEAD` doesn't resolve.
+    Unresolved,
+    /// Nothing usable: ask the two head questions separately.
+    Unknown,
+}
+
+/// Parses `rev-parse --is-inside-work-tree --show-toplevel --absolute-git-dir
+/// --git-common-dir --abbrev-ref HEAD --`: the worktree root, Git directory and
+/// common Git directory as Git prints them, and what `HEAD` is. `None` for
+/// anything but six clean lines from a working tree.
+fn parse_discovery_with_head(output: &str) -> Option<(String, String, String, HeadAnswer)> {
+    let lines = output.lines().collect::<Vec<_>>();
+    let ["true", root, git_dir, common, head, "--"] = lines.as_slice() else {
+        return None;
+    };
+    // `--abbrev-ref` shortens the way `symbolic-ref --short` and
+    // `refname:short` do everywhere else (`heads/main` when a tag shares the
+    // name), so the branch matches the inventory. A detached `HEAD` names
+    // itself, and Git refuses a branch called `HEAD`.
+    let head = match *head {
+        "" => return None,
+        "HEAD" => HeadAnswer::Detached,
+        name => HeadAnswer::Branch(name.to_string()),
+    };
+    Some((
+        root.to_string(),
+        git_dir.to_string(),
+        common.to_string(),
+        head,
+    ))
+}
+
+/// The slow path for `HEAD`: whether it names a branch, then whether it
+/// resolves to a version.
+fn classify_head_one_question_at_a_time(
+    path: &str,
+) -> Result<(Option<String>, HeadState), AppError> {
+    let symbolic_head = run_git(path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+    let branch = symbolic_head
+        .status
+        .success()
+        .then(|| git_stdout(&symbolic_head));
+    let verified_head = run_git(path, &["rev-parse", "--verify", "HEAD"])?;
+    let head_state = match (verified_head.status.success(), branch.is_some()) {
+        (true, true) => HeadState::Branch,
+        (true, false) => HeadState::Detached,
+        (false, _) => HeadState::Unborn,
+    };
+    Ok((branch, head_state))
+}
+
+/// The slow path of `open_repository`'s discovery: returns the worktree root,
+/// Git directory and common Git directory as Git prints them, or the error
+/// that says why the folder can't be opened.
+fn discover_one_question_at_a_time(path: &str) -> Result<(String, String, String), AppError> {
+    let is_repo = run_git(path, &["rev-parse", "--is-inside-work-tree"])?;
+    if !is_repo.status.success() {
+        return Err(AppError::new(
+            AppErrorCode::NotRepository,
+            "This folder isn't inside a Git project.",
+        )
+        .with_remediation("Choose a folder inside an existing Git project."));
+    }
+    if git_stdout(&is_repo) != "true" {
+        let is_bare = run_git(path, &["rev-parse", "--is-bare-repository"])?;
+        if is_bare.status.success() && git_stdout(&is_bare) == "true" {
+            return Err(AppError::new(
+                AppErrorCode::BareRepository,
+                "Bare Git repositories aren't supported yet.",
+            )
+            .with_remediation("Choose a project folder with working files."));
+        }
+        return Err(AppError::new(
+            AppErrorCode::NotRepository,
+            "This folder isn't inside a Git project.",
+        )
+        .with_remediation("Choose a folder inside an existing Git project."));
+    }
+    let root = checked_git_stdout(run_git(path, &["rev-parse", "--show-toplevel"])?)?;
+    let git_dir = checked_git_stdout(run_git(path, &["rev-parse", "--absolute-git-dir"])?)?;
+    let common_dir = checked_git_stdout(run_git(path, &["rev-parse", "--git-common-dir"])?)?;
+    Ok((root, git_dir, common_dir))
+}
+
 pub(crate) fn open_repository(
     path: String,
     session_epoch: Option<String>,
@@ -158,34 +272,69 @@ pub(crate) fn open_repository(
     })?;
     let selected_path = display_path(selected_path_buf.clone());
 
-    let is_repo = run_git(&path, &["rev-parse", "--is-inside-work-tree"])?;
-    if !is_repo.status.success() {
-        return Err(AppError::new(
-            AppErrorCode::NotRepository,
-            "This folder isn't inside a Git project.",
-        )
-        .with_remediation("Choose a folder inside an existing Git project."));
-    }
-    if git_stdout(&is_repo) != "true" {
-        let is_bare = run_git(&path, &["rev-parse", "--is-bare-repository"])?;
-        if is_bare.status.success() && git_stdout(&is_bare) == "true" {
-            return Err(AppError::new(
-                AppErrorCode::BareRepository,
-                "Bare Git repositories aren't supported yet.",
-            )
-            .with_remediation("Choose a project folder with working files."));
+    // One process answers the four discovery questions and names `HEAD` in a
+    // working tree whose `HEAD` resolves, which is every open but a brand new
+    // project's. This runs on every shared refresh, and naming `HEAD` used to
+    // take two more processes (task 209). `--` keeps a file called `HEAD` from
+    // making the name ambiguous.
+    let with_head = run_git(
+        &path,
+        &[
+            "rev-parse",
+            "--is-inside-work-tree",
+            "--show-toplevel",
+            "--absolute-git-dir",
+            "--git-common-dir",
+            "--abbrev-ref",
+            "HEAD",
+            "--",
+        ],
+    )?;
+    let failed_on_exit = !with_head.status.success();
+    let with_head = (!failed_on_exit)
+        .then(|| git_stdout(&with_head))
+        .and_then(|output| parse_discovery_with_head(&output));
+    let (root, git_dir_raw, common_dir_raw, head) = match with_head {
+        Some(found) => found,
+        None => {
+            // The four questions alone, still in one process. When they
+            // succeed after the read above failed, `HEAD` is what failed it.
+            // Anything but four clean lines (not a repository, a bare one, a
+            // line break inside a path) asks them one at a time, which also
+            // tells the failures apart.
+            let combined = run_git(
+                &path,
+                &[
+                    "rev-parse",
+                    "--is-inside-work-tree",
+                    "--show-toplevel",
+                    "--absolute-git-dir",
+                    "--git-common-dir",
+                ],
+            )?;
+            let combined = combined.status.success().then(|| git_stdout(&combined));
+            let answers = combined
+                .as_deref()
+                .map(|output| output.lines().collect::<Vec<_>>());
+            match answers.as_deref() {
+                Some(["true", root, git_dir, common]) => (
+                    root.to_string(),
+                    git_dir.to_string(),
+                    common.to_string(),
+                    if failed_on_exit {
+                        HeadAnswer::Unresolved
+                    } else {
+                        HeadAnswer::Unknown
+                    },
+                ),
+                _ => {
+                    let (root, git_dir, common) = discover_one_question_at_a_time(&path)?;
+                    (root, git_dir, common, HeadAnswer::Unknown)
+                }
+            }
         }
-        return Err(AppError::new(
-            AppErrorCode::NotRepository,
-            "This folder isn't inside a Git project.",
-        )
-        .with_remediation("Choose a folder inside an existing Git project."));
-    }
-
-    let root = checked_git_stdout(run_git(&path, &["rev-parse", "--show-toplevel"])?)?;
+    };
     let root_path = normalized_path(repo_path, &root);
-    let git_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--absolute-git-dir"])?)?;
-    let common_dir_raw = checked_git_stdout(run_git(&path, &["rev-parse", "--git-common-dir"])?)?;
     let git_dir_path = normalized_path(&root_path, &git_dir_raw);
     // `--git-common-dir` is relative to the directory passed to `git -C`,
     // not necessarily to the worktree root. Resolving it from `root_path`
@@ -217,22 +366,20 @@ pub(crate) fn open_repository(
         RepositoryKind::Worktree
     };
 
-    let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
-    let (branch, head_state) = if symbolic_head.status.success() {
-        let branch = Some(git_stdout(&symbolic_head));
-        let verified_head = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
-        if verified_head.status.success() {
-            (branch, HeadState::Branch)
-        } else {
+    let (branch, head_state) = match head {
+        HeadAnswer::Branch(name) => (Some(name), HeadState::Branch),
+        HeadAnswer::Detached => (None, HeadState::Detached),
+        // A branch with no versions yet keeps its name; a `HEAD` that names
+        // nothing at all has none to report.
+        HeadAnswer::Unresolved => {
+            let symbolic_head = run_git(&path, &["symbolic-ref", "--quiet", "--short", "HEAD"])?;
+            let branch = symbolic_head
+                .status
+                .success()
+                .then(|| git_stdout(&symbolic_head));
             (branch, HeadState::Unborn)
         }
-    } else {
-        let verified_head = run_git(&path, &["rev-parse", "--verify", "HEAD"])?;
-        if verified_head.status.success() {
-            (None, HeadState::Detached)
-        } else {
-            (None, HeadState::Unborn)
-        }
+        HeadAnswer::Unknown => classify_head_one_question_at_a_time(&path)?,
     };
 
     let name = root_path
@@ -253,4 +400,41 @@ pub(crate) fn open_repository(
         kind,
         session_epoch,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discovery_with_head_reads_a_branch_a_detached_head_and_rejects_the_rest() {
+        let read =
+            |head: &str| parse_discovery_with_head(&format!("true\n/p\n/p/.git\n.git\n{head}\n--"));
+        assert_eq!(
+            read("feature/a"),
+            Some((
+                "/p".to_string(),
+                "/p/.git".to_string(),
+                ".git".to_string(),
+                HeadAnswer::Branch("feature/a".to_string()),
+            ))
+        );
+        assert_eq!(
+            read("HEAD").map(|found| found.3),
+            Some(HeadAnswer::Detached)
+        );
+        assert_eq!(
+            read("heads/main").map(|found| found.3),
+            Some(HeadAnswer::Branch("heads/main".to_string()))
+        );
+        // Not a working tree, or a line break inside a path: the slow path.
+        assert_eq!(
+            parse_discovery_with_head("false\n/p/.git\n.git\nHEAD\n--"),
+            None
+        );
+        assert_eq!(
+            parse_discovery_with_head("true\n/a\nb\n/a/.git\n.git\nmain\n--"),
+            None
+        );
+    }
 }

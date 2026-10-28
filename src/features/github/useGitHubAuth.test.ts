@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_GITHUB_AUTH, GITHUB_DEVICE_URL, type GitHubAuthSnapshot } from "./domain";

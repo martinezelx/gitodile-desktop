@@ -1,0 +1,50 @@
+import type { SaveVersionTranslations } from "./translations";
+
+export const es: SaveVersionTranslations = {
+  saveVersionDialogTitle: "Guardar versión",
+  saveVersionDialogTitleFirst: "Guarda tu primera versión",
+  saveVersionLoadingTitle: "Preparando una vista previa…",
+  saveVersionChecking: "Comprobando…",
+  saveVersionTitleLabel: "Nombre de la versión",
+  saveVersionTitlePlaceholder: "¿Qué cambió?",
+  saveVersionTitleGuidance: "Los nombres cortos se leen mejor en el historial.",
+  saveVersionDescriptionLabel: "Más detalles (opcional)",
+  saveVersionDescriptionPlaceholder: "¿Por qué?",
+  saveVersionRemainingNote: (remaining) =>
+    remaining === 1
+      ? "Otro archivo se queda sin guardar."
+      : `Otros ${remaining} archivos se quedan sin guardar.`,
+  saveVersionPreparedNote: "Algunos cambios se prepararon antes con otra herramienta de Git y también se guardarán.",
+  saveVersionFirstVersionNote: "Será la primera versión guardada del proyecto.",
+  saveVersionFirstVersionOnBranchNote: (branch) => `Será la primera versión guardada en ${branch}.`,
+  saveVersionFilesCount: (total) => (total === 1 ? "1 archivo" : `${total} archivos`),
+  saveVersionShowFiles: "Ver archivos",
+  saveVersionHideFiles: "Ocultar archivos",
+  saveVersionFilesListLabel: "Archivos de esta versión",
+  saveVersionFileKind: { changed: "editado", new: "nuevo", deleted: "eliminado", renamed: "renombrado", conflicted: "necesita atención" },
+  saveVersionMoreFiles: (count) => (count === 1 ? "Y 1 más: Cambios los muestra todos." : `Y ${count} más: Cambios los muestra todos.`),
+  saveVersionAddDetails: "Añadir detalles",
+  saveVersionShortcutHint: (mod) => `${mod}+Intro`,
+  saveVersionNoDestinationNote: "No estás en ninguna rama. Crea una para no perder de vista esta versión.",
+  saveVersionLocalOnlyNote: "Solo en este ordenador hasta que publiques.",
+  saveVersionPublishNextNote: "Lo revisarás antes de que se publique nada.",
+  saveVersionConfirm: "Guardar",
+  saveVersionConfirmAndPublish: "Guardar y publicar",
+  saveVersionPublishToggleLabel: "Publicar también",
+  saveVersionPublishAfterLabel: "Publicar después de guardar",
+  saveVersionSaving: "Guardando…",
+  saveVersionRetry: "Reintentar",
+  saveVersionSkipHooks: "Guardar sin ejecutar los hooks",
+  saveVersionShowDetail: "Mostrar detalles técnicos",
+  saveVersionHideDetail: "Ocultar detalles técnicos",
+  saveVersionDetailHeading: "Detalles técnicos",
+  saveVersionSuccessTitle: "Versión guardada",
+  saveVersionNothingTitle: "Todo está guardado",
+  saveVersionBlockedTitle: "Aún no se puede guardar",
+  saveVersionSuccessDescription: (title, shortCommit) => `«${title}» guardada como ${shortCommit}.`,
+  saveVersionSavedOn: (title, branch) =>
+    branch ? `«${title}» está en «${branch}», solo en este ordenador.` : `«${title}» está guardada, solo en este ordenador.`,
+  saveVersionPublishNow: "Publicar ahora",
+  saveVersionDone: "Listo",
+};
+

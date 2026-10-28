@@ -39,6 +39,9 @@ export type NavDestination = {
   /** Which sidebar `<nav>` the entry belongs to. */
   section: "project" | "application";
   labelKey: TextKey;
+  /** The line Navigation Settings shows under the label; `null` for an entry
+   * that is not in the rail. */
+  descriptionKey: TextKey | null;
   /** Tooltip and accessible name while the entry is disabled — it has to
    * explain *why* it is disabled, per AGENTS.md's "never hide consequences". */
   disabledLabelKey: TextKey | null;
@@ -86,6 +89,7 @@ export const SCREEN_MODULES = defineScreenModules([
     id: "recovery",
     section: "project",
     labelKey: "navRecovery",
+    descriptionKey: "navRecoveryDescription",
     disabledLabelKey: "navRecoveryTitle",
     icon: <LifeBuoy />,
     requiresProject: true,
@@ -103,6 +107,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
       screen: module.id as ScreenId,
       section: module.section,
       labelKey: module.labelKey,
+      descriptionKey: module.descriptionKey,
       disabledLabelKey: module.disabledLabelKey,
       icon: module.icon,
       requiresProject: module.requiresProject,
@@ -118,6 +123,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
       screen: null,
       section: module.section,
       labelKey: module.labelKey,
+      descriptionKey: null,
       disabledLabelKey: null,
       icon: module.icon,
       requiresProject: false,
@@ -133,6 +139,7 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = SCREEN_MODULES.map((m
     screen: null,
     section: module.section,
     labelKey: module.labelKey,
+    descriptionKey: module.descriptionKey,
     disabledLabelKey: module.disabledLabelKey,
     icon: module.icon,
     requiresProject: module.requiresProject,

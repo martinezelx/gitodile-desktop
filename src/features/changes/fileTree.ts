@@ -111,6 +111,18 @@ export function flatFileRows<T>(items: readonly T[], pathOf: (item: T) => string
   return items.map((item) => ({ kind: "file", path: pathOf(item), depth: 0, item }));
 }
 
+/** Keep an explicit selection; otherwise open the first file in the layout's
+ * display order. Git's payload order can put that file last in a folder tree. */
+export function resolveSelectedPath(
+  files: readonly { path: string }[],
+  previousPath: string | null,
+  view: FileListView = "tree",
+): string | null {
+  if (previousPath !== null && files.some((file) => file.path === previousPath)) return previousPath;
+  if (view === "list") return files[0]?.path ?? null;
+  return flattenFileTree(files, (file) => file.path, new Set()).find((row) => row.kind === "file")?.path ?? null;
+}
+
 /** Which folders a file list has folded, and the two ways that changes:
  * pressing a folder, and stepping to a file inside a folded one — which opens
  * it, since the selected file has to be a row the reader can see. Per list and
@@ -140,11 +152,11 @@ export function useCollapsedFolders(): {
    so no copy of it can drift; failing storage just means the default. */
 const listeners = new Set<() => void>();
 
-function readFileListView(): FileListView {
+export function readFileListView(): FileListView {
   try {
-    return localStorage.getItem(FILE_LIST_VIEW_STORAGE_KEY) === "tree" ? "tree" : "list";
+    return localStorage.getItem(FILE_LIST_VIEW_STORAGE_KEY) === "list" ? "list" : "tree";
   } catch {
-    return "list";
+    return "tree";
   }
 }
 

@@ -121,3 +121,17 @@ Conservancy, Meta Platforms, the Rust Foundation, or Linus Torvalds.
 - The Windows, Apple, and Linux marks are drawn in
   `src/app/vendorMarks.tsx`, as that collection carries no artwork for them.
   "Tux" is by Larry Ewing, Simon Budig, and Anja Gerwinski.
+
+## Azure DevOps icon
+
+The Azure DevOps provider icon is the `azure-devops` icon from
+[Microsoft Codicons](https://github.com/microsoft/vscode-codicons), by Microsoft
+Corporation, licensed under
+[Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+The original [license and warranty disclaimer](https://github.com/microsoft/vscode-codicons/blob/main/LICENSE)
+apply. [Source SVG](https://github.com/microsoft/vscode-codicons/blob/main/src/icons/azure-devops.svg).
+
+The path geometry and monochrome `currentColor` fill are unchanged. GitOdile
+renders the icon at 18 pixels instead of 16 and marks it as decorative for
+accessibility. It identifies the Azure DevOps integration; it does not imply
+Microsoft endorsement of GitOdile.

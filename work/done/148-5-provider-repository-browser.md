@@ -51,7 +51,7 @@ copying a URL, and continue through the existing destination preview and clone.
 
 Hosted project/fork creation, PRs, CI operations, enterprise/self-hosted hosts,
 new clone engines, global search and unbounded downloads. Bitbucket remains
-[deferred](../blocked/148-8-bitbucket-accounts.md). GitLab's API adapter is next
+[deferred](../after-1.0/148-8-bitbucket-accounts.md). GitLab's API adapter is next
 provider work, not a reason to delay this GitHub closure.
 
 # Architecture and dependencies

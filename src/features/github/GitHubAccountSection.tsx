@@ -1,17 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, ExternalLink, Info, LoaderCircle, UserRound } from "lucide-react";
+import { CheckCircle2, CircleAlert, ExternalLink, Info, LoaderCircle } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { AccountRow } from "../accounts";
 import { copyTextToClipboard, type ToolChip } from "../../shared/ui";
-import { githubAccountChip, githubAccountRows, isGitHubAuthBusy, isGitHubAvatarDataUrl, type GitHubSavedAccount } from "./domain";
+import { githubAccountChip, githubAccountRows, isGitHubAuthBusy, type GitHubSavedAccount } from "./domain";
 import type { GitHubAuthController } from "./useGitHubAuth";
-
-function AccountAvatar({ source }: { source: string | null }): React.JSX.Element {
-  const [failed, setFailed] = useState(false);
-  return !failed && isGitHubAvatarDataUrl(source)
-    ? <img className="github-account__avatar" src={source} alt="" onError={() => setFailed(true)} />
-    : <UserRound className="github-account__avatar" aria-hidden="true" />;
-}
 
 /** One host's gh accounts inside the shared account list, which owns the
  * heading, the account check and the way to add an account. Each saved
@@ -77,7 +70,7 @@ export function GitHubAccountSection({ controller, available, allowSwitch = true
 
   const row = (account: GitHubSavedAccount): React.JSX.Element => {
     const state = githubAccountChip(snapshot, account, available, busy);
-    const chip: ToolChip = { label: t.githubAuthChip[state], tone: state === "connected" ? "success" : state === "invalid" ? "danger"
+    const chip: ToolChip = { label: t.githubAuthChip[state], tone: state === "connected" ? "success" : state === "invalid" ? "warning"
       : state === "unchecked" && snapshot.state !== "unchecked" ? "warning" : "neutral",
       icon: state === "connected" ? <CheckCircle2 aria-hidden="true" /> : state === "checking" ? <LoaderCircle className="icon--spinning" aria-hidden="true" /> : undefined };
     const signOut = <button type="button" className="secondary-button"
@@ -101,8 +94,8 @@ export function GitHubAccountSection({ controller, available, allowSwitch = true
     const storage = account.storage === "file" ? <p className="status-line status-line--warning"><CircleAlert aria-hidden="true" /><span>{t.githubAuthFile}</span></p>
       : account.storage === "environment" ? <p className="status-line"><Info aria-hidden="true" /><span>{t.githubAuthEnvironment}</span></p>
         : account.storage === "unknown" ? <p className="status-line"><Info aria-hidden="true" /><span>{t.githubAuthUnknownStorage}</span></p> : null;
-    return <AccountRow key={account.login} login={account.login} method="browser" state={chip}
-      avatar={isGitHubAvatarDataUrl(account.avatarDataUrl) ? <AccountAvatar key={account.avatarDataUrl} source={account.avatarDataUrl} /> : undefined}
+    return <AccountRow key={account.login} login={account.login} provider="github" picture={account.avatarDataUrl}
+      method="browser" state={chip}
       notice={problem || storage ? <>{problem}{storage}</> : null} actions={actions} />;
   };
 
@@ -115,7 +108,7 @@ export function GitHubAccountSection({ controller, available, allowSwitch = true
   }}>
     {accounts.length === 0 && (status || cancel) && <div className="github-account__actions github-account__pending">{status}{cancel}</div>}
     {accounts.map(row)}
-    {snapshot.needsCheck && <p className="github-account__note">{t.githubAuthNeedsCheck}</p>}
+    {snapshot.needsCheck && snapshot.state !== "invalid" && <p className="github-account__note">{t.githubAuthNeedsCheck}</p>}
     {snapshot.signedOutAccount && <p className="github-account__note" role="status">{t.githubAuthLogoutDone.replace("{login}", snapshot.signedOutAccount)}</p>}
     {snapshot.state === "awaiting_browser" && snapshot.deviceCode && <div className="github-account__authorization">
       <p>{t.githubAuthDeviceSteps}</p>

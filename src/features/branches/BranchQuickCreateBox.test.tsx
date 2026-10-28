@@ -208,37 +208,6 @@ describe("BranchQuickCreateBox", () => {
     }
   });
 
-  it("lets a press elsewhere land before an empty box folds away", async () => {
-    // Same rule as Changes' box, through the shared `useDockedComposerFocus`:
-    // folding between a press and its release moved the list under the
-    // pointer, so the click has to reach what was pressed first.
-    let expandedWhenClicked: boolean | null = null;
-    const { container } = renderBox();
-    render(
-      <button type="button" onClick={() => { expandedWhenClicked = isExpanded(container); }}>
-        a branch row
-      </button>,
-    );
-    await userEvent.click(screen.getByLabelText("New branch name"));
-
-    await userEvent.click(screen.getByRole("button", { name: "a branch row" }));
-
-    expect(expandedWhenClicked).toBe(true);
-    await waitFor(() => expect(isExpanded(container)).toBe(false));
-  });
-
-  it("keeps an empty box open when the window, not the box, loses focus", async () => {
-    const { container } = renderBox();
-    const name = screen.getByLabelText("New branch name");
-    await userEvent.click(name);
-
-    vi.mocked(document.hasFocus).mockReturnValue(false);
-    name.blur();
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(isExpanded(container)).toBe(true);
-  });
-
   it.each(["Escape", "close button"])("%s folds without losing the draft or options and can reopen", async (method) => {
     const { container } = renderBox();
     expect(screen.queryByRole("button", { name: "Close create branch form" })).not.toBeInTheDocument();

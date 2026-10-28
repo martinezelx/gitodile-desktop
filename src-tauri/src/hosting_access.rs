@@ -2,7 +2,7 @@
 //! Provider-specific identities/endpoints remain explicit; browser sessions
 //! stay owned by their CLI. Persisted metadata never contains credentials.
 use crate::{
-    application,
+    application, avatar,
     credentials::{AccessProvider, Account, Secret},
     error::{AppError, AppErrorCode},
     git::CancellationToken,
@@ -30,6 +30,7 @@ pub(crate) enum ProviderKind {
     GitLab,
     /// Bitbucket Cloud: native API tokens only, no browser/CLI connection.
     Bitbucket,
+    Azure,
 }
 impl ProviderKind {
     fn id(self) -> &'static str {
@@ -37,6 +38,7 @@ impl ProviderKind {
             Self::GitHub => "github",
             Self::GitLab => "gitlab",
             Self::Bitbucket => "bitbucket",
+            Self::Azure => "azure",
         }
     }
     fn host(self) -> &'static str {
@@ -44,6 +46,7 @@ impl ProviderKind {
             Self::GitHub => "github.com",
             Self::GitLab => "gitlab.com",
             Self::Bitbucket => "bitbucket.org",
+            Self::Azure => "dev.azure.com",
         }
     }
     fn origin(self) -> &'static str {
@@ -51,6 +54,7 @@ impl ProviderKind {
             Self::GitHub => API_ORIGIN,
             Self::GitLab => "https://gitlab.com/api/v4",
             Self::Bitbucket => BITBUCKET_API_ORIGIN,
+            Self::Azure => "https://dev.azure.com",
         }
     }
     fn add_command(self) -> &'static str {
@@ -58,6 +62,7 @@ impl ProviderKind {
             Self::GitHub => "add_github_token",
             Self::GitLab => "add_gitlab_token",
             Self::Bitbucket => "add_bitbucket_token",
+            Self::Azure => "add_azure_token",
         }
     }
     /// Products a user can add as a company server. Bitbucket Cloud is only
@@ -72,12 +77,22 @@ impl ProviderKind {
     pub(crate) fn name(self) -> &'static str {
         self.id()
     }
+    /// Azure's identity response carries no picture (ADR 0038).
+    fn picture(self) -> Option<avatar::Provider> {
+        match self {
+            Self::GitHub => Some(avatar::Provider::GitHub),
+            Self::GitLab => Some(avatar::Provider::GitLab),
+            Self::Bitbucket => Some(avatar::Provider::Bitbucket),
+            Self::Azure => None,
+        }
+    }
     /// A company server's REST origin; the public hosts keep theirs.
     fn server_origin(self, host: &str) -> String {
         match self {
             Self::GitHub => format!("https://{host}/api/v3"),
             Self::GitLab => format!("https://{host}/api/v4"),
             Self::Bitbucket => BITBUCKET_API_ORIGIN.to_owned(),
+            Self::Azure => "https://dev.azure.com".to_owned(),
         }
     }
     fn repositories_path(self, page: u32) -> String {
@@ -86,6 +101,7 @@ impl ProviderKind {
         Self::GitLab => format!("/projects?membership=true&order_by=last_activity_at&sort=desc&per_page=100&page={page}"),
         // Bitbucket discovery walks workspaces; see `bitbucket_page`.
         Self::Bitbucket => String::new(),
+            Self::Azure => String::new(),
     }
     }
 }
@@ -235,11 +251,20 @@ pub(crate) struct HostingAccessService {
     requests: Arc<Mutex<BTreeMap<String, CancellationToken>>>,
     cancelled_requests: Arc<Mutex<BTreeSet<String>>>,
     api_origin: String,
+    scope_path: Option<Arc<str>>,
     /// Bitbucket discovery position of each page already shown, per account.
     walks: Arc<Mutex<BTreeMap<String, BitbucketWalk>>>,
 }
 
 impl HostingAccessService {
+    pub(crate) fn has_saved_tokens(&self) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .metadata
+            .as_ref()
+            .map_or(true, |metadata| !metadata.logins.is_empty())
+    }
     pub(crate) fn new(gh: GitHubAuthService, path: PathBuf) -> Self {
         Self::with_store(gh, path, Arc::new(OsTokenStore(STORE.into())))
     }
@@ -276,6 +301,7 @@ impl HostingAccessService {
         };
         for login in &logins {
             self.store.remove(login)?;
+            avatar::forget(&self.token_account(login));
         }
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         for login in &logins {
@@ -313,6 +339,20 @@ impl HostingAccessService {
             path,
             Arc::new(OsTokenStore(BITBUCKET_STORE.into())),
         )
+    }
+    pub(crate) fn azure(organization: &str, path: PathBuf) -> Self {
+        let mut service = Self::configured(
+            Arc::new(NoCli),
+            ProviderKind::Azure,
+            path,
+            Arc::new(OsTokenStore(format!(
+                "GitOdile/AzureRepos/{organization}/token/v1"
+            ))),
+        );
+        service.id = crate::azure_access::instance_id(organization).into();
+        service.scope_path = Some(organization.into());
+        service.api_origin = format!("https://dev.azure.com/{organization}");
+        service
     }
     pub(crate) fn gitlab(glab: crate::gitlab_auth::GitLabAuthService, path: PathBuf) -> Self {
         Self::configured(
@@ -355,7 +395,7 @@ impl HostingAccessService {
                                             .get(key)
                                             .is_some_and(|name| gitlab_login_is_valid(name))
                                 }))
-                            || (kind == ProviderKind::Bitbucket
+                            || (matches!(kind, ProviderKind::Bitbucket | ProviderKind::Azure)
                                 && metadata.logins.iter().any(|key| {
                                     bitbucket_uuid(key).as_deref() != Some(key.as_str())
                                         || !metadata
@@ -397,6 +437,7 @@ impl HostingAccessService {
             requests: Arc::new(Mutex::new(BTreeMap::new())),
             cancelled_requests: Arc::new(Mutex::new(BTreeSet::new())),
             api_origin: kind.origin().into(),
+            scope_path: None,
             walks: Arc::default(),
         }
     }
@@ -489,11 +530,35 @@ impl HostingAccessService {
         state.advance(&login);
         state.verified.insert(login.to_ascii_lowercase());
         state.failures.remove(&login.to_ascii_lowercase());
-        Ok(format!(
-            "{}:token.{}",
-            self.id(),
-            login.to_ascii_lowercase()
-        ))
+        Ok(self.token_account(&login))
+    }
+    fn token_account(&self, login: &str) -> String {
+        format!("{}:token.{}", self.id(), login.to_ascii_lowercase())
+    }
+    async fn refresh_picture(
+        &self,
+        account: &str,
+        raw: Option<&str>,
+        cancellation: &CancellationToken,
+    ) {
+        let Some(provider) = self.kind.picture() else {
+            return;
+        };
+        avatar::refresh(account, provider, &self.host, raw, cancellation).await;
+        // A removal that raced the download has already forgotten the
+        // picture; never leave one behind for a connection that is gone.
+        if !self.is_saved(account) {
+            avatar::forget(account);
+        }
+    }
+    fn is_saved(&self, account: &str) -> bool {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        state.metadata.as_ref().is_ok_and(|metadata| {
+            metadata
+                .logins
+                .iter()
+                .any(|login| self.token_account(login) == account)
+        })
     }
     fn save_identity(
         &self,
@@ -555,6 +620,8 @@ impl HostingAccessService {
         state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         state.metadata = Ok(next);
         state.advance(key);
+        drop(state);
+        avatar::forget(&self.token_account(key));
         Ok(())
     }
     fn request(&self, id: &str, command: &'static str) -> Result<Arc<Request>, AppError> {
@@ -626,16 +693,22 @@ impl HostingAccessService {
         let request = self.request(&request_id, command)?;
         let user = user(self.kind, &self.api_origin, &secret, &request.cancellation).await?;
         request.ensure_active()?;
+        let picture = user.avatar_url.clone();
         let service = self.clone();
+        let cancellation = request.cancellation.clone();
         // Keychain prompts/storage are synchronous and must not block the async executor.
-        tokio::task::spawn_blocking(move || {
+        let account = tokio::task::spawn_blocking(move || {
             // Keep admission until the synchronous storage worker ends, even
             // if its waiting IPC future is abandoned during a window close.
             request.ensure_active()?;
             service.save_identity(user, &secret, &request.cancellation)
         })
         .await
-        .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))?
+        .map_err(|_| error(AppErrorCode::SecureStorageUnavailable))??;
+        // The connection is saved; its picture is optional enrichment.
+        self.refresh_picture(&account, picture.as_deref(), &cancellation)
+            .await;
+        Ok(account)
     }
     pub(crate) async fn repositories(
         &self,
@@ -643,6 +716,9 @@ impl HostingAccessService {
         page: u32,
         request_id: String,
     ) -> Result<RepositoryPage, AppError> {
+        if self.kind == ProviderKind::Azure {
+            return Err(error(AppErrorCode::InvalidSelection));
+        }
         if !(1..=1000).contains(&page) {
             return Err(error(AppErrorCode::InvalidSelection));
         }
@@ -754,14 +830,16 @@ impl HostingAccessService {
             token_login(key)?
         } else if self.kind == ProviderKind::GitLab {
             key.strip_prefix("cli.")?
-        } else if self.kind == ProviderKind::Bitbucket {
+        } else if matches!(self.kind, ProviderKind::Bitbucket | ProviderKind::Azure) {
             return None;
         } else {
             key
         };
         (match self.kind {
             ProviderKind::GitLab => numeric_id(login),
-            ProviderKind::Bitbucket => bitbucket_uuid(login).as_deref() == Some(login),
+            ProviderKind::Bitbucket | ProviderKind::Azure => {
+                bitbucket_uuid(login).as_deref() == Some(login)
+            }
             ProviderKind::GitHub => login_is_valid(login),
         })
         .then(|| login.to_owned())
@@ -779,6 +857,9 @@ impl HostingAccessService {
 }
 
 impl AccessProvider for HostingAccessService {
+    fn scope_path(&self) -> Option<&str> {
+        self.scope_path.as_deref()
+    }
     fn id(&self) -> &str {
         &self.id
     }
@@ -793,8 +874,10 @@ impl AccessProvider for HostingAccessService {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if let Ok(metadata) = &state.metadata {
             accounts.extend(metadata.logins.iter().map(|login| {
+                let id = self.token_account(login);
                 Account {
-                    id: format!("{}:token.{}", self.id(), login.to_ascii_lowercase()),
+                    avatar_data_url: avatar::cached(&id),
+                    id,
                     provider: self.id().into(),
                     host: self.host().into(),
                     login: state
@@ -804,7 +887,6 @@ impl AccessProvider for HostingAccessService {
                         .and_then(|m| m.usernames.get(login))
                         .cloned()
                         .unwrap_or_else(|| login.clone()),
-                    avatar_data_url: None,
                     // A verified connection stays usable while a background
                     // check runs; its result replaces this state when it lands.
                     available: state.verified.contains(&login.to_ascii_lowercase()),
@@ -877,7 +959,7 @@ impl AccessProvider for HostingAccessService {
                                     .await
                                     .and_then(|user| {
                                         if user.key(kind)?.eq_ignore_ascii_case(&login) {
-                                            Ok(user.login)
+                                            Ok((user.login, user.avatar_url))
                                         } else {
                                             Err(error(AppErrorCode::AuthenticationFailed))
                                         }
@@ -888,6 +970,7 @@ impl AccessProvider for HostingAccessService {
                         });
                     }
                     let mut renamed = false;
+                    let mut pictures = Vec::new();
                     while let Some(result) = workers.join_next().await {
                         let Ok((login, generation, verification)) = result else {
                             continue;
@@ -906,7 +989,8 @@ impl AccessProvider for HostingAccessService {
                         }
                         let key = login.to_ascii_lowercase();
                         match verification {
-                            Ok(username) => {
+                            Ok((username, picture)) => {
+                                pictures.push((service.token_account(&login), picture));
                                 if service.kind != ProviderKind::GitHub {
                                     if let Ok(metadata) = &mut state.metadata {
                                         let previous = metadata
@@ -927,6 +1011,19 @@ impl AccessProvider for HostingAccessService {
                     if renamed {
                         service.persist_usernames();
                     }
+                    // Pictures are optional enrichment, fetched together like
+                    // gh's: one bounded download each, inside the same check.
+                    let mut downloads = tokio::task::JoinSet::new();
+                    for (account, picture) in pictures {
+                        let service = service.clone();
+                        let cancellation = cancellation.clone();
+                        downloads.spawn(async move {
+                            service
+                                .refresh_picture(&account, picture.as_deref(), &cancellation)
+                                .await;
+                        });
+                    }
+                    while downloads.join_next().await.is_some() {}
                 });
             })
             .is_err()
@@ -938,6 +1035,7 @@ impl AccessProvider for HostingAccessService {
         self.identity_key(key).map(|login| match self.kind {
             ProviderKind::GitLab => "oauth2".into(),
             ProviderKind::Bitbucket => BITBUCKET_GIT_USERNAME.into(),
+            ProviderKind::Azure => "gitodile".into(),
             ProviderKind::GitHub => login,
         })
     }
@@ -984,6 +1082,10 @@ pub(crate) struct User {
     /// Bitbucket's stable identity; `login` then holds its display name.
     #[serde(skip)]
     pub(crate) uuid: Option<String>,
+    /// The profile picture URL the provider reported, still unvalidated;
+    /// `avatar::picture_url` decides whether it may be downloaded.
+    #[serde(default)]
+    pub(crate) avatar_url: Option<String>,
 }
 impl User {
     fn key(&self, kind: ProviderKind) -> Result<String, AppError> {
@@ -993,7 +1095,7 @@ impl User {
                 .filter(|id| *id > 0)
                 .map(|id| id.to_string())
                 .ok_or_else(|| error(AppErrorCode::RemoteRejected)),
-            ProviderKind::Bitbucket => self
+            ProviderKind::Bitbucket | ProviderKind::Azure => self
                 .uuid
                 .clone()
                 .ok_or_else(|| error(AppErrorCode::RemoteRejected)),
@@ -1012,6 +1114,17 @@ struct BitbucketUser {
     nickname: Option<String>,
     #[serde(default)]
     display_name: Option<String>,
+    #[serde(default)]
+    links: Option<BitbucketUserLinks>,
+}
+#[derive(Deserialize)]
+struct BitbucketUserLinks {
+    #[serde(default)]
+    avatar: Option<BitbucketAvatar>,
+}
+#[derive(Deserialize)]
+struct BitbucketAvatar {
+    href: String,
 }
 fn parse_bitbucket_user(bytes: &[u8]) -> Result<User, AppError> {
     let user: BitbucketUser =
@@ -1027,6 +1140,10 @@ fn parse_bitbucket_user(bytes: &[u8]) -> Result<User, AppError> {
         login,
         id: None,
         uuid: Some(uuid),
+        avatar_url: user
+            .links
+            .and_then(|links| links.avatar)
+            .map(|link| link.href),
     })
 }
 async fn user(
@@ -1035,6 +1152,16 @@ async fn user(
     secret: &Secret,
     cancellation: &CancellationToken,
 ) -> Result<User, AppError> {
+    if kind == ProviderKind::Azure {
+        let (bytes, _) = get(
+            origin,
+            "/_apis/connectionData?api-version=7.1-preview.1",
+            secret,
+            cancellation,
+        )
+        .await?;
+        return parse_azure_user(&bytes);
+    }
     let (bytes, _) = get(origin, "/user", secret, cancellation).await?;
     if kind == ProviderKind::Bitbucket {
         return parse_bitbucket_user(&bytes);
@@ -1120,7 +1247,7 @@ async fn probe_origin(
     let path = match kind {
         ProviderKind::GitHub => "/meta",
         ProviderKind::GitLab => "/version",
-        ProviderKind::Bitbucket => return Err(unsupported()),
+        ProviderKind::Bitbucket | ProviderKind::Azure => return Err(unsupported()),
     };
     let url = format!("{origin}{path}");
     let fetch = async {
@@ -1159,7 +1286,7 @@ async fn probe_origin(
                 }),
                 MIN_GITHUB_SERVER,
             ),
-            ProviderKind::Bitbucket => return Err(unsupported()),
+            ProviderKind::Bitbucket | ProviderKind::Azure => return Err(unsupported()),
             ProviderKind::GitLab => match status {
                 200 => (field("version"), MIN_GITLAB_SERVER),
                 // GitLab requires sign-in for its version; its refusal is
@@ -1196,7 +1323,19 @@ pub(crate) async fn get(
     let client = client()?;
     let mut bearer = b"Bearer ".to_vec();
     bearer.extend_from_slice(secret.bytes());
-    let authorization = reqwest::header::HeaderValue::from_bytes(&bearer);
+    let authorization = if origin.starts_with("https://dev.azure.com/")
+        || (cfg!(test) && path.starts_with("/_apis/connectionData"))
+    {
+        let mut credential = b"gitodile:".to_vec();
+        credential.extend_from_slice(secret.bytes());
+        let mut basic = format!("Basic {}", crate::encoding::base64_encode(&credential));
+        credential.zeroize();
+        let header = reqwest::header::HeaderValue::from_str(&basic);
+        basic.zeroize();
+        header
+    } else {
+        reqwest::header::HeaderValue::from_bytes(&bearer)
+    };
     bearer.zeroize();
     let mut authorization = authorization.map_err(|_| error(AppErrorCode::AuthenticationFailed))?;
     authorization.set_sensitive(true);
@@ -1380,6 +1519,92 @@ mod tests {
             Ok(())
         }
     }
+    #[tokio::test]
+    async fn azure_tokens_verify_identity_and_use_basic_without_exposing_secrets_in_metadata() {
+        let path =
+            PathBuf::from(crate::test_support::unique_temp_dir("azure-token")).join("contoso.json");
+        let store = Arc::new(MemoryStore::default());
+        let mut service = HostingAccessService::azure("contoso", path.clone());
+        service.store = store.clone();
+        let body = r#"{"authenticatedUser":{"id":"11111111-1111-1111-1111-111111111111","providerDisplayName":"Ada Example","isActive":true}}"#;
+        let (origin, worker) = endpoint(vec![("200 OK".into(), body.into())]);
+        service.api_origin = origin;
+        let id = service
+            .add("fixture-azure-token-123456".into(), "azure_add".into())
+            .await
+            .unwrap();
+        let requests = worker.join().unwrap();
+        assert!(requests[0].starts_with("GET /_apis/connectionData?api-version=7.1-preview.1 "));
+        let expected = crate::encoding::base64_encode(b"gitodile:fixture-azure-token-123456");
+        assert!(requests[0].to_ascii_lowercase().contains(&format!(
+            "authorization: basic {}",
+            expected.to_ascii_lowercase()
+        )));
+        assert!(!std::fs::read_to_string(&path)
+            .unwrap()
+            .contains("fixture-azure-token"));
+        assert_eq!(service.accounts()[0].login, "Ada Example");
+        assert!(service.accounts()[0].available);
+        assert_eq!(
+            service.username(id.split_once(':').unwrap().1).as_deref(),
+            Some("gitodile")
+        );
+        let (origin, worker) = endpoint(vec![(
+            "200 OK".into(),
+            body.replace(
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+            ),
+        )]);
+        service.api_origin = origin;
+        service.check();
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while service.busy() && std::time::Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        worker.join().unwrap();
+        assert!(!service.busy());
+        assert!(!service.accounts()[0].available);
+        assert_eq!(
+            service.accounts()[0].unavailable_reason,
+            Some(AppErrorCode::AuthenticationFailed)
+        );
+        service.remove(&id).unwrap();
+        assert!(service.accounts().is_empty());
+        assert!(store.0.lock().unwrap().is_empty());
+    }
+    #[test]
+    fn azure_identity_parser_refuses_anonymous_inactive_and_malformed_identities() {
+        for body in [
+            r#"{"authenticatedUser":{"id":"00000000-0000-0000-0000-000000000000","providerDisplayName":"Anonymous"}}"#,
+            r#"{"authenticatedUser":{"id":"not-an-id","providerDisplayName":"Ada"}}"#,
+            r#"{"authenticatedUser":{"id":"11111111-1111-1111-1111-111111111111","providerDisplayName":"Ada","isActive":false}}"#,
+            r#"{"authorizedUser":{"id":"11111111-1111-1111-1111-111111111111","providerDisplayName":"Ada"}}"#,
+            "<html>Sign in</html>",
+        ] {
+            assert!(parse_azure_user(body.as_bytes()).is_err());
+        }
+    }
+    #[tokio::test]
+    async fn azure_cancellation_before_admission_never_saves_a_token() {
+        let path = PathBuf::from(crate::test_support::unique_temp_dir("azure-cancel"))
+            .join("contoso.json");
+        let mut service = HostingAccessService::azure("contoso", path.clone());
+        service.store = Arc::new(MemoryStore::default());
+        service.cancel("azure_cancelled");
+        assert_eq!(
+            service
+                .add(
+                    "fixture-azure-token-123456".into(),
+                    "azure_cancelled".into()
+                )
+                .await
+                .unwrap_err()
+                .code,
+            AppErrorCode::OperationCancelled
+        );
+        assert!(!path.exists());
+    }
     #[test]
     fn cached_catalog_reads_do_not_wait_for_a_secure_store_prompt() {
         struct PromptStore {
@@ -1401,7 +1626,7 @@ mod tests {
         }
         let (entered, started) = std::sync::mpsc::channel();
         let (release, gate) = std::sync::mpsc::channel();
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-prompt-test-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(
@@ -1472,7 +1697,7 @@ mod tests {
     }
     #[test]
     fn token_source_survives_restart_without_secret_json_or_implicit_verification() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-token-test-{}", std::process::id()))
             .join("accounts.json");
         let store = Arc::new(MemoryStore::default());
@@ -1597,7 +1822,7 @@ mod tests {
     }
     #[tokio::test]
     async fn discovery_checks_the_exact_identity_before_private_results_and_never_follows_links() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-discovery-{}", std::process::id()))
             .join("accounts.json");
         let store = Arc::new(MemoryStore::default());
@@ -1881,7 +2106,7 @@ mod tests {
     }
     #[test]
     fn token_helper_keeps_the_account_source_and_emits_the_real_http_username() {
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-token-helper-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(
@@ -1938,7 +2163,7 @@ mod tests {
                 Err(error(AppErrorCode::SecureStorageUnavailable))
             }
         }
-        let path = std::env::temp_dir()
+        let path = crate::test_support::test_temp_root()
             .join(format!("gitodile-unavailable-store-{}", std::process::id()))
             .join("accounts.json");
         let service = HostingAccessService::with_store(
@@ -2008,6 +2233,7 @@ mod tests {
                     id: Some(42),
                     login: "studio.user_1".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &secret,
                 &cancellation,
@@ -2042,6 +2268,7 @@ mod tests {
                     id: Some(42),
                     login: "renamed".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &secret,
                 &cancellation
@@ -2100,6 +2327,7 @@ mod tests {
             id: Some(id),
             login: login.into(),
             uuid: None,
+            avatar_url: None,
         };
         service
             .save_identity(user(42, "old.name"), &secret, &cancellation)
@@ -2170,9 +2398,10 @@ mod tests {
     #[tokio::test]
     async fn gitlab_ingestion_verifies_identity_and_discovery_rechecks_numeric_id() {
         let (mut service, _) = gitlab_fixture("gitlab-ingestion");
+        // GitLab's Gravatar fallback is never requested: one request only.
         let (origin, worker) = endpoint(vec![(
             "200 OK".into(),
-            r#"{"id":42,"username":"studio.user_1"}"#.into(),
+            r#"{"id":42,"username":"studio.user_1","avatar_url":"https://secure.gravatar.com/avatar/abc"}"#.into(),
         )]);
         service.api_origin = origin;
         assert_eq!(
@@ -2245,6 +2474,7 @@ mod tests {
                     id: Some(42),
                     login: "name".into(),
                     uuid: None,
+                    avatar_url: None,
                 },
                 &Secret::from_bytes(b"fixture-token-1234567".to_vec()).unwrap(),
                 &CancellationToken::default(),
@@ -2294,6 +2524,15 @@ mod tests {
         )
         .unwrap();
         assert_eq!(user.login, "Full Name");
+        assert_eq!(user.avatar_url, None);
+        let user = parse_bitbucket_user(
+            br#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}","nickname":"luis","links":{"avatar":{"href":"https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc/128"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            user.avatar_url.as_deref(),
+            Some("https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/abc/128")
+        );
         for body in [
             r#"{"uuid":"not-a-uuid","nickname":"name"}"#,
             r#"{"uuid":"{3f2504e0-4f89-41d3-9a0c-0305e82c330}","nickname":"name"}"#,
@@ -2735,6 +2974,7 @@ fn server_store(kind: ProviderKind, host: &str) -> String {
         ProviderKind::GitHub => format!("GitOdile/GitHubEnterprise/{host}/token/v1"),
         ProviderKind::GitLab => format!("GitOdile/GitLabSelfManaged/{host}/token/v1"),
         ProviderKind::Bitbucket => BITBUCKET_STORE.to_owned(),
+        ProviderKind::Azure => "GitOdile/AzureRepos/token/v1".to_owned(),
     }
 }
 
@@ -2764,7 +3004,7 @@ impl AccessProvider for NoCli {
 
 impl HostingAccessService {
     fn is_server(&self) -> bool {
-        &*self.id != self.kind.id()
+        self.scope_path.is_none() && &*self.id != self.kind.id()
     }
 }
 
@@ -3008,4 +3248,36 @@ impl HostingAccessService {
         walks.insert(account_id.to_owned(), walk);
         Ok((repositories, next.is_some()))
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AzureConnection {
+    authenticated_user: AzureIdentity,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AzureIdentity {
+    id: String,
+    provider_display_name: String,
+    #[serde(default)]
+    is_active: Option<bool>,
+}
+fn parse_azure_user(bytes: &[u8]) -> Result<User, AppError> {
+    let connection: AzureConnection =
+        serde_json::from_slice(bytes).map_err(|_| error(AppErrorCode::AuthenticationFailed))?;
+    let user = connection.authenticated_user;
+    let uuid = bitbucket_uuid(&user.id)
+        .filter(|id| id != "00000000-0000-0000-0000-000000000000")
+        .ok_or_else(|| error(AppErrorCode::AuthenticationFailed))?;
+    if user.is_active == Some(false) || !bitbucket_name_is_valid(&user.provider_display_name) {
+        return Err(error(AppErrorCode::AuthenticationFailed));
+    }
+    Ok(User {
+        login: user.provider_display_name,
+        id: None,
+        uuid: Some(uuid),
+        // connectionData carries no picture; see ADR 0038.
+        avatar_url: None,
+    })
 }

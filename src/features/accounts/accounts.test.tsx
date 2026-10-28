@@ -167,11 +167,11 @@ describe("shared provider accounts", () => {
     const onChange = vi.fn();
     const onCheck = vi.fn();
     render(<AccountPicker catalog={catalog} provider="github" value={null} onChange={onChange} onCheck={onCheck} required />, { wrapper });
-    expect(screen.queryByRole("button", { name: "Check accounts" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Check connections" })).toBeNull();
     const trigger = screen.getByRole("combobox");
     trigger.focus();
     await user.keyboard("{ArrowDown}{End}");
-    expect(document.getElementById(trigger.getAttribute("aria-activedescendant")!)).toHaveTextContent("Check accounts");
+    expect(document.getElementById(trigger.getAttribute("aria-activedescendant")!)).toHaveTextContent("Check connections");
     await user.keyboard("{Enter}");
     expect(onCheck).toHaveBeenCalledOnce();
     expect(onChange).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe("shared provider accounts", () => {
     await user.click(screen.getByRole("combobox"));
     // A required choice offers no "none" option; an empty provider says why
     // and still offers the account check.
-    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Check accounts"]);
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Check connections"]);
     expect(screen.getByRole("listbox")).toHaveTextContent(/Connect an account in Settings/);
     expect(props.onCheck).not.toHaveBeenCalled();
     await user.click(document.body);

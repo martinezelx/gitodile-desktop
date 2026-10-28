@@ -48,6 +48,16 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Icon size states a role, the same way type does — see DESIGN.md § Icons.
+     A glyph is sized by what it sits in, never by eye: fourteen sizes from 10
+     to 25px had grown before these existed. */
+  --icon-badge: 10px;   /* a glyph on a badge or a corner chip */
+  --icon-meta: 12px;    /* beside a caption or a label: a chip, a hint */
+  --icon-row: 14px;     /* inside a row, a field or a compact control */
+  --icon-control: 16px; /* a menu row, a button, a search field */
+  --icon-nav: 18px;     /* a navigation entry, a dialog's close */
+  --icon-tile: 20px;    /* a glyph tile, a state glyph, the rail */
+
   /* Control size states a role, the same way radius does — see DESIGN.md
      § Size. `md` is the house size for any labelled action; `sm` is for an
      action that lives inside a row it must not out-weigh; `lg` is reached
@@ -58,11 +68,24 @@
      fills it, which is exactly the gap that let every un-overridden button
      inherit the browser's 16px default and size itself off the system font's
      metrics. */
+  /* Two compact tiers below `sm`, for what sits inside a strip rather than in
+     the page: a chip or capsule in a row (`xs`), and a field, tab or picker
+     in a toolbar, the status bar or the Console (`compact`). */
+  --control-height-xs: 24px;
+  --control-height-compact: 28px;
   --control-height-sm: 32px;
   --control-height-md: 38px;
   --control-height-lg: 44px;
   --control-font-sm: 12px;
   --control-font-md: 13px;
+
+  /* A square icon button's size states where it sits — DESIGN.md § Size.
+     An action in a row is `--control-height-sm`, and the sibling of a labelled
+     action is `--control-height-md`; these are the three that are neither. */
+  --icon-button-chip: 20px;     /* inside a chip: remove a filter */
+  --icon-button-inline: 24px;   /* inside a field or capsule: clear, filter */
+  --icon-button-attached: 28px; /* attached to a notice, toast, card or pane strip */
+  --icon-button-chrome: 36px;   /* the window's frame: titlebar, rail, a dialog's close */
 
   /* Two screens pair a list panel with a detail panel — Changes and History —
      and the same person switches between them all day, so the panel edge and
@@ -143,11 +166,45 @@
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
+  /* Leaving is shorter than arriving: the reader has already moved on. */
+  --duration-exit: 90ms;
+  /* The one curve for something arriving: a menu, the palette, a flyout. It
+     starts fast and settles, so the surface is there at once and lands
+     softly. Leaving uses a plain `ease-in`, shorter than the arrival. */
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   /* The app's one way of saying "this, now": a halo that leaves the element
      and fades as it goes, seen once when the state arrives and then gone. One
      reach, one colour by default; a surface re-points the colour (a warning
      tile sets --attention-color to --status-warning) and never the shape. See
      `.attention-breathe` in primitives.css. */
+  /* A tint is a theme colour mixed into transparent (or into the surface it
+     sits on) at one of these strengths — DESIGN.md § Tints. The colour comes
+     from the theme; the strength comes from what the tint is for, so a
+     selected row is the same weight on every screen. */
+  --tint-hover: 5%;        /* a neutral row or field under the pointer */
+  --tint-selected: 8%;     /* a quiet wash: a selected row or option, a toned band */
+  --tint-fill: 12%;        /* a notice, a badge, a diff line, a tinted control */
+  --tint-fill-hover: 16%;  /* that fill under the pointer or pressed */
+  --tint-halo: 24%;        /* a ring round a node: included, selected, hovered */
+  --tint-halo-focus: 32%;  /* the same ring while it holds keyboard focus */
+  --tint-edge: 40%;        /* the border of a tinted notice, badge or chip */
+
+  /* Opacity says a control is unavailable, or that something is present but
+     set back — never by eye. */
+  --opacity-disabled: 0.5;
+  --opacity-muted: 0.55;
+
+  /* What floats, in the order it stacks — DESIGN.md § Elevation. A number
+     below 10 is a component's own ordering inside its box (a lane under its
+     node); anything that sits over the window takes one of these, so a menu
+     opened from a dialog always lands above it. */
+  --layer-drop: 9;              /* the folder-drop veil over the window */
+  --layer-dialog: 10;           /* the modal backdrop and its dialog */
+  --layer-palette: 20;          /* the command palette */
+  --layer-popover: 30;          /* menus, popovers and toasts, over a dialog */
+  --layer-nested-popover: 60;   /* a picker opened from inside a popover */
+  --layer-tooltip: 1000;        /* a tooltip, over everything */
+
   --attention-duration: 2400ms;
   --attention-spread: 8px;
   --attention-color: var(--accent-primary);

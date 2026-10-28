@@ -21,7 +21,7 @@ with several saved accounts and explicit account selection.
 
 # Context
 
-Continue [task 148](../active/148-connect-github-account.md) and
+Continue [task 148](../after-1.0/148-connect-github-account.md) and
 [task 148-1](148-1-github-avatar-and-sign-out.md) on release/0.3.1. The user
 approved implementing the mock's account list, selection, connection and
 individual sign-out. Preserve the existing pending implementation and HTML

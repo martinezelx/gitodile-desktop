@@ -1,4 +1,4 @@
-/* Theme changes animated by src/app/themeTransition.ts, which tags the root with
+/* Theme and language changes animated by src/app/themeTransition.ts, which tags the root with
    `data-theme-transition` for the length of the animation.
 
    Nineteen-odd rules across the app transition their own background and colour

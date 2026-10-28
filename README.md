@@ -1,14 +1,15 @@
 # GitOdile
 
-> **Git without the fear.** A friendly desktop Git client built around user
-> intent, clear consequences, and safe recovery paths.
+> **See everything. Undo anything.** The Git client for humans and their
+> agents, built around user intent, clear consequences, and safe recovery
+> paths.
 
 GitOdile is a pre-release, local-first Git client for Windows, macOS, and
 Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current development version: **0.4.0**.
+Current development version: **0.4.1**.
 This candidate has not been tagged or published yet.
 
 Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
@@ -55,6 +56,15 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
 - Review and copy readable, syntax-colored text diffs, inspect binary or
   oversized-file states, and navigate large change lists with virtualization
   and bounded native payloads.
+- Read `.md` and `.markdown` documents in Changes with **Markdown preview** by default.
+  **View** retains the text diff modes and remembers a separate Markdown preference.
+  If preview is unavailable, the text diff opens with an explanation and a retry option.
+  The read-only preview compares the last saved document with the current working
+  copy (up to 128 KiB each), highlighting removed and added Markdown blocks in
+  one unified formatted document, including tables and task lists. HTML is hidden;
+  links and images stay inactive. Change arrows navigate affected block groups.
+  Oversized documents can show bounded changed fragments from the available diff,
+  with a partial-preview notice and gaps; full text modes remain available.
 - Discard one file or every unsaved change through a confirmed, state-checked
   flow that creates a persistent local recovery record and offers Undo. The
   confirmation can be turned off; the recovery record and Undo cannot.
@@ -165,7 +175,12 @@ existing data is left untouched. See [ADR 0009](docs/adr/0009-use-only-the-canon
   titlebar: project changes an automatic check found, checks that could not
   reach the remote, and versions you published. Everything stays inside the app
   — no operating-system notifications — and one switch in Settings turns the
-  recording off.
+  recording off. Opening the bell leaves notices unread until you mark one,
+  review its destination, or explicitly mark all as read. Reading and deleting
+  are separate actions. The latest 50 notices and their read states stay on
+  this device across restarts; detailed error text is not retained. Dismissing
+  an update notice does not hide the update in Settings or re-alert the same
+  acknowledged version. The app remains silent.
 - Navigate through a command palette, keyboard-accessible dialogs, and a
   keep-alive screen shell that retains screen state while suspending hidden
   work.
@@ -180,7 +195,7 @@ until after `1.0.0`; see
 [ADR 0011](docs/adr/0011-defer-windows-authenticode-and-macos-delivery-until-after-1.0.md).
 The dependency-ordered `1.0.0` plan is in the
 [`roadmap`](docs/ROADMAP.md), with approved acceptance criteria under
-[`work/active/`](work/active/) and the completed core-workflow evidence in
+[`work/`](work/README.md) version folders and the completed core-workflow evidence in
 [`task 065-1`](work/done/065-1-core-workflow-audit.md), clone evidence in
 [`task 065-2`](work/done/065-2-clone-remote-project.md), and local-creation
 evidence in [`task 065-3`](work/done/065-3-create-local-project.md).
@@ -204,7 +219,7 @@ authorize a release. See
 [ADR 0010](docs/adr/0010-distribute-signed-app-updates-through-public-github-releases.md),
 [ADR 0019](docs/adr/0019-publish-updates-through-one-channel.md)
 and [task 065-9](work/done/065-9-signed-application-updates.md); the evidence and OS-signing work still
-open is tracked by [task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md).
+open is tracked by [task 065-9-13](work/0.7.0/065-9-13-updater-evidence-and-os-signing.md).
 The native updater lifecycle and its visual controls are implemented in
 Settings → Updates. The current release matrix enables only Windows x86-64
 per-user NSIS and Linux x86-64 AppImage candidates. Releases currently publish
@@ -247,7 +262,7 @@ Release tags are protected, candidate builds originate from reviewed GitHub
 Actions runs, and published packages must retain their checksums and Tauri
 updater-signature evidence. Windows packages through `1.0.0` intentionally lack
 publicly trusted Authenticode and may trigger SmartScreen or unknown-publisher
-warnings. [Task 065-9-13](work/active/app-updates/065-9-13-updater-evidence-and-os-signing.md)
+warnings. [Task 065-9-13](work/0.7.0/065-9-13-updater-evidence-and-os-signing.md)
 owns OS-level signing (SignPath Foundation is the intended
 provider) and the remaining qualification evidence. No external
 signing-service application has been submitted yet.
@@ -321,7 +336,7 @@ GitOdile uses the system Git executable. Git **2.23 or newer** is required for
 branch switching; diagnostics remain available when Git is missing or
 unusable.
 
-The GitHub block of Settings → Accounts offers optional **GitHub CLI (`gh`)** diagnostics,
+The GitHub block of Settings → Integrations offers optional **GitHub CLI (`gh`)** diagnostics,
 installation and update guidance. Windows starts WinGet for the exact
 `GitHub.cli` package, with official instructions as a fallback; macOS and Linux
 open the official platform instructions. Local version checks require no
@@ -331,9 +346,9 @@ missing. Windows update checks are explicit and
 cached for five minutes; other platforms use the official update instructions.
 An installer being started is not proof of installation: reopen GitOdile after
 installing to inherit the updated `PATH`. This prepares the dependency for
-future PRs and Actions; those screens are not yet implemented. Settings → Accounts
+future PRs and Actions; those screens are not yet implemented. Settings → Integrations
 offers explicit account detection and browser connection through gh. It shows
-the saved github.com accounts and cached avatars, with the active account first,
+the saved github.com accounts and their cached profile pictures, with the active account first,
 and retains their last known identities when offline,
 with a temporary device code, browser retry and cancellation during login.
 Opening Settings never checks authentication over the network. A gh version with
@@ -354,7 +369,7 @@ See
 [ADR 0021](docs/adr/0021-reuse-github-cli-authentication.md). `gh` is never required
 for ordinary local Git workflows.
 
-Settings → Accounts lists every connection first; each provider's company
+Settings → Integrations lists every connection first; each provider's company
 servers and CLI installation sit in that provider's folded block below. Browser connections and saved gh accounts require the CLI;
 token connections work with or without it. Cloning a GitHub or GitLab.com HTTPS URL
 and Project settings → Remote offer a shared account selector. Different projects
@@ -367,7 +382,7 @@ the system's normal authentication. Account selection does not change commit
 authorship, configure SSH or prove publishing permissions. GitHub, GitLab.com and Bitbucket Cloud share this provider contract.
 See [ADR 0022](docs/adr/0022-share-provider-accounts-and-scope-git-access.md).
 
-Settings → Accounts starts with one **Connected accounts** list: every token and
+Settings → Integrations starts with one **Connected accounts** list: every token and
 browser connection of every provider (github.com, gitlab.com, bitbucket.org and
 each company server), grouped under its host, leaving out hosts with nothing
 connected. One check action covers every provider, and one **Connect account**
@@ -385,7 +400,7 @@ token connections coexist with browser connections; even the same username has
 separate connection choices. Removing one deletes its local secret, leaves its
 project selections unavailable and does not revoke the token on GitHub. Saved connections
 of every product are verified in the background a few seconds after launch, as
-GitHub Desktop does; **Check accounts** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
+GitHub Desktop does; **Check connections** checks again on demand. See [ADR 0027](docs/adr/0027-verify-saved-accounts-after-launch.md).
 Metadata stores
 only usernames, and the token input clears when sent to Rust.
 
@@ -434,7 +449,7 @@ remain unclaimed until exercised with an authorized account and environment.
 
 ### Bitbucket Cloud
 
-bitbucket.org **API token** connections join the same list in Settings → Accounts
+bitbucket.org **API token** connections join the same list in Settings → Integrations
 and use the same masked token form; there is no browser connection or CLI.
 Create an Atlassian API token with scopes for Bitbucket: `read:user:bitbucket`
 and `read:workspace:bitbucket` for identity and discovery, plus
@@ -452,9 +467,36 @@ without it but never select an account. See
 Behavior is covered by hermetic fixtures; no real Bitbucket token has been
 qualified yet.
 
+### Azure Repos Services
+
+Connect Azure Repos in Settings → Integrations → Connect account → Azure Repos.
+Enter the organization name (or its `https://dev.azure.com/organization` address),
+then a personal access token created for that organization. The app verifies the
+Azure identity and saves the PAT in the system secure store, without plaintext
+fallback. Code **Read** permits reads; **Read & write** is needed to publish,
+subject to repository permissions and branch policies. PATs expire and must be
+replaced manually; your organization can restrict their use.
+
+Choose Azure Repos in Clone, or open it from a connected Azure account in Home.
+Paste a `https://dev.azure.com/organization/project/_git/repository` URL, including
+names with encoded spaces. Home carries the selected connection into Clone. Copied username-only clone URLs are
+normalized before cloning. Choose the connection in each project's remote
+settings to get and publish changes. Each organization has its own credentials,
+including when several projects use the shared `dev.azure.com` host. Existing
+remotes must use the canonical lowercased organization URL without embedded
+sign-in details to use a saved connection; GitOdile does not rewrite them.
+Removing a token locally does not revoke it in Azure. Up to eight organizations
+and eight token identities per organization are supported.
+
+Repository browsing, Microsoft browser login, legacy `visualstudio.com` aliases
+and self-hosted Azure DevOps Server are not included. Existing Git credentials
+and SSH remain available without a selected GitOdile connection. Live Azure
+clone/publish and macOS/Linux qualification remain unverified; see
+[ADR 0036](docs/adr/0036-connect-azure-repos-by-organization-and-pat.md).
+
 ### Company servers
 
-The GitHub and GitLab blocks of Settings → Accounts each list their **company
+The GitHub and GitLab blocks of Settings → Integrations each list their **company
 servers** (**GitHub Enterprise Server**, **GitLab Self-Managed** or Dedicated). Add a server by its HTTPS address (`https://git.example.com`, with
 an optional port); GitOdile contacts it once, without credentials, to confirm
 the product and a supported version (GHES 3.0+, GitLab 14.0+), then its
@@ -505,6 +547,21 @@ Run only the Vite frontend at `http://localhost:1420`:
 ```bash
 pnpm run dev
 ```
+
+The same server serves the style gallery at
+`http://localhost:1420/gallery.html`: every shared primitive and state — tokens,
+controls, menus, empty, loading and error states, dialogs, banners and toasts —
+drawn from fixtures in any theme (`?theme=gitodile-dark`). It needs neither Tauri
+nor a project, and it is not part of the production build (`src/dev/gallery`).
+
+Development builds include a local account demo, opened from the person/sign-in
+control in the rail, More actions, or Settings → Account. Settings
+shows the current demo identity, sign-out and Reset demo, which clears the
+attempt/session and restores Free as the next result. Choose a demo result before signing
+in to exercise success (Free or Pro), waiting, cancellation and failures. It
+opens no browser, sends no account data and retains its fictitious session only
+in memory. Hosting connections and actual feature access are unaffected.
+Published builds keep the disabled coming-soon account control.
 
 About, What's new and the update flow share the version injected from
 `package.json`. Vite watches that manifest as a configuration dependency and
@@ -569,3 +626,5 @@ Copyright © 2026 Luis M. Martínez.
 
 The GitOdile name, logo, application icon, and visual identity are subject to
 separate brand rights. The software license does not grant rights to use them.
+
+Third-party icon attribution is recorded in [third-party notices](THIRD_PARTY_LICENSES.md).

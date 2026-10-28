@@ -8,7 +8,7 @@ import { EMPTY_TEAM_SYNC_STATE, type TeamSyncStatus, type TeamSyncViewState } fr
 export type ProjectView = "overview" | "workbench" | "branches" | "console";
 
 /** The two views of the Work screen (task 126). Which one is showing is the
- * session's to remember, like its selected file: Back and Forward move
+ * session's to remember: Back and Forward move
  * between screens, and a project left on History comes back to History. */
 export type WorkbenchTab = "changes" | "history";
 

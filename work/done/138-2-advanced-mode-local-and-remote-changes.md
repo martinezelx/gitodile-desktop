@@ -74,7 +74,7 @@ contract of [138-1](138-1-type-read-only-git-commands.md).
 
 # Out of scope
 
-- History and Destructive tiers ([task 139](../blocked/139-console-history-and-destructive-commands.md)).
+- History and Destructive tiers ([task 139](../0.6.0/139-console-history-and-destructive-commands.md)).
 - Force pushes, remote deletes, `merge`, `rebase`, `reset`, `--amend`.
 
 # Acceptance criteria
@@ -106,7 +106,7 @@ contract of [138-1](138-1-type-read-only-git-commands.md).
 # Dependencies
 
 [138-1](138-1-type-read-only-git-commands.md). Credential classification from
-[task 065-7](../active/release-1.0/065-7-credential-remote-diagnostics.md) is reused
+[task 065-7](../0.7.0/065-7-credential-remote-diagnostics.md) is reused
 when available but does not block this task.
 
 # Decisions

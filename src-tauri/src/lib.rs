@@ -6,6 +6,8 @@ mod app_updates;
 mod application;
 #[cfg(test)]
 mod architecture;
+mod avatar;
+mod azure_access;
 mod bitbucket_access;
 mod branches;
 mod changes;
@@ -89,6 +91,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            avatar::install(app.path().app_cache_dir()?.join("avatars"));
             let github = app
                 .state::<github_auth::GitHubAuthService>()
                 .inner()
@@ -123,6 +126,10 @@ pub fn run() {
                 app.path().app_config_dir()?,
                 accounts.clone(),
             ));
+            app.manage(azure_access::AzureOrganizations::load(
+                app.path().app_config_dir()?,
+                accounts.clone(),
+            ));
             hosting::sync_accounts_after_launch(accounts.clone());
             app.manage(accounts);
             app.manage(app_updates::AppUpdateService::new(app.handle()));
@@ -130,6 +137,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            ipc::add_azure_token,
+            ipc::remove_azure_token,
+            ipc::cancel_azure_request,
             ipc::app_status,
             ipc::show_main_window,
             ipc::get_app_update_state,
@@ -162,6 +172,7 @@ pub fn run() {
             ipc::read_file_diff,
             ipc::read_file_image_preview,
             ipc::read_file_lines,
+            ipc::read_file_markdown,
             ipc::read_working_tree_diffs,
             ipc::plan_discard_changes,
             ipc::discard_changes,

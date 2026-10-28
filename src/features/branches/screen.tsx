@@ -14,6 +14,7 @@ export const branchesScreenModule = {
   id: "branches",
   section: "project",
   labelKey: "navBranches",
+  descriptionKey: "navBranchesDescription",
   disabledLabelKey: "navBranchesTitle",
   commandLabelKey: "commandGoBranches",
   icon: <GitBranch />,

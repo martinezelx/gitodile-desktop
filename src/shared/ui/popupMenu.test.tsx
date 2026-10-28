@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { usePortalFlyout } from "./popupMenu";
+import { useAnchoredPopup, usePortalFlyout } from "./popupMenu";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -197,6 +197,93 @@ describe("usePortalFlyout focus", () => {
     open();
 
     expect(seen).toEqual(["visible", "visible"]);
+  });
+});
+
+describe("usePortalFlyout outside presses", () => {
+  it("dismisses on the titlebar before Tauri consumes the bubbling mousedown", () => {
+    // Tauri installs its document listener before React mounts, and calls
+    // stopImmediatePropagation when the press starts a native window drag.
+    const nativeDrag = vi.fn((event: MouseEvent) => {
+      if (event.target instanceof HTMLElement && event.target.hasAttribute("data-tauri-drag-region")) {
+        event.stopImmediatePropagation();
+      }
+    });
+    document.addEventListener("mousedown", nativeDrag);
+    try {
+      render(<>
+        <div data-tauri-drag-region data-testid="titlebar-drag" />
+        <Flyout focusTarget="container"><button type="button">Read notice</button></Flyout>
+      </>);
+      open();
+      fireEvent.mouseDown(screen.getByRole("button", { name: "Read notice" }));
+      expect(screen.getByTestId("popup")).toBeInTheDocument();
+      nativeDrag.mockClear();
+
+      fireEvent.mouseDown(screen.getByTestId("titlebar-drag"), { button: 0, detail: 1 });
+
+      expect(nativeDrag).toHaveBeenCalledOnce();
+      expect(screen.queryByTestId("popup")).toBeNull();
+    } finally {
+      document.removeEventListener("mousedown", nativeDrag);
+    }
+  });
+});
+
+function AnchoredPopup({ children }: { children?: ReactNode }): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { containerRef, popupRef } = useAnchoredPopup(isOpen, triggerRef, () => setIsOpen(false), "none");
+  return (
+    <div ref={containerRef}>
+      <button ref={triggerRef} type="button" onClick={() => setIsOpen(true)}>Open filters</button>
+      {isOpen && <div ref={popupRef} data-testid="anchored">{children}</div>}
+    </div>
+  );
+}
+
+describe("useAnchoredPopup outside presses", () => {
+  it("dismisses on the titlebar before Tauri consumes the bubbling mousedown", () => {
+    const nativeDrag = vi.fn((event: MouseEvent) => {
+      if (event.target instanceof HTMLElement && event.target.hasAttribute("data-tauri-drag-region")) {
+        event.stopImmediatePropagation();
+      }
+    });
+    document.addEventListener("mousedown", nativeDrag);
+    try {
+      render(<>
+        <div data-tauri-drag-region data-testid="titlebar-drag" />
+        <AnchoredPopup />
+      </>);
+      fireEvent.click(screen.getByRole("button", { name: "Open filters" }));
+      expect(screen.getByTestId("anchored")).toBeInTheDocument();
+
+      fireEvent.mouseDown(screen.getByTestId("titlebar-drag"), { button: 0, detail: 1 });
+
+      expect(nativeDrag).toHaveBeenCalledOnce();
+      expect(screen.queryByTestId("anchored")).toBeNull();
+    } finally {
+      document.removeEventListener("mousedown", nativeDrag);
+    }
+  });
+
+  it("lets a nested surface portalled out of the popup keep its press", () => {
+    // The history filters' calendar is drawn in document.body and stops its
+    // own mousedown so choosing a day does not close the filter panel.
+    function NestedCalendar(): React.JSX.Element {
+      return createPortal(
+        <div data-testid="calendar" onMouseDown={(event) => event.stopPropagation()} />,
+        document.body,
+      );
+    }
+    render(<AnchoredPopup><NestedCalendar /></AnchoredPopup>);
+    fireEvent.click(screen.getByRole("button", { name: "Open filters" }));
+
+    fireEvent.mouseDown(screen.getByTestId("calendar"));
+    expect(screen.getByTestId("anchored")).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByTestId("anchored")).toBeNull();
   });
 });
 

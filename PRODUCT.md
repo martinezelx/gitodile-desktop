@@ -53,8 +53,9 @@ must not depend on any one editor, provider, cloud account, or subscription.
 
 ## Brand Commitments
 
-The working name is **GitOdile** and the working promise is **Git without the
-fear**. The product voice is calm, direct, professional, and friendly without
+The working name is **GitOdile**, the in-app slogan is **See everything. Undo
+anything.** and the web descriptor is **The Git client for humans and their
+agents.** The product voice is calm, direct, professional, and friendly without
 being patronizing. The crocodile mark and mascot may add restrained personality
 but must not trivialize errors or destructive operations.
 

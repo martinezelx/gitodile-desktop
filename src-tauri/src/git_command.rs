@@ -64,7 +64,7 @@ pub(crate) fn prepare_transfer_args(
             "-z",
             "--name-only",
             "--get-regexp",
-            "^http\\..*extraheader$",
+            "^http\\..*(extraheader|followredirects)$",
         ],
         policy,
         application::current_cancellation().as_ref(),

@@ -3,6 +3,209 @@ use crate::*;
 use std::fs;
 
 #[test]
+fn read_file_markdown_compares_renames_and_deletions_against_the_saved_path() {
+    let path = unique_temp_dir("markdown-rename-delete");
+    git_init(&path);
+    write_file(
+        &path,
+        "old [name].md",
+        "# Saved title\n\nRemoved paragraph.\n",
+    );
+    git_add(&path, "old [name].md");
+    git_commit(&path, "document");
+    fs::rename(
+        Path::new(&path).join("old [name].md"),
+        Path::new(&path).join("new [name].md"),
+    )
+    .unwrap();
+    git_add_all(&path);
+    write_file(&path, "new [name].md", "# New title\n");
+    assert_eq!(
+        read_file_markdown(path.clone(), "new [name].md".into()).unwrap(),
+        MarkdownPreview::Ready {
+            content: Some("# New title\n".into()),
+            before_content: Some("# Saved title\n\nRemoved paragraph.\n".into()),
+        }
+    );
+    // Commit the rename, then remove the current working copy entirely.
+    git_add_all(&path);
+    git_commit(&path, "rename");
+    fs::remove_file(Path::new(&path).join("new [name].md")).unwrap();
+    assert_eq!(
+        read_file_markdown(path.clone(), "new [name].md".into()).unwrap(),
+        MarkdownPreview::Ready {
+            content: None,
+            before_content: Some("# New title\n".into()),
+        }
+    );
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_markdown_bounds_and_validates_the_saved_side_too() {
+    let path = unique_temp_dir("markdown-saved-limit");
+    git_init(&path);
+    write_file(
+        &path,
+        "large.md",
+        &"x".repeat(MAX_MARKDOWN_PREVIEW_BYTES as usize + 1),
+    );
+    fs::write(Path::new(&path).join("binary.md"), [0xff]).unwrap();
+    git_add_all(&path);
+    git_commit(&path, "originals");
+    write_file(&path, "large.md", "now small");
+    write_file(&path, "binary.md", "now text");
+    assert_eq!(
+        read_file_markdown(path.clone(), "large.md".into()).unwrap(),
+        MarkdownPreview::TooLarge {
+            limit_bytes: MAX_MARKDOWN_PREVIEW_BYTES,
+        }
+    );
+    assert!(read_file_markdown(path.clone(), "binary.md".into()).is_err());
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_markdown_reads_the_complete_current_document_without_mutating_git() {
+    let path = unique_temp_dir("markdown-current");
+    git_init(&path);
+    write_file(&path, "notes.MD", "# Saved\n\nOld paragraph\n");
+    git_add(&path, "notes.MD");
+    git_commit(&path, "initial document");
+    write_file(&path, "notes.MD", "# Staged\n");
+    git_add(&path, "notes.MD");
+    let content = "\u{feff}# Current\r\n\r\nText outside the diff.\r\n";
+    write_file(&path, "notes.MD", content);
+    let index = fs::read(Path::new(&path).join(".git/index")).unwrap();
+    assert_eq!(
+        read_file_markdown(path.clone(), "notes.MD".into()).unwrap(),
+        MarkdownPreview::Ready {
+            content: Some(content.trim_start_matches('\u{feff}').to_string()),
+            before_content: Some("# Saved\n\nOld paragraph\n".to_string()),
+        }
+    );
+    assert_eq!(
+        fs::read(Path::new(&path).join(".git/index")).unwrap(),
+        index
+    );
+    assert_eq!(
+        fs::read_to_string(Path::new(&path).join("notes.MD")).unwrap(),
+        content
+    );
+    write_file(&path, "empty.markdown", "");
+    assert_eq!(
+        read_file_markdown(path.clone(), "empty.markdown".into()).unwrap(),
+        MarkdownPreview::Ready {
+            content: Some(String::new()),
+            before_content: None,
+        }
+    );
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_markdown_bounds_bytes_and_rejects_invalid_paths_and_encoding() {
+    let path = unique_temp_dir("markdown-limits");
+    git_init(&path);
+    write_file(
+        &path,
+        "limit.md",
+        &"x".repeat(MAX_MARKDOWN_PREVIEW_BYTES as usize),
+    );
+    assert!(matches!(
+        read_file_markdown(path.clone(), "limit.md".into()).unwrap(),
+        MarkdownPreview::Ready { .. }
+    ));
+    write_file(
+        &path,
+        "limit.md",
+        &"x".repeat(MAX_MARKDOWN_PREVIEW_BYTES as usize + 1),
+    );
+    assert_eq!(
+        read_file_markdown(path.clone(), "limit.md".into()).unwrap(),
+        MarkdownPreview::TooLarge {
+            limit_bytes: MAX_MARKDOWN_PREVIEW_BYTES
+        }
+    );
+    fs::write(Path::new(&path).join("bad.md"), [0xff, 0xfe]).unwrap();
+    fs::write(Path::new(&path).join("binary.md"), [0, 1, 2]).unwrap();
+    for name in [
+        "../outside.md",
+        "/absolute.md",
+        ".git/config",
+        "missing.md",
+        "bad.md",
+        "binary.md",
+    ] {
+        assert!(
+            read_file_markdown(path.clone(), name.into()).is_err(),
+            "accepted {name}"
+        );
+    }
+    fs::create_dir(Path::new(&path).join("directory.md")).unwrap();
+    assert!(read_file_markdown(path.clone(), "directory.md".into()).is_err());
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_markdown_refuses_saved_symlink_blobs_even_without_os_symlink_support() {
+    let path = unique_temp_dir("markdown-saved-symlink");
+    git_init(&path);
+    write_file(&path, "link.md", "target.md");
+    git_add(&path, "link.md");
+    let hash = crate::git_command::git_command(&path)
+        .args(["rev-parse", ":link.md"])
+        .output()
+        .unwrap();
+    assert!(hash.status.success());
+    let hash = String::from_utf8(hash.stdout).unwrap();
+    assert!(crate::git_command::git_command(&path)
+        .args([
+            "update-index",
+            "--cacheinfo",
+            "120000",
+            hash.trim(),
+            "link.md"
+        ])
+        .status()
+        .unwrap()
+        .success());
+    git_commit(&path, "saved symbolic link");
+    assert!(read_file_markdown(path.clone(), "link.md".into()).is_err());
+    let _ = fs::remove_dir_all(&path);
+}
+
+#[test]
+fn read_file_markdown_refuses_symlinks_outside_the_project() {
+    let path = unique_temp_dir("markdown-symlink");
+    let outside = unique_temp_dir("markdown-outside");
+    git_init(&path);
+    write_file(&outside, "secret.md", "private");
+    let link = Path::new(&path).join("innocent.md");
+    let target = Path::new(&outside).join("secret.md");
+    #[cfg(windows)]
+    let linked = std::os::windows::fs::symlink_file(&target, &link).is_ok();
+    #[cfg(not(windows))]
+    let linked = std::os::unix::fs::symlink(&target, &link).is_ok();
+    // Windows may lack the privilege needed to create symlinks.
+    if linked {
+        assert!(read_file_markdown(path.clone(), "innocent.md".into()).is_err());
+    }
+    write_file(&path, "target.md", "# Inside document");
+    let inside_link = Path::new(&path).join("inside.md");
+    let inside_target = Path::new(&path).join("target.md");
+    #[cfg(windows)]
+    let inside_linked = std::os::windows::fs::symlink_file(&inside_target, &inside_link).is_ok();
+    #[cfg(not(windows))]
+    let inside_linked = std::os::unix::fs::symlink(&inside_target, &inside_link).is_ok();
+    if inside_linked {
+        assert!(read_file_markdown(path.clone(), "inside.md".into()).is_err());
+    }
+    let _ = fs::remove_dir_all(&path);
+    let _ = fs::remove_dir_all(&outside);
+}
+
+#[test]
 fn read_file_diff_reports_an_unstaged_modification_with_line_numbers() {
     let path = unique_temp_dir("diff-unstaged");
     git_init(&path);

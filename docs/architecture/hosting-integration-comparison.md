@@ -6,7 +6,7 @@ commit `cbfe93cc5d19d298f8794a68200ccb89a8d4db99`. The user requested a source
 comparison while choosing GitHub/gh and GitLab/glab for GitOdile's current scope.
 Current contracts remain owned by [ARCHITECTURE.md](../ARCHITECTURE.md) and
 [ADR 0022](../adr/0022-share-provider-accounts-and-scope-git-access.md); implementation
-scope belongs to [epic 148](../../work/active/148-connect-github-account.md).
+scope belongs to [epic 148](../../work/after-1.0/148-connect-github-account.md).
 
 ## Technology and connection flow
 

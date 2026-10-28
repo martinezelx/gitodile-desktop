@@ -1,53 +1,53 @@
 # GitOdile Design Direction
 
-GitHub and GitLab connections share one Accounts list per product in Settings,
-grouped by host (the public host first, then company servers), followed by the
-company-server inventory and the CLI tooling last. Each row names its method
-(Token or Browser). Tokens work with or without gh/glab; browser authorization
-and its saved accounts require the CLI. The token field is hidden until asked
-for, masks its contents, explains secure storage/permissions before submission
-and clears immediately when sent. Labels distinguish connection methods even
-for the same username. Removing a local connection explains affected project
-access and that it does not revoke authorization on GitHub.
-
-Bitbucket uses the same Accounts list and token form for bitbucket.org only:
-no method choice, no company servers and no tooling. Its form names the
-Atlassian scopes in the permissions disclosure, and a token the provider
-refuses says so in Bitbucket's terms instead of the generic access message.
-Switching between provider sections renders the last known accounts at once;
-an empty state appears only after the catalog was read.
-
-Repository browsing belongs to the clone overlay. Choosing a connection (or
-the one preselected from last time) finds its first page of projects at once;
-a cancelled or failed read waits for an explicit Find projects. Show page scope, private/archive
-metadata, permission-limited results and keyboard-accessible virtual rows.
-Choosing a project populates the normal destination review without starting a
-clone. A filter must say which page it searches; a partial list cannot read as
-the full account inventory. Opening a cached view does not refresh remotely.
-
-The clone overlay uses two screens: Git address, GitHub, GitLab and Bitbucket source tabs first; then the editable destination and native preview with
-Clone project. There is no numbered step bar or separate confirmation screen.
-Selecting a repository stays on the list and highlights the selection until
-Choose destination. Retain virtualized rows and invalidate selection on account
-or page changes. Editing a complete GitHub, GitLab or Bitbucket address or its connection starts a
-debounced, cancellable read-only Git access check; opening the overlay or a
-cached list never does. Confirm only read access, keep missing/private ambiguity,
-and offer continuing without checking for transient failures. Use the same
-exact connection as cloning. The input explains the network check before entry.
-
-Provider browsing gives the remaining dialog height to its virtualized project
-list. The heading, source tabs, connection, search and destination action stay
-fixed; only the list scrolls. Refresh belongs inside the search capsule, with
-an accessible name and busy/cancel feedback. Compact rows show the project name
-in primary ink, the owner in secondary ink and at most one description line.
-The list uses the app's shared auto-hiding scrollbar and normal keyboard controls.
-Page scope stays in the filter label and compact counter; page arrows appear
-only when there is another page to reach. Permissions guidance belongs to empty
-and denied-access states rather than a paragraph above every populated list.
-
 This document owns GitOdile's visual and interaction direction. See
 [`docs/PRODUCT_STRATEGY.md`](docs/PRODUCT_STRATEGY.md) for the product thesis,
 audience, positioning, and detailed competitive context.
+
+## Before designing a screen, dialog or panel
+
+The app's current look is the specification: a new surface must read as part
+of the app the reader already knows, not as a fresh design. Before writing any
+markup or CSS:
+
+1. **Find the closest existing equivalent** — a dialog of the same size and
+   kind, a screen with the same layout, a list with the same rows — and match
+   it. The style gallery (`pnpm run dev`, then `/gallery.html`) draws every
+   shared primitive and state in every theme. When nothing equivalent exists,
+   say so in the task before inventing.
+2. **Reuse the shared primitives** exported from `src/shared/ui/index.ts`:
+   `Dialog` with `DialogFacts` and `DialogBanner` (§ Dialogs), `useToast`,
+   `SearchBox`, `RefreshIconButton`, `LoadingPlaceholder`/`TextPlaceholder`,
+   `LoadingBar`, `FilterPanel`, `ContextMenuSurface`, `DateField`, and the
+   classes in `src/shared/ui/primitives.css` (`primary-button`,
+   `secondary-button`, `danger-button`, `ghost-button`, `app-checkbox`,
+   `choice-list`, `empty-state`, `text-placeholder`). A feature restyles none
+   of them.
+3. **Take every value from a token** (§ Design tokens): colour, radius by role
+   (§ Shape), control height (§ Size), type size, weight, leading and tracking
+   (§ Typography), spacing and motion. A new token, a new dialog width, a new
+   radius, a new material or a new pattern is a change to this document, made
+   in the same change and argued there — never a local exception.
+4. **Follow the structure rules**: one frame, one sheet per screen, regions
+   not cards, and only what floats casts a shadow (§ Visual character);
+   loading, empty, error and success states as § Core screens describes them;
+   copy as § Content design and the vocabulary in `AGENTS.md` describe it, in
+   English and Spanish.
+5. **Check it running**, in a light and a dark theme, beside the existing
+   equivalent from step 1, with the keyboard and with reduced motion. Tests do
+   not show a look. A new shared primitive or state is added to the gallery
+   (`src/dev/gallery/Gallery.tsx`) in the same change.
+
+`pnpm run check` enforces part of this: `src/architecture/styleComposition.test.ts`
+fails on radii, font sizes, weights, leading, tracking and button sizes off
+their scales, on shadows or borders on the sheet's regions, on a cast shadow
+that is not an elevation token, on stacking off the layer scale, on an easing
+curve or transition length off the motion tokens, and on a removed focus
+outline with nothing in its place, on spacing off the 4px grid, on an icon
+or a square icon button sized by a number instead of a role, on a tint mixed
+at a strength of its own and on a disabled control dimmed by its own opacity. `src/architecture/themeContrast.test.ts`
+checks contrast in every theme. Colour choice and layout are not guarded: they
+rely on steps 1–5.
 
 ## Design goal
 
@@ -81,22 +81,6 @@ The visual language uses:
 - compact spacing in file lists and diffs;
 - a crocodile mascot used selectively.
 
-Hosting connection selectors share one app-styled list in clone and project
-settings. Show username, host and a separate Token/Browser badge, with a check
-for the selected connection. Project settings shows only providers used by its
-configured HTTPS fetch or push addresses, once those remotes are known. Multiple
-providers appear only when the project actually uses both; local, SSH-only and
-other-host projects have no provider account selector.
-Retain unavailable saved identities and explain
-that they need checking. Arrow keys preview choices; Enter confirms; Escape
-closes only the list and Tab continues through the surrounding form. Opening
-the list uses cached connections and never checks them remotely; saved
-connections are verified in the background after launch (ADR 0027).
-
-Hosting provider icons use monochrome silhouettes with `currentColor`, including
-GitHub, GitLab and Bitbucket. They follow the surrounding ink in light/dark themes and
-selected states, rather than introducing provider brand colours into navigation.
-
 Blur/translucency is not the default depth mechanism for GitOdile chrome. Reserve it, if used at all, for genuinely transient overlays (a modal scrim) — never for a panel that sits on screen the whole session. Code, diffs, file lists, conflict editors, forms, and long-form content must sit on fully opaque surfaces.
 
 ## Layout concept
@@ -113,6 +97,7 @@ The main desktop window should broadly support:
    - contextual history: Back/Forward stay together with the command controls. They remain visibly disabled until there is history to traverse, then become available without moving the surrounding chrome.
    - center: the remaining native drag region, including double-click maximize/restore.
    - right: window controls (minimize/maximize/close), styled as small rounded buttons inset from the edge rather than full-height square hit targets, so they read as part of the same rounded-corner system as the rest of the UI instead of bolted-on OS chrome.
+   - macOS is the one exception to this layout ([ADR 0037](docs/adr/0037-native-window-chrome-on-macos.md)). The system draws its traffic lights over the titlebar's left corner, and the titlebar reserves their width (except in full screen, where macOS hides them). There are no custom window controls and no overflow menu: its entries live in the macOS menu bar, under GitOdile (About, Check for updates, Settings…), File (Home and the project actions), View (sidebar, Back/Forward, Reload window), and Help (Keyboard shortcuts, What's new, Report an issue), beside the standard Edit and Window menus. The titlebar keeps the sidebar toggle, Back/Forward and the bell. Windows and Linux keep the layout above. An entry added to the overflow menu is added to `planAppMenu` too.
    - between the drag region and the window controls: the notification bell — the
      inbox for "what happened while you were elsewhere", which desktop apps keep
      in the window furniture rather than in a workspace panel. It carries no
@@ -128,9 +113,30 @@ The main desktop window should broadly support:
      its action is the shared small secondary button, and a per-row trash sits in the
      bottom-right corner, uncovered only while its row is pointed at or
      focused, so the destructive control is deliberate and the dot never
-     competes for the corner. A footer of two icons — settings on the left,
-     clear-all on the right — keeps the destructive control away from the
-     benign one, and clear-all is disabled while the list is empty. When
+     competes for the corner. The footer keeps settings on the left and the
+     two inbox actions on the right, all as icon controls with tooltips.
+     Clear-all is disabled while the list is empty. A double-check glyph with
+     a "Mark all as read" tooltip acknowledges without deleting and is disabled
+     when nothing is unread. Each card has an always-reachable
+     read/unread control beside its dismiss control in the same action row, with
+     matching 28px targets and 14px glyphs centred on one horizontal axis.
+     Both controls appear on row hover or keyboard focus, reserve their space
+     while hidden, and stay visible on devices without hover.
+     The review action sits at the left of that row. Opening, hovering,
+     scrolling and closing never acknowledge a notice. A review acknowledges
+     only its own notice after the destination opens; unavailable projects
+     leave it unread and explain why. Pressing outside closes the panel,
+     including in the titlebar's native window-drag region. Row marks always reflect live state,
+     including arrivals while open, and removing a row keeps keyboard focus
+     inside the panel. An automatic check repeating the same news keeps its
+     card's identity, position and arrival time, preserving keyboard focus;
+     changed news arrives at the top. Read state survives restarts in a local
+     bounded inbox of 50 entries (oldest evicted first). Removing or reading an update notice
+     does not hide the available update in Settings or re-alert that same
+     acknowledged version. Update cards name the historical version and open
+     the updater's current state. All notifications remain silent; sound is
+     deferred. Storage failures are disclosed within the panel without adding
+     another notification. When
      notifications are off, the panel says so and offers the same switch
      Settings uses, bound to the same preference, so they can be turned back on
      without leaving the window. The switch fades out once notifications are
@@ -198,10 +204,24 @@ The main desktop window should broadly support:
      the narrow rail scroll. The menu always ends after a separator with
      "Customize navigation bar", which opens the dedicated Settings section.
      There the destinations are the same bordered list as Notifications: each
-     row reads icon, name, then how to move it (arrows that surface on hover
-     or focus, and the grip), then its switch. A destination switched off keeps
-     its row in the secondary ink with an "In More" tag, so the list never
-     changes height and its place in the order stays visible;
+     row reads grip, icon, name over a one-line plain-language description of
+     the section, precise move arrows, then its switch. The list spans the
+     preferences column: the description is what fills it, so the width carries
+     content instead of a stretched gap between a short name and its switch.
+     The switch is named for what it does ("Show Overview in the sidebar"), and
+     its "on" fill uses the secondary ink so five switches do not outweigh the
+     names. "Restore default" in the group header returns membership and order
+     to the registry's and leaves the appearance alone. The appearance choices
+     span the column too, as two wide cards side by side (stacking when a card
+     would squeeze its copy): a miniature on the left, drawn from the user's own
+     visible sections in their order, and the name, check and a short trade-off
+     on the right. The selected card takes a quiet fill and its filled check
+     rather than the theme picker's accent ring. Arrows are hidden at rest and
+     appear on the row's hover or focus (always shown without hover); their
+     space is always reserved, and the grip reorders from the keyboard. A
+     destination switched off keeps its row at full contrast with an "In More"
+     tag, so the list never changes height and its place in the order stays
+     visible;
    - the rail holds no project (task 189). Which project is open, and the
      way to change it, is the status bar's project segment, which sits at the
      foot of every project screen; Home lists every project itself. The rail
@@ -239,11 +259,15 @@ The main desktop window should broadly support:
      rounded fills, and the capsule read as a minus button. The circles wear
      `--surface-hover` at rest, so hovering one steps up to `--surface-active`,
      and its glyph says what it does once and rests there: the gear turns 60°,
-     the sun 45°, the moon tips back 18°, the person lifts 2px, over 180ms
+     the sun 45°, the moon tips back 18°, over 180ms
      on an ease-in-out (`cubic-bezier(0.45, 0, 0.25, 1)`): the rail icons'
-     sharp ease-out spent the turn in the first 40ms and read as a jump. A disabled control stays still (the account's motion
-     waits for sign-in), and reduced motion — the system's or the app's —
+     sharp ease-out spent the turn in the first 40ms and read as a jump. A disabled control stays still (including the account
+     placeholder in published builds), and reduced motion — the system's or the app's —
      leaves every glyph where it is. Nothing loops;
+   - the account control uses a plain person glyph before sign-in and the
+     person's avatar afterwards. The button's circular surface supplies its
+     frame. Hover changes background and ink only; the person/avatar does not
+     rotate or slide;
    - the rail can be collapsed entirely (`Ctrl`/`Cmd`+`B`, or the titlebar
      control), giving the window over to content. Collapsed means `display:
      none`, never a zero width or a transparent column: a rail still in the tab
@@ -390,9 +414,11 @@ The main desktop window should broadly support:
    - no rules *between* its items, only inside them: the one hairline a block
      owns sits between its two segments — 1px, 16px tall — and the strip's own
      12px gap separates the left block, the field and the right block. Within a
-     segment 6px binds a glyph to its words, and the workspace's own bottom
+     segment 4px binds a glyph to its words, so the names keep the room, and the workspace's own bottom
      padding leaves the band between the last card and this line of text;
-   - the field is the middle column, at least 240px and at most 430px wide, and
+   - the field is the middle column, a third of the window, at least 240px and
+     at most 430px wide — in a narrower window it gives way before the project
+     and branch names do, which read in full down to about 1,100px — and
      it is the app's search: a real input, 32px tall, with the search glyph
      beside it, so a search starts from anywhere without leaving the screen.
      At rest it is already the object it opens into, closed — what floats'
@@ -846,6 +872,7 @@ The app should work well between approximately 1024px and large desktop displays
   --radius-control: 14px;
   --radius-surface: 18px;
   --radius-identity: 28%;
+  --radius-field: 16px;
   --radius-pill: 999px;
   --radius-round: 50%;
 
@@ -856,12 +883,26 @@ The app should work well between approximately 1024px and large desktop displays
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Icon size states a role — see Icons below. */
+  --icon-badge: 10px;
+  --icon-meta: 12px;
+  --icon-row: 14px;
+  --icon-control: 16px;
+  --icon-nav: 18px;
+  --icon-tile: 20px;
+
   /* Control size states a role, not a measurement — see Size below. */
+  --control-height-xs: 24px;
+  --control-height-compact: 28px;
   --control-height-sm: 32px;
   --control-height-md: 38px;
   --control-height-lg: 44px;
   --control-font-sm: 12px;
   --control-font-md: 13px;
+  --icon-button-chip: 20px;
+  --icon-button-inline: 24px;
+  --icon-button-attached: 28px;
+  --icon-button-chrome: 36px;
 
   /* Type size and weight each state a role too — see Typography below. */
   --text-hero: 28px;
@@ -898,6 +939,27 @@ The app should work well between approximately 1024px and large desktop displays
 
   --duration-fast: 120ms;
   --duration-normal: 180ms;
+  --duration-exit: 90ms;
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* A tint's strength states a role — see Tints below. */
+  --tint-hover: 5%;
+  --tint-selected: 8%;
+  --tint-fill: 12%;
+  --tint-fill-hover: 16%;
+  --tint-halo: 24%;
+  --tint-halo-focus: 32%;
+  --tint-edge: 40%;
+  --opacity-disabled: 0.5;
+  --opacity-muted: 0.55;
+
+  /* What floats over the window, in stacking order — see Elevation below. */
+  --layer-drop: 9;
+  --layer-dialog: 10;
+  --layer-palette: 20;
+  --layer-popover: 30;
+  --layer-nested-popover: 60;
+  --layer-tooltip: 1000;
 }
 ```
 
@@ -932,9 +994,58 @@ Colors should be defined semantically rather than by component:
 
 Do not hard-code product colors throughout components.
 
+**Spacing sits on a 4px grid.** Padding, margin and gap take a `--space-*`
+step, or a multiple of 4px above the scale (a dialog's 28px inset). A value
+between two steps rounds up onto the grid — the 6, 10 and 14px that had
+spread through the cascade became 8, 12 and 16. Only two literals sit off it:
+1px, a hairline's width, and 2px, the one optical nudge (a chip's inner
+padding, a glyph pulled onto the text's baseline). A length that is geometry
+rather than space — where a row's text starts after the timeline's node
+column — is a named custom property that says so, not a spacing literal.
+
+### Tints
+
+**A tint's colour comes from the theme; its strength comes from its role.** A
+tint is a theme colour — the accent, a status, the ink, a tone, a diff colour —
+mixed into transparent or into the surface under it:
+`color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent)`. The
+accent alone had been mixed at fourteen strengths, so the same selected row was
+7% on one screen and 12% on the next.
+
+| Token | Strength | What it is for |
+| --- | --- | --- |
+| `--tint-hover` | 5% | A neutral row or field under the pointer |
+| `--tint-selected` | 8% | A quiet wash: a selected row or option, a toned band |
+| `--tint-fill` | 12% | A notice or banner, a badge, a diff line, a tinted control at rest; a selected row under the pointer |
+| `--tint-fill-hover` | 16% | That fill under the pointer or pressed; a glyph tile inside a notice |
+| `--tint-halo` | 24% | A ring round a node: included, selected or hovered |
+| `--tint-halo-focus` | 32% | The same ring while it holds keyboard focus |
+| `--tint-edge` | 40% | The border of a tinted notice, badge or chip |
+
+What is not a tint of the interface keeps its own number and
+`styleComposition.test.ts` names it: the theme picker's miniature diff, the
+two search highlights, the loading bar's track, the branch route's lit hit and
+the timeline rails.
+
+**Opacity has two meanings.** `--opacity-disabled` (0.5) is a control that is
+unavailable, on every screen — seven values from 0.35 to 0.6 had said it before.
+`--opacity-muted` (0.55) is something present but set back: an excluded file,
+a diff's line numbers, a calendar day outside the month, a favourite star at
+rest. Decoration — the Console's watermark, the mascot, a drag ghost — keeps
+its own.
+
 ### Elevation
 
-Use shadows to signal stacking order, not to decorate: `--shadow-sm` for the screen's one sheet and for controls, `--shadow-md` for a lifted object inside a region (a lifted hover state), `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). Regions of the sheet cast none ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
+Use shadows to signal stacking order, not to decorate: `--shadow-md` for the screen's one sheet (and Home's floating launcher), the one object on the plane; `--shadow-sm` for controls and a small object lifted inside a region (an empty state's glyph tile); `--shadow-lg` for anything floating above the whole UI (dialogs, popovers). Regions of the sheet cast none ([ADR 0032](docs/adr/0032-one-sheet-per-screen.md)). In dark mode shadows read as depth against the near-black background; in light mode they carry more of the separation work since borders alone are subtler there — both are defined per theme so neither look goes flat.
+
+**What floats stacks on a scale, not on a number.** Anything that sits over the
+window takes a `--layer-*`: the folder-drop veil, then the modal backdrop and
+its dialog, the command palette, menus, popovers and toasts (above a dialog,
+since they open from one), a picker opened from inside a popover, and the
+tooltip over everything. A single digit is only for ordering inside one
+component's own box — a lane under its node — and never on a fixed surface.
+A ring or underline drawn with `box-shadow` (`0 0 0 2px`) is an edge, not
+depth; anything with a blur is an elevation token.
 
 ### Shape
 
@@ -1049,9 +1160,33 @@ pick a height; if a control needs one, it takes a tier.
 
 | Token | What it is | Examples |
 | --- | --- | --- |
+| `--control-height-xs` (24px) | A chip or capsule inside a row | Filter chips and capsules, timeline chips, the Console status line's buttons |
+| `--control-height-compact` (28px) | A field, tab or picker inside a strip | The status-strip searches of Home and the Console, Home's tabs, the History scope picker, the Console's shortcut form |
 | `--control-height-sm` (32px) | An action inside a row it must not out-weigh | Row actions, ghost buttons, the quick-switch create circle |
 | `--control-height-md` (38px) | **Any labelled action, and its square siblings** | Every primary/secondary button, single-line inputs, refresh and overflow circles |
 | `--control-height-lg` (44px) | Reached only through `pointer: coarse` | Nothing declares it directly |
+
+**A square icon button's size says where it sits**, the same way its radius
+does (§ Shape). Nine sizes from 20 to 36px had grown, so a toast's close and a
+notification's were two different buttons:
+
+| Token | Where it sits | Examples |
+| --- | --- | --- |
+| `--icon-button-chip` (20px) | Inside a chip | A filter chip's remove |
+| `--icon-button-inline` (24px) | Inside a field or capsule | Clear a search, the filter trigger, a calendar's month step |
+| `--icon-button-attached` (28px) | Attached to a notice, toast, card or pane strip | Dismiss, close, the diff's change arrows, a notification's read and remove |
+| `--control-height-sm` (32px) | An action in a row | Favourite, more, forget |
+| `--icon-button-chrome` (36px) | The window's frame | Titlebar and rail buttons, a dialog's close |
+
+A control that is not square takes its fixed height from the first table:
+nine heights from 24 to 38px had grown in chips, fields, tabs and pickers, so
+the status bar's branch selector stood 2px shorter than the search beside it.
+Below 24px a chip is sized by its text (the compact timeline chip), and the
+switch keeps its own geometry.
+
+The sibling of a labelled action stays `--control-height-md`, the touch tier
+inside `pointer: coarse` is an accommodation rather than a size, and the
+window controls follow the system.
 
 Three things this settles:
 
@@ -1180,9 +1315,11 @@ has the first line; under it, from the start, who saved it as initials on
 their own colour, tinted rather than filled so a solo project's column stays
 quiet (`.author-avatar` in `shared/ui`, keyed on the email so two people
 with the same initials still read apart, the full name on its tooltip). The
-user's own versions wear a person glyph on the neutral tint instead of their
-initials — "you" is the one author never told apart by colour — with "You
-(name)" on the tooltip; the detail strip wears the same avatar at its own
+user's own versions wear their initials too, on the neutral tint instead of a
+colour of their own — "you" is the one author never told apart by colour — with
+"You (name)" on the tooltip. A hosting account's picture never appears on a
+version, only where the account itself is the subject
+([ADR 0038](docs/adr/0038-hosting-account-profile-pictures.md)); the detail strip wears the same avatar at its own
 size. Then
 come the states as glyphs, and the date at the trailing end. The author was spelled
 out there before — the longest and most repetitive fact down the column — and
@@ -1285,6 +1422,17 @@ the diff out of reach.
 **File lists can be read in folders.** Changes' list and a saved version's
 files in History share one layout switch and one preference: a flat list by
 name, or the files grouped in the folders they live in, as an IDE shows them.
+Folders are the default when no valid preference is saved, including when
+storage is unavailable. An explicitly saved flat-list choice stays respected.
+Initial file selection, and the fallback when a selected file disappears,
+follow the selected layout's display order: the first file under the first
+folder in tree view, or the first listed file in flat view. Navigation from
+the command palette, rail or tabs preserves the user's valid selection and
+position, including the selected branch, History version, files, scroll and
+folded folders. The first item is the fallback only when there is no valid
+selection. Links to a particular file or saved version still open that target;
+refresh and Back/Forward also preserve a valid explicit selection. History chooses
+the right file before reading its diff, including cached version detail.
 The switch is a single icon after the rule in the list's search pill — the
 part of the pill that acts on the list rather than on what is typed — beside
 Filters in Changes; one control rather than a segmented pair, because the
@@ -1405,7 +1553,10 @@ padding, so the falling characters and the mascot share one imaginary ground.
 Only the rain is masked; the feet are never clipped. Results and
 later commands retain the drawing without replaying the entrance. Clearing the
 transcript restores the welcome with the same row reveal, including Ctrl+L.
-The welcome setting controls both appearances.
+The welcome setting controls both appearances. The initial welcome drawing
+is already complete when Console opens; only a command that moves it down to
+the watermark, or clearing a nonempty transcript that brings it back up,
+reveals it. Clearing an already empty transcript does not start an entrance.
 Hidden screens pause the repeating motion and finish any pending entrance;
 returning to the console never replays it. Reduced motion shows the finished
 static drawing immediately without blinking or rain.
@@ -1532,19 +1683,16 @@ loaded left its route waiting for an answer that never came. While the read is o
 section's whole place with the main lane already drawn and named, and a
 text placeholder where the sentence will be — the answer grows into a
 space that was waiting for it rather than pushing the versions down when it
-lands. It arrives with the one motion the drawing has: the line draws itself
-out of the parting, its versions appear along it left to right, the sentence
-settles — about a third of a second, all of it after the answer is in, and
-none of it with reduced motion. **From one branch to the next it cross-fades
-instead.** Two routes share most of their pixels — the main lane, its name,
+lands. The first result appears complete as soon as it is available, without
+tracing lines or revealing its dots in sequence. **From one branch to the next
+it cross-fades.** Two routes share most of their pixels — the main lane, its name,
 the parting at a fixed place, the general shape — so blinking the section out
 and drawing the next one from nothing made two similar pictures look like two
 unrelated events, and it was most jarring exactly when the read was fast. The
 previous branch's drawing is held, quieter, while the next one is read (in
 place of the empty lane), then laid over the new one and faded out as the new
 one fades in, in 200ms: what the two share stays still and only what differs
-dissolves — the same idea as the window's theme cross-fade. The draw-out is
-kept for a route that appears where there was none. Morphing the dots and
+dissolves — the same idea as the window's theme cross-fade. Morphing the dots and
 curves from one position to the next was weighed and left: animating a
 path's shape is not supported in the WebKit that GitOdile runs in on macOS,
 and a transition that only works on one platform is not one to design on. It
@@ -1794,7 +1942,23 @@ second one is a deliberate edit to the guard rather than a quiet override.
 
 ### Icons
 
-Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC) at 16–18px, imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary-color`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
+Sidebar navigation and inline controls use [Lucide](https://lucide.dev) icons (`lucide-react`, ISC), imported by name so unused icons are tree-shaken out of the bundle. Chosen over hand-drawing our own because it ships real Git-specific glyphs (`GitCompare`, `GitCommitHorizontal`) instead of the generic pencil/clock metaphors the app used before — see the icon-library comparison done when this was decided. An active nav item tints its icon with `--accent-primary`; the label stays `--text-primary-color`. Don't mix in a second icon library or hand-drawn icons alongside it — pick the closest Lucide glyph even when it's not a perfect semantic match.
+
+**An icon's size is a role, never a number.** Fourteen sizes from 10 to 25px
+had grown one screen at a time; a glyph now takes the token of what it sits in:
+
+| Token | Size | What it sits in |
+| --- | --- | --- |
+| `--icon-badge` | 10px | A badge or a corner chip over something else |
+| `--icon-meta` | 12px | Beside a caption or a label: a chip, a hint, a selection check |
+| `--icon-row` | 14px | A row, a field or a compact control |
+| `--icon-control` | 16px | A menu row, a button, a search field |
+| `--icon-nav` | 18px | A navigation entry, a dialog's close |
+| `--icon-tile` | 20px | A glyph tile, a state glyph, the rail |
+
+A glyph sized through its own class — a chevron, a caret, a file-type icon, an
+indicator — is still an icon and takes the same roles as one sized through an
+`svg` selector; thirty-five had escaped that rule at seven sizes.
 
 **Publishing is the cloud with the arrow** (`CloudUpload`), wherever the verb
 appears: the band's Publish step, the node on an unpublished version in Recent
@@ -1863,6 +2027,10 @@ rather than a fault. Only a failure About cannot explain stays silent, because
 an alarm with no next step is worse than a quiet line.
 
 About opens from the titlebar's overflow menu and from the command palette. The titlebar once also opened it from the mark in the corner, the convention of clicking the identity; that route went with the mark.
+
+Hosting provider icons use monochrome silhouettes with `currentColor`, including
+GitHub, GitLab, Bitbucket and Azure DevOps. They follow the surrounding ink in light/dark themes and
+selected states, rather than introducing provider brand colours into navigation.
 
 ### Honest affordances
 
@@ -2025,9 +2193,19 @@ from Settings > Interface > Theme and the command palette. The picker shows
 each theme as a miniature of the app in its own tokens, with the scheme carried
 by a glyph and by the option's accessible name, never by colour alone. Each
 option is a bordered card in the project-icon picker's language, with a 16:10
-miniature and the name beneath it; the official cards carry a verified rosette
-in `--accent-primary` right after the name — a seal, not a check, because
-selection is the accent border.
+miniature and the name beneath it; the official cards carry an "Official" tag
+right after the name — a word, not a mark, because any check-like glyph on all
+three cards would read as all three being chosen. The community grid sits under
+a visible "More themes" title. Every picker card in Settings (themes, project
+icons, languages, date and number formats, code fonts, the navigation appearance) shares
+one selected state: a quiet fill, the secondary-ink border and a filled check
+in the card's top corner, clear of the specimen being judged.
+
+The Settings rail is grouped into three titled blocks — App, Work, and
+Version control — with Updates set apart below a divider; the titles are visual only,
+so the arrow keys move straight across them. Line endings is the last group of
+the Git section rather than a rail entry, after the Git installation, the
+identity, the default branch and hooks.
 
 Do not introduce a color anywhere in the product (status badges, diff
 highlighting, charts, mascot variants) without first checking whether it is
@@ -2299,7 +2477,19 @@ Good uses:
 
 Rules:
 
-- keep most transitions between 120–220ms;
+- keep most transitions between 120–220ms, and write them as `--duration-fast`
+  or `--duration-normal`; something arriving — a menu, the palette, a flyout,
+  the search field opening into it — eases in on `--ease-emphasized` and
+  leaves in `--duration-exit` on an `ease-in`. Three curves are not arrivals
+  and keep their own: a rail glyph's hover turn eases in and out so a 60° turn
+  reads as a turn, the theme cross-fade, and the mascot's hop. Looping and
+  character animation (the mascot, spinners, the attention halo) is
+  choreography and keeps its own timings;
+- screen navigation shows already-available content immediately. Home's recent
+  projects and Overview's saved versions have no row entrance cascade; rail
+  selection changes colour and background without scaling the selected icon.
+  Keep motion for actual arrivals, action feedback and changes within a view;
+- Overview's compact restoration card fades in at `--duration-normal` (180ms);
 - a theme change cross-fades the whole window at `--duration-normal`, from
   every control that offers one — the titlebar toggle, Settings and the command
   palette. The point is that the whole surface changes together, rather than the
@@ -2308,6 +2498,14 @@ Rules:
   caused by one control should look like it came from there; it was withdrawn,
   because a curve that paces a position does not pace a radius, and "system" —
   which Settings offers — has no origin to sweep from anyway;
+- a language change takes the same window cross-fade, so every label changes
+  together instead of the new words snapping in over one frame. The fade starts
+  once the incoming dictionary is loaded, never covers the load, and is skipped
+  when "System" resolves to the language already shown. Settings offers each
+  language as a picker card: a round mark with its code (the monitor for
+  "System"), its own name, and a line of the product's words in that language;
+  "System" shows the language it resolves to. No flags: a flag names a
+  country, not a language, and Windows draws flag emoji as two letters;
 - avoid large spring animations in work surfaces;
 - respect `prefers-reduced-motion`;
 - Appearance settings offers an app-specific **Reduce motion** switch, off by
@@ -2372,8 +2570,9 @@ Rules:
   system and app reduced-motion settings remove them; the mascot then shows
   still.
 - **The mascot in Settings › Updates carries the update's work, not a brand
-  moment.** The app's own row shows the whole mascot in its 32px tile, still
-  while the state is settled. While the update is checked, verified or
+  moment.** The app's own row shows the whole mascot standing free in the
+  row's 32px column — no circle behind it and nothing clipping it, so the hop
+  rises past the tile — still while the state is settled. While the update is checked, verified or
   installed it hops: a small jump twice a second that lands with a squash from
   the feet (`hop`), so it reads as someone waiting, beside the button's own
   spinner. While a download of known size runs, the body fills from the feet
@@ -2419,6 +2618,16 @@ Minimum expectations:
 - screen-reader labels for icon-only controls;
 - reduced-motion support;
 - minimum comfortable pointer target sizes.
+
+**Focus is one colour in the field's own shape.** A button, a checkbox or a
+row takes a 2px `--focus-ring` outline. A field that hides the outline shows
+focus with the same colour on the edge it already has: a capsule or a framed
+field turns its border `--focus-ring`, an underlined field (Home's launcher,
+the Console's prompts, a branch being renamed) turns its line. A scroller that
+takes focus inside a clipping frame (the issue report) rings the frame. A
+container that only receives focus moved by script — a dialog, its title —
+draws nothing. `styleComposition.test.ts` fails a removed outline that names no
+replacement.
 
 Keyboard shortcuts must use platform conventions:
 
@@ -2520,7 +2729,7 @@ button always, and nothing else unless the dialog needs it:
 characters; the fix for a long title is a shorter title, not a smaller type
 size or a stacked header. The detail moves to the body: "Can't delete it yet"
 over "“feature/x” has versions that aren't anywhere else", not the name inside
-the title. No title carries a line's or a project's name — "Delete this
+the title. No title carries a branch's or a project's name — "Delete this
 branch?", "Switch branch", "Publish a new branch", "Project created" — since a long
 name is exactly what breaks the line; the name goes to the subtitle or the
 body.
@@ -2536,6 +2745,18 @@ if anywhere. Consequences are facts too, never a bulleted list of their own,
 and so is a note that says what stays safe ("A copy is kept, so you can undo
 it"): it is the safe fact, last.
 
+**Popovers and menus share one surface**, the floating half of Friendly Sheet:
+`--surface-raised`, the subtle border, `--radius-surface`, `--shadow-lg` and
+`--layer-popover` (`--layer-nested-popover` when opened from inside another).
+A menu (`.app-menu`, the context menu, the switchers) insets its rows by
+`--space-2`, which keeps the 10px rows concentric with the 18px surface; a
+popover that holds content rather than rows (the account panel, a filter
+panel) takes `--space-3` to `--space-5` like a card. Its title, when it has
+one, is `--text-body` at `--weight-strong` — it is named by the control that
+opened it — and its empty state is `.empty-state--compact` or
+`.empty-line--menu`. A new popover starts from `.app-menu` or the filter
+panel, never from a blank rule.
+
 **One recipe for a card inside a dialog**, the regions-and-cards rule of
 Friendly Sheet applied to what floats: `--surface-card`, the subtle border,
 `--radius-surface` and no shadow — the picked repository, the update on
@@ -2546,7 +2767,7 @@ monospace text (the issue report, technical details) sits on
 six recipes for the same role, two of them on the dialog's own surface and so
 invisible in the light theme. What's new's current release keeps its one
 tinted panel on purpose. A selected option wears one recipe everywhere: the
-secondary ink's edge and 7% of the ink (`choice-list__option--active`).
+secondary ink's edge and `--tint-selected` of the ink (`choice-list__option--active`).
 
 **Conditions and failures are banners** (`DialogBanner`, `--radius-surface`
 like an in-screen notice): `danger` for a failure, `warning` for something to
@@ -2559,7 +2780,7 @@ longer sets it apart from the words around it.
 form, confirmation and plan has `Cancel` beside its primary action, including
 destructive ones — a confirmation whose only visible button is the destructive
 one reads as "press this to continue". The primary repeats the verb of the
-title ("Save version", "Create line", "Delete line", "Publish changes"), and
+title ("Save version", "Create branch", "Delete branch", "Publish changes"), and
 carries an icon only when it is one of the vocabulary's verbs: save, publish,
 get (cloning is a get), discard, delete, and restore, the undo of a discard.
 Create, switch, review, check, download and copy carry none. A dismiss that
@@ -2571,7 +2792,7 @@ is an `app-checkbox`; a switch is for a setting that persists. Placeholders are
 set in the sans even where the value is set in the mono.
 
 **A result with no next step is a toast, not a dialog.** A published change, a
-line switched, created or deleted, a discard (whose toast carries `Undo`),
+branch switched, created or deleted, a discard (whose toast carries `Undo`),
 a restore, a remote connected: the dialog closes and `useToast` says what
 happened, under the window, for a few seconds (paused while pointed at or
 focused). Up to three stack above the status bar, newest nearest it; each
@@ -2629,7 +2850,7 @@ with no such name gets a sentence that points at nothing missing.
 
 ## Account and sign-in
 
-**GitHub integration is a separate connection.** Settings has one **Accounts**
+**GitHub integration is a separate connection.** Settings has one **Integrations**
 section for every provider, in two groups: **Connected accounts**, and **By
 provider**, a folded block per provider (glyph, name, and a one-line summary —
 accounts, company servers, whether its CLI is installed) whose body holds what
@@ -2648,7 +2869,9 @@ Connected accounts is one list for every host of every provider; a host with
 nothing connected or in progress is left out rather than drawn empty, and the
 list says once when nothing is connected at all. Each host is a
 small label (glyph, host, a "Company" pill for servers) over a bordered list of
-account rows, each one line: a 32px avatar, the login, a method chip (Token or
+account rows, each one line: a 32px avatar (the account's own picture from its
+provider, or the person glyph) with the provider's mark on a small raised badge
+at its lower trailing corner, the login, a method chip (Token or
 Browser) and a state chip, with short text verbs on the right (Use · Remove ·
 Sign out); a second line appears only for a problem or a storage caveat. The
 installation rows for Git, the CLIs and the app update share that geometry in
@@ -2665,8 +2888,24 @@ every group. **One accent-filled action per page**: Connect account while nothin
 connected and the panel's submit; tooling checks and server additions stay
 secondary. Cancellation restores the initiating control's focus.
 
+Known rejected tokens say **Token rejected**, with provider-specific guidance,
+rather than reusing a Git remote-access error. A known invalid browser
+authorization says **Needs attention** even when its cached receipt also needs
+checking. One main explanation belongs to the row; technical GitLab CLI repair
+guidance is disclosed on demand, with an explicit connection check. No copy
+infers expiry or revocation from a network failure.
+
+Development builds additionally expose **Account**, separate from the
+project connections, with an always-visible Demo label. It shows the mock
+identity and plan, next-attempt scenario, sign-out and Reset demo. Reset clears
+the simulated session and restores the Free outcome. It is memory-only and
+sends nothing. Starting the existing account flow suspends Settings' focus trap
+and makes that workspace inert until the flow closes; the initiating button
+receives focus again. The account dialog adds no second backdrop veil. This
+category and its palette entry are absent from production builds.
+
 Browser account detection contacts GitHub after launch (ADR 0027) or on
-Check accounts; opening the section renders cached state only. List saved accounts with the
+Check connections; opening the section renders cached state only. List saved accounts with the
 active account first. Reuse the installation row: a small circular cached avatar,
 username and status chip on the left, actions aligned to the far right, and the
 host beneath the identity. Use a neutral person glyph if the image fails;
@@ -2680,6 +2919,17 @@ repository permissions and possible plaintext fallback. Its inline waiting panel
 has a selectable device code, Copy, Open GitHub and Cancel, with keyboard focus
 on Continue when consent opens. Cancellation does not promise unchanged
 authorization: gh may already have persisted it.
+
+**Azure Repos connects per organization.** The provider menu offers a personal
+access token. Its inline panel collects the organization name/address first,
+then uses the shared masked token editor with expiry, Code permissions and
+secure-storage guidance. Connected rows and project selectors name
+`dev.azure.com/organization`, so two organizations sharing a host stay distinct.
+Clone always offers an Azure Repos tab with its provider mark, HTTPS address
+field and connection picker. Home shows connected Azure accounts and opens that
+tab with the chosen connection. Users paste a clone URL; browser login and
+repository discovery are outside this version. See
+[ADR 0036](docs/adr/0036-connect-azure-repos-by-organization-and-pat.md).
 
 **Company servers are an inventory.** The group after Accounts lists each
 GitHub Enterprise Server or GitLab Self-Managed host with its account count and
@@ -2757,9 +3007,30 @@ it at step 2 rather than inventing its own:
 4. **Back in the app.** The waiting dialog closes by itself, the window comes
    forward, and a brief notice confirms "Signed in" with the plan in one line.
    The rail control becomes the person's avatar (round, with
-   `--avatar-ring`), and from then on opens a popover with name, email, a
+   `--avatar-ring`): the initials of the first and last name they set, never a
+   hosting account's picture. From then on opens a popover with name, email, a
    `PRO` capsule when entitled, and menu rows: plan and billing, what the
    account stores, sign out.
+
+The account control's avatar stays centred in the utility button's circular hit
+area. A small static success-coloured dot at its lower trailing edge means a
+session is active, with the same state available as an accessible description.
+It is absent while signed out and does not claim that a network connection has
+been checked. The dot does not pulse or compete with notification attention.
+
+**Three identities, never interchangeable**
+([ADR 0038](docs/adr/0038-hosting-account-profile-pictures.md)):
+
+- the **project icon** is a rounded square (`--radius-identity`) made locally
+  from an emoji, a technology mark or initials;
+- the **GitOdile profile** is a round chip of the person's initials;
+- a **hosting account** is a round picture from its provider, with the provider
+  badge in account lists.
+
+A surface shows the one identity it is about. Saved versions are about a
+person, so every author, the user included, wears initials. The account picker shows an
+account's picture in its 28px glyph slot without the badge, because the slot is
+too small and the trigger already names the provider.
 
 **Failure never implies lost work.** Every account error is a sentence of what
 happened and what to do, followed by the reassurance that projects and saved
@@ -2771,6 +3042,63 @@ they use the notice treatment, and "Not now" is always an equal way out.
 Wording: "account", "sign in", "sign out" — never "log in", "register" or
 "create an account", since creation is implicit. Name the browser step
 honestly ("continues in your browser") and never say "securely" or "seamless".
+
+GitHub and GitLab connections share one Accounts list per product in Settings,
+grouped by host (the public host first, then company servers), followed by the
+company-server inventory and the CLI tooling last. Each row names its method
+(Token or Browser). Tokens work with or without gh/glab; browser authorization
+and its saved accounts require the CLI. The token field is hidden until asked
+for, masks its contents, explains secure storage/permissions before submission
+and clears immediately when sent. Labels distinguish connection methods even
+for the same username. Removing a local connection explains affected project
+access and that it does not revoke authorization on GitHub.
+
+Bitbucket uses the same Accounts list and token form for bitbucket.org only:
+no method choice, no company servers and no tooling. Its form names the
+Atlassian scopes in the permissions disclosure, and a token the provider
+refuses says so in Bitbucket's terms instead of the generic access message.
+Switching between provider sections renders the last known accounts at once;
+an empty state appears only after the catalog was read.
+
+Hosting connection selectors share one app-styled list in clone and project
+settings. Show username, host and a separate Token/Browser badge, with a check
+for the selected connection. Project settings shows only providers used by its
+configured HTTPS fetch or push addresses, once those remotes are known. Multiple
+providers appear only when the project actually uses both; local, SSH-only and
+other-host projects have no provider account selector.
+Retain unavailable saved identities and explain
+that they need checking. Arrow keys preview choices; Enter confirms; Escape
+closes only the list and Tab continues through the surrounding form. Opening
+the list uses cached connections and never checks them remotely; saved
+connections are verified in the background after launch (ADR 0027).
+
+Repository browsing belongs to the clone overlay. Choosing a connection (or
+the one preselected from last time) finds its first page of projects at once;
+a cancelled or failed read waits for an explicit Find projects. Show page scope, private/archive
+metadata, permission-limited results and keyboard-accessible virtual rows.
+Choosing a project populates the normal destination review without starting a
+clone. A filter must say which page it searches; a partial list cannot read as
+the full account inventory. Opening a cached view does not refresh remotely.
+
+The clone overlay uses two screens: Git address, GitHub, GitLab, Bitbucket and Azure Repos source tabs first; then the editable destination and native preview with
+Clone project. There is no numbered step bar or separate confirmation screen.
+Selecting a repository stays on the list and highlights the selection until
+Choose destination. Retain virtualized rows and invalidate selection on account
+or page changes. Editing a complete GitHub, GitLab or Bitbucket address or its connection starts a
+debounced, cancellable read-only Git access check; opening the overlay or a
+cached list never does. Confirm only read access, keep missing/private ambiguity,
+and offer continuing without checking for transient failures. Use the same
+exact connection as cloning. The input explains the network check before entry.
+
+Provider browsing gives the remaining dialog height to its virtualized project
+list. The heading, source tabs, connection, search and destination action stay
+fixed; only the list scrolls. Refresh belongs inside the search capsule, with
+an accessible name and busy/cancel feedback. Compact rows show the project name
+in primary ink, the owner in secondary ink and at most one description line.
+The list uses the app's shared auto-hiding scrollbar and normal keyboard controls.
+Page scope stays in the filter label and compact counter; page arrows appear
+only when there is another page to reach. Permissions guidance belongs to empty
+and denied-access states rather than a paragraph above every populated list.
 
 ## Content design
 
@@ -2874,6 +3202,21 @@ the status bar, the other screens and the Work tab pair keep working. Outside
 every screen, the window's own notice offers `Reload window`.
 
 Reuse one visual pattern for all of these across screens rather than each screen inventing its own: a centered block with a small icon in a bordered/shadowed circle (`--radius-round`, like every glyph tile), one short headline, one line of supporting copy, and 1–2 actions — see `.empty-state` in `src/shared/ui/primitives.css`, first built for the "no project open" Overview state. An error state swaps in `--status-danger`. Loading is not this block: it draws the content's own shape, below. Do not build a bespoke illustration or a different card shape per screen — that's how a "no repository" panel and a "no results" panel end up looking like they belong to two different apps.
+
+Two variants keep it one block rather than four. `.empty-state--success` is a
+settled answer rather than an absence — Changes when everything is saved — so
+its tile takes the success tone and rests flat. `.empty-state--compact` is the
+same block inside something that floats or a dialog's list (the notification
+panel, the clone dialog's project list): a 40px tile, body-size copy and the
+host's own inset. A screen's block may set its width and arrange its actions;
+it never draws its own tile.
+
+**A list with nothing to show says so in one line** where its rows would be:
+`.empty-line`, secondary ink at `--text-label`, centred, with a panel's room
+around it, or `.empty-line--menu` with a popup's own inset (the palette, the
+project and branch switchers, a picker). Eleven lists had written their own at
+11, 12 or 13px. A sentence in place is not an empty list — a version with no
+message, a release with no highlights — and keeps its prose styling.
 
 **A first load draws the shape of what is coming, where it will be.** A list,
 a sentence or a form whose shape is known before Git answers — the Overview's
@@ -3118,6 +3461,29 @@ the project's root in the system file manager through `open_project_folder`,
 which resolves the folder from the open project and never from a path the
 renderer sends. Under 980px the column drops below the timeline.
 
+Changes offers **Markdown preview** in its View picker for `.md` and `.markdown`
+text files that are not conflicted, selecting it by default. Remember explicit
+Markdown choices across sessions independently of code-file view choices.
+If a read fails or the document exceeds size/comparison limits, show the text
+diff with an explanation; keep the preference and offer retry through View.
+It compares complete saved/current documents,
+highlighting affected blocks in red/green with minus/plus markers in one unified
+document. Unchanged context appears once; a replacement shows the removed block
+before the added block at the same position. Compatible lists, tables and quotes
+merge their items/rows so shared context stays in place. New files show additions;
+deleted files retain their saved content and disclose deletion. A summary counts source-line
+changes and explains the block-level granularity. Document typography stays on
+the solid diff surface, with a compact read-only notice. The change arrows step
+between groups of affected blocks; diff search remains hidden while previewing.
+Oversized documents can show isolated changed fragments from the cached text
+diff, clearly labelled partial, with source-line positions and a warning that
+omitted context can affect formatting and references. Separate fragments never
+join into one Markdown construct. Further limits disclose omitted changes;
+unavailable excerpts retain the text fallback. Switching back restores the chosen diff mode. Conflicted files
+retain their diff. HTML is hidden, images are text placeholders,
+and links are inert so repository content cannot navigate the desktop WebView
+or load resources. History and word-level rendered changes are deferred.
+
 **Changes saves from one place, and it is the place the files are.** The
 screen used to offer a version twice: a primary "Save version" in the
 heading that opened the dialog, and the quick box docked under the file list
@@ -3307,7 +3673,7 @@ prepended at the head of History's timeline, so loading an older page is not
 mistaken for new work. Up to three arrivals cascade, 40ms apart, so a late
 arrival never waits on a position that has nothing to do with it, and a
 virtualized row is still never animated by a scroll that mounted it. Overview
-keeps the entrance stagger on its sampled lists.
+and Home show their existing lists without an entrance stagger.
 
 **Dropping a folder on the window** opens it. While a drag is over the window
 — and only then — a window-sized overlay names what a drop will do. It is

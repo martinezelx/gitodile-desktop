@@ -390,7 +390,7 @@ export function AccountResults({
         {/* With a chooser beside it, the heading leaves the login to the
             chooser rather than saying it twice. */}
         <h2 className="home-launcher__section-title" id={titleId}>
-          {siblings.length > 1 ? t.homeAccountSectionAll(provider) : t.homeAccountSection(provider, account.login)}
+          {account.kind === "azure" ? `${provider} · ${account.login}` : siblings.length > 1 ? t.homeAccountSectionAll(provider) : t.homeAccountSection(provider, account.login)}
         </h2>
         {siblings.length > 1 && siblings.length <= ACCOUNT_CHOICES_AS_BUTTONS && (
           <div className="home-launcher__account-chooser" role="group" aria-label={t.homeAccountChooser(provider)}>
@@ -422,13 +422,20 @@ export function AccountResults({
           </select>
         )}
       </div>
-      {isPending && !repositories && (
+      {account.kind === "azure" && <>
+        <p className="home-launcher__note home-launcher__note--plain">{account.server}</p>
+        <p className="home-launcher__note home-launcher__note--plain">{t.homeAzureCloneHelp}</p>
+        <button type="button" className="home-launcher__more" data-launcher-item disabled={isDisabled} onClick={onBrowseAll}>
+          <HostingProviderIcon provider="azure" />{t.homeAzureCloneAction}
+        </button>
+      </>}
+      {account.kind !== "azure" && isPending && !repositories && (
         <p className="home-launcher__note home-launcher__note--plain">
           <LoaderCircle className="icon--spinning" aria-hidden="true" />
           {t.homeAccountLoading}
         </p>
       )}
-      {hasError && !isPending && (
+      {account.kind !== "azure" && hasError && !isPending && (
         <p className="home-launcher__note home-launcher__note--plain">
           {t.homeAccountError}
           <button type="button" className="home-launcher__inline-action" onClick={onRetry}>
@@ -436,13 +443,13 @@ export function AccountResults({
           </button>
         </p>
       )}
-      {repositories && repositories.length === 0 && (
+      {account.kind !== "azure" && repositories && repositories.length === 0 && (
         <p className="home-launcher__note home-launcher__note--plain">{t.homeAccountEmpty}</p>
       )}
-      {repositories && repositories.length > 0 && shown.length === 0 && (
+      {account.kind !== "azure" && repositories && repositories.length > 0 && shown.length === 0 && (
         <p className="home-launcher__note home-launcher__note--plain">{t.homeAccountNoMatches(query.trim())}</p>
       )}
-      {shown.length > 0 && (
+      {account.kind !== "azure" && shown.length > 0 && (
         <ul className="home-launcher__list">
           {shown.map((repository, index) => (
             <RepositoryRow
@@ -455,7 +462,7 @@ export function AccountResults({
           ))}
         </ul>
       )}
-      {(hasMore || matches.length > shown.length) && (
+      {account.kind !== "azure" && (hasMore || matches.length > shown.length) && (
         <button type="button" className="home-launcher__more" data-launcher-item onClick={onBrowseAll}>
           {t.homeAccountMore}
         </button>

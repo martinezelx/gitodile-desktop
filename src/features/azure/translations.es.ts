@@ -1,0 +1,27 @@
+import type { en } from "./translations.en";
+
+export const es: typeof en = {
+  azureTitle: "Conectar Azure Repos",
+  azureMenuToken: "Con un token de acceso personal",
+  azureOrganization: "Organización de Azure",
+  azureOrganizationHelp: "Introduce el nombre de la organización o https://dev.azure.com/organizacion. Solo Azure DevOps Services; los servidores privados y el selector de repositorios aún no están disponibles.",
+  azureOrganizationInvalid: "Introduce un nombre de organización con letras, números y guiones, o su dirección de dev.azure.com.",
+  azureContinue: "Continuar",
+  azureToken: "Token de acceso personal (PAT)",
+  azureConnect: "Comprobar y conectar",
+  azureConnected: "Token de Azure comprobado y guardado. Pega la URL de un repositorio para clonar o elige la conexión en los ajustes del proyecto.",
+  azureExists: "Esta cuenta ya tiene un token para esta organización. Quítalo antes de reemplazarlo.",
+  azureLimit: "Usa un PAT para esta organización, nunca tu contraseña. Hasta 8 organizaciones y 8 tokens por organización.",
+  azureLimitReached: "Revisa el nombre de la organización y el límite de conexiones (8 organizaciones, 8 tokens cada una). Quita un token que no uses y cambia sus proyectos al acceso existente de Git.",
+  azurePermissionsTitle: "¿Dónde lo creo y qué permisos necesita?",
+  azurePermissions: "En tu organización de Azure, abre Configuración de usuario → Tokens de acceso personal. Elige esta organización y Code: Read para clonar y obtener cambios, o Code: Read & write para publicar también. Elige una caducidad corta y reemplázalo cuando caduque. Tu organización puede restringir los PAT. Al conectar se comprueba tu identidad; los permisos del repositorio y de la rama se comprueban al usarlos.",
+  azureStorage: "El token se envía solo a esta organización de Azure para comprobarlo y se guarda en el almacén seguro del sistema. Nunca se guarda en la URL del repositorio.",
+  azureRemovalTitle: "¿Quitar el token de Azure de {login}?",
+  azureRemovalConsent: "Los proyectos que usan esta conexión necesitarán otra. El token sigue siendo válido en Azure hasta que lo revoques allí.",
+  azureRemove: "Quitar token",
+  azureRemoved: "Token de Azure quitado.",
+  azureFailed: "No se pudo comprobar el token de Azure. Revisa la organización, el token, los permisos y la conexión.",
+  azureChecking: "Comprobando con Azure…",
+  azureDescription: "Conecta cada organización de Azure con un PAT y clona por URL. Elige una conexión en los ajustes del proyecto para obtener y publicar cambios. El inicio de sesión con Microsoft y el selector de repositorios aún no están disponibles.",
+  azureChips: { signed_out: "Sin conectar", checking: "En curso", connected: "Conectada", invalid: "Reconectar", unchecked: "Sin comprobar" },
+};

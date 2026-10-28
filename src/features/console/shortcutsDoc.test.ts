@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import doc from "../../../docs/console-shortcuts.md?raw";
 import { DEFAULT_SHORTCUTS, isHostingId, isLineShortcut, shortcutCommand } from "./domain";
-import { consoleTranslations } from "./translations";
+import { en } from "./translations.en";
 
 describe("console shortcuts documentation", () => {
   it("lists every built-in shortcut with what it shows and the command it runs", () => {
-    const en = consoleTranslations.en;
     const queryLabels: Record<string, string> = {
       status: en.consoleStatus, diff: en.consoleDiff, staged: en.consoleStaged, log: en.consoleLog, graph: en.consoleGraph,
       last: en.consoleLast, branches: en.consoleBranches, tags: en.consoleTags, remotes: en.consoleRemotes,

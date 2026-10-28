@@ -1,10 +1,10 @@
 /* Marks the rail item whose section holds a problem. Paired with the header
    chip, which carries the wording — this is the "where", not the "what". */
 .settings-nav__alert {
-  width: 17px; height: 17px; margin-left: auto; flex-shrink: 0;
+  width: var(--icon-control); height: var(--icon-control); margin-left: auto; flex-shrink: 0;
   display: grid; place-items: center; color: var(--status-danger);
 }
-.settings-nav__alert svg { width: 15px; height: 15px; }
+.settings-nav__alert svg { width: var(--icon-control); height: var(--icon-control); }
 .settings-nav__alert--accent { color: var(--accent-primary); }
 .settings-nav__alert--warning { color: var(--status-warning); }
 /* A provider CLI's row on its own, inside the connect panel that needs it. */
@@ -14,15 +14,28 @@
   background: var(--surface-card);
 }
 /* The same dense list as Notifications: one bordered surface with rows split
-   by hairlines, not rows floating in the section. Each row reads icon, name,
-   then how to move it, then whether it shows. */
+   by hairlines, not rows floating in the section. Each row reads grip, icon,
+   name, precise move arrows, then whether it shows. */
+/* Full column width: each row carries a plain-language line about its section,
+   which is what fills the space a bare name list left empty. */
 .navigation-destinations {
-  display: grid; gap: 0; padding: 0;
+  width: 100%; min-width: 0; display: grid; gap: 0; padding: 0;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
 }
+.navigation-destinations__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.navigation-destinations__restore {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: 28px; padding: 0 var(--space-2); margin-top: -2px;
+  border: 0; border-radius: var(--radius-item); background: transparent;
+  color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); white-space: nowrap;
+}
+.navigation-destinations__restore:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
+.navigation-destinations__restore:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.navigation-destinations__restore:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.navigation-destinations__restore svg { width: var(--icon-row); height: var(--icon-row); }
 .navigation-destination {
-  min-height: 48px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto;
-  align-items: center; gap: var(--space-3); padding: 4px var(--space-3);
+  min-height: 56px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto auto;
+  align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
   transition: background var(--duration-fast), opacity var(--duration-fast);
 }
 .navigation-destination + .navigation-destination { border-top: 1px solid var(--border-subtle); }
@@ -32,7 +45,7 @@
   display: flex; align-items: center; gap: 2px;
 }
 .navigation-destination--dragging { opacity: 0.5; }
-.navigation-destination--drag-over { background: var(--surface-hover); }
+.navigation-destination--drag-over { background: var(--surface-active); box-shadow: inset 0 2px var(--accent-primary); }
 .navigation-destination__handle {
   width: 32px; height: 36px; display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent;
@@ -42,27 +55,28 @@
 .navigation-destination__handle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .navigation-destination__handle:active { cursor: grabbing; }
 .navigation-destination__handle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.navigation-destination__handle svg { width: 17px; height: 17px; }
+.navigation-destination__handle svg { width: var(--icon-nav); height: var(--icon-nav); }
 .navigation-destination__icon {
   width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center;
   border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
 }
-.navigation-destination__icon svg { width: 17px; height: 17px; }
-.navigation-destination__copy { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
-.navigation-destination__copy strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
+.navigation-destination__icon svg { width: var(--icon-nav); height: var(--icon-nav); }
+.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; padding-block: var(--space-2); }
+.navigation-destination__name { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.navigation-destination__name strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
+.navigation-destination__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
 /* The same capsule as the Notifications "Silent" tag. */
 .navigation-destination__tag {
-  flex-shrink: 0; padding: 0 6px;
+  flex-shrink: 0; padding: 0 var(--space-2);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
-/* Off: kept in place in the secondary ink — colour, not opacity, so every
-   theme's contrast contract still holds. */
-.navigation-destination--hidden .navigation-destination__copy strong { color: var(--text-secondary-color); font-weight: var(--weight-normal); }
-.navigation-destination--hidden .navigation-destination__icon { color: var(--text-secondary-color); }
-/* The arrows are the keyboard's and the precise pointer's way to move a row;
-   at rest they would put four chevrons in every row, so they surface on hover
-   and whenever focus is inside the row. */
+/* Section switches sit in a dense list of five; the full accent fill made them
+   outweigh the names, so "on" here uses the secondary ink instead. */
+.navigation-destination .toggle-switch--on { background: var(--text-secondary-color); }
+/* Reserved space keeps the list stable. The arrows appear with the row's hover
+   or focus: the handle already reorders from the keyboard, and the switch is
+   left as the row's one resting control. */
 .navigation-destination__move-buttons {
   display: flex; align-items: center; gap: 2px;
   opacity: 0;
@@ -70,8 +84,11 @@
 }
 .navigation-destination:hover .navigation-destination__move-buttons,
 .navigation-destination:focus-within .navigation-destination__move-buttons { opacity: 1; }
+@media (hover: none) {
+  .navigation-destination__move-buttons { opacity: 1; }
+}
 .navigation-destination__move-button {
-  width: 28px; height: 28px; display: grid; place-items: center;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary-color);
 }
@@ -81,50 +98,56 @@
 .navigation-destination__move-button:focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: -2px;
 }
-.navigation-destination__move-button:disabled { opacity: 0.4; cursor: default; }
-.navigation-destination__move-button svg { width: 16px; height: 16px; }
+.navigation-destination__move-button:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.navigation-destination__move-button svg { width: var(--icon-control); height: var(--icon-control); }
 
-.navigation-display { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding: 0; }
-.navigation-display__option {
-  min-width: 0; min-height: 72px; display: grid; grid-template-columns: 48px minmax(0, 1fr);
-  align-items: center; gap: var(--space-3); padding: 10px 12px;
-  border: 0; border-radius: var(--radius-item); background: transparent;
-  color: var(--text-secondary-color); text-align: left;
-  transition: background var(--duration-fast), color var(--duration-fast);
+/* Wide cards across the column: the miniature on the left, its name and what
+   it trades on the right. They stack once a card would squeeze its copy. The
+   `.theme-card` qualifier outranks the theme picker's own rules, which come
+   later in this file. */
+.navigation-display { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-3); padding: 0; }
+.theme-card.navigation-display__option {
+  grid-template-columns: 176px minmax(0, 1fr); align-items: center; gap: var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); text-align: left;
 }
-.navigation-display__option:hover:not(.navigation-display__option--active) {
-  background: var(--surface-hover); color: var(--text-primary-color);
-}
-.navigation-display__option--active {
-  background: color-mix(in srgb, var(--text-primary-color) 9%, var(--surface-raised));
-  color: var(--text-primary-color);
-}
-.navigation-display__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .navigation-display__preview {
-  width: 48px; height: 48px; display: grid; align-content: center; justify-items: center; gap: 2px;
-  border-radius: var(--radius-control); background: var(--surface-hover); color: var(--accent-primary);
+  aspect-ratio: 16 / 9; display: grid; grid-template-columns: 40px minmax(0, 1fr);
+  overflow: hidden; border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-item); background: var(--surface-app); color: var(--text-secondary-color);
 }
-.navigation-display__preview span { width: 26px; height: 26px; display: grid; place-items: center; }
-.navigation-display__preview svg { width: 18px; height: 18px; }
+.navigation-display__mini-rail { display: grid; align-content: start; gap: var(--space-1); padding: var(--space-1); }
+.navigation-display__mini-item { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 28px; border-radius: var(--radius-item); }
+.navigation-display__mini-item:first-child { background: var(--surface-active); color: var(--text-primary-color); }
+.navigation-display__mini-item svg { width: var(--icon-meta); height: var(--icon-meta); }
+.navigation-display__mini-content { min-width: 0; margin: var(--space-1) var(--space-1) var(--space-1) 0; padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-panel); display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-2); }
+.navigation-display__mini-content i { display: block; height: 5px; border-radius: var(--radius-pill); background: var(--border-subtle); }
+.navigation-display__mini-header, .navigation-display__mini-status { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.navigation-display__mini-header i:first-child { width: 44%; background: var(--text-secondary-color); opacity: 0.5; }
+.navigation-display__mini-header i:last-child { width: 22%; height: 8px; background: var(--surface-active); border: 1px solid var(--border-control); }
+.navigation-display__mini-body { display: grid; align-content: start; gap: var(--space-1); }
+.navigation-display__mini-body i:nth-child(2) { width: 72%; }
+.navigation-display__mini-body i:nth-child(3) { width: 86%; }
+.navigation-display__mini-body i:nth-child(4) { width: 62%; }
+.navigation-display__mini-status i { width: 28%; height: 3px; }
 /* The other exception named in DESIGN.md § Typography. This is a drawing of
    the navigation rail at a fraction of its size — the label is part of the
    picture, not type the user reads, and scaling it to the floor would make the
    miniature stop looking like the thing it depicts. */
 .navigation-display__preview small {
-  max-width: 42px; overflow: hidden; color: var(--text-secondary-color); font-size: 7px;
+  max-width: 32px; overflow: hidden; color: var(--text-secondary-color); font-size: 7px;
   line-height: var(--leading-none); text-overflow: ellipsis; white-space: nowrap;
 }
-.navigation-display__preview--icons-only span { width: 32px; height: 32px; }
-.navigation-display__copy { min-width: 0; display: grid; gap: 3px; }
-.navigation-display__copy strong { color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); }
-.navigation-display__copy small { color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug); }
+.navigation-display__preview--icons-only .navigation-display__mini-item { min-height: 20px; }
+.navigation-display__label { min-width: 0; display: grid; gap: 2px; }
+.navigation-display__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
+.navigation-display__label strong { color: var(--text-primary-color); font-size: var(--text-label); font-weight: var(--weight-strong); }
 
 /* Two by two rather than a row of four: the sample line is what has to be
    readable, and four across would squeeze it to the point of defeating the
    purpose. */
 .font-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .font-picker__option {
-  display: grid; gap: 5px; padding: 11px 13px; justify-items: start;
+  display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-3); justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
@@ -135,13 +158,7 @@
 .font-picker__option:hover:not(.font-picker__option--active) {
   border-color: var(--text-secondary-color); color: var(--text-primary-color);
 }
-/* The card is already a specimen, so its stable neutral surface states the
-   selection without laying a checkmark over the thing being judged. */
-.font-picker__option--active {
-  border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
-  color: var(--text-primary-color);
-}
+.font-picker__option--active { color: var(--text-primary-color); }
 .font-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
 /* The diff's own size and surface, so the sample previews the real thing
    rather than a flattering enlargement on the wrong background. `--surface-code`
@@ -153,7 +170,7 @@
    judged, and a specimen shown fainter than it will really render is a
    misleading preview, not a de-emphasised one. */
 .font-picker__sample {
-  width: 100%; padding: 5px 7px; border-radius: var(--radius-control);
+  width: 100%; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
   background: var(--surface-code); color: var(--text-primary-color);
   font-size: var(--text-label); line-height: var(--leading-code); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -161,19 +178,19 @@
 .identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 /* Reserved so the row does not appear and disappear under the fields as the
    draft moves between saving, saved and invalid. */
-.identity-block__status { min-height: 18px; margin-top: 10px; }
+.identity-block__status { min-height: 18px; margin-top: var(--space-3); }
 .identity-block__confirm {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
   margin-top: var(--space-3); padding: var(--space-3) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-warning) var(--tint-edge), transparent);
   border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent);
 }
 .identity-block__confirm strong { display: block; margin-bottom: 2px; font-size: var(--text-body); }
 .identity-block__confirm p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .remote-check-cadence { flex-shrink: 0; }
 .settings-view .remote-check-cadence .segmented-control__option {
-  min-width: 54px; justify-content: center; padding-inline: 11px; white-space: nowrap;
+  min-width: 54px; justify-content: center; padding-inline: var(--space-3); white-space: nowrap;
 }
 /* The number and its unit read as one control, so they sit on one line and
    wrap together rather than the unit drifting under the field. */
@@ -190,7 +207,7 @@
    at every panel width this dialog reaches. */
 .format-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .format-picker__option {
-  display: grid; gap: 3px; padding: 9px 12px; justify-items: start;
+  display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
@@ -201,11 +218,7 @@
 .format-picker__option:hover:not(.format-picker__option--active) {
   border-color: var(--text-secondary-color); color: var(--text-primary-color);
 }
-.format-picker__option--active {
-  border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
-  color: var(--text-primary-color);
-}
+.format-picker__option--active { color: var(--text-primary-color); }
 .format-picker__name { font-size: var(--text-body); font-weight: var(--weight-strong); color: var(--text-primary-color); }
 /* Tabular figures so the samples line up column-wise and the difference
    between them is the separator rather than the glyph widths. */
@@ -213,6 +226,19 @@
   color: var(--text-secondary-color); font-size: var(--text-label); font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
+/* The format cards, three across, each led by a round mark: the language's
+   code, or the monitor for "system". The sample is a short phrase rather than
+   a figure, so it wraps instead of ending in an ellipsis. */
+.language-picker { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.language-picker__name { display: flex; align-items: center; gap: var(--space-2); }
+.language-picker__mark {
+  display: grid; place-items: center; flex: none; width: 22px; height: 22px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-round);
+  color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-wide);
+}
+.language-picker__mark svg { width: var(--icon-meta); height: var(--icon-meta); }
+.language-picker__sample { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 /* One stacked card per choice: each option is a sentence about what happens to
    files, which a segmented control has nowhere to put. */
 /* Provenance is context, not an alert: it reads as a caption under the list,
@@ -222,15 +248,15 @@
 /* Full width rather than shrink-to-fit: two chips of different lengths under a
    stack of full-width cards read as debris. */
 .line-endings__caveat {
-  display: flex; gap: var(--space-2); padding: 10px var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--status-warning) var(--tint-edge), transparent);
   border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent);
   color: var(--status-warning); font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.line-endings__caveat svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
+.line-endings__caveat svg { flex-shrink: 0; width: var(--icon-row); height: var(--icon-row); margin-top: 2px; }
 .line-endings__caveat p { margin: 0; }
-.line-endings__caveat p + p { margin-top: 6px; }
+.line-endings__caveat p + p { margin-top: var(--space-2); }
 
 /* Notifications is one group on one icon column. The switch leads with the
    bell and the events hang under it in the same column, so every label starts
@@ -246,7 +272,7 @@
   background: var(--surface-control);
   color: var(--text-secondary-color);
 }
-.settings-notifications__icon svg { width: 15px; height: 15px; }
+.settings-notifications__icon svg { width: var(--icon-control); height: var(--icon-control); }
 .settings-notifications__icon--on { color: var(--accent-primary); }
 
 /* Indented by the icon column plus the row's gap, so the list's edge sits under
@@ -263,10 +289,10 @@
 }
 .settings-notifications__event {
   display: flex; align-items: flex-start; gap: var(--space-3);
-  padding: 10px var(--space-3);
+  padding: var(--space-3) var(--space-3);
 }
 .settings-notifications__event + .settings-notifications__event { border-top: 1px solid var(--border-subtle); }
-.settings-notifications__event > svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
+.settings-notifications__event > svg { flex-shrink: 0; width: var(--icon-control); height: var(--icon-control); margin-top: 1px; }
 .settings-notifications__event strong {
   display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug);
@@ -278,7 +304,7 @@
 .settings-notifications__event--warning > svg { color: var(--status-warning); }
 .settings-notifications__event--app > svg { color: var(--tone-app); }
 .settings-notifications__silent {
-  padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  padding: 0 var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
   line-height: var(--leading-snug); cursor: default;
 }
@@ -308,7 +334,11 @@
 .theme-picker__community {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--space-3);
 }
-.theme-picker__official { margin-bottom: var(--space-5); }
+.theme-picker__official { margin-bottom: var(--space-4); }
+.theme-picker__heading {
+  margin: 0 0 var(--space-2); color: var(--text-secondary-color);
+  font-size: var(--text-label); font-weight: var(--weight-strong);
+}
 /* Padding and inner radius are concentric: 14 = 10 + 4. */
 .theme-card {
   display: grid; gap: var(--space-2); min-width: 0;
@@ -320,10 +350,27 @@
 }
 .theme-card:hover { background: var(--surface-hover); }
 .theme-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.theme-card[aria-checked="true"] {
-  border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
+/* One selected state for every picker card in Settings — themes, project
+   icons, date and number formats, code fonts and the navigation appearance:
+   a quiet fill, the secondary-ink border and the shared corner check
+   (`SelectionCheck`). The check sits in the corner rather than over the card's
+   specimen, so a font or a theme is still judged on its own. */
+.theme-card, .project-icons-card, .format-picker__option, .font-picker__option { position: relative; }
+.theme-card[aria-checked="true"],
+.project-icons-card--active,
+.format-picker__option--active,
+.font-picker__option--active {
+  border-color: var(--text-secondary-color);
+  box-shadow: none;
+  background: color-mix(in srgb, var(--text-primary-color) var(--tint-selected), var(--surface-card));
 }
+.selection-check {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
+  display: grid; place-items: center; pointer-events: none;
+  border-radius: var(--radius-round); background: var(--text-primary-color); color: var(--surface-card);
+  box-shadow: 0 0 0 2px var(--surface-card);
+}
+.selection-check svg { width: var(--icon-meta); height: var(--icon-meta); }
 /* 16:10, not square: the miniature's content fills the top of the frame, and
    a square left the lower half as empty app background. The hairline keeps a
    light preview from dissolving into a light card. */
@@ -338,29 +385,29 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--text-label); font-weight: var(--weight-strong);
 }
-/* The official badge: a verified rosette right after the name, the way a
-   verified mark follows a profile name, so the two centre as one group and
-   the name truncates before it. A rosette rather than a plain check: selection
-   is the border, and a check on all three cards would read as all three being
-   chosen. `--accent-primary`, not the brand lime: the name now sits on the
-   card's own surface, and the lime measures 1.95:1 on a light one. */
+/* The official tag: a word under the name, so a long name such as "GitOdile
+   Light" never truncates to make room for it at the minimum width. Text rather
+   than a mark: selection is the corner check, and any check-like glyph on all
+   three cards read as all three being chosen. */
+.theme-card__label:has(.theme-card__official) { flex-direction: column; gap: var(--space-1); }
 .theme-card__official {
-  flex-shrink: 0; width: 14px; height: 14px; margin-left: 4px;
-  color: var(--accent-primary);
+  flex-shrink: 0; padding: 0 var(--space-2);
+  border-radius: var(--radius-pill); background: var(--surface-active); color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-strong); line-height: var(--leading-snug);
 }
 .theme-card__split { display: grid; grid-template-columns: 1fr 1fr; }
 
 /* the miniature app drawn in a theme's tokens */
 .theme-preview { display: grid; grid-template-columns: 30px minmax(0, 1fr); background: var(--surface-app); }
 .theme-preview__rail {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-3) 0;
   background: var(--surface-panel); border-right: 1px solid var(--border-subtle);
 }
 .theme-preview__mark { width: 12px; height: 12px; border-radius: var(--radius-round); background: var(--accent-primary); }
 .theme-preview__nav { width: 14px; height: 3px; border-radius: var(--radius-pill); background: var(--border-subtle); }
 .theme-preview__nav--active { background: var(--accent-primary-fill); }
-.theme-preview__main { display: grid; align-content: start; gap: 6px; padding: 10px 8px; }
-.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.theme-preview__main { display: grid; align-content: start; gap: var(--space-2); padding: var(--space-3) var(--space-2); }
+.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .theme-preview__file {
   width: 48%; height: 5px; border-radius: var(--radius-pill);
   background: var(--text-secondary-color); opacity: 0.5;
@@ -390,10 +437,6 @@
   transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 .project-icons-card:hover { background: var(--surface-hover); }
-.project-icons-card--active {
-  border-color: var(--accent-primary);
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
-}
 .project-icons-card__preview {
   display: flex;
   align-items: center;
@@ -425,12 +468,12 @@
    screen has no hover, so there they stay visible. */
 .git-path__actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .git-path__actions button {
-  width: 26px; min-width: 26px; min-height: 26px; padding: 0; border-radius: var(--radius-item);
+  width: var(--icon-button-attached); min-width: var(--icon-button-attached); min-height: var(--icon-button-attached); padding: 0; border-radius: var(--radius-item);
   background: transparent; border-color: transparent; color: var(--text-secondary-color);
   opacity: 0; transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .git-path__actions button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.git-path__actions svg { width: 13px; height: 13px; }
+.git-path__actions svg { width: var(--icon-row); height: var(--icon-row); }
 .git-path:hover .git-path__actions button,
 .git-path:focus-within .git-path__actions button,
 .git-fact:hover .git-path__actions button,
@@ -445,26 +488,26 @@
    it: the row's text column shares its width with the actions, and a Windows
    path would break over three lines there. */
 .git-details {
-  margin-top: var(--space-2); padding: 10px var(--space-4);
+  margin-top: var(--space-2); padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-card);
 }
 .git-details > summary {
-  list-style: none; display: flex; align-items: center; gap: 6px;
-  width: fit-content; padding: 3px 4px 3px 0; border-radius: var(--radius-item);
+  list-style: none; display: flex; align-items: center; gap: var(--space-2);
+  width: fit-content; padding: var(--space-1) var(--space-1) var(--space-1) 0; border-radius: var(--radius-item);
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong);
 }
 .git-details > summary::-webkit-details-marker { display: none; }
 .git-details > summary:hover { color: var(--text-primary-color); }
 .git-details > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.git-details > summary svg { width: 13px; height: 13px; flex-shrink: 0; }
+.git-details > summary svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .git-details__chevron { transition: transform var(--duration-fast); }
 .git-details[open] .git-details__chevron { transform: rotate(90deg); }
 .git-details__state {
   display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0 0;
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
-.git-details__state > svg { width: 14px; height: 14px; }
+.git-details__state > svg { width: var(--icon-row); height: var(--icon-row); }
 .git-details__state > .status-line { margin: 0; }
 .git-details > .status-line { margin: var(--space-2) 0 0; }
 
@@ -474,7 +517,7 @@
 .git-fact {
   display: grid; grid-template-columns: 156px minmax(0, 1fr) auto;
   align-items: center; gap: var(--space-3);
-  padding: 7px 0; border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle);
 }
 .git-fact:first-child { border-top: 0; }
 .git-fact dd { margin: 0; }
@@ -501,9 +544,8 @@
   .settings-nav__alert { margin-left: 2px; }
   .identity-fields { grid-template-columns: 1fr; }
   .font-picker { grid-template-columns: 1fr; }
-  .format-picker { grid-template-columns: 1fr; }
+  .format-picker, .language-picker { grid-template-columns: 1fr; }
   .project-icons-picker { grid-template-columns: 1fr; }
-  .navigation-display { grid-template-columns: 1fr; }
   .identity-block__confirm { align-items: stretch; flex-direction: column; }
   .remote-check-cadence { width: 100%; }
   .git-fact { grid-template-columns: minmax(0, 1fr) auto; }

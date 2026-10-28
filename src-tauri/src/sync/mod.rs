@@ -487,6 +487,7 @@ pub(crate) enum RemoteHomeProvider {
     Github,
     Gitlab,
     Bitbucket,
+    Azure,
     Other,
 }
 
@@ -520,6 +521,8 @@ fn remote_home_provider(host: &str) -> RemoteHomeProvider {
         RemoteHomeProvider::Github
     } else if host == "gitlab.com" || host.starts_with("gitlab.") {
         RemoteHomeProvider::Gitlab
+    } else if host == "dev.azure.com" {
+        RemoteHomeProvider::Azure
     } else if host == "bitbucket.org" {
         RemoteHomeProvider::Bitbucket
     } else {

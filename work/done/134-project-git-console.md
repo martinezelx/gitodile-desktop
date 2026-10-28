@@ -142,7 +142,7 @@ than exposing a system shell or Tauri's general process permission.
 # Dependencies
 
 The existing project-session, screen-registry, Git runner and execution-policy
-contracts. Complete before [065-8 release hardening](../active/release-1.0/065-8-release-hardening.md),
+contracts. Complete before [065-8 release hardening](../0.7.0/065-8-release-hardening.md),
 so the console enters the supported-platform qualification matrix.
 
 # Decisions and assumptions

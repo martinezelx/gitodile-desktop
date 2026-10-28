@@ -9,6 +9,7 @@ import { LanguageProvider } from "../../i18n";
 import { ToastProvider } from "../../shared/ui";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import type { WorkingTreeStatus } from "../status";
+import { MARKDOWN_VIEW_STORAGE_KEY } from "./markdownPreference";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -120,6 +121,129 @@ const workingTree: WorkingTreeStatus = {
   upstream: { branch: "main", upstream: null, ahead: 0, behind: 0 },
 };
 
+describe("ChangesPanel Markdown preview", () => {
+  beforeEach(() => localStorage.removeItem(MARKDOWN_VIEW_STORAGE_KEY));
+  afterEach(() => localStorage.removeItem(MARKDOWN_VIEW_STORAGE_KEY));
+  it("previews Markdown by default and uses text for another file", async () => {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({
+        kind: "text", path: (args as { filePath: string }).filePath, originalPath: null,
+        change: "changed", hunks: [], truncated: false,
+      });
+      if (command === "read_file_markdown") return Promise.resolve({ kind: "ready", beforeContent: null, content: "# Outside the diff\n\nComplete current document." });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = { ...workingTree, entries: [
+      { ...workingTree.entries[0], path: "README.md" },
+      { ...workingTree.entries[1], path: "code.ts" },
+    ] };
+    render(<LanguageProvider><ToastProvider>
+      <ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null}
+        isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+    </ToastProvider></LanguageProvider>);
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    expect(await screen.findByRole("heading", { name: "Outside the diff" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Diff view \(Markdown preview\)/ })).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("read_file_markdown", { path: "/repo", sessionEpoch: "test-epoch", filePath: "README.md" });
+    await userEvent.click(screen.getByRole("button", { name: /^code\.ts/ }));
+    expect(screen.queryByRole("heading", { name: "Outside the diff" })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /Diff view \(Unified\)/ }));
+    expect(screen.queryByRole("menuitemradio", { name: "Markdown preview" })).not.toBeInTheDocument();
+    expect(mockedInvoke.mock.calls.filter(([name]) => name === "read_file_markdown")).toHaveLength(1);
+  });
+
+  it("keeps Markdown and code choices separate and remembers documents across remounts", async () => {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "text", path: (args as { filePath: string }).filePath, originalPath: null, change: "changed", hunks: [], truncated: false });
+      if (command === "read_file_markdown") return Promise.resolve({ kind: "ready", beforeContent: null, content: "# Preview" });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = { ...workingTree, entries: [{ ...workingTree.entries[0], path: "README.md" }, { ...workingTree.entries[1], path: "code.ts" }] };
+    const mount = () => render(<LanguageProvider><ToastProvider><ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onPublishNow={vi.fn()} /></ToastProvider></LanguageProvider>);
+    const first = mount();
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Diff view \(Markdown preview\)/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Split" }));
+    expect(localStorage.getItem(MARKDOWN_VIEW_STORAGE_KEY)).toBe("split");
+    await userEvent.click(screen.getByRole("button", { name: /^code\.ts/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Diff view \(Unified\)/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Accessible text" }));
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    expect(await screen.findByRole("button", { name: /Diff view \(Split\)/ })).toBeInTheDocument();
+    first.unmount();
+    mockedInvoke.mockClear();
+    mount();
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    expect(await screen.findByRole("button", { name: /Diff view \(Split\)/ })).toBeInTheDocument();
+    expect(mockedInvoke.mock.calls.some(([name]) => name === "read_file_markdown")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: /Diff view \(Split\)/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Markdown preview" }));
+    expect(await screen.findByRole("heading", { name: "Preview" })).toBeInTheDocument();
+    expect(localStorage.getItem(MARKDOWN_VIEW_STORAGE_KEY)).toBe("markdown");
+  });
+
+  it.each(["error", "too-large", "complex"])("falls back honestly for %s and can retry without losing the preference", async (failure) => {
+    mockedInvoke.mockReset();
+    let attempts = 0;
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "text", path: (args as { filePath: string }).filePath, originalPath: null, change: "changed", hunks: [], truncated: false });
+      if (command === "read_file_markdown") {
+        if (++attempts > 1) return Promise.resolve({ kind: "ready", beforeContent: null, content: "# Recovered" });
+        if (failure === "error") return Promise.reject(new Error("read failed"));
+        return Promise.resolve(failure === "too-large" ? { kind: "too-large", limitBytes: 131072 } : { kind: "ready", beforeContent: null, content: `${"> ".repeat(90)}Nested` });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = { ...workingTree, entries: [{ ...workingTree.entries[0], path: "README.md" }] };
+    render(<LanguageProvider><ToastProvider><ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onPublishNow={vi.fn()} /></ToastProvider></LanguageProvider>);
+    await screen.findByText(/Showing text changes instead/);
+    await userEvent.click(screen.getByRole("button", { name: /Diff view \(Unified\)/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Markdown preview" }));
+    expect(await screen.findByRole("heading", { name: "Recovered" })).toBeInTheDocument();
+    expect(screen.queryByText(/Showing text changes instead/)).not.toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
+
+  it("navigates oversized Markdown excerpts using only the existing diff and resets for another file", async () => {
+    const scroll = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation((command, args) => {
+      if (command === "read_file_diff") return Promise.resolve({ kind: "text", path: (args as { filePath: string }).filePath, originalPath: null, change: "changed", truncated: false,
+        hunks: [10, 900].map((line) => ({ header: "", oldStart: line, oldLines: 1, newStart: line, newLines: 1, lines: [
+          { kind: "deletion", content: `# Old ${line}`, oldLineNumber: line, newLineNumber: null },
+          { kind: "addition", content: `# New ${line}`, oldLineNumber: null, newLineNumber: line },
+        ] })) });
+      if (command === "read_file_markdown") return Promise.resolve({ kind: "too-large", limitBytes: 131072 });
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    const tree = { ...workingTree, entries: [{ ...workingTree.entries[0], path: "DESIGN.md" }, { ...workingTree.entries[1], path: "README.md" }] };
+    try {
+      render(<LanguageProvider><ToastProvider><ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null} isCheckingChanges={false} onRefresh={vi.fn()} onPublishNow={vi.fn()} /></ToastProvider></LanguageProvider>);
+      expect(await screen.findByText(/Partial Markdown preview/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Previous change" })).toBeDisabled();
+      await userEvent.click(screen.getByRole("button", { name: "Next change" }));
+      expect(scroll).toHaveBeenCalledOnce();
+      expect(document.querySelector("[data-current-markdown-change]")).toHaveTextContent("Old 10");
+      await userEvent.click(screen.getByRole("button", { name: "Next change" }));
+      expect(document.querySelector("[data-current-markdown-change]")).toHaveTextContent("Old 900");
+      expect(screen.getByRole("button", { name: "Next change" })).toBeDisabled();
+      await userEvent.click(screen.getByRole("button", { name: "Previous change" }));
+      expect(document.querySelector("[data-current-markdown-change]")).toHaveTextContent("Old 10");
+      expect(mockedInvoke.mock.calls.filter(([name]) => name === "read_file_markdown")).toHaveLength(1);
+      expect(mockedInvoke.mock.calls.filter(([name]) => name === "read_file_lines")).toHaveLength(0);
+      await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+      await screen.findByText(/Partial Markdown preview/);
+      expect(screen.getByRole("button", { name: "Previous change" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Next change" })).toBeEnabled();
+      expect(document.querySelector("[data-current-markdown-change]")).toBeNull();
+    } finally { Element.prototype.scrollIntoView = original; }
+  });
+});
+
 describe("ChangesPanel folder view", () => {
   const nested: WorkingTreeStatus = {
     ...workingTree,
@@ -148,10 +272,35 @@ describe("ChangesPanel folder view", () => {
     );
   }
 
+  it("keeps a valid selection across snapshots and falls back to the first tree file only when it disappears", async () => {
+    const panel = (tree: WorkingTreeStatus) => (
+      <LanguageProvider><ToastProvider>
+        <ControlledChangesPanel projectPath="/repo" workingTree={tree} workingTreeError={null}
+          isCheckingChanges={false} onRefresh={vi.fn()} onGetChanges={vi.fn()} onPublishNow={vi.fn()} />
+      </ToastProvider></LanguageProvider>
+    );
+    const { rerender } = render(panel(nested));
+    const first = () => screen.getByRole("button", { name: /^src\/features\/history\/panel\.css/ });
+    expect(first()).toHaveAttribute("aria-current", "true");
+    await userEvent.click(screen.getByRole("button", { name: /^README\.md/ }));
+    rerender(panel({ ...nested, entries: [...nested.entries] }));
+    expect(screen.getByRole("button", { name: /^README\.md/ })).toHaveAttribute("aria-current", "true");
+    rerender(panel({
+      ...workingTree, entries: nested.entries.filter((entry) => entry.path !== "README.md"),
+    }));
+    expect(first()).toHaveAttribute("aria-current", "true");
+  });
+
   it("groups the files in compacted folders, folds them, and includes or leaves out a folder at once", async () => {
     renderNested();
+    expect(screen.getByRole("button", { name: /^src\/features\/history\/panel\.css/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("File 1 of 3")).toBeInTheDocument();
     const toggle = screen.getByRole("button", { name: "Show files in folders" });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(localStorage.getItem("gitodile-file-list-view")).toBe("list");
+    expect(screen.queryByRole("button", { name: "src/features/history folder, 2 files" })).not.toBeInTheDocument();
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
 
@@ -1800,7 +1949,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.keyboard("{Escape}");
 
     // One click puts the pictures away; the four other files stay.
-    expect(listedFiles(container)).toEqual(["conflict.txt", "edited.txt", "also-edited.txt", "gone.txt"]);
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "conflict.txt", "edited.txt", "gone.txt"]);
     // The chip says what it is doing, not just what it names, and its remove
     // button says putting them back.
     expect(screen.getByText("Hiding .png")).toBeInTheDocument();
@@ -1821,7 +1970,7 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(types).getByRole("radio", { name: "Hide" }));
     await userEvent.click(within(panel).getByRole("checkbox", { name: /\.png/ }));
 
-    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "edited.txt"]);
     // The badge counts the answers, never the modes.
     expect(container.querySelector(".filter-control__badge")).toHaveTextContent("2");
   });
@@ -1938,10 +2087,10 @@ describe("ChangesPanel filters", () => {
     await userEvent.click(within(screen.getByRole("dialog", { name: "Filters" })).getByRole("checkbox", { name: /Edited/ }));
     await userEvent.keyboard("{Escape}");
 
-    expect(listedFiles(container)).toEqual(["edited.txt", "also-edited.txt"]);
-    // The arrows walk what is shown, not what is loaded — the same rule the
-    // search box already established.
-    expect(screen.getByText("File 1 of 2")).toBeInTheDocument();
+    expect(listedFiles(container)).toEqual(["also-edited.txt", "edited.txt"]);
+    // The tree's alphabetical order puts the selected file second. The
+    // arrows walk what is shown, not the source payload's order.
+    expect(screen.getByText("File 2 of 2")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove the Edited filter" }));
     expect(listedFiles(container)).toHaveLength(5);

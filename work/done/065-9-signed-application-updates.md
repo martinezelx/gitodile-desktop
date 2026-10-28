@@ -39,7 +39,7 @@ confirmed exactly `stable` and `preview`, both released from version-tagged
 commits on `main` after merging a short-lived version branch. No updater,
 release, signing key, or external repository change was created during planning.
 
-This extracts implementation from [065-8](../active/release-1.0/065-8-release-hardening.md), which
+This extracts implementation from [065-8](../0.7.0/065-8-release-hardening.md), which
 retains final release-readiness validation. The suffix is a permanent ID;
 its children now lead the implementation queue, ahead of the remaining product
 features. It does not absorb Git credential hardening in 065-7 or final full-product
@@ -280,5 +280,5 @@ Closed on 2026-09-16 when the updater epic was wound down: the code,
 pipeline and contracts this task describes are on `main` and were
 exercised by the public previews `0.2.0-preview.10` to `.12`. The
 criteria left unchecked above are not claimed; its sixteen open epic criteria, which are evidence and operations items rather than code
-moved to [065-9-13](../active/app-updates/065-9-13-updater-evidence-and-os-signing.md),
+moved to [065-9-13](../0.7.0/065-9-13-updater-evidence-and-os-signing.md),
 which owns everything the updater still has to prove.

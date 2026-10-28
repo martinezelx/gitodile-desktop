@@ -47,15 +47,13 @@ export function githubAccountChip(snapshot: GitHubAuthSnapshot, account: GitHubS
   if (available === false || snapshot.state === "cli_missing") return "unavailable";
   if (busy && (!account || account.active)) return "checking";
   if (snapshot.state === "environment_controlled") return "environment";
+  if (snapshot.state === "invalid" && (!account || account.active)) return "invalid";
+  if (account?.state === "invalid") return "invalid";
   if (snapshot.needsCheck) return "unchecked";
-  if (account && !account.active) return account.state === "invalid" ? "invalid" : account.state === "offline" ? "unchecked" : "saved";
+  if (account && !account.active) return account.state === "offline" ? "unchecked" : "saved";
   if (snapshot.state === "connected") return "connected";
   if (snapshot.state === "invalid") return "invalid";
   if (snapshot.state === "signed_out") return "signed_out";
   return "unchecked";
 }
 
-export function isGitHubAvatarDataUrl(value: string | null): value is string {
-  return value !== null && value.length <= 350_000
-    && /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
-}

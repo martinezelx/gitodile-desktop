@@ -45,6 +45,9 @@ pub(crate) struct ProviderDescriptor {
     kind: &'static str,
     /// github.com, gitlab.com and bitbucket.org; company servers are user-added.
     built_in: bool,
+    /// Credential boundary inside a shared authority (Azure organization).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scope_path: Option<String>,
 }
 
 /// Implemented by a hosting adapter; the account store and Git bridge do not
@@ -57,6 +60,9 @@ pub(crate) trait AccessProvider: Send + Sync {
     fn host(&self) -> &str;
     /// Provider product: `github`, `gitlab` or `bitbucket`.
     fn kind(&self) -> &'static str;
+    fn scope_path(&self) -> Option<&str> {
+        None
+    }
     fn accounts(&self) -> Vec<Account>;
     fn busy(&self) -> bool;
     fn check(&self);
@@ -234,6 +240,17 @@ impl AccountService {
             .retain(|p| p.id() != id);
     }
 
+    /// An empty organization can be forgotten only after every project has
+    /// deliberately stopped selecting it. Corrupt preferences fail closed.
+    pub(crate) fn has_bindings(&self, provider: &str) -> Result<bool, AppError> {
+        let selections = self.selections.lock().unwrap_or_else(|e| e.into_inner());
+        let selections = selections.as_ref().map_err(|_| error())?;
+        Ok(selections
+            .projects
+            .values()
+            .any(|bindings| bindings.contains_key(provider)))
+    }
+
     pub(crate) fn catalog(&self) -> AccountCatalog {
         let providers = self.providers();
         AccountCatalog {
@@ -244,6 +261,7 @@ impl AccountService {
                     host: p.host().to_owned(),
                     kind: p.kind(),
                     built_in: p.id() == p.kind(),
+                    scope_path: p.scope_path().map(str::to_owned),
                 })
                 .collect(),
             accounts: providers.iter().flat_map(|p| p.accounts()).collect(),
@@ -445,7 +463,11 @@ pub(crate) fn validate_clone_account(id: Option<&str>, source: &str) -> Result<(
     service.validate(id)?;
     let (provider, _) = split_account(id).ok_or_else(error)?;
     let adapter = service.provider(provider).ok_or_else(error)?;
-    validate_clone_source(source, adapter.host())
+    validate_clone_source(source, adapter.host())?;
+    if let Some(scope) = adapter.scope_path() {
+        crate::azure_access::validate_source(source, scope).map_err(|_| error())?;
+    }
+    Ok(())
 }
 
 /// `host[:port]` of a URL, lowercased with the default port already removed
@@ -502,7 +524,32 @@ fn selected_hosts(prepared: &[OsString]) -> Vec<&str> {
         .filter_map(|argument| argument.to_str())
         .filter_map(|argument| argument.strip_prefix("credential.https://"))
         .filter_map(|argument| argument.strip_suffix(".helper="))
+        .map(|context| context.split('/').next().unwrap_or(context))
         .collect()
+}
+
+fn validate_scoped_url(raw: &str, prepared: &[OsString]) -> Result<(), AppError> {
+    let scopes = prepared
+        .iter()
+        .filter_map(|arg| arg.to_str())
+        .filter_map(|arg| arg.strip_prefix("credential.https://dev.azure.com/"))
+        .filter_map(|arg| arg.strip_suffix(".helper="))
+        .collect::<Vec<_>>();
+    if scopes.is_empty() {
+        return Ok(());
+    }
+    let Ok(url) = reqwest::Url::parse(raw) else {
+        return Ok(());
+    };
+    if url.scheme() == "https"
+        && url.host_str() == Some("dev.azure.com")
+        && !scopes
+            .iter()
+            .any(|org| crate::azure_access::validate_source(raw, org).is_ok())
+    {
+        return Err(error().with_remediation("Choose a connection for this Azure organization and use its canonical HTTPS clone address without a username."));
+    }
+    Ok(())
 }
 
 /// An existing authenticated URL bypasses Git's helper entirely. Refuse that
@@ -544,6 +591,7 @@ pub(crate) fn validate_transfer_urls(
     let hosts = selected_hosts(prepared);
     for argument in args.iter().filter_map(|arg| arg.to_str()) {
         validate_url(argument, &hosts)?;
+        validate_scoped_url(argument, prepared)?;
     }
     Ok(())
 }
@@ -559,6 +607,7 @@ pub(crate) fn validate_remote_urls(bytes: &[u8], prepared: &[OsString]) -> Resul
             continue;
         };
         validate_url(raw_url, &hosts)?;
+        validate_scoped_url(raw_url, prepared)?;
     }
     Ok(())
 }
@@ -574,10 +623,17 @@ pub(crate) fn header_overrides(
     }
     let mut overrides = Vec::new();
     for key in names.split('\0').filter(|key| !key.is_empty()) {
-        let Some(scope) = key
-            .strip_prefix("http.")
-            .and_then(|key| key.strip_suffix(".extraheader"))
-        else {
+        let redirect = key.ends_with(".followredirects");
+        if redirect && !hosts.contains(&"dev.azure.com") {
+            continue;
+        }
+        let Some(scope) = key.strip_prefix("http.").and_then(|key| {
+            key.strip_suffix(if redirect {
+                ".followredirects"
+            } else {
+                ".extraheader"
+            })
+        }) else {
             continue;
         };
         if key.chars().any(char::is_control) {
@@ -591,6 +647,12 @@ pub(crate) fn header_overrides(
         let Some(pattern) = url.host_str().filter(|_| url.scheme() == "https") else {
             continue;
         };
+        if redirect
+            && pattern != "dev.azure.com"
+            && !wildcard_host_matches(pattern, "dev.azure.com")
+        {
+            continue;
+        }
         let wildcard = pattern.contains('*');
         // Git's urlmatch also compares the port; the default one is implied.
         let port = url
@@ -616,7 +678,10 @@ pub(crate) fn header_overrides(
                 "A Git extraHeader setting with a wildcard address also applies to this provider. Narrow or remove it to use the selected account.",
             ));
         }
-        overrides.extend([OsString::from("-c"), OsString::from(format!("{key}="))]);
+        overrides.extend([
+            OsString::from("-c"),
+            OsString::from(format!("{key}={}", if redirect { "false" } else { "" })),
+        ]);
     }
     Ok(overrides)
 }
@@ -646,6 +711,8 @@ pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<()
         let (provider, login) = split_account(id).ok_or_else(error)?;
         let adapter = service.provider(provider).ok_or_else(error)?;
         let host = adapter.host().to_owned();
+        let scope = adapter.scope_path();
+        let context = scope.map_or_else(|| host.clone(), |org| format!("{host}/{org}"));
         let username = adapter.username(login).ok_or_else(error)?;
         // A company server's helper rebuilds its adapter from this authority;
         // the helper refuses an ID that the authority does not derive.
@@ -660,18 +727,28 @@ pub(crate) fn configure(process: &mut Command, accounts: &[String]) -> Result<()
                 "!{} --gitodile-credential-helper {} {}",
                 shell_quote(&exe),
                 shell_quote(id),
-                shell_quote(&host)
+                shell_quote(&context)
             )
         };
         // URL-specific reset overrides existing helpers only for this host.
         // Git executes its helper protocol, never a renderer-supplied shell.
         for setting in [
-            format!("credential.https://{host}.helper="),
-            format!("credential.https://{host}.helper={helper}"),
-            format!("credential.https://{host}.username={username}"),
+            format!("credential.https://{context}.helper="),
+            format!("credential.https://{context}.helper={helper}"),
+            format!("credential.https://{context}.username={username}"),
             format!("http.https://{host}/.extraHeader="),
         ] {
             process.arg("-c").arg(setting);
+        }
+        if scope.is_some() {
+            process
+                .arg("-c")
+                .arg(format!("credential.https://{host}.useHttpPath=true"));
+            // A redirect within the shared host must not carry an organization's
+            // Authorization header into another organization.
+            process
+                .arg("-c")
+                .arg(format!("http.https://{host}/.followRedirects=false"));
         }
     }
     Ok(())
@@ -749,7 +826,9 @@ pub(crate) fn helper(
         // Git discards unsupported attributes. Only these scalar fields govern
         // our password lookup; opaque extensions and HTTP challenges may repeat
         // and need not be UTF-8. Never interpret them as identity or echo them.
-        if !matches!(key, b"protocol" | b"host" | b"username") {
+        if !matches!(key, b"protocol" | b"host" | b"username")
+            && !(adapter.scope_path().is_some() && key == b"path")
+        {
             continue;
         }
         let key = std::str::from_utf8(key).map_err(|_| ())?;
@@ -767,6 +846,10 @@ pub(crate) fn helper(
                 && host.eq_ignore_ascii_case(&format!("{}:443", adapter.host())))
     });
     let username = adapter.username(login).ok_or(())?;
+    if let Some(scope) = adapter.scope_path() {
+        let path = fields.get("path").ok_or(())?;
+        crate::azure_access::validate_source(&format!("https://dev.azure.com/{path}"), scope)?;
+    }
     if fields.get("protocol") != Some(&"https")
         || !matches_host
         || fields
@@ -791,9 +874,13 @@ mod tests {
     struct FakeProvider {
         provider: &'static str,
         host: &'static str,
+        scope: Option<&'static str>,
         reads: AtomicUsize,
     }
     impl AccessProvider for FakeProvider {
+        fn scope_path(&self) -> Option<&str> {
+            self.scope
+        }
         fn id(&self) -> &str {
             self.provider
         }
@@ -834,12 +921,116 @@ mod tests {
         Arc::new(FakeProvider {
             provider: id,
             host,
+            scope: None,
             reads: AtomicUsize::new(0),
         })
     }
+    #[test]
+    fn azure_helper_requires_the_exact_organization_before_secret_lookup() {
+        let adapter = Arc::new(FakeProvider {
+            provider: "azo-test",
+            host: "dev.azure.com",
+            scope: Some("contoso"),
+            reads: AtomicUsize::new(0),
+        });
+        let adapters: [Arc<dyn AccessProvider>; 1] = [adapter.clone()];
+        for path in [
+            None,
+            Some("other/project/_git/repo"),
+            Some("contoso-other/project/_git/repo"),
+            Some("contoso/%2e%2e/_git/repo"),
+            Some("%63ontoso/project/_git/repo"),
+            Some("CONTOSO/project/_git/repo"),
+        ] {
+            let request = format!(
+                "protocol=https\nhost=dev.azure.com\nusername=Personal\n{}\n",
+                path.map(|path| format!("path={path}\n"))
+                    .unwrap_or_default()
+            );
+            assert!(helper(
+                &adapters,
+                "azo-test:Personal",
+                OsStr::new("get"),
+                request.as_bytes(),
+                Vec::new()
+            )
+            .is_err());
+        }
+        assert_eq!(adapter.reads.load(Ordering::SeqCst), 0);
+        let mut output = Vec::new();
+        helper(&adapters, "azo-test:Personal", OsStr::new("get"), &b"protocol=https\nhost=dev.azure.com\nusername=Personal\npath=contoso/My%20Project/_git/repo\n\n"[..], &mut output).unwrap();
+        assert_eq!(adapter.reads.load(Ordering::SeqCst), 1);
+        assert!(String::from_utf8(output)
+            .unwrap()
+            .contains("test-secret-for-Personal"));
+    }
+    #[test]
+    fn azure_transfer_guards_retain_header_checks_and_validate_all_selected_scopes() {
+        let mut prepared = vec![OsString::from(
+            "credential.https://dev.azure.com/one.helper=",
+        )];
+        assert!(
+            validate_transfer_urls(&["https://dev.azure.com/two/_git/repo".into()], &prepared)
+                .is_err()
+        );
+        assert!(validate_transfer_urls(
+            &["https://user@dev.azure.com/one/_git/repo".into()],
+            &prepared
+        )
+        .is_err());
+        assert!(
+            validate_transfer_urls(&["http://dev.azure.com/one/_git/repo".into()], &prepared)
+                .is_err()
+        );
+        assert!(validate_transfer_urls(
+            &["https://dev.azure.com:8443/one/_git/repo".into()],
+            &prepared
+        )
+        .is_err());
+        assert!(
+            validate_transfer_urls(&["https://dev.azure.com/one/_git/repo".into()], &prepared)
+                .is_ok()
+        );
+        prepared.push("credential.https://dev.azure.com/two.helper=".into());
+        assert!(
+            validate_transfer_urls(&["https://dev.azure.com/two/_git/repo".into()], &prepared)
+                .is_ok()
+        );
+        assert!(
+            !header_overrides(b"http.https://dev.azure.com/one/.extraheader\0", &prepared)
+                .unwrap()
+                .is_empty()
+        );
+    }
+    #[test]
+    fn azure_redirect_policy_does_not_validate_unrelated_settings_for_other_providers() {
+        let prepared = vec![OsString::from("credential.https://github.com.helper=")];
+        assert!(
+            header_overrides(b"http.not-a-url.followredirects\0", &prepared)
+                .unwrap()
+                .is_empty()
+        );
+    }
+    #[test]
+    fn azure_path_specific_redirect_settings_cannot_override_the_process_boundary() {
+        let prepared = vec![OsString::from(
+            "credential.https://dev.azure.com/one.helper=",
+        )];
+        let settings = header_overrides(b"http.https://dev.azure.com/one/P/.followredirects\0http.https://github.com/.followredirects\0", &prepared).unwrap();
+        assert_eq!(
+            settings,
+            [
+                OsString::from("-c"),
+                OsString::from("http.https://dev.azure.com/one/P/.followredirects=false")
+            ]
+        );
+        assert!(
+            header_overrides(b"http.https://*.azure.com/.followredirects\0", &prepared).is_err()
+        );
+    }
     fn scratch() -> PathBuf {
         static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
+        let path = crate::test_support::test_temp_root().join(format!(
             "gitodile-account-test-{}-{}",
             std::process::id(),
             SEQUENCE.fetch_add(1, Ordering::SeqCst)

@@ -3,9 +3,10 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, KeyRound, LoaderCircle, RefreshCw } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import { autoHideScrollbarProps, HostingProviderIcon, usePortalFlyout } from "../../shared/ui";
-import { providerKind, type AccountCatalog } from "./domain";
+import { isPictureDataUrl, providerKind, providerLabel, type AccountCatalog } from "./domain";
+import { HostingAvatar } from "./HostingAvatar";
 
-type Option = { value: string | null; name: string; host: string; method: string; disabled: boolean };
+type Option = { value: string | null; name: string; host: string; method: string; disabled: boolean; picture?: string | null };
 /** The menu's last item checks the accounts instead of choosing one. */
 const CHECK = "#check-accounts";
 
@@ -32,10 +33,15 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
   const missing = value !== null && !selected;
   const blocked = disabled || catalog.busy;
   const isOpen = openProvider === provider && !blocked;
-  const fieldLabel = label ?? `${t.accountsProjectLabel} · ${catalog.providers.find(item => item.id === provider)?.host ?? provider}`;
+  const selectedProvider = catalog.providers.find(item => item.id === provider);
+  const fieldLabel = label ?? `${t.accountsProjectLabel} · ${(selectedProvider ? providerLabel(selectedProvider) : provider)}`;
   const placeholder = required ? t.accountsChoose : t.accountsUseGit;
   const method = (accountId: string): string => accountId.includes(":token.") ? t.accountsTokenMethod : t.accountsBrowserMethod;
-  const grouped = new Set(accounts.map(account => account.host)).size > 1;
+  const accountHost = (account: AccountCatalog["accounts"][number]): string => {
+    const instance = catalog.providers.find(item => item.id === account.provider);
+    return instance?.scopePath ? `${account.host}/${instance.scopePath}` : account.host;
+  };
+  const grouped = new Set(accounts.map(accountHost)).size > 1;
   const builtIn = (id: string): boolean => catalog.providers.find(item => item.id === id)?.builtIn ?? true;
   // A required choice has no "none" option: the trigger shows the prompt.
   const options: Option[] = [
@@ -43,10 +49,14 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
     ...(missing ? [{ value, name: t.accountsUnavailable.replace("{account}", value), host: "", method: "", disabled: true }] : []),
     // github.com/gitlab.com first, then company servers by name.
     ...[...accounts].sort((a, b) => !grouped ? 0 : Number(!builtIn(a.provider)) - Number(!builtIn(b.provider)) || a.host.localeCompare(b.host))
-      .map(account => ({ value: account.id, name: `@${account.login}`, host: account.host,
-        method: method(account.id), disabled: !account.available })),
+      .map(account => ({ value: account.id, name: `@${account.login}`, host: accountHost(account),
+        method: method(account.id), disabled: !account.available, picture: account.avatarDataUrl })),
     ...(compact ? [] : [{ value: CHECK, name: t.accountsCheck, host: "", method: "", disabled: false }]),
   ];
+  // An account shows its picture where it has one; the slot is too small for
+  // the provider badge, and the trigger already names the provider.
+  const glyph = (picture: string | null | undefined): React.JSX.Element => isPictureDataUrl(picture)
+    ? <HostingAvatar picture={picture} provider={iconKind} badge={false} /> : <HostingProviderIcon provider={iconKind} />;
   const enabled = options.filter(option => !option.disabled);
   const activeIndex = options.findIndex(option => option.value === active && !option.disabled);
   const close = (restoreFocus: boolean): void => {
@@ -113,10 +123,10 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
             if (isOpen || event.key === "Home" || event.key === "End") setActive(enabled[next].value);
           }
         }}>
-        <span className="hosting-account-picker__glyph"><HostingProviderIcon provider={iconKind} /></span>
+        <span className="hosting-account-picker__glyph">{glyph(selected?.avatarDataUrl)}</span>
         <span id={`${id}-value`} className="hosting-account-picker__identity">
           <span>{shown}</span>
-          {selected && (!compact || !selected.available) && <small>{compact ? t.accountsNeedsCheck : selected.host}{!compact && !selected.available && ` · ${t.accountsNeedsCheck}`}</small>}
+          {selected && (!compact || !selected.available) && <small>{compact ? t.accountsNeedsCheck : accountHost(selected)}{!compact && !selected.available && ` · ${t.accountsNeedsCheck}`}</small>}
         </span>
         {selected && <span id={`${id}-method`} className="hosting-account-picker__method">{method(selected.id)}</span>}
         {catalog.busy ? <LoaderCircle className="hosting-account-picker__chevron icon--spinning" aria-label={t.accountsChecking} />
@@ -130,7 +140,7 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
         style={{ ...style, width: triggerRef.current?.getBoundingClientRect().width }}
         // Keep focus on the combobox and avoid parent outside-dismiss handlers.
         onMouseDown={event => event.stopPropagation()}>
-        {accounts.length === 0 && <p className="hosting-account-picker__empty">{t.accountsEmpty}</p>}
+        {accounts.length === 0 && <p className="empty-line empty-line--menu hosting-account-picker__empty">{t.accountsEmpty}</p>}
         {options.map((option, index) => <Fragment key={option.value ?? "default"}>
           {grouped && option.host && option.host !== options[index - 1]?.host &&
             <div role="presentation" className="hosting-account-picker__group">{option.host}</div>}
@@ -142,7 +152,7 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
             onMouseMove={() => { if (!option.disabled) setActive(option.value); }}
             onClick={() => { if (!option.disabled) choose(option.value); }}>
             <span className="hosting-account-picker__glyph">
-              {option.value === null ? <KeyRound aria-hidden="true" /> : option.value === CHECK ? <RefreshCw aria-hidden="true" /> : <HostingProviderIcon provider={iconKind} />}
+              {option.value === null ? <KeyRound aria-hidden="true" /> : option.value === CHECK ? <RefreshCw aria-hidden="true" /> : glyph(option.picture)}
             </span>
             <span className="hosting-account-picker__identity"><span>{option.name}</span>
               {(option.disabled || (option.host && !grouped)) && <small>{grouped ? "" : option.host}{option.disabled && `${grouped ? "" : " · "}${t.accountsNeedsCheck}`}</small>}

@@ -143,11 +143,11 @@
 .console-welcome__info { display: flex; flex-direction: column; gap: var(--space-3); min-width: min(40ch, 100%); line-height: var(--leading-snug); }
 .console-welcome__section {
   --console-section: var(--accent-primary);
-  position: relative; padding: 8px var(--space-3) 6px; border: 1px solid var(--console-section); border-radius: var(--radius-item);
+  position: relative; padding: var(--space-2) var(--space-3) var(--space-2); border: 1px solid var(--console-section); border-radius: var(--radius-item);
 }
 .console-welcome__section--environment { --console-section: var(--syntax-keyword); }
 .console-welcome__section-title {
-  position: absolute; top: -0.8em; left: var(--space-3); margin: 0; padding: 0 6px; background: var(--surface-app);
+  position: absolute; top: -0.8em; left: var(--space-3); margin: 0; padding: 0 var(--space-2); background: var(--surface-app);
   color: var(--console-section); font: inherit; font-weight: var(--weight-title);
 }
 .console-welcome__section dl { margin: 0; }
@@ -155,7 +155,7 @@
 .console-welcome__row dt { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--console-section); }
 .console-welcome__row dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .console-welcome__icon { display: inline-flex; }
-.console-welcome__icon svg { width: 14px; height: 14px; }
+.console-welcome__icon svg { width: var(--icon-row); height: var(--icon-row); }
 .console-welcome__added { color: var(--diff-added); }
 .console-welcome__removed { color: var(--diff-removed); }
 .console-welcome__incoming { color: var(--status-warning); }
@@ -182,7 +182,7 @@
 .console-context__project { color: var(--accent-primary); font-weight: var(--weight-title); }
 .console-context__on { color: var(--text-secondary-color); }
 .console-context__branch { color: var(--syntax-keyword); font-weight: var(--weight-title); }
-.console-context__branch svg { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
+.console-context__branch svg { width: var(--icon-meta); height: var(--icon-meta); margin-right: var(--space-1); vertical-align: -1px; }
 
 .console-block { position: relative; min-width: 0; }
 .console-block__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 26px; overflow-wrap: anywhere; }
@@ -195,17 +195,17 @@
 .console-block--truncated .console-block__state { color: var(--status-warning); }
 .console-block--running .console-block__state { width: 7px; height: 7px; border-radius: var(--radius-round); background: var(--accent-primary); animation: console-pulse 900ms ease-in-out infinite alternate; }
 @keyframes console-pulse { from { opacity: 1; } to { opacity: .3; } }
-.console-block__flag { padding: 0 8px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--status-warning) 14%, transparent); color: var(--status-warning); font-family: var(--font-sans); font-weight: var(--weight-medium); }
+.console-block__flag { padding: 0 var(--space-2); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent); color: var(--status-warning); font-family: var(--font-sans); font-weight: var(--weight-medium); }
 .console-block__actions { display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--duration-fast); }
 .console-block:hover .console-block__actions, .console-block:focus-within .console-block__actions { opacity: 1; }
-.console-block__action { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color); }
+.console-block__action { display: inline-grid; place-items: center; width: var(--icon-button-attached); height: var(--icon-button-attached); border: 0; border-radius: var(--radius-round); background: transparent; color: var(--text-secondary-color); }
 .console-block__action:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.console-block__action:disabled { opacity: .45; cursor: default; }
-.console-block__action svg { width: 14px; height: 14px; }
+.console-block__action:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.console-block__action svg { width: var(--icon-row); height: var(--icon-row); }
 .console-block__command { display: block; color: var(--text-secondary-color); font: inherit; overflow-wrap: anywhere; }
 .console-block__body { margin-top: 2px; }
 .console-block__text { margin: 0; max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; font: inherit; color: var(--text-primary-color); }
-.console-block__text + .console-block__text { margin-top: 4px; }
+.console-block__text + .console-block__text { margin-top: var(--space-1); }
 .console-block__message { color: var(--text-secondary-color); }
 .console-block__stderr { color: var(--status-danger); }
 .console-block__error, .console-block__warning, .console-block__note { margin: 0; font: inherit; }
@@ -223,12 +223,12 @@
 .console-tone--untracked, .console-tone--hint { color: var(--text-secondary-color); }
 
 .console-help { border-collapse: collapse; }
-.console-help caption { padding-bottom: 4px; color: var(--text-secondary-color); text-align: left; }
+.console-help caption { padding-bottom: var(--space-1); color: var(--text-secondary-color); text-align: left; }
 .console-help th { padding: 0 var(--space-5) 2px 0; color: var(--text-secondary-color); font-weight: var(--weight-normal); text-align: left; }
 .console-help td { padding: 1px var(--space-5) 1px 0; vertical-align: baseline; }
-.console-help td code { margin-right: 8px; color: var(--accent-primary); font: inherit; font-weight: var(--weight-strong); }
+.console-help td code { margin-right: var(--space-2); color: var(--accent-primary); font: inherit; font-weight: var(--weight-strong); }
 .console-help td code + code::before { content: "· "; color: var(--text-secondary-color); font-weight: var(--weight-normal); }
-.console-help tfoot td { padding-top: 4px; color: var(--text-secondary-color); }
+.console-help tfoot td { padding-top: var(--space-1); color: var(--text-secondary-color); }
 
 /* The prompt is the transcript's last line, with a block cursor. */
 .console-prompt { position: relative; margin-top: var(--space-4); }
@@ -236,8 +236,8 @@
 /* The welcome's tip says what to type, so the prompt sits right under it as
    one group; the full step returns once commands fill the transcript. */
 .console-panel__log:has(> .console-welcome) + .console-prompt { margin-top: var(--space-2); }
-.console-prompt--busy { opacity: .45; }
-.console-prompt__field { display: flex; align-items: center; gap: var(--space-2); min-height: 26px; }
+.console-prompt--busy { opacity: var(--opacity-disabled); }
+.console-prompt__field { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height-compact); }
 .console-prompt__line { position: relative; display: flex; flex: 1; min-width: 12ch; }
 .console-prompt input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary-color); font: inherit; caret-color: transparent; }
 .console-prompt__ghost { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; color: var(--text-secondary-color); white-space: pre; pointer-events: none; opacity: .7; }
@@ -248,7 +248,7 @@
 /* Suggestions read like the shortcut pane: rows in the terminal's own type
    under the prompt, dashed rules, the chosen one marked ❯ on a soft wash —
    no card, no shadow, nothing borrowed from other screens. */
-.console-completions { max-width: 64ch; margin: 4px 0 0; }
+.console-completions { max-width: 64ch; margin: var(--space-1) 0 0; }
 .console-completions ul { margin: 0; padding: 0; list-style: none; border-top: 1px dashed var(--border-subtle); }
 .console-completions__item {
   display: grid; grid-template-columns: 2ch 14ch 1fr; align-items: center; column-gap: var(--space-2);
@@ -268,7 +268,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 320px) minmax(0, 1fr);
   align-items: center; gap: var(--space-3); height: 34px;
   margin: 0 calc(-1 * var(--workspace-inset-right)) 0 calc(-1 * var(--workspace-inset-left));
-  padding: 0 calc(var(--workspace-inset-right) - 6px) 0 var(--workspace-inset-left);
+  padding: 0 calc(var(--workspace-inset-right) - var(--space-2)) 0 var(--workspace-inset-left);
   color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono);
 }
 /* The confirmation setting leads the line as one compact chip: a glyph and a
@@ -279,19 +279,19 @@
    them and the rest of the keys, which is why the hint can stay whole. */
 .console-statusline__lead { grid-column: 1; display: flex; align-items: center; gap: var(--space-3); min-width: 0; max-width: 100%; }
 .console-statusline__state {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
-  height: 20px; padding: 0 8px; border-radius: var(--radius-pill);
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 20px; padding: 0 var(--space-2); border-radius: var(--radius-pill);
   font-weight: var(--weight-strong); white-space: nowrap;
 }
-.console-statusline__state svg { width: 12px; height: 12px; }
-.console-statusline__state--confirm { background: color-mix(in srgb, var(--status-success) 14%, transparent); color: var(--status-success); }
+.console-statusline__state svg { width: var(--icon-meta); height: var(--icon-meta); }
+.console-statusline__state--confirm { background: color-mix(in srgb, var(--status-success) var(--tint-fill), transparent); color: var(--status-success); }
 .console-statusline__search-slot { grid-column: 2; min-width: 0; width: 100%; }
 /* The app search wears the palette modal's material — the raised panel surface,
    its subtle border and a small card radius — rather than the shortcut pane's
    underline: the field and the results it deploys read as one object. The
    keycap spells the shortcut that reaches it. */
 .console-statusline__search {
-  display: flex; align-items: center; gap: 6px; width: 100%; height: 28px; padding: 0 10px;
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; height: var(--control-height-compact); padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-raised); color: var(--text-secondary-color);
   transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
@@ -302,14 +302,14 @@
   border-color: var(--accent-primary); box-shadow: 0 0 0 1px var(--focus-ring);
   color: var(--text-primary-color);
 }
-.console-statusline__search svg { width: 12px; height: 12px; flex-shrink: 0; }
+.console-statusline__search svg { width: var(--icon-meta); height: var(--icon-meta); flex-shrink: 0; }
 .console-statusline__search-input {
   flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
   color: var(--text-primary-color); font: inherit;
 }
 .console-statusline__search-input::placeholder { color: var(--text-secondary-color); }
 .console-statusline__search-kbd {
-  flex-shrink: 0; padding: 0 4px; border: 1px solid var(--border-subtle);
+  flex-shrink: 0; padding: 0 var(--space-1); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item); color: var(--text-secondary-color);
   font: inherit; font-size: var(--text-micro);
 }
@@ -317,10 +317,10 @@
    way first when the window narrows. */
 .console-statusline__actions { grid-column: 3; display: flex; align-items: center; justify-self: end; gap: var(--space-3); min-width: 0; max-width: 100%; }
 .console-statusline__hint { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.console-statusline__button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
+.console-statusline__button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); height: var(--control-height-xs); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: var(--text-caption) var(--font-sans); }
 .console-statusline__button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.console-statusline__button:disabled { opacity: .45; cursor: default; }
-.console-statusline__button svg { width: 14px; height: 14px; }
+.console-statusline__button:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.console-statusline__button svg { width: var(--icon-row); height: var(--icon-row); }
 /* Shortcut editor: a pane split off the foot of the terminal, as a
    multiplexer splits one — full width, a rule above, the transcript giving up
    the height it takes. One grid for the rows, a prompt-shaped line to add or
@@ -335,7 +335,7 @@
 .console-shortcuts h2 { flex: 0 0 auto; margin: 0; font: inherit; font-weight: var(--weight-title); }
 .console-shortcuts__glyph { display: inline-block; width: 2ch; color: var(--accent-primary); font-weight: var(--weight-title); }
 .console-shortcuts__head .console-shortcuts__action { align-self: center; }
-.console-shortcuts__key { align-self: center; height: 24px; padding: 0 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-panel); color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono); }
+.console-shortcuts__key { align-self: center; height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-panel); color: var(--text-secondary-color); font: var(--text-caption) var(--font-mono); }
 .console-shortcuts__key:hover { color: var(--text-primary-color); border-color: var(--text-secondary-color); }
 .console-shortcuts__note { flex: 1 1 30ch; min-width: 0; margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .console-shortcuts__list {
@@ -347,7 +347,7 @@
 .console-shortcuts__row {
   display: grid; grid-template-columns: 2ch minmax(0, 1fr) auto;
   grid-template-areas: "mark line actions" "mark command actions";
-  align-items: center; column-gap: var(--space-2); padding: 5px 0;
+  align-items: center; column-gap: var(--space-2); padding: var(--space-1) 0;
   border-bottom: 1px dashed var(--border-subtle);
 }
 .console-shortcuts__row::before { content: ""; grid-area: mark; }
@@ -356,14 +356,14 @@
 .console-shortcuts__row--editing { background: var(--surface-active); }
 .console-shortcuts__name { flex: 0 0 auto; color: var(--accent-primary); font-weight: var(--weight-strong); }
 .console-shortcuts__target { min-width: 0; overflow: hidden; color: var(--text-secondary-color); font-family: var(--font-sans); font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
-.console-shortcuts__actions { grid-area: actions; display: inline-flex; align-items: center; gap: 2px; opacity: .55; transition: opacity var(--duration-fast); }
+.console-shortcuts__actions { grid-area: actions; display: inline-flex; align-items: center; gap: 2px; opacity: var(--opacity-muted); transition: opacity var(--duration-fast); }
 .console-shortcuts__row:hover .console-shortcuts__actions, .console-shortcuts__row:focus-within .console-shortcuts__actions { opacity: 1; }
 .console-shortcuts__action {
-  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 0; border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; gap: var(--space-2); height: var(--control-height-compact); padding: 0 var(--space-2); border: 0; border-radius: var(--radius-pill);
   background: transparent; color: var(--text-secondary-color); font: var(--text-label) var(--font-mono);
 }
 .console-shortcuts__action:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.console-shortcuts__action svg { width: 14px; height: 14px; }
+.console-shortcuts__action svg { width: var(--icon-row); height: var(--icon-row); }
 .console-shortcuts__action--remove { width: 26px; padding: 0; justify-content: center; }
 .console-shortcuts__action--remove:hover { color: var(--status-danger); }
 /* The line that adds or renames sits right under the header, above the list. */
@@ -374,16 +374,16 @@
 .console-shortcuts__form .console-shortcuts__glyph { width: auto; }
 .console-shortcuts__field { display: flex; flex: 0 1 24ch; min-width: 12ch; }
 .console-shortcuts__field input {
-  width: 100%; height: 30px; padding: 0 2px; border: 0; border-bottom: 1px solid var(--border-subtle); border-radius: 0;
+  width: 100%; height: var(--control-height-compact); padding: 0 2px; border: 0; border-bottom: 1px solid var(--border-subtle); border-radius: 0;
   background: transparent; color: var(--text-primary-color); font: inherit; outline: 0;
 }
 .console-shortcuts__field input::placeholder { color: var(--text-secondary-color); }
-.console-shortcuts__field input:focus { border-bottom-color: var(--accent-primary); }
+.console-shortcuts__field input:focus { border-bottom-color: var(--focus-ring); }
 .console-picker {
-  display: inline-flex; flex: 0 1 30ch; min-width: 18ch; align-items: center; height: 30px;
+  display: inline-flex; flex: 0 1 30ch; min-width: 18ch; align-items: center; height: var(--control-height-compact);
   border-bottom: 1px solid var(--border-subtle); outline: 0;
 }
-.console-picker:focus-visible { border-bottom-color: var(--accent-primary); background: var(--surface-active); }
+.console-picker:focus-visible { border-bottom-color: var(--focus-ring); background: var(--surface-active); }
 .console-picker__value { flex: 1; min-width: 0; overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .console-picker__step {
   display: inline-grid; place-items: center; width: 3ch; height: 100%; border: 0; background: transparent;
@@ -391,9 +391,9 @@
 }
 .console-picker__step:hover:not(:disabled) { background: var(--surface-hover); }
 .console-picker--disabled { color: var(--text-secondary-color); }
-.console-picker--disabled .console-picker__step { color: var(--text-secondary-color); opacity: .45; cursor: default; }
+.console-picker--disabled .console-picker__step { color: var(--text-secondary-color); opacity: var(--opacity-disabled); cursor: default; }
 .console-shortcuts__arrow { color: var(--text-secondary-color); }
-.console-shortcuts__submit { height: 28px; padding: 0 12px; border: 0; border-radius: var(--radius-pill); background: var(--accent-primary-fill); color: var(--accent-primary-contrast); font: var(--weight-strong) var(--text-label) var(--font-mono); }
+.console-shortcuts__submit { height: var(--control-height-compact); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: var(--accent-primary-fill); color: var(--accent-primary-contrast); font: var(--weight-strong) var(--text-label) var(--font-mono); }
 .console-shortcuts__submit:hover { filter: brightness(.96); }
 .console-shortcuts__error { margin: 0 0 var(--space-2) 2ch; color: var(--status-danger); font-size: var(--text-label); }
 .console-panel button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }

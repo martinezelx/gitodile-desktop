@@ -68,7 +68,10 @@ export function HistoryScreen({
     const scoped = scopeBranchIntent
       ? controller.setScope(query, { kind: "branch", name: scopeBranchIntent })
       : Promise.resolve();
+    const requested = controller.getSnapshot(query);
     void scoped.then(() => {
+      const current = controller.getSnapshot(query);
+      if (current.generation !== requested.generation) return;
       if (commit) controller.selectVersion(query, commit);
     });
     if (scopeBranchIntent) onScopeBranchIntentHandled?.();

@@ -7,6 +7,7 @@ import { useLanguage } from "../i18n";
 import type { DiffPreferences } from "../features/changes";
 import { type GitHubAuthController } from "../features/github";
 import { AccountsSettings } from "../features/hosting-servers";
+import { AccountOverlays, AccountSettings, useAccountModal, type AccountController } from "../features/account";
 import { ConsoleConfirmChangesSetting, type ConsoleConfirmChangesState, type ConsolePreferences } from "../features/console";
 import {
   SettingsPanel,
@@ -16,6 +17,7 @@ import {
   type GitIdentityState,
   type GitToolingState,
   type LineEndingsState,
+  type NavigationItem,
   type NavigationPreferences,
   type RemoteCheckIntervalMinutes,
   type SettingsSection,
@@ -101,6 +103,7 @@ function aboutUpdateStatus(
 }
 
 export type AppOverlaysProps = {
+  accountController?: AccountController | null;
   issueReport: IssueReportState;
   settings: {
     isOpen: boolean;
@@ -135,7 +138,8 @@ export type AppOverlaysProps = {
     setNotificationsEnabled: BooleanSetter;
     runGitHooks: boolean;
     setRunGitHooks: BooleanSetter;
-    navigationItems: Array<{ id: string; label: string; icon: React.JSX.Element }>;
+    navigationItems: NavigationItem[];
+    defaultNavigationPreferences: NavigationPreferences;
     navigationPreferences: NavigationPreferences;
     setNavigationPreferences: Dispatch<SetStateAction<NavigationPreferences>>;
     diffPreferences: DiffPreferences;
@@ -201,6 +205,7 @@ export type AppOverlaysProps = {
 };
 
 export function AppOverlays({
+  accountController,
   issueReport,
   settings,
   projectSettings,
@@ -236,6 +241,7 @@ export function AppOverlays({
     onOpenDialog: openAppUpdate,
   });
   const settingsRef = useRef<HTMLDivElement>(null);
+  const accountModalOpen = useAccountModal(accountController ?? null);
   const projectSettingsRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
   const shortcutsRef = useRef<HTMLDivElement>(null);
@@ -319,7 +325,7 @@ export function AppOverlays({
     return () => window.clearTimeout(timer);
   }, [didCopyDiagnostics]);
 
-  useModalFocus(settings.isOpen, settingsRef, requestSettingsClose);
+  useModalFocus(settings.isOpen && !accountModalOpen, settingsRef, requestSettingsClose);
   useModalFocus(projectSettings.isOpen, projectSettingsRef, requestProjectSettingsClose);
   useModalFocus(about.isOpen, aboutRef, about.setOpen);
   useModalFocus(shortcuts.isOpen, shortcutsRef, shortcuts.setOpen);
@@ -385,12 +391,15 @@ export function AppOverlays({
 
   return (
     <>
+      {import.meta.env.DEV && accountController && <AccountOverlays controller={accountController} overSettings={settings.isOpen} />}
       <IssueReportDialog report={issueReport} />
       {settings.isOpen && (
         <div className="app-dialog-backdrop" role="presentation" {...dialogBackdropProps(() => requestSettingsClose(false))}>
           <div
             ref={settingsRef}
             className="settings-dialog"
+            inert={accountModalOpen}
+            aria-hidden={accountModalOpen || undefined}
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-dialog-title"
@@ -425,6 +434,7 @@ export function AppOverlays({
               projectAvatarStyle={settings.projectAvatarStyle}
               setProjectAvatarStyle={settings.setProjectAvatarStyle}
               activeSection={settings.section}
+              gitodileAccount={import.meta.env.DEV && accountController ? <AccountSettings controller={accountController} /> : undefined}
               onSectionChange={settings.setSection}
               ghTooling={settings.ghTooling}
               glabTooling={settings.glabTooling} glabActions={gitlabToolingPort} glabCopy={glabCopy}
@@ -453,6 +463,7 @@ export function AppOverlays({
               runGitHooks={settings.runGitHooks}
               setRunGitHooks={settings.setRunGitHooks}
               navigationItems={settings.navigationItems}
+              defaultNavigationPreferences={settings.defaultNavigationPreferences}
               navigationPreferences={settings.navigationPreferences}
               setNavigationPreferences={settings.setNavigationPreferences}
               diffPreferences={settings.diffPreferences}

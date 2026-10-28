@@ -20,7 +20,7 @@ connecting another account from Settings.
 
 # Context
 
-The user requested these additions after [task 148](../active/148-connect-github-account.md).
+The user requested these additions after [task 148](../after-1.0/148-connect-github-account.md).
 Continue on the existing release/0.3.1 branch and preserve the pending implementation
 and unrelated HTML explorations.
 

@@ -158,6 +158,7 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     read("read_file_diff"),
     read("read_file_image_preview"),
     read("read_file_lines"),
+    read("read_file_markdown"),
     read("read_working_tree_diffs"),
     read("plan_discard_changes"),
     ExecutionPolicy::repository_write("discard_changes", OperationClass::Destructive),
@@ -180,6 +181,9 @@ pub(crate) const EXECUTION_INVENTORY: &[ExecutionPolicy] = &[
     control("cancel_gitlab_auth"),
     no_process_with_class("add_gitlab_token", OperationClass::PlatformMutation),
     no_process_with_class("remove_gitlab_token", OperationClass::PlatformMutation),
+    no_process_with_class("add_azure_token", OperationClass::PlatformMutation),
+    no_process_with_class("remove_azure_token", OperationClass::PlatformMutation),
+    control("cancel_azure_request"),
     no_process_with_class("add_bitbucket_token", OperationClass::PlatformMutation),
     no_process_with_class("remove_bitbucket_token", OperationClass::PlatformMutation),
     no_process_with_class("add_hosting_server", OperationClass::PlatformMutation),
@@ -878,6 +882,7 @@ mod tests {
         "read_file_diff",
         "read_file_image_preview",
         "read_file_lines",
+        "read_file_markdown",
         "read_working_tree_diffs",
         "plan_discard_changes",
         "discard_changes",
@@ -896,6 +901,9 @@ mod tests {
         "cancel_gitlab_auth",
         "add_gitlab_token",
         "remove_gitlab_token",
+        "add_azure_token",
+        "remove_azure_token",
+        "cancel_azure_request",
         "add_bitbucket_token",
         "remove_bitbucket_token",
         "add_hosting_server",
@@ -1049,7 +1057,8 @@ mod tests {
 
     #[test]
     fn a_new_read_cancels_the_superseded_process_token() {
-        let path = std::env::temp_dir().join(format!("gitodile-supersede-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-supersede-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")
@@ -1083,8 +1092,8 @@ mod tests {
 
     #[test]
     fn a_read_of_another_subject_does_not_supersede_the_first() {
-        let path =
-            std::env::temp_dir().join(format!("gitodile-subject-read-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-subject-read-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")
@@ -1125,8 +1134,8 @@ mod tests {
 
     #[test]
     fn an_inherited_read_does_not_supersede_an_independent_peer() {
-        let path =
-            std::env::temp_dir().join(format!("gitodile-inherited-read-{}", std::process::id()));
+        let path = crate::test_support::test_temp_root()
+            .join(format!("gitodile-inherited-read-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         assert!(Command::new("git")

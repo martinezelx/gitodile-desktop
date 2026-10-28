@@ -40,6 +40,31 @@ function renderConsole(
 }
 
 describe("ConsoleScreen", () => {
+  it.each(["clear{Enter}", "{Control>}l{/Control}"])("starts still, and only reveals the restored welcome after clearing work with %s", async (clearKeys) => {
+    const user = userEvent.setup();
+    const { lifecycle } = renderConsole();
+    const input = screen.getByRole("combobox", { name: "Console command" });
+    const initial = document.querySelector(".console-welcome .console-art");
+    expect(initial).not.toHaveClass("console-art--reveal");
+    await user.type(input, clearKeys);
+    expect(document.querySelector(".console-welcome .console-art")).toBe(initial);
+    expect(initial).not.toHaveClass("console-art--reveal");
+    act(() => lifecycle.transition("hidden"));
+    act(() => lifecycle.transition("active"));
+    expect(initial).not.toHaveClass("console-art--reveal");
+
+    await user.type(input, "help{Enter}");
+    expect(document.querySelector(".console-watermark .console-art")).toHaveClass("console-art--reveal");
+    await user.type(input, clearKeys);
+    const restored = document.querySelector(".console-welcome .console-art");
+    expect(restored).not.toBe(initial);
+    expect(restored).toHaveClass("console-art--reveal");
+    act(() => lifecycle.transition("hidden"));
+    act(() => lifecycle.transition("active"));
+    expect(document.querySelector(".console-welcome .console-art")).toBe(restored);
+    expect(restored).not.toHaveClass("console-art--reveal");
+  });
+
   it("does not run on arrival, rejects shell-like text, and shows a bounded result", async () => {
     const run = vi.spyOn(consolePort, "run").mockResolvedValue({ operationId: "status", command: "git status", stdout: "On branch main\n", stderr: "", exitCode: 0, success: true, truncated: false });
     const user = userEvent.setup();
@@ -415,7 +440,8 @@ describe("ConsoleScreen typed Git commands", () => {
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     expect(screen.getByRole("alert")).toHaveTextContent("starts with git");
     await user.clear(field);
-    await user.type(field, "git log --oneline");
+    await user.click(field);
+    await user.paste("git log --oneline");
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     await waitFor(() => expect(plan).toHaveBeenCalledWith({ projectId: "/repo", sessionEpoch: "epoch-1", line: "git log --oneline", runHooks: true }));
     const pane = screen.getByRole("region", { name: "Console shortcuts" });
@@ -443,7 +469,8 @@ describe("ConsoleScreen typed Git commands", () => {
     await user.type(screen.getByRole("textbox", { name: "Shortcut name" }), "undo");
     screen.getByRole("spinbutton", { name: "Query" }).focus();
     await user.keyboard("{End}");
-    await user.type(screen.getByRole("textbox", { name: "Git command line" }), "git reset --hard");
+    await user.click(screen.getByRole("textbox", { name: "Git command line" }));
+    await user.paste("git reset --hard");
     await user.click(screen.getByRole("button", { name: "Add shortcut" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("git reset can discard work");
     expect(within(screen.getByRole("region", { name: "Console shortcuts" })).queryByText("undo")).not.toBeInTheDocument();

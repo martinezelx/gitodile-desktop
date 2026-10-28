@@ -1,0 +1,38 @@
+import type { GitHubTranslations } from "./translations";
+
+export const en: GitHubTranslations = {
+  githubAuthReconnect: "Reconnect GitHub", githubAuthCancel: "Cancel connection",
+  githubAuthConfirm: "Continue in browser", githubAuthNotNow: "Not now",
+  githubAuthDisconnect: "Sign out",
+  githubAuthUseAccount: "Use account",
+  githubAuthUseAccountLabel: "Use @{login}",
+  githubAuthChip: { connected: "Connected", saved: "Saved", unchecked: "Not checked yet", signed_out: "Not connected", checking: "In progress", invalid: "Needs attention", unavailable: "Unavailable", environment: "Managed externally" },
+  githubAuthLogoutConfirm: "Sign out @{login}",
+  githubAuthLogoutConsent: "Removes @{login} from GitHub CLI on this computer, for every tool that uses it, and GitHub CLI may switch to another saved account.",
+  githubAuthLogoutBrowser: "Your browser session, projects and Git settings don't change.",
+  githubAuthLogoutDone: "@{login} was signed out of GitHub CLI on this computer.",
+  githubAuthShared: "It's shared with GitHub CLI, so signing out here also signs out the tools that use it.",
+  githubAuthStorageConsent: "GitHub CLI saves it in your system's secure store, or in a plain-text file if that fails.",
+  githubAuthPermissions: "GitHub opens in your browser to authorize GitHub CLI, private repositories included. Your Git credentials and SSH keys don't change.",
+  githubAuthFile: "GitHub CLI stores this credential in a plain-text file on this computer.",
+  githubAuthEnvironment: "An environment variable supplies this account. Manage it outside GitOdile.",
+  githubAuthUnknownStorage: "Couldn't determine how GitHub CLI stores this credential.",
+  githubAuthNeedsCheck: "GitHub CLI may have changed. Check the accounts before trying again.",
+  githubAuthBrowserFailed: "Couldn't open the browser. Try again or open https://github.com/login/device yourself.",
+  githubAuthOpenBrowser: "Open GitHub", githubAuthCopyCode: "Copy code", githubAuthCopied: "Code copied",
+  githubAuthCopyFailed: "Couldn't copy the code. Select and copy it yourself.",
+  githubAuthDeviceSteps: "Enter this code in GitHub, authorize GitHub CLI, then return here. To connect another account, switch accounts on GitHub before authorizing. The code expires shortly.",
+  githubAuthStatus: {
+    unchecked: "Account not checked", checking: "Checking your GitHub account…", signed_out: "No GitHub account connected",
+    connected: "Connected", invalid: "Your GitHub authorization is no longer valid. Reconnect to continue.",
+    offline: "Couldn't reach GitHub. Check your connection and try again.", login_starting: "Preparing browser connection…",
+    signing_out: "Signing out of GitHub CLI…",
+    switching: "Switching the active GitHub CLI account…",
+    awaiting_browser: "Waiting for GitHub authorization…", cancelling: "Cancelling connection…", cancelled: "Connection cancelled",
+    timed_out: "The connection took too long. Check its state or try again.", failed: "Couldn't complete the connection. Check its state or try again.",
+    cli_missing: "GitHub CLI couldn't be found. Check the installation below.",
+    cli_unsupported: "Update GitHub CLI below to use account connections. This version lacks the required account-status format.",
+    environment_controlled: "An environment variable controls GitHub CLI authentication. Manage it outside GitOdile.",
+  },
+};
+

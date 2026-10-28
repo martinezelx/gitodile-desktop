@@ -137,7 +137,8 @@ describe("the remote section", () => {
     expect(change).toBeDisabled();
 
     await user.clear(field);
-    await user.type(field, "https://example.test/moved.git");
+    await user.click(field);
+    await user.paste("https://example.test/moved.git");
     expect(change).toBeEnabled();
 
     await user.click(change);
@@ -193,7 +194,8 @@ describe("the remote section", () => {
     render(<Harness port={port} />);
 
     expect(await screen.findByText("No remote connected")).toBeInTheDocument();
-    await user.type(screen.getByLabelText("Address"), "https://example.test/new.git");
+    await user.click(screen.getByLabelText("Address"));
+    await user.paste("https://example.test/new.git");
     await user.click(screen.getByRole("button", { name: "Connect" }));
 
     await waitFor(() =>
@@ -227,7 +229,8 @@ describe("the remote section", () => {
 
     const field = await screen.findByLabelText("Address for origin");
     await user.clear(field);
-    await user.type(field, "https://example.test/moved.git");
+    await user.click(field);
+    await user.paste("https://example.test/moved.git");
     await user.click(screen.getByRole("button", { name: "Change address" }));
     expect(screen.getByText("Change the remote address?")).toBeInTheDocument();
 
@@ -245,7 +248,9 @@ describe("the remote section", () => {
     });
     render(<Harness port={port} />);
 
-    await user.type(await screen.findByLabelText("Address"), "https://example.test/new.git");
+    await user.click(await screen.findByLabelText("Address"));
+
+    await user.paste("https://example.test/new.git");
     await user.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByText("Connect this remote?")).toBeInTheDocument();
 
@@ -410,7 +415,8 @@ describe("reopening the panel", () => {
     render(<Harness port={port} cache={cache} />);
     const field = screen.getByLabelText("Address for origin");
     await user.clear(field);
-    await user.type(field, "https://example.test/moved.git");
+    await user.click(field);
+    await user.paste("https://example.test/moved.git");
 
     // The read answers with the address Git still has. It must not put that
     // back into a field the user is in the middle of editing.
@@ -678,7 +684,8 @@ describe("within one section", () => {
 
     const field = await screen.findByLabelText("Address for origin");
     await user.clear(field);
-    await user.type(field, "https://example.test/moved.git");
+    await user.click(field);
+    await user.paste("https://example.test/moved.git");
     await user.click(screen.getByRole("button", { name: "Change address" }));
     await user.click(
       screen.getByRole("button", { name: "Change it" }),

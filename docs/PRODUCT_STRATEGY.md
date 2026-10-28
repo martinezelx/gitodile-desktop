@@ -26,13 +26,20 @@ GitOdile should not compete as another general-purpose Git GUI with a prettier i
 
 Its differentiated promise is:
 
-> Modern version control without the Git learning curve.
+> Modern version control without the Git learning curve, for people and for
+> the coding agents working beside them.
 
-Alternative working statements:
+Brand lines:
 
-- Git without the fear.
-- A friendly Git desktop client.
-- Save, publish, experiment, and recover without fear.
+- **Slogan (in the app, for example in About):** See everything. Undo anything.
+- **Descriptor (website and store listings):** The Git client for humans and
+  their agents.
+
+"Git without the fear" was the earlier working promise. It described the fear
+of Git itself; the agent-era direction is about the fear of not knowing what
+changed a project, and whether it can be undone. Before the slogan is used in
+public marketing, confirm that no Git or developer-tool product already uses
+it.
 
 Most Git clients make Git commands easier to execute. GitOdile should make user outcomes easier to achieve without requiring the user to think in Git terminology first.
 
@@ -54,6 +61,9 @@ must not claim that clearance has already been obtained.
 - Product designers, product engineers, writers, artists, game developers, and other collaborators who work inside repositories without being Git specialists.
 - Freelancers and small teams that use Git because their workflow requires it, not because they enjoy managing Git internals.
 - Anyone who is afraid of losing work, breaking a repository, or publishing the wrong changes.
+- Developers who delegate work to coding agents and need to see what an agent
+  changed, review it before it leaves the machine, and undo it when it went
+  wrong.
 
 Experienced developers are a valuable secondary audience, but they must not dictate the default interface.
 
@@ -132,6 +142,49 @@ The recovery experience should make protected states and available recovery
 paths visible in human language. Exact refs, reflog entries, and Git commands
 remain available as technical evidence, but they are not the mental model users
 must learn before they can recover their work.
+
+## The agent-era direction
+
+Coding agents such as Codex, Claude Code and Hermes now create commits,
+branches, worktrees and pull requests with little human interaction. A client
+whose value is "a button instead of a command" loses its reason to exist.
+
+The opportunity moves rather than disappears. When an agent writes, the person
+becomes the supervisor, and supervising is harder than writing: an agent
+produces dozens of saved versions in an afternoon, runs destructive commands
+with full confidence, and works on several branches and worktrees at once.
+The people GitOdile serves first are the ones most hurt when that goes wrong.
+The fear does not fall with agents; it changes from "I do not know Git" to
+"I do not know what my agent did, or whether I can undo it."
+
+GitOdile's direction is therefore a **next-generation Git client: the control
+tower and safety net of a project, whether a person or an agent did the
+work**. It complements agents instead of competing with them.
+
+The direction has five pillars, in order of differentiation:
+
+1. **Safety net.** A local timeline of everything that happened to the
+   repository, whoever did it, with automatic checkpoints and a way to undo a
+   whole session of work.
+2. **Review before publishing.** A plain-language summary of what is about to
+   leave the machine, with risk alerts such as secrets, mass deletions, CI or
+   dependency changes, and teammate impact.
+3. **Understand agent history.** Attribute work to a person or an agent and
+   group bursts of saved versions into sessions with a readable purpose.
+4. **Parallel work.** Show the branches and worktrees agents create as work in
+   progress, compare attempts, adopt one and clean up the rest safely.
+5. **Work alongside agents.** Later, a local API or MCP through which an agent
+   can ask GitOdile for a checkpoint; optional, consented AI summaries.
+
+The sequence is fixed by [ADR 0039](adr/0039-position-gitodile-for-humans-and-their-agents.md)
+and scheduled in [`ROADMAP.md`](ROADMAP.md#after-100): `1.0.0` first reaches the
+ordinary workflow at the level of GitHub Desktop, then `1.1` safety net, `1.2`
+understand, `1.3` publish with confidence, `1.4` parallel work, and `2.x`
+agent integration.
+
+GitOdile does not become a coding agent, does not compete on AI-written commit
+messages, and does not make autonomous repository changes. It gives the people
+who use agents the visibility and the recovery that make agents safe to use.
 
 ## GitButler as a strategic reference
 
@@ -350,8 +403,9 @@ create branches, commits, and worktrees on behalf of users. They compete for the
 same workflow even when they are not standalone Git clients.
 
 GitOdile should complement these tools by making repository state,
-consequences, and recovery understandable. It must not perform autonomous
-repository changes merely to match agent-driven workflows.
+consequences, and recovery understandable, including the changes agents make.
+It must not perform autonomous repository changes merely to match
+agent-driven workflows. See [The agent-era direction](#the-agent-era-direction).
 
 ## Competitive priorities
 
@@ -373,6 +427,7 @@ The products to study most closely are:
 - A mascot-heavy or childish experience.
 - A cloud service that requires an account for basic local Git operations.
 - A feature-count competitor to GitKraken in the first releases.
+- Another coding agent, or a race to generate commit messages with AI.
 
 ## Product test for new features
 
@@ -396,6 +451,10 @@ service. Paid capabilities may require sign-in, but they should monetize
 advanced workflows, convenience, integrations, organization, and optional
 connected services rather than safety or access to the user's own repository.
 
+The safety net of the agent-era direction is Free; Pro sells understanding
+and speed at volume. The allocation is in
+[`BUSINESS_MODEL.md`](BUSINESS_MODEL.md#agent-era-allocation).
+
 Recovery required by a supported GitOdile operation, truthful consequences,
 and the protections that make the free local workflow safe must not be weakened
 to manufacture paid value. Optional AI features remain consented and transparent
@@ -414,6 +473,7 @@ GitOdile occupies the space between GitHub Desktop and GitButler:
 - more accessible and beginner-focused than GitButler;
 - less crowded than GitKraken;
 - more explanatory and cross-platform than Fork or Tower;
-- safer and more human-centered than traditional Git GUIs.
+- safer and more human-centered than traditional Git GUIs;
+- the place where people see, review, and undo what their coding agents did.
 
 The intended result is not merely an easier Git client. It is a modern desktop version-control experience that lets users build confidence gradually while protecting their work.

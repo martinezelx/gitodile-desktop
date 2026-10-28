@@ -127,11 +127,15 @@ pub(crate) enum CloneSourceAccess {
 /// Supported provider addresses only. Parse before reaching credentials or Git:
 /// no other hosts, local paths, URL secrets or executable-looking inputs.
 fn checked_hosting_source(raw: &str) -> Result<NormalizedSource, AppError> {
+    let azure = crate::azure_access::normalize_clone_source(raw.trim())
+        .map_err(|_| invalid_check_source())?;
+    let raw = azure.as_deref().unwrap_or(raw);
     checked_hosting_source_with(raw, |name| {
         let mut known = [
             ("github.com", "github"),
             ("gitlab.com", "gitlab"),
             ("bitbucket.org", "bitbucket"),
+            ("dev.azure.com", "azure"),
         ]
         .into_iter()
         .filter(|(host, _)| *host == name)
@@ -191,6 +195,11 @@ fn checked_hosting_source_with(
         )
     };
     let parts = path.trim_end_matches('/').split('/').collect::<Vec<_>>();
+    if kind == "azure" {
+        crate::azure_access::validate_source(raw, parts.first().copied().unwrap_or_default())
+            .map_err(|_| invalid_check_source())?;
+        return normalize_source(raw);
+    }
     if (matches!(kind, "github" | "bitbucket") && parts.len() != 2)
         || parts.len() < 2
         || parts.len() > 32
@@ -508,6 +517,9 @@ fn sanitize_authority_url(value: &str, scheme: &str) -> Result<(String, String),
 }
 
 fn normalize_source(raw: &str) -> Result<NormalizedSource, AppError> {
+    let azure = crate::azure_access::normalize_clone_source(raw.trim())
+        .map_err(|_| invalid_check_source())?;
+    let raw = azure.as_deref().unwrap_or(raw);
     let raw = raw.trim();
     if raw.is_empty() || raw.chars().any(char::is_control) {
         return Err(clone_error(
@@ -1758,5 +1770,34 @@ mod tests {
             fs::read_to_string(staging.container.join("user-file.txt")).unwrap(),
             "preserve\n"
         );
+    }
+}
+
+#[cfg(test)]
+mod azure_tests {
+    use super::*;
+    #[test]
+    fn azure_clone_normalizes_only_copied_usernames_and_organization_case() {
+        let raw = "https://user@dev.azure.com/CONTOSO/My%20Project/_git/My%20Repo";
+        let source = normalize_source(raw).unwrap();
+        assert_eq!(
+            source.argument,
+            "https://dev.azure.com/contoso/My%20Project/_git/My%20Repo"
+        );
+        assert_eq!(source.persisted_remote, source.argument);
+        assert_eq!(
+            checked_hosting_source(raw).unwrap().argument,
+            source.argument
+        );
+        for raw in [
+            "https://user:secret@dev.azure.com/contoso/_git/repo",
+            "https://dev.azure.com/contoso/../other/_git/repo",
+            "https://dev.azure.com/contoso/%2e%2e/_git/repo",
+            "https://dev.azure.com/%63ontoso/_git/repo",
+            "https://dev.azure.com/contoso/_git/repo?pat=secret",
+        ] {
+            assert!(normalize_source(raw).is_err());
+            assert!(checked_hosting_source(raw).is_err());
+        }
     }
 }

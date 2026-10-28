@@ -215,7 +215,7 @@
 .state-glyph__icon { display: inline-flex; }
 .state-glyph { min-width: 0; }
 .state-glyph__text { min-width: 0; max-width: 16ch; margin-inline-start: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium); }
-.state-glyph svg { width: 14px; height: 14px; }
+.state-glyph svg { width: var(--icon-row); height: var(--icon-row); }
 .state-glyph--positive { color: var(--status-success); }
 .state-glyph--warning { color: var(--status-warning); }
 .state-glyph--accent { color: var(--accent-primary); }
@@ -235,16 +235,14 @@
   color: color-mix(in srgb, var(--author-color) 65%, var(--text-primary-color));
   font-size: var(--text-micro); font-weight: var(--weight-medium); line-height: var(--leading-none);
 }
-/* The user's own versions: a person glyph on the neutral tint, not the
-   initials on a colour of their own. */
+/* The user's own versions: their initials on the neutral tint, not on a
+   colour of their own. */
 .author-avatar--self {
   background: var(--surface-hover);
   color: var(--text-secondary-color);
 }
-.author-avatar--self svg { width: 11px; height: 11px; }
 /* Beside a strip's title, where it is the author's only trace. */
 .author-avatar--strip { width: 24px; height: 24px; flex-basis: 24px; font-size: var(--text-caption); }
-.author-avatar--strip.author-avatar--self svg { width: 14px; height: 14px; }
 @media (forced-colors: active) {
   .author-avatar { border: 1px solid CanvasText; }
 }
@@ -290,7 +288,7 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
-.inclusion-node__input:disabled + .inclusion-node__mark { opacity: 0.55; }
+.inclusion-node__input:disabled + .inclusion-node__mark { opacity: var(--opacity-disabled); }
 @media (prefers-reduced-motion: reduce) {
   .inclusion-node__mark { transition: none; }
 }
@@ -305,13 +303,13 @@
    draws it at the label size; Branches, denser, at the caption size. */
 .timeline-chip {
   position: relative; z-index: 1; flex: 0 0 auto;
-  display: inline-flex; align-items: center; gap: 6px;
-  min-height: 24px; padding: 0 var(--space-3) 0 5px;
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: var(--control-height-xs); padding: 0 var(--space-3) 0 var(--space-1);
   border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
   background: var(--surface-panel); color: var(--text-primary-color);
   font-size: var(--text-label); font-weight: var(--weight-heading); white-space: nowrap;
 }
-.timeline-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.timeline-chip svg { width: var(--icon-meta); height: var(--icon-meta); flex-shrink: 0; }
 .timeline-chip--local > svg:first-child { color: var(--tone-local); }
 .timeline-chip--noRemote > svg:first-child { color: var(--status-warning); }
 .timeline-chip--published > svg:first-child { color: var(--tone-remote); }
@@ -319,10 +317,10 @@
    the panel rather than laid over it, so the rail behind never shows through
    the chip, and the app's focus ring. */
 .timeline-chip--button { font-family: inherit; transition: background var(--duration-fast); }
-.timeline-chip--button:hover { background: color-mix(in srgb, var(--text-primary-color) 6%, var(--surface-panel)); }
+.timeline-chip--button:hover { background: color-mix(in srgb, var(--text-primary-color) var(--tint-hover), var(--surface-panel)); }
 .timeline-chip--button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.timeline-chip--compact { gap: 5px; min-height: 22px; padding: 0 var(--space-2) 0 4px; font-size: var(--text-caption); }
-.timeline-chip--compact svg { width: 11px; height: 11px; }
+.timeline-chip--compact { gap: var(--space-1); min-height: 22px; padding: 0 var(--space-2) 0 var(--space-1); font-size: var(--text-caption); }
+.timeline-chip--compact svg { width: var(--icon-meta); height: var(--icon-meta); }
 
 /* A release's highlights — one tinted glyph and one sentence per line — as
    What's new and the update dialog both draw them. The host owns the
@@ -332,13 +330,13 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: var(--space-3);
 }
 .release-highlights li {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
   align-items: start;
-  gap: 10px;
+  gap: var(--space-3);
   color: var(--text-secondary-color);
   font-size: var(--text-body);
   line-height: var(--leading-normal);
@@ -349,12 +347,12 @@
   display: grid;
   place-items: center;
   border-radius: var(--radius-round);
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) var(--tint-fill), transparent);
   color: var(--accent-primary);
 }
-.release-highlights__icon svg { width: 14px; height: 14px; }
+.release-highlights__icon svg { width: var(--icon-row); height: var(--icon-row); }
 
-.eyebrow { margin-bottom: 6px; color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.eyebrow { margin-bottom: var(--space-2); color: var(--accent-primary); font-size: var(--text-label); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
 
 /* The labelled button carries its own size. It used to declare padding and
    radius only, which left its height to `line-height: normal` over the
@@ -368,7 +366,7 @@
 .primary-button, .secondary-button {
   min-height: var(--control-height-md);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  border-radius: var(--radius-pill); padding: 6px var(--space-4); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4); border: 1px solid var(--border-subtle);
   font-size: var(--control-font-md);
   transition: background var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
 }
@@ -377,26 +375,26 @@
    `.ghost-button` are for — just a smaller box. */
 .primary-button--sm, .secondary-button--sm {
   min-height: var(--control-height-sm);
-  padding: 6px var(--space-3);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--control-font-sm);
 }
 /* An icon in a labelled button is the label's size, not the icon library's
    24px default: without this, every button that forgot its own rule drew a
    glyph twice the height of its text (Check for updates, Manual download). */
-.primary-button svg, .secondary-button svg { flex-shrink: 0; width: 16px; height: 16px; }
-.primary-button--sm svg, .secondary-button--sm svg { width: 14px; height: 14px; }
+.primary-button svg, .secondary-button svg { flex-shrink: 0; width: var(--icon-control); height: var(--icon-control); }
+.primary-button--sm svg, .secondary-button--sm svg { width: var(--icon-row); height: var(--icon-row); }
 .primary-button { background: var(--accent-primary-fill); color: var(--accent-primary-contrast); border-color: transparent; font-weight: var(--weight-title); }
 .primary-button:not(:disabled):hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .secondary-button { background: var(--surface-hover); color: var(--text-primary-color); }
 .secondary-button:not(:disabled):hover { background: var(--surface-active); }
-.primary-button:disabled, .secondary-button:disabled { opacity: 0.5; }
+.primary-button:disabled, .secondary-button:disabled { opacity: var(--opacity-disabled); }
 .ghost-button {
   min-height: var(--control-height-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 6px var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -407,8 +405,8 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .ghost-button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
-.ghost-button:disabled { opacity: 0.5; }
-.ghost-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+.ghost-button:disabled { opacity: var(--opacity-disabled); }
+.ghost-button svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 /* One line, as every in-screen notice (DESIGN.md § Content design). Where
    the notice is too narrow for the text and both actions, the actions wrap
    to a row of their own, at the end, and the text keeps its one line. */
@@ -417,8 +415,8 @@
   flex-wrap: wrap;
   min-width: 0;
   align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-surface);
   /* An in-screen notice is a card inside a region (DESIGN.md § Visual
      character, Friendly Sheet rule 3): the card fill and the subtle border,
@@ -429,7 +427,7 @@
   outline-offset: -1px;
   background: var(--surface-raised);
 }
-.automatic-updates-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--status-warning); }
+.automatic-updates-notice > svg { width: var(--icon-control); height: var(--icon-control); flex: 0 0 auto; color: var(--status-warning); }
 .automatic-updates-notice__body { flex: 1 1 12rem; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
 .automatic-updates-notice strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
 .automatic-updates-notice p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
@@ -448,22 +446,39 @@
 
 .empty-state {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; max-width: 380px; margin: 0 auto; padding: 40px 24px; text-align: center;
+  gap: var(--space-2); max-width: 380px; margin: 0 auto; padding: 40px var(--space-5); text-align: center;
 }
 .empty-state__icon {
-  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 14px;
+  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: var(--space-4);
   border-radius: var(--radius-round); background: var(--surface-raised); border: 1px solid var(--border-subtle);
   color: var(--text-secondary-color); box-shadow: var(--shadow-sm);
 }
-.empty-state__icon svg { width: 20px; height: 20px; }
-.empty-state h2 { font-size: var(--text-title); margin-bottom: 6px; }
-.empty-state p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
-.empty-state__actions { display: flex; gap: 10px; }
+.empty-state__icon svg { width: var(--icon-tile); height: var(--icon-tile); }
+.empty-state > h2 { font-size: var(--text-title); margin-bottom: var(--space-2); }
+.empty-state > p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: var(--space-5); }
+.empty-state__actions { display: flex; gap: var(--space-3); }
+
+/* A list with nothing to show says so in one quiet line where its rows would
+   be — DESIGN.md § Core screens. A panel's list gives it room; a menu or a
+   picker keeps it to the popup's own inset. */
+.empty-line {
+  margin: 0; padding: var(--space-5) var(--space-4);
+  color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center;
+}
+.empty-line--menu { padding: var(--space-4); }
 
 .empty-state__icon--loading svg { animation: spin 900ms linear infinite; }
 /* DESIGN.md § Core screens: an error state is this same block with the danger
    colour swapped into the glyph tile — not a second, differently shaped panel. */
 .empty-state--error .empty-state__icon { border-color: var(--status-danger); color: var(--status-danger); }
+/* A settled answer rather than an absence — Changes when everything is saved:
+   the tile takes the success tone and rests flat, since nothing is lifted. */
+.empty-state--success .empty-state__icon { border-color: transparent; background: var(--surface-active); color: var(--status-success); box-shadow: none; }
+/* The same block inside something that floats or a dialog's list: a 40px tile,
+   body-size copy and the panel's own inset, so it does not outgrow its host. */
+.empty-state--compact { flex: 0 0 auto; padding: var(--space-6) var(--space-4) var(--space-5); }
+.empty-state--compact .empty-state__icon { width: 40px; height: 40px; margin-bottom: var(--space-2); }
+.empty-state--compact > p { font-size: var(--text-body); margin-bottom: var(--space-4); }
 /* A failed view: the error block, its technical message behind a disclosure
    so the headline stays plain language (AGENTS.md: no raw error first). */
 .view-error { height: 100%; }
@@ -484,11 +499,11 @@
 }
 .restore-skipped-notice > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .restore-skipped-notice button {
-  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;
+  flex-shrink: 0; width: var(--icon-button-attached); height: var(--icon-button-attached); display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
 }
 .restore-skipped-notice button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.restore-skipped-notice button svg { width: 14px; height: 14px; }
+.restore-skipped-notice button svg { width: var(--icon-row); height: var(--icon-row); }
 .card-row-divider {
   position: relative;
   margin-top: var(--space-2);
@@ -519,7 +534,7 @@
   flex-shrink: 0;
   padding-inline: 0;
 }
-.refresh-icon-button svg { width: 16px; height: 16px; }
+.refresh-icon-button svg { width: var(--icon-control); height: var(--icon-control); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -547,14 +562,11 @@
 }
 
 /* ---- Arrival ----
-   Fades a row in with a 4px lift, 40ms after the one before it. Overview uses
-   it as the entrance of its sampled lists: opening a project reads as the
-   screen filling in rather than snapping on. Work (Changes and History) uses
-   it only for rows that arrive while the screen is open — the list itself is
-   readable the instant it opens — through `useRowArrival` (rowArrival.ts),
-   which also caps `--row-index` at three so a long list is not still arriving
-   a second later. A virtualized row is never given the class for an entrance
-   of its own, since a row mounted by a scroll is not arriving with the screen. */
+   Fades a new row in with a 4px lift, 40ms after the one before it.
+   Screen entry never uses this: Home and Overview show their lists at once.
+   Work (Changes and History) uses `useRowArrival` only for rows that arrive
+   after the first draw, capped at index three. A virtualized row is never
+   animated merely because scrolling mounted it. */
 @keyframes row-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
@@ -568,18 +580,18 @@
 }
 
 .segmented-control {
-  display: inline-flex; padding: 4px; gap: 4px;
+  display: inline-flex; padding: var(--space-1); gap: var(--space-1);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-hover);
 }
 .segmented-control__option {
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border: 0; border-radius: var(--radius-item);
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-secondary-color); font-weight: var(--weight-strong); font-size: var(--text-lead);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.segmented-control__option svg { width: 16px; height: 16px; }
+.segmented-control__option svg { width: var(--icon-control); height: var(--icon-control); }
 .segmented-control__option:hover:not(.segmented-control__option--active) { color: var(--text-primary-color); }
 .segmented-control__option--active { background: var(--surface-raised); color: var(--text-primary-color); box-shadow: var(--shadow-sm); }
-.text-field { display: grid; gap: 6px; font-size: var(--text-body); color: var(--text-secondary-color); }
+.text-field { display: grid; gap: var(--space-2); font-size: var(--text-body); color: var(--text-secondary-color); }
 /* A single-line field is the same box as a button — DESIGN.md § Shape asks the
    two to read as one family, and the Clone and Initialize path pickers put one
    of each in a single grid row, where any difference is visible. It keeps its
@@ -587,7 +599,7 @@
 .text-field input,
 .text-field select {
   min-height: var(--control-height-md);
-  padding: 6px var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-hover); color: var(--text-primary-color); font: inherit; font-size: var(--text-lead); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
@@ -625,7 +637,7 @@
 /* The label is the field, not the pill: it forwards a click to the input, and
    wrapped around the whole box it would answer for the trailing controls too. */
 .search-box__field { min-width: 0; flex: 1; display: flex; align-items: center; gap: var(--space-2); }
-.search-box__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.search-box__field > svg { width: var(--icon-control); height: var(--icon-control); flex: 0 0 auto; color: var(--text-secondary-color); }
 .search-box__field input {
   min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
   background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--control-font-sm);
@@ -640,7 +652,7 @@
    standing at that end of the pill reads as one family. An affordance attached
    to the input, so it is rectangular rather than a circle — DESIGN.md § Shape. */
 .search-box__clear {
-  width: 24px; height: 24px; display: grid; place-items: center; flex: 0 0 auto;
+  width: var(--icon-button-inline); height: var(--icon-button-inline); display: grid; place-items: center; flex: 0 0 auto;
   padding: 0; border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-secondary-color);
   transition: background-color var(--duration-fast), color var(--duration-fast);
@@ -651,7 +663,7 @@
    so an empty clear button gives its 24px back to the field — in a ~300px
    column that is the difference between `Search changes` and `Search chang`. */
 .search-box:has(.search-box__trailing) .search-box__clear[data-empty] { display: none; }
-.search-box__clear svg { width: 14px; height: 14px; }
+.search-box__clear svg { width: var(--icon-row); height: var(--icon-row); }
 .search-box__trailing { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; padding-inline-start: var(--space-2); }
 /* A rule rather than a gap: what follows it acts on the list, not on what is
    typed, and the pill has to say so without growing a second border. */
@@ -692,7 +704,7 @@
   width: 8px; height: 0; border-inline-start: 0; border-bottom: 2px solid var(--accent-primary);
   transform: translate(0, 0) rotate(0deg) scale(1);
 }
-.app-checkbox:disabled { opacity: 0.55; }
+.app-checkbox:disabled { opacity: var(--opacity-disabled); }
 .app-checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (forced-colors: active) {
   .app-checkbox { appearance: auto; }
@@ -711,12 +723,12 @@
   display: flex; align-items: center; gap: var(--space-2); margin: 0;
   color: var(--status-danger); font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.field-error svg { flex: 0 0 auto; width: 14px; height: 14px; }
+.field-error svg { flex: 0 0 auto; width: var(--icon-row); height: var(--icon-row); }
 
 .dialog-close-button {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: var(--icon-button-chrome);
+  height: var(--icon-button-chrome);
   display: grid;
   place-items: center;
   border: 0;
@@ -726,10 +738,10 @@
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .dialog-close-button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.dialog-close-button svg { width: 18px; height: 18px; }
+.dialog-close-button svg { width: var(--icon-nav); height: var(--icon-nav); }
 
 .toggle-switch {
-  position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: 3px; border: 0; border-radius: var(--radius-pill);
+  position: relative; flex-shrink: 0; width: 40px; height: 24px; padding: var(--space-1); border: 0; border-radius: var(--radius-pill);
   background: var(--surface-hover); border: 1px solid var(--border-subtle);
   transition: background var(--duration-fast);
 }
@@ -739,9 +751,9 @@
 }
 .toggle-switch--on { background: var(--accent-primary-fill); border-color: transparent; }
 .toggle-switch--on .toggle-switch__knob { background: var(--surface-panel); transform: translateX(16px); }
-.toggle-switch:disabled { opacity: .45; cursor: not-allowed; }
+.toggle-switch:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
 
-.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-2); }
 
 /* The shared anchored-popup surface, worn by every app-styled dropdown that
    is not a native `<select>` (the Changes view picker, the titlebar menus).
@@ -765,7 +777,7 @@
 .app-menu__divider {
   flex-shrink: 0;
   height: 0;
-  margin: 5px var(--space-1);
+  margin: var(--space-1) var(--space-1);
   border: 0;
   border-top: 1px solid var(--border-divider);
 }
@@ -783,18 +795,18 @@
    the four inset properties reset, because `.app-menu` positions itself off a
    trigger's box — a context menu has no trigger, only a point. */
 .context-menu {
-  position: fixed; right: auto; bottom: auto; z-index: 30;
+  position: fixed; right: auto; bottom: auto; z-index: var(--layer-popover);
   min-width: 148px; max-width: min(320px, calc(100vw - 16px));
 }
 .context-menu .app-menu__item--danger,
 .context-menu .app-menu__item--danger svg { color: var(--status-danger); }
-.context-menu .app-menu__item:disabled { opacity: 0.42; cursor: default; }
+.context-menu .app-menu__item:disabled { opacity: var(--opacity-disabled); cursor: default; }
 .app-menu__item {
-  display: flex; align-items: center; gap: 8px;
-  text-align: left; padding: 8px 10px; border-radius: var(--radius-item); background: transparent; border: 0;
+  display: flex; align-items: center; gap: var(--space-2);
+  text-align: left; padding: var(--space-2) var(--space-3); border-radius: var(--radius-item); background: transparent; border: 0;
   color: var(--text-primary-color); font-size: var(--text-body); overflow-wrap: anywhere;
 }
-.app-menu__item svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-secondary-color); }
+.app-menu__item svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; color: var(--text-secondary-color); }
 .app-menu__item:hover { background: var(--surface-hover); }
 .app-menu__item--selected { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .app-menu__check { margin-left: auto; color: var(--accent-primary) !important; }
@@ -958,14 +970,14 @@
    the difference cannot rest on colour: the value is there, in the weight the
    rest of the app gives a fact. */
 .date-field__trigger--set { color: var(--text-primary-color); font-weight: var(--weight-strong); }
-.date-field__trigger > svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.date-field__trigger > svg { width: var(--icon-row); height: var(--icon-row); flex: 0 0 auto; }
 .date-field__value {
   flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .date-field__clear {
-  width: 24px; height: 24px; flex: 0 0 auto;
+  width: var(--icon-button-inline); height: var(--icon-button-inline); flex: 0 0 auto;
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
@@ -973,13 +985,13 @@
 }
 .date-field__clear:hover { background: var(--surface-active); color: var(--text-primary-color); }
 .date-field__clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.date-field__clear svg { width: 12px; height: 12px; }
+.date-field__clear svg { width: var(--icon-meta); height: var(--icon-meta); }
 .date-field__popup {
   /* Fixed and on `document.body`: the panels this is opened from sit inside
      columns that clip their overflow, so an absolutely positioned calendar is
      cut at the column's edge. `datePicker.tsx` places it. */
   position: fixed;
-  z-index: 60;
+  z-index: var(--layer-nested-popover);
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
@@ -1003,7 +1015,7 @@
   white-space: nowrap;
 }
 .date-calendar__step {
-  width: 24px; height: 24px; flex: 0 0 auto;
+  width: var(--icon-button-inline); height: var(--icon-button-inline); flex: 0 0 auto;
   display: grid; place-items: center;
   padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
@@ -1013,15 +1025,15 @@
 .date-calendar__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 /* A month entirely outside `min`/`max` has nothing to step to, and a button that
    answers nothing when pressed is worse than one that says it cannot. */
-.date-calendar__step:disabled { opacity: 0.42; cursor: default; }
-.date-calendar__step svg { width: 14px; height: 14px; }
+.date-calendar__step:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.date-calendar__step svg { width: var(--icon-row); height: var(--icon-row); }
 .date-calendar__grid { display: grid; gap: 2px; }
 .date-calendar__week { display: grid; grid-template-columns: repeat(7, 28px); gap: 2px; }
 /* A hairline under the initials, so the week's header reads as the header of
    the columns below it rather than as a first, oddly quiet row of days. */
 .date-calendar__week:first-child {
   margin-bottom: 2px;
-  padding-bottom: 4px;
+  padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--border-subtle);
 }
 .date-calendar__weekday {
@@ -1044,7 +1056,7 @@
 .date-calendar__day:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -1px; }
 /* The days either side of this month are shown, not hidden: a grid that jumps
    its shape every month is harder to read than one with quiet edges. */
-.date-calendar__day--outside { color: var(--text-secondary-color); opacity: 0.55; }
+.date-calendar__day--outside { color: var(--text-secondary-color); opacity: var(--opacity-muted); }
 /* Today is marked by a ring and the chosen day by a fill, so the two are told
    apart without either depending on colour alone. The ring is the accent rather
    than a neutral border: at 28px, a hairline in `--border-control` is invisible
@@ -1065,7 +1077,7 @@
 /* Both at once — today, chosen — reads as chosen: the fill is the stronger
    statement and the ring would only muddy its edge. */
 .date-calendar__day--today.date-calendar__day--selected { border-color: var(--accent-primary-fill); }
-.date-calendar__day[aria-disabled="true"] { opacity: 0.35; }
+.date-calendar__day[aria-disabled="true"] { opacity: var(--opacity-disabled); }
 .date-calendar__day[aria-disabled="true"]:hover { background: transparent; }
 
 @media (pointer: coarse) {
@@ -1083,7 +1095,7 @@
   }
   .dialog-close-button { width: var(--control-height-lg); height: var(--control-height-lg); }
   .app-toast__close { width: var(--control-height-lg); height: var(--control-height-lg); }
-  .toggle-switch { width: 52px; height: var(--control-height-lg); padding: 6px; }
+  .toggle-switch { width: 52px; height: var(--control-height-lg); padding: var(--space-2); }
   .toggle-switch__knob { width: 30px; height: 30px; }
   .toggle-switch--on .toggle-switch__knob { transform: translateX(10px); }
 }
@@ -1121,8 +1133,8 @@
    reads as clearly rounded and clearly not a circle. */
 .filter-control__trigger {
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: var(--icon-button-inline);
+  height: var(--icon-button-inline);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -1136,7 +1148,7 @@
 .filter-control__trigger:hover { background: var(--surface-raised); color: var(--text-primary-color); }
 .filter-control__trigger[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
 .filter-control__trigger--active { background: var(--surface-active); color: var(--accent-primary); }
-.filter-control__trigger svg { width: 14px; height: 14px; }
+.filter-control__trigger svg { width: var(--icon-row); height: var(--icon-row); }
 /* A filled count, not a bare tint: a filter that is narrowing what the user is
    looking at must not be distinguishable by colour alone. */
 .filter-control__badge {
@@ -1147,7 +1159,7 @@
   height: 13px;
   display: grid;
   place-items: center;
-  padding: 0 3px;
+  padding: 0 var(--space-1);
   border-radius: var(--radius-pill);
   background: var(--accent-primary);
   color: var(--accent-primary-contrast);
@@ -1209,7 +1221,7 @@
    off each side brings them to 233px and 261px — fitting both, with room left
    for a font that renders a little wider. Wrapping is still allowed: a language
    longer than Spanish should break the row rather than the words. */
-.filter-panel__capsules--dense .filter-panel__capsule { padding: 0 6px; }
+.filter-panel__capsules--dense .filter-panel__capsule { padding: 0 var(--space-2); }
 /* A one- or two-letter answer — "Yes", "No", "Sí" — comes out 26px wide beside
    its own 26px height, and a square with a pill radius is a circle. DESIGN.md
    § Shape reserves circles for atomic things with no reading direction, which a
@@ -1218,7 +1230,7 @@
    row whose fit was counted in pixels, and a floor there could break it. */
 .filter-panel__capsules:not(.filter-panel__capsules--dense) .filter-panel__capsule { min-width: 44px; justify-content: center; }
 .filter-panel__capsule {
-  min-height: 26px;
+  min-height: var(--control-height-xs);
   display: inline-flex;
   align-items: center;
   padding: 0 var(--space-2);
@@ -1234,7 +1246,7 @@
    the eye actually sees. */
 .filter-panel__capsule:has(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .filter-panel__capsule--active {
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) var(--tint-edge), transparent);
   background: var(--surface-active);
   color: var(--accent-primary);
 }
@@ -1243,14 +1255,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 5px 6px;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-item);
   color: var(--text-primary-color);
   font-size: var(--text-label);
   transition: background var(--duration-fast);
 }
 .filter-panel__switch:hover { background: var(--surface-hover); }
-.filter-panel__switch svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.filter-panel__switch svg { width: var(--icon-row); height: var(--icon-row); flex: 0 0 auto; color: var(--text-secondary-color); }
 .filter-panel__switch-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* How many rows the switch stands for, at the caption tier: a fact about the
    list, not a second label. */
@@ -1281,7 +1293,7 @@
 .filter-chip {
   max-width: 100%;
   min-width: 0;
-  height: 24px;
+  height: var(--control-height-xs);
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -1296,14 +1308,14 @@
    read, not how much of one is shown. It leads the row and is marked as a
    different kind of thing. */
 .filter-chip--quiet {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--surface-raised));
+  background: color-mix(in srgb, var(--accent-primary) var(--tint-fill), var(--surface-raised));
   color: var(--text-primary-color);
 }
-.filter-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.filter-chip svg { width: var(--icon-meta); height: var(--icon-meta); flex-shrink: 0; }
 .filter-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-chip__remove {
-  width: 20px;
-  height: 20px;
+  width: var(--icon-button-chip);
+  height: var(--icon-button-chip);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -1314,8 +1326,8 @@
   color: inherit;
   transition: background var(--duration-fast);
 }
-.filter-chip__remove:hover { background: color-mix(in srgb, var(--accent-primary) 18%, transparent); }
-.filter-chip__remove svg { width: 12px; height: 12px; }
+.filter-chip__remove:hover { background: color-mix(in srgb, var(--accent-primary) var(--tint-fill-hover), transparent); }
+.filter-chip__remove svg { width: var(--icon-meta); height: var(--icon-meta); }
 
 /* ---------------------------------------------------------------------------
  * Settings-panel chrome.
@@ -1337,12 +1349,12 @@
    the subtle hairline (DESIGN.md, Regions, not cards). The rail's 12px plus
    an item's 12px put its icons on the header's 24px inset. */
 .settings-nav {
-  display: grid; align-content: start; gap: 4px; padding: 20px 12px;
+  min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: var(--space-1); padding: 20px var(--space-3);
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-raised);
 }
 .settings-nav__item {
-  width: 100%; min-height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 11px;
+  width: 100%; min-height: 42px; padding: 0 var(--space-3); display: flex; align-items: center; gap: var(--space-3);
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-secondary-color);
   text-align: left; font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-tight);
   transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
@@ -1354,8 +1366,18 @@
   color: var(--text-primary-color); font-weight: var(--weight-title);
 }
 .settings-nav__item--active > span:first-child { color: var(--accent-primary); }
-.settings-nav__item > span:first-child { width: 18px; height: 18px; display: grid; place-items: center; }
-.settings-nav__item svg { width: 18px; height: 18px; }
+.settings-nav__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* Block titles in the Settings rail. Rows drop to 36px there so three titles
+   and a divider fit beside eleven sections without the rail scrolling. */
+.settings-nav__group {
+  padding: var(--space-3) var(--space-3) 2px; color: var(--text-secondary-color);
+  font-size: var(--text-caption); font-weight: var(--weight-title); letter-spacing: var(--tracking-caps); text-transform: uppercase;
+}
+.settings-nav__group:first-child { padding-top: 0; }
+.settings-nav__divider { height: 1px; margin: var(--space-2) var(--space-3); background: var(--border-subtle); }
+.settings-nav:has(.settings-nav__group) .settings-nav__item { min-height: 36px; }
+.settings-nav__item > span:first-child { width: var(--icon-nav); height: var(--icon-nav); flex-shrink: 0; display: grid; place-items: center; }
+.settings-nav__item svg { width: var(--icon-nav); height: var(--icon-nav); }
 .settings-view {
   min-height: 0; overflow-y: auto; scrollbar-gutter: stable;
   display: grid; align-content: start; gap: 0;
@@ -1371,7 +1393,7 @@
   border-top: 1px solid var(--border-subtle);
 }
 .settings-group__header { padding: 0; }
-.settings-group__header h3 { margin: 0 0 4px; font-size: var(--text-lead); line-height: var(--leading-snug); }
+.settings-group__header h3 { margin: 0 0 var(--space-1); font-size: var(--text-lead); line-height: var(--leading-snug); }
 .settings-group__header p {
   margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal);
 }
@@ -1397,7 +1419,7 @@
   background: var(--surface-hover);
 }
 .settings-view .segmented-control__option--active {
-  background: color-mix(in srgb, var(--text-primary-color) 9%, var(--surface-raised));
+  background: color-mix(in srgb, var(--text-primary-color) var(--tint-selected), var(--surface-raised));
   color: var(--text-primary-color);
   font-weight: var(--weight-title);
 }
@@ -1413,7 +1435,7 @@
    as it moves between the active value and a range complaint. */
 .settings-row__status { min-height: 18px; }
 .settings-row + .settings-row { margin-top: var(--space-4); }
-.settings-row strong { display: block; margin-bottom: 3px; font-size: var(--text-body); line-height: var(--leading-snug); }
+.settings-row strong { display: block; margin-bottom: var(--space-1); font-size: var(--text-body); line-height: var(--leading-snug); }
 /* The label column takes whatever the control leaves. A measure in `ch` sat a
    description at ~450px beside a 40px switch in a 710px row, so one sentence
    that fit the row still broke onto a second line. The settings column is
@@ -1423,10 +1445,10 @@
 .settings-row > :has(> strong) { flex: 1 1 auto; min-width: 0; }
 .settings-row p { color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); margin-bottom: 0; }
 .settings-row__hint {
-  display: flex; align-items: center; gap: 6px; margin: 0;
+  display: flex; align-items: center; gap: var(--space-2); margin: 0;
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
-.settings-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
+.settings-row__hint svg { flex-shrink: 0; width: var(--icon-row); height: var(--icon-row); }
 /* Only the two tones the identity notice can actually take. The installation
    rows use the `status-line--*` scale instead. */
 .settings-row__hint--success { color: var(--status-success); }
@@ -1452,19 +1474,21 @@
   width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; overflow: hidden;
   border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-primary-color);
 }
-.tool-row__tile svg { width: 16px; height: 16px; }
-/* The app's own mark is the whole mascot, so it sits a touch larger in the
-   same circle without the tile changing size; its aspect ratio sets the height
-   and leaves headroom for the update row's hop. */
-.tool-row__tile .gitodile-mascot { width: 24px; height: auto; }
+.tool-row__tile svg { width: var(--icon-control); height: var(--icon-control); }
+/* The app's own mark is the whole mascot, so it stands free: no circle behind
+   it and nothing clipping it, filling the same 32px column without the row
+   changing size. Its aspect ratio sets the height, and the update row's hop
+   rises past the tile instead of being cut off by it. */
+.tool-row__tile:has(> .gitodile-mascot) { overflow: visible; background: transparent; }
+.tool-row__tile .gitodile-mascot { width: 30px; height: auto; }
 .tool-row__name { font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug); }
 .tool-row__chip {
-  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
-  padding: 1px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0;
+  padding: 1px var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong);
   line-height: var(--leading-snug); white-space: nowrap;
 }
-.tool-row__chip svg { width: 11px; height: 11px; }
+.tool-row__chip svg { width: var(--icon-meta); height: var(--icon-meta); }
 .tool-row__chip--success { color: var(--status-success); }
 .tool-row__chip--accent { color: var(--accent-primary); }
 .tool-row__chip--warning { color: var(--status-warning); }
@@ -1473,10 +1497,10 @@
 .tool-row__detail, .tool-row__status { display: flex; align-items: center; }
 .tool-row__detail > *, .tool-row__status > * { margin: 0; }
 .tool-row__hint {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: var(--space-2);
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug);
 }
-.tool-row__hint svg { flex-shrink: 0; width: 13px; height: 13px; }
+.tool-row__hint svg { flex-shrink: 0; width: var(--icon-row); height: var(--icon-row); }
 .tool-row__detail:empty,
 .tool-row__status:empty,
 .tool-row__hint:empty { display: none; }
@@ -1509,11 +1533,11 @@
    status line the heaviest thing in its row — heavier than the version it
    describes. The icon and the ink carry the tone on their own. */
 .status-line {
-  display: inline-flex; align-items: flex-start; gap: 7px;
+  display: inline-flex; align-items: flex-start; gap: var(--space-2);
   margin: 0; padding: 0;
   color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.status-line svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
+.status-line svg { flex-shrink: 0; width: var(--icon-row); height: var(--icon-row); margin-top: 2px; }
 .status-line--success { color: var(--status-success); }
 .status-line--accent { color: var(--accent-primary); font-weight: var(--weight-heading); }
 .status-line--warning { color: var(--status-warning); }
@@ -1532,16 +1556,16 @@
  * ------------------------------------------------------------------------- */
 .choice-list { display: grid; gap: var(--space-2); }
 .choice-list__option {
-  display: grid; gap: 3px; padding: 10px var(--space-3); text-align: left;
+  display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-3); text-align: left;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-card); color: var(--text-primary-color);
 }
 .choice-list__option:hover:not(:disabled) { background: var(--surface-hover); }
-.choice-list__option:disabled { cursor: default; opacity: 0.6; }
+.choice-list__option:disabled { cursor: default; opacity: var(--opacity-disabled); }
 .choice-list__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .choice-list__option--active {
   border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
+  background: color-mix(in srgb, var(--text-primary-color) var(--tint-selected), var(--surface-card));
 }
 .choice-list__label {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
@@ -1549,8 +1573,8 @@
 }
 .choice-list__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 .choice-list__badge {
-  padding: 1px 7px; border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  padding: 1px var(--space-2); border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent-primary) var(--tint-fill), transparent);
   color: var(--accent-primary); font-size: var(--text-caption); font-weight: var(--weight-strong);
 }
 
@@ -1558,12 +1582,14 @@
   .settings-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .settings-nav {
     display: flex; overflow-x: auto; overscroll-behavior-x: contain;
-    padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--border-divider);
+    padding: var(--space-3) var(--space-3); border-right: 0; border-bottom: 1px solid var(--border-divider);
     scrollbar-width: none;
   }
   .settings-nav::-webkit-scrollbar { display: none; }
-  .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 12px; }
-  .settings-view { padding: 22px 20px 28px; }
+  .settings-nav__item { width: auto; flex: 0 0 auto; padding: 0 var(--space-3); }
+  /* The rail is a scrolling row here; block titles would only break it up. */
+  .settings-nav__group, .settings-nav__divider { display: none; }
+  .settings-view { padding: var(--space-5) 20px 28px; }
   /* Both settings dialogs are still wide at this breakpoint. Keep short
      choices together and let them wrap only when they genuinely run out of
      room; the shared mobile primitive otherwise turns three one-word options
@@ -1639,8 +1665,8 @@
 }
 .docked-composer__close:hover:enabled { background: var(--surface-hover); color: var(--text-primary-color); }
 .docked-composer__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.docked-composer__close:disabled { opacity: 0.5; }
-.docked-composer__close svg { width: 14px; height: 14px; }
+.docked-composer__close:disabled { opacity: var(--opacity-disabled); }
+.docked-composer__close svg { width: var(--icon-row); height: var(--icon-row); }
 @media (pointer: coarse) {
   .docked-composer__close { width: var(--control-height-lg); height: var(--control-height-lg); }
 }
@@ -1654,11 +1680,11 @@
    own text inset. One line tall at least, so the field under it keeps its
    place whatever the line says and however late it arrives. */
 .docked-composer__line {
-  display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 18px; margin: 0;
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 18px; margin: 0;
   padding: 0 var(--space-4);
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
-.docked-composer__line svg { width: 12px; height: 12px; flex: 0 0 auto; }
+.docked-composer__line svg { width: var(--icon-meta); height: var(--icon-meta); flex: 0 0 auto; }
 /* A branch named in the plan line, in the status bar's own mono. */
 .docked-composer__mono {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1668,7 +1694,7 @@
    the success colour with a check. A long name truncates; the sentence is on
    the tooltip. */
 .docked-composer__success { color: var(--status-success); }
-.docked-composer__success > svg { width: 13px; height: 13px; }
+.docked-composer__success > svg { width: var(--icon-row); height: var(--icon-row); }
 .docked-composer__success > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The single-line field is a pill, like every single-line input in the app
    (DESIGN.md § Shape) — the search box at the other end of the panel is the
@@ -1684,13 +1710,13 @@ input.docked-composer__field {
 }
 input.docked-composer__field:focus { border-color: var(--focus-ring); background: var(--surface-raised); }
 .docked-composer__field::placeholder { color: var(--text-secondary-color); }
-.docked-composer__field:disabled { opacity: 0.6; }
+.docked-composer__field:disabled { opacity: var(--opacity-disabled); }
 .docked-composer__error {
-  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 9px var(--space-3); border-radius: var(--radius-item);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger);
+  display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-item);
+  background: color-mix(in srgb, var(--status-danger) var(--tint-fill), transparent); color: var(--status-danger);
   font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.docked-composer__error svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; }
+.docked-composer__error svg { flex-shrink: 0; width: var(--icon-control); height: var(--icon-control); margin-top: 1px; }
 /* At rest only the button shows here, beside the field; open, the option
    joins it at the start, a step of space under the details. Short of the
    room for both, `flex-wrap` drops the button to a line of its own, still at
@@ -1702,14 +1728,14 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 /* The one option of this press ("Also publish", "Switch to it"): a checkbox
    and its words, at the start of the foot, shown only while open. */
 .docked-composer__option {
-  display: none; align-items: center; gap: 8px; flex-shrink: 0; margin-right: auto; padding-left: var(--space-2);
+  display: none; align-items: center; gap: var(--space-2); flex-shrink: 0; margin-right: auto; padding-left: var(--space-2);
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-medium);
 }
 .docked-composer--expanded .docked-composer__option { display: inline-flex; }
 .docked-composer__action { flex: 0 0 auto; }
 /* The working spinner at a button icon's size: lucide's own 24px made the
    button taller than the field beside it for as long as the request ran. */
-.docked-composer__action svg { width: 15px; height: 15px; }
+.docked-composer__action svg { width: var(--icon-control); height: var(--icon-control); }
 
 /* ---------------------------------------------------------------------------
  * Dialogs (DESIGN.md § Dialogs). One shell for every action dialog: three
@@ -1722,7 +1748,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
    inside Settings) keeps its own backdrop transparent, so the window behind
    is not veiled twice. */
 .app-dialog-backdrop {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
+  position: fixed; inset: 0; z-index: var(--layer-dialog); display: grid; place-items: center; padding: var(--space-5);
   background: var(--overlay); backdrop-filter: blur(8px);
 }
 .app-dialog-backdrop .app-dialog-backdrop { background: transparent; backdrop-filter: none; }
@@ -1751,7 +1777,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
   flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round);
   background: var(--surface-control); color: var(--accent-primary);
 }
-.app-dialog__glyph svg { width: 20px; height: 20px; }
+.app-dialog__glyph svg { width: var(--icon-tile); height: var(--icon-tile); }
 /* The circle stays neutral in every tone and every theme; only the glyph
    takes the colour (DESIGN.md § Glyph tones). `--surface-active` is not
    neutral: a community theme tints it with its accent. The glyph tones
@@ -1771,27 +1797,27 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog__summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lead); }
 .app-dialog__summary > strong { font-weight: var(--weight-strong); }
 .app-dialog__facts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
-.app-dialog__fact { display: flex; gap: 10px; align-items: flex-start; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
+.app-dialog__fact { display: flex; gap: var(--space-3); align-items: flex-start; color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
 .app-dialog__fact > span:first-child { display: grid; margin-top: 2px; }
-.app-dialog__fact svg { width: 16px; height: 16px; }
+.app-dialog__fact svg { width: var(--icon-control); height: var(--icon-control); }
 .app-dialog__fact--safe { color: var(--text-primary-color); }
 .app-dialog__fact--safe > span:first-child { color: var(--status-success); }
 .app-dialog__banner {
-  display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px var(--space-3);
+  display: flex; gap: var(--space-3); align-items: flex-start; margin: 0; padding: var(--space-3) var(--space-3);
   border-radius: var(--radius-surface); font-size: var(--text-body); line-height: var(--leading-normal);
 }
 .app-dialog__banner > span:first-child { display: grid; margin-top: 2px; }
-.app-dialog__banner svg { width: 16px; height: 16px; }
+.app-dialog__banner svg { width: var(--icon-control); height: var(--icon-control); }
 .app-dialog__banner > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
 .app-dialog__banner p { margin: 0; }
-.app-dialog__banner--warning { background: color-mix(in srgb, var(--status-warning) 12%, transparent); }
+.app-dialog__banner--warning { background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent); }
 .app-dialog__banner--warning > span:first-child { color: var(--status-warning); }
-.app-dialog__banner--danger { background: color-mix(in srgb, var(--status-danger) 12%, transparent); }
+.app-dialog__banner--danger { background: color-mix(in srgb, var(--status-danger) var(--tint-fill), transparent); }
 .app-dialog__banner--danger > span:first-child { color: var(--status-danger); }
 .app-dialog__banner--info { background: var(--surface-control); }
 .app-dialog__banner--info > span:first-child { color: var(--accent-primary); }
 .app-dialog__note { display: flex; gap: var(--space-2); align-items: center; margin: 0; color: var(--text-secondary-color); font-size: var(--text-body); }
-.app-dialog__note svg { flex: none; width: 16px; height: 16px; color: var(--accent-primary); }
+.app-dialog__note svg { flex: none; width: var(--icon-control); height: var(--icon-control); color: var(--accent-primary); }
 /* An inline link inside a dialog's prose. With the ink accent (ADR 0033) its
    colour no longer sets it apart from the words around it, so the underline
    does that at rest (WCAG 1.4.1: never colour alone); hover only thickens it. */
@@ -1802,34 +1828,33 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 }
 .app-dialog__link:hover { text-decoration-thickness: 2px; }
 .app-dialog__link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
-.app-dialog__check { display: flex; gap: 10px; align-items: center; color: var(--text-primary-color); font-size: var(--text-body); }
+.app-dialog__check { display: flex; gap: var(--space-3); align-items: center; color: var(--text-primary-color); font-size: var(--text-body); }
 /* A choice that carries its own explanation is a card inside the dialog: the
    one inner-card recipe (DESIGN.md § Dialogs). */
 .app-dialog__check--block {
-  align-items: flex-start; padding: 10px var(--space-3);
+  align-items: flex-start; padding: var(--space-3) var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-card);
 }
 .app-dialog__check--block .app-checkbox { margin-top: 1px; }
 .app-dialog__check > span { display: flex; flex-direction: column; gap: 2px; }
 .app-dialog__check small { color: var(--text-secondary-color); font-size: var(--text-label); }
-.app-dialog__kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px var(--space-4); margin: 0; font-size: var(--text-body); }
+.app-dialog__kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2) var(--space-4); margin: 0; font-size: var(--text-body); }
 .app-dialog__kv dt { color: var(--text-secondary-color); }
 .app-dialog__kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .app-dialog__kv code { font-family: var(--font-mono); }
-.app-dialog__steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.app-dialog__step { display: flex; gap: 10px; align-items: center; color: var(--text-secondary-color); font-size: var(--text-body); }
+.app-dialog__steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.app-dialog__step { display: flex; gap: var(--space-3); align-items: center; color: var(--text-secondary-color); font-size: var(--text-body); }
 .app-dialog__step-dot {
   box-sizing: border-box; flex: none; width: 20px; height: 20px; display: grid; place-items: center;
   border-radius: var(--radius-round); background: var(--surface-control);
 }
-.app-dialog__step-dot svg { width: 12px; height: 12px; }
+.app-dialog__step-dot svg { width: var(--icon-meta); height: var(--icon-meta); }
 .app-dialog__step--done .app-dialog__step-dot { color: var(--status-success); }
 .app-dialog__step--active { color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .app-dialog__step--active .app-dialog__step-dot {
   background: transparent; border: 2px solid var(--accent-primary); border-right-color: transparent;
-  animation: app-dialog-spin 0.9s linear infinite;
+  animation: spin 900ms linear infinite;
 }
-@keyframes app-dialog-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .app-dialog__step--active .app-dialog__step-dot { animation: none; } }
 /* Actions: dismiss first, the title's verb last, always on the right. A
    footer note, when there is one, takes the left. */
@@ -1841,7 +1866,7 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .app-dialog__foot > .dialog-actions { margin-left: auto; }
 .app-dialog__details > summary { width: fit-content; color: var(--text-secondary-color); font-size: var(--text-label); }
 .app-dialog__details pre {
-  margin: var(--space-2) 0 0; padding: 10px var(--space-3); border-radius: var(--radius-item);
+  margin: var(--space-2) 0 0; padding: var(--space-3) var(--space-3); border-radius: var(--radius-item);
   background: var(--surface-code); font-family: var(--font-mono); font-size: var(--text-label);
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow-y: auto;
 }
@@ -1856,36 +1881,36 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 .danger-button {
   min-height: var(--control-height-md);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  padding: 6px var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4); border: 1px solid transparent; border-radius: var(--radius-pill);
   background: var(--status-danger); color: var(--status-danger-contrast);
   font: inherit; font-size: var(--control-font-md); font-weight: var(--weight-title);
   transition: filter var(--duration-fast);
 }
 .danger-button:not(:disabled):hover { filter: brightness(1.06); }
-.danger-button:disabled { opacity: 0.5; }
-.danger-button svg { flex-shrink: 0; width: 16px; height: 16px; }
-.danger-button--sm { min-height: var(--control-height-sm); padding: 6px var(--space-3); font-size: var(--control-font-sm); }
-.danger-button--sm svg { width: 14px; height: 14px; }
+.danger-button:disabled { opacity: var(--opacity-disabled); }
+.danger-button svg { flex-shrink: 0; width: var(--icon-control); height: var(--icon-control); }
+.danger-button--sm { min-height: var(--control-height-sm); padding: var(--space-2) var(--space-3); font-size: var(--control-font-sm); }
+.danger-button--sm svg { width: var(--icon-row); height: var(--icon-row); }
 
 /* A result with no next step: bottom centre, above the status bar, gone on
    its own after a few seconds (paused while pointed at or focused). Toasts
    stack, newest closest to the status bar; a toast that offers an action has
    no clock and stays until it is dismissed. */
 .app-toast-viewport {
-  position: fixed; left: 50%; bottom: 44px; z-index: 30; transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: 44px; z-index: var(--layer-popover); transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
   pointer-events: none; max-width: calc(100vw - 32px);
 }
 .app-toast {
-  pointer-events: auto; display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
+  pointer-events: auto; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-raised); box-shadow: var(--shadow-md);
   color: var(--text-primary-color); font-size: var(--text-body);
   min-width: 0; max-width: 100%;
   animation: app-toast-in var(--duration-normal) ease-out;
 }
 .app-toast__icon { display: grid; color: var(--accent-primary); flex-shrink: 0; }
-.app-toast__icon svg { width: 16px; height: 16px; }
+.app-toast__icon svg { width: var(--icon-control); height: var(--icon-control); }
 .app-toast__message { min-width: 0; }
 .app-toast__action {
   margin-left: var(--space-2); border: 0; background: none; padding: 0; white-space: nowrap;
@@ -1893,16 +1918,16 @@ input.docked-composer__field:focus { border-color: var(--focus-ring); background
 }
 .app-toast__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-item); }
 .app-toast__close {
-  display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px;
+  display: grid; place-items: center; flex-shrink: 0; width: var(--icon-button-attached); height: var(--icon-button-attached);
   margin-left: 2px; padding: 0; border: 0; border-radius: var(--radius-item);
   background: none; color: var(--text-secondary-color);
 }
 .app-toast__close:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .app-toast__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.app-toast__close svg { width: 14px; height: 14px; }
+.app-toast__close svg { width: var(--icon-row); height: var(--icon-row); }
 /* The bar is the toast's own clock: it drains over the same wait, and pausing
    the toast pauses this too, so the fill and the dismissal stay in step. */
-.app-toast--progress { position: relative; overflow: hidden; padding-bottom: 13px; }
+.app-toast--progress { position: relative; overflow: hidden; padding-bottom: var(--space-3); }
 .app-toast__progress {
   display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
   background: var(--border-subtle);

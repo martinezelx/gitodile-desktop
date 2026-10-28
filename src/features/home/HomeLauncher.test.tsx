@@ -14,6 +14,7 @@ const readySetup: HomeSetup = {
   accounts: [{ id: "github:luis-m", kind: "github", login: "luis-m", source: "connection", server: null }],
 };
 
+
 const recents: HomeRecentEntry[] = [
   { path: "C:\\dev\\portfolio-web", name: "portfolio-web", isFavourite: false, openedAt: Date.now() - 600_000 },
   { path: "C:\\workspace\\gitodile", name: "gitodile", isFavourite: true },
@@ -58,6 +59,23 @@ function promptText(): string | undefined {
 describe("HomeLauncher", () => {
   beforeEach(() => localStorage.clear());
   afterEach(cleanup);
+
+  it("offers Azure cloning from Home with the chosen connection and never requests discovery", async () => {
+    const accountId = "azo-contoso:token.user";
+    const list = vi.fn<RepositoryBrowserPort["list"]>();
+    const repositoryBrowser = createRepositoryBrowserController({ list, cancel: vi.fn(async () => undefined) });
+    const onBrowseAccountInClone = vi.fn();
+    renderLauncher({ repositoryBrowser, onBrowseAccountInClone,
+      setup: { ...readySetup, accounts: [{ id: accountId, kind: "azure", login: "Ada", source: "token", server: "dev.azure.com/contoso" }] },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Azure Repos" }));
+    expect(screen.getByText("dev.azure.com/contoso")).toBeInTheDocument();
+    expect(screen.queryByText("Loading your projects…")).not.toBeInTheDocument();
+    expect(list).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Clone from Azure Repos…" }));
+    expect(onBrowseAccountInClone).toHaveBeenCalledWith("azure", accountId);
+    expect(list).not.toHaveBeenCalled();
+  });
 
   it("greets by the Git name's first word and asks a question for the time of day", () => {
     renderLauncher();

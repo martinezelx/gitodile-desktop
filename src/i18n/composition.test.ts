@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveLanguage, translationNamespaces, translations } from "./index";
+import { en, enNamespaces } from "./en";
+import { es, esNamespaces } from "./es";
+import { resolveLanguage } from "./index";
+
+const translations = { en, es };
 
 describe("resolveLanguage", () => {
   it("resolves any Spanish locale, regardless of region, to Spanish", () => {
@@ -29,16 +33,17 @@ describe("resolveLanguage", () => {
 
 describe("translation composition", () => {
   it("keeps English and Spanish keys in parity inside every owning namespace", () => {
-    for (const [name, dictionary] of Object.entries(translationNamespaces)) {
-      expect(Object.keys(dictionary.es).sort(), `${name} Spanish keys`).toEqual(Object.keys(dictionary.en).sort());
+    for (const [name, english] of Object.entries(enNamespaces)) {
+      const spanish = esNamespaces[name as keyof typeof esNamespaces];
+      expect(Object.keys(spanish).sort(), `${name} Spanish keys`).toEqual(Object.keys(english).sort());
     }
   });
 
   it("assigns every key to exactly one namespace before eager composition", () => {
     const owners = new Map<string, string>();
 
-    for (const [name, dictionary] of Object.entries(translationNamespaces)) {
-      for (const key of Object.keys(dictionary.en)) {
+    for (const [name, dictionary] of Object.entries(enNamespaces)) {
+      for (const key of Object.keys(dictionary)) {
         expect(owners.get(key), `${key} is duplicated by ${name}`).toBeUndefined();
         owners.set(key, name);
       }
@@ -48,7 +53,7 @@ describe("translation composition", () => {
     expect(Object.keys(translations.es).sort()).toEqual(Object.keys(translations.en).sort());
   });
 
-  it("composes representative shell and feature copy synchronously in both languages", () => {
+  it("composes representative shell and feature copy in both languages", () => {
     expect(translations.en.navOverview).toBe("Overview");
     expect(translations.es.navOverview).toBe("Resumen");
     expect(translations.en.workbenchTabChanges).toBe("Changes");

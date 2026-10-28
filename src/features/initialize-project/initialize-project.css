@@ -19,7 +19,7 @@
   width: 100%;
   min-height: 68px;
   resize: vertical;
-  padding: 10px 12px;
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-panel);
@@ -52,7 +52,7 @@
 /* The shared selected recipe (`choice-list__option--active`). */
 .initialize-dialog__mode label.is-selected {
   border-color: var(--text-secondary-color);
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
+  background: color-mix(in srgb, var(--text-primary-color) var(--tint-selected), var(--surface-card));
 }
 /* The radio stays visible: which card is chosen is said by the mark, not
    only by a border colour. It is drawn as the app's own round mark — the

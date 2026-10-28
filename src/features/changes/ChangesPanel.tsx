@@ -35,12 +35,15 @@ import { DiffViewSelector } from "./DiffViewSelector";
 import { DiffStepNav } from "./DiffStepNav";
 import { DiffFind } from "./DiffFind";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
-import type { DiscardRecovery, FileDiff } from "./domain";
+import { canPreviewMarkdown, type DiscardRecovery, type FileDiff } from "./domain";
+import { MarkdownPreviewView, useMarkdownPreview } from "./markdownPreview";
+import { useMarkdownView } from "./markdownPreference";
+import { buildMarkdownExcerpt, buildUnifiedMarkdown } from "./markdownChanges";
 import { useDirectDiscard, type DirectDiscardOutcome } from "./directDiscard";
 import type { DiscardDialogRequest } from "./DiscardChangesDialog";
 import type { ChangesContextMenuState } from "./ChangesContextMenu";
 import { getChangesEmptyState, type ChangesEmptyHeadState } from "./emptyState";
-import { flatFileRows, flattenFileTree, isGroupedFileRow, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
+import { flatFileRows, flattenFileTree, isGroupedFileRow, resolveSelectedPath, useCollapsedFolders, useFileListView, type FileTreeRow } from "./fileTree";
 import { FileTreeFolderButton, FileViewToggle, treeIndentStyle } from "./FileTreeControls";
 
 const DiscardChangesDialog = React.lazy(async () => {
@@ -140,14 +143,7 @@ function ChangesActionsMenu({
 // bundle. Re-exported here so this screen's own consumers keep their import.
 export { getOrderedChangeEntries };
 
-/** Preserves the current selection if it is still present in `entries`,
- * otherwise falls back to the first entry (or `null` if the list is empty). */
-export function resolveSelectedPath(entries: WorkingTreeEntry[], previousPath: string | null): string | null {
-  if (previousPath !== null && entries.some((entry) => entry.path === previousPath)) {
-    return previousPath;
-  }
-  return entries[0]?.path ?? null;
-}
+export { resolveSelectedPath };
 
 /** Case-insensitive substring match over the whole repository-relative path,
  * so typing either a file name or a folder narrows the list — the same
@@ -657,7 +653,28 @@ function DiffWorkspace({
   // deliberately survives moving between files, and the change target is
   // reset per file by the effect below.
   const [viewMode, setViewMode] = useState<DiffViewMode>("unified");
+  const [markdownView, setMarkdownView] = useMarkdownView();
+  const currentDiff = diffState.status === "ready" && diffState.diff.path === selectedPath ? diffState.diff : null;
+  const markdownAvailable = canPreviewMarkdown(currentDiff);
+  const requestsMarkdown = markdownView === "markdown" && markdownAvailable;
+  const markdown = useMarkdownPreview(currentDiff, `${projectPath}\0${sessionEpoch}`, requestsMarkdown,
+    (filePath) => controller.readFileMarkdown(projectPath, sessionEpoch, filePath));
+  const comparison = useMemo(() => requestsMarkdown && markdown.state.status === "ready" && markdown.state.preview.kind === "ready"
+    ? buildUnifiedMarkdown(markdown.state.preview.beforeContent, markdown.state.preview.content) : undefined,
+  [requestsMarkdown, markdown.state]);
+  const excerpt = useMemo(() => requestsMarkdown && markdown.state.status === "ready" && markdown.state.preview.kind === "too-large" && currentDiff?.kind === "text"
+    ? buildMarkdownExcerpt(currentDiff.hunks, currentDiff.truncated) : undefined,
+  [requestsMarkdown, markdown.state, currentDiff]);
+  const markdownFailure = !requestsMarkdown ? null : markdown.state.status === "error" ? t.changesMarkdownError
+    : markdown.state.status === "ready" && markdown.state.preview.kind === "too-large" && !excerpt
+      ? t.changesMarkdownTooLarge(markdown.state.preview.limitBytes / 1024)
+      : comparison === null ? t.changesMarkdownComplex : null;
+  const showsMarkdown = requestsMarkdown && markdownFailure === null;
+  const effectiveViewMode = markdownAvailable && markdownView !== "markdown" ? markdownView : viewMode;
   const [hunkTarget, setHunkTarget] = useState({ index: 0, token: 0 });
+  const [markdownTarget, setMarkdownTarget] = useState({ index: -1, token: 0 });
+  const markdownCount = comparison?.changeCount ?? excerpt?.changeCount ?? 0;
+  const markdownIndex = Math.min(markdownTarget.index, Math.max(0, markdownCount - 1));
   const [diffSearch, setDiffSearch] = useState("");
   const [isFindOpen, setIsFindOpen] = useState(false);
   const hunkCount = getHunkCount(diffState);
@@ -678,6 +695,7 @@ function DiffWorkspace({
   useEffect(() => {
     setHunkTarget({ index: 0, token: 0 });
   }, [selectedPath]);
+  useEffect(() => { setMarkdownTarget({ index: -1, token: 0 }); }, [currentDiff, comparison, excerpt]);
 
   /* The strip names the file, so the name keeps its room and the folder gives
    * way first — but not to the point of showing a two-letter stub of the last
@@ -803,7 +821,7 @@ function DiffWorkspace({
               t={t}
             />
           )}
-          {hunkCount > 0 && viewMode !== "accessible" && (
+          {hunkCount > 0 && effectiveViewMode !== "accessible" && !showsMarkdown && (
             <DiffStepNav
               kind="hunk"
               position={hunkTarget.index + 1}
@@ -813,17 +831,23 @@ function DiffWorkspace({
               t={t}
             />
           )}
+          {showsMarkdown && markdownCount > 0 && <DiffStepNav
+            kind="hunk" position={markdownIndex + 1} total={markdownCount} allowUnselectedNext
+            onPrevious={() => setMarkdownTarget((target) => ({ index: markdownIndex - 1, token: target.token + 1 }))}
+            onNext={() => setMarkdownTarget((target) => ({ index: markdownIndex + 1, token: target.token + 1 }))}
+            t={t}
+          />}
           {/* The same find History's diff strip carries, between the arrows and
               the reading controls: a magnifier at rest, a pill whose X closes
               it once opened. */}
-          <DiffFind
+          {!showsMarkdown && <DiffFind
             isOpen={isFindOpen}
             query={diffSearch}
             onQueryChange={setDiffSearch}
             onOpen={() => setIsFindOpen(true)}
             onClose={() => { setIsFindOpen(false); setDiffSearch(""); }}
             t={t}
-          />
+          />}
           {/* Last, at the far edge: the arrows move within this file, and the
               picker changes the file's whole shape. A picture answers the same
               question with its own pickers, in the same place and the same
@@ -833,7 +857,12 @@ function DiffWorkspace({
           {hasViewControls && (
             <div className="changes-diff__view">
               {picture?.hasControls && <PictureDiffControls picture={picture} t={t} />}
-              {showsReadingMode && <DiffViewSelector value={viewMode} onChange={setViewMode} t={t} />}
+              {showsReadingMode && <DiffViewSelector value={effectiveViewMode} onChange={(mode) => {
+                if (markdownAvailable) setMarkdownView(mode); else setViewMode(mode);
+              }} markdown={markdownAvailable ? { selected: showsMarkdown, onSelect: () => {
+                setMarkdownView("markdown");
+                if (markdownFailure) markdown.retry();
+              } } : undefined} t={t} />}
             </div>
           )}
         </div>
@@ -854,7 +883,8 @@ function DiffWorkspace({
         )}
         {diffState.status === "ready" && (
           <div className="changes-diff-context-scope" onContextMenu={onCodeContextMenu}>
-            <DiffResultView
+            {markdownFailure && <p className="changes-diff__status" role="status">{markdownFailure} {t.changesMarkdownFallback}</p>}
+            {showsMarkdown ? <MarkdownPreviewView state={markdown.state} retry={markdown.retry} t={t} comparison={comparison} excerpt={excerpt} changeTarget={markdownTarget} /> : <DiffResultView
               diff={diffState.diff}
               projectPath={projectPath}
               sessionEpoch={sessionEpoch}
@@ -862,11 +892,11 @@ function DiffWorkspace({
                 controller.readFileLines(projectPath, sessionEpoch, filePath, startLine, endLine)
               }
               picture={picture}
-              viewMode={viewMode}
+              viewMode={effectiveViewMode}
               hunkTarget={hunkTarget}
               searchQuery={diffSearch}
               t={t}
-            />
+            />}
           </div>
         )}
       </div>
@@ -1463,7 +1493,8 @@ export function ChangesPanel({
   // present; otherwise moves to the next available file and announces the
   // material change without stealing focus.
   useEffect(() => {
-    const resolved = resolveSelectedPath(entries, selectedPath);
+    const preservesSelection = selectedPath !== null && entries.some((entry) => entry.path === selectedPath);
+    const resolved = preservesSelection ? selectedPath : resolveSelectedPath(visibleEntries, null, fileView);
     if (resolved === selectedPath) {
       return;
     }
@@ -1471,7 +1502,11 @@ export function ChangesPanel({
     if (resolved) {
       setAnnouncement(t.changesSelectionAnnouncement(resolved));
     }
-  }, [entries, selectedPath, t, onSelectedPathChange]);
+  }, [entries, fileView, selectedPath, visibleEntries, t, onSelectedPathChange]);
+
+  useEffect(() => {
+    if (selectedPath) revealFile(selectedPath);
+  }, [revealFile, selectedPath]);
 
   // Local to this project's session: a switch away and back (or the working
   // tree simply refreshing) must not leave a previous project's checkbox
@@ -1765,7 +1800,7 @@ export function ChangesPanel({
                     strip above; the filters do not, so the one that can strand a
                     reader here offers its own undo. */}
                 {visibleEntries.length === 0 && (
-                  <div className="changes-file-list__empty" role="status">
+                  <div className="empty-line changes-file-list__empty" role="status">
                     <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
                     {activeFilterCount > 0 && (
                       <button
@@ -1850,8 +1885,8 @@ export function ChangesPanel({
         </nav>
         {!isLoadingList && workingTree?.isClean && emptyContent ? (
           <div className="changes-diff changes-diff--state">
-            <div className="changes-empty">
-              <div className="changes-empty__icon" aria-hidden="true">
+            <div className="empty-state empty-state--success changes-empty">
+              <div className="empty-state__icon" aria-hidden="true">
                 <CheckCircle2 />
               </div>
               <h2>{emptyContent.title}</h2>

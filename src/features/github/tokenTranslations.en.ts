@@ -1,0 +1,16 @@
+export const en = {
+  githubTokenTitle: "Token connection",
+  githubTokenServerTitle: "Token connection · {host}",
+  githubTokenServerPermissions: "Create it on this server. Classic tokens need the repo scope. Fine-grained tokens, where available, need Metadata and Contents (read, or read and write to publish). With SAML, authorize it for your organization.",
+  githubTokenExists: "This account already has a token. Remove it to replace it.",
+  githubTokenLimitReached: "You already have 8 tokens. Remove one first.",
+  githubTokenPermissionsTitle: "Which permissions does it need?",
+  githubTokenRemovalTitle: "Remove the token for @{login}?",
+  githubTokenLabel: "Personal access token", githubTokenConnect: "Check and connect",
+  githubTokenStorage: "Checked with GitHub and saved in your system's secure store, separately from GitHub CLI.",
+  githubTokenPermissions: "Fine-grained tokens need Metadata and Contents (read, or read and write to publish) for the projects you pick. Classic tokens need the repo scope. Your organization may need to approve it.",
+  githubTokenLimit: "Never your GitHub password. Up to 8 tokens.",
+  githubTokenConnected: "Token checked and saved.", githubTokenRemove: "Remove token",
+  githubTokenRemoved: "Token removed.",
+  githubTokenRemovalConsent: "Projects using it will need another account, and it stays valid on GitHub until you revoke it there.",
+};

@@ -1,7 +1,7 @@
 [package]
 name = "gitodile"
-version = "0.4.0"
-description = "A friendly Git desktop client"
+version = "0.4.1"
+description = "The Git client for humans and their agents"
 authors = ["Luis M. Martínez"]
 edition = "2021"
 license = "AGPL-3.0-only"
@@ -56,7 +56,25 @@ windows-registry = "0.100"
 # production artifacts keep no parser dependency.
 syn = { version = "3", features = ["full"] }
 base64 = "0.23"
-minisign-verify = "0.2"
+minisign-verify = "0.3"
+
+# Stand-ins for the `gh` and `glab` CLIs. `test = false` makes `cargo test`
+# build them as ordinary programs next to the test binaries, so no test has
+# to compile one while it runs (see `test_support::example_binary`).
+[[example]]
+name = "test_fake_gh"
+test = false
+harness = false
+
+[[example]]
+name = "test_fake_gh_inactive_account"
+test = false
+harness = false
+
+[[example]]
+name = "test_fake_glab"
+test = false
+harness = false
 
 # Smaller binary loads (and pages in from disk) faster on launch; this app is
 # I/O-bound (spawning git, not number-crunching), so trading opt-level 3 for

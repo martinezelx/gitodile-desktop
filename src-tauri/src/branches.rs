@@ -2344,7 +2344,7 @@ mod tests {
     }
 
     fn unique_temp_dir(label: &str) -> String {
-        let mut dir = std::env::temp_dir();
+        let mut dir = crate::test_support::test_temp_root().to_path_buf();
         dir.push(format!("gitodile-test-{label}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("create temp dir for test");
@@ -3494,7 +3494,7 @@ mod tests {
         // Sibling of the repo, not nested inside it — a worktree created
         // inside the repo root would itself show up as an untracked
         // directory in the main worktree's own status.
-        let mut worktree = std::env::temp_dir();
+        let mut worktree = crate::test_support::test_temp_root().to_path_buf();
         worktree.push(format!(
             "gitodile-test-vl-switch-worktree-linked-{}",
             std::process::id()

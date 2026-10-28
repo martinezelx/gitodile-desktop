@@ -1,3 +1,4 @@
+import { AzureAddPanel, AzureConnectionRows, azureConnectionsPort, type AzureConnectionsPort } from "../azure";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, CircleAlert, CircleArrowUp, Globe, Info, KeyRound, LoaderCircle, Plus, Server, TriangleAlert } from "lucide-react";
 import { useLanguage } from "../../i18n";
@@ -25,9 +26,9 @@ export type ProviderTooling = {
 };
 export type AccountsTooling = { github?: ProviderTooling | null; gitlab?: ProviderTooling | null };
 
-const KINDS: readonly HostingKind[] = ["github", "gitlab", "bitbucket"];
-const PROVIDER_NAMES: Record<HostingKind, string> = { github: "GitHub", gitlab: "GitLab", bitbucket: "Bitbucket" };
-const PUBLIC_HOSTS: Record<HostingKind, string> = { github: "github.com", gitlab: "gitlab.com", bitbucket: "bitbucket.org" };
+const KINDS: readonly HostingKind[] = ["github", "gitlab", "bitbucket", "azure"];
+const PROVIDER_NAMES: Record<HostingKind, string> = { github: "GitHub", gitlab: "GitLab", bitbucket: "Bitbucket", azure: "Azure Repos" };
+const PUBLIC_HOSTS: Record<HostingKind, string> = { github: "github.com", gitlab: "gitlab.com", bitbucket: "bitbucket.org", azure: "dev.azure.com" };
 const CLI_NAMES: Record<"github" | "gitlab", string> = { github: "GitHub CLI", gitlab: "GitLab CLI" };
 const CLI_COMMANDS: Record<"github" | "gitlab", string> = { github: "gh", gitlab: "glab" };
 
@@ -37,10 +38,11 @@ const CLI_COMMANDS: Record<"github" | "gitlab", string> = { github: "gh", gitlab
  * action is explicit; opening the section reads cached state. */
 export function AccountsSettings({
   github, gitlab, tooling = {}, openMenu = false, onMenuOpened,
-  port = hostingServersPort, accountPort = accountsPort, tokenPorts = {},
+  port = hostingServersPort, accountPort = accountsPort, tokenPorts = {}, azurePort = azureConnectionsPort,
 }: {
   github: { controller: GitHubAuthController; cliAvailable: boolean | null };
   gitlab: { controller: GitLabAuthController; cliAvailable: boolean | null };
+  azurePort?: AzureConnectionsPort;
   tooling?: AccountsTooling;
   /** Opens the provider menu once, on arrival: Home's "connect another account". */
   openMenu?: boolean;
@@ -59,15 +61,15 @@ export function AccountsSettings({
   const [message, setMessage] = useState("");
   const [connectRequest, setConnectRequest] = useState<ConnectRequest>(null);
   const [checkNonce, setCheckNonce] = useState(0);
-  const attention = (kind: HostingKind): ProviderTooling["attention"] => (kind === "bitbucket" ? null : tooling[kind]?.attention ?? null);
+  const attention = (kind: HostingKind): ProviderTooling["attention"] => ((kind === "bitbucket" || kind === "azure") ? null : tooling[kind]?.attention ?? null);
   const ghAttention = attention("github");
   const glAttention = attention("gitlab");
   const [open, setOpen] = useState<Record<HostingKind, boolean>>(
-    () => ({ github: ghAttention !== null, gitlab: glAttention !== null, bitbucket: false }));
+    () => ({ github: ghAttention !== null, gitlab: glAttention !== null, bitbucket: false, azure: false }));
   /* A block that asks for a look opens by itself, on arrival or when the
      answer arrives later, unless the reader has folded or opened it already.
      It never folds by itself: an update finishing must not move the page. */
-  const touched = useRef<Record<HostingKind, boolean>>({ github: false, gitlab: false, bitbucket: false });
+  const touched = useRef<Record<HostingKind, boolean>>({ github: false, gitlab: false, bitbucket: false, azure: false });
   useEffect(() => {
     const due = (["github", "gitlab"] as const).filter(kind =>
       (kind === "github" ? ghAttention : glAttention) !== null && !touched.current[kind]);
@@ -76,7 +78,7 @@ export function AccountsSettings({
       : { ...previous, ...Object.fromEntries(due.map(kind => [kind, true])) });
   }, [ghAttention, glAttention]);
   const trigger = useRef<HTMLButtonElement>(null);
-  const builtInPorts: Record<HostingKind, TokenConnectionPort> = {
+  const builtInPorts: Record<Exclude<HostingKind, "azure">, TokenConnectionPort> = {
     github: tokenPorts.github ?? githubTokenPort,
     gitlab: tokenPorts.gitlab ?? gitlabTokenPort,
     bitbucket: tokenPorts.bitbucket ?? bitbucketTokenPort,
@@ -116,7 +118,7 @@ export function AccountsSettings({
   const summary = (kind: HostingKind): string => {
     const count = accountCount(kind);
     const parts = [(count === 1 ? t.hostingServersAccountsOne : t.hostingServersAccountsMany).replace("{count}", String(count))];
-    if (kind === "bitbucket") return [...parts, t.accountsSettingsTokenOnly].join(" · ");
+    if (kind === "bitbucket" || kind === "azure") return [...parts, t.accountsSettingsTokenOnly].join(" · ");
     const serverCount = servers(kind).length;
     if (serverCount > 0) parts.push((serverCount === 1 ? t.accountsSettingsServersOne : t.accountsSettingsServersMany).replace("{count}", String(serverCount)));
     const cli = kind === "github" ? github.cliAvailable : gitlab.cliAvailable;
@@ -153,7 +155,7 @@ export function AccountsSettings({
                 <HostingProviderIcon provider={kind} />
                 {/* The space keeps the accessible name from running the two together. */}
                 <span><strong>{PROVIDER_NAMES[kind]}</strong>{" "}
-                  <small>{kind === "bitbucket" ? t.accountsSettingsMenuToken : t.accountsSettingsMenuBrowserOrToken}</small></span>
+                  <small>{kind === "azure" ? t.azureMenuToken : kind === "bitbucket" ? t.accountsSettingsMenuToken : t.accountsSettingsMenuBrowserOrToken}</small></span>
               </button>)}
             </div>}
           </div>
@@ -170,6 +172,9 @@ export function AccountsSettings({
           tool={CLI_COMMANDS[adding]} toolRow={tooling[adding]?.inline} />}
         {adding === "bitbucket" && <BitbucketAddPanel provider={builtIn("bitbucket")} port={builtInPorts.bitbucket}
           onCancel={close} onSettled={reload} onAdded={added} />}
+        {adding === "azure" && <AzureAddPanel port={azurePort} onCancel={close} onAdded={added} onSettled={reload} />}
+        {catalog.providers.filter(provider => provider.kind === "azure").map(provider => <AzureConnectionRows key={provider.id} provider={provider}
+          catalog={catalog} checking={checking} port={azurePort} onChanged={reload} />)}
         {loaded && !hasAccounts && <p className="github-account__note hosting-accounts__empty">{t.hostingAccountsNone}</p>}
         <HostAccounts provider={builtIn("github")} catalog={catalog} checking={checking} onChanged={reload} tokenPort={builtInPorts.github}>
           <GitHubAccountSection controller={github.controller} available={github.cliAvailable} />
@@ -191,8 +196,8 @@ export function AccountsSettings({
       </header>
       <div className="settings-group__body accounts-providers">
         {KINDS.map(kind => <ProviderBlock key={kind} kind={kind} summary={summary(kind)} open={open[kind]} onToggle={() => toggle(kind)}
-          attention={attention(kind)} tool={kind === "bitbucket" ? "" : toolName(kind)}>
-          {kind === "bitbucket"
+          attention={attention(kind)} tool={kind === "bitbucket" || kind === "azure" ? "" : toolName(kind)}>
+          {kind === "azure" ? <div className="accounts-provider__note"><p>{t.azureDescription}</p></div> : kind === "bitbucket"
             ? <div className="accounts-provider__note"><p>{t.bitbucketAccountsDescription}</p><p>{t.bitbucketTokenPermissions}</p></div>
             : <>
               <CompanyServersGroup kind={kind} servers={servers(kind)} catalog={catalog} failed={failed} reload={reload} port={port} />

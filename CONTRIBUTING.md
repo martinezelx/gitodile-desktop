@@ -30,7 +30,9 @@ technology versions.
 ## Change rules
 
 - Keep changes focused and preserve feature/domain ownership.
-- Add tests for behavior, parsers, planners, and architecture rules.
+- Add tests for behavior, parsers, planners, and architecture rules, following
+  the [test rules](AGENTS.md#tests): the cheapest level that proves the
+  behavior, and no tests that only pin copy, styling or layout.
 - Preserve keyboard access and loading, empty, error, and hidden-screen states.
 - Never bypass hooks/signing or silently discard, resolve, force-push, clean,
   reset, or delete user work.

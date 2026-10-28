@@ -7,7 +7,7 @@
   display: grid;
   gap: 2px;
   margin: 0;
-  padding: 4px;
+  padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
@@ -20,7 +20,7 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 36px;
-  padding: 7px 10px;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-item);
   color: var(--text-primary-color);
   font-size: var(--text-body);
@@ -30,8 +30,8 @@
 .publish-commit-list__summary::-webkit-details-marker { display: none; }
 .publish-commit-list__summary:hover { background: var(--surface-hover); }
 .publish-commit-list__chevron {
-  width: 14px;
-  height: 14px;
+  width: var(--icon-row);
+  height: var(--icon-row);
   flex-shrink: 0;
   color: var(--text-secondary-color);
   transition: transform var(--duration-fast);
@@ -46,7 +46,7 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 }
 .publish-commit-list__hash {
   flex-shrink: 0;
-  padding: 1px 7px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
   color: var(--text-secondary-color);
@@ -56,27 +56,27 @@ details[open] > .publish-commit-list__summary .publish-commit-list__chevron { tr
 .publish-commit-list__files {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-1);
   margin: 0;
-  padding: 2px 12px 10px 32px;
+  padding: 2px var(--space-3) var(--space-3) var(--space-6);
   color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
 .publish-commit-list__message-body {
   margin: 0;
-  padding: 2px 12px 10px 32px;
+  padding: 2px var(--space-3) var(--space-3) var(--space-6);
   color: var(--text-secondary-color);
   font-size: var(--text-label);
   line-height: var(--leading-normal);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.publish-commit-list__files[role="status"] { flex-direction: row; align-items: center; gap: 6px; }
-.publish-commit-list__files[role="status"] svg { width: 13px; height: 13px; flex-shrink: 0; }
+.publish-commit-list__files[role="status"] { flex-direction: row; align-items: center; gap: var(--space-2); }
+.publish-commit-list__files[role="status"] svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .publish-commit-list__files--error { color: var(--status-danger); }
-.publish-commit-list__file { display: flex; align-items: center; gap: 6px; }
+.publish-commit-list__file { display: flex; align-items: center; gap: var(--space-2); }
 .publish-commit-list__file svg,
-.publish-commit-list__file-type-icon { width: 13px; height: 13px; flex-shrink: 0; }
+.publish-commit-list__file-type-icon { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .publish-commit-list__file-type-icon { display: block; }
 .publish-commit-list__file-path { overflow-wrap: anywhere; }
 .publish-commit-list__file-category { display: grid; place-items: center; flex-shrink: 0; margin-left: auto; }

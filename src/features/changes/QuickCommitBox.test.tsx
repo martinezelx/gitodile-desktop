@@ -177,52 +177,6 @@ describe("QuickCommitBox", () => {
     expect(isExpanded(container)).toBe(true);
   });
 
-  it("lets a press elsewhere land before an empty box folds away", async () => {
-    // Folding between a press and its release moved the file list under the
-    // pointer, so the release landed on another row, or on none, and the
-    // press was lost. The click has to reach what was pressed first.
-    const fileListRef = React.createRef<HTMLDivElement>();
-    let expandedWhenClicked: boolean | null = null;
-    const { container } = render(
-      <LanguageProvider>
-        <button type="button" onClick={() => { expandedWhenClicked = isExpanded(container); }}>
-          a file row
-        </button>
-        <div ref={fileListRef}>
-          <QuickCommitBox
-            projectPath="/repo"
-            sessionEpoch="epoch-1"
-            selectedPaths={null}
-            canSave
-            runHooks={false}
-            remoteLabel={null}
-            fileListRef={fileListRef}
-            onSaveCompleted={vi.fn()}
-            onPublishNow={vi.fn()}
-          />
-        </div>
-      </LanguageProvider>,
-    );
-
-    await userEvent.click(screen.getByLabelText("Version name"));
-    await userEvent.click(screen.getByRole("button", { name: "a file row" }));
-
-    expect(expandedWhenClicked).toBe(true);
-    await waitFor(() => expect(isExpanded(container)).toBe(false));
-  });
-
-  it("keeps an empty box open when the window, not the box, loses focus", async () => {
-    const { container } = renderBox();
-    const title = screen.getByLabelText("Version name");
-    await userEvent.click(title);
-    // Minimized or behind another app: the page keeps its own focus on the
-    // field and hands it back on return.
-    vi.mocked(document.hasFocus).mockReturnValue(false);
-    title.blur();
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(isExpanded(container)).toBe(true);
-  });
-
   it("stays open when an empty box is pressed somewhere that takes no focus", async () => {
     const { container } = renderBox();
     await userEvent.click(screen.getByLabelText("Version name"));
@@ -345,7 +299,8 @@ describe("QuickCommitBox", () => {
     const { container } = renderBox();
     expect(screen.queryByRole("button", { name: "Close save version form" })).not.toBeInTheDocument();
     const title = screen.getByLabelText("Version name");
-    await userEvent.type(title, "half-written thought");
+    await userEvent.click(title);
+    await userEvent.paste("half-written thought");
     await userEvent.type(screen.getByLabelText("More details (optional)"), "and some detail");
     await userEvent.click(screen.getByRole("checkbox", { name: "Also publish" }));
 

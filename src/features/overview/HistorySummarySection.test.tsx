@@ -124,6 +124,7 @@ describe("HistorySummarySection", () => {
 
     expect(controller.getSnapshot(query).selectedCommit).toBe(version(1).commit);
     expect(onOpenHistory).toHaveBeenCalledOnce();
+    expect(onOpenHistory).toHaveBeenCalledWith();
   });
 
   it("names the branch a recent version sits on without turning it into prose", async () => {

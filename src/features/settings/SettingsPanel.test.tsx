@@ -16,6 +16,23 @@ import type { NavigationPreferences } from "./domain";
 afterEach(cleanup);
 
 describe("optional GitHub CLI tooling", () => {
+  it("includes the demo only when supplied and navigates the actual available tabs", async () => {
+    const user = userEvent.setup();
+    const view = renderPanel(createPort(), { gitodileAccount: <p>Demo body</p> });
+    const demo = screen.getByRole("tab", { name: "Account" });
+    screen.getByRole("tab", { name: "General" }).focus();
+    await user.keyboard("{Home}");
+    expect(demo).toHaveFocus();
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("Demo body");
+    await user.keyboard("{End}{ArrowDown}");
+    expect(demo).toHaveFocus();
+    view.unmount();
+    renderPanel(createPort());
+    expect(screen.queryByRole("tab", { name: "Account" })).toBeNull();
+    screen.getByRole("tab", { name: "General" }).focus();
+    await user.keyboard("{End}{ArrowDown}");
+    expect(screen.getByRole("tab", { name: "General" })).toHaveFocus();
+  });
   it("lists accounts before CLI tooling and keeps adding one independent of a missing gh", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
     const addAccount = vi.fn();
@@ -141,7 +158,7 @@ describe("optional GitHub CLI tooling", () => {
     const gitTab = screen.getByRole("tab", { name: /^Git(?:Git needs attention)?$/ });
     gitTab.focus();
     await userEvent.keyboard("{ArrowDown}");
-    expect(screen.getByRole("tab", { name: "Accounts" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Integrations" })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByRole("region", { name: "GitHub on your computer" })).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "main" })).not.toBeInTheDocument();
@@ -172,14 +189,14 @@ describe("optional GitHub CLI tooling", () => {
     const row = screen.getByRole("group", { name: "GitHub tool" });
     expect(within(row).getByText("Not responding")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "GitHub on your computer" })).toBeNull();
-    expect(within(screen.getByRole("tab", { name: /^Accounts/ })).getByRole("img", { name: "GitHub tool: needs attention" })).toBeInTheDocument();
+    expect(within(screen.getByRole("tab", { name: /^Integrations/ })).getByRole("img", { name: "GitHub tool: needs attention" })).toBeInTheDocument();
   });
 
   it("leaves the rail quiet while gh is only not installed", async () => {
     const port = createPort({ readGhDiagnostics: vi.fn<SettingsPort["readGhDiagnostics"]>(async () => ({ state: "missing", version: null })) });
     renderPanel(port, { initialSection: "accounts" });
     await screen.findByText("Not installed on this computer.");
-    expect(within(screen.getByRole("tab", { name: "Accounts" })).queryByRole("img")).toBeNull();
+    expect(within(screen.getByRole("tab", { name: "Integrations" })).queryByRole("img")).toBeNull();
   });
 
   it("reads only the local version on startup and keeps GitHub optional", async () => {
@@ -292,6 +309,7 @@ type PanelOverrides = Partial<{
   gitDiagnostics: GitDiagnostics | null;
   gitUpdateStatus: GitUpdateStatus | null;
   initialSection: SettingsSection;
+  gitodileAccount: React.ReactNode;
   accounts: (tooling: { github: AccountsToolSlot; gitlab: AccountsToolSlot | null }) => React.ReactNode;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
@@ -343,6 +361,7 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
   return (
     <SettingsPanel
       ghTooling={ghTooling}
+      gitodileAccount={overrides.gitodileAccount}
       accounts={overrides.accounts ?? ((tooling) => tooling.github.section)}
       theme={overrides.theme ?? "system"}
       setTheme={overrides.setTheme ?? vi.fn()}
@@ -374,10 +393,15 @@ function Harness({ port, overrides }: { port: SettingsPort; overrides: PanelOver
         setRunGitHooks(value);
       }}
       navigationItems={[
-        { id: "overview", label: "Overview", icon: <span /> },
-        { id: "changes", label: "Changes", icon: <span /> },
-        { id: "history", label: "History", icon: <span /> },
+        { id: "overview", label: "Overview", description: "Where the project stands, at a glance.", icon: <span /> },
+        { id: "changes", label: "Changes", description: null, icon: <span /> },
+        { id: "history", label: "History", description: null, icon: <span /> },
       ]}
+      defaultNavigationPreferences={{
+        visibleDestinationIds: ["overview", "changes", "history"],
+        destinationOrderIds: ["overview", "changes", "history"],
+        displayMode: "icons-and-text",
+      }}
       navigationPreferences={overrides.navigationPreferences ?? {
         visibleDestinationIds: ["overview", "changes", "history"],
         destinationOrderIds: ["overview", "changes", "history"],
@@ -510,7 +534,8 @@ describe("Settings panel native boundary", () => {
     // pair, like every other control in the panel applies on change.
     const email = await screen.findByRole("textbox", { name: "Email" });
     await userEvent.clear(email);
-    await userEvent.type(email, "ada@lovelace.dev");
+    await userEvent.click(email);
+    await userEvent.paste("ada@lovelace.dev");
     await userEvent.tab();
 
     await waitFor(() =>
@@ -565,6 +590,11 @@ describe("Settings panel native boundary", () => {
               runGitHooks={false}
               setRunGitHooks={vi.fn()}
               navigationItems={[]}
+              defaultNavigationPreferences={{
+                visibleDestinationIds: [],
+                destinationOrderIds: [],
+                displayMode: "icons-and-text",
+              }}
               navigationPreferences={{
                 visibleDestinationIds: [],
                 destinationOrderIds: [],
@@ -643,7 +673,8 @@ describe("Settings panel identity draft", () => {
     renderPanel(port, { initialSection: "git" });
 
     await userEvent.type(await screen.findByRole("textbox", { name: "Name" }), "Ada");
-    await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "ada@lovelace.dev");
+    await userEvent.click(screen.getByRole("textbox", { name: "Email" }));
+    await userEvent.paste("ada@lovelace.dev");
     await userEvent.tab();
 
     // The message used to render with the same success check as "Saved.",
@@ -666,7 +697,8 @@ describe("Settings panel identity draft", () => {
     });
 
     await userEvent.type(await screen.findByRole("textbox", { name: "Name" }), "Ada");
-    await userEvent.type(screen.getByRole("textbox", { name: "Email" }), "ada@lovelace.dev");
+    await userEvent.click(screen.getByRole("textbox", { name: "Email" }));
+    await userEvent.paste("ada@lovelace.dev");
 
     // Dismissed with focus still in the field, so no blur has committed yet.
     expect(closeGuard.current?.()).toBe(true);
@@ -717,7 +749,7 @@ describe("Settings panel identity draft", () => {
 describe("Settings panel line endings", () => {
   it("reports that nothing is set, and writes the choice that is picked", async () => {
     const port = createPort();
-    renderPanel(port, { initialSection: "line-endings" });
+    renderPanel(port, { initialSection: "git" });
 
     await waitFor(() => expect(port.readLineEndings).toHaveBeenCalledWith(null));
     expect(
@@ -725,7 +757,7 @@ describe("Settings panel line endings", () => {
     ).toBeInTheDocument();
     // Nothing is in effect, so no option reads as the active one and there is
     // no caveat block to explain away.
-    expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+    expect(within(await screen.findByRole("radiogroup", { name: "Line endings" })).queryAllByRole("radio", { checked: true })).toHaveLength(0);
     expect(document.querySelector(".line-endings__caveat")).toBeNull();
 
     // The label the user clicks never mentions autocrlf; only the adapter and
@@ -742,7 +774,7 @@ describe("Settings panel line endings", () => {
   });
 
   it("marks the choice that suits this platform", async () => {
-    renderPanel(createPort({ readPlatform: vi.fn(() => "macos") }), { initialSection: "line-endings" });
+    renderPanel(createPort({ readPlatform: vi.fn(() => "macos") }), { initialSection: "git" });
 
     const recommended = await screen.findByText("Recommended here");
     expect(recommended.closest("[role='radio']")).toHaveTextContent(
@@ -760,7 +792,7 @@ describe("Settings panel line endings", () => {
       })),
     });
     renderPanel(port, {
-      initialSection: "line-endings",
+      initialSection: "git",
       project: { path: "C:/projects/site", sessionEpoch: "epoch-1" },
     });
 
@@ -785,7 +817,7 @@ describe("Settings panel line endings", () => {
 
   it("reports a failed write as a failure", async () => {
     const port = createPort({ setLineEndings: vi.fn(async () => Promise.reject(new Error("nope"))) });
-    renderPanel(port, { initialSection: "line-endings" });
+    renderPanel(port, { initialSection: "git" });
 
     await userEvent.click(await screen.findByRole("radio", { name: /Don't convert anything/ }));
 
@@ -845,12 +877,12 @@ describe("Settings panel option groups", () => {
 
   it("does not change a line-ending choice merely by arrowing past it", async () => {
     const port = createPort();
-    renderPanel(port, { initialSection: "line-endings" });
+    renderPanel(port, { initialSection: "git" });
 
     // The ARIA radio pattern usually selects as focus moves. Here that would
     // write to the user's global Git config on every arrow key, so focus moves
     // and the choice waits for Space or Enter.
-    const options = await screen.findAllByRole("radio");
+    const options = within(await screen.findByRole("radiogroup", { name: "Line endings" })).getAllByRole("radio");
     options[0].focus();
     await userEvent.keyboard("{ArrowDown}{ArrowDown}");
     expect(options[2]).toHaveFocus();
@@ -861,11 +893,11 @@ describe("Settings panel option groups", () => {
   });
 
   it("keeps a group with nothing selected reachable by keyboard", async () => {
-    renderPanel(createPort(), { initialSection: "line-endings" });
+    renderPanel(createPort(), { initialSection: "git" });
 
     // Nothing is chosen, so there is no selected option to carry the Tab stop;
     // without a fallback the whole group would be unreachable.
-    const options = await screen.findAllByRole("radio");
+    const options = within(await screen.findByRole("radiogroup", { name: "Line endings" })).getAllByRole("radio");
     expect(options.map((option) => option.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
   });
 });
@@ -1045,7 +1077,7 @@ describe("Settings panel remote-check cadence", () => {
 
 describe("Settings panel date and number formats", () => {
   it("previews each choice with the value it would produce", async () => {
-    renderPanel(createPort(), { initialSection: "appearance" });
+    renderPanel(createPort(), { initialSection: "language" });
 
     expect(screen.getByRole("radio", { name: "Year first: 2026-03-09" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Day first: 09/03/2026" })).toBeInTheDocument();
@@ -1055,7 +1087,7 @@ describe("Settings panel date and number formats", () => {
   });
 
   it("keeps the choice and applies it to the previews", async () => {
-    renderPanel(createPort(), { initialSection: "appearance" });
+    renderPanel(createPort(), { initialSection: "language" });
 
     const dayFirst = screen.getByRole("radio", { name: "Day first: 09/03/2026" });
     expect(dayFirst).toHaveAttribute("aria-checked", "false");
@@ -1090,8 +1122,10 @@ describe("Settings panel section rail", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { name: "Sections in the bar" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Overview" })).toBeChecked();
+    expect(screen.getByRole("heading", { name: "Sidebar sections" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Show Overview in the sidebar" })).toBeChecked();
+    expect(screen.getByText("Where the project stands, at a glance.")).toBeInTheDocument();
+    expect(screen.getByText("Easier to recognize.")).toBeVisible();
     expect(screen.getByRole("radio", { name: /Icons and text/ })).toBeChecked();
 
     cleanup();
@@ -1099,7 +1133,7 @@ describe("Settings panel section rail", () => {
       initialSection: "navigation",
       setNavigationPreferences,
     });
-    await userEvent.click(screen.getByRole("switch", { name: "Changes" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Show Changes in the sidebar" }));
     const visibilityUpdate = setNavigationPreferences.mock.calls[0][0] as (
       previous: NavigationPreferences,
     ) => NavigationPreferences;
@@ -1151,11 +1185,11 @@ describe("Settings panel section rail", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Overview. New position 2 of 3.");
   });
 
-  it("reorders with captured pointer movement over another row", () => {
+  it.each(["mouse", "touch"])("reorders with captured %s pointer movement over another row", (pointerType) => {
     const setNavigationPreferences = vi.fn();
     renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
     const source = screen.getByRole("button", { name: "Reorder: Overview" });
-    const target = screen.getByRole("switch", { name: "History" }).closest(".navigation-destination");
+    const target = screen.getByRole("switch", { name: "Show History in the sidebar" }).closest(".navigation-destination");
     expect(target).not.toBeNull();
     Object.defineProperties(source, {
       setPointerCapture: { configurable: true, value: vi.fn() },
@@ -1168,9 +1202,9 @@ describe("Settings panel section rail", () => {
       value: vi.fn(() => target),
     });
 
-    fireEvent.pointerDown(source, { button: 0, pointerId: 1 });
-    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1 });
-    fireEvent.pointerUp(source, { pointerId: 1 });
+    fireEvent.pointerDown(source, { button: 0, pointerId: 1, pointerType });
+    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1, pointerType });
+    fireEvent.pointerUp(source, { pointerId: 1, pointerType });
 
     Object.defineProperty(document, "elementFromPoint", {
       configurable: true,
@@ -1185,6 +1219,47 @@ describe("Settings panel section rail", () => {
       destinationOrderIds: ["overview", "changes", "history"],
       displayMode: "icons-and-text",
     }).destinationOrderIds).toEqual(["changes", "history", "overview"]);
+  });
+
+  it("clears a drag interrupted by loss of pointer capture", () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+    const source = screen.getByRole("button", { name: "Reorder: Overview" });
+    Object.defineProperty(source, "setPointerCapture", { configurable: true, value: vi.fn() });
+    fireEvent.pointerDown(source, { button: 0, pointerId: 1 });
+    expect(source.closest(".navigation-destination")).toHaveClass("navigation-destination--dragging");
+    fireEvent.lostPointerCapture(source, { pointerId: 1 });
+    expect(source.closest(".navigation-destination")).not.toHaveClass("navigation-destination--dragging");
+    fireEvent.pointerMove(source, { clientX: 400, clientY: 400, pointerId: 1 });
+    expect(setNavigationPreferences).not.toHaveBeenCalled();
+  });
+
+  it("restores the default sections and order but keeps the appearance", async () => {
+    const setNavigationPreferences = vi.fn();
+    renderPanel(createPort(), { initialSection: "navigation", setNavigationPreferences });
+    expect(screen.getByRole("button", { name: "Restore default" })).toBeDisabled();
+
+    cleanup();
+    const customized: NavigationPreferences = {
+      visibleDestinationIds: ["history"],
+      destinationOrderIds: ["history", "overview", "changes"],
+      displayMode: "icons-only",
+    };
+    renderPanel(createPort(), {
+      initialSection: "navigation",
+      navigationPreferences: customized,
+      setNavigationPreferences,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Restore default" }));
+    const restore = setNavigationPreferences.mock.calls[0][0] as (
+      previous: NavigationPreferences,
+    ) => NavigationPreferences;
+    expect(restore(customized)).toEqual({
+      visibleDestinationIds: ["overview", "changes", "history"],
+      destinationOrderIds: ["overview", "changes", "history"],
+      displayMode: "icons-only",
+    });
+    expect(screen.getByText("Default sections and order restored.")).toBeInTheDocument();
   });
 
   it("moves a destination with the explicit arrow buttons", async () => {
@@ -1220,7 +1295,13 @@ describe("Settings panel section rail", () => {
 
     await userEvent.keyboard("{ArrowDown}");
     expect(screen.getByRole("tab", { name: "Interface" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Theme" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Language" })).toBeNull();
+
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("tab", { name: "Language & region" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dates and numbers" })).toBeInTheDocument();
 
     await userEvent.keyboard("{End}");
     expect(screen.getByRole("tab", { name: "Updates" })).toHaveAttribute("aria-selected", "true");

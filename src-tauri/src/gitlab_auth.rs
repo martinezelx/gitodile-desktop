@@ -1,7 +1,7 @@
 //! One explicitly verified GitLab.com CLI identity. glab owns its OAuth session.
 //! Credentials are captured privately, then checked against the fixed native API.
 use crate::{
-    application,
+    application, avatar,
     cli_auth::{self, AuthState},
     credentials::{AccessProvider, Account, Secret},
     git::CancellationToken,
@@ -171,6 +171,11 @@ impl GitLabAuthService {
                 let cancelled = cancellation.is_cancelled();
                 match result {
                     Ok(account) => {
+                        if let Some(previous) = &inner.snapshot.account {
+                            if account.as_ref().map(|a| &a.id) != Some(&previous.id) {
+                                avatar::forget(&previous.id);
+                            }
+                        }
                         inner.snapshot.state = if account.is_some() {
                             AuthState::Connected
                         } else {
@@ -445,9 +450,29 @@ fn perform(
     if environment_credential() {
         return Err(AuthState::EnvironmentControlled);
     }
-    perform_with(target, &program, action, cancellation, |secret, cancel| {
-        verify(&target.host, secret, cancel)
-    })
+    let picture = Mutex::new(None);
+    let mut account = perform_with(target, &program, action, cancellation, |secret, cancel| {
+        let user = verify(&target.host, secret, cancel)?;
+        *picture.lock().unwrap_or_else(|e| e.into_inner()) = user.avatar_url.clone();
+        Ok(user)
+    })?;
+    if let Some(account) = &mut account {
+        let raw = picture.into_inner().unwrap_or_else(|e| e.into_inner());
+        account.avatar_data_url = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .ok()
+            .and_then(|runtime| {
+                runtime.block_on(avatar::refresh(
+                    &account.id,
+                    avatar::Provider::GitLab,
+                    &target.host,
+                    raw.as_deref(),
+                    cancellation,
+                ))
+            });
+    }
+    Ok(account)
 }
 fn exact_credential(
     target: &Target,
@@ -557,50 +582,11 @@ mod tests {
         }
     }
     fn fixture(scenario: &str) -> String {
-        use std::{fs, sync::OnceLock};
-        static BINARY: OnceLock<std::path::PathBuf> = OnceLock::new();
-        let binary = BINARY.get_or_init(|| {
-            let directory = std::path::PathBuf::from(crate::test_support::unique_temp_dir("fake-glab"));
-            let source = directory.join("main.rs");
-            fs::write(&source, r###"
-use std::{env, fs, thread, time::Duration};
-fn main() {
-    let exe = env::current_exe().unwrap();
-    let scenario = exe.file_stem().unwrap().to_string_lossy();
-    let args: Vec<_> = env::args().skip(1).collect();
-    assert!(env::var_os("GITLAB_TOKEN").is_none());
-    assert!(env::var_os("GITLAB_ACCESS_TOKEN").is_none());
-    assert!(env::var_os("OAUTH_TOKEN").is_none());
-    assert_eq!(env::var("GITLAB_API_HOST").unwrap(), "gitlab.com");
-    assert_eq!(env::var("GLAB_API_PROTOCOL").unwrap(), "https");
-    if args == ["--version"] { println!("glab 1.120.0 (fixture)"); return; }
-    if scenario == "slow" { thread::sleep(Duration::from_secs(30)); return; }
-    if args.get(1).map(String::as_str) == Some("login") {
-        assert_eq!(args, ["auth", "login", "--hostname", "gitlab.com", "--web", "--api-host", "gitlab.com", "--api-protocol", "https", "--git-protocol", "https", "--ssh-hostname", "gitlab.com", "--container-registry-domains", "registry.gitlab.com", "--use-keyring"]);
-        fs::write(exe.with_extension("saved"), "saved").unwrap(); return;
-    }
-    if args.get(1).map(String::as_str) == Some("logout") {
-        assert_eq!(args, ["auth", "logout", "--hostname", "gitlab.com"]);
-        fs::write(exe.with_extension("removed"), "removed").unwrap(); return;
-    }
-    assert_eq!(args, ["auth", "credential-helper", "--repo", "https://gitlab.com/gitodile/credential-boundary"]);
-    if scenario == "browser" && !exe.with_extension("saved").exists() {
-        println!(r#"{{"type":"error","message":"glab is not authenticated. Use glab auth login to authenticate"}}"#);
-    } else {
-        println!(r#"{{"type":"success","instance_url":"https://gitlab.com","token":{{"type":"oauth2","token":"fixture-oauth-only-123456"}}}}"#);
-    }
-}
-"###).unwrap();
-            let executable = directory.join(if cfg!(windows) { "fake.exe" } else { "fake" });
-            assert!(Command::new("rustc").arg(source).arg("-o").arg(&executable).status().unwrap().success());
-            executable
-        });
-        let path = binary.with_file_name(format!(
-            "{scenario}{}",
-            if cfg!(windows) { ".exe" } else { "" }
-        ));
-        fs::copy(binary, &path).unwrap();
-        path.to_string_lossy().into_owned()
+        use std::{path::PathBuf, sync::OnceLock};
+        static DIRECTORY: OnceLock<PathBuf> = OnceLock::new();
+        let directory = DIRECTORY
+            .get_or_init(|| PathBuf::from(crate::test_support::unique_temp_dir("fake-glab")));
+        crate::test_support::scenario_program(directory, "test_fake_glab", scenario)
     }
     fn identity(secret: &Secret, _: &CancellationToken) -> Result<hosting_access::User, AuthState> {
         assert_eq!(secret.bytes(), b"fixture-oauth-only-123456");
@@ -608,6 +594,7 @@ fn main() {
             id: Some(42),
             login: "user.with_dot".into(),
             uuid: None,
+            avatar_url: None,
         })
     }
     #[test]

@@ -1,4 +1,4 @@
-import type { HostingKind, HostingProvider } from "../accounts";
+import { azureCloneOrganization, type HostingKind, type HostingProvider } from "../accounts";
 /** Remote reads start only after editing the address/account or pressing Retry.
  * Never on overlay visibility; every obsolete timer and receipt is discarded. */
 export type CloneSourceAccess = {
@@ -23,11 +23,16 @@ export type HostingCloneAddress = { https: boolean; provider: HostingKind; provi
  * groups. */
 export function hostingCloneAddress(source: string, providers: readonly HostingProvider[] = BUILT_IN_PROVIDERS): HostingCloneAddress | null {
   const value = source.trim();
+  const azureOrg = azureCloneOrganization(value);
+  if (azureOrg) {
+    const provider = providers.find(item => item.kind === "azure" && item.scopePath === azureOrg);
+    return { https: true, provider: "azure", providerId: provider?.id ?? "azure" };
+  }
   const validPath = (path: string, provider: HostingKind): boolean => {
     const parts = path.replace(/\/+$/, "").split("/");
     return parts.length >= 2 && parts.length <= 32 && (provider === "gitlab" || parts.length === 2) && parts.every(p => /^[\w.-]+$/.test(p) && p !== "." && p !== "..") && parts.at(-1) !== ".git";
   };
-  const named = (name: string): HostingProvider[] => providers.filter(provider => provider.host.replace(/:\d+$/, "") === name.toLowerCase());
+  const named = (name: string): HostingProvider[] => providers.filter(provider => !provider.scopePath && provider.host.replace(/:\d+$/, "") === name.toLowerCase());
   const scp = /^git@([^/@:]+):(.*)$/.exec(value);
   if (scp) {
     const provider = named(scp[1])[0];
@@ -37,7 +42,7 @@ export function hostingCloneAddress(source: string, providers: readonly HostingP
     const url = new URL(value);
     if (url.password || url.search || url.hash) return null;
     const provider = url.protocol === "https:" && !url.username
-      ? providers.find(candidate => candidate.host === url.host)
+      ? providers.find(candidate => !candidate.scopePath && candidate.host === url.host)
       : url.protocol === "ssh:" && url.username === "git"
         ? named(url.hostname).find(candidate => !url.port || !candidate.builtIn) : undefined;
     if (!provider || !validPath(url.pathname.slice(1), provider.kind)) return null;

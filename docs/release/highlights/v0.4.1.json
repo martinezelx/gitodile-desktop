@@ -1,0 +1,36 @@
+{
+  "version": "0.4.1",
+  "date": "2026-10-22",
+  "highlights": [
+    {
+      "id": "azureReposAndPictures",
+      "icon": "folder-open",
+      "en": "Connect Azure Repos with an organization's personal access token, and see every connected GitHub, GitLab and Bitbucket account with its own profile picture.",
+      "es": "Conecta Azure Repos con el token de acceso personal de una organización, y ve cada cuenta conectada de GitHub, GitLab y Bitbucket con su propia foto de perfil."
+    },
+    {
+      "id": "markdownPreview",
+      "icon": "list-checks",
+      "en": "Changes previews Markdown files as one readable document with removed and added blocks marked, and steps between them; long wrapped diff lines no longer overlap.",
+      "es": "Cambios muestra los archivos Markdown como un documento legible con los bloques quitados y añadidos marcados, y salta entre ellos; las líneas largas del diff ya no se solapan."
+    },
+    {
+      "id": "silentInbox",
+      "icon": "history",
+      "en": "Notifications stay in a quiet inbox across restarts: opening it reads nothing, and each notice can be marked read, unread or removed on its own.",
+      "es": "Las notificaciones se guardan en una bandeja silenciosa entre reinicios: abrirla no marca nada como leído, y cada aviso puede marcarse leído, no leído o quitarse por separado."
+    },
+    {
+      "id": "settingsAndPolish",
+      "icon": "sparkles",
+      "en": "Settings is reorganized with a Language and region section, and every screen now shares the same icons, spacing, focus ring and selection, so the app reads as one piece.",
+      "es": "Ajustes se reorganiza con una sección Idioma y región, y todas las pantallas comparten ya los mismos iconos, espaciado, foco y selección, para que la app se lea como una sola pieza."
+    },
+    {
+      "id": "fasterAndKeepsPlace",
+      "icon": "circle-fading-arrow-up",
+      "en": "GitOdile starts with a fifth less JavaScript, scrolls long diffs more smoothly, and keeps your selected file, version, branch and scroll when you come back to a screen.",
+      "es": "GitOdile arranca con una quinta parte menos de JavaScript, desplaza los diffs largos con más fluidez y conserva el archivo, la versión, la rama y el desplazamiento al volver a una pantalla."
+    }
+  ]
+}

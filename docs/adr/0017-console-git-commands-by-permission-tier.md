@@ -4,7 +4,7 @@
 - Date: 2026-09-29
 - Implemented by: [epic 138](../../work/done/138-console-git-commands.md)
   (Read, Local change and Remote tiers). The History and Destructive tiers,
-  and section 5, are [task 139](../../work/blocked/139-console-history-and-destructive-commands.md).
+  and section 5, are [task 139](../../work/0.6.0/139-console-history-and-destructive-commands.md).
 - Section 4 (advanced mode and the read-only default) is replaced by
   [ADR 0028](0028-console-runs-changes-without-a-read-only-mode.md): changes
   run for everyone, and change confirmations are the console's only setting.
@@ -166,7 +166,7 @@ tone, advanced in the warning tone, and root in a violet of its own.
 ### 5. Recovery before anything that can lose work
 
 Not yet implemented: History and Destructive plans stay refused until
-[task 139](../../work/blocked/139-console-history-and-destructive-commands.md),
+[task 139](../../work/0.6.0/139-console-history-and-destructive-commands.md),
 which waits for the Recovery Center and records an open question about going
 ahead without recovery points. The decision below is the one that task starts
 from.

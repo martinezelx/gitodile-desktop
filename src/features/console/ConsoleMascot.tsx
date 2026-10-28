@@ -10,10 +10,11 @@ function runClass(run: MascotRun): string | undefined {
   return [run.tone ? "console-art__tone1" : "", run.solid ? "console-art__solid" : ""].filter(Boolean).join(" ") || undefined;
 }
 
-/** CSS owns motion; an entrance belongs to a new drawing, not a screen revisit. */
-export const ConsoleMascot = memo(function ConsoleMascot({ active, watermark = false }: { active: boolean; watermark?: boolean }) {
+/** CSS owns motion. Only a command/clear that relocates the drawing reveals it;
+ * the first screen visit and later navigation show it already complete. */
+export const ConsoleMascot = memo(function ConsoleMascot({ active, watermark = false, entrance = true }: { active: boolean; watermark?: boolean; entrance?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
-  const [revealing, setRevealing] = useState(() => active && !isReducedMotionRequested());
+  const [revealing, setRevealing] = useState(() => entrance && active && !isReducedMotionRequested());
   useEffect(() => {
     if (!active) {
       setRevealing(false);

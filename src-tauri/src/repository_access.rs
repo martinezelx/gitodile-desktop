@@ -155,14 +155,41 @@ impl RepositoryContext {
             }
             Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
         };
-        let bare = run(&["rev-parse", "--is-bare-repository"])? == "true";
-        let root = if bare {
-            path.to_path_buf()
-        } else {
-            PathBuf::from(run(&["rev-parse", "--show-toplevel"])?)
+        // Every operation discovers its repository, and a Git process costs
+        // about 50 ms on Windows, so one process answers all four questions
+        // in a working tree. A bare repository fails `--show-toplevel` after
+        // the others print, and a line break inside a path would blur the
+        // answers, so anything but four clean lines asks one at a time.
+        let combined = run(&[
+            "rev-parse",
+            "--is-bare-repository",
+            "--absolute-git-dir",
+            "--git-common-dir",
+            "--show-toplevel",
+        ])
+        .ok();
+        let answers = combined
+            .as_deref()
+            .map(|output| output.lines().collect::<Vec<_>>());
+        let (bare, root, git_dir, common_raw) = match answers.as_deref() {
+            Some(["false", git_dir, common, root]) => (
+                false,
+                PathBuf::from(root),
+                PathBuf::from(git_dir),
+                PathBuf::from(common),
+            ),
+            _ => {
+                let bare = run(&["rev-parse", "--is-bare-repository"])? == "true";
+                let root = if bare {
+                    path.to_path_buf()
+                } else {
+                    PathBuf::from(run(&["rev-parse", "--show-toplevel"])?)
+                };
+                let git_dir = PathBuf::from(run(&["rev-parse", "--absolute-git-dir"])?);
+                let common_raw = PathBuf::from(run(&["rev-parse", "--git-common-dir"])?);
+                (bare, root, git_dir, common_raw)
+            }
         };
-        let git_dir = PathBuf::from(run(&["rev-parse", "--absolute-git-dir"])?);
-        let common_raw = PathBuf::from(run(&["rev-parse", "--git-common-dir"])?);
         let common = if common_raw.is_absolute() {
             common_raw
         } else {
@@ -395,7 +422,7 @@ mod tests {
     use std::time::Instant;
 
     fn repository(label: &str) -> (PathBuf, RepositoryContext) {
-        let path = std::env::temp_dir().join(format!(
+        let path = crate::test_support::test_temp_root().join(format!(
             "gitodile-access-{label}-{}-{:?}",
             std::process::id(),
             thread::current().id()
@@ -411,6 +438,41 @@ mod tests {
             .success());
         let context = RepositoryContext::discover(&path).unwrap();
         (path, context)
+    }
+
+    #[test]
+    fn discovery_answers_from_a_nested_folder_and_from_a_bare_repository() {
+        let (path, context) = repository("discovery");
+        let nested = path.join("src").join("deep");
+        fs::create_dir_all(&nested).unwrap();
+        // One combined `rev-parse` answers from inside a working tree.
+        let from_nested = RepositoryContext::discover(&nested).unwrap();
+        assert!(!from_nested.bare);
+        for (nested, root) in [
+            (&from_nested.worktree_root, &context.worktree_root),
+            (&from_nested.git_dir, &context.git_dir),
+            (&from_nested.common_git_dir, &context.common_git_dir),
+        ] {
+            assert_eq!(nested.match_key(), root.match_key());
+        }
+        // A bare repository fails the combined call and falls back.
+        let bare = path.with_extension("bare");
+        let _ = fs::remove_dir_all(&bare);
+        assert!(Command::new("git")
+            .args(["init", "-q", "--bare"])
+            .arg(&bare)
+            .status()
+            .unwrap()
+            .success());
+        let bare_context = RepositoryContext::discover(&bare).unwrap();
+        assert!(bare_context.bare);
+        assert_eq!(
+            bare_context.git_dir.match_key(),
+            PathIdentity::new(&bare).unwrap().match_key()
+        );
+        assert!(RepositoryContext::discover(&path.with_extension("missing")).is_err());
+        let _ = fs::remove_dir_all(bare);
+        let _ = fs::remove_dir_all(path);
     }
 
     #[test]

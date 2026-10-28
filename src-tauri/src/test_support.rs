@@ -1,10 +1,47 @@
 use crate::*;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// How long a run's fixture directory may outlive its process before a later
+/// run removes it. No test run lasts this long, so an older root is garbage.
+const STALE_TEST_RUN: Duration = Duration::from_secs(60 * 60);
+
+/// The directory every fixture of this test process lives under:
+/// `<temp>/gitodile-tests/<pid>-<start>`. libtest has no teardown hook, and a
+/// failing test skips its own cleanup, so instead each run sweeps the roots
+/// that earlier runs left behind. Fixtures never reach the shared temp
+/// directory itself, where they used to pile up by the hundred thousand.
+pub(crate) fn test_temp_root() -> &'static Path {
+    static ROOT: OnceLock<PathBuf> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let parent = std::env::temp_dir().join("gitodile-tests");
+        if let Ok(entries) = fs::read_dir(&parent) {
+            for entry in entries.flatten() {
+                let stale = entry
+                    .metadata()
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+                    .and_then(|modified| modified.elapsed().ok())
+                    .is_some_and(|age| age > STALE_TEST_RUN);
+                if stale {
+                    let _ = fs::remove_dir_all(entry.path());
+                }
+            }
+        }
+        let started = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_millis())
+            .unwrap_or_default();
+        let root = parent.join(format!("{}-{started}", std::process::id()));
+        fs::create_dir_all(&root).expect("create the test run's temp root");
+        root
+    })
+}
 
 pub(crate) fn unique_temp_dir(label: &str) -> String {
-    let mut dir = std::env::temp_dir();
-    dir.push(format!("gitodile-test-{label}-{}", std::process::id()));
+    let dir = test_temp_root().join(label);
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).expect("create temp dir for test");
     dir.to_string_lossy().to_string()
@@ -84,11 +121,7 @@ pub(crate) fn current_branch(path: &str) -> String {
 /// A `GIT_CONFIG_GLOBAL` file with an identity set, so planner tests don't
 /// depend on (or risk reading) the real machine's global Git identity.
 pub(crate) fn write_test_identity_config(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-test-identity-{label}-{}.gitconfig",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("identity-{label}.gitconfig"));
     fs::write(
         &path,
         "[user]\n\tname = GitOdile Test\n\temail = test@gitodile.local\n",
@@ -101,11 +134,7 @@ pub(crate) fn write_test_identity_config(label: &str) -> String {
 /// finds no identity there and (with no local repo config set either)
 /// reports none configured, deterministically.
 pub(crate) fn empty_identity_override(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-test-no-identity-{label}-{}.gitconfig",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("no-identity-{label}.gitconfig"));
     let _ = fs::remove_file(&path);
     path.to_string_lossy().to_string()
 }
@@ -139,11 +168,7 @@ pub(crate) fn write_failing_hook(git_dir: &Path, name: &str) {
 /// untracked file in that repository's status.
 #[cfg(target_os = "windows")]
 pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-fake-gpg-{label}-{}.bat",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("fake-gpg-{label}.bat"));
     fs::write(
         &path,
         "@echo off\r\necho gpg failed to sign the data 1>&2\r\nexit /b 1\r\n",
@@ -155,11 +180,7 @@ pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn write_fake_failing_gpg(label: &str) -> String {
     use std::os::unix::fs::PermissionsExt;
-    let mut path = std::env::temp_dir();
-    path.push(format!(
-        "gitodile-fake-gpg-{label}-{}.sh",
-        std::process::id()
-    ));
+    let path = test_temp_root().join(format!("fake-gpg-{label}.sh"));
     fs::write(
         &path,
         "#!/bin/sh\necho 'gpg failed to sign the data' 1>&2\nexit 1\n",
@@ -209,27 +230,193 @@ pub(crate) fn remote_branch_sha(remote_path: &str, branch: &str) -> Option<Strin
 /// Sets up a repository with one commit already published to a fresh bare
 /// remote under `origin`, with upstream tracking configured — the common
 /// starting point most publish tests build on.
+///
+/// Building the pair takes about fifteen Git processes, the slowest part of
+/// a test on Windows, and it is the same pair every time. The first call
+/// builds it through the real publish flow; every call copies that finished
+/// pair and points the copy's `origin` at its own remote.
 pub(crate) fn published_repo_and_remote(label: &str) -> (String, String, String) {
+    static TEMPLATE: OnceLock<(String, String, String)> = OnceLock::new();
+    let (template_repo, template_remote, branch) = TEMPLATE.get_or_init(|| {
+        let repo = unique_temp_dir("published-template");
+        git_init(&repo);
+        write_file(&repo, "a.txt", "hello\n");
+        git_add_all(&repo);
+        git_commit(&repo, "first");
+        let branch = current_branch(&repo);
+
+        let remote = unique_temp_dir("published-template-remote");
+        init_bare_remote(&remote);
+        wire_remote(&repo, "origin", &remote);
+
+        let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
+        publish(
+            repo.clone(),
+            plan.target.remote,
+            plan.state_token,
+            None,
+            true,
+        )
+        .expect("first publish should succeed");
+        (repo, remote, branch)
+    });
+
     let repo = unique_temp_dir(&format!("publish-{label}"));
-    git_init(&repo);
-    write_file(&repo, "a.txt", "hello\n");
-    git_add_all(&repo);
-    git_commit(&repo, "first");
-    let branch = current_branch(&repo);
-
     let remote = unique_temp_dir(&format!("publish-{label}-remote"));
-    init_bare_remote(&remote);
-    wire_remote(&repo, "origin", &remote);
+    copy_dir(Path::new(template_repo), Path::new(&repo));
+    copy_dir(Path::new(template_remote), Path::new(&remote));
+    let status = git_command(&repo)
+        .args(["remote", "set-url", "origin", &remote])
+        .status()
+        .expect("run git remote set-url");
+    assert!(status.success(), "git remote set-url should succeed");
+    // The copied index still holds the template's file stat data. Refresh it
+    // here, so a test that compares the index before and after an operation
+    // never sees Git doing that refresh on the operation's behalf.
+    let status = git_command(&repo)
+        .args(["update-index", "-q", "--refresh"])
+        .status()
+        .expect("run git update-index");
+    assert!(
+        status.success(),
+        "git update-index --refresh should succeed"
+    );
 
-    let plan = plan_publish(repo.clone(), None, None).expect("first plan should succeed");
-    publish(
-        repo.clone(),
-        plan.target.remote,
-        plan.state_token,
-        None,
-        true,
-    )
-    .expect("first publish should succeed");
+    (repo, remote, branch.clone())
+}
 
-    (repo, remote, branch)
+fn copy_dir(from: &Path, to: &Path) {
+    fs::create_dir_all(to).expect("create fixture copy directory");
+    for entry in fs::read_dir(from).expect("read fixture template") {
+        let entry = entry.expect("read fixture template entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("read fixture entry type").is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).expect("copy fixture file");
+        }
+    }
+}
+
+/// Appends one version per `(message, contents)` to the current branch in a
+/// single `git fast-import`, each replacing `file` with its contents (or
+/// leaving the tree as it is when `file` is `None`), then checks the last one
+/// out. A loop of `add` + `commit` costs two processes per version; fixtures
+/// that need hundreds of versions spent most of a minute on Windows there.
+/// The working tree must be clean, as it is after any of the helpers above.
+pub(crate) fn git_commit_series(path: &str, file: Option<&str>, versions: &[(String, String)]) {
+    let branch = git_command(path)
+        .args(["symbolic-ref", "HEAD"])
+        .output()
+        .expect("read the current branch ref");
+    assert!(branch.status.success(), "the series needs a branch");
+    let branch = git_stdout(&branch);
+    let parent = git_command(path)
+        .args(["rev-parse", "--verify", "--quiet", "HEAD"])
+        .output()
+        .expect("read the current version");
+    let parent = parent.status.success().then(|| git_stdout(&parent));
+
+    let when = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or_default();
+    let mut stream = Vec::new();
+    for (index, (message, contents)) in versions.iter().enumerate() {
+        stream.extend_from_slice(format!("commit {branch}\n").as_bytes());
+        stream.extend_from_slice(
+            format!("committer GitOdile Test <test@gitodile.local> {when} +0000\n").as_bytes(),
+        );
+        stream.extend_from_slice(format!("data {}\n{message}\n", message.len()).as_bytes());
+        if index == 0 {
+            if let Some(parent) = &parent {
+                stream.extend_from_slice(format!("from {parent}\n").as_bytes());
+            }
+        }
+        if let Some(file) = file {
+            stream.extend_from_slice(
+                format!(
+                    "M 100644 inline {file}\ndata {}\n{contents}\n",
+                    contents.len()
+                )
+                .as_bytes(),
+            );
+        }
+    }
+
+    let mut import = git_command(path)
+        .args(["fast-import", "--quiet"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .expect("run git fast-import");
+    std::io::Write::write_all(&mut import.stdin.take().unwrap(), &stream)
+        .expect("write the fast-import stream");
+    assert!(
+        import.wait().expect("wait for git fast-import").success(),
+        "git fast-import should succeed"
+    );
+    if file.is_some() {
+        let status = git_command(path)
+            .args(["reset", "-q", "--hard"])
+            .status()
+            .expect("run git reset");
+        assert!(status.success(), "checking out the series should succeed");
+    }
+}
+
+/// A helper program from `src-tauri/examples/`. Cargo builds the examples next
+/// to the test binaries for `cargo test` (not for `cargo test --lib`), so no
+/// test compiles a fake executable while it runs. They are declared with
+/// `harness = false` in `Cargo.toml`, so even the build `--all-targets` makes
+/// runs their `main`.
+pub(crate) fn example_binary(name: &str) -> PathBuf {
+    let examples = std::env::current_exe()
+        .expect("locate the test binary")
+        .parent()
+        .and_then(Path::parent)
+        .expect("the target profile directory")
+        .join("examples");
+    // A plain `cargo test` also links `<name>` beside the hashed
+    // `<name>-<hash>` build; the newest of them is the current source.
+    let built = |file: &str| {
+        let stem = file.strip_suffix(std::env::consts::EXE_SUFFIX)?;
+        let hash = stem.strip_prefix(name)?;
+        (hash.is_empty()
+            || hash.strip_prefix('-').is_some_and(|hash| {
+                hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            }))
+        .then_some(())
+    };
+    let newest = fs::read_dir(&examples)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| built(&entry.file_name().to_string_lossy()).is_some())
+        .max_by_key(|entry| {
+            entry
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .ok()
+        })
+        .map(|entry| entry.path());
+    newest.unwrap_or_else(|| {
+        panic!(
+            "{name} is not built in {}: run `cargo test` without `--lib`, or `cargo build --examples` first",
+            examples.display()
+        )
+    })
+}
+
+/// A scenario of a fake CLI: `<directory>/<scenario>`, which the fake reads
+/// back from its `argv[0]`. On Unix it is a symlink, because a copy is open for
+/// writing while other tests fork, and a child that inherits that descriptor
+/// until it execs makes running the copy fail with "text file busy".
+pub(crate) fn scenario_program(directory: &Path, example: &str, scenario: &str) -> String {
+    let path = directory.join(format!("{scenario}{}", std::env::consts::EXE_SUFFIX));
+    let _ = fs::remove_file(&path);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(example_binary(example), &path).expect("link the fake CLI");
+    #[cfg(not(unix))]
+    fs::copy(example_binary(example), &path).expect("copy the fake CLI");
+    path.to_string_lossy().into_owned()
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, Settings, Trash2 } from "lucide-react";
+import { Bell, Check, CheckCheck, Mail, Settings, Trash2 } from "lucide-react";
 import { useLanguage, type Translations } from "../../i18n";
 import { formatDate, type LocaleFormats } from "../../shared/i18n";
 import {
@@ -74,25 +74,27 @@ function describe(details: NotificationDetails, t: Translations): {
 
 function NotificationRow({
   notification,
-  wasUnread,
   now,
   formats,
   t,
   onAction,
   onDismiss,
+  onSetRead,
 }: {
   notification: AppNotification;
-  wasUnread: boolean;
   now: number;
   formats: LocaleFormats;
   t: Translations;
   onAction: (notification: AppNotification) => void;
   onDismiss: (notification: AppNotification) => void;
+  onSetRead: (notification: AppNotification, read: boolean) => void;
 }): React.JSX.Element {
   const { title, description } = describe(notification.details, t);
   const tone = NOTIFICATION_KINDS[notification.details.kind].tone;
   const Icon = NOTIFICATION_ICONS[notification.details.kind];
   const action = notificationAction(notification);
+  const wasUnread = !notification.read;
+  const readLabel = notification.read ? t.notificationsMarkUnread : t.notificationsMarkRead;
 
   return (
     <li className={`notification${wasUnread ? " notification--unread" : ""}`}>
@@ -114,32 +116,50 @@ function NotificationRow({
             {relativeTime(notification.createdAt, now, formats.language, t.notificationsJustNow)}
           </span>
         </p>
-        {action && (
+        <div className="notification__actions">
+          {action && (
+            <button
+              className="secondary-button secondary-button--sm notification__action"
+              type="button"
+              onClick={() => onAction(notification)}
+            >
+              {action === "reviewTeamChanges"
+                ? t.notificationTeamChangesAction
+                : action === "openOverview"
+                  ? t.notificationUpstreamGoneAction
+                  : t.notificationAppUpdateAction}
+            </button>
+          )}
           <button
-            className="secondary-button secondary-button--sm notification__action"
+            className="notification__read"
             type="button"
-            onClick={() => onAction(notification)}
+            aria-label={readLabel}
+            data-tooltip={readLabel}
+            onClick={() => onSetRead(notification, !notification.read)}
           >
-            {action === "reviewTeamChanges"
-              ? t.notificationTeamChangesAction
-              : action === "openOverview"
-                ? t.notificationUpstreamGoneAction
-                : t.notificationAppUpdateAction}
+            {notification.read ? <Mail aria-hidden="true" /> : <Check aria-hidden="true" />}
           </button>
-        )}
+          {/* Uncovered only while the row is pointed at or focused, and destructive
+              only in effect: one entry leaving the local inbox. It never closes the
+              panel — the reader is usually clearing several. */}
+          <button
+            className="notification__dismiss"
+            type="button"
+            aria-label={t.notificationsDismiss}
+            data-tooltip={t.notificationsDismiss}
+            onClick={(event) => {
+              const row = event.currentTarget.closest("li");
+              const next = row?.nextElementSibling?.querySelector<HTMLButtonElement>("button")
+                ?? row?.previousElementSibling?.querySelector<HTMLButtonElement>("button");
+              if (next) next.focus();
+              else event.currentTarget.closest<HTMLElement>('[role="dialog"]')?.focus();
+              onDismiss(notification);
+            }}
+          >
+            <Trash2 aria-hidden="true" />
+          </button>
+        </div>
       </div>
-      {/* Uncovered only while the row is pointed at or focused, and destructive
-          only in effect: one entry leaving the session list. It never closes the
-          panel — the reader is usually clearing several. */}
-      <button
-        className="notification__dismiss"
-        type="button"
-        aria-label={t.notificationsDismiss}
-        data-tooltip={t.notificationsDismiss}
-        onClick={() => onDismiss(notification)}
-      >
-        <Trash2 aria-hidden="true" />
-      </button>
     </li>
   );
 }
@@ -150,16 +170,16 @@ export type NotificationCenterProps = {
   /** The preference, not a derived state: the panel says out loud that it has
    * been turned off, and offers the switch that turns it back on. */
   isEnabled: boolean;
-  /** Called when the panel opens. The shell marks everything read; the rows
-   * keep showing which ones *were* unread until the panel closes again. */
-  onOpened: () => void;
+  hasStorageWarning?: boolean;
+  onMarkAllRead: () => void;
+  onSetRead: (notification: AppNotification, read: boolean) => void;
   onClear: () => void;
   onDismiss: (notification: AppNotification) => void;
   onToggleEnabled: (enabled: boolean) => void;
-  onReviewTeamChanges: (notification: AppNotification) => void;
-  onReviewAppUpdate: () => void;
+  onReviewTeamChanges: (notification: AppNotification) => boolean;
+  onReviewAppUpdate: () => boolean;
   /** Opens Overview on the notification's project. */
-  onOpenProjectOverview: (notification: AppNotification) => void;
+  onOpenProjectOverview: (notification: AppNotification) => boolean;
   onOpenSettings: () => void;
 };
 
@@ -185,7 +205,9 @@ export function NotificationCenter({
   notifications,
   unreadCount,
   isEnabled,
-  onOpened,
+  hasStorageWarning = false,
+  onMarkAllRead,
+  onSetRead,
   onClear,
   onDismiss,
   onToggleEnabled,
@@ -196,11 +218,7 @@ export function NotificationCenter({
 }: NotificationCenterProps): React.JSX.Element {
   const { t, formats } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  // Frozen at open time. Marking everything read on open is what clears the
-  // dot, but it would also erase the per-row marks in the same frame, so the
-  // panel would open showing nothing to look at first. This keeps the marks for
-  // as long as the panel that revealed them stays open.
-  const [seenUnreadIds, setSeenUnreadIds] = useState<ReadonlySet<string>>(new Set());
+  const [actionUnavailable, setActionUnavailable] = useState(false);
   // Sampled once per opening rather than on a timer: the panel is short-lived,
   // and a ticking clock behind a closed popup is background work for nothing.
   const [openedAt, setOpenedAt] = useState(0);
@@ -232,21 +250,14 @@ export function NotificationCenter({
     setIsOpen(false);
     if (restoreFocus) triggerRef.current?.focus();
   };
-  // `"container"`, not `"first-control"`: the footer's first control is
-  // "Clear all", and landing focus on a destructive button because it happens
-  // to be first in the DOM would make Enter — the most reflexive key there is —
-  // empty the list someone just opened to read. Focus goes to the panel itself,
-  // which is why it carries `tabIndex={-1}`; from there Tab reaches the rows in
-  // order.
+  // Focus the panel rather than a control: opening an inbox should not make
+  // Enter invoke an action. From the panel, Tab reaches the rows in order.
   const { popupRef, style } = usePortalFlyout(isOpen, triggerRef, close, "below", "container");
 
   const open = (): void => {
-    setSeenUnreadIds(
-      new Set(notifications.filter((entry) => !entry.read).map((entry) => entry.id)),
-    );
+    setActionUnavailable(false);
     setOpenedAt(Date.now());
     setIsOpen(true);
-    onOpened();
   };
 
   const footer = (
@@ -262,6 +273,19 @@ export function NotificationCenter({
         }}
       >
         <Settings aria-hidden="true" />
+      </button>
+      <button
+        className="notification-center__footer-action"
+        type="button"
+        aria-label={t.notificationsMarkAllRead}
+        data-tooltip={t.notificationsMarkAllRead}
+        disabled={unreadCount === 0}
+        onClick={() => {
+          onMarkAllRead();
+          popupRef.current?.focus();
+        }}
+      >
+        <CheckCheck aria-hidden="true" />
       </button>
       <button
         className="notification-center__footer-action notification-center__footer-action--danger"
@@ -328,18 +352,21 @@ export function NotificationCenter({
                 <NotificationRow
                   key={notification.id}
                   notification={notification}
-                  wasUnread={seenUnreadIds.has(notification.id)}
                   now={openedAt}
                   formats={formats}
                   t={t}
                   onAction={(entry) => {
-                    close(false);
                     const action = notificationAction(entry);
-                    if (action === "reviewAppUpdate") onReviewAppUpdate();
-                    else if (action === "openOverview") onOpenProjectOverview(entry);
-                    else onReviewTeamChanges(entry);
+                    const opened = action === "reviewAppUpdate" ? onReviewAppUpdate()
+                      : action === "openOverview" ? onOpenProjectOverview(entry)
+                      : onReviewTeamChanges(entry);
+                    if (opened) {
+                      onSetRead(entry, true);
+                      close(false);
+                    } else setActionUnavailable(true);
                   }}
                   onDismiss={onDismiss}
+                  onSetRead={onSetRead}
                 />
               ))}
             </ul>
@@ -364,8 +391,8 @@ export function NotificationCenter({
           )}
 
           {notifications.length === 0 && (
-            <div className="notification-center__empty">
-              <span className="notification-center__empty-icon">
+            <div className="empty-state empty-state--compact notification-center__empty">
+              <span className="empty-state__icon">
                 <Bell aria-hidden="true" />
               </span>
               {/* Keyed so the words fade in rather than snapping when the
@@ -400,6 +427,8 @@ export function NotificationCenter({
             </div>
           )}
 
+          {actionUnavailable && <p className="notification-center__notice" role="status">{t.notificationsActionUnavailable}</p>}
+          {hasStorageWarning && <p className="notification-center__notice" role="status">{t.notificationsStorageWarning}</p>}
           {footer}
         </div>,
         document.body,

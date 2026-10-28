@@ -46,6 +46,7 @@ import {
   type CloneResult,
 } from "../features/clone";
 import { accountsPort, useAccounts } from "../features/accounts";
+import { AccountControl, createMockAccountController, useAccountModal } from "../features/account";
 import { createRepositoryBrowserController, repositoryBrowserPort } from "../features/repository-browser";
 import { readHomeAccounts, type HomeSetup } from "../features/home";
 import {
@@ -86,7 +87,7 @@ import {
 } from "../features/sync";
 import type { PublishResult } from "../features/publish";
 import {
-  SETTINGS_SECTIONS,
+  availableSettingsSections,
   settingsPort,
   settingsSectionLabel,
   DEFAULT_BRANCH_FALLBACK,
@@ -154,6 +155,14 @@ import {
 import { startThemeFade } from "./themeTransition";
 import { planWatcherChanges } from "./watcherPlan";
 import { TitlebarMenu } from "./TitlebarMenu";
+import {
+  hasNativeMacWindowChrome,
+  isAppMenuCommandEnabled,
+  planAppMenu,
+  useNativeAppMenu,
+  type AppMenuCommand,
+} from "./nativeAppMenu";
+import { nativeAppMenuPort } from "./nativeAppMenuAdapter";
 import { RailNav, type RailNavItem } from "./RailNav";
 import { StatusBar } from "./StatusBar";
 import {
@@ -257,6 +266,8 @@ function ViewLoadingFallback(): React.JSX.Element {
 
 export function App(): React.JSX.Element {
   const { t } = useLanguage();
+  const [accountController] = useState(() => import.meta.env.DEV ? createMockAccountController() : null);
+  const isAccountModalOpen = useAccountModal(accountController);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isAppUpdateOpen, setIsAppUpdateOpen] = useState(false);
@@ -672,6 +683,7 @@ export function App(): React.JSX.Element {
   // flight (see the "Decisions" section of task 012): switching and closing
   // the active project are both disabled while either dialog is open.
   const hasBlockingDialog =
+    isAccountModalOpen ||
     isSettingsOpen ||
     // Scoped to one project: switching underneath it would leave the panel
     // reading and writing a repository the app is no longer showing.
@@ -788,21 +800,22 @@ export function App(): React.JSX.Element {
      A project that has since been closed does nothing at all. The notification
      stays in the list as a record of what happened; it was never a promise that
      the project is still open. */
-  const reviewTeamChangesFromNotification = (notification: AppNotification): void => {
+  const reviewTeamChangesFromNotification = (notification: AppNotification): boolean => {
     const id = notification.projectId;
-    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return false;
     if (sessionsState.activeId !== id) activateSession(id);
-    startSessionOperation("sync", undefined, id);
+    return startSessionOperation("sync", undefined, id);
   };
 
   /* The same rules for a notification whose way on is Overview's card: a
      closed project does nothing, and a blocking dialog keeps the window where
      it is. */
-  const openOverviewFromNotification = (notification: AppNotification): void => {
+  const openOverviewFromNotification = (notification: AppNotification): boolean => {
     const id = notification.projectId;
-    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return;
+    if (id === null || !sessionsState.byId[id] || hasBlockingDialog) return false;
     if (sessionsState.activeId !== id) activateSession(id);
     navigateToView("overview");
+    return true;
   };
 
   /* A local configuration change the person chose from Overview's card: the
@@ -1962,6 +1975,7 @@ export function App(): React.JSX.Element {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         if (hasOpenDialog) return;
+        accountController?.closePopover(true);
         openPalette();
         // The field is the search itself: the shortcut puts the cursor in the
         // one the active screen shows — the strip's, or the Console's own.
@@ -1976,6 +1990,7 @@ export function App(): React.JSX.Element {
           return;
         }
         event.preventDefault();
+        accountController?.closePopover(true);
         setIsSidebarHidden((hidden) => !hidden);
         return;
       }
@@ -1986,6 +2001,7 @@ export function App(): React.JSX.Element {
           return;
         }
         event.preventDefault();
+        accountController?.closePopover(true);
         openSettings();
         return;
       }
@@ -2009,7 +2025,7 @@ export function App(): React.JSX.Element {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [sessionsState, hasBlockingDialog, hasOpenDialog, view]);
+  }, [accountController, sessionsState, hasBlockingDialog, hasOpenDialog, view]);
 
   const commandDrafts: AppCommandDraft[] = [
     // "Go to X" comes from the screen registry, in nav order, so a new screen
@@ -2034,7 +2050,7 @@ export function App(): React.JSX.Element {
             label: t[destination.commandLabelKey],
             action: () => openSettings(),
           },
-          ...SETTINGS_SECTIONS.map((section) => ({
+          ...availableSettingsSections(Boolean(accountController)).map((section) => ({
             id: `open-settings-${section}`,
             label: t.commandGoSettingsSection(settingsSectionLabel(section, t)),
             action: () => openSettings(section),
@@ -2378,6 +2394,7 @@ export function App(): React.JSX.Element {
         toggleMaximize: async () => {},
         close: async () => {},
         isMaximized: async () => false,
+        isFullscreen: async () => false,
         onResized: async () => () => {},
       };
   const performWindowAction = (action: () => Promise<void>): void => {
@@ -2385,20 +2402,30 @@ export function App(): React.JSX.Element {
   };
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
+  // macOS draws its own traffic lights over the titlebar and the menu bar
+  // takes the overflow menu's place (task 204). Read once: the platform
+  // cannot change while the app runs.
+  const [hasNativeMacChrome] = useState(hasNativeMacWindowChrome);
+  // macOS hides the traffic lights in full screen, so their inset goes too.
+  const [isWindowFullscreen, setIsWindowFullscreen] = useState(false);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void appWindow.isMaximized().then((maximized) => {
-      if (!cancelled) setIsWindowMaximized(maximized);
-    });
-
-    void appWindow.onResized(() => {
+    const readWindowState = (): void => {
       void appWindow.isMaximized().then((maximized) => {
         if (!cancelled) setIsWindowMaximized(maximized);
       });
-    }).then((fn) => {
+      if (hasNativeMacChrome) {
+        void appWindow.isFullscreen().then((fullscreen) => {
+          if (!cancelled) setIsWindowFullscreen(fullscreen);
+        });
+      }
+    };
+    readWindowState();
+
+    void appWindow.onResized(readWindowState).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
     });
@@ -2408,6 +2435,92 @@ export function App(): React.JSX.Element {
       unlisten?.();
     };
   }, []);
+
+  const appMenuSections = planAppMenu(
+    {
+      about: t.aboutGitOdile,
+      checkUpdates: t.commandCheckAppUpdates,
+      settings: t.appMenuSettings,
+      home: t.navHome,
+      openProject: t.titlebarOpenProject,
+      openingProject: t.overviewOpening,
+      createProject: t.titlebarCreateProject,
+      cloneProject: t.titlebarCloneProject,
+      closeProject: t.overviewCloseProject,
+      hideSidebar: t.titlebarHideSidebar,
+      showSidebar: t.titlebarShowSidebar,
+      goBack: t.titlebarGoBack,
+      goForward: t.titlebarGoForward,
+      reloadWindow: t.titlebarReloadWindow,
+      keyboardShortcuts: t.titlebarKeyboardShortcuts,
+      whatsNew: t.changelogTitle,
+      reportIssue: t.titlebarReportIssue,
+      file: t.appMenuFile,
+      edit: t.appMenuEdit,
+      view: t.appMenuView,
+      window: t.appMenuWindow,
+      help: t.appMenuHelp,
+      services: t.appMenuServices,
+      hide: t.appMenuHide,
+      hideOthers: t.appMenuHideOthers,
+      showAll: t.appMenuShowAll,
+      quit: t.appMenuQuit,
+      closeWindow: t.appMenuCloseWindow,
+      undo: t.appMenuUndo,
+      redo: t.appMenuRedo,
+      cut: t.appMenuCut,
+      copy: t.appMenuCopy,
+      paste: t.appMenuPaste,
+      selectAll: t.appMenuSelectAll,
+      fullscreen: t.appMenuFullscreen,
+      minimize: t.appMenuMinimize,
+      zoom: t.appMenuZoom,
+      bringAllToFront: t.appMenuBringAllToFront,
+    },
+    {
+      hasProject: project !== null && view !== "home",
+      isOpeningProject: isOpening,
+      canReloadWindow: !hasUnsettledOperation(sessionsState),
+      isReportingIssue: issueReport.isOpening,
+      isSidebarHidden,
+      canGoBack,
+      canGoForward,
+      hasOpenDialog,
+    },
+  );
+
+  const runAppMenuCommand = (command: AppMenuCommand): void => {
+    // The native menu is updated asynchronously, so a click can land on an
+    // entry the app has just turned off (a dialog opened, the history ran out).
+    if (!isAppMenuCommandEnabled(appMenuSections, command)) return;
+    accountController?.closePopover(true);
+    switch (command) {
+      case "about": setIsAboutOpen(true); return;
+      case "check-updates":
+        setIsAppUpdateOpen(true);
+        void appUpdatesController.check();
+        return;
+      case "settings": openSettings(); return;
+      case "home": navigateToView("home"); return;
+      case "open-project": void handleOpenProject(); return;
+      case "create-project": setInitializeDialogRequest({ mode: "new-folder" }); return;
+      case "clone-project": setIsCloneOpen(true); return;
+      case "close-project": requestCloseActiveProject(); return;
+      case "toggle-sidebar":
+        closeJumpMenu();
+        setIsSidebarHidden((hidden) => !hidden);
+        return;
+      case "go-back": goBack(); return;
+      case "go-forward": goForward(); return;
+      case "reload-window": window.location.reload(); return;
+      case "keyboard-shortcuts": setIsShortcutsOpen(true); return;
+      case "whats-new": setIsChangelogOpen(true); return;
+      case "report-issue": void issueReport.report(); return;
+    }
+  };
+
+  useNativeAppMenu(hasNativeMacChrome ? nativeAppMenuPort : null, appMenuSections, runAppMenuCommand);
+
 
   return (
     // Wraps the whole shell rather than the Changes screen: the pending
@@ -2419,7 +2532,8 @@ export function App(): React.JSX.Element {
       className={
         `app-window` +
         (navigationPreferences.displayMode === "icons-only" ? " app-window--icons-only" : "") +
-        (isSidebarHidden ? " app-window--sidebar-hidden" : "")
+        (isSidebarHidden ? " app-window--sidebar-hidden" : "") +
+        (hasNativeMacChrome && !isWindowFullscreen ? " app-window--mac-traffic-lights" : "")
       }
     >
       <span className="visually-hidden" role="status" aria-live="polite">
@@ -2432,7 +2546,10 @@ export function App(): React.JSX.Element {
             mascot lives in the brand moments instead — the no-project welcome
             and About, which the menu and the palette open (DESIGN.md § Brand). */}
         <div className="window-titlebar__actions">
-          <TitlebarMenu
+          {/* On macOS these entries live in the menu bar instead (task 204). */}
+          {!hasNativeMacChrome && <TitlebarMenu
+            renderAccountControl={import.meta.env.DEV && accountController ? (onOpen, fallbackRef) =>
+              <AccountControl controller={accountController} compact menuClassName="titlebar-menu__item" onOpen={onOpen} fallbackRef={fallbackRef} /> : undefined}
             onOpenHome={() => navigateToView("home")}
             onOpenAbout={() => setIsAboutOpen(true)}
             onOpenChangelog={() => setIsChangelogOpen(true)}
@@ -2451,7 +2568,7 @@ export function App(): React.JSX.Element {
             canReloadWindow={!hasUnsettledOperation(sessionsState)}
             onReportIssue={() => void issueReport.report()}
             isReportingIssue={issueReport.isOpening}
-          />
+          />}
           {/* Sits with the menu rather than in the rail it collapses: a
               control that hides its own container would vanish with it, and
               the way back has to stay where it was.
@@ -2540,7 +2657,8 @@ export function App(): React.JSX.Element {
                   );
                 },
               )}
-              <button
+              {import.meta.env.DEV && accountController ? <AccountControl controller={accountController} compact
+                onOpen={closeJumpMenu} fallbackRef={sidebarToggleRef} /> : <button
                 className="app-menu__item"
                 type="button"
                 role="menuitem"
@@ -2549,7 +2667,7 @@ export function App(): React.JSX.Element {
               >
                 <UserRound aria-hidden="true" />
                 <span>{t.navAccountTitle}</span>
-              </button>
+              </button>}
             </div>,
             document.body,
           )}
@@ -2603,17 +2721,27 @@ export function App(): React.JSX.Element {
           notifications={notificationCenter.notifications}
           unreadCount={notificationCenter.unreadCount}
           isEnabled={notificationsEnabled}
-          onOpened={notificationCenter.markAllRead}
+          hasStorageWarning={notificationCenter.hasStorageWarning}
+          onMarkAllRead={notificationCenter.markAllRead}
+          onSetRead={(notification, read) => notificationCenter.setRead(notification.id, read)}
           onClear={notificationCenter.clear}
           onDismiss={(notification) => notificationCenter.dismiss(notification.id)}
           onToggleEnabled={setNotificationsEnabled}
           onReviewTeamChanges={reviewTeamChangesFromNotification}
-          onReviewAppUpdate={() => setIsAppUpdateOpen(true)}
+          onReviewAppUpdate={() => {
+            if (hasBlockingDialog) return false;
+            // The dialog uses the current updater snapshot, never the stored
+            // notice's candidate/version. Opening it does not check or install.
+            setIsAppUpdateOpen(true);
+            return true;
+          }}
           onOpenProjectOverview={openOverviewFromNotification}
           onOpenSettings={() => openSettings("notifications")}
         />
 
-        <div className="window-controls" aria-label={t.windowControls}>
+        {/* macOS draws its own traffic lights on the left. Not rendered
+            rather than hidden, so nothing announces buttons that are not there. */}
+        {!hasNativeMacChrome && <div className="window-controls" aria-label={t.windowControls}>
           <button
             className="window-control"
             type="button"
@@ -2642,7 +2770,7 @@ export function App(): React.JSX.Element {
           >
             <span className="window-control__close" aria-hidden="true" />
           </button>
-        </div>
+        </div>}
       </header>
 
       <main
@@ -2705,11 +2833,9 @@ export function App(): React.JSX.Element {
                   </button>
                 );
               })}
-              {/* Signing in is not built yet, but its place in the rail is: it
-                  sits with Settings the way an account always does, disabled
-                  and saying so, rather than appearing later and pushing the
-                  rail's furniture around. */}
-              <button
+              {/* Account UI is a development-only simulation. Published builds
+                  retain the reserved coming-soon control. */}
+              {import.meta.env.DEV && accountController ? <AccountControl controller={accountController} /> : <button
                 className="sidebar-round sidebar-round--account"
                 type="button"
                 aria-disabled="true"
@@ -2717,7 +2843,7 @@ export function App(): React.JSX.Element {
                 data-tooltip={t.navAccountTitle}
               >
                 <UserRound aria-hidden="true" />
-              </button>
+              </button>}
             </nav>
         </aside>
 
@@ -2937,10 +3063,7 @@ export function App(): React.JSX.Element {
                       <Suspense fallback={<ViewLoadingFallback />}>
                         <WorkbenchScreen
                           tab={activeSession?.workbenchTab ?? "changes"}
-                          onTabChange={(tab) =>
-                            sessionsState.activeId &&
-                            dispatchSessions({ type: "setWorkbenchTab", id: sessionsState.activeId, tab })
-                          }
+                          onTabChange={(tab) => openWorkbench(tab)}
                           renderChanges={(tabs) => (
                             // The workbench owns the Suspense boundary, so the
                             // tabs stay on screen while a tab's chunk loads.
@@ -3424,6 +3547,7 @@ export function App(): React.JSX.Element {
       )}
 
       <AppOverlays
+        accountController={accountController}
         issueReport={issueReport}
         projectSettings={{
           isOpen: isProjectSettingsOpen,
@@ -3480,8 +3604,10 @@ export function App(): React.JSX.Element {
           navigationItems: orderedProjectNavDestinations.map((destination) => ({
             id: destination.id,
             label: t[destination.labelKey],
+            description: destination.descriptionKey ? t[destination.descriptionKey] : null,
             icon: destination.icon,
           })),
+          defaultNavigationPreferences: DEFAULT_NAVIGATION_PREFERENCES,
           navigationPreferences,
           setNavigationPreferences,
           diffPreferences,

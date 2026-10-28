@@ -24,6 +24,14 @@ export type WorkingTreeDiffBatch = {
   budgetBytes: number;
 };
 export type FileLines = { startLine: number; lines: string[]; truncated: boolean };
+export type MarkdownPreview =
+  | { kind: "ready"; content: string | null; beforeContent: string | null }
+  | { kind: "too-large"; limitBytes: number };
+
+export function canPreviewMarkdown(diff: FileDiff | null): boolean {
+  return diff !== null && (diff.kind === "text" || diff.kind === "unchanged") &&
+    /(?:^|\/)[^/]+\.(md|markdown)$/i.test(diff.path);
+}
 /** One version of a changed image. `ready` carries the picture; the other two
  * say why there is none, so a frame is never drawn empty. A side that is
  * `null` in `ImagePreview` does not exist at all — an added image has no

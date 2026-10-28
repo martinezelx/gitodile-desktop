@@ -31,7 +31,7 @@ included in the preceding GitHub work.
 
 # Goal
 
-Extend [epic 148](../active/148-connect-github-account.md)'s account/HTTPS-access foundation
+Extend [epic 148](../after-1.0/148-connect-github-account.md)'s account/HTTPS-access foundation
 to GitLab.com, preserving the existing GitHub integration.
 
 # User outcome
@@ -50,7 +50,7 @@ helper protocol or project-selection UI for each provider.
 
 On 2026-10-04 the user approved separate provider tasks after the feasibility
 review. This task retains ID 148-4; GitHub completion now precedes it. Bitbucket Cloud
-is tracked independently in [148-8](../blocked/148-8-bitbucket-accounts.md).
+is tracked independently in [148-8](../after-1.0/148-8-bitbucket-accounts.md).
 
 The user subsequently chose GitHub through `gh` and GitLab through `glab` as
 the only providers in the current milestone, including repository discovery.

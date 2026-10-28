@@ -1,31 +1,6 @@
-import { gitlabTranslations } from "../features/gitlab/translations";
-import { gitlabTokenTranslations } from "../features/gitlab/tokenTranslations";
-import { gitlabToolingTranslations } from "../features/gitlab/toolingTranslations";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { locale as getOsLocale } from "@tauri-apps/plugin-os";
-import { appTranslations } from "../app/translations";
-import { accountsTranslations } from "../features/accounts/translations";
-import { bitbucketTranslations } from "../features/bitbucket/translations";
-import { changesTranslations } from "../features/changes/translations";
-import { cloneTranslations } from "../features/clone/translations";
-import { consoleTranslations } from "../features/console/translations";
-import { initializeProjectTranslations } from "../features/initialize-project/translations";
-import { notificationsTranslations } from "../features/notifications/translations";
-import { historyTranslations } from "../features/history/translations";
-import { githubTranslations } from "../features/github/translations";
-import { githubTokenTranslations } from "../features/github/tokenTranslations";
-import { hostingServersTranslations } from "../features/hosting-servers/translations";
-import { repositoryBrowserTranslations } from "../features/repository-browser/translations";
-import { homeTranslations } from "../features/home/translations";
-import { overviewTranslations } from "../features/overview/translations";
-import { projectSettingsTranslations } from "../features/project-settings/translations";
-import { publishTranslations } from "../features/publish/translations";
-import { saveVersionTranslations } from "../features/save-version/translations";
-import { settingsTranslations } from "../features/settings/translations";
-import { statusTranslations } from "../features/status/translations";
-import { syncTranslations } from "../features/sync/translations";
-import { branchesTranslations } from "../features/branches/translations";
-import { workbenchTranslations } from "../features/workbench/translations";
+import type { en as englishDictionary } from "./en";
 import {
   DEFAULT_DATE_FORMAT,
   DEFAULT_NUMBER_FORMAT,
@@ -33,7 +8,6 @@ import {
   formatNumber,
   isDateFormatPreference,
   isNumberFormatPreference,
-  sharedTranslations,
   type DateFormatPreference,
   type DateStyle,
   type LocaleFormats,
@@ -57,100 +31,53 @@ export const LANGUAGE_NAMES: Record<Language, string> = {
   es: "Español",
 };
 
-export const translationNamespaces = {
-  app: appTranslations,
-  shared: sharedTranslations,
-  clone: cloneTranslations,
-  console: consoleTranslations,
-  initializeProject: initializeProjectTranslations,
-  notifications: notificationsTranslations,
-  history: historyTranslations,
-  gitlab: gitlabTranslations,
-  gitlabToken: gitlabTokenTranslations,
-  gitlabTooling: gitlabToolingTranslations,
-  github: githubTranslations,
-  githubToken: githubTokenTranslations,
-  bitbucket: bitbucketTranslations,
-  hostingServers: hostingServersTranslations,
-  repositoryBrowser: repositoryBrowserTranslations,
-  accounts: accountsTranslations,
-  home: homeTranslations,
-  overview: overviewTranslations,
-  status: statusTranslations,
-  sync: syncTranslations,
-  changes: changesTranslations,
-  saveVersion: saveVersionTranslations,
-  settings: settingsTranslations,
-  projectSettings: projectSettingsTranslations,
-  publish: publishTranslations,
-  branches: branchesTranslations,
-  workbench: workbenchTranslations,
-} as const;
-
-const en = {
-  ...appTranslations.en,
-  ...sharedTranslations.en,
-  ...cloneTranslations.en,
-  ...consoleTranslations.en,
-  ...initializeProjectTranslations.en,
-  ...notificationsTranslations.en,
-  ...historyTranslations.en,
-  ...gitlabTranslations.en,
-  ...gitlabTokenTranslations.en,
-  ...gitlabToolingTranslations.en,
-  ...githubTranslations.en,
-  ...githubTokenTranslations.en,
-  ...bitbucketTranslations.en,
-  ...hostingServersTranslations.en,
-  ...repositoryBrowserTranslations.en,
-  ...accountsTranslations.en,
-  ...homeTranslations.en,
-  ...overviewTranslations.en,
-  ...statusTranslations.en,
-  ...syncTranslations.en,
-  ...changesTranslations.en,
-  ...saveVersionTranslations.en,
-  ...settingsTranslations.en,
-  ...projectSettingsTranslations.en,
-  ...publishTranslations.en,
-  ...branchesTranslations.en,
-  ...workbenchTranslations.en,
+/* What each language card in Settings shows under its name: the product's own
+   words in that language, so a reader judges the language by how GitOdile
+   reads in it. Outside the dictionaries for the same reason as the names, and
+   because only the active dictionary is loaded. */
+export const LANGUAGE_SPECIMENS: Record<Language, string> = {
+  en: "Everything is saved · Publish changes",
+  es: "Todo está guardado · Publicar cambios",
 };
 
-export type Translations = typeof en;
+export type Translations = typeof englishDictionary;
 
-const es: Translations = {
-  ...appTranslations.es,
-  ...sharedTranslations.es,
-  ...cloneTranslations.es,
-  ...consoleTranslations.es,
-  ...initializeProjectTranslations.es,
-  ...notificationsTranslations.es,
-  ...historyTranslations.es,
-  ...gitlabTranslations.es,
-  ...gitlabTokenTranslations.es,
-  ...gitlabToolingTranslations.es,
-  ...githubTranslations.es,
-  ...githubTokenTranslations.es,
-  ...bitbucketTranslations.es,
-  ...hostingServersTranslations.es,
-  ...repositoryBrowserTranslations.es,
-  ...accountsTranslations.es,
-  ...homeTranslations.es,
-  ...overviewTranslations.es,
-  ...statusTranslations.es,
-  ...syncTranslations.es,
-  ...changesTranslations.es,
-  ...saveVersionTranslations.es,
-  ...settingsTranslations.es,
-  ...projectSettingsTranslations.es,
-  ...publishTranslations.es,
-  ...branchesTranslations.es,
-  ...workbenchTranslations.es,
+/* Each language is its own chunk, so launch evaluates only the active one
+   (task 209). The bootstrap awaits `loadTranslations(initialLanguage())`
+   before the first render, which keeps the first frame free of keys and of a
+   fallback language; a later switch keeps the current copy until the other
+   dictionary has loaded. */
+const dictionaryLoaders: Record<Language, () => Promise<Translations>> = {
+  en: () => import("./en").then((module) => module.en),
+  es: () => import("./es").then((module) => module.es),
 };
+const loadedDictionaries: Partial<Record<Language, Translations>> = {};
+const pendingDictionaries: Partial<Record<Language, Promise<Translations>>> = {};
 
-/** All namespaces are composed eagerly so lazy screens never paint keys or a fallback locale. */
-export const translations: Record<Language, Translations> = { en, es };
+export function loadTranslations(language: Language): Promise<Translations> {
+  const loaded = loadedDictionaries[language];
+  if (loaded) return Promise.resolve(loaded);
+  pendingDictionaries[language] ??= dictionaryLoaders[language]().then(
+    (dictionary) => {
+      loadedDictionaries[language] = dictionary;
+      return dictionary;
+    },
+    (error: unknown) => {
+      // Let a later switch try again instead of caching the failure.
+      delete pendingDictionaries[language];
+      throw error;
+    },
+  );
+  return pendingDictionaries[language];
+}
+
+/** The language the first frame shows: the stored choice, or the webview's
+ * locale until the OS locale answers. The provider starts from the same
+ * answer, so the dictionary the bootstrap awaited is the one it renders. */
+export function initialLanguage(): Language {
+  const preference = readStoredLanguagePreference();
+  return preference === "system" ? readNavigatorLanguage() : preference;
+}
 
 // Pure on purpose: unknown languages fall back to English.
 export function resolveLanguage(locale: string | null | undefined): Language {
@@ -182,6 +109,8 @@ interface LanguageContextValue {
   languagePreference: LanguagePreference;
   setLanguagePreference: (preference: LanguagePreference) => void;
   language: Language;
+  /** The language "system" resolves to, for Settings to show beside it. */
+  systemLanguage: Language;
   t: Translations;
   /** The active language plus both display formats, as one value to pass
    * down. Surfaces that formatted with `language` alone now pass this. */
@@ -195,7 +124,15 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+interface LanguageProviderProps {
+  children: React.ReactNode;
+  /** Wraps the commit of a language the user picked, once its dictionary is
+   * loaded, so the composition can animate it. Without one the change lands at
+   * once, which is what tests and the bootstrap's fallback want. */
+  animateLanguageChange?: (applyLanguage: () => void) => void;
+}
+
+export function LanguageProvider({ children, animateLanguageChange }: LanguageProviderProps): React.JSX.Element {
   const [languagePreference, setLanguagePreferenceState] = useState<LanguagePreference>(() =>
     readStoredLanguagePreference(),
   );
@@ -215,11 +152,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       .catch(() => undefined);
   }, []);
 
-  const setLanguagePreference = useCallback((preference: LanguagePreference): void => {
-    setLanguagePreferenceState(preference);
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
-  }, []);
-
   const setDateFormat = useCallback((format: DateFormatPreference): void => {
     setDateFormatState(format);
     localStorage.setItem(DATE_FORMAT_STORAGE_KEY, format);
@@ -230,7 +162,64 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
     localStorage.setItem(NUMBER_FORMAT_STORAGE_KEY, format);
   }, []);
 
-  const language: Language = languagePreference === "system" ? systemLanguage : languagePreference;
+  const requestedLanguage: Language = languagePreference === "system" ? systemLanguage : languagePreference;
+  /* The language on screen. It follows the request as soon as that
+     dictionary is loaded and keeps the previous one until then, so a switch
+     (or the OS locale answering differently) never paints keys. */
+  const [shownLanguage, setShownLanguage] = useState<Language>(() =>
+    loadedDictionaries[requestedLanguage]
+      ? requestedLanguage
+      : ((Object.keys(loadedDictionaries) as Language[])[0] ?? requestedLanguage),
+  );
+  const language: Language = loadedDictionaries[requestedLanguage] ? requestedLanguage : shownLanguage;
+  useEffect(() => {
+    if (language === requestedLanguage) {
+      setShownLanguage(requestedLanguage);
+      return undefined;
+    }
+    let current = true;
+    loadTranslations(requestedLanguage).then(
+      () => {
+        if (current) setShownLanguage(requestedLanguage);
+      },
+      // A dictionary that fails to load leaves the current language in place.
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [language, requestedLanguage]);
+  /* A change that alters the words on screen waits for the dictionary before
+     it starts animating, so the outgoing frame is captured while the old words
+     are still shown and the fade never covers a load. A change that keeps the
+     words (to "system" resolving to the same language) commits at once. Only
+     the latest pick commits: a load that answers after a newer pick would
+     otherwise put back the language the user just left. */
+  const latestLanguagePick = useRef(0);
+  const setLanguagePreference = useCallback(
+    (preference: LanguagePreference): void => {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
+      const pick = ++latestLanguagePick.current;
+      const commit = (): void => {
+        if (pick === latestLanguagePick.current) setLanguagePreferenceState(preference);
+      };
+      const next: Language = preference === "system" ? systemLanguage : preference;
+      if (!animateLanguageChange || next === language) {
+        commit();
+        return;
+      }
+      loadTranslations(next).then(
+        () => animateLanguageChange(commit),
+        // The provider keeps the current language until a dictionary loads.
+        commit,
+      );
+    },
+    [animateLanguageChange, language, systemLanguage],
+  );
+  const t = loadedDictionaries[language];
+  if (!t) {
+    throw new Error(`The ${language} dictionary must be loaded with loadTranslations before the first render.`);
+  }
   /* Kept stable across renders because it is a prop, not just a context value:
      History passes it down to memoized, virtualized rows, and a fresh object
      every render would re-render all of them whenever this provider re-rendered
@@ -250,14 +239,24 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): R
       languagePreference,
       setLanguagePreference,
       language,
-      t: translations[language],
+      systemLanguage,
+      t,
       formats,
       setDateFormat,
       setNumberFormat,
       formatDate: (date: Date, style?: DateStyle) => formatDate(date, formats, style),
       formatNumber: (input: number) => formatNumber(input, formats),
     }),
-    [formats, language, languagePreference, setDateFormat, setLanguagePreference, setNumberFormat],
+    [
+      formats,
+      language,
+      languagePreference,
+      setDateFormat,
+      setLanguagePreference,
+      setNumberFormat,
+      systemLanguage,
+      t,
+    ],
   );
 
   return (

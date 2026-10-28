@@ -139,7 +139,7 @@ export function HistorySummarySection({
     onOpenHistory();
   };
 
-  const renderRow = (version: SavedVersionSummary, index: number): React.JSX.Element => {
+  const renderRow = (version: SavedVersionSummary): React.JSX.Element => {
     const title = versionTitle(version, t.overviewHistoryUntitled);
     const fullAuthor = version.author?.name.trim() || t.overviewHistoryUnknownAuthor;
     const isSelf = isSelfAuthor(version.author, selfEmail);
@@ -159,8 +159,7 @@ export function HistorySummarySection({
     return (
       <li
         key={version.commit}
-        className={`overview-timeline__item row-in${isLocalOnly ? " overview-history__item--local" : ""}${version.publication === "published" ? " overview-history__item--published" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
-        style={{ "--row-index": index } as React.CSSProperties}
+        className={`overview-timeline__item${isLocalOnly ? " overview-history__item--local" : ""}${version.publication === "published" ? " overview-history__item--published" : ""}${canPublishUpTo ? " overview-history__item--publishable" : ""}`}
       >
         <button
           className="overview-history__row"
@@ -304,7 +303,7 @@ export function HistorySummarySection({
                       <TimelineChip kind={hasNoRemote ? "noRemote" : "local"} label={t.overviewTimelineLocalGroup} />
                     </p>
                     <ol className="overview-timeline__rows">
-                      {local.map((version, index) => renderRow(version, index))}
+                      {local.map(renderRow)}
                     </ol>
                   </li>
                 )}
@@ -321,7 +320,7 @@ export function HistorySummarySection({
                     />
                   </li>
                 )}
-                {shared.map((version, index) => renderRow(version, local.length + index))}
+                {shared.map(renderRow)}
                 <li className={`overview-timeline__end overview-timeline__end--${ending}`}>
                   <span className="overview-timeline__end-rail" aria-hidden="true" />
                   <span className="overview-timeline__end-text">{endingText}</span>

@@ -26,9 +26,15 @@ The UI should explain what will happen and preserve a recovery path whenever rea
 
 Working name: **GitOdile**
 
-Working promise: **Git without the fear.**
+Slogan (in the app): **See everything. Undo anything.**
 
-Alternative description: **A friendly Git desktop client.**
+Descriptor (website and store listings): **The Git client for humans and their agents.**
+
+Direction: a next-generation Git client that is the control tower and safety
+net of a project, whether a person or a coding agent did the work. `1.0.0`
+reaches the ordinary workflow first; agent-era features come after it. See
+"The agent-era direction" in `docs/PRODUCT_STRATEGY.md` and
+[ADR 0039](docs/adr/0039-position-gitodile-for-humans-and-their-agents.md).
 
 The crocodile mascot should feel confident and friendly, not childish. Branding may use small moments of personality, but the product must remain credible for professional work.
 
@@ -222,11 +228,18 @@ Agents must follow these rules when implementing operations:
 
 ## UI and visual direction
 
-Read `DESIGN.md` before changing visual styles.
+Read `DESIGN.md` before changing visual styles. Any task that adds or changes
+a screen, dialog, panel, menu or notice starts from its "Before designing a
+screen, dialog or panel" section: the app's current look is the specification,
+so a new surface matches its closest existing equivalent, reuses the
+`src/shared/ui` primitives, takes every value from a token, and is checked
+running in a light and a dark theme beside that equivalent. A new token,
+dialog width, radius, material or pattern is a change to `DESIGN.md` in the
+same commit, never a local exception.
 
 In summary:
 
-- Modern desktop interface with rounded surfaces and restrained translucency.
+- Modern desktop interface with rounded, opaque surfaces; translucency only for a transient scrim.
 - Dense information areas such as diffs must use solid, highly readable backgrounds.
 - Support light and dark themes.
 - Use motion sparingly and respect reduced-motion settings.
@@ -250,10 +263,66 @@ In summary:
 - Rust code must pass `cargo fmt` and `cargo clippy`.
 - Avoid `any` unless interacting with an untyped boundary and document why.
 - Return structured errors from Rust; do not expose raw command output as the primary error message.
-- Add unit tests for parsers and operation planners.
-- Add integration tests around temporary Git repositories.
 - Keep commits focused and use conventional commit prefixes where practical.
 - Update documentation when behavior, architecture, or vocabulary changes.
+
+## Tests
+
+A test exists to catch a regression a user would notice. These rules apply to
+every test you add or change; review rejects one that breaks them. They came
+out of task 207, when 1,759 frontend and 646 Rust tests made the gate slow and
+flaky.
+
+When to add a test:
+
+- Add one for a behavior: a Git safety rule (data, history, remote, recovery),
+  a parser or operation planner, a contract across a boundary (IPC,
+  architecture, screen registration), or a fixed bug whose cause could return.
+- Do not add one that only pins copy, CSS classes, DOM order or layout; check
+  those in the running app or the browser harness. A class assertion belongs
+  in a test only when the class is how the UI exposes a state (selected,
+  unread, animating).
+- Extend the existing test of the same behavior, or turn it into `it.each`,
+  before writing a new one. When a behavior changes or goes away, change or
+  delete its tests in the same commit.
+
+Where it goes — the cheapest level that proves the behavior:
+
+1. A pure function in the owning domain or controller (`*.test.ts`).
+2. A component with its port mocked (`*.test.tsx`).
+3. The `src/app/App*.test.tsx` files, only for what the composition root
+   owns: wiring between screens, keep-alive, project activation and the
+   shared stores. Feature behavior belongs in the feature's own tests. Add a
+   case to the file of its concern (shell, home, projects, navigation); they
+   share `src/test-fixtures/appTestHarness.ts`, and a file that grows past
+   about 15 s holds back the whole run, so split it rather than let it grow.
+4. In Rust, parsers and planners are unit tests with no Git process. A
+   temporary repository is for behavior that only Git itself can show
+   (`src-tauri/src/tests/<domain>_tests.rs` or the owning module).
+
+How to write it:
+
+- A `.ts` test runs in Node. Add `// @vitest-environment jsdom` only when it
+  needs the DOM or `localStorage`.
+- Paste long text (`user.click`, then `user.paste`); type it only when each key
+  is the behavior under test. Wait for asynchronous results with `findBy*` or
+  `waitFor`; never raise a timeout to cover a slow test.
+- Rust fixtures come from `src-tauri/src/test_support.rs`: `unique_temp_dir`
+  (inside the test run's own temp root), `published_repo_and_remote`, and
+  `git_commit_series` for a run of versions. A Git process costs about 50 ms
+  on Windows, so spawn as few as the behavior needs. Never write fixtures to
+  the shared temp directory, take a process-wide lock, `sleep` while waiting
+  for a result, or compile code while a test runs: a fake CLI is a
+  `src-tauri/examples/test_fake_*` program declared with `harness = false`,
+  found through `test_support::example_binary`.
+- New tests under `scripts/` use `node:test`; `check:docs` runs them.
+
+Budgets: a new or changed frontend test that takes over 1 s, or a Rust test
+over 5 s when run alone, carries a comment saying why it cannot be cheaper.
+
+While iterating, run only the affected tests (`pnpm vitest run <path>`,
+`cargo test --manifest-path src-tauri/Cargo.toml <module>`); `pnpm run check`
+remains the completion gate.
 
 ## Documentation ownership
 
@@ -265,7 +334,8 @@ Keep durable facts in one place and link to them instead of copying them:
 - `DESIGN.md`: visual, interaction, content, and accessibility direction.
 - `docs/ARCHITECTURE.md`: current architecture and extension rules.
 - `docs/adr/`: decision rationale and alternatives.
-- `work/`: approved scope and execution history, never the sole home of a
+- `work/`: approved scope and execution history, organized as one folder per
+  planned version, `after-1.0/` and a flat `done/`; never the sole home of a
   durable architecture rule.
 
 `PRODUCT.md` is a compact design-tooling brief; do not expand it into a second
@@ -275,9 +345,9 @@ evidence or measurement baselines and must identify themselves as such.
 When moving a task, keep its relative links valid. Task IDs are unique and
 permanent; a child may use its parent's ID plus a suffix such as `010-1`.
 IDs identify work and do not encode current priority. Active non-epic tasks use
-the contiguous `queue` field for execution order; epics leave queueing to their
-suffixed children. Files in `work/done/` require `status: done` and a completion
-date.
+the `queue` field, contiguous inside their version folder, for execution order;
+epics leave queueing to their suffixed children. Files in `work/done/` require
+`status: done` and a completion date. See `work/README.md`.
 
 ## Agent workflow
 
@@ -293,7 +363,7 @@ While coding:
 
 1. Make the smallest coherent change.
 2. Preserve safety boundaries.
-3. Add or update tests.
+3. Add or update tests as [Tests](#tests) describes.
 4. Check keyboard accessibility and empty/error/loading states.
 5. Avoid introducing dependencies for trivial utilities.
 
@@ -350,6 +420,9 @@ The main agent should primarily:
 - Understand the user's request and the relevant GitOdile architecture.
 - Inspect existing code before deciding how to change it.
 - Make architectural and high-level implementation decisions.
+- Make the visual decisions of a UI task before delegating it: name the
+  existing screen or dialog it must match and the `DESIGN.md` sections that
+  apply, so the worker implements a decided look rather than designing one.
 - Break larger work into narrowly scoped delegated tasks.
 - Delegate routine implementation whenever practical.
 - Review delegated work before accepting or integrating it.

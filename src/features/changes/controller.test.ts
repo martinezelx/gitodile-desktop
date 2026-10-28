@@ -18,6 +18,7 @@ const port = (overrides: Partial<ChangesPort> = {}): ChangesPort => ({
   revealFile: async () => { throw new Error("unused"); },
   readWorkingTreeDiffs: async () => batch([]),
   readFileLines: async () => ({ startLine: 1, lines: [], truncated: false }),
+  readFileMarkdown: async () => ({ kind: "ready", beforeContent: null, content: "" }),
   readFileImagePreview: async () => ({ before: null, after: null }),
   planDiscard: async () => { throw new Error("unused"); },
   discard: async () => { throw new Error("unused"); },

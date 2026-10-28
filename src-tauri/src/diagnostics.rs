@@ -620,7 +620,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!(
+        let path = crate::test_support::test_temp_root().join(format!(
             "gitodile-diagnostic-report-{}-{nonce}.txt",
             std::process::id()
         ));

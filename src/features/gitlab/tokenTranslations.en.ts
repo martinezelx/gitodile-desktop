@@ -1,0 +1,15 @@
+export const en = {
+  gitlabTokenTitle: "Token connection",
+  gitlabTokenServerTitle: "Token connection · {host}",
+  gitlabTokenExists: "This account already has a token. Remove it to replace it.",
+  gitlabTokenLimitReached: "You already have 8 tokens. Remove one first.",
+  gitlabTokenPermissionsTitle: "Which permissions does it need?",
+  gitlabTokenRemovalTitle: "Remove the token for @{login}?",
+  gitlabTokenLabel: "Personal access token", gitlabTokenConnect: "Check and connect",
+  gitlabTokenStorage: "Checked with GitLab and saved in your system's secure store, separately from GitLab CLI.",
+  gitlabTokenPermissions: "read_api to list projects, plus read_repository to clone or write_repository to publish (api covers all three). Replace it when it expires.",
+  gitlabTokenLimit: "Never your GitLab password. Up to 8 tokens.",
+  gitlabTokenConnected: "Token checked and saved.", gitlabTokenRemove: "Remove token",
+  gitlabTokenRemoved: "Token removed.",
+  gitlabTokenRemovalConsent: "Projects using it will need another account, and it stays valid on GitLab until you revoke it there.",
+};

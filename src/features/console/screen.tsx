@@ -9,6 +9,7 @@ export const consoleScreenModule = {
   id: "console",
   section: "project",
   labelKey: "navConsole",
+  descriptionKey: "navConsoleDescription",
   disabledLabelKey: "navConsoleTitle",
   commandLabelKey: "commandGoConsole",
   icon: <SquareTerminal />,

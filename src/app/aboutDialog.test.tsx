@@ -104,6 +104,11 @@ function buildProps(
       runGitHooks: false,
       setRunGitHooks: vi.fn(),
       navigationItems: [],
+      defaultNavigationPreferences: {
+        visibleDestinationIds: [],
+        destinationOrderIds: [],
+        displayMode: "icons-and-text",
+      },
       navigationPreferences: {
         visibleDestinationIds: [],
         destinationOrderIds: [],
@@ -391,19 +396,19 @@ describe("About dialog", () => {
   it("is named by the app it belongs to, not only by its promise", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const hero = dialog.querySelector(".about-dialog__hero");
     const heading = dialog.querySelector("#about-title");
     const productName = heading?.querySelector(".about-dialog__product-name");
     const mark = hero?.querySelector(".about-dialog__mark");
     const tagline = heading?.querySelector(".about-dialog__tagline");
-    expect(heading).toHaveTextContent("GitOdile Git without the fear.");
+    expect(heading).toHaveTextContent("GitOdile See everything. Undo anything.");
     expect(productName).toHaveTextContent("GitOdile");
     // The "Odile" half is the one that carries the brand sweep; the name still
     // reads as one word because the halves are adjacent text.
     expect(productName?.querySelector(".about-dialog__odile")).toHaveTextContent("Odile");
     expect(mark).toBeInTheDocument();
-    expect(tagline).toHaveTextContent("Git without the fear.");
+    expect(tagline).toHaveTextContent("See everything. Undo anything.");
     // The mark leads the identity at hero scale, then the h2 names the product
     // before it states the promise.
     expect(mark!.compareDocumentPosition(heading!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -413,7 +418,7 @@ describe("About dialog", () => {
   it("describes machine-specific diagnostics as the user's system", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     expect(within(dialog).getByRole("heading", { name: "Your system" })).toBeInTheDocument();
     expect(dialog).not.toHaveTextContent("Technical details");
   });
@@ -421,7 +426,7 @@ describe("About dialog", () => {
   it("puts the copy control with the diagnostics it copies, not with the credits", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const technical = dialog.querySelector(".about-technical");
     const stack = dialog.querySelector(".about-stack");
     const copy = dialog.querySelector<HTMLElement>(".about-technical__copy");
@@ -440,7 +445,7 @@ describe("About dialog", () => {
 
   it("shows the project license and opens its license and source in the browser", async () => {
     renderOverlays();
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const licence = dialog.querySelector(".about-dialog__legal--bare");
     const stack = dialog.querySelector(".about-stack");
     const credit = dialog.querySelector(".about-dialog__legal--stacked");
@@ -459,8 +464,8 @@ describe("About dialog", () => {
   it("reports the product and the machine, and leaves release notes to the changelog", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
-    expect(dialog).toHaveTextContent("Version control in clear, worry-free steps.");
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
+    expect(dialog).toHaveTextContent("The Git client for humans and their agents.");
     expect(dialog.querySelector(".about-dialog__version")?.textContent).toBe(__APP_VERSION__);
     expect(dialog.querySelector(".about-dialog__version")).toHaveAccessibleName(
       `GitOdile ${__APP_VERSION__}`,
@@ -483,7 +488,7 @@ describe("About dialog", () => {
       },
     });
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     expect(dialog).toHaveTextContent("Up to date");
     await userEvent.click(within(dialog).getByRole("button", { name: "What's new" }));
     // About closes and the changelog opens, so the two backdrops never stack.
@@ -494,7 +499,7 @@ describe("About dialog", () => {
   it("keeps the update line quiet when the release model has nothing to say", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     // No status and no trailing separator without an appUpdates snapshot: only
     // the way to the notes, never an alarm About cannot explain.
     expect(dialog.querySelector(".about-dialog__update-status")).not.toBeInTheDocument();
@@ -513,14 +518,14 @@ describe("About dialog", () => {
 
     // A development build configures no update feed, so the slot names the
     // check as unavailable rather than reading as a fault or going blank.
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     expect(dialog).toHaveTextContent("Updates unavailable");
   });
 
   it("lists the technical environment rows in a fixed order", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
     // No webview row under jsdom: its user agent carries no Chromium token, and
     // an unknown engine is omitted rather than guessed.
@@ -540,7 +545,7 @@ describe("About dialog", () => {
     });
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const rows = [...dialog.querySelectorAll(".about-details > div")];
     expect(rows.map((row) => row.querySelector("dt")?.textContent)).toEqual([
       "System",
@@ -554,7 +559,7 @@ describe("About dialog", () => {
   it("marks the platform it is running on", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     // Decoration for a value that is already spelled out beside it, so it must
     // stay out of the accessibility tree rather than announce "Windows" twice.
     const mark = dialog.querySelector(".about-details__mark");
@@ -565,7 +570,7 @@ describe("About dialog", () => {
   it("credits the stack it is built on, apart from the diagnostics", () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     const tiles = [...dialog.querySelectorAll(".about-stack__item")];
     const names = tiles.map((tile) => tile.querySelector(".about-stack__name")?.textContent);
     expect(tiles.length).toBeGreaterThan(0);
@@ -584,7 +589,7 @@ describe("About dialog", () => {
   it("opens a credited project's own site in the browser, not in the webview", async () => {
     renderOverlays();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     // Named by destination as well as by layer: the chip leaves the app, and a
     // screen reader user has to hear that before pressing it. The version sits
     // inside the chip but not in its name — it is not what the press acts on.
@@ -606,7 +611,7 @@ describe("About dialog", () => {
 
     // The rejection is swallowed on purpose: an unopened credit is not worth an
     // error dialog, and an unhandled rejection here fails the whole suite.
-    expect(screen.getByRole("dialog", { name: "GitOdile Git without the fear." })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." })).toBeInTheDocument();
   });
 
   it("omits empty technical details without a platform bridge", async () => {
@@ -616,7 +621,7 @@ describe("About dialog", () => {
     });
     renderOverlaysWithoutGit();
 
-    const dialog = screen.getByRole("dialog", { name: "GitOdile Git without the fear." });
+    const dialog = screen.getByRole("dialog", { name: "GitOdile See everything. Undo anything." });
     // The copy control lives in that section, so with nothing to report there is
     // nothing to copy and no orphaned button either.
     expect(dialog.querySelector(".about-technical")).not.toBeInTheDocument();

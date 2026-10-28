@@ -1597,7 +1597,7 @@ mod tests {
 
     #[test]
     fn glab_finds_windows_installations_without_a_refreshed_path() {
-        let root = std::env::temp_dir().join("glab-discovery-fixture");
+        let root = crate::test_support::test_temp_root().join("glab-discovery-fixture");
         let roots = [
             root.join("Local Programs"),
             root.join("Program Files"),
@@ -2032,7 +2032,8 @@ mod tests {
 
     #[test]
     fn git_is_found_on_the_first_path_entry_that_has_it() {
-        let root = std::env::temp_dir().join(format!("git-path-fixture-{}", std::process::id()));
+        let root = crate::test_support::test_temp_root()
+            .join(format!("git-path-fixture-{}", std::process::id()));
         let empty = root.join("empty");
         let first = root.join("first");
         let second = root.join("second");
@@ -2124,8 +2125,8 @@ mod tests {
 
     #[test]
     fn the_global_config_in_use_is_the_one_that_exists() {
-        let root =
-            std::env::temp_dir().join(format!("git-global-config-fixture-{}", std::process::id()));
+        let root = crate::test_support::test_temp_root()
+            .join(format!("git-global-config-fixture-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let xdg = root.join("xdg-config");
         let home = root.join(".gitconfig");
@@ -2460,7 +2461,7 @@ mod tests {
 
     #[test]
     fn git_identity_round_trips_through_a_temporary_global_config() {
-        let mut config_path = std::env::temp_dir();
+        let mut config_path = crate::test_support::test_temp_root().to_path_buf();
         config_path.push(format!("gitodile-test-gitconfig-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
@@ -2496,7 +2497,7 @@ mod tests {
 
     #[test]
     fn default_branch_round_trips_through_a_temporary_global_config() {
-        let mut config_path = std::env::temp_dir();
+        let mut config_path = crate::test_support::test_temp_root().to_path_buf();
         config_path.push(format!(
             "gitodile-test-default-branch-{}",
             std::process::id()
@@ -2524,7 +2525,7 @@ mod tests {
         // Pointed at a scratch config even though every name here is rejected
         // before anything is written: if one ever stopped being rejected, the
         // test must not scribble on the developer's real global config.
-        let mut config_path = std::env::temp_dir();
+        let mut config_path = crate::test_support::test_temp_root().to_path_buf();
         config_path.push(format!(
             "gitodile-test-default-branch-invalid-{}",
             std::process::id()
@@ -2604,7 +2605,7 @@ mod tests {
 
     #[test]
     fn line_endings_round_trip_through_a_temporary_global_config() {
-        let mut config_path = std::env::temp_dir();
+        let mut config_path = crate::test_support::test_temp_root().to_path_buf();
         config_path.push(format!("gitodile-test-eol-config-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();
@@ -2640,7 +2641,7 @@ mod tests {
     fn a_project_setting_is_reported_over_the_global_one() {
         let repo = crate::test_support::unique_temp_dir("line-endings");
         crate::test_support::git_init(&repo);
-        let mut config_path = std::env::temp_dir();
+        let mut config_path = crate::test_support::test_temp_root().to_path_buf();
         config_path.push(format!("gitodile-test-eol-project-{}", std::process::id()));
         let _ = fs::remove_file(&config_path);
         let config_override = config_path.to_string_lossy().to_string();

@@ -117,9 +117,10 @@ fn pagination_rejects_a_cursor_after_head_changes() {
 fn pagination_covers_hundreds_of_versions_without_duplicates_or_gaps() {
     let path = unique_temp_dir("history-hundreds");
     git_init(&path);
-    for _ in 0..205 {
-        git_commit_empty(&path);
-    }
+    let versions: Vec<_> = (0..205)
+        .map(|_| ("init".to_string(), String::new()))
+        .collect();
+    git_commit_series(&path, None, &versions);
 
     let first = read_history_page(path.clone(), None, Some(100), None, None).unwrap();
     assert_eq!(first.versions.len(), 100);
@@ -296,13 +297,18 @@ fn many_decorations_are_capped_and_reported_without_ambiguous_splitting() {
     let path = unique_temp_dir("history-many-decorations");
     git_init(&path);
     git_commit_empty(&path);
-    for index in 0..40 {
-        assert!(git_command(&path)
-            .args(["tag", &format!("release,{index:02}")])
-            .status()
-            .unwrap()
-            .success());
-    }
+    // One `update-ref --stdin` instead of a `git tag` process per tag.
+    let tip = head(&path);
+    let tags: String = (0..40)
+        .map(|index| format!("create refs/tags/release,{index:02} {tip}\n"))
+        .collect();
+    let mut update = git_command(&path)
+        .args(["update-ref", "--stdin"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::io::Write::write_all(&mut update.stdin.take().unwrap(), tags.as_bytes()).unwrap();
+    assert!(update.wait().unwrap().success());
 
     let page = read_history_page(path.clone(), None, Some(50), None, None).unwrap();
     assert_eq!(
@@ -1188,17 +1194,10 @@ fn a_filtered_page_classifies_more_unpublished_work_than_it_holds() {
         .status()
         .unwrap()
         .success());
-    for index in 0..140 {
-        write_file(
-            &clone,
-            "file.txt",
-            &format!(
-                "local {index}
-"
-            ),
-        );
-        commit_all(&clone, &format!("local {index}"));
-    }
+    let versions: Vec<_> = (0..140)
+        .map(|index| (format!("local {index}"), format!("local {index}\n")))
+        .collect();
+    git_commit_series(&clone, Some("file.txt"), &versions);
 
     let page = read_history_page(
         clone.clone(),

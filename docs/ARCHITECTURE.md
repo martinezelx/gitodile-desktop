@@ -26,6 +26,41 @@ or transport types.
 
 ## Frontend ownership
 
+The Changes Markdown preview reads full saved/current documents on demand
+through `ChangesPort.readFileMarkdown` and the session-validated
+`read_file_markdown` command. Rust authorizes a read-only operation, checks the
+Markdown extension and canonical project containment, requires a regular UTF-8
+file and caps the actual read at 128 KiB per version (plus one byte to detect overflow).
+Symlink files and saved symlink blobs are refused: Git stores their destination
+path, which must not be compared with dereferenced document content.
+The saved side is read from a pinned HEAD object, using the original path from
+fresh Git status for a rename. Deleted current files and genuinely new saved
+sides are explicit missing versions; Git/encoding failures never become additions.
+Oversized content is refused by the native document reader. The frontend can
+instead reuse complete hunks from the already-loaded text diff, without another
+file read. These independent fragments are explicitly labelled partial and may
+lack formatting/reference context. At most 24 hunks, 400 source lines and 32K
+source code units enter excerpt preparation, under a shared 250 ms budget.
+Incomplete or excessive hunks are omitted with a notice; if none fit, use text.
+The preview request is keyed by the selected diff snapshot and project epoch;
+hidden views detach listeners and reuse the request on return. The renderer
+is the default for supported Markdown files; an explicit reading choice is
+persisted locally under `gitodile-markdown-view`, separately from code diffs.
+Read/size/comparison failures fall back to text with an explanation without
+changing that preference. Reselecting Markdown retries the read.
+The renderer
+uses CommonMark/GFM without raw HTML, active links or image resource loads.
+Line and AST comparisons have time/edit-distance bounds. Full Markdown trees
+are merged into one unified document, interleaving removed/added blocks and
+retaining shared context once. Compatible lists, quotes and tables merge their
+children. Reference links/images resolve within their original full document;
+footnotes have version-scoped identifiers. Tree traversal also has a depth bound.
+Full preview preserves complete semantic blocks. Excerpt preview parses each
+available hunk independently, never joining Markdown syntax across source gaps.
+Both representations annotate consecutive changed blocks as navigation groups;
+only referenced footnotes contribute stops. Active-screen navigation scrolls to
+the requested marker without restarting on reveal or triggering another read.
+
 The frontend is a modular monolith:
 
 ```text
@@ -94,6 +129,17 @@ it to name. A feature like that must not grow a read of its own to fill the
 gap — the moment a surface fetches to populate itself, it has become one more
 thing that runs when the user was doing something else.
 
+The notification feature owns a versioned, bounded localStorage inbox (50
+entries, with independently bounded fields and input size). Its persistence
+boundary validates unknown data and allowlists stored fields; detailed error
+reasons stay in memory only. The store persists read state and one acknowledged
+app-update version independently of card retention, so removing or evicting
+that card cannot re-alert the same offered release. Storage failure leaves the
+live inbox usable with a panel warning. Restoring/opening it triggers no IPC,
+network activity or audio. Review callbacks report whether their destination
+opened before the panel acknowledges the individual notice; app-update review
+always uses the updater's current snapshot rather than a stored candidate.
+
 ### Screens and lifecycle
 
 Every screen is registered once in `src/app/screens.tsx`. The descriptor drives
@@ -108,6 +154,14 @@ primary preloading. Overlay panels stay eager: an overlay opens from a click
 with no navigation in front of it, and `React.lazy` suspends on first render
 even when its module is already warmed, so code-splitting one buys a fallback
 frame no prefetch can remove.
+
+A popup that closes on a press outside itself listens through
+`onDocumentPress` from `shared/ui`, never a bare document `mousedown`. Tauri
+stops the bubbling mousedown on the titlebar's drag region, so a bare listener
+leaves the popup open when the bar is pressed; `onDocumentPress` observes that
+region in the capture phase and everything else while bubbling, which keeps a
+nested surface portalled out of its popup (a calendar, an account list) able to
+keep its own press with `stopPropagation`.
 
 Visited project screens remain mounted for the active project epoch. Home is an
 application-session screen: switching projects does not evict it, and showing
@@ -217,10 +271,14 @@ Document-root choreography that no single component owns — the view-transition
 pseudo-elements behind a theme change — sits in `styles/`, not in the sheet of
 whichever control happens to trigger it.
 
-English and Spanish dictionaries stay beside their owner and are composed in
-`src/i18n/index.tsx`. Exact typed locale objects make missing, extra, or incompatible
-keys a compile-time error. Shared errors/actions belong in `shared/i18n`; shell
-copy belongs in `app/translations.ts`.
+English and Spanish dictionaries stay beside their owner, one module per
+language (`translations.en.ts`, `translations.es.ts`) with the interface in
+`translations.ts`, and are composed per language in `src/i18n/en.ts` and
+`src/i18n/es.ts`. Each language is its own chunk: the bootstrap awaits only the
+active one before the first render, and a language switch keeps the current
+copy until the other has loaded. Exact typed locale objects make missing,
+extra, or incompatible keys a compile-time error. Shared errors/actions belong
+in `shared/i18n`; shell copy belongs in `app/translations.*.ts`.
 
 ## Rust ownership
 
@@ -770,7 +828,9 @@ and installed A-to-B qualification/target enablement remain exclusively with
   reaching sideways into each other, and verify the IPC/policy inventory.
 
 Performance comparison protocol and retained budgets live in the
-[`architecture baseline`](architecture/023-performance-baseline.md). Enable
+[`architecture baseline`](architecture/023-performance-baseline.md). Launch
+JavaScript size is tracked per release rather than budgeted until 1.0
+([ADR 0040](adr/0040-track-launch-javascript-as-a-trend.md)). Enable
 `VITE_PROFILE_SCREEN_SWITCHES=true` only while profiling; instrumentation is
 absent from normal development and production builds.
 
@@ -778,7 +838,7 @@ absent from normal development and production builds.
 
 ### Optional GitHub CLI tooling
 
-The GitHub block of Settings → Accounts owns machine-level `gh` readiness through its
+The GitHub block of Settings → Integrations owns machine-level `gh` readiness through its
 typed port and adapter. Git configuration stays in the separate Git section.
 `tooling.rs` shares fixed platform installation/update plans with Git while
 keeping each tool's launch guards and update cache independent. The renderer
@@ -827,11 +887,27 @@ Environment-controlled sessions cannot be changed by these account commands.
 Explicit account actions can enrich a verified identity through a bounded gh
 `api users/<login>` public profile query with a validated username. Up to four
 accounts receive optional avatar enrichment concurrently; a newly activated
-account is first, and other cached images remain available. A separate native
-HTTP client with no credentials and
-no redirects downloads only a fixed GitHub avatar CDN URL derived from that
-profile's numeric id. The optional PNG/JPEG response is capped at 256 KiB,
-encoded through the shared `encoding.rs` helper and cached in memory. Renderer
+account is first, and other cached images remain available. Pictures for every
+provider go through `avatar.rs`
+([ADR 0038](adr/0038-hosting-account-profile-pictures.md)). It owns:
+
+- the allow-list of picture hosts per provider; github.com uses a fixed CDN URL
+  derived from the profile's numeric id;
+- a credential-free client with no redirects;
+- PNG/JPEG/GIF/WebP sniffing capped at 256 KiB, encoded through `encoding.rs`;
+- the per-account disk cache under the app cache directory.
+
+gh, glab and the token connections in `hosting_access.rs` refresh a picture
+after each successful verification, and delete it on sign-out or removal.
+Token rows read the cache, so a picture renders at launch. The renderer shows
+three separate identities:
+
+- `ProjectAvatar` (shared UI) for a project;
+- `ProfileAvatar` (`features/account`, initials only) for the GitOdile profile;
+- `HostingAvatar` (`features/accounts`, picture plus provider badge) for a
+  hosting account.
+
+None of them reads another's source. Renderer
 CSP and browser opener scopes remain unchanged; image failure never changes
 authentication status. Cached reads and Settings visibility cause no downloads.
 
@@ -915,7 +991,7 @@ secrets and unregisters it while bindings stay saved and unavailable. The Git
 helper receives a server's authority as an argument and rebuilds its adapter only
 when that authority derives the account's instance ID. Credential scopes, remote
 validation and header masking compare host and port. The `hosting-servers`
-feature owns the Settings → Accounts composition (`AccountsSettings`: one
+feature owns the Settings → Integrations composition (`AccountsSettings`: one
 connected-accounts list for every provider grouped by host, the provider menu
 and connect panels, and a folded block per provider holding its server
 inventory and CLI tooling) and its typed port. It composes `accounts`' token
@@ -928,7 +1004,32 @@ gh's device page for a server because the renderer's opener scope is a fixed
 list. See
 [ADR 0025](adr/0025-connect-company-servers-as-provider-instances.md).
 
+### Azure Repos Services organization connections
+
+`azure_access.rs` owns organization instances and canonical clone URL validation;
+`hosting_access.rs` supplies the native PAT lifecycle and connection-data identity
+checks. The shared provider contract has an optional `scopePath`, shown beside
+`dev.azure.com` in Settings and used to select one organization instance in clone
+and project account pickers. Process-only Git helpers enable `useHttpPath` and
+validate that scope before reading the secret. The same identity on two
+organizations has separate secure-store namespaces and bindings. Azure's
+frontend feature owns its typed port, adapter, organization step and token copy;
+`hosting-servers` composes it in Integrations. No Azure discovery source is
+registered. Clone offers a URL-only Azure tab; connected Home accounts open it
+with their selected connection without calling the repository-browser port.
+See [ADR 0036](adr/0036-connect-azure-repos-by-organization-and-pat.md)
+for URL normalization, account lifetime, limits and qualification boundaries.
+
 ### Shared hosting accounts and Git access
+
+The optional GitOdile identity demo is separate from hosting accounts.
+`features/account` owns its controller, scenarios, overlays and `AccountSettings`
+body; the development composition injects that body into Settings. Both the
+category rail and command palette use `availableSettingsSections` with the same
+capability check. A modal account flow temporarily suspends the Settings focus
+trap and makes its retained DOM inert, preserving drafts and a live return-focus
+target. Closing Settings does not dispose the app-scoped session. Production
+omits the demo capability and copy; it introduces no native authentication.
 
 `credentials.rs` owns provider-neutral metadata, bounded persistent project
 bindings and the internal Git credential protocol. `hosting.rs` registers
@@ -939,7 +1040,7 @@ Bitbucket is token-only.
 picker shared by clone and project settings. `useAccounts` keeps the last local
 receipt per port, so a remounted section renders it before the next read and
 reports `loaded` so an unread catalog is never shown as empty.
-`hosting::sync_accounts_after_launch` runs the Check accounts action for every
+`hosting::sync_accounts_after_launch` runs the Check connections action for every
 product three seconds after launch; see
 [ADR 0027](adr/0027-verify-saved-accounts-after-launch.md). Providers implement adapters rather
 than duplicating the selection store, picker or Git access policy.

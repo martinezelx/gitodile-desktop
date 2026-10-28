@@ -1,83 +1,104 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  markNotificationsRead,
-  recordNotification,
-  unreadNotificationCount,
-  type AppNotification,
-  type NotificationDetails,
+  markNotificationsRead, recordNotification, setNotificationRead, unreadNotificationCount,
+  type AppNotification, type NotificationDetails,
 } from "./domain";
+import {
+  loadNotificationHistory, NOTIFICATION_HISTORY_KEY, serializeNotificationHistory,
+  type NotificationHistory,
+} from "./persistence";
 
 export type NotificationCenterStore = {
   notifications: readonly AppNotification[];
   unreadCount: number;
-  /** Records an event. Does nothing while notifications are turned off, so
-   * every call site is one unconditional line rather than a repeated `if`. */
+  hasStorageWarning: boolean;
+  /** Recording off preserves the inbox and stops collecting new events. */
   notify: (event: {
     details: NotificationDetails;
     projectId?: string | null;
     projectName?: string | null;
   }) => void;
+  setRead: (id: string, read: boolean) => void;
   markAllRead: () => void;
-  /** Removes one entry. Session-scoped and low-stakes, so there is no undo;
-   * the alternative the panel offers is "clear all", which is why this is a
-   * per-row action the pointer has to reach for rather than a prominent one. */
   dismiss: (id: string) => void;
   clear: () => void;
 };
 
-/**
- * Session-scoped store for the notification centre, owned by the composition
- * root.
- *
- * Nothing here reaches Rust, watches a repository, or starts a timer. The
- * centre only ever *records* outcomes that work elsewhere in the app already
- * produced, which is what keeps it free of the "never fetch because a surface
- * appeared" rule the screens live under.
- *
- * `isEnabled` gates recording rather than display: turning notifications off
- * has to mean the app stops collecting, not that it collects silently and hides
- * the pile. What was already recorded stays readable — deleting someone's list
- * because they turned off future ones would be a surprise, not a setting.
- */
+function acknowledgedUpdate(current: NotificationHistory, entries: readonly AppNotification[]): string | null {
+  const update = entries.find((entry) => entry.details.kind === "appUpdateAvailable");
+  return update?.details.kind === "appUpdateAvailable"
+    ? update.details.version : current.acknowledgedUpdateVersion;
+}
+
+/** Local bounded inbox owned by the composition root. It only records existing
+ * outcomes: no repository reads, network activity, timers or audio. */
 export function useNotificationCenter(isEnabled: boolean): NotificationCenterStore {
-  const [notifications, setNotifications] = useState<readonly AppNotification[]>([]);
-  // A counter, not `crypto.randomUUID()`: these ids never leave the session and
-  // only have to be distinct within it, and a counter is one line that works
-  // identically in the app and under jsdom.
+  const [initial] = useState(loadNotificationHistory);
+  const [history, setHistory] = useState(initial.history);
+  const [hasStorageWarning, setHasStorageWarning] = useState(initial.failed);
+  const [restoredIds] = useState(() => new Set(initial.history.notifications.map((entry) => entry.id)));
   const nextIdRef = useRef(0);
   const isEnabledRef = useRef(isEnabled);
   isEnabledRef.current = isEnabled;
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFICATION_HISTORY_KEY, serializeNotificationHistory(history));
+    } catch {
+      // No recursive notice and no lost live state if storage is unavailable.
+      setHasStorageWarning(true);
+    }
+  }, [history]);
+
   const notify = useCallback<NotificationCenterStore["notify"]>((event) => {
     if (!isEnabledRef.current) return;
-    nextIdRef.current += 1;
-    const id = `notification-${nextIdRef.current}`;
-    const createdAt = Date.now();
-    setNotifications((current) =>
-      recordNotification(current, {
-        id,
-        createdAt,
-        details: event.details,
-        projectId: event.projectId ?? null,
-        projectName: event.projectName ?? null,
-      }),
-    );
+    // IDs only name local cards. A counter skipping restored IDs also works in
+    // older WebViews without requiring Web Crypto or a secure-context API.
+    let id: string;
+    do { id = `notification-${++nextIdRef.current}`; } while (restoredIds.has(id));
+    const request = { id, createdAt: Date.now(),
+      details: event.details, projectId: event.projectId ?? null, projectName: event.projectName ?? null };
+    setHistory((current) => {
+      if (event.details.kind === "appUpdateAvailable"
+        && event.details.version === current.acknowledgedUpdateVersion) return current;
+      return { ...current, notifications: recordNotification(current.notifications, request) };
+    });
+  }, [restoredIds]);
+
+  const setRead = useCallback((id: string, read: boolean) => {
+    setHistory((current) => {
+      const entry = current.notifications.find((candidate) => candidate.id === id);
+      if (!entry || entry.read === read) return current;
+      return {
+        notifications: setNotificationRead(current.notifications, id, read),
+        acknowledgedUpdateVersion: entry.details.kind === "appUpdateAvailable"
+          ? (read ? entry.details.version : null) : current.acknowledgedUpdateVersion,
+      };
+    });
   }, []);
 
   const markAllRead = useCallback(() => {
-    setNotifications((current) => markNotificationsRead(current));
+    setHistory((current) => ({ ...current,
+      notifications: markNotificationsRead(current.notifications),
+      acknowledgedUpdateVersion: acknowledgedUpdate(current, current.notifications),
+    }));
   }, []);
 
   const dismiss = useCallback((id: string) => {
-    setNotifications((current) => current.filter((entry) => entry.id !== id));
+    setHistory((current) => ({
+      notifications: current.notifications.filter((entry) => entry.id !== id),
+      acknowledgedUpdateVersion: acknowledgedUpdate(current, current.notifications.filter((entry) => entry.id === id)),
+    }));
+  }, []);
+  const clear = useCallback(() => {
+    setHistory((current) => ({ notifications: [],
+      acknowledgedUpdateVersion: acknowledgedUpdate(current, current.notifications) }));
   }, []);
 
-  const clear = useCallback(() => setNotifications([]), []);
-
+  const { notifications } = history;
   const unreadCount = useMemo(() => unreadNotificationCount(notifications), [notifications]);
-
   return useMemo(
-    () => ({ notifications, unreadCount, notify, markAllRead, dismiss, clear }),
-    [clear, dismiss, markAllRead, notifications, notify, unreadCount],
+    () => ({ notifications, unreadCount, hasStorageWarning, notify, setRead, markAllRead, dismiss, clear }),
+    [clear, dismiss, hasStorageWarning, markAllRead, notifications, notify, setRead, unreadCount],
   );
 }

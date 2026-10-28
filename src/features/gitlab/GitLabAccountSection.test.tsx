@@ -16,6 +16,21 @@ it("renders nothing without a session, work in progress or a problem", () => {
   expect(view.container).toBeEmptyDOMElement();
 });
 
+it("keeps known invalid authorization distinct from an unchecked connection", async () => {
+  const api = controller({ snapshot: { ...EMPTY_GITLAB_AUTH, state: "invalid", needsCheck: true, account } });
+  render(<LanguageProvider><GitLabAccountSection controller={api} available /></LanguageProvider>);
+  const row = within(screen.getByRole("group", { name: "@user.with_dot" }));
+  expect(row.getByText("Needs attention")).toBeVisible();
+  expect(row.getByRole("alert")).toHaveTextContent("The browser connection to GitLab is no longer valid.");
+  expect(screen.queryByText("Not checked yet")).toBeNull();
+  expect(screen.queryByText(/CLI may have changed/)).toBeNull();
+  expect(row.getByRole("button", { name: "Sign out" })).toBeDisabled();
+  await userEvent.click(screen.getByText("How to repair this connection"));
+  await userEvent.click(screen.getByRole("button", { name: "Check connections" }));
+  expect(api.check).toHaveBeenCalledOnce();
+  expect(api.disconnect).not.toHaveBeenCalled();
+});
+
 it("shows one row without repeating the connected state and signs out only the confirmed stable ID", async () => {
   const api = controller({ snapshot: { ...EMPTY_GITLAB_AUTH, state: "connected", account } });
   render(<LanguageProvider><GitLabAccountSection controller={api} available /></LanguageProvider>);
@@ -46,7 +61,16 @@ it("shows progress with a way to cancel while glab works", async () => {
 it("reports a failure, a session that needs checking, and disables sign-out without glab", () => {
   const { rerender } = render(<LanguageProvider><GitLabAccountSection controller={controller({ snapshot: { ...EMPTY_GITLAB_AUTH, state: "offline", needsCheck: true } })} available /></LanguageProvider>);
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn't reach GitLab");
-  expect(screen.getByText(/Check the accounts before trying again/)).toBeInTheDocument();
+  expect(screen.queryByText(/Check the accounts before trying again/)).not.toBeInTheDocument();
   rerender(<LanguageProvider><GitLabAccountSection controller={controller({ snapshot: { ...EMPTY_GITLAB_AUTH, state: "connected", account } })} available={false} /></LanguageProvider>);
   expect(screen.getByRole("button", { name: "Sign out" })).toBeDisabled();
+});
+
+it("does not announce a stale failure as progress while a new check is pending", () => {
+  render(<LanguageProvider><GitLabAccountSection controller={controller({
+    pending: true, snapshot: { ...EMPTY_GITLAB_AUTH, state: "invalid", needsCheck: true, account },
+  })} available /></LanguageProvider>);
+  expect(screen.getByRole("status")).toHaveTextContent("In progress");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.queryByText("How to repair this connection")).not.toBeInTheDocument();
 });

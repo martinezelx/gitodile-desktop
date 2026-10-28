@@ -9,3 +9,5 @@ export type { AccountCatalog, AccountProject, HostingAccount, HostingKind, Hosti
 export type { AccountsPort } from "./port";
 
 export { TokenConnectionRows, TokenEntryForm, type TokenConnectionPort, type TokenConnectionCopy } from "./TokenConnections";
+
+export { azureCloneOrganization, providerLabel } from "./domain";

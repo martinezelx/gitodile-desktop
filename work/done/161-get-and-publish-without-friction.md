@@ -57,7 +57,7 @@ fricción" artifact) found:
 - The dialog was large: three steps, two unrelated lists, two sentences and
   eight technical fields for a yes/no decision.
 
-[Task 065-4](../active/release-1.0/065-4-integrate-branches.md) already decided
+[Task 065-4](../0.5.0/065-4-integrate-branches.md) already decided
 that 1.0 combines branches with a merge and never rebases. This task takes over
 the clean, configured-upstream half of that work; 065-4 keeps "bring in changes
 from another branch" and the hand-off of a real overlap into task 037.

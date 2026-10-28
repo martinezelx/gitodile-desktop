@@ -8,6 +8,32 @@ import {
   type RefObject,
 } from "react";
 
+/** Calls `onPress` for every mousedown in the document, for outside-press
+ * dismissal. Returns the cleanup.
+ *
+ * Ordinary presses are observed while bubbling, so a nested surface portalled
+ * out of its popup (a calendar, an account list) can still keep a press to
+ * itself with `stopPropagation`. A press on a titlebar drag region is the
+ * exception: Tauri's document-level drag handler stops that mousedown before
+ * it bubbles, so it is observed in the capture phase instead. Nothing nests
+ * inside a drag region, so there is no press there to keep. */
+export function onDocumentPress(onPress: (event: MouseEvent) => void): () => void {
+  const isDragRegion = (event: MouseEvent): boolean =>
+    event.target instanceof Element && event.target.closest("[data-tauri-drag-region]") !== null;
+  const handleCapture = (event: MouseEvent): void => {
+    if (isDragRegion(event)) onPress(event);
+  };
+  const handleBubble = (event: MouseEvent): void => {
+    if (!isDragRegion(event)) onPress(event);
+  };
+  document.addEventListener("mousedown", handleCapture, true);
+  document.addEventListener("mousedown", handleBubble);
+  return () => {
+    document.removeEventListener("mousedown", handleCapture, true);
+    document.removeEventListener("mousedown", handleBubble);
+  };
+}
+
 /** Where a popup puts focus when it opens.
  *
  * `container` is for a popup that is read rather than operated — the
@@ -87,10 +113,10 @@ export function useAnchoredPopup(
         triggerRef.current?.focus();
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
+    const removePressListener = onDocumentPress(handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      removePressListener();
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, triggerRef]);
@@ -274,14 +300,14 @@ export function usePortalFlyout(
         setMeasureToken((token) => token + 1);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
+    const removePressListener = onDocumentPress(handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
     if (dismissOnViewportChange) {
       window.addEventListener("scroll", handleDocumentScroll, true);
     }
     window.addEventListener("resize", handleResize);
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      removePressListener();
       document.removeEventListener("keydown", handleKeyDown);
       if (dismissOnViewportChange) {
         window.removeEventListener("scroll", handleDocumentScroll, true);

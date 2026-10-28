@@ -107,21 +107,50 @@ export default defineConfig({
       output: {
         codeSplitting: {
           // Keep third-party runtime code out of the growing eager app shell.
+          // The entry imports `vendor` statically, so it lists only what the
+          // shell needs at launch; anything else stays with the lazy chunk
+          // that imports it (the Markdown stack rides with Changes, task 209).
           // Match both Windows and POSIX paths, including pnpm's nested layout.
-          groups: [{ name: "vendor", test: /[\\/]node_modules[\\/]/ }],
+          groups: [
+            {
+              name: "vendor",
+              test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler|lucide-react|@tauri-apps[\\/][^\\/]+|@tanstack[\\/][^\\/]+)[\\/]/,
+            },
+          ],
         },
       },
     },
   },
   test: {
-    // Only the dialog/component tests touch the DOM; the pure-logic tests
-    // (i18n and the repository/status/change/save domains) run just as well
-    // under jsdom, so one shared environment keeps this config simple.
-    environment: "jsdom",
     setupFiles: ["./src/test-fixtures/testSetup.ts"],
     // Tool-created sibling checkouts can live below this repository while an
     // agent is active. They are separate worktrees, not part of this tree's
     // test inventory, and may target an older application version.
     exclude: [...configDefaults.exclude, "**/.claude/worktrees/**"],
+    // One worker per logical core oversubscribes a desktop with SMT: the total
+    // stays the same at half, but each test runs slower and the long
+    // component tests drifted past the timeout. CI runners keep the default.
+    maxWorkers: process.env.CI ? undefined : "50%",
+    // A jsdom instance per file was 41% of the suite's time, and most `.ts`
+    // files are pure logic that never touches it. Components (`.tsx`) get
+    // jsdom; a `.ts` file that needs the DOM opts in with a
+    // `// @vitest-environment jsdom` docblock. The `vmThreads` pool keeps
+    // per-file module isolation but creates jsdom once per worker.
+    // The other `scripts/` tests are `node:test` files that `check:docs`
+    // already runs, so only the one written for Vitest is included.
+    projects: [
+      {
+        extends: true,
+        test: { name: "dom", environment: "jsdom", pool: "vmThreads", include: ["src/**/*.test.tsx"] },
+      },
+      {
+        extends: true,
+        test: {
+          name: "logic",
+          environment: "node",
+          include: ["src/**/*.test.ts", "scripts/check-public-feedback.test.mjs"],
+        },
+      },
+    ],
   },
 });

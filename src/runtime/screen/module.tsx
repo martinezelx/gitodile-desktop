@@ -48,6 +48,10 @@ export type FunctionalScreenModule<Id extends string = string> = {
   readonly id: Id;
   readonly section: ScreenSection;
   readonly labelKey: TextKey;
+  /** One plain-language line Navigation Settings shows under the label, so
+   * choosing what stays in the sidebar does not depend on knowing the screen.
+   * `null` only for a destination that never appears in the rail. */
+  readonly descriptionKey: TextKey | null;
   readonly disabledLabelKey: TextKey | null;
   readonly commandLabelKey: TextKey | null;
   readonly icon: React.JSX.Element;
@@ -73,6 +77,7 @@ export type PlaceholderScreenModule<Id extends string = string> = {
   readonly id: Id;
   readonly section: ScreenSection;
   readonly labelKey: TextKey;
+  readonly descriptionKey: TextKey;
   readonly disabledLabelKey: TextKey;
   readonly icon: React.JSX.Element;
   readonly requiresProject: boolean;

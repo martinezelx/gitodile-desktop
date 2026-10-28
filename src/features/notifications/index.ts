@@ -1,6 +1,6 @@
 /** Public entry point for the notification centre.
  *
- * The feature owns a store and a panel and nothing else: no port, no adapter,
+ * The feature owns a local inbox, persistence and a panel: no port, no adapter,
  * no Rust. It records outcomes other work already produced, so there is no
  * transport for it to own. */
 export {

@@ -1880,7 +1880,7 @@ export function BranchesPanel({
               ),
             )}
             {others.length === 0 && (
-              <p className="branches-list__empty">
+              <p className="empty-line branches-list__empty">
                 {isFiltered ? t.branchesNoSearchMatches : t.branchesEmptyOthers}
               </p>
             )}

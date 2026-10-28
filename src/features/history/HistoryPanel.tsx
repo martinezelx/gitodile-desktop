@@ -9,7 +9,7 @@ import {
 import { useLanguage, type Translations } from "../../i18n";
 import { getFileTypeIcon } from "../../shared/file-icons";
 import { formatDate, formatNumber, type LocaleFormats } from "../../shared/i18n";
-import { AutomaticUpdatesNotice, AuthorAvatar, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
+import { AutomaticUpdatesNotice, AuthorAvatar, autoHideScrollbarProps, ContextMenuSurface, contextMenuAnchorFrom, DateField, FilterCapsule, FilterCapsules, FilterChips, FilterGroup, FilterPanel, FilterSwitch, LoadingBar, LoadingPlaceholder, LocalOnlyIcon, onDocumentPress, SearchBox, TextPlaceholder, StateGlyph, StateGlyphs, TimelineChip, toDate, useRowArrival, type StateGlyphTone, type ContextMenuAnchor, type FilterChip } from "../../shared/ui";
 import { ChangesContextMenu, DiffFind, DiffResultView, DiffStepNav, DiffViewSelector, FileTreeFolderButton, FileViewToggle, flatFileRows, flattenFileTree, isGroupedFileRow, PictureDiffControls, treeIndentStyle, useCollapsedFolders, useFileListView, usePictureDiff, type FileTreeRow, type ChangesContextMenuState, type DiffViewMode, type FileDiff, type ImagePreviewLoader } from "../changes";
 import { CHANGE_CATEGORY_ICONS, splitPath, type ChangeCategory } from "../status";
 import { MAX_HISTORY_ROWS, type HistoryController } from "./controller";
@@ -598,6 +598,8 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
   const lastIndex = rows.at(-1)?.index ?? -1;
 
   useLayoutEffect(() => {
+    // Restore once after mounting. Retained screens already hold the user's
+    // live position, including scrolls not yet saved by the debounce below.
     if (restoredRef.current || !scrollRef.current || search || filtered) return;
     scrollRef.current.scrollTop = scrollOffset;
     restoredRef.current = true;
@@ -718,7 +720,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
             }
             return <div key={virtualRow.key} className={`history-timeline__virtual-row history-timeline__virtual-row--${piece.kind}`} style={{ height: PIECE_HEIGHT[piece.kind], transform: `translateY(${virtualRow.start}px)` }}>{body}</div>;
           })}
-        </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
+        </div> : isLoading ? <div className="empty-line history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="empty-line history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
           {/* A scope is not cleared by "clear filters", so an empty list under
@@ -1044,8 +1046,7 @@ function useDismissOnOutsidePress(
       if (partsRef.current.some((part) => part.current?.contains(target))) return;
       closeRef.current();
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    return onDocumentPress(handlePointerDown);
   }, [isOpen]);
 }
 
@@ -1234,7 +1235,7 @@ function HistoryScopePicker({ branches, selected, onSelect }: {
         aria-label={t.historyScopeBranchLabel}
       >
         {matches.length === 0
-          ? <p className="history-scope-picker__empty">{t.historyScopeNoBranches}</p>
+          ? <p className="empty-line empty-line--menu history-scope-picker__empty">{t.historyScopeNoBranches}</p>
           : matches.map((name) => <button
             key={name}
             type="button"
@@ -1537,6 +1538,9 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   const [fileView, setFileView] = useFileListView();
   const inFolders = fileView === "tree";
   const { collapsed: collapsedFolders, toggle: toggleFolder, reveal: revealFile } = useCollapsedFolders();
+  useEffect(() => {
+    if (state.selectedFilePath) revealFile(state.selectedFilePath);
+  }, [revealFile, state.selectedFilePath]);
 
   if (state.detail.isLoading) return <section className="history-detail history-detail--loading" aria-labelledby={selectedVersion ? "history-detail-title" : undefined} aria-busy="true">{selectedVersion && <div className="history-detail__loading-title"><h2 id="history-detail-title">{versionTitle(selectedVersion, t)}</h2></div>}<DetailPlaceholder label={t.historyDetailLoading} /></section>;
   if (state.detail.error) return <section className="history-detail history-detail--state" role="alert"><CircleAlert /><h2>{t.historyDetailError}</h2><button className="secondary-button" type="button" onClick={onRetryDetail}>{t.historyRetry}</button></section>;
@@ -1596,7 +1600,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   // two panes whose first rows start four pixels apart is the same step the
   // outer layout spent two tasks removing.
   const fileSearchControl = <div className="history-files-pane__toolbar"><SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} trailing={<FileViewToggle view={fileView} onChange={setFileView} t={t} />} /></div>;
-  const fileList = visibleFiles.length ? <ChangedFiles rows={fileRows} inFolders={inFolders} selectedPath={state.selectedFilePath} formats={formats} onSelect={onSelectFile} onToggleFolder={toggleFolder} /> : <p className="history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
+  const fileList = visibleFiles.length ? <ChangedFiles rows={fileRows} inFolders={inFolders} selectedPath={state.selectedFilePath} formats={formats} onSelect={onSelectFile} onToggleFolder={toggleFolder} /> : <p className="empty-line history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
   // The find control spends no width until it is asked for: the diff strip is
   // narrow, and a search box standing open beside the arrows crowded the
   // file's own name out of it. The magnifier opens it; its own close restores

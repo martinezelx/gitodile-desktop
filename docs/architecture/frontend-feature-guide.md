@@ -78,16 +78,21 @@ model. The API intentionally has no visibility reason.
 Chunk preloads remain app-level idle work through `prefetchScreenChunks` after
 session restore. Neither chunk nor repository warming may precede first paint.
 
-The production build extracts third-party runtime dependencies into a `vendor`
-chunk through Vite's Rolldown `codeSplitting` configuration. App code keeps its
-existing eager/lazy boundaries, including deferred file-type icons. Keep the
+The production build extracts the third-party libraries the shell needs at
+launch (React, Tauri, Lucide, TanStack) into a `vendor` chunk through Vite's
+Rolldown `codeSplitting` configuration. The entry imports that chunk
+statically, so it is an allow-list: a library only a lazy screen uses, such as
+the Markdown preview stack in Changes, stays in that screen's chunk instead of
+being evaluated at launch. App code keeps its existing eager/lazy boundaries,
+including deferred file-type icons. Keep the
 default chunk-size warning enabled. Additional preloads must point to deferred
 modules, not feature barrels already imported statically; registered lazy
 screens already preload their own container and additional chunks.
 
 ## 6. Prove the contract
 
-At minimum add tests for:
+Write them under the [test rules](../../AGENTS.md#tests). At minimum add tests
+for:
 
 - duplicate/incomplete registration;
 - one loader shared by lazy mount and primary preload;
@@ -124,14 +129,18 @@ the first feature frame styled and makes production ordering reviewable and
 testable. Keep responsive, reduced-motion, forced-color, focus and dense-data
 rules with the selector owner unless the rule is genuinely shared.
 
-Put English and Spanish strings in the feature's `translations.ts`. Export one
-namespace with a feature-local interface and exact `en`/`es` object literals,
-then compose it eagerly in `src/i18n/index.tsx`. This keeps per-feature missing/extra
+Put the feature's copy interface in its `translations.ts` and the exact object
+literals in `translations.en.ts` (`export const en`) and `translations.es.ts`
+(`export const es`), then add the namespace to both `src/i18n/en.ts` and
+`src/i18n/es.ts`. One module per language is what lets each language be its own
+chunk, so launch evaluates only the active one; a module holding both would
+put both in every chunk that imports it. This keeps per-feature missing/extra
 keys and formatter signatures compile-checked while preserving the complete
 `Translations` type and `useLanguage()` ergonomics. Navigation, palette and
-other shell strings remain in `src/app/translations.ts`; shared errors and
-common actions live in `src/shared/i18n/translations.ts`. Do not load a
-dictionary from a screen effect or render translation keys while it arrives.
+other shell strings remain in `src/app/translations.*.ts`; shared errors and
+common actions live in `src/shared/i18n/translations.*.ts`. Do not load a
+dictionary from a screen effect or render translation keys while it arrives:
+the bootstrap loads the active language before the first render.
 
 ## 8. Expected greenfield footprint
 
@@ -144,7 +153,7 @@ footprint is a signal to look for a missing contract or misplaced policy.
 | --- | --- | --- |
 | `src/app/screens.tsx` | import + one `SCREEN_MODULES` entry | declarative registration |
 | `src/runtime/project/sessions.ts` | widen the `ProjectView` union by one id | declarative |
-| `src/app/translations.ts` | one palette label in the interface and both locales | shell copy |
+| `src/app/translations*.ts` | one palette label in the interface and both locales | shell copy |
 | `src/app/App.tsx` | create the controller, register a read subscriber when needed (§9), add one `screens` record entry | composition wiring |
 | `src/architecture/ipcContract.test.ts` | command count and name list | pinned contract |
 | `src-tauri/src/lib.rs` | one `mod` and one `generate_handler!` entry | declarative registration |
