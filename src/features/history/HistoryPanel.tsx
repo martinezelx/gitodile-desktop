@@ -720,7 +720,7 @@ const HistoryTimeline = React.memo(function HistoryTimeline({ versions: allVersi
             }
             return <div key={virtualRow.key} className={`history-timeline__virtual-row history-timeline__virtual-row--${piece.kind}`} style={{ height: PIECE_HEIGHT[piece.kind], transform: `translateY(${virtualRow.start}px)` }}>{body}</div>;
           })}
-        </div> : isLoading ? <div className="history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="history-timeline__empty">
+        </div> : isLoading ? <div className="empty-line history-timeline__empty"><LoadingBar label={t.historyLoading} /></div> : <div className="empty-line history-timeline__empty">
           <p>{t.historyNoMatches}</p>
           {filtered && <button className="secondary-button secondary-button--sm" type="button" onClick={() => onFilters(NO_HISTORY_FILTERS)}>{t.historyFiltersClear}</button>}
           {/* A scope is not cleared by "clear filters", so an empty list under
@@ -1235,7 +1235,7 @@ function HistoryScopePicker({ branches, selected, onSelect }: {
         aria-label={t.historyScopeBranchLabel}
       >
         {matches.length === 0
-          ? <p className="history-scope-picker__empty">{t.historyScopeNoBranches}</p>
+          ? <p className="empty-line empty-line--menu history-scope-picker__empty">{t.historyScopeNoBranches}</p>
           : matches.map((name) => <button
             key={name}
             type="button"
@@ -1600,7 +1600,7 @@ function HistoryDetail({ state, formats, selfEmail, actions, onSelectFile, onRet
   // two panes whose first rows start four pixels apart is the same step the
   // outer layout spent two tasks removing.
   const fileSearchControl = <div className="history-files-pane__toolbar"><SearchBox className="history-files-search" value={fileSearch} onChange={setFileSearch} placeholder={t.historyFilterFilesPlaceholder} ariaLabel={t.historyFilterFilesAriaLabel} clearLabel={t.commonClearSearch} trailing={<FileViewToggle view={fileView} onChange={setFileView} t={t} />} /></div>;
-  const fileList = visibleFiles.length ? <ChangedFiles rows={fileRows} inFolders={inFolders} selectedPath={state.selectedFilePath} formats={formats} onSelect={onSelectFile} onToggleFolder={toggleFolder} /> : <p className="history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
+  const fileList = visibleFiles.length ? <ChangedFiles rows={fileRows} inFolders={inFolders} selectedPath={state.selectedFilePath} formats={formats} onSelect={onSelectFile} onToggleFolder={toggleFolder} /> : <p className="empty-line history-files__empty">{normalizedFileSearch ? t.historyNoFileMatches : t.historyNoChangedFiles}</p>;
   // The find control spends no width until it is asked for: the diff strip is
   // narrow, and a search box standing open beside the arrows crowded the
   // file's own name out of it. The magnifier opens it; its own close restores

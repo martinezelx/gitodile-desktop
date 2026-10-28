@@ -10,22 +10,22 @@
 }
 
 .history-notices:empty { display: none; }
-.history-notices { display: grid; gap: 6px; padding: var(--space-3) var(--space-3) 0; }
+.history-notices { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-3) 0; }
 
 .history-banner {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-surface);
   border: 1px solid var(--border-subtle);
   background: var(--surface-card);
 }
 .history-banner__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
-.history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: 7px; }
-.history-banner > .secondary-button svg { width: 14px; height: 14px; }
-.history-banner > svg { width: 16px; height: 16px; flex: 0 0 auto; align-self: center; }
+.history-banner > .secondary-button { flex: 0 0 auto; align-self: center; display: inline-flex; align-items: center; gap: var(--space-2); }
+.history-banner > .secondary-button svg { width: var(--icon-row); height: var(--icon-row); }
+.history-banner > svg { width: var(--icon-control); height: var(--icon-control); flex: 0 0 auto; align-self: center; }
 .history-banner strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
 .history-banner p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
 .history-banner--warning > svg { color: var(--status-warning); }
@@ -107,14 +107,14 @@
    stated. It has a row of its own rather than a place among the filter chips,
    because it is not a filter — clearing the filters must not change the branch. */
 .history-scope-chip {
-  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-  max-width: 100%; height: 24px; padding: 0 6px 0 9px;
+  display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  max-width: 100%; height: var(--control-height-xs); padding: 0 var(--space-2) 0 var(--space-2);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   background: var(--surface-raised); color: var(--text-secondary-color);
   font-size: var(--text-caption); font-weight: var(--weight-strong);
 }
 .history-scope-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-scope-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.history-scope-chip svg { width: var(--icon-meta); height: var(--icon-meta); flex-shrink: 0; }
 .history-scope-chip:hover { border-color: var(--border-control); color: var(--text-primary-color); }
 .history-scope-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
@@ -166,7 +166,7 @@
    beside them is the second, non-colour signal. */
 .history-filter__field--selected {
   border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-hover));
+  background: color-mix(in srgb, var(--accent-primary) var(--tint-selected), var(--surface-hover));
 }
 .history-filter__field--selected > svg { color: var(--accent-primary); }
 .history-filter__field--selected input { color: var(--text-primary-color); font-weight: var(--weight-strong); }
@@ -194,7 +194,7 @@
   color: var(--text-primary-color);
   font-weight: var(--weight-strong);
 }
-.history-scope-picker__chevron { width: 13px; height: 13px; flex: 0 0 auto; }
+.history-scope-picker__chevron { width: var(--icon-row); height: var(--icon-row); flex: 0 0 auto; }
 .history-scope-picker__list {
   position: absolute;
   top: calc(100% + 4px);
@@ -203,7 +203,7 @@
   z-index: 6;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   max-height: 216px;
   padding: var(--space-2);
   border: 1px solid var(--border-subtle);
@@ -212,13 +212,13 @@
   box-shadow: var(--shadow-lg);
 }
 .history-scope-picker__search {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-  height: 28px; padding: 0 var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+  height: var(--control-height-compact); padding: 0 var(--space-3);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color);
 }
 .history-scope-picker__search:focus-within { border-color: var(--focus-ring); }
-.history-scope-picker__search > svg { width: 13px; height: 13px; flex-shrink: 0; }
+.history-scope-picker__search > svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .history-scope-picker__search input {
   flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
   color: var(--text-primary-color); font: inherit; font-size: var(--text-label);
@@ -227,7 +227,7 @@
 .history-scope-picker__options { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .history-scope-picker__option {
   display: flex; align-items: center; gap: var(--space-2);
-  min-width: 0; min-height: 28px; padding: 0 var(--space-2);
+  min-width: 0; min-height: var(--control-height-compact); padding: 0 var(--space-2);
   border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-primary-color);
   font: inherit; font-size: var(--text-label); text-align: left;
@@ -237,22 +237,19 @@
   flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.history-scope-picker__option svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-scope-picker__option svg { width: var(--icon-row); height: var(--icon-row); flex: 0 0 auto; color: var(--text-secondary-color); }
 .history-scope-picker__option:hover { background: var(--surface-hover); }
 .history-scope-picker__option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 /* The tick, not the fill: a highlighted row and a hovered row would be the same
    thing to look at, and the chosen branch has to stay legible under the pointer. */
 .history-scope-picker__option--selected { font-weight: var(--weight-strong); }
 .history-scope-picker__tick { color: var(--accent-primary); }
-.history-scope-picker__empty {
-  margin: 0; padding: var(--space-3) var(--space-2);
-  color: var(--text-secondary-color); font-size: var(--text-label); text-align: center;
-}
+.history-scope-picker__empty { margin: 0; }
 
 /* The shortcut beside a field that is still typed into: it opens what this
    screen happens to know, and the field keeps asking Git about everything. */
 .history-filter__field-more {
-  width: 20px; height: 20px; flex: 0 0 auto;
+  width: var(--icon-button-chip); height: var(--icon-button-chip); flex: 0 0 auto;
   display: grid; place-items: center;
   margin-right: -2px; padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
@@ -261,13 +258,13 @@
 .history-filter__field-more:hover { background: var(--surface-active); color: var(--text-primary-color); }
 .history-filter__field-more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .history-filter__field-more[aria-expanded="true"] { background: var(--surface-active); color: var(--text-primary-color); }
-.history-filter__field-more svg { width: 13px; height: 13px; }
+.history-filter__field-more svg { width: var(--icon-row); height: var(--icon-row); }
 /* What the list is drawn from, said under it. A shortcut that looks exhaustive
    is worse than no shortcut, so the sentence is part of the surface. */
 .history-scope-picker__note {
   flex-shrink: 0;
   margin: 2px 0 0;
-  padding: 4px var(--space-2) 2px;
+  padding: var(--space-1) var(--space-2) 2px;
   border-top: 1px solid var(--border-subtle);
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
@@ -282,23 +279,23 @@
 .history-filter__dates-dash { flex: 0 0 auto; color: var(--text-secondary-color); }
 .history-filter__date { flex: 1 1 0; min-width: 0; }
 .history-filter__date .date-field__trigger {
-  height: 26px;
+  height: var(--control-height-compact);
   padding: 0 var(--space-2);
   font-size: var(--text-caption);
 }
-.history-filter__date .date-field__trigger > svg { width: 13px; height: 13px; }
+.history-filter__date .date-field__trigger > svg { width: var(--icon-row); height: var(--icon-row); }
 
 .history-filter__field-clear {
-  width: 20px; height: 20px; flex: 0 0 auto;
+  width: var(--icon-button-chip); height: var(--icon-button-chip); flex: 0 0 auto;
   display: grid; place-items: center;
-  margin-right: -4px; padding: 0; border: 0; border-radius: var(--radius-round);
+  margin-right: calc(-1 * var(--space-1)); padding: 0; border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .history-filter__field-clear:hover { background: var(--surface-active); color: var(--text-primary-color); }
 .history-filter__field-clear:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.history-filter__field-clear svg { width: 12px; height: 12px; }
-.history-filter__field > svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--text-secondary-color); }
+.history-filter__field-clear svg { width: var(--icon-meta); height: var(--icon-meta); }
+.history-filter__field > svg { width: var(--icon-control); height: var(--icon-control); flex: 0 0 auto; color: var(--text-secondary-color); }
 .history-filter__field input {
   min-width: 0; flex: 1; padding: 0; border: 0; outline: none;
   background: transparent; color: var(--text-primary-color); font: inherit; font-size: var(--control-font-sm);
@@ -307,8 +304,8 @@
 
 
 .history-icon-button {
-  width: 34px;
-  height: 34px;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
@@ -319,7 +316,7 @@
   color: var(--text-secondary-color);
 }
 .history-icon-button:hover { border-color: var(--border-control); background: var(--surface-hover); color: var(--text-primary-color); }
-.history-icon-button svg { width: 15px; height: 15px; }
+.history-icon-button svg { width: var(--icon-control); height: var(--icon-control); }
 
 /* Two pixels under the strip, over the rows it is about to replace. It sits in
    the flow rather than over the list so it never covers a row, and the list
@@ -335,7 +332,7 @@
 .history-timeline__virtual { position: relative; width: 100%; }
 /* Each piece — a row, the local head, the boundary — is a
    virtual item of its own fixed height (`PIECE_HEIGHT`), set inline. */
-.history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 64px; padding: 0 5px; contain: layout paint style; }
+.history-timeline__virtual-row { position: absolute; top: 0; left: 0; width: 100%; height: 64px; padding: 0 var(--space-1); contain: layout paint style; }
 /* Both are Overview's chips, at Overview's size, their glyph on the rail.
    The rail runs through them at the rows' x (the row's 1px border and 17.5px,
    inside the 5px inset), in the accent while the selection sits below the
@@ -352,7 +349,7 @@
      other. */
   border: 1px solid transparent;
   display: flex; align-items: center; gap: var(--space-2);
-  padding: 5px 10px 0 6px;
+  padding: var(--space-1) var(--space-3) 0 var(--space-2);
   min-width: 0;
   color: var(--text-secondary-color); font-size: var(--text-caption);
 }
@@ -370,7 +367,7 @@
   position: relative; height: 34px;
   border: 1px solid transparent;
   display: flex; align-items: center; gap: var(--space-2);
-  padding: 3px 10px 0 6px;
+  padding: var(--space-1) var(--space-3) 0 var(--space-2);
   min-width: 0;
 }
 .history-local-head::before {
@@ -378,7 +375,7 @@
 }
 /* The chip folds its block: its chevron turns with it. */
 .history-block-chip { min-width: 0; }
-.history-block-chip__chevron { width: 12px; height: 12px; color: var(--text-secondary-color); transition: transform var(--duration-fast) ease-out; }
+.history-block-chip__chevron { width: var(--icon-meta); height: var(--icon-meta); color: var(--text-secondary-color); transition: transform var(--duration-fast) ease-out; }
 .history-block-chip[aria-expanded="true"] .history-block-chip__chevron { transform: rotate(90deg); }
 /* The way to publish what is under the head. The publish cloud is always
    there, in the accent, so the word reads as an action before the pointer
@@ -387,15 +384,15 @@
    a hairline — and the words step up to the primary ink. Only the cloud is
    ever green. */
 .history-local-head__publish {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
-  height: 20px; margin-inline: auto -7px; padding: 0 7px;
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 20px; margin-inline: auto calc(-1 * var(--space-2)); padding: 0 var(--space-2);
   border: 1px solid transparent; border-radius: var(--radius-pill);
   background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-caption); font-weight: var(--weight-medium); white-space: nowrap;
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
 .history-local-head__publish:hover { background: var(--surface-control); border-color: var(--border-divider); color: var(--text-primary-color); }
-.history-local-head__publish:active { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
-.history-local-head__publish svg { width: 12px; height: 12px; color: var(--tone-local); }
+.history-local-head__publish:active { background: color-mix(in srgb, var(--text-primary-color) var(--tint-fill-hover), var(--surface-control)); }
+.history-local-head__publish svg { width: var(--icon-meta); height: var(--icon-meta); color: var(--tone-local); }
 /* Lanes, where the history really branches (`history-timeline--lanes`): the
    pieces draw them as SVG at their own height, so the CSS rails step aside,
    the nodes shrink to sit on 9px lanes without covering the next one, and the
@@ -417,24 +414,24 @@
    nested in the row. */
 .history-detour {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px;
-  height: 16px; padding: 0 6px 0 3px;
+  height: 16px; padding: 0 var(--space-2) 0 var(--space-1);
   border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; line-height: var(--leading-none);
   transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
-.history-detour svg { width: 11px; height: 11px; transition: transform var(--duration-fast) ease-out; }
+.history-detour svg { width: var(--icon-meta); height: var(--icon-meta); transition: transform var(--duration-fast) ease-out; }
 .history-detour--open svg { transform: rotate(90deg); }
 .history-detour:hover { background: var(--surface-control); border-color: var(--border-control); color: var(--text-primary-color); }
 /* The first page's rows, at the virtual rows' height and inset. */
 .history-timeline__placeholder { flex: 1; min-height: 0; overflow: hidden; }
-.history-timeline__placeholder-row { height: 64px; padding: 0 5px; }
-.history-timeline__footer { min-height: 48px; display: grid; place-items: center; padding: 8px; }
-.history-timeline__loading-more { width: min(220px, 100%); padding: 4px 0; }
-.history-timeline__loading-more .loading-state { gap: 7px; }
+.history-timeline__placeholder-row { height: 64px; padding: 0 var(--space-1); }
+.history-timeline__footer { min-height: 48px; display: grid; place-items: center; padding: var(--space-2); }
+.history-timeline__loading-more { width: min(220px, 100%); padding: var(--space-1) 0; }
+.history-timeline__loading-more .loading-state { gap: var(--space-2); }
 .history-timeline__loading-more .loading-state__message { padding: 0; font-size: var(--text-caption); }
-.history-timeline__empty { display: grid; justify-items: center; gap: var(--space-3); padding: 26px 18px; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-align: center; }
+.history-timeline__empty { display: grid; justify-items: center; gap: var(--space-3); }
 .history-timeline__empty p { margin: 0; }
-.history-inline-error { display: grid; gap: 8px; padding: 8px; color: var(--status-danger); font-size: var(--text-label); text-align: center; }
+.history-inline-error { display: grid; gap: var(--space-2); padding: var(--space-2); color: var(--status-danger); font-size: var(--text-label); text-align: center; }
 
 .history-row {
   position: relative;
@@ -443,8 +440,11 @@
   height: 64px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 10px 8px 35px;
+  gap: var(--space-3);
+  /* Geometry, not a step of space: the text starts where the node column
+     ends, the same 35px `HistoryPanel.tsx` keeps as the lanes' minimum inset. */
+  --history-node-column: 35px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--history-node-column);
   border: 1px solid transparent;
   border-radius: var(--radius-item);
   background: transparent;
@@ -457,8 +457,8 @@
    inset ring a pixel inside its own border — on top of a node that arrived,
    a halo that expanded and a rail that changed colour underneath it. Four ways
    of saying "this one" is three more than the row needs. */
-.history-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
-.history-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-panel)); }
+.history-row--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) var(--tint-selected), var(--surface-panel)); }
+.history-row--selected:hover { background: color-mix(in srgb, var(--accent-primary) var(--tint-fill), var(--surface-panel)); }
 
 /* The rail is structure, so it is drawn in the divider colour and never moves.
    It used to be tinted with the accent on every row, which spent the accent on
@@ -540,7 +540,7 @@
 .history-row:not(.history-row--selected):hover .history-row__node,
 .history-row:not(.history-row--selected):focus-visible .history-row__node {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 4.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 4.5px color-mix(in srgb, var(--accent-primary) var(--tint-halo-focus), transparent);
 }
 /* Selection changes the node's colour, never its shape: a version saved only
    here stays half filled — the filled half in the accent — and only a
@@ -549,14 +549,14 @@
    unknown publication stays a ring, in the accent. */
 .history-row--selected .history-row__node {
   border-color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel));
-  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 3.5px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) var(--tint-selected), var(--surface-panel));
+  box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 3.5px color-mix(in srgb, var(--accent-primary) var(--tint-halo), transparent);
 }
 .history-row--selected.history-row--local .history-row__node {
-  background: linear-gradient(90deg, var(--accent-primary) 50%, color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)) 50%);
+  background: linear-gradient(90deg, var(--accent-primary) 50%, color-mix(in srgb, var(--accent-primary) var(--tint-selected), var(--surface-panel)) 50%);
 }
 .history-row--selected.history-row--published .history-row__node { background: var(--accent-primary); }
-.history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.history-row__body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
 /* One line, truncated: the subject gets a full line and the message behind it
    is read in the detail strip, which is the surface that has room for it. */
 .history-row__title { overflow: hidden; color: var(--text-primary-color); font-size: var(--text-body); font-weight: var(--weight-heading); line-height: var(--leading-snug); text-overflow: ellipsis; white-space: nowrap; }
@@ -593,14 +593,14 @@
   /* A badged row is two clamped title lines plus this capsule inside a
      timeline row the virtualizer pins at exactly 82px: 35.1 for the title, 7
      for the gap and 21 for the row's padding leave this the 17 it takes. */
-  height: 17px; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px;
+  height: 17px; display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2);
   border: 1px solid var(--border-divider); border-radius: var(--radius-pill);
   /* This used to be `.9em` so one badge could sit in two meta lines of
      different sizes. Both hosts are on `--text-caption` now, so the fraction
      had nothing left to absorb — and 0.9 of 11px lands under the floor. */
   color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-strong); line-height: var(--leading-none);
 }
-.history-ref-badge svg { width: 10px; height: 10px; flex-shrink: 0; }
+.history-ref-badge svg { width: var(--icon-badge); height: var(--icon-badge); flex-shrink: 0; }
 .history-ref-badge__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The current branch is a fact about the row, not a state to act on: a neutral
    capsule, so the accent stays with selection and the screen's action. */
@@ -628,15 +628,15 @@
 }
 .history-detail--state, .history-detail--loading { gap: 0; }
 .history-detail--state { align-items: center; justify-content: center; padding: 28px; color: var(--text-secondary-color); text-align: center; }
-.history-detail--state > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--status-danger); }
-.history-detail--state h2, .history-detail--state p { margin: 0 0 10px; }
-.history-detail__loading-title { padding: 20px 22px; border-bottom: 1px solid var(--border-subtle); }
+.history-detail--state > svg { width: var(--icon-tile); height: var(--icon-tile); margin-bottom: var(--space-3); color: var(--status-danger); }
+.history-detail--state h2, .history-detail--state p { margin: 0 0 var(--space-3); }
+.history-detail__loading-title { padding: 20px var(--space-5); border-bottom: 1px solid var(--border-subtle); }
 .history-detail__loading-title h2 { margin: 0; }
 /* The detail's first read: the meta line, then the changed files, where the
    loaded detail puts them. */
-.history-detail__placeholder { flex: 1; display: grid; align-content: start; gap: 12px; padding: 18px 22px; }
-.history-detail__placeholder-meta { margin: 0 0 4px; font-size: var(--text-label); }
-.history-detail__placeholder-file { display: flex; align-items: center; gap: 10px; min-height: 22px; font-size: var(--text-body); }
+.history-detail__placeholder { flex: 1; display: grid; align-content: start; gap: var(--space-3); padding: 20px var(--space-5); }
+.history-detail__placeholder-meta { margin: 0 0 var(--space-1); font-size: var(--text-label); }
+.history-detail__placeholder-file { display: flex; align-items: center; gap: var(--space-3); min-height: 22px; font-size: var(--text-body); }
 .history-detail__back { display: none; align-self: flex-start; }
 
 /* The version strip: the compact identity of the open saved version, at the
@@ -675,7 +675,7 @@
    to a tooltip. The caret turns for the disclosure; the dots open the menu. */
 .history-details-toggle,
 .history-more-button {
-  width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; padding: 0;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); flex-shrink: 0; display: grid; place-items: center; padding: 0;
   border: 1px solid transparent; border-radius: var(--radius-round); background: transparent;
   color: var(--text-secondary-color);
   transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
@@ -686,10 +686,10 @@
 .history-more-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .history-details-toggle[aria-expanded="true"],
 .history-more-button[aria-expanded="true"] { background: var(--surface-active); border-color: var(--accent-primary); color: var(--accent-primary); }
-.history-details-toggle__caret { width: 16px; height: 16px; transition: transform var(--duration-fast); }
-.history-more-button svg { width: 16px; height: 16px; }
+.history-details-toggle__caret { width: var(--icon-control); height: var(--icon-control); transition: transform var(--duration-fast); }
+.history-more-button svg { width: var(--icon-control); height: var(--icon-control); }
 .history-details-toggle[aria-expanded="true"] .history-details-toggle__caret { transform: rotate(90deg); }
-.history-detail__truncated { margin: 6px 0 0; color: var(--status-warning); font-size: var(--text-caption); }
+.history-detail__truncated { margin: var(--space-2) 0 0; color: var(--status-warning); font-size: var(--text-caption); }
 
 /* The story of the version, behind `Details`: the full message, what the diff
    is compared against, and the facts the strip cannot carry. Closed by default
@@ -704,22 +704,22 @@
 .history-details h3 { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); }
 .history-details__message { margin: 0; white-space: pre-wrap; font-size: var(--text-body); line-height: var(--leading-normal); }
 .history-details__message--empty { color: var(--text-secondary-color); font-style: italic; }
-.history-details__comparison { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-details__comparison svg { width: 13px; height: 13px; flex-shrink: 0; }
-.history-details__list { display: grid; gap: 9px; margin: 0; }
-.history-details__list > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; }
+.history-details__comparison { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.history-details__comparison svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
+.history-details__list { display: grid; gap: var(--space-2); margin: 0; }
+.history-details__list > div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--space-2); }
 .history-details__list dt { color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-details__list dd { min-width: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 3px 6px; font-size: var(--text-caption); overflow-wrap: anywhere; }
+.history-details__list dd { min-width: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); font-size: var(--text-caption); overflow-wrap: anywhere; }
 .history-details__list dd > small { flex-basis: 100%; color: var(--text-secondary-color); font-size: var(--text-micro); }
-.history-details__list code { padding: 3px 6px; border: 1px solid var(--border-divider); border-radius: var(--radius-item); background: var(--surface-code); font-size: var(--text-micro); user-select: text; }
-.history-details .history-technical-chip svg { width: 10px; height: 10px; margin-right: 2px; vertical-align: -1px; }
+.history-details__list code { padding: var(--space-1) var(--space-2); border: 1px solid var(--border-divider); border-radius: var(--radius-item); background: var(--surface-code); font-size: var(--text-micro); user-select: text; }
+.history-details .history-technical-chip svg { width: var(--icon-badge); height: var(--icon-badge); margin-right: 2px; vertical-align: -1px; }
 
-.history-publication, .history-kind-chip { min-width: 0; height: 23px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
-.history-publication svg { width: 11px; height: 11px; }
-.history-publication--published { background: color-mix(in srgb, var(--tone-remote) 12%, var(--surface-raised)); color: var(--tone-remote); }
+.history-publication, .history-kind-chip { min-width: 0; height: var(--control-height-xs); display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-raised); color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-strong); white-space: nowrap; }
+.history-publication svg { width: var(--icon-meta); height: var(--icon-meta); }
+.history-publication--published { background: color-mix(in srgb, var(--tone-remote) var(--tint-fill), var(--surface-raised)); color: var(--tone-remote); }
 /* Saved here but not published is work still to do, not a success: the
    primary ink on the neutral capsule, the published capsule keeps its green. */
-.history-publication--local-only { background: color-mix(in srgb, var(--tone-local) 12%, var(--surface-raised)); color: var(--tone-local); }
+.history-publication--local-only { background: color-mix(in srgb, var(--tone-local) var(--tint-fill), var(--surface-raised)); color: var(--tone-local); }
 
 .history-workspace { flex: 1; min-height: 0; overflow: hidden; }
 /* Two panes, each opening with its own strip — the shape the screen around it
@@ -740,39 +740,39 @@
 .history-files-search { flex: 1; min-width: 0; }
 .history-files { flex: 1; min-height: 0; overflow-y: auto; }
 .history-files__virtual { position: relative; }
-.history-files__row { position: absolute; top: 0; left: 0; width: 100%; height: 58px; padding: 2px 6px; }
+.history-files__row { position: absolute; top: 0; left: 0; width: 100%; height: 58px; padding: 2px var(--space-2); }
 /* The folder view: the same steps and hairlines the Changes tree draws, and a
    file that is one line under its folder. */
 .history-files__row--tree {
   display: flex; align-items: center;
-  padding-inline-start: calc(6px + var(--tree-depth, 0) * 16px);
+  padding-inline-start: calc(var(--space-2) + var(--tree-depth, 0) * var(--space-4));
   background-image: repeating-linear-gradient(to right, transparent 0 13px, var(--border-divider) 13px 14px, transparent 14px 16px);
   background-size: calc(var(--tree-depth, 0) * 16px) 100%;
   background-position: 6px 0;
   background-repeat: no-repeat;
 }
-.history-file { width: 100%; height: 54px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); text-align: left; }
+.history-file { width: 100%; height: 54px; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2); border: 1px solid transparent; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); text-align: left; }
 /* After the base rule, which it overrides at the same specificity: before it,
    the 54px list height won, and the button stood 14px taller than its 40px
    folder-view row — centred, so the top of the first row was cut off. */
 .history-file--tree { height: 36px; }
 .history-file:hover { background: var(--surface-hover); }
-.history-file--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--surface-panel)); }
-.history-file__type { width: 17px; height: 17px; display: grid; place-items: center; flex: 0 0 17px; }
-.history-file__type img { width: 16px; height: 16px; display: block; }
+.history-file--selected { border-color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) var(--tint-selected), var(--surface-panel)); }
+.history-file__type { width: var(--icon-control); height: var(--icon-control); display: grid; place-items: center; flex: 0 0 17px; }
+.history-file__type img { width: var(--icon-control); height: var(--icon-control); display: block; }
 .history-file__path { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 2px; }
 .history-file__path strong, .history-file__path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The same step the Changes file rows name their files with. These two lists
    do one job on two screens, and this one was reading a step below it. */
 .history-file__path strong { font-size: var(--text-body); }
 .history-file__path span { color: var(--text-secondary-color); font-size: var(--text-caption); }
-.history-file__category { width: 16px; height: 16px; display: grid; place-items: center; flex: 0 0 16px; color: var(--text-secondary-color); }
-.history-file__category svg { width: 12px; height: 12px; }
+.history-file__category { width: var(--icon-control); height: var(--icon-control); display: grid; place-items: center; flex: 0 0 16px; color: var(--text-secondary-color); }
+.history-file__category svg { width: var(--icon-meta); height: var(--icon-meta); }
 .history-file__category--new { color: var(--status-success); }
 .history-file__category--deleted { color: var(--status-danger); }
 .history-file__category--renamed { color: var(--status-renamed); }
 .history-file__category--conflicted { color: var(--status-warning); }
-.history-files__empty { margin: auto; padding: 20px; color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-normal); text-align: center; }
+.history-files__empty { margin: auto; }
 
 .history-diff-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface-code); }
 /* One toolbar across the whole card, above both panes, shaped like the Changes
@@ -793,7 +793,7 @@
 .history-diff-toolbar__prompt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The copy button belongs to the path it copies, so it stays beside it; the
    arrows act on the file and take the far edge. */
-.history-diff-toolbar .history-icon-button { width: 28px; height: 28px; border-color: transparent; background: transparent; }
+.history-diff-toolbar .history-icon-button { width: var(--icon-button-attached); height: var(--icon-button-attached); border-color: transparent; background: transparent; }
 /* The copy control is a convenience, not a fact: it stays invisible until the
    toolbar is pointed at, or focused into, so the open file's name keeps the
    row. */
@@ -813,11 +813,11 @@
    viewport, so it gets one here. Without it this pane's `overflow: hidden`
    clips a tall picture and its captions with no way to reach them. */
 .history-detail__diff .image-diff { flex: 1; min-height: 0; overflow: auto; }
-.history-diff-state { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; padding: 20px; color: var(--text-secondary-color); text-align: center; }
+.history-diff-state { flex: 1; display: grid; place-items: center; align-content: center; gap: var(--space-3); padding: 20px; color: var(--text-secondary-color); text-align: center; }
 .history-diff-state p { margin: 0; }
 .diff-search-match { border-radius: 2px; background: color-mix(in srgb, var(--status-warning) 55%, transparent); color: inherit; }
 
-.history-technical-chip { padding: 2px 7px; border: 1px solid var(--border-divider); border-radius: var(--radius-pill); color: var(--accent-primary); }
+.history-technical-chip { padding: 2px var(--space-2); border: 1px solid var(--border-divider); border-radius: var(--radius-pill); color: var(--accent-primary); }
 
 /* The list column narrows before either screen gives up its second panel, at
    the width Changes narrows on. */
@@ -901,15 +901,15 @@
 .history-lanes .history-lane-hit { stroke: transparent; stroke-width: 9; pointer-events: stroke; cursor: default; }
 .history-lane-stroke { transition: opacity var(--duration-fast) ease-out; }
 .history-lane-tip {
-  position: fixed; z-index: 1000; pointer-events: none;
+  position: fixed; z-index: var(--layer-tooltip); pointer-events: none;
   display: grid; gap: 1px; max-width: 280px; width: max-content;
-  padding: 6px 9px; border-radius: var(--radius-item);
+  padding: var(--space-2) var(--space-2); border-radius: var(--radius-item);
   background: var(--tooltip-surface); color: color-mix(in srgb, var(--tooltip-text) 72%, transparent);
   box-shadow: var(--tooltip-shadow);
   font-size: var(--text-caption); line-height: var(--leading-normal);
 }
 .history-lane-tip__name {
-  display: flex; align-items: center; gap: 6px; min-width: 0;
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0;
   color: var(--tooltip-text); font-size: var(--text-label); font-weight: var(--weight-medium);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }

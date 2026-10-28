@@ -1,10 +1,10 @@
 /* Marks the rail item whose section holds a problem. Paired with the header
    chip, which carries the wording — this is the "where", not the "what". */
 .settings-nav__alert {
-  width: 17px; height: 17px; margin-left: auto; flex-shrink: 0;
+  width: var(--icon-control); height: var(--icon-control); margin-left: auto; flex-shrink: 0;
   display: grid; place-items: center; color: var(--status-danger);
 }
-.settings-nav__alert svg { width: 15px; height: 15px; }
+.settings-nav__alert svg { width: var(--icon-control); height: var(--icon-control); }
 .settings-nav__alert--accent { color: var(--accent-primary); }
 .settings-nav__alert--warning { color: var(--status-warning); }
 /* A provider CLI's row on its own, inside the connect panel that needs it. */
@@ -24,18 +24,18 @@
 }
 .navigation-destinations__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
 .navigation-destinations__restore {
-  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-2);
   min-height: 28px; padding: 0 var(--space-2); margin-top: -2px;
   border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong); white-space: nowrap;
 }
 .navigation-destinations__restore:hover:not(:disabled) { background: var(--surface-hover); color: var(--text-primary-color); }
 .navigation-destinations__restore:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.navigation-destinations__restore:disabled { opacity: 0.45; cursor: default; }
-.navigation-destinations__restore svg { width: 13px; height: 13px; }
+.navigation-destinations__restore:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.navigation-destinations__restore svg { width: var(--icon-row); height: var(--icon-row); }
 .navigation-destination {
   min-height: 56px; display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto auto;
-  align-items: center; gap: var(--space-2); padding: 4px var(--space-3) 4px var(--space-2);
+  align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
   transition: background var(--duration-fast), opacity var(--duration-fast);
 }
 .navigation-destination + .navigation-destination { border-top: 1px solid var(--border-subtle); }
@@ -55,19 +55,19 @@
 .navigation-destination__handle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .navigation-destination__handle:active { cursor: grabbing; }
 .navigation-destination__handle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.navigation-destination__handle svg { width: 17px; height: 17px; }
+.navigation-destination__handle svg { width: var(--icon-nav); height: var(--icon-nav); }
 .navigation-destination__icon {
   width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center;
   border-radius: var(--radius-round); background: var(--surface-hover); color: var(--text-secondary-color);
 }
-.navigation-destination__icon svg { width: 17px; height: 17px; }
-.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; padding-block: 6px; }
+.navigation-destination__icon svg { width: var(--icon-nav); height: var(--icon-nav); }
+.navigation-destination__copy { min-width: 0; display: grid; gap: 1px; padding-block: var(--space-2); }
 .navigation-destination__name { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .navigation-destination__name strong { font-size: var(--text-body); font-weight: var(--weight-strong); }
 .navigation-destination__description { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-snug); }
 /* The same capsule as the Notifications "Silent" tag. */
 .navigation-destination__tag {
-  flex-shrink: 0; padding: 0 6px;
+  flex-shrink: 0; padding: 0 var(--space-2);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); line-height: var(--leading-snug);
 }
@@ -88,7 +88,7 @@
   .navigation-destination__move-buttons { opacity: 1; }
 }
 .navigation-destination__move-button {
-  width: 28px; height: 28px; display: grid; place-items: center;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); display: grid; place-items: center;
   border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary-color);
 }
@@ -98,8 +98,8 @@
 .navigation-destination__move-button:focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: -2px;
 }
-.navigation-destination__move-button:disabled { opacity: 0.4; cursor: default; }
-.navigation-destination__move-button svg { width: 16px; height: 16px; }
+.navigation-destination__move-button:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.navigation-destination__move-button svg { width: var(--icon-control); height: var(--icon-control); }
 
 /* Wide cards across the column: the miniature on the left, its name and what
    it trades on the right. They stack once a card would squeeze its copy. The
@@ -115,16 +115,16 @@
   overflow: hidden; border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item); background: var(--surface-app); color: var(--text-secondary-color);
 }
-.navigation-display__mini-rail { display: grid; align-content: start; gap: 3px; padding: 4px; }
+.navigation-display__mini-rail { display: grid; align-content: start; gap: var(--space-1); padding: var(--space-1); }
 .navigation-display__mini-item { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 28px; border-radius: var(--radius-item); }
 .navigation-display__mini-item:first-child { background: var(--surface-active); color: var(--text-primary-color); }
-.navigation-display__mini-item svg { width: 12px; height: 12px; }
-.navigation-display__mini-content { min-width: 0; margin: 4px 4px 4px 0; padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-panel); display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-2); }
+.navigation-display__mini-item svg { width: var(--icon-meta); height: var(--icon-meta); }
+.navigation-display__mini-content { min-width: 0; margin: var(--space-1) var(--space-1) var(--space-1) 0; padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-item); background: var(--surface-panel); display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-2); }
 .navigation-display__mini-content i { display: block; height: 5px; border-radius: var(--radius-pill); background: var(--border-subtle); }
 .navigation-display__mini-header, .navigation-display__mini-status { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .navigation-display__mini-header i:first-child { width: 44%; background: var(--text-secondary-color); opacity: 0.5; }
 .navigation-display__mini-header i:last-child { width: 22%; height: 8px; background: var(--surface-active); border: 1px solid var(--border-control); }
-.navigation-display__mini-body { display: grid; align-content: start; gap: 5px; }
+.navigation-display__mini-body { display: grid; align-content: start; gap: var(--space-1); }
 .navigation-display__mini-body i:nth-child(2) { width: 72%; }
 .navigation-display__mini-body i:nth-child(3) { width: 86%; }
 .navigation-display__mini-body i:nth-child(4) { width: 62%; }
@@ -147,7 +147,7 @@
    purpose. */
 .font-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .font-picker__option {
-  display: grid; gap: 5px; padding: 11px 13px; justify-items: start;
+  display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-3); justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
@@ -170,7 +170,7 @@
    judged, and a specimen shown fainter than it will really render is a
    misleading preview, not a de-emphasised one. */
 .font-picker__sample {
-  width: 100%; padding: 5px 7px; border-radius: var(--radius-control);
+  width: 100%; padding: var(--space-1) var(--space-2); border-radius: var(--radius-control);
   background: var(--surface-code); color: var(--text-primary-color);
   font-size: var(--text-label); line-height: var(--leading-code); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -178,19 +178,19 @@
 .identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 /* Reserved so the row does not appear and disappear under the fields as the
    draft moves between saving, saved and invalid. */
-.identity-block__status { min-height: 18px; margin-top: 10px; }
+.identity-block__status { min-height: 18px; margin-top: var(--space-3); }
 .identity-block__confirm {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
   margin-top: var(--space-3); padding: var(--space-3) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-warning) var(--tint-edge), transparent);
   border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent);
 }
 .identity-block__confirm strong { display: block; margin-bottom: 2px; font-size: var(--text-body); }
 .identity-block__confirm p { margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .remote-check-cadence { flex-shrink: 0; }
 .settings-view .remote-check-cadence .segmented-control__option {
-  min-width: 54px; justify-content: center; padding-inline: 11px; white-space: nowrap;
+  min-width: 54px; justify-content: center; padding-inline: var(--space-3); white-space: nowrap;
 }
 /* The number and its unit read as one control, so they sit on one line and
    wrap together rather than the unit drifting under the field. */
@@ -207,7 +207,7 @@
    at every panel width this dialog reaches. */
 .format-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .format-picker__option {
-  display: grid; gap: 3px; padding: 9px 12px; justify-items: start;
+  display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); justify-items: start;
   border: 1px solid var(--border-subtle); border-radius: var(--radius-item);
   background: var(--surface-card); color: var(--text-secondary-color); text-align: left;
   transition:
@@ -237,7 +237,7 @@
   color: var(--text-secondary-color); font-size: var(--text-micro); font-weight: var(--weight-strong);
   letter-spacing: var(--tracking-wide);
 }
-.language-picker__mark svg { width: 12px; height: 12px; }
+.language-picker__mark svg { width: var(--icon-meta); height: var(--icon-meta); }
 .language-picker__sample { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 /* One stacked card per choice: each option is a sentence about what happens to
    files, which a segmented control has nowhere to put. */
@@ -248,15 +248,15 @@
 /* Full width rather than shrink-to-fit: two chips of different lengths under a
    stack of full-width cards read as debris. */
 .line-endings__caveat {
-  display: flex; gap: var(--space-2); padding: 10px var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 40%, transparent);
+  display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--status-warning) var(--tint-edge), transparent);
   border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-warning) 10%, transparent);
+  background: color-mix(in srgb, var(--status-warning) var(--tint-fill), transparent);
   color: var(--status-warning); font-size: var(--text-label); line-height: var(--leading-normal);
 }
-.line-endings__caveat svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 2px; }
+.line-endings__caveat svg { flex-shrink: 0; width: var(--icon-row); height: var(--icon-row); margin-top: 2px; }
 .line-endings__caveat p { margin: 0; }
-.line-endings__caveat p + p { margin-top: 6px; }
+.line-endings__caveat p + p { margin-top: var(--space-2); }
 
 /* Notifications is one group on one icon column. The switch leads with the
    bell and the events hang under it in the same column, so every label starts
@@ -272,7 +272,7 @@
   background: var(--surface-control);
   color: var(--text-secondary-color);
 }
-.settings-notifications__icon svg { width: 15px; height: 15px; }
+.settings-notifications__icon svg { width: var(--icon-control); height: var(--icon-control); }
 .settings-notifications__icon--on { color: var(--accent-primary); }
 
 /* Indented by the icon column plus the row's gap, so the list's edge sits under
@@ -289,10 +289,10 @@
 }
 .settings-notifications__event {
   display: flex; align-items: flex-start; gap: var(--space-3);
-  padding: 10px var(--space-3);
+  padding: var(--space-3) var(--space-3);
 }
 .settings-notifications__event + .settings-notifications__event { border-top: 1px solid var(--border-subtle); }
-.settings-notifications__event > svg { flex-shrink: 0; width: 16px; height: 16px; margin-top: 1px; }
+.settings-notifications__event > svg { flex-shrink: 0; width: var(--icon-control); height: var(--icon-control); margin-top: 1px; }
 .settings-notifications__event strong {
   display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--text-body); font-weight: var(--weight-strong); line-height: var(--leading-snug);
@@ -304,7 +304,7 @@
 .settings-notifications__event--warning > svg { color: var(--status-warning); }
 .settings-notifications__event--app > svg { color: var(--tone-app); }
 .settings-notifications__silent {
-  padding: 0 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
+  padding: 0 var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-normal);
   line-height: var(--leading-snug); cursor: default;
 }
@@ -362,7 +362,7 @@
 .font-picker__option--active {
   border-color: var(--text-secondary-color);
   box-shadow: none;
-  background: color-mix(in srgb, var(--text-primary-color) 7%, var(--surface-card));
+  background: color-mix(in srgb, var(--text-primary-color) var(--tint-selected), var(--surface-card));
 }
 .selection-check {
   position: absolute; top: 6px; right: 6px; width: 18px; height: 18px;
@@ -370,7 +370,7 @@
   border-radius: var(--radius-round); background: var(--text-primary-color); color: var(--surface-card);
   box-shadow: 0 0 0 2px var(--surface-card);
 }
-.selection-check svg { width: 11px; height: 11px; }
+.selection-check svg { width: var(--icon-meta); height: var(--icon-meta); }
 /* 16:10, not square: the miniature's content fills the top of the frame, and
    a square left the lower half as empty app background. The hairline keeps a
    light preview from dissolving into a light card. */
@@ -389,9 +389,9 @@
    Light" never truncates to make room for it at the minimum width. Text rather
    than a mark: selection is the corner check, and any check-like glyph on all
    three cards read as all three being chosen. */
-.theme-card__label:has(.theme-card__official) { flex-direction: column; gap: 3px; }
+.theme-card__label:has(.theme-card__official) { flex-direction: column; gap: var(--space-1); }
 .theme-card__official {
-  flex-shrink: 0; padding: 0 6px;
+  flex-shrink: 0; padding: 0 var(--space-2);
   border-radius: var(--radius-pill); background: var(--surface-active); color: var(--text-secondary-color);
   font-size: var(--text-caption); font-weight: var(--weight-strong); line-height: var(--leading-snug);
 }
@@ -400,14 +400,14 @@
 /* the miniature app drawn in a theme's tokens */
 .theme-preview { display: grid; grid-template-columns: 30px minmax(0, 1fr); background: var(--surface-app); }
 .theme-preview__rail {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-3) 0;
   background: var(--surface-panel); border-right: 1px solid var(--border-subtle);
 }
 .theme-preview__mark { width: 12px; height: 12px; border-radius: var(--radius-round); background: var(--accent-primary); }
 .theme-preview__nav { width: 14px; height: 3px; border-radius: var(--radius-pill); background: var(--border-subtle); }
 .theme-preview__nav--active { background: var(--accent-primary-fill); }
-.theme-preview__main { display: grid; align-content: start; gap: 6px; padding: 10px 8px; }
-.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.theme-preview__main { display: grid; align-content: start; gap: var(--space-2); padding: var(--space-3) var(--space-2); }
+.theme-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .theme-preview__file {
   width: 48%; height: 5px; border-radius: var(--radius-pill);
   background: var(--text-secondary-color); opacity: 0.5;
@@ -468,12 +468,12 @@
    screen has no hover, so there they stay visible. */
 .git-path__actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .git-path__actions button {
-  width: 26px; min-width: 26px; min-height: 26px; padding: 0; border-radius: var(--radius-item);
+  width: var(--icon-button-attached); min-width: var(--icon-button-attached); min-height: var(--icon-button-attached); padding: 0; border-radius: var(--radius-item);
   background: transparent; border-color: transparent; color: var(--text-secondary-color);
   opacity: 0; transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
 }
 .git-path__actions button:hover { background: var(--surface-hover); color: var(--text-primary-color); }
-.git-path__actions svg { width: 13px; height: 13px; }
+.git-path__actions svg { width: var(--icon-row); height: var(--icon-row); }
 .git-path:hover .git-path__actions button,
 .git-path:focus-within .git-path__actions button,
 .git-fact:hover .git-path__actions button,
@@ -488,26 +488,26 @@
    it: the row's text column shares its width with the actions, and a Windows
    path would break over three lines there. */
 .git-details {
-  margin-top: var(--space-2); padding: 10px var(--space-4);
+  margin-top: var(--space-2); padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-surface);
   background: var(--surface-card);
 }
 .git-details > summary {
-  list-style: none; display: flex; align-items: center; gap: 6px;
-  width: fit-content; padding: 3px 4px 3px 0; border-radius: var(--radius-item);
+  list-style: none; display: flex; align-items: center; gap: var(--space-2);
+  width: fit-content; padding: var(--space-1) var(--space-1) var(--space-1) 0; border-radius: var(--radius-item);
   color: var(--text-secondary-color); font-size: var(--text-label); font-weight: var(--weight-strong);
 }
 .git-details > summary::-webkit-details-marker { display: none; }
 .git-details > summary:hover { color: var(--text-primary-color); }
 .git-details > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.git-details > summary svg { width: 13px; height: 13px; flex-shrink: 0; }
+.git-details > summary svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .git-details__chevron { transition: transform var(--duration-fast); }
 .git-details[open] .git-details__chevron { transform: rotate(90deg); }
 .git-details__state {
   display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0 0;
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
-.git-details__state > svg { width: 14px; height: 14px; }
+.git-details__state > svg { width: var(--icon-row); height: var(--icon-row); }
 .git-details__state > .status-line { margin: 0; }
 .git-details > .status-line { margin: var(--space-2) 0 0; }
 
@@ -517,7 +517,7 @@
 .git-fact {
   display: grid; grid-template-columns: 156px minmax(0, 1fr) auto;
   align-items: center; gap: var(--space-3);
-  padding: 7px 0; border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle);
 }
 .git-fact:first-child { border-top: 0; }
 .git-fact dd { margin: 0; }

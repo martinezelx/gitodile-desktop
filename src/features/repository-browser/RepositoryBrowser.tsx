@@ -74,8 +74,8 @@ export function RepositoryBrowser({ controller, catalog, checking, failed, onChe
         {!state.page && !state.pending && state.error == null && (account
           // An explicit, visible way to the first network read; the icon in the
           // filter stays the refresh for a loaded page.
-          ? <div className="repository-browser__empty">
-            <span className="repository-browser__empty-icon"><FolderSearch aria-hidden="true" /></span>
+          ? <div className="empty-state empty-state--compact repository-browser__empty">
+            <span className="empty-state__icon"><FolderSearch aria-hidden="true" /></span>
             <p>{t.repositoriesLoadHint.replace("{login}", account.login).replace("{host}", account.host)}</p>
             <button type="button" className="secondary-button" disabled={catalog.busy || checking}
               onClick={() => { onClearSelection?.(); void controller.load(1); }}><Search aria-hidden="true" />{t.repositoriesLoad}</button>

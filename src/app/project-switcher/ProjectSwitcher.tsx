@@ -549,7 +549,7 @@ export function ProjectQuickSwitch({
           </section>
         )}
         {others.length === 0 && closed.length === 0 && (
-          <p className="project-quick-switch__empty">
+          <p className="empty-line empty-line--menu project-quick-switch__empty">
             {needle ? t.projectSwitcherSearchEmpty : active ? t.projectSwitcherOnlyOne : t.projectSwitcherEmptyHint}
           </p>
         )}

@@ -26,7 +26,7 @@
   color: var(--text-secondary-color);
   transition: color var(--duration-fast);
 }
-.workbench-tabs__tab svg { width: 16px; height: 16px; flex-shrink: 0; transition: color var(--duration-fast); }
+.workbench-tabs__tab svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; transition: color var(--duration-fast); }
 .workbench-tabs__label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .workbench-tabs__tab:hover { color: var(--text-primary-color); }
 .workbench-tabs__tab--active { color: var(--text-primary-color); }

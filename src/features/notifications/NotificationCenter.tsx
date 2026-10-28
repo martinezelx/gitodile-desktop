@@ -391,8 +391,8 @@ export function NotificationCenter({
           )}
 
           {notifications.length === 0 && (
-            <div className="notification-center__empty">
-              <span className="notification-center__empty-icon">
+            <div className="empty-state empty-state--compact notification-center__empty">
+              <span className="empty-state__icon">
                 <Bell aria-hidden="true" />
               </span>
               {/* Keyed so the words fade in rather than snapping when the

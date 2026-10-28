@@ -49,6 +49,22 @@ function readRules(relativePath: string): CssRule[] {
   }));
 }
 
+/** A sheet without its `pointer: coarse` blocks: the touch tier is an
+ * accommodation for a pointer, never a size a guard should judge. */
+function withoutCoarse(source: string): string {
+  let out = source;
+  for (let at = out.indexOf("@media (pointer: coarse)"); at !== -1; at = out.indexOf("@media (pointer: coarse)")) {
+    let depth = 0;
+    let end = out.indexOf("{", at);
+    for (; end < out.length; end += 1) {
+      if (out[end] === "{") depth += 1;
+      if (out[end] === "}" && (depth -= 1) === 0) break;
+    }
+    out = out.slice(0, at) + out.slice(end + 1);
+  }
+  return out;
+}
+
 function ruleBody(relativePath: string, selector: string): string {
   const rule = readRules(relativePath).find((candidate) => candidate.selector === selector);
   if (!rule) throw new Error(`${relativePath} does not define ${selector}`);
@@ -754,7 +770,10 @@ describe("production style composition", () => {
           && width !== undefined && height !== undefined
           && width !== null && height !== null
           && width[1] === height[1] && Number(width[1]) <= 22;
-        if (isSmallCircle) continue;
+        // The chip's own remove button takes its size from DESIGN.md § Size.
+        const isChipButton = rule.body.includes("border-radius: var(--radius-round)")
+          && rule.body.includes("width: var(--icon-button-chip)");
+        if (isSmallCircle || isChipButton) continue;
         offenders.push(`${relativePath}: ${rule.selector}`);
       }
     }
@@ -810,6 +829,337 @@ describe("production style composition", () => {
       }
     }
 
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Elevation. Stacking was eleven literal numbers from 1 to 1000
+  // with nothing saying which floats over which; a menu opened from a dialog
+  // lands above it only because 30 happens to beat 10.
+  it("stacks what floats over the window on the layer scale", () => {
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        const zIndex = rule.body.match(/(?<![\w-])z-index:\s*([^;}]+)/);
+        if (!zIndex) continue;
+        const value = zIndex[1].trim();
+        if (/^var\(--layer-[a-z-]+\)$/.test(value)) continue;
+        // A single digit orders things inside one component's own box, which
+        // never competes with a surface over the window.
+        const local = /^\d$/.test(value) && !/position:\s*fixed/.test(rule.body);
+        if (!local) offenders.push(`${relativePath}: ${rule.selector} — z-index: ${value}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Elevation: a shadow that casts is one of the theme's
+  // `--shadow-*`. Rings (`0 0 0 2px`) and underlines draw an edge, not depth,
+  // so a layer with no blur is not a shadow in this sense.
+  it("casts every shadow from an elevation token", () => {
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css" || relativePath === "styles/themes.css") continue;
+      for (const rule of readRules(relativePath)) {
+        for (const shadow of rule.body.matchAll(/(?<![\w-])box-shadow:\s*([^;}]+)/g)) {
+          // Each comma-separated layer outside a function's parentheses.
+          const layers = shadow[1].split(/,(?![^(]*\))/);
+          const casts = layers.some((layer) => {
+            const lengths = [...layer.replace(/var\([^)]*\)|color-mix\([^)]*\)/g, "").matchAll(/-?[\d.]+px|\b0\b/g)];
+            return lengths.length >= 3 && Number.parseFloat(lengths[2][0]) !== 0;
+          });
+          if (casts) offenders.push(`${relativePath}: ${rule.selector} — box-shadow: ${shadow[1].trim()}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Motion: something arriving uses `--ease-emphasized`, leaving
+  // takes `--duration-exit`, and every transition takes a `--duration-*`. The
+  // three curves below are not arrivals and DESIGN.md names each of them.
+  it("keeps easing curves and transition lengths on the motion tokens", () => {
+    const pendingCurves = new Set([
+      // A rail glyph's hover turn eases in and out so a 60° turn reads as one.
+      "app/app-shell.css: cubic-bezier(0.45, 0, 0.25, 1)",
+      // The mascot's hop is choreography, not an interface transition.
+      "shared/ui/primitives.css: cubic-bezier(0.3, 0, 0.3, 1)",
+      // A theme change cross-fades the whole window; nothing arrives.
+      "styles/theme-transition.css: cubic-bezier(0.4, 0, 0.2, 1)",
+    ]);
+    const pendingLengths = new Set<string>();
+    const curves: string[] = [];
+    const lengths: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "styles/tokens.css") continue;
+      const source = readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const curve of source.matchAll(/cubic-bezier\([^)]*\)/g)) {
+        const entry = `${relativePath}: ${curve[0]}`;
+        if (!pendingCurves.has(entry)) curves.push(entry);
+      }
+      for (const transition of source.matchAll(/(?<![\w-])transition(?:-duration)?:\s*([^;}]+)/g)) {
+        for (const length of transition[1].matchAll(/(?<![\w-])\d[\d.]*m?s\b/g)) {
+          const entry = `${relativePath}: ${length[0]}`;
+          if (!pendingLengths.has(entry)) lengths.push(entry);
+        }
+      }
+    }
+    expect(curves).toEqual([]);
+    expect(lengths).toEqual([]);
+  });
+
+  // DESIGN.md § Accessibility: a control that hides the browser's outline must
+  // show focus some other way. Each entry names the rule that does, and the
+  // ones mapped to `null` are not controls but landing points for focus moved
+  // by script, whose own surface already says where focus is.
+  it("replaces every removed focus outline", () => {
+    const replacements: Record<string, string | null> = {
+      ".status-bar__search-input": ".status-bar__search:focus-within",
+      ".status-bar__search-input:focus-visible": ".status-bar__search:focus-within",
+      ".project-quick-switch__search input": ".project-quick-switch__search:focus-within",
+      ".settings-dialog": null,
+      ".about-dialog": ".about-dialog:focus-visible",
+      ".issue-report-dialog__report-body": ".issue-report-dialog__report:has(:focus-visible)",
+      ".changelog-dialog__body": null,
+      ".text-field input": ".text-field input:focus-visible",
+      ".text-field select": ".text-field select:focus-visible",
+      ".search-box__field input": ".search-box:has(.search-box__field input:focus)",
+      "input.docked-composer__field": "input.docked-composer__field:focus",
+      ".app-dialog": null,
+      ".app-dialog__head h2": null,
+      // The field exists only while renaming, and draws its own underline.
+      "input.branches-rename__field": "input.branches-rename__field",
+      ".branches-quick-switch__search input": ".branches-quick-switch__search:focus-within",
+      ".changes-quick-commit__desc": ".changes-quick-commit__desc:focus",
+      ".console-prompt input": ".console-prompt__line:focus-within .console-prompt__cursor",
+      ".console-statusline__search-input": ".console-statusline__search:focus-within",
+      ".console-shortcuts__field input": ".console-shortcuts__field input:focus",
+      ".console-picker": ".console-picker:focus-visible",
+      ".history-scope-picker__search input": ".history-scope-picker__search:focus-within",
+      ".history-filter__field input": ".history-filter__field:focus-within",
+      ".home-launcher__field input": ".home-launcher__field:focus-within",
+      ".home-status__search-input": ".home-status__search:focus-within",
+      ".save-version-description textarea": ".save-version-description textarea:focus-visible",
+    };
+    const selectors = new Set<string>();
+    const removals: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        const parts = rule.selector.split(",").map((one) => one.trim());
+        for (const part of parts) selectors.add(part);
+        if (/(?<![\w-])outline:\s*(?:none|0)\b/.test(rule.body)) removals.push(...parts);
+      }
+    }
+    const unmapped = removals.filter((selector) => !(selector in replacements));
+    const missing = removals
+      .map((selector) => replacements[selector])
+      .filter((target): target is string => typeof target === "string" && !selectors.has(target));
+    expect(unmapped).toEqual([]);
+    expect(missing).toEqual([]);
+  });
+
+  // DESIGN.md § Design tokens: spacing sits on the 4px grid. The 403 values
+  // between its steps (6, 10 and 14px above all) moved up onto it; 1px is a
+  // hairline and 2px the one optical nudge, neither a step of space.
+  it("keeps spacing on the 4px grid", () => {
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        const body = rule.body.replace(/\/\*[\s\S]*?\*\//g, "");
+        for (const spacing of body.matchAll(/(?<![\w-])(?:(?:padding|margin)(?:-[a-z-]+)?|gap|row-gap|column-gap):\s*([^;}]+)/g)) {
+          for (const length of spacing[1].matchAll(/(?<![\w.])-?(\d+(?:\.\d+)?)px\b/g)) {
+            const value = Number(length[1]);
+            if (value > 2 && value % 4 !== 0) offenders.push(`${relativePath}: ${rule.selector} — ${spacing[0].trim()}`);
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Icons. Glyph sizes had spread over fourteen values from 10 to
+  // 25px; a glyph is sized by the role of what it sits in now.
+  it("sizes every icon by role", () => {
+    const tokens = readSource("styles/tokens.css");
+    for (const role of ["badge", "meta", "row", "control", "nav", "tile"]) {
+      expect(tokens).toMatch(new RegExp(`--icon-${role}:\\s*\\d+px`));
+    }
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        if (!rule.selector.split(",").some((one) => /\bsvg\b[^\s]*$/.test(one.trim()))) continue;
+        for (const size of rule.body.matchAll(/(?<![\w-])(?:width|height):\s*(\d+(?:\.\d+)?)px/g)) {
+          offenders.push(`${relativePath}: ${rule.selector} — ${size[0]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Tints. The accent alone was mixed at fourteen strengths, so a
+  // selected row was 7% on one screen and 12% on the next. A tint of an
+  // interface colour takes its strength from a `--tint-*` role; what stays a
+  // literal is not a tint of the interface — a miniature, a search highlight,
+  // a progress track, a timeline rail — and is named here.
+  it("mixes interface tints at a role's strength", () => {
+    const notTints = [
+      "theme-preview__line",
+      "history-match",
+      "diff-search-match",
+      "loading-bar__indicator",
+      "branches-route__hit",
+      "history-boundary[data-rail]",
+      "history-row[data-rail",
+    ];
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath.startsWith("styles/")) continue;
+      for (const rule of readRules(relativePath)) {
+        if (rule.selector.startsWith(":root") || /^(?:[\d%, ]+|to|from)$/.test(rule.selector)) continue;
+        if (notTints.some((name) => rule.selector.includes(name))) continue;
+        const body = rule.body.replace(/\/\*[\s\S]*?\*\//g, "");
+        for (const mix of body.matchAll(/color-mix\(in srgb, var\((--(?:accent-primary|status-[a-z]+|text-primary-color|tone[a-z-]*|diff-(?:added|removed)))\) ([\d.]+%)/g)) {
+          offenders.push(`${relativePath}: ${rule.selector} — ${mix[1]} ${mix[2]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Tints: an unavailable control looks equally unavailable
+  // everywhere. Seven opacities from 0.35 to 0.6 had said it before.
+  it("dims every disabled control by one opacity", () => {
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        if (!/:disabled|aria-disabled|--disabled/.test(rule.selector)) continue;
+        const opacity = rule.body.match(/(?<![\w-])opacity:\s*([^;}]+)/);
+        if (opacity && opacity[1].trim() !== "var(--opacity-disabled)" && opacity[1].trim() !== "1") {
+          offenders.push(`${relativePath}: ${rule.selector} — opacity: ${opacity[1].trim()}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+  // DESIGN.md § Size: a square icon button's size says where it sits. Nine
+  // sizes from 20 to 36px had grown, so a toast's close and a notification's
+  // were two different buttons. The touch tier inside `pointer: coarse` is an
+  // accommodation, not a size, and the window controls follow the system.
+  it("sizes every square icon button by where it sits", () => {
+    const iconButton = /button|__(?:clear|dismiss|close|more|favourite|forget|action|step|back|remove|trigger|read|filter|publish)(?![\w-])|-round$/;
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      const source = withoutCoarse(readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, ""));
+      for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = match[1].trim().replace(/\s+/g, " ");
+        if (selector.includes("window-control") || !iconButton.test(selector) || /svg|kbd/.test(selector)) continue;
+        const width = match[2].match(/(?<![\w-])width:\s*(\d+)px/);
+        const height = match[2].match(/(?<![\w-])height:\s*(\d+)px/);
+        if (width && height && width[1] === height[1] && Number(width[1]) >= 20 && Number(width[1]) <= 40) {
+          offenders.push(`${relativePath}: ${selector} — ${width[1]}px`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+  // DESIGN.md § Core screens: a screen with nothing to show reuses one block,
+  // and a list with nothing to show one line. Three screens had copied the
+  // block's glyph tile and eleven lists had their own line, so a feature's
+  // empty rule may place the shared pattern but not restyle it.
+  it("keeps empty states on the shared block and line", () => {
+    // A sentence in place rather than an empty list: a version with no
+    // message, a release with no highlights, a settings note, What's new's
+    // prose and the branch detail's one line when there are no other branches.
+    const prose = new Set([
+      ".changelog-release__empty",
+      ".branches-detail--empty",
+      ".history-details__message--empty",
+      ".hosting-accounts__empty",
+      ".whatsnew-empty",
+    ]);
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      if (relativePath === "shared/ui/primitives.css") continue;
+      for (const rule of readRules(relativePath)) {
+        if (/(?:__|-)empty-icon\b/.test(rule.selector)) offenders.push(`${relativePath}: ${rule.selector} — own glyph tile`);
+        if (!/(?:__|-)empty$/.test(rule.selector) || prose.has(rule.selector)) continue;
+        const restyled = rule.body.match(/(?<![\w-])(?:padding|font-size|color|text-align)\s*:/);
+        if (restyled) offenders.push(`${relativePath}: ${rule.selector} — ${restyled[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Motion: a spinner turns one way everywhere. Three identical
+  // keyframes at three speeds had grown, one per feature.
+  it("turns every spinner on the one keyframe", () => {
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      const source = readSource(relativePath);
+      for (const keyframes of source.matchAll(/@keyframes\s+([\w-]+)\s*\{\s*to\s*\{\s*transform:\s*rotate\(360deg\)/g)) {
+        if (!(relativePath === "shared/ui/primitives.css" && keyframes[1] === "spin")) offenders.push(`${relativePath}: @keyframes ${keyframes[1]}`);
+      }
+      for (const use of source.matchAll(/animation:\s*spin\s+([^\s;]+)/g)) {
+        if (use[1] !== "900ms") offenders.push(`${relativePath}: spin ${use[1]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+  // DESIGN.md § Size: a control that is not square takes its height from a
+  // tier too. Nine heights from 24 to 38px had grown in chips, fields, tabs and
+  // pickers. The switch has its own geometry, and the select-all box matches
+  // the file rows it heads; the touch tier is left to `pointer: coarse`, and
+  // below 24px a chip is sized by its text (the compact timeline chip).
+  it("takes every control's fixed height from a tier", () => {
+    const ownGeometry = new Set([".toggle-switch", ".changes-file-list__select-all .changes-file-row__pick"]);
+    const control = /button|input|field|select|trigger|search|picker|control|__tab\b|__seg\b|__block\b|submit|option|toggle|capsule|chip|segment|step|action|textarea/;
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      const source = withoutCoarse(readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, ""));
+      for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = match[1].trim().replace(/\s+/g, " ");
+        if (ownGeometry.has(selector) || !control.test(selector) || /svg|window-control|scrollbar|::(?:before|after)/.test(selector)) continue;
+        const height = match[2].match(/(?<![\w-])(?:min-)?height:\s*(\d+)px/);
+        if (!height || Number(height[1]) < 24 || Number(height[1]) > 44) continue;
+        const width = match[2].match(/(?<![\w-])width:\s*(\d+)px/);
+        if (width && width[1] === height[1]) continue;
+        offenders.push(`${relativePath}: ${selector} — ${height[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  // DESIGN.md § Icons: a glyph sized through its own class rather than an
+  // `svg` selector is still an icon, and takes the same roles. Thirty-five had
+  // escaped the svg guard at seven sizes. A tile with its own fill or radius is
+  // a container, not a glyph, and the window controls follow the system.
+  it("sizes icons named by their class by role", () => {
+    const glyph = /(?:__|-)(?:icon|chevron|caret|glyph|category|refreshing|indicator|alert|mark)(?:$|[\s.:>[])|__type(?: img)?$/;
+    const offenders: string[] = [];
+    for (const importPath of EXPECTED_IMPORTS) {
+      const relativePath = importPath.replace("./", "");
+      for (const rule of readRules(relativePath)) {
+        const last = rule.selector.split(",").pop()?.trim() ?? "";
+        if (/svg|window-control/.test(last) || !glyph.test(last)) continue;
+        if (/border-radius|background/.test(rule.body)) continue;
+        const width = rule.body.match(/(?<![\w-])width:\s*(\d+)px/);
+        const height = rule.body.match(/(?<![\w-])height:\s*(\d+)px/);
+        if (width && height && width[1] === height[1] && Number(width[1]) <= 25) {
+          offenders.push(`${relativePath}: ${rule.selector} — ${width[1]}px`);
+        }
+      }
+    }
     expect(offenders).toEqual([]);
   });
 });

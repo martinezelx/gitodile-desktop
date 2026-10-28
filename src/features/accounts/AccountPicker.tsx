@@ -140,7 +140,7 @@ export function AccountPicker({ catalog, provider, kind, value, onChange, onChec
         style={{ ...style, width: triggerRef.current?.getBoundingClientRect().width }}
         // Keep focus on the combobox and avoid parent outside-dismiss handlers.
         onMouseDown={event => event.stopPropagation()}>
-        {accounts.length === 0 && <p className="hosting-account-picker__empty">{t.accountsEmpty}</p>}
+        {accounts.length === 0 && <p className="empty-line empty-line--menu hosting-account-picker__empty">{t.accountsEmpty}</p>}
         {options.map((option, index) => <Fragment key={option.value ?? "default"}>
           {grouped && option.host && option.host !== options[index - 1]?.host &&
             <div role="presentation" className="hosting-account-picker__group">{option.host}</div>}

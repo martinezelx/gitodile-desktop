@@ -61,7 +61,7 @@
 }
 
 .notification-center__list {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: var(--space-2);
   margin: 0; padding: 0; list-style: none;
   /* Ten-ish rows before it scrolls. Past that the panel would be taller than
      the shorter windows this app supports. */
@@ -80,7 +80,7 @@
 .notification {
   position: relative;
   display: flex; gap: var(--space-3);
-  padding: 10px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-item);
   background: var(--surface-card);
@@ -89,7 +89,7 @@
    a wash and a tinted edge, the recipe Overview's next-step card dropped:
    under the ink accent it only darkened the card. A read row drops to
    `--weight-medium`. */
-.notification--unread .notification__title { font-weight: var(--weight-strong); padding-right: 14px; }
+.notification--unread .notification__title { font-weight: var(--weight-strong); padding-right: var(--space-4); }
 
 .notification__icon {
   width: 26px; height: 26px; flex-shrink: 0;
@@ -97,7 +97,7 @@
   border-radius: var(--radius-round);
   background: var(--surface-control);
 }
-.notification__icon svg { width: 14px; height: 14px; }
+.notification__icon svg { width: var(--icon-row); height: var(--icon-row); }
 .notification__icon--remote svg { color: var(--tone-remote); }
 .notification__icon--warning svg { color: var(--status-warning); }
 .notification__icon--app svg { color: var(--tone-app); }
@@ -110,7 +110,7 @@
   background: var(--accent-primary-fill);
 }
 
-.notification__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.notification__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .notification__title {
   margin: 0; font-size: var(--text-label); font-weight: var(--weight-medium);
   line-height: var(--leading-snug); color: var(--text-primary-color); overflow-wrap: anywhere;
@@ -120,7 +120,7 @@
   overflow-wrap: anywhere;
 }
 .notification__meta {
-  margin: 0; display: flex; align-items: center; gap: 6px;
+  margin: 0; display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--text-caption); color: var(--text-secondary-color);
 }
 .notification__project {
@@ -128,20 +128,20 @@
   font-weight: var(--weight-strong);
 }
 /* A middot between project and time, drawn only when both are there. */
-.notification__project::after { content: "·"; margin-left: 6px; font-weight: var(--weight-normal); }
+.notification__project::after { content: "·"; margin-left: var(--space-2); font-weight: var(--weight-normal); }
 
 /* The shared small secondary button; only its place in the row is local. */
 .notification__action { align-self: center; }
 .notification__actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
 .notification__read {
-  width: 28px; height: 28px; flex-shrink: 0; margin-left: auto;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); flex-shrink: 0; margin-left: auto;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   opacity: 0;
   transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
 }
-.notification__read svg { width: 14px; height: 14px; }
+.notification__read svg { width: var(--icon-row); height: var(--icon-row); }
 .notification__read:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .notification-center__notice {
   margin: 0; padding: var(--space-2); font-size: var(--text-label);
@@ -152,16 +152,16 @@
    pointer, because a hover-only control is unreachable. Destructive in effect
    but small: one entry leaves the local inbox. */
 .notification__dismiss {
-  width: 28px; height: 28px; flex-shrink: 0;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); flex-shrink: 0;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   opacity: 0;
   transition: opacity var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
 }
-.notification__dismiss svg { width: 14px; height: 14px; }
+.notification__dismiss svg { width: var(--icon-row); height: var(--icon-row); }
 .notification__dismiss:hover {
-  background: color-mix(in srgb, var(--status-danger) 14%, transparent);
+  background: color-mix(in srgb, var(--status-danger) var(--tint-fill-hover), transparent);
   color: var(--status-danger);
 }
 .notification:hover .notification__read,
@@ -178,7 +178,7 @@
 /* ---- Off, with a list still on screen ---- */
 .notification-center__disabled-row {
   display: flex; align-items: center; gap: var(--space-3);
-  margin-top: 2px; padding: 10px var(--space-2) 2px;
+  margin-top: 2px; padding: var(--space-3) var(--space-2) 2px;
   border-top: 1px solid var(--border-divider);
 }
 .notification-center__disabled-copy { flex: 1; min-width: 0; }
@@ -190,24 +190,12 @@
 }
 
 /* ---- Empty / off, nothing recorded ---- */
-.notification-center__empty {
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: var(--space-6) var(--space-4) var(--space-5);
-}
-.notification-center__empty-icon {
-  width: 40px; height: 40px; margin-bottom: 14px;
-  display: grid; place-items: center;
-  border-radius: var(--radius-round);
-  background: var(--surface-raised); border: 1px solid var(--border-subtle);
-  color: var(--text-secondary-color); box-shadow: var(--shadow-sm);
-}
-.notification-center__empty-icon svg { width: 20px; height: 20px; }
 .notification-center__empty-title {
   margin: 0; font-size: var(--text-title); font-weight: var(--weight-heading);
   letter-spacing: var(--tracking-tight); color: var(--text-primary-color);
 }
 .notification-center__empty-line {
-  margin: 6px 0 0; max-width: 250px;
+  margin: var(--space-2) 0 0; max-width: 250px;
   font-size: var(--text-body); line-height: var(--leading-normal); color: var(--text-secondary-color);
 }
 .notification-center__empty-copy { animation: notification-empty-copy-in var(--duration-normal) ease-out; }
@@ -217,7 +205,7 @@
 }
 
 .notification-center__empty-switch {
-  margin-top: 18px;
+  margin-top: 20px;
   transition: opacity var(--duration-normal) ease, transform var(--duration-normal) ease;
 }
 /* Fades rather than collapsing. The wrapper keeps its height so the panel does
@@ -236,23 +224,23 @@
 /* ---- Footer: settings left; mark all read and clear right ---- */
 .notification-center__footer {
   display: flex; align-items: center; gap: var(--space-1);
-  padding: 6px 2px 2px;
+  padding: var(--space-2) 2px 2px;
   border-top: 1px solid var(--border-divider);
 }
 .notification-center__footer-action {
-  width: 28px; height: 28px; flex-shrink: 0;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); flex-shrink: 0;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 .notification-center__footer-action:first-child { margin-right: auto; }
-.notification-center__footer-action svg { width: 14px; height: 14px; }
+.notification-center__footer-action svg { width: var(--icon-row); height: var(--icon-row); }
 .notification-center__footer-action:hover:not(:disabled) {
   background: var(--surface-hover); color: var(--text-primary-color);
 }
 .notification-center__footer-action--danger:hover:not(:disabled) { color: var(--status-danger); }
-.notification-center__footer-action:disabled { opacity: 0.35; }
+.notification-center__footer-action:disabled { opacity: var(--opacity-disabled); }
 
 @media (prefers-reduced-motion: reduce) {
   .notification-center__footer-action,
@@ -264,7 +252,7 @@
   .notification-center__dot { background: Highlight; box-shadow: 0 0 0 2px Canvas; }
   /* The row's dot is what says "unread" now that the card has no wash. */
   .notification__dot { background: Highlight; }
-  .notification-center__empty-icon { border-color: CanvasText; }
+  .notification-center__empty .empty-state__icon { border-color: CanvasText; }
 }
 
 /* The dot is refused the breathe in the component instead, because the class

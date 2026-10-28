@@ -410,7 +410,7 @@ export function BranchQuickSwitch({
               <span className="visually-hidden">{t.branchesLoading}</span>
             </div>
           ) : (visibleBranches === null || visibleBranches.length === 0) && !(offersCreate && !creating) ? (
-            <p className="branches-quick-switch__empty">
+            <p className="empty-line empty-line--menu branches-quick-switch__empty">
               {favouritesOnly && !needle
                 ? t.branchesQuickSwitchFavouritesEmpty
                 : needle

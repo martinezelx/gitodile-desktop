@@ -20,7 +20,7 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 36px;
-  padding: 5px var(--space-3);
+  padding: var(--space-1) var(--space-3);
   border: 0;
   border-radius: var(--radius-item);
   background: var(--surface-control);
@@ -36,8 +36,8 @@
   place-items: center;
   color: var(--text-secondary-color);
 }
-.changes-preview__icon svg { width: 14px; height: 14px; }
-.changes-preview__file-type-icon { width: 14px; height: 14px; display: block; }
+.changes-preview__icon svg { width: var(--icon-row); height: var(--icon-row); }
+.changes-preview__file-type-icon { width: var(--icon-row); height: var(--icon-row); display: block; }
 .changes-preview__name {
   flex: 0 1 auto;
   min-width: 0;
@@ -67,7 +67,7 @@
   place-items: center;
   color: var(--text-secondary-color);
 }
-.changes-preview__category svg { width: 13px; height: 13px; }
+.changes-preview__category svg { width: var(--icon-row); height: var(--icon-row); }
 .changes-preview__item--new .changes-preview__category { color: var(--status-success); }
 .changes-preview__item--deleted .changes-preview__category { color: var(--status-danger); }
 .changes-preview__item--renamed .changes-preview__category { color: var(--status-renamed); }
@@ -88,18 +88,18 @@
    title, then the explanation cut short with the whole of it on its tooltip;
    the title gives way only once the explanation has nothing left. */
 .changes-status-notice {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
-  padding: 9px 11px;
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-surface);
   border: 1px solid var(--border-subtle);
   background: var(--surface-card);
 }
 .changes-status-notice__body { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
-.changes-status-notice > svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.changes-status-notice > svg { width: var(--icon-control); height: var(--icon-control); flex: 0 0 auto; }
 .changes-status-notice strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: var(--text-label); text-overflow: ellipsis; white-space: nowrap; }
 .changes-status-notice p { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); text-overflow: ellipsis; white-space: nowrap; }
 .changes-status-notice > .secondary-button { flex: 0 0 auto; align-self: center; }
-.changes-status-notice > .secondary-button svg { width: 14px; height: 14px; }
+.changes-status-notice > .secondary-button svg { width: var(--icon-row); height: var(--icon-row); }
 .changes-status-notice--danger { outline: 1px solid var(--status-danger); outline-offset: -1px; }
 .changes-status-notice--danger > svg { color: var(--status-danger); }
 /* The result of a discard that was never confirmed. Sits under the header,
@@ -107,23 +107,23 @@
    under it. */
 .changes-notice {
   display: flex; align-items: center; gap: var(--space-3); min-width: 0;
-  padding: 10px var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-surface); border: 1px solid var(--border-subtle); background: var(--surface-card);
 }
 .changes-notice p { flex: 1; min-width: 0; margin: 0; overflow: hidden; font-size: var(--text-lead); color: var(--text-primary-color); text-overflow: ellipsis; white-space: nowrap; }
-.changes-notice > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.changes-notice > svg { width: var(--icon-nav); height: var(--icon-nav); flex-shrink: 0; }
 .changes-notice--discarded > svg, .changes-notice--restored > svg { color: var(--status-success); }
 .changes-notice--error > svg { color: var(--status-danger); }
 .changes-notice--error { outline: 1px solid var(--status-danger); outline-offset: -1px; }
 .changes-notice .secondary-button { flex-shrink: 0; }
-.changes-notice .secondary-button svg { width: 15px; height: 15px; }
+.changes-notice .secondary-button svg { width: var(--icon-control); height: var(--icon-control); }
 .changes-notice__dismiss {
-  flex-shrink: 0; display: grid; place-items: center; width: 26px; height: 26px;
+  flex-shrink: 0; display: grid; place-items: center; width: var(--icon-button-attached); height: var(--icon-button-attached);
   border: 0; border-radius: var(--radius-item); background: transparent;
   color: var(--text-secondary-color);
 }
 .changes-notice__dismiss:hover { background: var(--surface-active); color: var(--text-primary-color); }
-.changes-notice__dismiss svg { width: 15px; height: 15px; }
+.changes-notice__dismiss svg { width: var(--icon-control); height: var(--icon-control); }
 /* Same rule as the Overview summary row: a single-line control is fully
    rounded — a circle where it is square, a capsule where it carries a label.
    It is a circle at the row tier because it now lives inside a row (the file
@@ -137,7 +137,7 @@
 }
 .changes-actions-menu { position: relative; display: inline-flex; flex-shrink: 0; }
 .changes-actions-menu__trigger { justify-content: center; }
-.changes-actions-menu__trigger svg { width: 17px; height: 17px; }
+.changes-actions-menu__trigger svg { width: var(--icon-control); height: var(--icon-control); }
 /* The one menu in this screen that opens rightward, and the exception the
    shared default allows for: its items name files — this one, all of them —
    and right-anchored it dropped straight down over the list that answers
@@ -150,12 +150,12 @@
 .changes-actions-menu__popup { right: auto; left: 0; min-width: 270px; }
 .changes-actions-menu .app-menu__item--danger { color: var(--status-danger); }
 .changes-actions-menu .app-menu__item--danger svg { color: currentColor; }
-.changes-actions-menu .app-menu__item:disabled { opacity: 0.42; }
+.changes-actions-menu .app-menu__item:disabled { opacity: var(--opacity-disabled); }
 /* The surface itself is `.context-menu` in primitives.css now. What is left
    here is what only this menu shows: why an action did not happen, and the
    rule that fences the destructive item off from the harmless ones above it. */
 .changes-context-menu__error {
-  max-width: 280px; margin: 4px 8px 6px; color: var(--status-danger);
+  max-width: 280px; margin: var(--space-1) var(--space-2) var(--space-2); color: var(--status-danger);
   font-size: var(--text-label); line-height: var(--leading-normal); overflow-wrap: anywhere;
 }
 .changes-diff-context-scope { display: contents; }
@@ -183,7 +183,7 @@
    card keeps the whole row's width; the delete control is a quiet square
    beside it, because a destructive action on a list of protected work should
    not be the loudest thing in the row. */
-.changes-restore-row { display: flex; align-items: stretch; gap: 4px; }
+.changes-restore-row { display: flex; align-items: stretch; gap: var(--space-1); }
 .changes-restore-row > .choice-list__option { flex: 1; min-width: 0; }
 .changes-restore-row__forget {
   flex: 0 0 auto; width: 32px; display: grid; place-items: center;
@@ -191,52 +191,42 @@
   background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.changes-restore-row__forget:hover { background: color-mix(in srgb, var(--status-danger) 12%, transparent); color: var(--status-danger); }
+.changes-restore-row__forget:hover { background: color-mix(in srgb, var(--status-danger) var(--tint-fill-hover), transparent); color: var(--status-danger); }
 .changes-restore-row__forget:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.changes-restore-row__forget svg { width: 15px; height: 15px; }
+.changes-restore-row__forget svg { width: var(--icon-control); height: var(--icon-control); }
 /* The row becomes its own question rather than opening a dialog over the
    dialog: the list stays readable behind the choice, and the answer sits
    exactly where the thing it destroys was. It wears the dialog's danger
    banner (`.app-dialog__banner--danger`) rather than a recipe of its own. */
 .changes-restore-row--forgetting {
   flex-direction: column; gap: var(--space-2);
-  padding: 10px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border-radius: var(--radius-surface);
-  background: color-mix(in srgb, var(--status-danger) 12%, transparent);
+  background: color-mix(in srgb, var(--status-danger) var(--tint-fill), transparent);
 }
 .changes-restore-row__question { margin: 0; font-size: var(--text-body); line-height: var(--leading-normal); }
-.changes-restore-row__question strong { margin-right: 4px; }
+.changes-restore-row__question strong { margin-right: var(--space-1); }
 .changes-restore-row__answers { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 .changes-restore-unavailable { display: grid; gap: var(--space-2); }
 /* A disclosure, not a control that acts: it reads as the quiet line it is
    until pointed at, and carries its own caret rather than a chevron button. */
 .changes-restore-unavailable__toggle {
-  display: flex; align-items: center; gap: 6px; justify-self: start;
-  padding: 4px 8px 4px 4px; border: 0; border-radius: var(--radius-item);
+  display: flex; align-items: center; gap: var(--space-2); justify-self: start;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-secondary-color);
   font: inherit; font-size: var(--text-label);
 }
 .changes-restore-unavailable__toggle:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .changes-restore-unavailable__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.changes-restore-unavailable__toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
+.changes-restore-unavailable__toggle svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; }
 /* The same card as an option, minus every affordance of one: nothing here is
    pickable, so nothing here hovers, focuses or claims to be a choice. */
 .changes-restore-option--static { opacity: 0.75; background: var(--surface-hover); }
 
-.changes-empty {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 6px; max-width: 440px; margin: 0 auto; padding: 40px 24px; text-align: center;
-}
-/* The band's "done" tile at the project's own size: light fill, the
-   success tone, and no shadow — nothing is stacked on anything here. */
-.changes-empty__icon {
-  width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 14px;
-  border-radius: var(--radius-round); background: var(--surface-active); color: var(--status-success);
-}
-.changes-empty__icon svg { width: 20px; height: 20px; }
-.changes-empty h2 { font-size: var(--text-title); margin-bottom: 6px; }
-.changes-empty p { color: var(--text-secondary-color); font-size: var(--text-lead); line-height: var(--leading-normal); margin-bottom: 22px; }
+/* DESIGN.md § Core screens' empty-state block, success variant; only its
+   width and the stacked actions below are this screen's own. */
+.changes-empty { max-width: 440px; }
 /* The clean state reads as one decision: a primary action when the situation
    has one, the secondary exits on a row under it, and the door to discarded
    work last and quietest. The block is prose-width, so the row wraps rather
@@ -250,7 +240,7 @@
    lucide's 24px default and outweigh the 13px word beside them; the rest of the
    screen sizes a button's icon to its context the same way. */
 .changes-empty__primary svg,
-.changes-empty__secondary svg { width: 15px; height: 15px; flex-shrink: 0; }
+.changes-empty__secondary svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   .changes-empty__primary { animation: none; }
 }
@@ -399,15 +389,12 @@
 }
 /* Vendor artwork at the same size the switch's own lucide glyphs take, so a
    row of file types and a row of change kinds measure alike. */
-.changes-filter__type-icon { width: 14px; height: 14px; flex: 0 0 auto; }
+.changes-filter__type-icon { width: var(--icon-row); height: var(--icon-row); flex: 0 0 auto; }
 
 /* Says why the list is empty, and — where a filter is what emptied it — offers
    the way back, since the filters keep no clear control in the strip the way
    the search box does. */
-.changes-file-list__empty {
-  display: grid; justify-items: center; gap: var(--space-3);
-  padding: var(--space-4) var(--space-3); color: var(--text-secondary-color); font-size: var(--text-body); text-align: center;
-}
+.changes-file-list__empty { display: grid; justify-items: center; gap: var(--space-3); }
 .changes-file-list__empty p { margin: 0; }
 .changes-file-list__scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: var(--space-2);
@@ -450,14 +437,14 @@
 .changes-file-row:not(.changes-file-row--active):hover .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)) .inclusion-node__mark,
 .changes-file-list__select-all .changes-file-row__pick:has(.inclusion-node__input:not(:disabled)):hover .inclusion-node__mark {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 26%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) var(--tint-halo), transparent);
 }
 /* The open file is the one node in the accent, and selecting it changes the
    colour, never the shape: a filled node stays a disc, a half-filled one stays
    a half moon, an empty one stays a ring. */
 .changes-file-row--active .inclusion-node__mark {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) var(--tint-halo), transparent);
 }
 .changes-file-row--active .inclusion-node__input:checked + .inclusion-node__mark {
   background: var(--accent-primary);
@@ -478,44 +465,44 @@
   height: 10px;
 }
 .changes-file-row .changes-file-item { flex: 1; width: auto; padding-inline-start: var(--space-2); }
-.changes-file-row--excluded .changes-file-item { opacity: 0.55; }
+.changes-file-row--excluded .changes-file-item { opacity: var(--opacity-muted); }
 .changes-file-row--excluded .changes-file-item:hover { opacity: 0.8; }
 /* Filters and the folder switch share the pill's tail: tight, a size down,
    so the field keeps room for its word. */
 .changes-file-list__toolbar .search-box__trailing { gap: 0; }
-.changes-file-list__toolbar .filter-control__trigger { width: 22px; height: 22px; }
+.changes-file-list__toolbar .filter-control__trigger { width: var(--icon-button-inline); height: var(--icon-button-inline); }
 /* The folder view. A row steps in 16px per folder above it, and draws a
    hairline at each step under the parent's leading control, so a long branch
    still reads as one — drawn by the row itself, not by nesting, because a
    virtualized list places each row on its own. A file under a folder drops its
    folder line (the folder above it says it) and so takes one line. */
 .changes-file-row--tree {
-  padding-inline-start: calc(var(--tree-depth, 0) * 16px);
+  padding-inline-start: calc(var(--tree-depth, 0) * var(--space-4));
   background-image: repeating-linear-gradient(to right, transparent 0 13px, var(--border-divider) 13px 14px, transparent 14px 16px);
   background-size: calc(var(--tree-depth, 0) * 16px) 100%;
   background-repeat: no-repeat;
 }
-.changes-file-row--tree .changes-file-item { padding-block: 7px; align-items: center; }
+.changes-file-row--tree .changes-file-item { padding-block: var(--space-2); align-items: center; }
 
 /* A folder in a file tree, shared by Changes and a saved version's files in
    History: caret, folder, name, then what it holds — the kinds of change as
    dots and how many files — so a folded folder still says it. */
 .file-tree-folder {
-  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 6px;
-  padding: 0 var(--space-3) 0 6px; border: 0; border-radius: var(--radius-item);
+  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-2); border: 0; border-radius: var(--radius-item);
   background: transparent; color: var(--text-primary-color); font: inherit; text-align: left;
 }
 .file-tree-folder:hover { background: var(--surface-hover); }
 .file-tree-folder:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.file-tree-folder__caret { width: 14px; height: 14px; flex: 0 0 14px; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
+.file-tree-folder__caret { width: var(--icon-row); height: var(--icon-row); flex: 0 0 14px; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
 .file-tree-folder__caret--open { transform: rotate(90deg); }
-.file-tree-folder__icon { width: 15px; height: 15px; flex: 0 0 15px; color: var(--text-secondary-color); }
+.file-tree-folder__icon { width: var(--icon-control); height: var(--icon-control); flex: 0 0 15px; color: var(--text-secondary-color); }
 .file-tree-folder__name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--text-label); font-weight: var(--weight-strong);
 }
-.file-tree-folder__summary { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; padding-inline-start: var(--space-2); }
-.file-tree-folder__kinds { display: inline-flex; gap: 3px; }
+.file-tree-folder__summary { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--space-2); margin-inline-start: auto; padding-inline-start: var(--space-2); }
+.file-tree-folder__kinds { display: inline-flex; gap: var(--space-1); }
 .file-tree-folder__kind { width: 6px; height: 6px; border-radius: var(--radius-round); background: var(--text-secondary-color); }
 .file-tree-folder__kind--new { background: var(--status-success); }
 .file-tree-folder__kind--deleted { background: var(--status-danger); }
@@ -532,11 +519,11 @@
   .changes-file-row--active .inclusion-node__input:indeterminate + .inclusion-node__mark { background: linear-gradient(90deg, Highlight 50%, Canvas 50%); border-color: Highlight; }
 }
 .changes-file-list__truncated {
-  margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-item); background: var(--surface-hover);
+  margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-item); background: var(--surface-hover);
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .changes-file-item {
-  width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: 13px; padding: 9px var(--space-3);
+  width: 100%; min-width: 0; display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-3);
   border: 0; border-radius: var(--radius-item); background: transparent; color: var(--text-primary-color); text-align: left;
   font: inherit;
 }
@@ -544,11 +531,11 @@
 .changes-file-item--active { background: var(--surface-active); }
 .changes-file-item--attention .changes-file-item__name { color: var(--status-danger); }
 .changes-file-item__icon { display: grid; place-items: center; flex-shrink: 0; align-self: center; }
-.changes-file-item__type-icon { width: 15px; height: 15px; display: block; }
+.changes-file-item__type-icon { width: var(--icon-control); height: var(--icon-control); display: block; }
 .changes-file-item__category-icon {
   display: grid; place-items: center; flex-shrink: 0; align-self: center; margin-left: auto; color: var(--text-secondary-color);
 }
-.changes-file-item__category-icon svg { width: 13px; height: 13px; }
+.changes-file-item__category-icon svg { width: var(--icon-row); height: var(--icon-row); }
 .changes-file-item__category-icon--new { color: var(--status-success); }
 .changes-file-item__category-icon--deleted { color: var(--status-danger); }
 .changes-file-item__category-icon--renamed { color: var(--status-renamed); }
@@ -575,19 +562,19 @@
    list in the search strip, so nothing destructive lives in here. */
 .changes-file-list__foot { flex: 0 0 auto; }
 /* The plan: the count first, then the line in the status bar's own mono. */
-.changes-quick-commit__plan-body { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.changes-quick-commit__plan-body { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* Multi-line, so it cannot be a capsule: `--radius-control`, the tier for a
    control that has to stay rectangular. */
 .changes-quick-commit__desc {
   box-sizing: border-box; width: 100%; resize: none; min-height: 56px; max-height: 184px; overflow-y: auto;
-  padding: 7px var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-hover);
   color: var(--text-primary-color); font: inherit; font-size: var(--text-body); line-height: var(--leading-normal); outline: none;
   transition: border-color var(--duration-fast), background var(--duration-fast);
 }
 .changes-quick-commit__desc:focus { border-color: var(--focus-ring); background: var(--surface-raised); }
 .changes-quick-commit__desc::placeholder { color: var(--text-secondary-color); }
-.changes-quick-commit__desc:disabled { opacity: 0.6; }
+.changes-quick-commit__desc:disabled { opacity: var(--opacity-disabled); }
 /* Only the notes the plan line cannot say, at caption size — the dialog
    prints the same lines in full; here they are a footnote to the save. */
 .changes-quick-commit__notes { display: grid; gap: 2px; padding: 0 var(--space-4); }
@@ -597,18 +584,18 @@
 .changes-quick-commit__hook-escape { align-self: flex-start; }
 /* "Publish now" stands where "Also publish" stood, at the start of the foot. */
 .changes-quick-commit__publish-now { margin-right: auto; }
-.changes-quick-commit__publish-now svg { width: 15px; height: 15px; }
+.changes-quick-commit__publish-now svg { width: var(--icon-control); height: var(--icon-control); }
 .docked-composer:not(.docked-composer--expanded) .changes-quick-commit__publish-now { display: none; }
 
 .changes-diff {
   min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
 .changes-diff__back {
-  display: none; align-items: center; gap: 6px; margin: var(--space-3) var(--space-3) 0; padding: 4px 0;
+  display: none; align-items: center; gap: var(--space-2); margin: var(--space-3) var(--space-3) 0; padding: var(--space-1) 0;
   border: 0; background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--text-body);
   align-self: flex-start;
 }
-.changes-diff__back svg { width: 16px; height: 16px; }
+.changes-diff__back svg { width: var(--icon-control); height: var(--icon-control); }
 .changes-diff__header {
   display: flex; align-items: center; gap: var(--space-2);
   padding: 0 var(--space-4) 0 var(--space-3);
@@ -626,10 +613,10 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 .changes-diff__header-icon { display: grid; place-items: center; flex-shrink: 0; color: var(--text-secondary-color); }
-.changes-diff__header-icon svg { width: 16px; height: 16px; }
+.changes-diff__header-icon svg { width: var(--icon-control); height: var(--icon-control); }
 /* The file's own icon, the same one its row carries, so the open file is
    recognizable as the one that was clicked. */
-.changes-diff__type-icon { width: 16px; height: 16px; display: block; }
+.changes-diff__type-icon { width: var(--icon-control); height: var(--icon-control); display: block; }
 /* `overflow: hidden` is the guard, not a tidy-up: the badge beside the name
    cannot shrink, so under enough pressure the row would keep painting it
    straight over the controls to its right. Clipped, the narrowest pane loses
@@ -677,10 +664,10 @@
    with the word beside it. A pill here was a third shape for one fact the
    list row and the Overview band already draw the same way. */
 .changes-diff__category {
-  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: var(--space-1);
   color: var(--text-secondary-color); font-size: var(--text-caption); font-weight: var(--weight-heading); line-height: var(--leading-snug);
 }
-.changes-diff__category svg { width: 13px; height: 13px; flex-shrink: 0; }
+.changes-diff__category svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .changes-diff__category--new { color: var(--status-success); }
 .changes-diff__category--deleted { color: var(--status-danger); }
 .changes-diff__category--renamed { color: var(--status-renamed); }
@@ -726,7 +713,7 @@
      as a slow double gesture rather than one pop. */
   transform-origin: top right;
   transition: none;
-  animation: titlebar-menu-in var(--duration-fast) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: titlebar-menu-in var(--duration-fast) var(--ease-emphasized) both;
 }
 /* The reverse, and deliberately shorter than the entrance: leaving should feel
    like releasing the control, not a second thing to watch. The portal is kept
@@ -756,30 +743,30 @@
      the 15px glyph keeps an even ring of space around it.
 
      `padding: 0` is load-bearing. A `<button>` carries the browser's own
-     `1px 6px`, and nothing resets it globally: with the box 24px wide there
+     `1px var(--space-2)`, and nothing resets it globally: with the box var(--space-5) wide there
      was less content box than glyph, so the icon was laid out from the
      padding edge rather than centred in the button — which is why it sat
      right of its own hover shape. */
-  width: 28px; height: 28px; padding: 0;
+  width: var(--icon-button-attached); height: var(--icon-button-attached); padding: 0;
   display: grid; place-items: center; flex-shrink: 0;
   border: 1px solid transparent; border-radius: var(--radius-round);
   background: transparent; color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast);
 }
-.changes-diff__step svg { width: 15px; height: 15px; display: block; }
+.changes-diff__step svg { width: var(--icon-control); height: var(--icon-control); display: block; }
 .changes-diff__step:hover:not(:disabled) {
   background: var(--surface-hover); border-color: var(--border-subtle); color: var(--text-primary-color);
 }
-.changes-diff__step:disabled { opacity: 0.35; }
+.changes-diff__step:disabled { opacity: var(--opacity-disabled); }
 .changes-diff__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-.changes-diff__view { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.changes-diff__view { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* No positioning context of its own any more: the open menu is portalled to
    the body by `usePortalFlyout`, so nothing absolute is laid out against this
    wrapper the way the old in-flow `.app-menu` was. */
 .changes-view-picker { display: inline-flex; }
 /* Doubled up on `.branch-selector` on purpose. The trigger wears that
    class too, and `features/branches` loads *after* this file, so at equal
-   specificity its `padding: 6px var(--space-4)` was quietly beating the `0`
+   specificity its `padding: var(--space-2) var(--space-4)` was quietly beating the `0`
    below — the block padding this rule asks for has never actually applied. It
    went unnoticed while the control was 34px tall and the label had 2px to
    spare; at the shared 32px row tier the text fills the content box exactly,
@@ -793,7 +780,7 @@
      at computed-value time and the trigger collapsed to its text. A shared
      control falls back to the row tier instead of to nothing. */
   box-sizing: border-box; height: var(--changes-toolbar-control-height, var(--control-height-sm));
-  padding: 0 var(--space-4); gap: 7px; border-radius: var(--radius-pill);
+  padding: 0 var(--space-4); gap: var(--space-2); border-radius: var(--radius-pill);
 }
 .changes-view-picker__value { font-size: var(--text-body); font-weight: var(--weight-medium); white-space: nowrap; }
 /* Alignment comes from `.app-menu` now, and must: this trigger sits at the
@@ -814,18 +801,18 @@
   background: var(--surface-code);
 }
 .changes-diff__status {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3);
   padding: var(--space-6); color: var(--text-secondary-color); text-align: center;
 }
-.changes-diff__status svg { width: 22px; height: 22px; }
+.changes-diff__status svg { width: var(--icon-tile); height: var(--icon-tile); }
 .changes-diff__status--error { color: var(--status-danger); }
 
 /* Document typography lives on the same solid surface as the diff. Reset
    base styles locally so lists, headings and tables keep Markdown's shape. */
 .markdown-preview { width: 100%; min-width: 0; color: var(--text-primary-color); }
 .markdown-preview__summary { padding: var(--space-3) var(--space-4); color: var(--text-secondary-color); font-size: var(--text-label); }
-.markdown-preview__document .markdown-preview__removed { background: color-mix(in srgb, var(--diff-removed) 13%, transparent); border-inline-start: 3px solid var(--diff-removed); }
-.markdown-preview__document .markdown-preview__added { background: color-mix(in srgb, var(--diff-added) 13%, transparent); border-inline-start: 3px solid var(--diff-added); }
+.markdown-preview__document .markdown-preview__removed { background: color-mix(in srgb, var(--diff-removed) var(--tint-fill), transparent); border-inline-start: 3px solid var(--diff-removed); }
+.markdown-preview__document .markdown-preview__added { background: color-mix(in srgb, var(--diff-added) var(--tint-fill), transparent); border-inline-start: 3px solid var(--diff-added); }
 .markdown-preview__document .markdown-preview__removed + .markdown-preview__added { margin-top: var(--space-2); }
 .markdown-preview__document :is(.markdown-preview__added, .markdown-preview__removed):not(tr)::before { display: inline; margin-inline-end: .4em; font-family: var(--font-mono); }
 .markdown-preview__document .markdown-preview__added:not(tr)::before,
@@ -837,7 +824,7 @@
   color: var(--text-secondary-color); font-size: var(--text-label);
 }
 .markdown-preview__document {
-  max-width: 860px; margin: 0 auto; padding: clamp(16px, 4vw, 40px);
+  max-width: 860px; margin: 0 auto; padding: clamp(var(--space-4), 4vw, 40px);
   font-size: var(--text-lead); line-height: var(--leading-code); overflow-wrap: anywhere;
 }
 .markdown-preview__document > :first-child { margin-top: 0; }
@@ -855,24 +842,24 @@
 .markdown-preview__document li > :where(ul, ol) { margin-bottom: 0; }
 .markdown-preview__document blockquote { padding: 0 1em; border-left: 3px solid var(--border-subtle); color: var(--text-secondary-color); }
 .markdown-preview__document code { font-family: var(--font-mono); font-size: var(--text-body); background: var(--surface-hover); padding: .15em .3em; border-radius: var(--radius-item); }
-.markdown-preview__document pre { padding: 16px; background: var(--surface-hover); overflow-x: auto; border-radius: var(--radius-item); }
+.markdown-preview__document pre { padding: var(--space-4); background: var(--surface-hover); overflow-x: auto; border-radius: var(--radius-item); }
 .markdown-preview__document pre code { padding: 0; background: transparent; overflow-wrap: normal; }
 .markdown-preview__document table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
-.markdown-preview__document :where(th, td) { padding: 6px 12px; border: 1px solid var(--border-subtle); text-align: start; }
+.markdown-preview__document :where(th, td) { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-subtle); text-align: start; }
 .markdown-preview__document th { font-weight: var(--weight-heading); background: var(--surface-hover); }
-.markdown-preview__document hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 24px 0; }
+.markdown-preview__document hr { border: 0; border-top: 1px solid var(--border-subtle); margin: var(--space-5) 0; }
 .markdown-preview__link { text-decoration: underline; text-underline-offset: 3px; }
 .markdown-preview__image { color: var(--text-secondary-color); font-style: italic; }
 .markdown-preview__document .contains-task-list { list-style: none; }
 .markdown-preview__document input[type="checkbox"] { margin-inline-end: .5em; }
 .changes-diff__truncated {
-  margin: var(--space-3) var(--space-4) 0; padding: 8px 10px; border-radius: var(--radius-item);
+  margin: var(--space-3) var(--space-4) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-item);
   background: var(--surface-hover); color: var(--text-secondary-color); font-size: var(--text-label);
 }
 
-.changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--space-6); text-align: center; color: var(--text-secondary-color); }
-.changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: 6px; }
-.changes-diff__note-icon svg { width: 18px; height: 18px; }
+.changes-diff__note { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-6); text-align: center; color: var(--text-secondary-color); }
+.changes-diff__note-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--surface-hover); margin-bottom: var(--space-2); }
+.changes-diff__note-icon svg { width: var(--icon-nav); height: var(--icon-nav); }
 .changes-diff__note h3 { font-size: var(--text-subtitle); color: var(--text-primary-color); }
 .changes-diff__note--attention .changes-diff__note-icon { color: var(--status-warning); }
 
@@ -917,25 +904,25 @@
 }
 .diff-row--hunk-start { margin-top: var(--space-3); border-top: 1px dashed var(--border-divider); padding-top: var(--space-2); }
 .diff-hunk__marker {
-  margin: 6px var(--space-4); padding: 0; border-radius: var(--radius-item);
+  margin: var(--space-2) var(--space-4); padding: 0; border-radius: var(--radius-item);
   background: var(--surface-hover); color: var(--text-secondary-color); text-align: left;
   font: var(--text-caption)/var(--leading-normal) var(--font-sans);
   display: flex; align-items: center; gap: var(--space-2); overflow: hidden;
 }
 .diff-hunk__expand {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
-  padding: 5px 14px; border: 0; border-radius: inherit; background: transparent;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-4); border: 0; border-radius: inherit; background: transparent;
   color: inherit; font: inherit; text-align: left;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.diff-hunk__expand svg { width: 13px; height: 13px; flex-shrink: 0; }
+.diff-hunk__expand svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .diff-hunk__expand:hover:not(:disabled) { background: var(--surface-active); color: var(--text-primary-color); }
 .diff-hunk__expand:disabled { cursor: progress; }
 .diff-hunk__expand:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.diff-hunk__expand-error { flex-shrink: 0; padding-right: 14px; color: var(--status-danger); }
-.diff-hunk__marker--static { display: block; padding: 5px 14px; }
+.diff-hunk__expand-error { flex-shrink: 0; padding-right: var(--space-4); color: var(--status-danger); }
+.diff-hunk__marker--static { display: block; padding: var(--space-1) var(--space-4); }
 .diff-line { display: grid; grid-template-columns: 48px 16px 1fr; align-items: baseline; padding-right: var(--space-4); }
-.diff-line__number { padding: 0 6px; text-align: right; color: var(--text-secondary-color); opacity: 0.55; font-size: var(--text-caption); user-select: none; }
+.diff-line__number { padding: 0 var(--space-2); text-align: right; color: var(--text-secondary-color); opacity: var(--opacity-muted); font-size: var(--text-caption); user-select: none; }
 .diff-line__sign { text-align: center; user-select: none; }
 .diff-line .visually-hidden { user-select: none; }
 .diff-line__content { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
@@ -945,9 +932,9 @@
 .syntax-token--keyword { color: var(--syntax-keyword); font-weight: var(--weight-strong); }
 .syntax-token--type { color: var(--syntax-type); }
 .syntax-token--property { color: var(--syntax-property); }
-.diff-line--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
+.diff-line--addition { background: color-mix(in srgb, var(--diff-added) var(--tint-fill), transparent); }
 .diff-line--addition .diff-line__sign, .diff-line--addition .diff-line__content { color: var(--diff-added); }
-.diff-line--deletion { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }
+.diff-line--deletion { background: color-mix(in srgb, var(--diff-removed) var(--tint-fill), transparent); }
 .diff-line--deletion .diff-line__sign, .diff-line--deletion .diff-line__content { color: var(--diff-removed); }
 .diff-split-row {
   display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
@@ -957,10 +944,12 @@
 .diff-split-cell {
   display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: baseline; min-width: 0;
 }
-.diff-split-cell--addition { background: color-mix(in srgb, var(--diff-added) 12%, transparent); }
+.diff-split-cell--addition { background: color-mix(in srgb, var(--diff-added) var(--tint-fill), transparent); }
 .diff-split-cell--addition .diff-line__sign, .diff-split-cell--addition .diff-line__content { color: var(--diff-added); }
-.diff-split-cell--deletion { background: color-mix(in srgb, var(--diff-removed) 12%, transparent); }
+.diff-split-cell--deletion { background: color-mix(in srgb, var(--diff-removed) var(--tint-fill), transparent); }
 .diff-split-cell--deletion .diff-line__sign, .diff-split-cell--deletion .diff-line__content { color: var(--diff-removed); }
+/* Filler for the side a change does not have: fainter than anything muted,
+   so it never competes with the code beside it. */
 .diff-split-cell--empty { background: var(--surface-hover); opacity: 0.35; }
 .diff-line__number--empty { user-select: none; }
 /* The same step History takes at the same width: the list column narrows
@@ -1037,9 +1026,9 @@
 .image-diff__side-note { padding: var(--space-4); text-align: center; color: var(--text-secondary-color); font-size: var(--text-label); }
 .image-diff__status {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: var(--space-6); color: var(--text-secondary-color); text-align: center;
+  gap: var(--space-3); padding: var(--space-6); color: var(--text-secondary-color); text-align: center;
 }
-.image-diff__status svg { width: 22px; height: 22px; }
+.image-diff__status svg { width: var(--icon-tile); height: var(--icon-tile); }
 .image-diff__status--error { color: var(--status-danger); }
 /* The stage hugs the picture: it is a grid item of the frame, so it is sized by
    its content rather than stretched to the frame's width, and the divider and
@@ -1069,7 +1058,7 @@
 .image-diff__stage--swipe .image-diff__layer--after { clip-path: inset(0 0 0 var(--image-diff-position)); }
 /* The one piece of movement in this view, and it is a cross-fade of state,
    not decoration. The app-wide reduced-motion rule removes it. */
-.image-diff__stage--fade .image-diff__layer--after { opacity: var(--image-diff-opacity); transition: opacity 120ms ease; }
+.image-diff__stage--fade .image-diff__layer--after { opacity: var(--image-diff-opacity); transition: opacity var(--duration-fast) ease; }
 /* Centred on the cut rather than starting at it, so a 2px rule does not read
    as 2px of the new version leaking past the divider. */
 .image-diff__swipe-line {

@@ -3,7 +3,7 @@
 .github-account p { margin: 0; }
 .github-account__note { color: var(--text-secondary-color); font-size: var(--text-label); line-height: var(--leading-normal); }
 .github-account__shared { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-label); line-height: var(--leading-normal); color: var(--text-secondary-color); }
-.github-account__shared svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.github-account__shared svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; margin-top: 2px; }
 .github-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .github-account__pending { justify-content: space-between; align-items: center; }
 .github-account__authorization { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border-subtle); border-radius: var(--radius-surface); background: var(--surface-code); }
@@ -22,7 +22,7 @@
 .hosting-accounts__host { display: grid; gap: var(--space-2); }
 .hosting-accounts__host-label { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--text-secondary-color); font-size: var(--text-label); }
 .hosting-accounts__host-label strong { color: var(--text-primary-color); font-weight: var(--weight-strong); }
-.hosting-accounts__host-label svg { width: 14px; height: 14px; flex-shrink: 0; }
+.hosting-accounts__host-label svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .hosting-accounts__pill { padding: 1px var(--space-2); border: 1px solid var(--border-divider); border-radius: var(--radius-pill); font-size: var(--text-caption); }
 .hosting-accounts__list { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
 .hosting-accounts__list > * { padding: var(--space-3) var(--space-4); }
@@ -37,7 +37,7 @@
 .hosting-accounts__empty { padding: var(--space-3) var(--space-4); }
 .hosting-accounts__add { gap: var(--space-4); }
 .hosting-accounts__add-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); font-weight: var(--weight-strong); }
-.hosting-accounts__add-title svg { width: 16px; height: 16px; flex-shrink: 0; }
+.hosting-accounts__add-title svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; }
 /* Settings → Accounts lists every provider's hosts in one list: a host with
    nothing connected and nothing in progress has an empty list, and folds away
    rather than drawing an empty box under its name. */
@@ -46,7 +46,7 @@
 .accounts-connect { position: relative; }
 .accounts-connect__menu { min-width: 280px; }
 .accounts-connect__item { gap: var(--space-3); }
-.accounts-connect__item svg { width: 18px; height: 18px; color: var(--text-primary-color); }
+.accounts-connect__item svg { width: var(--icon-nav); height: var(--icon-nav); color: var(--text-primary-color); }
 .accounts-connect__item > span { display: grid; gap: 2px; }
 .accounts-connect__item strong { font-weight: var(--weight-strong); }
 .accounts-connect__item small { color: var(--text-secondary-color); font-size: var(--text-label); }
@@ -60,13 +60,13 @@
 }
 .accounts-provider__head:hover { background: var(--surface-hover); }
 .accounts-provider__head:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-control); }
-.accounts-provider__mark { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; }
-.accounts-provider__mark svg { width: 18px; height: 18px; }
+.accounts-provider__mark { display: grid; place-items: center; width: var(--icon-tile); height: var(--icon-tile); flex-shrink: 0; }
+.accounts-provider__mark svg { width: var(--icon-nav); height: var(--icon-nav); }
 .accounts-provider__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
 .accounts-provider__text strong { font-size: var(--text-subtitle); font-weight: var(--weight-heading); }
 .accounts-provider__text span { color: var(--text-secondary-color); font-size: var(--text-label); }
 .accounts-provider__chip { flex-shrink: 0; }
-.accounts-provider__chevron { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
+.accounts-provider__chevron { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; color: var(--text-secondary-color); transition: transform var(--duration-fast); }
 .accounts-provider__head[aria-expanded="true"] .accounts-provider__chevron { transform: rotate(180deg); }
 .accounts-provider__body { padding: var(--space-4); border-top: 1px solid var(--border-subtle); }
 .accounts-provider__body[hidden] { display: none; }
@@ -74,9 +74,9 @@
 .accounts-provider__note { display: grid; gap: var(--space-2); color: var(--text-secondary-color); font-size: var(--text-body); line-height: var(--leading-normal); }
 .accounts-provider__note p { margin: 0; }
 .hosting-accounts__choices { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.hosting-accounts__segmented { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--surface-control); }
+.hosting-accounts__segmented { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: var(--space-1); border-radius: var(--radius-pill); background: var(--surface-control); }
 .hosting-accounts__segmented button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-height-sm); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-secondary-color); font: inherit; font-size: var(--control-font-sm); cursor: default; }
-.hosting-accounts__segmented button svg { width: 14px; height: 14px; }
+.hosting-accounts__segmented button svg { width: var(--icon-row); height: var(--icon-row); }
 .hosting-accounts__segmented button[aria-checked="true"] { background: var(--surface-raised); color: var(--text-primary-color); font-weight: var(--weight-strong); }
 .hosting-accounts__segmented button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 @media (max-width: 800px) {
@@ -88,10 +88,10 @@
    raised badge at its lower trailing corner, the one surface that floats. */
 .hosting-avatar { position: relative; display: block; width: 32px; height: 32px; flex-shrink: 0; }
 .hosting-avatar__face { display: grid; place-items: center; width: 100%; height: 100%; overflow: hidden; border-radius: var(--radius-round); background: var(--surface-control); color: var(--text-secondary-color); }
-.hosting-avatar__face svg { width: 16px; height: 16px; }
+.hosting-avatar__face svg { width: var(--icon-control); height: var(--icon-control); }
 .hosting-avatar__face img { width: 100%; height: 100%; object-fit: cover; }
 .hosting-avatar__badge { position: absolute; inset-block-end: -2px; inset-inline-end: -2px; display: grid; place-items: center; box-sizing: border-box; width: 16px; height: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-round); background: var(--surface-raised); color: var(--text-primary-color); box-shadow: 0 0 0 2px var(--surface-panel); }
-.hosting-avatar__badge svg { width: 10px; height: 10px; }
+.hosting-avatar__badge svg { width: var(--icon-badge); height: var(--icon-badge); }
 .hosting-account-picker__glyph .hosting-avatar { width: 100%; height: 100%; }
 .account-row__main { display: grid; gap: var(--space-1); min-width: 0; }
 .account-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
@@ -99,10 +99,10 @@
 .account-row__method { color: var(--text-secondary-color); }
 .account-row__notice { display: grid; gap: var(--space-1); }
 .account-row__notice .status-line { align-items: flex-start; font-size: var(--text-label); line-height: var(--leading-normal); }
-.account-row__notice .status-line svg { margin-top: 3px; }
+.account-row__notice .status-line svg { margin-top: var(--space-1); }
 .account-row__notice span { overflow-wrap: anywhere; }
 .account-row__notice > * { margin: 0; }
-.account-row__notice svg { width: 13px; height: 13px; flex-shrink: 0; }
+.account-row__notice svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 .account-row__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .hosting-accounts__method > .account-row + .account-row,
 .github-account--embedded > .account-row + .account-row { border-top: 1px solid var(--border-subtle); padding-top: var(--space-3); }

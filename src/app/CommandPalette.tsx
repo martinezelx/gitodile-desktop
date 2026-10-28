@@ -372,7 +372,7 @@ export function CommandPalette({
         role="listbox"
         aria-label={t.paletteAriaLabel}
       >
-        {held.matches.length === 0 && <li className="palette-empty">{t.paletteNoMatches}</li>}
+        {held.matches.length === 0 && <li className="empty-line empty-line--menu palette-empty">{t.paletteNoMatches}</li>}
         {groups.map((group) => (
           <React.Fragment key={group.name}>
             <li className="palette-group" role="presentation">

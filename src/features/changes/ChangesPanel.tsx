@@ -1800,7 +1800,7 @@ export function ChangesPanel({
                     strip above; the filters do not, so the one that can strand a
                     reader here offers its own undo. */}
                 {visibleEntries.length === 0 && (
-                  <div className="changes-file-list__empty" role="status">
+                  <div className="empty-line changes-file-list__empty" role="status">
                     <p>{activeFilterCount > 0 ? t.changesNoFilterMatches : t.changesNoSearchMatches}</p>
                     {activeFilterCount > 0 && (
                       <button
@@ -1885,8 +1885,8 @@ export function ChangesPanel({
         </nav>
         {!isLoadingList && workingTree?.isClean && emptyContent ? (
           <div className="changes-diff changes-diff--state">
-            <div className="changes-empty">
-              <div className="changes-empty__icon" aria-hidden="true">
+            <div className="empty-state empty-state--success changes-empty">
+              <div className="empty-state__icon" aria-hidden="true">
                 <CheckCircle2 />
               </div>
               <h2>{emptyContent.title}</h2>

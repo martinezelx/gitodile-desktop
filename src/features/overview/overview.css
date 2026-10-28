@@ -67,7 +67,7 @@
   opacity: 0;
   transition: opacity var(--duration-fast);
 }
-.overview-header__icon-edit svg { width: 10px; height: 10px; }
+.overview-header__icon-edit svg { width: var(--icon-badge); height: var(--icon-badge); }
 .overview-header__icon:hover .overview-header__icon-edit,
 .overview-header__icon:focus-visible .overview-header__icon-edit { opacity: 1; }
 /* The project's name, at the card-heading size: in a breadcrumb it is a place,
@@ -95,7 +95,7 @@
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 28px;
   padding: 0 var(--space-3) 0 var(--space-2);
   border: 1px solid var(--border-subtle);
@@ -104,8 +104,8 @@
   color: var(--text-secondary-color);
   font: inherit;
 }
-.overview-home__glyph { width: 15px; height: 15px; flex-shrink: 0; display: inline-grid; place-items: center; }
-.overview-home__glyph svg { width: 15px; height: 15px; }
+.overview-home__glyph { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; display: inline-grid; place-items: center; }
+.overview-home__glyph svg { width: var(--icon-control); height: var(--icon-control); }
 .overview-home__path {
   min-width: 0;
   overflow: hidden;
@@ -115,7 +115,7 @@
   white-space: nowrap;
 }
 .overview-home__local { font-size: var(--text-body); font-weight: var(--weight-strong); white-space: nowrap; }
-.overview-home__out { width: 13px; height: 13px; flex-shrink: 0; opacity: .7; }
+.overview-home__out { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; opacity: .7; }
 .overview-home--link:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .overview-home--link:hover .overview-home__out { opacity: 1; }
 .overview-home--link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -144,7 +144,7 @@
   color: var(--text-secondary-color);
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.overview-header__tool svg { width: 17px; height: 17px; }
+.overview-header__tool svg { width: var(--icon-control); height: var(--icon-control); }
 .overview-header__tool:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 .overview-header__tool:active { background: var(--surface-active); }
 .overview-header__tool:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -170,7 +170,7 @@
   gap: var(--space-3) var(--space-4);
   padding: 20px var(--space-5);
   border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--tone) 7%, var(--surface-panel));
+  background: color-mix(in srgb, var(--tone) var(--tint-selected), var(--surface-panel));
 }
 .next-step--unsaved { --tone: var(--status-warning); --ink: var(--status-warning); }
 .next-step--incoming { --tone: var(--tone-remote); --ink: var(--tone-remote); }
@@ -191,8 +191,8 @@
   color: var(--ink);
 }
 .next-step--calm .next-step__glyph { background: var(--surface-hover); }
-.next-step__glyph svg { width: 21px; height: 21px; }
-.next-step__copy { flex: 1 1 280px; min-width: 0; display: grid; gap: 4px; }
+.next-step__glyph svg { width: var(--icon-tile); height: var(--icon-tile); }
+.next-step__copy { flex: 1 1 280px; min-width: 0; display: grid; gap: var(--space-1); }
 .next-step__title {
   margin: 0;
   overflow: hidden;
@@ -212,27 +212,27 @@
    Only its glyph carries the status ink, so the card keeps one colour. */
 .next-step__note {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   align-items: flex-start;
   margin: var(--space-1) 0 0;
   color: var(--text-primary-color);
   font-size: var(--text-body);
   line-height: var(--leading-normal);
 }
-.next-step__note > span:first-child { display: grid; margin-top: 3px; color: var(--status-success); }
-.next-step__note svg { width: 14px; height: 14px; }
+.next-step__note > span:first-child { display: grid; margin-top: var(--space-1); color: var(--status-success); }
+.next-step__note svg { width: var(--icon-row); height: var(--icon-row); }
 .next-step__note--stopped > span:first-child { color: var(--status-danger); }
 /* What comes after this step: one quiet line under the hint, an arrow and
    the secondary ink, so the card keeps one colour and one call to action. */
 .next-step__then {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   margin: 2px 0 0;
   color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
-.next-step__then svg { width: 13px; height: 13px; flex-shrink: 0; }
+.next-step__then svg { width: var(--icon-row); height: var(--icon-row); flex-shrink: 0; }
 /* The arrow points on to what comes after, in time with the glyph's breath:
    the same duration, two small steps forward while the halo grows, then
    still. Transform only, so nothing around it moves. */
@@ -259,7 +259,7 @@
   gap: var(--space-2);
   margin-left: auto;
 }
-.next-step__actions svg { width: 15px; height: 15px; flex-shrink: 0; }
+.next-step__actions svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; }
 /* Overlaps, and a check that failed, are the one primary that leaves the
    accent: the action there is not "go on" but "stop and decide". */
 .next-step .primary-button.next-step__primary--blocked {
@@ -312,13 +312,13 @@
 }
 /* The card's glyph, like the side column's: the secondary ink, sized to its
    larger title. Both cards beside each other carry one. */
-.overview-history__glyph { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
-.overview-history__refreshing { width: 14px; height: 14px; color: var(--text-secondary-color); }
+.overview-history__glyph { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; color: var(--text-secondary-color); }
+.overview-history__refreshing { width: var(--icon-row); height: var(--icon-row); color: var(--text-secondary-color); }
 .overview-history__all {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 32px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border: 0;
@@ -337,7 +337,7 @@
   background: var(--surface-hover);
   color: var(--text-primary-color);
 }
-.overview-history__all svg { width: 15px; height: 15px; }
+.overview-history__all svg { width: var(--icon-control); height: var(--icon-control); }
 
 /* ---- The timeline ----
    One rail runs the whole list, in the divider colour — the same rail the
@@ -381,7 +381,7 @@
   align-items: center;
   gap: var(--space-3);
   min-height: 36px;
-  padding: 0 var(--space-2) 0 6px;
+  padding: 0 var(--space-2) 0 var(--space-2);
   background: var(--surface-panel);
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
@@ -418,7 +418,7 @@
   grid-template-columns: 24px minmax(0, 1fr) 16px;
   align-items: center;
   gap: var(--space-3);
-  padding: 6px var(--space-2) 6px 6px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-2);
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
@@ -447,7 +447,7 @@
 .overview-history__row:hover .overview-history__node,
 .overview-history__row:focus-visible .overview-history__node {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5.5px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  box-shadow: 0 0 0 3px var(--surface-panel), 0 0 0 5.5px color-mix(in srgb, var(--accent-primary) var(--tint-halo-focus), transparent);
 }
 .overview-history__row:active .overview-history__node { transform: scale(.94); }
 /* The node's shape says where the version stands, so the rows need no fill
@@ -458,7 +458,7 @@
   border-color: var(--node-fill);
   background: var(--node-fill);
 }
-.overview-history__body { min-width: 0; display: grid; gap: 3px; }
+.overview-history__body { min-width: 0; display: grid; gap: var(--space-1); }
 .overview-history__subject {
   overflow: hidden;
   font-size: var(--text-body);
@@ -471,7 +471,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   overflow: hidden;
   color: var(--text-secondary-color);
   font-size: var(--text-caption);
@@ -483,7 +483,7 @@
 .overview-history__date { flex: 0 0 auto; }
 /* Every chevron in the card — the rows', "Now"'s and "View all"'s — ends
    the same --space-2 in from its row's edge, so they stand in one column. */
-.overview-history__chevron { justify-self: end; width: 15px; height: 15px; color: var(--text-secondary-color); }
+.overview-history__chevron { justify-self: end; width: var(--icon-control); height: var(--icon-control); color: var(--text-secondary-color); }
 
 /* The versions still only on this computer: one group under one quiet label
    — the count the old band said, drawn where the versions are. It has no fill:
@@ -492,7 +492,7 @@
    are half filled. */
 .overview-timeline__group {
   min-width: 0;
-  padding: 2px 0 4px;
+  padding: 2px 0 var(--space-1);
   border-radius: var(--radius-control);
 }
 .overview-timeline__group .overview-history__node,
@@ -508,7 +508,7 @@
 .overview-timeline__mark {
   display: flex;
   margin: 0;
-  padding: var(--space-2) var(--space-2) 2px 6px;
+  padding: var(--space-2) var(--space-2) 2px var(--space-2);
 }
 /* Versions waiting on the remote, above "now" — where they stand in time —
    in the remote's blue with a dashed node, and the way to get them. */
@@ -520,7 +520,7 @@
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) 6px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-2);
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
@@ -543,14 +543,14 @@
   background: var(--surface-panel);
   box-shadow: 0 0 0 3px var(--surface-panel);
 }
-.overview-timeline__incoming-text { min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
+.overview-timeline__incoming-text { min-width: 0; display: flex; align-items: center; gap: var(--space-2); overflow: hidden; white-space: nowrap; }
 .overview-timeline__incoming-where { color: var(--text-primary-color); font-family: var(--font-mono); font-size: var(--text-label); font-weight: var(--weight-heading); }
 .overview-timeline__incoming-text strong { color: var(--status-renamed); font-weight: var(--weight-heading); }
 .overview-timeline__incoming-action {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 24px;
+  gap: var(--space-1);
+  min-height: var(--control-height-xs);
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
@@ -558,7 +558,7 @@
   font-size: var(--text-label);
   font-weight: var(--weight-heading);
 }
-.overview-timeline__incoming-action svg { width: 12px; height: 12px; }
+.overview-timeline__incoming-action svg { width: var(--icon-meta); height: var(--icon-meta); }
 
 /* Where it can be published, the node *is* the action — but only under the
    pointer or focus: a pressable 22px circle laid over the row's own node,
@@ -573,8 +573,8 @@
   z-index: 2;
   top: 50%;
   left: 7px;
-  width: 22px;
-  height: 22px;
+  width: var(--icon-button-inline);
+  height: var(--icon-button-inline);
   padding: 0;
   display: grid;
   place-items: center;
@@ -592,9 +592,9 @@
 @media (hover: none) {
   .overview-history__publish { opacity: 1; }
 }
-.overview-history__publish svg { width: 12px; height: 12px; }
-.overview-history__publish:hover { background: color-mix(in srgb, var(--text-primary-color) 11%, var(--surface-control)); }
-.overview-history__publish:active { background: color-mix(in srgb, var(--text-primary-color) 16%, var(--surface-control)); }
+.overview-history__publish svg { width: var(--icon-meta); height: var(--icon-meta); }
+.overview-history__publish:hover { background: color-mix(in srgb, var(--text-primary-color) var(--tint-fill), var(--surface-control)); }
+.overview-history__publish:active { background: color-mix(in srgb, var(--text-primary-color) var(--tint-fill-hover), var(--surface-control)); }
 .overview-history__publish:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 /* A publishable row's own node stays as it is under the pointer: the circle
    above is the change, and an accent node fading in beneath it was the
@@ -615,8 +615,8 @@
   font-size: var(--text-body);
   text-align: left;
 }
-.overview-history__state > svg { width: 20px; height: 20px; flex-shrink: 0; }
-.overview-history__state strong { display: block; margin-bottom: 3px; color: var(--text-primary-color); }
+.overview-history__state > svg { width: var(--icon-tile); height: var(--icon-tile); flex-shrink: 0; }
+.overview-history__state strong { display: block; margin-bottom: var(--space-1); color: var(--text-primary-color); }
 .overview-history__state p { margin: 0; line-height: var(--leading-normal); }
 .overview-history__state--error > svg { color: var(--status-danger); }
 .overview-history__state--error .secondary-button { margin-top: var(--space-2); }
@@ -645,7 +645,7 @@
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) 6px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-2);
 }
 .overview-now--active {
   grid-template-columns: 24px auto minmax(0, 1fr) 16px;
@@ -686,13 +686,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   margin: 0;
   color: var(--text-secondary-color);
   font-size: var(--text-body);
   line-height: var(--leading-snug);
 }
-.overview-now__title svg { width: 14px; height: 14px; }
+.overview-now__title svg { width: var(--icon-row); height: var(--icon-row); }
 /* The count is ink: the dashed node already says "unsaved" in its tone, and
    repeating the amber in the words made one fact two signals. Overlaps and
    errors keep their tone in the words too — those are a reason to stop. */
@@ -703,13 +703,13 @@
 .overview-now--quiet .overview-now__label { color: var(--text-secondary-color); font-weight: var(--weight-medium); }
 .overview-now--error .overview-now__title svg { color: var(--status-danger); }
 /* The kinds of change as glyph counts, in the Changes rows' own colours. */
-.overview-now__kinds { min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.overview-now__kinds { min-width: 0; display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .overview-now__kind {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 22px;
-  padding: 0 7px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--surface-panel);
   color: var(--text-secondary-color);
@@ -717,21 +717,21 @@
   font-weight: var(--weight-heading);
   font-variant-numeric: tabular-nums;
 }
-.overview-now__kind svg { width: 12px; height: 12px; }
+.overview-now__kind svg { width: var(--icon-meta); height: var(--icon-meta); }
 .overview-now__kind--new svg { color: var(--status-success); }
 .overview-now__kind--deleted svg { color: var(--status-danger); }
 .overview-now__kind--renamed svg { color: var(--status-renamed); }
 .overview-now__kind--conflicted svg { color: var(--status-warning); }
-.overview-now__chevron { justify-self: end; width: 15px; height: 15px; color: var(--text-secondary-color); }
+.overview-now__chevron { justify-self: end; width: var(--icon-control); height: var(--icon-control); color: var(--text-secondary-color); }
 .overview-now__stale {
   grid-column: 2 / -1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   color: var(--status-warning);
   font-size: var(--text-caption);
 }
-.overview-now__stale svg { width: 13px; height: 13px; }
+.overview-now__stale svg { width: var(--icon-row); height: var(--icon-row); }
 .overview-now__link {
   margin-top: var(--space-1);
   padding: 0;
@@ -768,7 +768,7 @@
    size, glyph and link — so the two read as sibling cards. The glyph stays
    in the secondary ink, whatever the step: the step's colour belongs to the
    next-step card alone. */
-.overview-detail__head > svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary-color); }
+.overview-detail__head > svg { width: var(--icon-control); height: var(--icon-control); flex-shrink: 0; color: var(--text-secondary-color); }
 .overview-detail__head h2 {
   min-width: 0;
   margin: 0;
@@ -785,7 +785,7 @@
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 32px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border: 0;
@@ -798,7 +798,7 @@
   white-space: nowrap;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
-.overview-detail__link svg { width: 15px; height: 15px; }
+.overview-detail__link svg { width: var(--icon-control); height: var(--icon-control); }
 .overview-detail__link:hover { background: var(--surface-hover); color: var(--text-primary-color); }
 /* Scrolled to the end of what you'll save: the rest is this link away, as
    "View all" at the end of the timeline. */
@@ -847,7 +847,7 @@
   grid-template-columns: 16px auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
-  padding: 5px 6px;
+  padding: var(--space-1) var(--space-2);
   border: 0;
   border-radius: var(--radius-item);
   background: transparent;
@@ -859,14 +859,14 @@
 button.overview-detail__file:hover { background: var(--surface-hover); }
 button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .overview-detail__kind { display: grid; place-items: center; color: var(--text-secondary-color); }
-.overview-detail__kind svg { width: 13px; height: 13px; }
+.overview-detail__kind svg { width: var(--icon-row); height: var(--icon-row); }
 .overview-detail__kind--new { color: var(--status-success); }
 .overview-detail__kind--deleted { color: var(--status-danger); }
 .overview-detail__kind--renamed { color: var(--status-renamed); }
 .overview-detail__kind--conflicted { color: var(--status-warning); }
 .overview-detail__name { overflow: hidden; font-weight: var(--weight-strong); text-overflow: ellipsis; white-space: nowrap; }
 .overview-detail__dir { min-width: 0; overflow: hidden; color: var(--text-secondary-color); font-size: var(--text-caption); text-overflow: ellipsis; white-space: nowrap; }
-.overview-detail__more { padding: 4px 6px 0 30px; color: var(--text-secondary-color); font-size: var(--text-caption); }
+.overview-detail__more { padding: var(--space-1) var(--space-2) 0 var(--space-6); color: var(--text-secondary-color); font-size: var(--text-caption); }
 .overview-detail__state {
   display: flex;
   align-items: center;
@@ -875,7 +875,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   color: var(--text-secondary-color);
   font-size: var(--text-label);
 }
-.overview-detail__state svg { width: 14px; height: 14px; }
+.overview-detail__state svg { width: var(--icon-row); height: var(--icon-row); }
 .overview-detail__state--error svg { color: var(--status-warning); }
 /* A row before its file or version is read, at the real row's measures. */
 .overview-detail__placeholder-row {
@@ -883,7 +883,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   grid-template-columns: 16px auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
-  padding: 5px 6px;
+  padding: var(--space-1) var(--space-2);
   font-size: var(--text-label);
 }
 .overview-detail__placeholder-row .text-placeholder:nth-child(2) { min-width: 5em; }
@@ -897,7 +897,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   grid-template-columns: 16px auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
-  padding: 5px 6px;
+  padding: var(--space-1) var(--space-2);
   font-size: var(--text-label);
 }
 .overview-detail__incoming {
@@ -929,10 +929,10 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.overview-detail--compact .overview-detail__head > svg { width: 14px; height: 14px; }
+.overview-detail--compact .overview-detail__head > svg { width: var(--icon-row); height: var(--icon-row); }
 .overview-detail--compact .overview-detail__head h2 { font-size: var(--text-body); }
 .overview-detail--compact .overview-detail__link { min-height: 28px; }
-.overview-detail--compact .overview-detail__file { padding-block: 3px; }
+.overview-detail--compact .overview-detail__file { padding-block: var(--space-1); }
 
 /* Launch restore's stand-in (`OverviewPlaceholder`): the project's tile, its
    name, where it lives and the header's two buttons, at their own sizes. */
@@ -945,9 +945,9 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
 .overview-placeholder__name { min-width: 8em; }
 /* The folder and settings buttons' round places, beside the name: the
    buttons' own box and spacing, with the faint disc inset to the glyph's size. */
-.overview-placeholder__tool { margin-block: 0; padding: 5px; background-clip: content-box; }
+.overview-placeholder__tool { margin-block: 0; padding: var(--space-1); background-clip: content-box; }
 /* The timeline chip's place at the head of the rows. */
-.overview-placeholder__chip { width: 140px; height: 24px; margin-block: 0; }
+.overview-placeholder__chip { width: 140px; height: var(--control-height-xs); margin-block: 0; }
 /* Text runs stand in a line box of their own height, so a row is as tall
    before it is read as after. */
 .next-step__title > .text-placeholder,
@@ -984,7 +984,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
   .overview-history__stale { flex-shrink: 0; }
   /* Reaches 6px into the card's padding — the gutter of .auto-hide-scrollbar
      — so the scroll below can put its bar there without being clipped. */
-  .overview-history__fit { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-inline-end: -6px; padding-inline-end: 6px; }
+  .overview-history__fit { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; margin-inline-end: calc(-1 * var(--space-2)); padding-inline-end: var(--space-2); }
   .overview-history__fit > * { flex-shrink: 0; }
   /* The versions scroll under a pinned "now", fading out at the bottom while
      there is more below. The scroll padding keeps a focused row clear of the
@@ -997,7 +997,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
     scrollbar-gutter: stable;
     /* Its gutter sits in that padding, so the rows keep the width of "Now"
        and the header above. */
-    margin-inline-end: -6px;
+    margin-inline-end: calc(-1 * var(--space-2));
     scroll-padding-top: 40px;
     scroll-padding-bottom: 28px;
   }
@@ -1069,7 +1069,7 @@ button.overview-detail__file:focus-visible { outline: 2px solid var(--focus-ring
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    margin-inline-end: -6px;
+    margin-inline-end: calc(-1 * var(--space-2));
     scroll-padding-bottom: 28px;
   }
   .overview-detail__files--scroll button.overview-detail__file:focus-visible { outline-offset: -2px; }
