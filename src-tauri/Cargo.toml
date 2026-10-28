@@ -1,6 +1,6 @@
 [package]
 name = "gitodile"
-version = "0.4.1"
+version = "0.5.0"
 description = "The Git client for humans and their agents"
 authors = ["Luis M. Martínez"]
 edition = "2021"

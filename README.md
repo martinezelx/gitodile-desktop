@@ -9,7 +9,7 @@ Linux. It is designed for learners, AI-assisted builders, designers, writers,
 and developers who want a calmer workflow without losing access to Git's
 technical truth.
 
-Current development version: **0.4.1**.
+Current development version: **0.5.0**.
 This candidate has not been tagged or published yet.
 
 Source repository: [martinezelx/gitodile-desktop](https://github.com/martinezelx/gitodile-desktop).
