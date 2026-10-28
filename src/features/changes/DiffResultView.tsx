@@ -78,7 +78,10 @@ function EmptyDiffNote({
   );
 }
 
-function DiffLineRow({ line, highlight, t }: { line: DiffLine; highlight: HighlightLine | null; t: Translations }): React.JSX.Element {
+/* Memoized, as is `DiffSplitCell`: the virtualizer re-renders the body on every
+   scroll step, and each row's props are stable, so without it every visible
+   line was tokenized again per frame (task 209). */
+const DiffLineRow = React.memo(function DiffLineRow({ line, highlight, t }: { line: DiffLine; highlight: HighlightLine | null; t: Translations }): React.JSX.Element {
   const sign = line.kind === "addition" ? "+" : line.kind === "deletion" ? "-" : " ";
   const label =
     line.kind === "addition" ? t.changesLineAddedLabel : line.kind === "deletion" ? t.changesLineRemovedLabel : null;
@@ -98,7 +101,7 @@ function DiffLineRow({ line, highlight, t }: { line: DiffLine; highlight: Highli
       <span className="diff-line__content">{highlight ? highlight(line.content) : line.content}</span>
     </div>
   );
-}
+});
 
 /** The run of unchanged lines sitting between this hunk and the previous one
  * (or the start of the file, for the first hunk) — computed from the same
@@ -545,7 +548,7 @@ export function measureDiffRowHeight(element: HTMLElement): number {
  * out and paint every line up front just to show the first screenful,
  * which is the actual source of "it's a bit laggy to open" — not the Git
  * read, which the caching/prefetch/batching above already made fast. */
-function DiffSplitCell({
+const DiffSplitCell = React.memo(function DiffSplitCell({
   line,
   side,
   highlight,
@@ -581,7 +584,7 @@ function DiffSplitCell({
       </span>
     </>
   );
-}
+});
 
 /** The "Show N unchanged lines" control that opens a gap between hunks.
  * A button rather than a static caption because the lines behind it are

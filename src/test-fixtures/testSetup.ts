@@ -4,6 +4,14 @@ import "@testing-library/jest-dom/vitest";
 // make sense where jsdom provides elements.
 const hasDom = typeof Element !== "undefined";
 
+// The app's bootstrap loads the active dictionary before the first render;
+// component tests render `LanguageProvider` directly, so both languages are
+// loaded here instead. Node tests read dictionaries from their own modules.
+if (hasDom) {
+  const { loadTranslations } = await import("../i18n");
+  await Promise.all([loadTranslations("en"), loadTranslations("es")]);
+}
+
 // jsdom has no real layout engine, so every element reports a zero-size
 // bounding rect by default. `@tanstack/react-virtual` (used by the diff
 // viewer in `changes.tsx` to render only on-screen lines of a large file)

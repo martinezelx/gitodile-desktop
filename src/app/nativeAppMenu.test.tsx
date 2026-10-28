@@ -1,6 +1,7 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appTranslations } from "./translations";
+import { en } from "./translations.en";
+import { es } from "./translations.es";
 import {
   appMenuShape,
   isAppMenuCommandEnabled,
@@ -17,7 +18,7 @@ import {
 afterEach(cleanup);
 
 function labelsFor(language: "en" | "es"): AppMenuLabels {
-  const t = appTranslations[language];
+  const t = { en, es }[language];
   return {
     about: "About GitOdile",
     checkUpdates: "Check for updates",

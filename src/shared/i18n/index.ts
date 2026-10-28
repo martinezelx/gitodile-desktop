@@ -5,7 +5,7 @@
  * into one of those strings. Consumers import this file, never a module inside
  * the directory.
  */
-export { sharedTranslations, type SharedTranslations } from "./translations";
+export type { SharedTranslations } from "./translations";
 export { APP_ERROR_CODES, isAppError, localizeAppError, type AppError } from "./appError";
 export {
   DATE_FORMATS,

@@ -1,29 +1,6 @@
-const en = {
-  azureTitle: "Connect Azure Repos",
-  azureMenuToken: "With a personal access token",
-  azureOrganization: "Azure organization",
-  azureOrganizationHelp: "Enter the organization name or https://dev.azure.com/organization. Azure DevOps Services only; company servers and repository browsing are not available yet.",
-  azureOrganizationInvalid: "Enter an organization name using letters, numbers and hyphens, or its dev.azure.com address.",
-  azureContinue: "Continue",
-  azureToken: "Personal access token (PAT)",
-  azureConnect: "Check and connect",
-  azureConnected: "Azure token checked and saved. Paste a repository URL to clone, or choose the connection in project settings.",
-  azureExists: "This account already has a token for this organization. Remove it before replacing it.",
-  azureLimit: "Use a PAT for this organization, never your password. Up to 8 organizations and 8 tokens per organization.",
-  azureLimitReached: "Check the organization name and the connection limit (8 organizations, 8 tokens each). Remove an unused token if needed and switch its projects to existing Git access.",
-  azurePermissionsTitle: "Where do I create it, and which permissions does it need?",
-  azurePermissions: "In your Azure organization, open User settings → Personal access tokens. Choose this organization and Code: Read to clone and get changes, or Code: Read & write to publish too. Choose a short expiry and replace the token when it expires. Your organization may restrict PATs. Connecting checks your identity; repository and branch permissions are checked when you use them.",
-  azureStorage: "The token is sent only to this Azure organization for checking and saved in your system's secure store. It is never saved in the repository URL.",
-  azureRemovalTitle: "Remove the Azure token for {login}?",
-  azureRemovalConsent: "Projects using this connection will need another connection. The token remains valid at Azure until you revoke it there.",
-  azureRemove: "Remove token",
-  azureRemoved: "Azure token removed.",
-  azureFailed: "Couldn't check the Azure token. Check the organization, token, permissions and connection.",
-  azureChecking: "Checking with Azure…",
-  azureDescription: "Connect each Azure organization with a PAT, then clone by URL. Choose a connection in project settings to get and publish changes. Microsoft browser login and repository browsing are not available yet.",
-  azureChips: { signed_out: "Not connected", checking: "In progress", connected: "Connected", invalid: "Reconnect", unchecked: "Not checked" },
-};
-const es: typeof en = {
+import type { en } from "./translations.en";
+
+export const es: typeof en = {
   azureTitle: "Conectar Azure Repos",
   azureMenuToken: "Con un token de acceso personal",
   azureOrganization: "Organización de Azure",
@@ -48,4 +25,3 @@ const es: typeof en = {
   azureDescription: "Conecta cada organización de Azure con un PAT y clona por URL. Elige una conexión en los ajustes del proyecto para obtener y publicar cambios. El inicio de sesión con Microsoft y el selector de repositorios aún no están disponibles.",
   azureChips: { signed_out: "Sin conectar", checking: "En curso", connected: "Conectada", invalid: "Reconectar", unchecked: "Sin comprobar" },
 };
-export const azureTranslations = { en, es };

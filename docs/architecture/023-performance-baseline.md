@@ -282,8 +282,8 @@ new ADR deliberately changes the budget.
 | Measure | Baseline | Warning | Failure |
 | --- | ---: | ---: | ---: |
 | Git processes before first content frame | 0 | none | > 0 |
-| Entry JS raw (`pnpm run build`) | 360.36 kB | > 378 kB | > 397 kB |
-| Entry JS gzip | 104.60 kB | > 110 kB | > 116 kB |
+| Entry JS raw (`pnpm run build`) | 360.36 kB | superseded, see below | superseded, see below |
+| Entry JS gzip | 104.60 kB | superseded, see below | superseded, see below |
 | Changes own chunk raw | 59.86 kB | > 69 kB | > 78 kB |
 | Branches panel + dialog raw | 30.75 kB | > 36 kB | > 42 kB |
 | `fileIcons` raw | 255.22 kB | > 268 kB | > 281 kB |
@@ -446,3 +446,58 @@ for the two contextual interactions; the menu implementation itself remains a
 separate interaction-loaded chunk. Native visual inspection used the current
 dirty repository on Windows at 1182×762 in light theme; the paired headers
 stayed aligned and no persistent per-row action was introduced.
+
+## Task 209 launch-weight re-measurement
+
+Measured on 2026-10-28 on the same Windows machine with the baseline
+`pnpm run build` protocol (Node 24.16.0, Vite 8.3.5, React 19.3.1, Git
+2.55.0.windows.3, Rust 1.99.0). "Eager" is every script `dist/index.html`
+loads or preloads, plus the active language's dictionary, which the bootstrap
+now awaits before the first render. Gzip is `gzip -9` of each file.
+
+| Eager JavaScript | Before task 209 raw | After raw | After gzip |
+| --- | ---: | ---: | ---: |
+| `index` | 542.23 kB | 542.38 kB | 138.08 kB |
+| `vendor` | 483.70 kB | 319.85 kB | 95.13 kB |
+| `ui` | 175.15 kB | 175.15 kB | 55.75 kB |
+| `i18n` | 311.10 kB | 4.05 kB | 1.90 kB |
+| Active dictionary (`en` / `es`) | in `i18n` | 148.86 / 160.18 kB | 41.52 / 44.41 kB |
+| Other preloaded chunks | 55.91 kB | 55.91 kB | 19.33 kB |
+| **Total at launch (Spanish)** | **1,568.09 kB** | **1,257.53 kB** | **354.59 kB** |
+| Global CSS | 393.19 kB | 393.19 kB | 56.47 kB |
+
+The Markdown preview stack left `vendor` for the lazy Changes chunk
+(`ChangesPanel` 48.97 kB to 212.60 kB), and each language became its own
+chunk. A scan of the stylesheets for classes no source file names found 27,
+so the CSS growth since this baseline is real styling rather than dead rules.
+
+The entry-JS budgets of task 023 (warning > 378 kB, failure > 397 kB) compared
+one `index` chunk from before the `vendor` split, and launch JavaScript had
+passed them for several releases. [ADR 0040](../adr/0040-track-launch-javascript-as-a-trend.md)
+replaces them until 1.0: the launch total in the table above is tracked per
+release, growth over 10 % is explained in its task, and only the structural
+launch rules stay failures. This section is the first recorded point of that
+trend.
+
+`open_repository` now spawns 1 Git process for a branch or detached head
+(the code this baseline measured spawned 6; it had already reached 3), and 3
+for an unborn branch.
+
+### App composition-root render breadth
+
+A throwaway jsdom probe (deleted after measuring) rendered the full `App`
+inside a React `Profiler` with one restored project and fed it watcher
+invalidations through a mocked event bus:
+
+| Situation | Commits | Profiler time (jsdom) |
+| --- | ---: | ---: |
+| Idle for 5 s after settle | 1 | 16.4 ms total |
+| One `worktree` invalidation | 3 per event | ~28-30 ms per event |
+| One `head_or_refs` invalidation | 4 per event | ~28-29 ms per event |
+
+The commits are the status check starting, its result and pending versions,
+plus repository identity for a shared change; no command was issued beyond
+the registered subscribers. Because the shell does not re-render while idle
+and watcher bursts are coalesced, the 71 `useState` hooks in `App.tsx` were
+left as they are. jsdom times overstate WebView2's, so they compare probes
+with each other and not with the screen-switch budgets above.

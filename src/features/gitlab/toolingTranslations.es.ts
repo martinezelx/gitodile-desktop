@@ -1,26 +1,4 @@
-const en = {
-  glabActionFailed: "The GitLab CLI action could not be completed. You can open the official instructions and try again.",
-  glabCheckFailed: "Couldn't check whether it is installed.",
-  glabChipCheckFailed: "Unchecked",
-  glabChipInstalled: "Installed",
-  glabChipMissing: "Not installed",
-  glabChipUnusable: "Not responding",
-  glabDescription: "Version 1.120.0 or later is needed to connect through the browser, while tokens work without it. Installing it doesn't sign you in.",
-  glabGuidanceOpened: "The official GitLab CLI instructions were opened.",
-  glabInstall: "Install",
-  glabInstallerLaunched: "The installer has opened. When it finishes, recheck the installed version here.",
-  glabInstructions: "Official GitLab CLI guide",
-  glabMissing: "Not installed on this computer.",
-  glabName: "GitLab tool",
-  glabTitle: "GitLab on your computer",
-  glabUnusable: "It was found, but it is not responding as expected.",
-  glabUpdateCheckFailed: "Couldn't check for a GitLab CLI update. Try again later.",
-  glabUpdateCheckTimedOut: "The GitLab CLI update check took too long. Try again later.",
-  glabUpdateChecking: "Checking for a GitLab CLI update…",
-  glabUpdateUnavailable: "Automatic update checks are unavailable here. Use the official instructions to update GitLab CLI.",
-  glabUpdateUpToDate: "GitLab CLI is up to date.",
-};
-const es = {
+export const es = {
   glabActionFailed: "No se pudo completar la acción de GitLab CLI. Puedes abrir las instrucciones oficiales y volver a intentarlo.",
   glabCheckFailed: "No se pudo comprobar si está instalada.",
   glabChipCheckFailed: "Sin comprobar",
@@ -42,4 +20,3 @@ const es = {
   glabUpdateUnavailable: "Aquí no están disponibles las comprobaciones automáticas de actualizaciones. Usa las instrucciones oficiales para actualizar GitLab CLI.",
   glabUpdateUpToDate: "GitLab CLI está al día.",
 };
-export const gitlabToolingTranslations = { en, es };

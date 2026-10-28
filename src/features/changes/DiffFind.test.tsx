@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { translations } from "../../i18n";
+import { en } from "../../i18n/en";
 import { DiffFind } from "./DiffFind";
 
-const t = translations.en;
+const t = en;
 
 afterEach(cleanup);
 

@@ -14,5 +14,6 @@ the suites stay in proportion.
 
 ## Exit condition
 
-Task 207's acceptance criteria are met and `pnpm run check` passes; 0.5.0
-starts from the faster gate.
+Task 207 meets its acceptance criteria and `pnpm run check` passes; 0.5.0
+starts from the faster gate. Performance polish for this release is complete
+in [209](../done/209-startup-diff-and-refresh-performance.md).

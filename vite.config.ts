@@ -107,8 +107,16 @@ export default defineConfig({
       output: {
         codeSplitting: {
           // Keep third-party runtime code out of the growing eager app shell.
+          // The entry imports `vendor` statically, so it lists only what the
+          // shell needs at launch; anything else stays with the lazy chunk
+          // that imports it (the Markdown stack rides with Changes, task 209).
           // Match both Windows and POSIX paths, including pnpm's nested layout.
-          groups: [{ name: "vendor", test: /[\\/]node_modules[\\/]/ }],
+          groups: [
+            {
+              name: "vendor",
+              test: /[\\/]node_modules[\\/](?:react|react-dom|scheduler|lucide-react|@tauri-apps[\\/][^\\/]+|@tanstack[\\/][^\\/]+)[\\/]/,
+            },
+          ],
         },
       },
     },

@@ -1,23 +1,6 @@
-const en = {
-  accountsTokenRejected: "Token rejected",
-  accountsTokenRejectedHint: "{provider} rejected this saved token. Use Connect account to add a new token, or remove this connection.",
-  accountsCatalogFailed: "Couldn't read saved connections. Try reading them again.",
-  accountsRetryRead: "Retry reading connections",
-  accountsChoose: "Choose a connection", accountsTokenMethod: "Token", accountsBrowserMethod: "Browser", accountsRemove: "Remove",
-  accountsProjectLabel: "Account for HTTPS access",
-  accountsUseGit: "Use existing Git credentials",
-  accountsProjectHelp: "This account is used inside GitOdile for HTTPS. SSH uses your configured keys. Your commit name and email are separate.",
-  accountsUnavailable: "{account} · unavailable", accountsNeedsCheck: "Check connection",
-  accountsCheck: "Check connections", accountsChecking: "Checking connections",
-  accountsFailed: "The account could not be checked or saved. Check the connection and try again.",
-  accountsEmpty: "Connect an account in Settings, then detect it here. Detection contacts the provider.",
-  accountsProjectTitle: "HTTPS access",
-  accountsProjectDescription: "The account GitOdile uses with each server to get changes and publish over HTTPS. It is saved only in GitOdile: SSH keeps using your keys, the author of your versions doesn't change, and your provider CLI's active account isn't switched.",
-  accountsSaved: "Project account saved.", accountsLoading: "Reading project account…",
-  accountsRemoteSignIn: "A remote of this server stores its own sign-in details, so Git uses them instead of this account. See the remote above.",
-  accountsRemoteInsecure: "A remote of this server uses HTTP, and accounts are only sent over HTTPS. Change it to https:// above.",
-};
-const es: Record<keyof typeof en, string> = {
+import type { en } from "./translations.en";
+
+export const es: Record<keyof typeof en, string> = {
   accountsTokenRejected: "Token rechazado",
   accountsTokenRejectedHint: "{provider} ha rechazado este token guardado. Usa Conectar cuenta para añadir otro token o quita esta conexión.",
   accountsCatalogFailed: "No se pudieron leer las conexiones guardadas. Intenta leerlas de nuevo.",
@@ -36,4 +19,3 @@ const es: Record<keyof typeof en, string> = {
   accountsRemoteSignIn: "Un remoto de este servidor guarda sus propios datos de acceso, así que Git los usa en lugar de esta cuenta. Revisa el remoto de arriba.",
   accountsRemoteInsecure: "Un remoto de este servidor usa HTTP y las cuentas solo se envían por HTTPS. Cámbialo a https:// arriba.",
 };
-export const accountsTranslations = { en, es };

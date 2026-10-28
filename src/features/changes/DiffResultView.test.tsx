@@ -2,7 +2,7 @@ import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { translations } from "../../i18n";
+import { en } from "../../i18n/en";
 import { DiffResultView, lineColumns, measureCharWidth, widestRowColumns } from "./DiffResultView";
 import { PictureDiffControls, usePictureDiff } from "./pictureDiff";
 import { DiffPreferencesProvider, DEFAULT_DIFF_PREFERENCES, type DiffPreferences } from "./diffPreferences";
@@ -10,7 +10,7 @@ import type { DiffHunk, FileDiff, ImagePreview, ImagePreviewSide } from "./domai
 
 afterEach(cleanup);
 
-const t = translations.en;
+const t = en;
 
 /** The only change here is indentation, so ignoring whitespace empties it. */
 const indentationHunk: DiffHunk = {

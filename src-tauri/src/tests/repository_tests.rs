@@ -129,10 +129,29 @@ fn open_repository_detects_a_linked_worktree() {
 }
 
 #[test]
-fn open_repository_reports_a_detached_head_without_calling_it_a_branch() {
+fn open_repository_reports_a_branch_and_a_detached_head() {
     let path = unique_temp_dir("detached-head");
     git_init(&path);
     git_commit_empty(&path);
+    // A file called `HEAD` must not make the combined read ambiguous, and a
+    // tag sharing the branch's name must leave the branch named the way
+    // `symbolic-ref --short` names it, as every other read does.
+    fs::write(Path::new(&path).join("HEAD"), "not a ref").expect("write HEAD file");
+    for args in [&["checkout", "-q", "-b", "shared"][..], &["tag", "shared"]] {
+        let status = git_command(&path).args(args).status().expect("run git");
+        assert!(status.success(), "git {args:?} should succeed");
+    }
+    let branch = git_command(&path)
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .output()
+        .expect("read the branch");
+    let info = open_repository(path.clone(), None).expect("a repository on a branch should open");
+    assert_eq!(info.head_state, HeadState::Branch);
+    assert_eq!(
+        info.branch.as_deref(),
+        Some(String::from_utf8_lossy(&branch.stdout).trim())
+    );
+
     let status = git_command(&path)
         .args(["checkout", "--detach", "-q"])
         .status()

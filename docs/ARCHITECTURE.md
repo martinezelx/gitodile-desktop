@@ -271,10 +271,14 @@ Document-root choreography that no single component owns — the view-transition
 pseudo-elements behind a theme change — sits in `styles/`, not in the sheet of
 whichever control happens to trigger it.
 
-English and Spanish dictionaries stay beside their owner and are composed in
-`src/i18n/index.tsx`. Exact typed locale objects make missing, extra, or incompatible
-keys a compile-time error. Shared errors/actions belong in `shared/i18n`; shell
-copy belongs in `app/translations.ts`.
+English and Spanish dictionaries stay beside their owner, one module per
+language (`translations.en.ts`, `translations.es.ts`) with the interface in
+`translations.ts`, and are composed per language in `src/i18n/en.ts` and
+`src/i18n/es.ts`. Each language is its own chunk: the bootstrap awaits only the
+active one before the first render, and a language switch keeps the current
+copy until the other has loaded. Exact typed locale objects make missing,
+extra, or incompatible keys a compile-time error. Shared errors/actions belong
+in `shared/i18n`; shell copy belongs in `app/translations.*.ts`.
 
 ## Rust ownership
 
@@ -824,7 +828,9 @@ and installed A-to-B qualification/target enablement remain exclusively with
   reaching sideways into each other, and verify the IPC/policy inventory.
 
 Performance comparison protocol and retained budgets live in the
-[`architecture baseline`](architecture/023-performance-baseline.md). Enable
+[`architecture baseline`](architecture/023-performance-baseline.md). Launch
+JavaScript size is tracked per release rather than budgeted until 1.0
+([ADR 0040](adr/0040-track-launch-javascript-as-a-trend.md)). Enable
 `VITE_PROFILE_SCREEN_SWITCHES=true` only while profiling; instrumentation is
 absent from normal development and production builds.
 

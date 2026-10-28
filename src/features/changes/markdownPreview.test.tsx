@@ -1,7 +1,8 @@
 import React, { StrictMode } from "react";
 import { act, cleanup, fireEvent, render as renderInHost, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { translations } from "../../i18n";
+import { en } from "../../i18n/en";
+import { es } from "../../i18n/es";
 import { createScreenLifecycleController, ScreenLifecycleProvider } from "../../runtime/screen/module";
 import { canPreviewMarkdown, type FileDiff, type MarkdownPreview } from "./domain";
 import { MarkdownPreviewView, useMarkdownPreview } from "./markdownPreview";
@@ -9,7 +10,7 @@ import { DiffViewSelector } from "./DiffViewSelector";
 import { buildMarkdownExcerpt, buildUnifiedMarkdown } from "./markdownChanges";
 
 afterEach(cleanup);
-const t = translations.en;
+const t = en;
 const diff: FileDiff = { kind: "text", path: "README.MD", originalPath: null, change: "changed", hunks: [], truncated: false };
 function render(ui: React.ReactNode) {
   const lifecycle = createScreenLifecycleController("active");
@@ -117,9 +118,9 @@ describe("Markdown document rendering", () => {
     expect(screen.getByText(t.changesMarkdownEmpty)).toBeInTheDocument();
     rerender(<MarkdownPreviewView state={{ status: "ready", preview: { kind: "too-large", limitBytes: 131072 } }} retry={retry} t={t} />);
     expect(screen.getByRole("status")).toHaveTextContent("128 KiB");
-    rerender(<MarkdownPreviewView state={{ status: "error" }} retry={retry} t={translations.es} />);
-    expect(screen.getByRole("alert")).toHaveTextContent(translations.es.changesMarkdownError);
-    fireEvent.click(screen.getByRole("button", { name: translations.es.changesDiffRetry }));
+    rerender(<MarkdownPreviewView state={{ status: "error" }} retry={retry} t={es} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(es.changesMarkdownError);
+    fireEvent.click(screen.getByRole("button", { name: es.changesDiffRetry }));
     expect(retry).toHaveBeenCalledOnce();
   });
 
