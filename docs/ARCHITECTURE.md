@@ -1125,6 +1125,10 @@ claims.
 
 ### Application icon and Windows shortcuts
 
+The same generator writes the README's light/dark SVGs under `docs/readme/`,
+using the Home mascot geometry with transparent belly, toes and eyes.
+`check:icons` checks these exports alongside the application artwork.
+
 `scripts/icons/mascot.mjs` is the only hand-maintained icon source. It holds
 the mascot as one drawing (ADR 0031), built from the traced shapes in
 `scripts/icons/mascot-shapes.mjs`, and crops it two ways: the whole body and
